@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Play, Check, Trophy, Users, BarChart3, AlertCircle } from 'lucide-react'
+import { ChevronLeft, Play, Check, Trophy, Users, BarChart3, AlertCircle, Share2 } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
+import { EventShareSheet } from './EventShareSheet'
 import { db } from '../../services/db'
 import {
   generatePairings,
@@ -25,6 +26,7 @@ export function TournamentLivePage() {
     pairing: TournamentPairing
   } | null>(null)
   const [modalScore, setModalScore] = useState<[number, number]>([0, 0])
+  const [showShareSheet, setShowShareSheet] = useState(false)
 
   const loadTournament = useCallback(async () => {
     if (!id) return
@@ -162,11 +164,22 @@ export function TournamentLivePage() {
             {tournament.format.toUpperCase()} · {tournament.matchType.toUpperCase()} · {tournament.players.length} jugadores
           </p>
         </div>
-        {isFinished ? (
-          <Badge variant="default">FINALIZADO</Badge>
-        ) : (
-          <Badge variant="green">ACTIVO</Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {!isFinished && (
+            <button
+              onClick={() => setShowShareSheet(true)}
+              className="w-9 h-9 rounded-lg bg-swu-accent/10 flex items-center justify-center active:bg-swu-accent/20 transition-colors"
+              title="Compartir evento"
+            >
+              <Share2 size={16} className="text-swu-accent" />
+            </button>
+          )}
+          {isFinished ? (
+            <Badge variant="default">FINALIZADO</Badge>
+          ) : (
+            <Badge variant="green">ACTIVO</Badge>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
@@ -331,6 +344,15 @@ export function TournamentLivePage() {
             )
           })}
         </div>
+      )}
+
+      {/* Share Sheet */}
+      {showShareSheet && tournament && (
+        <EventShareSheet
+          eventCode={tournament.id.slice(0, 8).toUpperCase()}
+          eventName={tournament.name}
+          onClose={() => setShowShareSheet(false)}
+        />
       )}
 
       {/* Result Modal */}
