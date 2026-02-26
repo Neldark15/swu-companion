@@ -2,11 +2,11 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { Home, Swords, Calendar, BookOpen, User } from 'lucide-react'
 
 const tabs = [
-  { id: '/', label: 'Home', icon: Home },
-  { id: '/play', label: 'Play', icon: Swords },
-  { id: '/events', label: 'Events', icon: Calendar },
+  { id: '/', label: 'Inicio', icon: Home },
+  { id: '/play', label: 'Jugar', icon: Swords },
+  { id: '/events', label: 'Eventos', icon: Calendar },
   { id: '/decks', label: 'Decks', icon: BookOpen },
-  { id: '/profile', label: 'Profile', icon: User },
+  { id: '/profile', label: 'Perfil', icon: User },
 ]
 
 export function TabBar() {

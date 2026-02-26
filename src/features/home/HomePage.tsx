@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
-import { Swords, Trophy, Layers, Dice6, ExternalLink } from 'lucide-react'
+import { Swords, Trophy, Layers, Dice6, ExternalLink, User, LogIn } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
+import { useAuth } from '../../hooks/useAuth'
 
 const quickActions = [
   { icon: Swords, label: 'Nueva Partida', color: 'text-swu-green', bg: 'bg-swu-green/10', to: '/play' },
@@ -58,9 +59,40 @@ const tagVariant: Record<string, 'amber' | 'green' | 'accent' | 'purple' | 'defa
 
 export function HomePage() {
   const navigate = useNavigate()
+  const { currentProfile } = useAuth()
 
   return (
     <div className="p-4 space-y-5">
+      {/* Profile / Login Button */}
+      {currentProfile ? (
+        <button
+          onClick={() => navigate('/profile')}
+          className="w-full bg-swu-surface border border-swu-border rounded-xl p-3 flex items-center gap-3 active:scale-[0.98] transition-transform"
+        >
+          <div className="w-10 h-10 rounded-full bg-swu-accent/20 flex items-center justify-center text-xl">
+            {currentProfile.avatar || '🎮'}
+          </div>
+          <div className="flex-1 text-left">
+            <p className="text-sm font-bold text-swu-text">{currentProfile.name}</p>
+            <p className="text-[11px] text-swu-muted">Ver mi perfil</p>
+          </div>
+          <User size={18} className="text-swu-muted" />
+        </button>
+      ) : (
+        <button
+          onClick={() => navigate('/profile')}
+          className="w-full bg-gradient-to-r from-swu-accent/20 to-swu-amber/20 border border-swu-accent/40 rounded-xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform"
+        >
+          <div className="w-10 h-10 rounded-full bg-swu-accent/30 flex items-center justify-center">
+            <LogIn size={20} className="text-swu-accent" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="text-sm font-bold text-swu-accent">Iniciar Sesión</p>
+            <p className="text-[11px] text-swu-muted">Ingrese o cree su cuenta para guardar progreso</p>
+          </div>
+        </button>
+      )}
+
       {/* Hero Banner */}
       <div className="relative rounded-2xl overflow-hidden border border-swu-amber/30">
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-black/20 z-10" />
