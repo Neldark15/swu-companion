@@ -1,12 +1,12 @@
 import { useNavigate } from 'react-router-dom'
-import { Swords, Trophy, Layers, Dice6 } from 'lucide-react'
+import { Swords, Trophy, Layers, BookOpen } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 
 const quickActions = [
   { icon: Swords, label: 'Nueva Partida', color: 'text-swu-green', bg: 'bg-swu-green/10', to: '/play' },
   { icon: Trophy, label: 'Torneo Casero', color: 'text-swu-amber', bg: 'bg-swu-amber/10', to: '/events/tournament' },
   { icon: Layers, label: 'Buscar Cartas', color: 'text-swu-accent', bg: 'bg-swu-accent/10', to: '/cards' },
-  { icon: Dice6, label: 'Tirar Dados', color: 'text-purple-400', bg: 'bg-purple-500/10', to: '/utilities' },
+  { icon: BookOpen, label: 'Mis Decks', color: 'text-purple-400', bg: 'bg-purple-500/10', to: '/decks' },
 ]
 
 const news = [

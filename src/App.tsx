@@ -11,6 +11,8 @@ import { TournamentSetupPage } from './features/events/TournamentSetupPage'
 import { TournamentLivePage } from './features/events/TournamentLivePage'
 import { CardsPage } from './features/cards/CardsPage'
 import { CardDetailPage } from './features/cards/CardDetailPage'
+import { DeckListPage } from './features/decks/DeckListPage'
+import { DeckBuilderPage } from './features/decks/DeckBuilderPage'
 import { ProfilePage } from './features/profile/ProfilePage'
 import { SettingsPage } from './features/settings/SettingsPage'
 
@@ -30,6 +32,8 @@ export default function App() {
           <Route path="/events/tournament/:id" element={<TournamentLivePage />} />
           <Route path="/cards" element={<CardsPage />} />
           <Route path="/cards/:id" element={<CardDetailPage />} />
+          <Route path="/decks" element={<DeckListPage />} />
+          <Route path="/decks/:id" element={<DeckBuilderPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/*" element={<SettingsPage />} />

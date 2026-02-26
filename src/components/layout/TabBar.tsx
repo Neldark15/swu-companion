@@ -1,11 +1,11 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Home, Swords, Calendar, Layers, User } from 'lucide-react'
+import { Home, Swords, Calendar, BookOpen, User } from 'lucide-react'
 
 const tabs = [
   { id: '/', label: 'Home', icon: Home },
   { id: '/play', label: 'Play', icon: Swords },
   { id: '/events', label: 'Events', icon: Calendar },
-  { id: '/cards', label: 'Cards', icon: Layers },
+  { id: '/decks', label: 'Decks', icon: BookOpen },
   { id: '/profile', label: 'Profile', icon: User },
 ]
 
@@ -17,6 +17,9 @@ export function TabBar() {
     if (path === '/') return location.pathname === '/'
     return location.pathname.startsWith(path)
   }
+
+  // Hide tab bar on tracker page (face-to-face play)
+  if (location.pathname.includes('/play/tracker/')) return null
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-swu-surface border-t border-swu-border pb-safe">
