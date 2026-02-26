@@ -225,10 +225,44 @@ export function ProfilePage() {
     const profilesWithPasskey = profiles.filter(p => p.credentialId)
     return (
       <div className="p-4 space-y-5 pb-24">
+        {/* Header */}
         <div className="text-center pt-2">
           <User size={40} className="mx-auto text-swu-accent mb-2" />
-          <h2 className="text-lg font-bold text-swu-text">Perfiles</h2>
-          <p className="text-xs text-swu-muted mt-0.5">Seleccione un perfil o cree uno nuevo</p>
+          <h2 className="text-lg font-bold text-swu-text">Bienvenido</h2>
+          <p className="text-xs text-swu-muted mt-0.5">Inicie sesión o cree una cuenta nueva</p>
+        </div>
+
+        {/* Two main action buttons — ALWAYS visible */}
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => {
+              if (profiles.length > 0) {
+                // Show profile list for login
+                setView('select') // Already here, scroll down
+                document.getElementById('profile-list')?.scrollIntoView({ behavior: 'smooth' })
+              } else {
+                setLoginError('No hay cuentas registradas. Cree una cuenta primero.')
+              }
+            }}
+            className="bg-swu-surface rounded-xl p-4 border border-swu-accent/40 flex flex-col items-center gap-2 active:scale-[0.97] transition-transform"
+          >
+            <div className="w-12 h-12 rounded-full bg-swu-accent/20 flex items-center justify-center">
+              <Lock size={22} className="text-swu-accent" />
+            </div>
+            <span className="text-sm font-bold text-swu-accent">Iniciar Sesión</span>
+            <span className="text-[10px] text-swu-muted">Ya tengo cuenta</span>
+          </button>
+
+          <button
+            onClick={goToRegister}
+            className="bg-swu-surface rounded-xl p-4 border border-swu-green/40 flex flex-col items-center gap-2 active:scale-[0.97] transition-transform"
+          >
+            <div className="w-12 h-12 rounded-full bg-swu-green/20 flex items-center justify-center">
+              <UserPlus size={22} className="text-swu-green" />
+            </div>
+            <span className="text-sm font-bold text-swu-green">Crear Cuenta</span>
+            <span className="text-[10px] text-swu-muted">Soy nuevo</span>
+          </button>
         </div>
 
         {/* Quick Passkey Login */}
@@ -244,9 +278,10 @@ export function ProfilePage() {
           <p className="text-sm text-swu-red text-center">{loginError}</p>
         )}
 
-        {/* Profile list */}
+        {/* Existing profiles list */}
         {profiles.length > 0 && (
-          <div className="space-y-2">
+          <div id="profile-list" className="space-y-2">
+            <p className="text-xs font-bold text-swu-muted uppercase tracking-widest">Cuentas en este dispositivo</p>
             {profiles.map((p) => (
               <div key={p.id} className="bg-swu-surface rounded-xl p-3.5 border border-swu-border flex items-center gap-3">
                 <span className="text-3xl">{p.avatar}</span>
@@ -266,8 +301,8 @@ export function ProfilePage() {
                     </button>
                   )}
                   <button onClick={() => startLogin(p)}
-                    className="px-3.5 py-2 rounded-lg bg-swu-accent text-white text-sm font-bold active:scale-95 transition-transform">
-                    <Lock size={14} />
+                    className="px-3.5 py-2 rounded-lg bg-swu-accent text-white text-sm font-bold active:scale-95 transition-transform flex items-center gap-1.5">
+                    <Lock size={14} /> Entrar
                   </button>
                   <button onClick={() => handleDelete(p.id)}
                     className="p-2 rounded-lg bg-swu-red/10 text-swu-red active:scale-95 transition-transform">
@@ -278,19 +313,6 @@ export function ProfilePage() {
             ))}
           </div>
         )}
-
-        {profiles.length === 0 && (
-          <div className="bg-swu-surface rounded-2xl p-8 border border-swu-border text-center space-y-3">
-            <User size={48} className="mx-auto text-swu-muted/40" />
-            <h3 className="text-base font-bold text-swu-text">Sin perfiles</h3>
-            <p className="text-sm text-swu-muted">Cree un perfil para guardar su progreso</p>
-          </div>
-        )}
-
-        <button onClick={goToRegister}
-          className="w-full py-3.5 rounded-xl bg-swu-green text-white font-bold text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-transform">
-          <UserPlus size={20} /> Crear Nueva Cuenta
-        </button>
 
         <button onClick={() => navigate('/')} className="w-full py-2 text-sm text-swu-muted text-center">
           Continuar sin perfil
