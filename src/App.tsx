@@ -6,6 +6,9 @@ import { TrackerPage } from './features/play/TrackerPage'
 import { SavedMatchesPage } from './features/play/SavedMatchesPage'
 import { EventsPage } from './features/events/EventsPage'
 import { JoinEventPage } from './features/events/JoinEventPage'
+import { TournamentListPage } from './features/events/TournamentListPage'
+import { TournamentSetupPage } from './features/events/TournamentSetupPage'
+import { TournamentLivePage } from './features/events/TournamentLivePage'
 import { CardsPage } from './features/cards/CardsPage'
 import { ProfilePage } from './features/profile/ProfilePage'
 import { SettingsPage } from './features/settings/SettingsPage'
@@ -21,6 +24,9 @@ export default function App() {
           <Route path="/play/saved" element={<SavedMatchesPage />} />
           <Route path="/events" element={<EventsPage />} />
           <Route path="/events/join" element={<JoinEventPage />} />
+          <Route path="/events/tournament" element={<TournamentListPage />} />
+          <Route path="/events/tournament/new" element={<TournamentSetupPage />} />
+          <Route path="/events/tournament/:id" element={<TournamentLivePage />} />
           <Route path="/cards" element={<CardsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />

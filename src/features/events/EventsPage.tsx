@@ -24,7 +24,7 @@ export function EventsPage() {
           <p className="text-[11px] text-swu-muted mt-1">Código o QR</p>
         </button>
         <button
-          onClick={() => navigate('/events/tournament')}
+          onClick={() => navigate('/events/tournament/new')}
           className="flex-1 bg-swu-amber/10 border-2 border-swu-amber/30 rounded-2xl p-5 text-center active:scale-[0.97] transition-transform"
         >
           <Trophy size={28} className="mx-auto text-swu-amber mb-2" />
