@@ -13,6 +13,7 @@ import { CardsPage } from './features/cards/CardsPage'
 import { CardDetailPage } from './features/cards/CardDetailPage'
 import { DeckListPage } from './features/decks/DeckListPage'
 import { DeckBuilderPage } from './features/decks/DeckBuilderPage'
+import { UtilitiesPage } from './features/utilities/UtilitiesPage'
 import { ProfilePage } from './features/profile/ProfilePage'
 import { SettingsPage } from './features/settings/SettingsPage'
 
@@ -34,6 +35,7 @@ export default function App() {
           <Route path="/cards/:id" element={<CardDetailPage />} />
           <Route path="/decks" element={<DeckListPage />} />
           <Route path="/decks/:id" element={<DeckBuilderPage />} />
+          <Route path="/utilities" element={<UtilitiesPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/*" element={<SettingsPage />} />

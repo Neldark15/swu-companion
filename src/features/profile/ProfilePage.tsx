@@ -1,30 +1,80 @@
-import { ChevronRight, History, Store, Heart, Star, Inbox } from 'lucide-react'
-
-const stats = [
-  { n: '12', label: 'Partidas' },
-  { n: '3', label: 'Torneos' },
-  { n: '5', label: 'Decks' },
-]
-
-const menuItems = [
-  { icon: History, label: 'Historial de Eventos', desc: 'Ver todos los torneos jugados' },
-  { icon: Store, label: 'Tiendas Favoritas', desc: 'Tiendas guardadas' },
-  { icon: Heart, label: 'Mi Colección', desc: '42 cartas registradas' },
-  { icon: Star, label: 'Wishlist', desc: '8 cartas deseadas' },
-  { icon: Inbox, label: 'Inbox', desc: '2 mensajes nuevos' },
-]
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ChevronRight, History, Heart, Star, Pencil, Layers, BookOpen, Trophy } from 'lucide-react'
+import { db } from '../../services/db'
+import { useSettings } from '../../hooks/useSettings'
 
 export function ProfilePage() {
+  const navigate = useNavigate()
+  const { playerName, setPlayerName } = useSettings()
+  const [editingName, setEditingName] = useState(false)
+
+  const [matchCount, setMatchCount] = useState(0)
+  const [tournamentCount, setTournamentCount] = useState(0)
+  const [deckCount, setDeckCount] = useState(0)
+  const [favCount, setFavCount] = useState(0)
+
+  useEffect(() => {
+    Promise.all([
+      db.matches.count(),
+      db.tournaments.count(),
+      db.decks.count(),
+      db.favoriteCards.count(),
+    ]).then(([m, t, d, f]) => {
+      setMatchCount(m)
+      setTournamentCount(t)
+      setDeckCount(d)
+      setFavCount(f)
+    })
+  }, [])
+
+  const displayName = playerName || 'Jugador'
+  const initial = displayName.charAt(0).toUpperCase()
+
+  const stats = [
+    { n: String(matchCount), label: 'Partidas' },
+    { n: String(tournamentCount), label: 'Torneos' },
+    { n: String(deckCount), label: 'Decks' },
+  ]
+
+  const menuItems = [
+    { icon: History, label: 'Partidas Guardadas', desc: `${matchCount} partidas`, to: '/play/saved' },
+    { icon: Trophy, label: 'Mis Torneos', desc: `${tournamentCount} torneos`, to: '/events/tournament' },
+    { icon: BookOpen, label: 'Mis Decks', desc: `${deckCount} decks`, to: '/decks' },
+    { icon: Layers, label: 'Buscar Cartas', desc: 'Base de datos SWU', to: '/cards' },
+    { icon: Heart, label: 'Favoritos', desc: `${favCount} cartas guardadas`, to: '/cards' },
+    { icon: Star, label: 'Utilidades', desc: 'Dados, moneda, iniciativa', to: '/utilities' },
+  ]
+
+  const saveName = (name: string) => {
+    setPlayerName(name || 'Jugador')
+    setEditingName(false)
+  }
+
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-4 space-y-6 pb-24">
       {/* Avatar + Name */}
       <div className="flex items-center gap-4">
-        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-swu-accent to-swu-amber flex items-center justify-center text-2xl font-bold text-white">
-          N
+        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-swu-accent to-swu-amber flex items-center justify-center text-2xl font-bold text-white flex-shrink-0">
+          {initial}
         </div>
-        <div>
-          <h2 className="text-xl font-bold text-swu-text">Nel</h2>
-          <p className="text-sm text-swu-muted">Jugador desde Feb 2026</p>
+        <div className="flex-1">
+          {editingName ? (
+            <input
+              autoFocus
+              className="bg-swu-surface border border-swu-border rounded-lg px-3 py-2 text-lg text-swu-text font-bold w-full"
+              defaultValue={displayName}
+              onBlur={(e) => saveName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') saveName((e.target as HTMLInputElement).value) }}
+              placeholder="Tu nombre"
+            />
+          ) : (
+            <button onClick={() => setEditingName(true)} className="flex items-center gap-2 group">
+              <h2 className="text-xl font-bold text-swu-text">{displayName}</h2>
+              <Pencil size={14} className="text-swu-muted opacity-0 group-active:opacity-100" />
+            </button>
+          )}
+          <p className="text-sm text-swu-muted">Jugador SWU Companion</p>
         </div>
       </div>
 
@@ -43,7 +93,11 @@ export function ProfilePage() {
         {menuItems.map((m) => {
           const Icon = m.icon
           return (
-            <button key={m.label} className="w-full bg-swu-surface rounded-xl p-3.5 border border-swu-border flex items-center justify-between active:bg-swu-surface-hover transition-colors">
+            <button
+              key={m.label}
+              onClick={() => navigate(m.to)}
+              className="w-full bg-swu-surface rounded-xl p-3.5 border border-swu-border flex items-center justify-between active:bg-swu-bg transition-colors"
+            >
               <div className="flex items-center gap-3">
                 <Icon size={20} className="text-swu-muted" />
                 <div className="text-left">
