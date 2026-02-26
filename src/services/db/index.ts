@@ -4,8 +4,13 @@ import type { MatchState, Tournament, Deck, Card } from '../../types'
 export interface UserProfile {
   id: string
   name: string
-  pin: string
+  email?: string
+  pin?: string               // PBKDF2 hash (migrated from plaintext)
+  pinSalt?: string           // Salt for PBKDF2
+  pinPlain?: string          // Legacy plaintext PIN (migrated on login)
   avatar: string
+  credentialId?: string      // WebAuthn credential ID (base64)
+  credentialPublicKey?: string // WebAuthn public key (base64)
   createdAt: number
 }
 
@@ -41,6 +46,28 @@ export class SWUDatabase extends Dexie {
       collection: 'cardId, profileId',
       wishlist: 'cardId, profileId',
       profiles: 'id, name',
+    })
+
+    // v3: Add email, pinSalt, credentialId fields to profiles
+    this.version(3).stores({
+      matches: 'id, mode, isActive, createdAt, profileId',
+      tournaments: 'id, status, createdAt, profileId',
+      decks: 'id, name, format, createdAt, profileId',
+      cards: 'id, name, type, rarity, setCode, *aspects, *keywords, *traits',
+      favoriteCards: 'cardId, profileId',
+      collection: 'cardId, profileId',
+      wishlist: 'cardId, profileId',
+      profiles: 'id, name, email, credentialId',
+    }).upgrade(async (tx) => {
+      // Migrate plaintext PINs: move pin → pinPlain for lazy hashing on next login
+      const profiles = tx.table('profiles')
+      await profiles.toCollection().modify((profile: UserProfile) => {
+        if (profile.pin && !profile.pinSalt) {
+          profile.pinPlain = profile.pin
+          profile.pin = undefined
+          profile.pinSalt = undefined
+        }
+      })
     })
   }
 }
