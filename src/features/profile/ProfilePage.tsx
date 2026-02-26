@@ -2,43 +2,53 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronRight, History, Heart, Star, Layers, BookOpen, Trophy,
-  LogOut, UserPlus, Lock, User, Trash2, Shield,
+  LogOut, UserPlus, Lock, User, Trash2, Shield, Palette, Settings,
 } from 'lucide-react'
 import { db } from '../../services/db'
 import { useAuth } from '../../hooks/useAuth'
 import type { UserProfile } from '../../services/db'
 
-const avatarOptions = ['🎯', '⚔️', '🛡️', '🚀', '🌟', '💎', '🔥', '🌙', '👾', '🎲']
+const avatarOptions = ['🎯', '⚔️', '🛡️', '🚀', '🌟', '💎', '🔥', '🌙', '👾', '🎲', '🐉', '🦅', '⭐', '🎭', '🏆', '🌀']
 
-type View = 'profile' | 'login' | 'register' | 'select'
+const themeColors = [
+  { id: 'blue', label: 'Azul', class: 'bg-blue-500' },
+  { id: 'red', label: 'Rojo', class: 'bg-red-500' },
+  { id: 'green', label: 'Verde', class: 'bg-green-500' },
+  { id: 'amber', label: 'Dorado', class: 'bg-amber-500' },
+  { id: 'purple', label: 'Púrpura', class: 'bg-purple-500' },
+  { id: 'cyan', label: 'Cian', class: 'bg-cyan-500' },
+]
+
+type View = 'profile' | 'login' | 'register' | 'select' | 'customize'
 
 export function ProfilePage() {
   const navigate = useNavigate()
-  const { currentProfile, profiles, loadProfiles, createProfile, login, logout, deleteProfile } = useAuth()
+  const { currentProfile, profiles, loadProfiles, createProfile, login, logout, deleteProfile, setCurrentProfile } = useAuth()
 
   const [view, setView] = useState<View>(currentProfile ? 'profile' : 'select')
   const [stats, setStats] = useState({ matches: 0, tournaments: 0, decks: 0, favorites: 0 })
 
-  // Register form state
   const [regName, setRegName] = useState('')
   const [regPin, setRegPin] = useState('')
   const [regPinConfirm, setRegPinConfirm] = useState('')
   const [regAvatar, setRegAvatar] = useState('🎯')
   const [regError, setRegError] = useState('')
 
-  // Login form state
   const [loginProfile, setLoginProfile] = useState<UserProfile | null>(null)
   const [loginPin, setLoginPin] = useState('')
   const [loginError, setLoginError] = useState('')
 
-  useEffect(() => {
-    loadProfiles()
-  }, [loadProfiles])
+  // Customization state
+  const [customAvatar, setCustomAvatar] = useState(currentProfile?.avatar || '🎯')
+  const [customName, setCustomName] = useState(currentProfile?.name || '')
+
+  useEffect(() => { loadProfiles() }, [loadProfiles])
 
   useEffect(() => {
     if (currentProfile) {
       setView('profile')
-      // Load stats
+      setCustomAvatar(currentProfile.avatar)
+      setCustomName(currentProfile.name)
       Promise.all([
         db.matches.count(),
         db.tournaments.count(),
@@ -58,25 +68,17 @@ export function ProfilePage() {
     if (regName.trim().length < 2) { setRegError('Nombre muy corto'); return }
     if (regPin.length < 4) { setRegError('El PIN debe tener al menos 4 dígitos'); return }
     if (regPin !== regPinConfirm) { setRegError('Los PIN no coinciden'); return }
-
     await createProfile(regName.trim(), regPin, regAvatar)
-    setRegName('')
-    setRegPin('')
-    setRegPinConfirm('')
+    setRegName(''); setRegPin(''); setRegPinConfirm('')
   }
 
   const handleLogin = async () => {
     setLoginError('')
     if (!loginProfile) return
     if (!loginPin) { setLoginError('Ingrese su PIN'); return }
-
     const ok = await login(loginProfile.id, loginPin)
-    if (!ok) {
-      setLoginError('PIN incorrecto')
-      return
-    }
-    setLoginPin('')
-    setLoginProfile(null)
+    if (!ok) { setLoginError('PIN incorrecto'); return }
+    setLoginPin(''); setLoginProfile(null)
   }
 
   const handleDelete = async (profileId: string) => {
@@ -84,15 +86,23 @@ export function ProfilePage() {
     await deleteProfile(profileId)
   }
 
+  const saveCustomization = async () => {
+    if (!currentProfile) return
+    const updated = { ...currentProfile, name: customName || currentProfile.name, avatar: customAvatar }
+    await db.profiles.put(updated)
+    setCurrentProfile(updated)
+    setView('profile')
+  }
+
   // ─── SELECT PROFILE VIEW ───
   if (view === 'select') {
     return (
       <div className="p-4 space-y-5 pb-24">
         <h2 className="text-lg font-bold text-swu-text">Perfiles</h2>
+        <p className="text-xs text-swu-muted">Puede crear varias cuentas y alternar entre ellas</p>
 
         {profiles.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs text-swu-muted">Seleccione su perfil para ingresar</p>
             {profiles.map((p) => (
               <div key={p.id} className="bg-swu-surface rounded-xl p-4 border border-swu-border flex items-center gap-3">
                 <span className="text-3xl">{p.avatar}</span>
@@ -101,18 +111,9 @@ export function ProfilePage() {
                   <p className="text-[11px] text-swu-muted">Creado: {new Date(p.createdAt).toLocaleDateString()}</p>
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => { setLoginProfile(p); setLoginPin(''); setLoginError(''); setView('login') }}
-                    className="px-4 py-2 rounded-lg bg-swu-accent text-white text-sm font-bold active:scale-95 transition-transform"
-                  >
-                    Entrar
-                  </button>
-                  <button
-                    onClick={() => handleDelete(p.id)}
-                    className="p-2 rounded-lg bg-swu-red/10 text-swu-red active:scale-95 transition-transform"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  <button onClick={() => { setLoginProfile(p); setLoginPin(''); setLoginError(''); setView('login') }}
+                    className="px-4 py-2 rounded-lg bg-swu-accent text-white text-sm font-bold active:scale-95 transition-transform">Entrar</button>
+                  <button onClick={() => handleDelete(p.id)} className="p-2 rounded-lg bg-swu-red/10 text-swu-red active:scale-95 transition-transform"><Trash2 size={16} /></button>
                 </div>
               </div>
             ))}
@@ -127,20 +128,12 @@ export function ProfilePage() {
           </div>
         )}
 
-        <button
-          onClick={() => { setRegName(''); setRegPin(''); setRegPinConfirm(''); setRegError(''); setView('register') }}
-          className="w-full py-3.5 rounded-xl bg-swu-green text-white font-bold text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
-        >
+        <button onClick={() => { setRegName(''); setRegPin(''); setRegPinConfirm(''); setRegError(''); setRegAvatar('🎯'); setView('register') }}
+          className="w-full py-3.5 rounded-xl bg-swu-green text-white font-bold text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-transform">
           <UserPlus size={20} /> Crear Nuevo Perfil
         </button>
 
-        {/* Skip (use without profile) */}
-        <button
-          onClick={() => navigate('/')}
-          className="w-full py-2 text-sm text-swu-muted text-center"
-        >
-          Continuar sin perfil
-        </button>
+        <button onClick={() => navigate('/')} className="w-full py-2 text-sm text-swu-muted text-center">Continuar sin perfil</button>
       </div>
     )
   }
@@ -150,82 +143,42 @@ export function ProfilePage() {
     return (
       <div className="p-4 space-y-5 pb-24">
         <button onClick={() => setView('select')} className="text-sm text-swu-muted">← Volver</button>
-
         <div className="text-center">
           <UserPlus size={40} className="mx-auto text-swu-green mb-2" />
           <h2 className="text-lg font-bold text-swu-text">Crear Perfil</h2>
           <p className="text-xs text-swu-muted mt-0.5">Su perfil guarda partidas, decks y favoritos</p>
         </div>
-
         <div className="bg-swu-surface rounded-2xl p-5 border border-swu-border space-y-4">
-          {/* Avatar selection */}
           <div>
             <p className="text-xs text-swu-muted mb-2">Avatar</p>
             <div className="flex flex-wrap gap-2 justify-center">
               {avatarOptions.map((a) => (
-                <button
-                  key={a}
-                  onClick={() => setRegAvatar(a)}
-                  className={`w-12 h-12 rounded-xl text-2xl flex items-center justify-center border-2 transition-colors ${
-                    regAvatar === a ? 'border-swu-accent bg-swu-accent/20' : 'border-swu-border bg-swu-bg'
-                  }`}
-                >
+                <button key={a} onClick={() => setRegAvatar(a)}
+                  className={`w-11 h-11 rounded-xl text-xl flex items-center justify-center border-2 transition-colors ${regAvatar === a ? 'border-swu-accent bg-swu-accent/20' : 'border-swu-border bg-swu-bg'}`}>
                   {a}
                 </button>
               ))}
             </div>
           </div>
-
-          {/* Name */}
           <div>
             <p className="text-xs text-swu-muted mb-1.5">Nombre de Jugador</p>
-            <input
-              value={regName}
-              onChange={(e) => setRegName(e.target.value)}
-              placeholder="Su nombre o nickname"
-              maxLength={30}
-              className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 text-sm text-swu-text outline-none focus:border-swu-accent"
-            />
+            <input value={regName} onChange={(e) => setRegName(e.target.value)} placeholder="Su nombre o nickname" maxLength={30}
+              className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 text-sm text-swu-text outline-none focus:border-swu-accent" />
           </div>
-
-          {/* PIN */}
           <div>
             <p className="text-xs text-swu-muted mb-1.5">PIN (4+ dígitos)</p>
-            <input
-              type="password"
-              inputMode="numeric"
-              value={regPin}
-              onChange={(e) => setRegPin(e.target.value.replace(/\D/g, ''))}
-              placeholder="••••"
-              maxLength={8}
-              className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 text-lg font-mono tracking-[0.3em] text-center text-swu-text outline-none focus:border-swu-accent"
-            />
+            <input type="password" inputMode="numeric" value={regPin} onChange={(e) => setRegPin(e.target.value.replace(/\D/g, ''))}
+              placeholder="••••" maxLength={8}
+              className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 text-lg font-mono tracking-[0.3em] text-center text-swu-text outline-none focus:border-swu-accent" />
           </div>
-
-          {/* Confirm PIN */}
           <div>
             <p className="text-xs text-swu-muted mb-1.5">Confirmar PIN</p>
-            <input
-              type="password"
-              inputMode="numeric"
-              value={regPinConfirm}
-              onChange={(e) => setRegPinConfirm(e.target.value.replace(/\D/g, ''))}
-              placeholder="••••"
-              maxLength={8}
-              className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 text-lg font-mono tracking-[0.3em] text-center text-swu-text outline-none focus:border-swu-accent"
-            />
+            <input type="password" inputMode="numeric" value={regPinConfirm} onChange={(e) => setRegPinConfirm(e.target.value.replace(/\D/g, ''))}
+              placeholder="••••" maxLength={8}
+              className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 text-lg font-mono tracking-[0.3em] text-center text-swu-text outline-none focus:border-swu-accent" />
           </div>
-
-          {regError && (
-            <p className="text-sm text-swu-red text-center font-medium">{regError}</p>
-          )}
-
-          <button
-            onClick={handleRegister}
-            className="w-full py-3.5 rounded-xl bg-swu-green text-white font-bold text-base active:scale-[0.98] transition-transform"
-          >
-            Crear Perfil
-          </button>
+          {regError && <p className="text-sm text-swu-red text-center font-medium">{regError}</p>}
+          <button onClick={handleRegister} className="w-full py-3.5 rounded-xl bg-swu-green text-white font-bold text-base active:scale-[0.98] transition-transform">Crear Perfil</button>
         </div>
       </div>
     )
@@ -236,46 +189,62 @@ export function ProfilePage() {
     return (
       <div className="p-4 space-y-5 pb-24">
         <button onClick={() => { setView('select'); setLoginProfile(null) }} className="text-sm text-swu-muted">← Volver</button>
-
         <div className="text-center">
           <span className="text-5xl block mb-2">{loginProfile.avatar}</span>
           <h2 className="text-lg font-bold text-swu-text">{loginProfile.name}</h2>
           <p className="text-xs text-swu-muted mt-0.5">Ingrese su PIN para continuar</p>
         </div>
-
         <div className="bg-swu-surface rounded-2xl p-5 border border-swu-border space-y-4">
-          <div className="flex items-center gap-2 text-sm text-swu-muted">
-            <Lock size={14} />
-            <span>PIN de acceso</span>
-          </div>
-
-          <input
-            type="password"
-            inputMode="numeric"
-            autoFocus
-            value={loginPin}
-            onChange={(e) => setLoginPin(e.target.value.replace(/\D/g, ''))}
-            placeholder="••••"
-            maxLength={8}
+          <div className="flex items-center gap-2 text-sm text-swu-muted"><Lock size={14} /><span>PIN de acceso</span></div>
+          <input type="password" inputMode="numeric" autoFocus value={loginPin} onChange={(e) => setLoginPin(e.target.value.replace(/\D/g, ''))}
+            placeholder="••••" maxLength={8}
             className="w-full bg-swu-bg border border-swu-border rounded-xl p-4 text-2xl font-mono tracking-[0.3em] text-center text-swu-text outline-none focus:border-swu-accent"
-            onKeyDown={(e) => { if (e.key === 'Enter') handleLogin() }}
-          />
-
-          {loginError && (
-            <p className="text-sm text-swu-red text-center font-medium">{loginError}</p>
-          )}
-
-          <button
-            onClick={handleLogin}
-            disabled={loginPin.length < 4}
-            className={`w-full py-3.5 rounded-xl font-bold text-base transition-all ${
-              loginPin.length >= 4
-                ? 'bg-swu-accent text-white active:scale-[0.98]'
-                : 'bg-swu-border text-swu-muted cursor-not-allowed'
-            }`}
-          >
+            onKeyDown={(e) => { if (e.key === 'Enter') handleLogin() }} />
+          {loginError && <p className="text-sm text-swu-red text-center font-medium">{loginError}</p>}
+          <button onClick={handleLogin} disabled={loginPin.length < 4}
+            className={`w-full py-3.5 rounded-xl font-bold text-base transition-all ${loginPin.length >= 4 ? 'bg-swu-accent text-white active:scale-[0.98]' : 'bg-swu-border text-swu-muted cursor-not-allowed'}`}>
             Ingresar
           </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ─── CUSTOMIZE VIEW ───
+  if (view === 'customize') {
+    return (
+      <div className="p-4 space-y-5 pb-24">
+        <button onClick={() => setView('profile')} className="text-sm text-swu-muted">← Volver</button>
+        <div className="text-center">
+          <span className="text-6xl block mb-2">{customAvatar}</span>
+          <h2 className="text-lg font-bold text-swu-text">Personalizar Perfil</h2>
+        </div>
+        <div className="bg-swu-surface rounded-2xl p-5 border border-swu-border space-y-5">
+          <div>
+            <p className="text-xs text-swu-muted mb-2">Avatar</p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {avatarOptions.map((a) => (
+                <button key={a} onClick={() => setCustomAvatar(a)}
+                  className={`w-12 h-12 rounded-xl text-2xl flex items-center justify-center border-2 transition-colors ${customAvatar === a ? 'border-swu-accent bg-swu-accent/20' : 'border-swu-border bg-swu-bg'}`}>
+                  {a}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs text-swu-muted mb-1.5">Nombre</p>
+            <input value={customName} onChange={(e) => setCustomName(e.target.value)} maxLength={30}
+              className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 text-sm text-swu-text outline-none focus:border-swu-accent" />
+          </div>
+          <div>
+            <p className="text-xs text-swu-muted mb-2">Color favorito</p>
+            <div className="flex gap-3 justify-center">
+              {themeColors.map((c) => (
+                <button key={c.id} className={`w-10 h-10 rounded-full ${c.class} border-2 border-white/20 active:scale-90 transition-transform`} title={c.label} />
+              ))}
+            </div>
+          </div>
+          <button onClick={saveCustomization} className="w-full py-3.5 rounded-xl bg-swu-accent text-white font-bold text-base active:scale-[0.98] transition-transform">Guardar Cambios</button>
         </div>
       </div>
     )
@@ -293,15 +262,12 @@ export function ProfilePage() {
 
   return (
     <div className="p-4 space-y-5 pb-24">
-      {/* Profile header */}
       <div className="bg-gradient-to-br from-swu-accent/20 to-swu-green/10 rounded-2xl p-5 border border-swu-accent/30 flex items-center gap-4">
         <span className="text-5xl">{currentProfile?.avatar || '🎯'}</span>
         <div className="flex-1">
           <p className="text-[11px] text-swu-accent font-bold uppercase tracking-widest">Perfil</p>
           <h2 className="text-xl font-extrabold text-swu-text">{currentProfile?.name || 'Jugador'}</h2>
-          <p className="text-xs text-swu-muted mt-0.5">
-            Desde {currentProfile ? new Date(currentProfile.createdAt).toLocaleDateString() : '—'}
-          </p>
+          <p className="text-xs text-swu-muted mt-0.5">Desde {currentProfile ? new Date(currentProfile.createdAt).toLocaleDateString() : '—'}</p>
         </div>
         <div className="flex items-center gap-1 bg-swu-green/20 px-2.5 py-1 rounded-full">
           <Shield size={12} className="text-swu-green" />
@@ -309,7 +275,7 @@ export function ProfilePage() {
         </div>
       </div>
 
-      {/* Stats grid */}
+      {/* Stats */}
       <div className="grid grid-cols-4 gap-2">
         {[
           { label: 'Partidas', value: stats.matches, color: 'text-swu-accent' },
@@ -324,32 +290,38 @@ export function ProfilePage() {
         ))}
       </div>
 
-      {/* Menu items */}
+      {/* Customize button */}
+      <button onClick={() => setView('customize')}
+        className="w-full bg-swu-surface rounded-xl px-4 py-3.5 border border-swu-accent/30 flex items-center gap-3 active:scale-[0.99] transition-transform">
+        <Palette size={18} className="text-swu-accent" />
+        <span className="flex-1 text-left text-sm font-medium text-swu-accent">Personalizar Perfil</span>
+        <ChevronRight size={16} className="text-swu-accent" />
+      </button>
+
+      {/* Menu */}
       <div className="space-y-1">
         {menuItems.map((item) => {
           const Icon = item.icon
           return (
-            <button
-              key={item.label}
-              onClick={() => navigate(item.to)}
-              className="w-full bg-swu-surface rounded-xl px-4 py-3.5 border border-swu-border flex items-center gap-3 active:scale-[0.99] transition-transform"
-            >
+            <button key={item.label} onClick={() => navigate(item.to)}
+              className="w-full bg-swu-surface rounded-xl px-4 py-3.5 border border-swu-border flex items-center gap-3 active:scale-[0.99] transition-transform">
               <Icon size={18} className="text-swu-muted" />
               <span className="flex-1 text-left text-sm font-medium text-swu-text">{item.label}</span>
-              {item.count !== undefined && (
-                <span className="text-xs text-swu-muted font-mono">{item.count}</span>
-              )}
+              {item.count !== undefined && <span className="text-xs text-swu-muted font-mono">{item.count}</span>}
               <ChevronRight size={16} className="text-swu-muted" />
             </button>
           )
         })}
       </div>
 
-      {/* Logout */}
-      <button
-        onClick={() => { logout(); setView('select') }}
-        className="w-full py-3 rounded-xl bg-swu-red/10 border border-swu-red/30 text-swu-red font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
-      >
+      {/* Switch profile */}
+      <button onClick={() => { logout(); setView('select') }}
+        className="w-full py-3 rounded-xl bg-swu-surface border border-swu-border text-swu-muted font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform">
+        <Settings size={16} /> Cambiar Perfil
+      </button>
+
+      <button onClick={() => { logout(); setView('select') }}
+        className="w-full py-3 rounded-xl bg-swu-red/10 border border-swu-red/30 text-swu-red font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform">
         <LogOut size={18} /> Cerrar Sesión
       </button>
     </div>

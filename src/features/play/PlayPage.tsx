@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Swords, Users, Settings2, History } from 'lucide-react'
+import { Swords, Users, History } from 'lucide-react'
 import { useMatchPersistence } from '../../hooks/useMatchPersistence'
 
 const modes = [
@@ -14,16 +14,9 @@ const modes = [
   {
     id: 'twin_suns' as const,
     label: 'Twin Suns',
-    desc: '2-4 jugadores · 30 HP · Singleton, 2 leaders',
+    desc: '2-4 jugadores · 30 HP · Singleton, 2 líderes',
     icon: Users,
     color: 'border-swu-amber/40 text-swu-amber',
-  },
-  {
-    id: 'custom' as const,
-    label: 'Custom',
-    desc: '2-4 jugadores · HP editable · Variantes caseras',
-    icon: Settings2,
-    color: 'border-purple-400/40 text-purple-400',
   },
 ]
 

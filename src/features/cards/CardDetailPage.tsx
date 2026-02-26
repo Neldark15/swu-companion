@@ -132,7 +132,7 @@ export function CardDetailPage() {
         <Badge variant={typeVariant[card.type] || 'default'}>{card.type}</Badge>
         <Badge variant={rarityVariant[card.rarity] || 'default'}>{card.rarity}</Badge>
         {card.arena && <Badge>{card.arena}</Badge>}
-        {card.isUnique && <Badge variant="purple">Unique</Badge>}
+        {card.isUnique && <Badge variant="purple">Única</Badge>}
       </div>
 
       {/* Stats */}
@@ -179,7 +179,7 @@ export function CardDetailPage() {
       {/* Traits */}
       {card.traits.length > 0 && (
         <div>
-          <p className="text-xs text-swu-muted mb-1.5">Traits</p>
+          <p className="text-xs text-swu-muted mb-1.5">Rasgos</p>
           <p className="text-sm text-swu-text">{card.traits.join(' · ')}</p>
         </div>
       )}
@@ -187,7 +187,7 @@ export function CardDetailPage() {
       {/* Keywords */}
       {card.keywords.length > 0 && (
         <div>
-          <p className="text-xs text-swu-muted mb-1.5">Keywords</p>
+          <p className="text-xs text-swu-muted mb-1.5">Palabras Clave</p>
           <div className="flex flex-wrap gap-1.5">
             {card.keywords.map((k) => (
               <Badge key={k} variant="accent">{k}</Badge>
@@ -210,7 +210,7 @@ export function CardDetailPage() {
       {/* Deploy Box */}
       {card.deployBox && (
         <div className="bg-swu-amber/10 rounded-xl p-4 border border-swu-amber/30">
-          <p className="text-xs font-bold text-swu-amber mb-1">Deploy</p>
+          <p className="text-xs font-bold text-swu-amber mb-1">Despliegue</p>
           <p className="text-sm text-swu-text">{card.deployBox}</p>
         </div>
       )}
@@ -220,7 +220,7 @@ export function CardDetailPage() {
         <div className="bg-purple-400/10 rounded-xl p-4 border border-purple-400/30">
           <div className="flex items-center gap-1.5 mb-1">
             <Star size={14} className="text-purple-400" />
-            <p className="text-xs font-bold text-purple-400">Epic Action</p>
+            <p className="text-xs font-bold text-purple-400">Acción Épica</p>
           </div>
           <p className="text-sm text-swu-text">{card.epicAction}</p>
         </div>

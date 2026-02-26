@@ -3,6 +3,9 @@
  * Uses /export/all for full card database + local search via Dexie
  * The API doesn't support text search, so we download everything once
  * and search locally in IndexedDB for instant results.
+ *
+ * IMPORTANT: /export/all returns camelCase fields (frontImageUrl)
+ *            /cards endpoint returns snake_case (front_image_url)
  */
 
 import { db } from './db'
@@ -10,7 +13,10 @@ import type { Card, SetInfo } from '../types'
 
 const API_BASE = 'https://api.swuapi.com'
 
-interface ApiCard {
+// DB version to force re-download when mapping changes
+const DB_VERSION = 2
+
+interface ApiCardSnake {
   id: string
   name: string
   subtitle: string | null
@@ -38,6 +44,37 @@ interface ApiCard {
   variant_type: string | null
 }
 
+interface ApiCardCamel {
+  id: string
+  cardUid?: string
+  name: string
+  subtitle: string | null
+  setCode: string
+  cardNumber: string
+  type: string
+  rarity: string
+  cost: number | null
+  power: number | null
+  hp: number | null
+  arena: string | null
+  aspects: string[]
+  traits: string[]
+  keywords: string[]
+  text: string | null
+  epicAction: string | null
+  deployBox: string | null
+  isLeader: boolean
+  isBase: boolean
+  isUnique: boolean
+  frontImageUrl: string | null
+  backImageUrl: string | null
+  thumbnailUrl: string | null
+  artist: string | null
+  variantType: string | null
+}
+
+type ApiCard = ApiCardSnake | ApiCardCamel
+
 interface ApiSetResponse {
   sets: {
     code: string
@@ -48,30 +85,63 @@ interface ApiSetResponse {
 }
 
 function mapApiCard(c: ApiCard): Card {
-  return {
-    id: c.id,
-    name: c.name,
-    subtitle: c.subtitle,
-    type: c.type as Card['type'],
-    rarity: c.rarity as Card['rarity'],
-    cost: c.cost,
-    power: c.power,
-    hp: c.hp,
-    aspects: c.aspects || [],
-    traits: c.traits || [],
-    keywords: c.keywords || [],
-    arena: (c.arena as Card['arena']) || null,
-    text: c.text || '',
-    deployBox: c.deploy_box,
-    epicAction: c.epic_action,
-    setCode: c.set_code,
-    setNumber: parseInt(c.card_number, 10) || 0,
-    artist: c.artist || '',
-    imageUrl: c.front_image_url || c.thumbnail_url || '',
-    backImageUrl: c.back_image_url,
-    isUnique: c.is_unique,
-    isLeader: c.is_leader,
-    isBase: c.is_base,
+  // Detect format: camelCase (export/all) vs snake_case (/cards)
+  const isCamel = 'setCode' in c && typeof (c as ApiCardCamel).setCode === 'string'
+
+  if (isCamel) {
+    const cc = c as ApiCardCamel
+    return {
+      id: cc.id,
+      name: cc.name,
+      subtitle: cc.subtitle,
+      type: cc.type as Card['type'],
+      rarity: cc.rarity as Card['rarity'],
+      cost: cc.cost,
+      power: cc.power,
+      hp: cc.hp,
+      aspects: cc.aspects || [],
+      traits: cc.traits || [],
+      keywords: cc.keywords || [],
+      arena: (cc.arena as Card['arena']) || null,
+      text: cc.text || '',
+      deployBox: cc.deployBox,
+      epicAction: cc.epicAction,
+      setCode: cc.setCode,
+      setNumber: parseInt(cc.cardNumber, 10) || 0,
+      artist: cc.artist || '',
+      imageUrl: cc.frontImageUrl || cc.thumbnailUrl || '',
+      backImageUrl: cc.backImageUrl,
+      isUnique: cc.isUnique,
+      isLeader: cc.isLeader,
+      isBase: cc.isBase,
+    }
+  } else {
+    const sc = c as ApiCardSnake
+    return {
+      id: sc.id,
+      name: sc.name,
+      subtitle: sc.subtitle,
+      type: sc.type as Card['type'],
+      rarity: sc.rarity as Card['rarity'],
+      cost: sc.cost,
+      power: sc.power,
+      hp: sc.hp,
+      aspects: sc.aspects || [],
+      traits: sc.traits || [],
+      keywords: sc.keywords || [],
+      arena: (sc.arena as Card['arena']) || null,
+      text: sc.text || '',
+      deployBox: sc.deploy_box,
+      epicAction: sc.epic_action,
+      setCode: sc.set_code,
+      setNumber: parseInt(sc.card_number, 10) || 0,
+      artist: sc.artist || '',
+      imageUrl: sc.front_image_url || sc.thumbnail_url || '',
+      backImageUrl: sc.back_image_url,
+      isUnique: sc.is_unique,
+      isLeader: sc.is_leader,
+      isBase: sc.is_base,
+    }
   }
 }
 
@@ -95,9 +165,17 @@ let _dbReady = false
 let _dbLoading = false
 let _dbLoadPromise: Promise<void> | null = null
 
-/** Check if we have cards cached locally */
 async function getLocalCardCount(): Promise<number> {
   return db.cards.count()
+}
+
+/** Check if our local DB has images (i.e. was loaded with correct mapping) */
+async function hasValidImages(): Promise<boolean> {
+  const sample = await db.cards.limit(5).toArray()
+  if (sample.length === 0) return false
+  // If most cards have empty imageUrl, the DB is stale
+  const withImages = sample.filter(c => c.imageUrl && c.imageUrl.startsWith('http'))
+  return withImages.length >= sample.length * 0.8
 }
 
 /** Download ALL cards from the export endpoint and cache locally */
@@ -111,12 +189,19 @@ export async function loadFullDatabase(): Promise<number> {
   _dbLoading = true
   _dbLoadPromise = (async () => {
     try {
-      // Check if we already have a substantial cache
+      // Check if we already have a valid cache with images
       const existing = await getLocalCardCount()
-      if (existing > 5000) {
+      const validImages = existing > 5000 ? await hasValidImages() : false
+
+      if (existing > 5000 && validImages) {
         _dbReady = true
         _dbLoading = false
         return
+      }
+
+      // Clear old data without images
+      if (existing > 0 && !validImages) {
+        await db.cards.clear()
       }
 
       const res = await fetch(`${API_BASE}/export/all`)
@@ -134,10 +219,12 @@ export async function loadFullDatabase(): Promise<number> {
         await db.cards.bulkPut(chunk).catch(() => {})
       }
 
+      // Save version marker
+      localStorage.setItem('swu-db-version', String(DB_VERSION))
+
       _dbReady = true
     } catch (err) {
       console.error('Failed to load full card database:', err)
-      // If we have some cached cards, still mark as ready
       const count = await getLocalCardCount()
       if (count > 0) _dbReady = true
     } finally {
@@ -149,7 +236,6 @@ export async function loadFullDatabase(): Promise<number> {
   return db.cards.count()
 }
 
-/** Get database loading status */
 export function isDatabaseReady(): boolean {
   return _dbReady
 }
@@ -157,11 +243,9 @@ export function isDatabaseReady(): boolean {
 // ─── Search (always local) ───
 
 export async function searchCards(params: SearchParams): Promise<{ cards: Card[]; total: number }> {
-  // Ensure database is loaded
   if (!_dbReady) {
     await loadFullDatabase()
   }
-
   return searchLocalCards(params)
 }
 
@@ -196,7 +280,6 @@ async function searchLocalCards(params: SearchParams): Promise<{ cards: Card[]; 
         ...c.keywords.map(k => k.toLowerCase()),
       ].join(' ')
 
-      // All words must match somewhere
       return words.every(w => searchable.includes(w))
     })
   }
@@ -218,16 +301,19 @@ async function searchLocalCards(params: SearchParams): Promise<{ cards: Card[]; 
     results = results.filter((c) => c.traits.includes(params.trait!))
   }
 
-  // Sort: Leaders/Bases first, then by name
+  // Sort: Leaders first → Bases second → then by setCode + setNumber
   results.sort((a, b) => {
-    // Leaders first
-    if (a.isLeader && !b.isLeader) return -1
-    if (!a.isLeader && b.isLeader) return 1
-    // Bases second
-    if (a.isBase && !b.isBase) return -1
-    if (!a.isBase && b.isBase) return 1
-    // Then alphabetical
-    return a.name.localeCompare(b.name)
+    // Type priority: Leader=0, Base=1, others=2
+    const typeOrder = (c: Card) => c.type === 'Leader' || c.isLeader ? 0 : c.type === 'Base' || c.isBase ? 1 : 2
+    const ta = typeOrder(a)
+    const tb = typeOrder(b)
+    if (ta !== tb) return ta - tb
+
+    // Then by set code (alphabetical)
+    if (a.setCode !== b.setCode) return a.setCode.localeCompare(b.setCode)
+
+    // Then by collection number
+    return a.setNumber - b.setNumber
   })
 
   const total = results.length
@@ -241,11 +327,9 @@ async function searchLocalCards(params: SearchParams): Promise<{ cards: Card[]; 
 // ─── Single card ───
 
 export async function getCardById(id: string): Promise<Card | null> {
-  // Try local first
   const local = await db.cards.get(id)
   if (local) return local
 
-  // Fallback to API
   try {
     const res = await fetch(`${API_BASE}/cards/${id}?format=json`)
     if (res.ok) {
@@ -289,7 +373,7 @@ export async function getSets(): Promise<SetInfo[]> {
   }
 }
 
-// ─── Preload (now uses export/all) ───
+// ─── Preload ───
 
 export async function preloadSet(_setCode: string): Promise<number> {
   return loadFullDatabase()
