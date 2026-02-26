@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie'
 import type { MatchState, Tournament, Deck, Card } from '../../types'
+import type { PlayerStats } from '../gamification'
 
 export interface UserProfile {
   id: string
@@ -23,6 +24,7 @@ export class SWUDatabase extends Dexie {
   collection!: Table<{ cardId: string; quantity: number; profileId?: string }, string>
   wishlist!: Table<{ cardId: string; profileId?: string }, string>
   profiles!: Table<UserProfile, string>
+  playerStats!: Table<PlayerStats, string>
 
   constructor() {
     super('swu-companion')
@@ -68,6 +70,19 @@ export class SWUDatabase extends Dexie {
           profile.pinSalt = undefined
         }
       })
+    })
+
+    // v4: Add playerStats table for gamification
+    this.version(4).stores({
+      matches: 'id, mode, isActive, createdAt, profileId',
+      tournaments: 'id, status, createdAt, profileId',
+      decks: 'id, name, format, createdAt, profileId',
+      cards: 'id, name, type, rarity, setCode, *aspects, *keywords, *traits',
+      favoriteCards: 'cardId, profileId',
+      collection: 'cardId, profileId',
+      wishlist: 'cardId, profileId',
+      profiles: 'id, name, email, credentialId',
+      playerStats: 'profileId',
     })
   }
 }

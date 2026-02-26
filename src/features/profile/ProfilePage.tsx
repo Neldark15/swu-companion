@@ -8,6 +8,10 @@ import {
 import { db } from '../../services/db'
 import { useAuth } from '../../hooks/useAuth'
 import { isPasskeyReady } from '../../services/crypto'
+import { createDefaultStats, getAspectBars, checkAchievements, calculateLevel, type PlayerStats } from '../../services/gamification'
+import { XpBar } from './components/XpBar'
+import { AspectBars } from './components/AspectBars'
+import { AchievementGrid } from './components/AchievementGrid'
 import type { UserProfile } from '../../services/db'
 
 const avatarOptions = ['🎯', '⚔️', '🛡️', '🚀', '🌟', '💎', '🔥', '🌙', '👾', '🎲', '🐉', '🦅', '⭐', '🎭', '🏆', '🌀']
@@ -22,6 +26,7 @@ export function ProfilePage() {
   const [view, setView] = useState<View>(currentProfile ? 'profile' : 'select')
   const [stats, setStats] = useState({ matches: 0, tournaments: 0, decks: 0, favorites: 0 })
   const [passkeySupported, setPasskeySupported] = useState(false)
+  const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null)
 
   // Register state (multi-step)
   const [regName, setRegName] = useState('')
@@ -59,6 +64,8 @@ export function ProfilePage() {
       setCustomAvatar(currentProfile.avatar)
       setCustomName(currentProfile.name)
       setCustomEmail(currentProfile.email || '')
+
+      // Load basic stats
       Promise.all([
         db.matches.count(),
         db.tournaments.count(),
@@ -67,8 +74,66 @@ export function ProfilePage() {
       ]).then(([matches, tournaments, decks, favorites]) => {
         setStats({ matches, tournaments, decks, favorites })
       })
+
+      // Load or create player stats for gamification
+      const loadPlayerStats = async () => {
+        let ps = await db.playerStats.get(currentProfile.id)
+        if (!ps) {
+          ps = createDefaultStats(currentProfile.id)
+          await db.playerStats.put(ps)
+        }
+
+        // Sync real counts from DB
+        const [matchCount, tournamentCount, finishedTournaments, deckCount, validDecks, collectionCount, favCount] = await Promise.all([
+          db.matches.count(),
+          db.tournaments.count(),
+          db.tournaments.where('status').equals('finished').count(),
+          db.decks.count(),
+          db.decks.filter(d => d.isValid).count(),
+          db.collection.count(),
+          db.favoriteCards.count(),
+        ])
+
+        ps = {
+          ...ps,
+          matchesPlayed: matchCount,
+          tournamentsCreated: tournamentCount,
+          tournamentsFinished: finishedTournaments,
+          decksCreated: deckCount,
+          decksValid: validDecks,
+          cardsCollected: collectionCount,
+          cardsFavorited: favCount,
+        }
+
+        // Check for passkey achievement
+        if (currentProfile.credentialId && !ps.unlockedAchievements.includes('vil_2')) {
+          ps.unlockedAchievements.push('vil_2')
+          ps.achievementDates['vil_2'] = Date.now()
+        }
+
+        // Check all achievements
+        const newUnlocks = checkAchievements(ps)
+        if (newUnlocks.length > 0) {
+          ps.unlockedAchievements = [...ps.unlockedAchievements, ...newUnlocks]
+          for (const id of newUnlocks) {
+            ps.achievementDates[id] = Date.now()
+          }
+        }
+
+        // Recalculate XP from real activity
+        const baseXp = matchCount * 10 + finishedTournaments * 50 + tournamentCount * 20 +
+          deckCount * 15 + validDecks * 30 + favCount * 2 + collectionCount * 1
+        if (baseXp > ps.xp) ps.xp = baseXp
+        ps.level = calculateLevel(ps.xp).level
+
+        await db.playerStats.put(ps)
+        setPlayerStats(ps)
+      }
+
+      loadPlayerStats()
     } else {
       setView('select')
+      setPlayerStats(null)
     }
   }, [currentProfile])
 
@@ -647,8 +712,11 @@ export function ProfilePage() {
   }
 
   // ═══════════════════════════════════════════════════════════════════
-  // PROFILE VIEW (logged in)
+  // PROFILE VIEW (logged in) — GAMIFIED
   // ═══════════════════════════════════════════════════════════════════
+  const levelInfo = playerStats ? calculateLevel(playerStats.xp) : null
+  const aspectBars = playerStats ? getAspectBars(playerStats) : []
+
   const menuItems = [
     { icon: History, label: 'Historial de Partidas', to: '/play/saved', count: stats.matches },
     { icon: Trophy, label: 'Mis Torneos', to: '/events/tournament', count: stats.tournaments },
@@ -659,51 +727,78 @@ export function ProfilePage() {
   ]
 
   return (
-    <div className="p-4 space-y-5 pb-24">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-swu-accent/20 to-swu-green/10 rounded-2xl p-5 border border-swu-accent/30 flex items-center gap-4">
-        <span className="text-5xl">{currentProfile?.avatar || '🎯'}</span>
-        <div className="flex-1 min-w-0">
-          <p className="text-[11px] text-swu-accent font-bold uppercase tracking-widest">Perfil</p>
-          <h2 className="text-xl font-extrabold text-swu-text truncate">{currentProfile?.name || 'Jugador'}</h2>
-          {currentProfile?.email && (
-            <p className="text-[11px] text-swu-muted truncate">{currentProfile.email}</p>
-          )}
-          <div className="flex items-center gap-2 mt-0.5">
-            <p className="text-[11px] text-swu-muted">Desde {currentProfile ? new Date(currentProfile.createdAt).toLocaleDateString() : '—'}</p>
-            {currentProfile?.credentialId && <Fingerprint size={10} className="text-swu-accent" />}
+    <div className="p-4 space-y-4 pb-24">
+      {/* Header with level */}
+      <div className="bg-gradient-to-br from-swu-accent/15 to-amber-500/10 rounded-2xl p-4 border border-swu-accent/20">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="relative">
+            <span className="text-4xl">{currentProfile?.avatar || '🎯'}</span>
+            {levelInfo && (
+              <div className={`absolute -bottom-1 -right-1 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md ${levelInfo.rank.bgColor} ${levelInfo.rank.color} ${levelInfo.rank.borderColor} border`}>
+                {levelInfo.level}
+              </div>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-extrabold text-swu-text truncate">{currentProfile?.name || 'Jugador'}</h2>
+            <div className="flex items-center gap-2">
+              {levelInfo && (
+                <span className={`text-[11px] font-bold ${levelInfo.rank.color}`}>{levelInfo.rank.name}</span>
+              )}
+              {currentProfile?.credentialId && <Fingerprint size={10} className="text-swu-accent" />}
+            </div>
+          </div>
+          <div className="flex items-center gap-1 bg-swu-green/20 px-2 py-0.5 rounded-full shrink-0">
+            <Shield size={10} className="text-swu-green" />
+            <span className="text-[10px] font-bold text-swu-green">Activo</span>
           </div>
         </div>
-        <div className="flex items-center gap-1 bg-swu-green/20 px-2.5 py-1 rounded-full shrink-0">
-          <Shield size={12} className="text-swu-green" />
-          <span className="text-[11px] font-bold text-swu-green">Activo</span>
-        </div>
+
+        {/* XP Bar */}
+        {playerStats && <XpBar xp={playerStats.xp} />}
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-2">
+      {/* Quick Stats Row */}
+      <div className="grid grid-cols-4 gap-1.5">
         {[
-          { label: 'Partidas', value: stats.matches, color: 'text-swu-accent' },
-          { label: 'Torneos', value: stats.tournaments, color: 'text-swu-amber' },
-          { label: 'Decks', value: stats.decks, color: 'text-swu-green' },
-          { label: 'Favoritos', value: stats.favorites, color: 'text-purple-400' },
+          { label: 'Partidas', value: stats.matches, color: 'text-blue-400' },
+          { label: 'Victorias', value: playerStats?.wins || 0, color: 'text-red-400' },
+          { label: 'Decks', value: stats.decks, color: 'text-yellow-400' },
+          { label: 'Racha', value: playerStats?.bestStreak || 0, color: 'text-amber-400' },
         ].map((s) => (
-          <div key={s.label} className="bg-swu-surface rounded-xl p-3 border border-swu-border text-center">
-            <p className={`text-2xl font-extrabold font-mono ${s.color}`}>{s.value}</p>
-            <p className="text-[10px] text-swu-muted">{s.label}</p>
+          <div key={s.label} className="bg-swu-surface rounded-lg p-2 border border-swu-border text-center">
+            <p className={`text-xl font-extrabold font-mono ${s.color}`}>{s.value}</p>
+            <p className="text-[9px] text-swu-muted">{s.label}</p>
           </div>
         ))}
       </div>
 
+      {/* Aspect Bars — HUD style */}
+      {aspectBars.length > 0 && (
+        <div className="bg-swu-surface rounded-2xl p-4 border border-swu-border">
+          <AspectBars bars={aspectBars} />
+        </div>
+      )}
+
+      {/* Achievements */}
+      {playerStats && (
+        <div className="bg-swu-surface rounded-2xl p-4 border border-swu-border">
+          <AchievementGrid
+            unlockedIds={playerStats.unlockedAchievements}
+            achievementDates={playerStats.achievementDates}
+          />
+        </div>
+      )}
+
       {/* Action buttons */}
       <div className="grid grid-cols-2 gap-2">
         <button onClick={() => setView('customize')}
-          className="bg-swu-surface rounded-xl px-4 py-3.5 border border-swu-accent/30 flex items-center gap-2 active:scale-[0.98] transition-transform">
+          className="bg-swu-surface rounded-xl px-3 py-3 border border-swu-accent/30 flex items-center gap-2 active:scale-[0.98] transition-transform">
           <Palette size={16} className="text-swu-accent" />
           <span className="text-sm font-medium text-swu-accent">Personalizar</span>
         </button>
         <button onClick={() => setView('security')}
-          className="bg-swu-surface rounded-xl px-4 py-3.5 border border-swu-accent/30 flex items-center gap-2 active:scale-[0.98] transition-transform">
+          className="bg-swu-surface rounded-xl px-3 py-3 border border-swu-accent/30 flex items-center gap-2 active:scale-[0.98] transition-transform">
           <Shield size={16} className="text-swu-accent" />
           <span className="text-sm font-medium text-swu-accent">Seguridad</span>
         </button>
@@ -715,7 +810,7 @@ export function ProfilePage() {
           const Icon = item.icon
           return (
             <button key={item.label} onClick={() => navigate(item.to)}
-              className="w-full bg-swu-surface rounded-xl px-4 py-3.5 border border-swu-border flex items-center gap-3 active:scale-[0.99] transition-transform">
+              className="w-full bg-swu-surface rounded-xl px-4 py-3 border border-swu-border flex items-center gap-3 active:scale-[0.99] transition-transform">
               <Icon size={18} className="text-swu-muted" />
               <span className="flex-1 text-left text-sm font-medium text-swu-text">{item.label}</span>
               {item.count !== undefined && <span className="text-xs text-swu-muted font-mono">{item.count}</span>}
