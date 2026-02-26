@@ -53,6 +53,10 @@ export function TournamentSetupPage() {
       return
     }
 
+    // Generate a shareable event code
+    const eventCode = name.trim().slice(0, 3).toUpperCase().replace(/[^A-Z]/g, 'X') +
+      Math.random().toString(36).slice(2, 5).toUpperCase()
+
     const tournament: Tournament = {
       id: generateTournamentId(),
       name: name.trim(),
@@ -63,6 +67,7 @@ export function TournamentSetupPage() {
       players: trimmed.map((n) => createPlayer(n)),
       rounds: [],
       status: 'active',
+      eventCode,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     }

@@ -1,13 +1,14 @@
 /**
  * SWU API Client — api.swuapi.com
- * Handles card search, set listing, and offline caching via Dexie
+ * Uses /export/all for full card database + local search via Dexie
+ * The API doesn't support text search, so we download everything once
+ * and search locally in IndexedDB for instant results.
  */
 
 import { db } from './db'
 import type { Card, SetInfo } from '../types'
 
 const API_BASE = 'https://api.swuapi.com'
-const PAGE_SIZE = 50
 
 interface ApiCard {
   id: string
@@ -35,15 +36,6 @@ interface ApiCard {
   thumbnail_url: string | null
   artist: string | null
   variant_type: string | null
-}
-
-interface ApiResponse {
-  cards: ApiCard[]
-  pagination: {
-    limit: number
-    offset: number
-    total: number
-  }
 }
 
 interface ApiSetResponse {
@@ -97,66 +89,116 @@ export interface SearchParams {
   limit?: number
 }
 
-function buildQueryString(params: SearchParams): string {
-  const qs = new URLSearchParams()
-  if (params.query) qs.set('search', params.query)
-  if (params.set) qs.set('set', params.set)
-  if (params.type) qs.set('type', params.type)
-  if (params.aspect) qs.set('aspect', params.aspect)
-  if (params.rarity) qs.set('rarity', params.rarity)
-  if (params.cost !== undefined && params.cost !== null) qs.set('cost', String(params.cost))
-  if (params.arena) qs.set('arena', params.arena)
-  if (params.keyword) qs.set('keyword', params.keyword)
-  if (params.trait) qs.set('trait', params.trait)
-  qs.set('limit', String(params.limit ?? PAGE_SIZE))
-  qs.set('offset', String(params.offset ?? 0))
-  qs.set('format', 'json')
-  return qs.toString()
+// ─── Card Database Management ───
+
+let _dbReady = false
+let _dbLoading = false
+let _dbLoadPromise: Promise<void> | null = null
+
+/** Check if we have cards cached locally */
+async function getLocalCardCount(): Promise<number> {
+  return db.cards.count()
 }
 
-export async function searchCards(params: SearchParams): Promise<{ cards: Card[]; total: number }> {
-  const url = `${API_BASE}/cards?${buildQueryString(params)}`
-  try {
-    const res = await fetch(url)
-    if (!res.ok) throw new Error(`API ${res.status}`)
-    const data: ApiResponse = await res.json()
-    const cards = data.cards.map(mapApiCard)
-
-    // Cache cards in IndexedDB
-    if (cards.length > 0) {
-      await db.cards.bulkPut(cards).catch(() => {})
-    }
-
-    return { cards, total: data.pagination.total }
-  } catch (err) {
-    // Fallback to offline cache
-    console.warn('API offline, searching local cache:', err)
-    return searchLocalCards(params)
+/** Download ALL cards from the export endpoint and cache locally */
+export async function loadFullDatabase(): Promise<number> {
+  if (_dbReady) return db.cards.count()
+  if (_dbLoading && _dbLoadPromise) {
+    await _dbLoadPromise
+    return db.cards.count()
   }
+
+  _dbLoading = true
+  _dbLoadPromise = (async () => {
+    try {
+      // Check if we already have a substantial cache
+      const existing = await getLocalCardCount()
+      if (existing > 5000) {
+        _dbReady = true
+        _dbLoading = false
+        return
+      }
+
+      const res = await fetch(`${API_BASE}/export/all`)
+      if (!res.ok) throw new Error(`Export API ${res.status}`)
+      const data = await res.json()
+
+      const allCards: ApiCard[] = data.cards || data
+      if (!Array.isArray(allCards) || allCards.length === 0) throw new Error('No cards in export')
+
+      const mapped = allCards.map(mapApiCard)
+
+      // Batch insert into IndexedDB (chunks of 500)
+      for (let i = 0; i < mapped.length; i += 500) {
+        const chunk = mapped.slice(i, i + 500)
+        await db.cards.bulkPut(chunk).catch(() => {})
+      }
+
+      _dbReady = true
+    } catch (err) {
+      console.error('Failed to load full card database:', err)
+      // If we have some cached cards, still mark as ready
+      const count = await getLocalCardCount()
+      if (count > 0) _dbReady = true
+    } finally {
+      _dbLoading = false
+    }
+  })()
+
+  await _dbLoadPromise
+  return db.cards.count()
+}
+
+/** Get database loading status */
+export function isDatabaseReady(): boolean {
+  return _dbReady
+}
+
+// ─── Search (always local) ───
+
+export async function searchCards(params: SearchParams): Promise<{ cards: Card[]; total: number }> {
+  // Ensure database is loaded
+  if (!_dbReady) {
+    await loadFullDatabase()
+  }
+
+  return searchLocalCards(params)
 }
 
 async function searchLocalCards(params: SearchParams): Promise<{ cards: Card[]; total: number }> {
-  let collection = db.cards.toCollection()
+  let results: Card[]
 
-  if (params.set) {
-    collection = db.cards.where('setCode').equals(params.set)
+  // Start with indexed queries when possible
+  if (params.set && params.type) {
+    results = await db.cards.where('setCode').equals(params.set).toArray()
+    results = results.filter(c => c.type === params.type)
   } else if (params.type) {
-    collection = db.cards.where('type').equals(params.type)
+    results = await db.cards.where('type').equals(params.type).toArray()
+  } else if (params.set) {
+    results = await db.cards.where('setCode').equals(params.set).toArray()
   } else if (params.rarity) {
-    collection = db.cards.where('rarity').equals(params.rarity)
+    results = await db.cards.where('rarity').equals(params.rarity).toArray()
+  } else {
+    results = await db.cards.toArray()
   }
 
-  let results = await collection.toArray()
-
-  // Text search filter
+  // Text search filter (name, subtitle, text, traits)
   if (params.query) {
-    const q = params.query.toLowerCase()
-    results = results.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        (c.subtitle && c.subtitle.toLowerCase().includes(q)) ||
-        c.text.toLowerCase().includes(q),
-    )
+    const q = params.query.toLowerCase().trim()
+    const words = q.split(/\s+/)
+
+    results = results.filter((c) => {
+      const searchable = [
+        c.name.toLowerCase(),
+        c.subtitle?.toLowerCase() || '',
+        c.text.toLowerCase(),
+        ...c.traits.map(t => t.toLowerCase()),
+        ...c.keywords.map(k => k.toLowerCase()),
+      ].join(' ')
+
+      // All words must match somewhere
+      return words.every(w => searchable.includes(w))
+    })
   }
 
   // Additional filters
@@ -169,17 +211,41 @@ async function searchLocalCards(params: SearchParams): Promise<{ cards: Card[]; 
   if (params.cost !== undefined && params.cost !== null) {
     results = results.filter((c) => c.cost === params.cost)
   }
+  if (params.keyword) {
+    results = results.filter((c) => c.keywords.includes(params.keyword!))
+  }
+  if (params.trait) {
+    results = results.filter((c) => c.traits.includes(params.trait!))
+  }
+
+  // Sort: Leaders/Bases first, then by name
+  results.sort((a, b) => {
+    // Leaders first
+    if (a.isLeader && !b.isLeader) return -1
+    if (!a.isLeader && b.isLeader) return 1
+    // Bases second
+    if (a.isBase && !b.isBase) return -1
+    if (!a.isBase && b.isBase) return 1
+    // Then alphabetical
+    return a.name.localeCompare(b.name)
+  })
 
   const total = results.length
   const offset = params.offset ?? 0
-  const limit = params.limit ?? PAGE_SIZE
+  const limit = params.limit ?? 50
   const paged = results.slice(offset, offset + limit)
 
   return { cards: paged, total }
 }
 
+// ─── Single card ───
+
 export async function getCardById(id: string): Promise<Card | null> {
-  // Try API first
+  // Try local first
+  const local = await db.cards.get(id)
+  if (local) return local
+
+  // Fallback to API
   try {
     const res = await fetch(`${API_BASE}/cards/${id}?format=json`)
     if (res.ok) {
@@ -191,12 +257,13 @@ export async function getCardById(id: string): Promise<Card | null> {
       }
     }
   } catch {
-    // fallback
+    // no-op
   }
 
-  // Fallback to cache
-  return (await db.cards.get(id)) || null
+  return null
 }
+
+// ─── Sets ───
 
 export async function getSets(): Promise<SetInfo[]> {
   try {
@@ -210,7 +277,6 @@ export async function getSets(): Promise<SetInfo[]> {
       releaseDate: s.release_date || '',
     }))
   } catch {
-    // Return hardcoded main sets as fallback
     return [
       { code: 'SOR', name: 'Spark of Rebellion', cardCount: 252, releaseDate: '2024-03-08' },
       { code: 'SHD', name: 'Shadows of the Galaxy', cardCount: 262, releaseDate: '2024-07-12' },
@@ -218,23 +284,13 @@ export async function getSets(): Promise<SetInfo[]> {
       { code: 'JTL', name: 'Jump to Lightspeed', cardCount: 262, releaseDate: '2025-03-14' },
       { code: 'LOF', name: 'Legends of the Force', cardCount: 260, releaseDate: '2025-07-11' },
       { code: 'SEC', name: 'Secrets of Power', cardCount: 260, releaseDate: '2025-11-07' },
-      { code: 'LAW', name: 'A Lawless Time', cardCount: 0, releaseDate: '2026-03-13' },
+      { code: 'LAW', name: 'A Lawless Time', cardCount: 260, releaseDate: '2026-03-13' },
     ]
   }
 }
 
-// Preload a set's cards into cache
-export async function preloadSet(setCode: string): Promise<number> {
-  let offset = 0
-  let total = 0
-  let loaded = 0
+// ─── Preload (now uses export/all) ───
 
-  do {
-    const { cards, total: t } = await searchCards({ set: setCode, offset, limit: 100 })
-    total = t
-    loaded += cards.length
-    offset += 100
-  } while (loaded < total)
-
-  return loaded
+export async function preloadSet(_setCode: string): Promise<number> {
+  return loadFullDatabase()
 }

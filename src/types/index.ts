@@ -74,8 +74,10 @@ export interface Tournament {
   players: TournamentPlayer[]
   rounds: TournamentRound[]
   status: 'setup' | 'active' | 'finished'
+  eventCode: string
   createdAt: number
   updatedAt: number
+  profileId?: string
 }
 
 // ─── Card Types ───

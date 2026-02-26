@@ -349,7 +349,7 @@ export function TournamentLivePage() {
       {/* Share Sheet */}
       {showShareSheet && tournament && (
         <EventShareSheet
-          eventCode={tournament.id.slice(0, 8).toUpperCase()}
+          eventCode={tournament.eventCode || tournament.id.slice(0, 8).toUpperCase()}
           eventName={tournament.name}
           onClose={() => setShowShareSheet(false)}
         />

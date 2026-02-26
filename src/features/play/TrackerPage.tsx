@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, Save, RotateCcw, Shield, Sparkles, Zap, Check, Pencil, Trophy } from 'lucide-react'
+import { ChevronLeft, Save, RotateCcw, Shield, Sparkles, Zap, Check, Pencil, Trophy, Search, X } from 'lucide-react'
 import { Counter } from '../../components/ui/Counter'
 import { Badge } from '../../components/ui/Badge'
 import { useMatchPersistence } from '../../hooks/useMatchPersistence'
-import type { GameMode, MatchState, GameResult } from '../../types'
+import { searchCards } from '../../services/swuApi'
+import type { GameMode, MatchState, GameResult, Card } from '../../types'
 
 interface PlayerData {
   name: string
@@ -13,6 +14,8 @@ interface PlayerData {
   shields: number
   experience: number
   leaderDeployed: boolean
+  baseName: string
+  baseImageUrl: string
 }
 
 const defaultHp: Record<string, number> = { premier: 30, twin_suns: 30, custom: 30 }
@@ -65,9 +68,13 @@ export function TrackerPage() {
 
   const [matchId, setMatchId] = useState(() => resumeId || generateId())
   const [players, setPlayers] = useState<PlayerData[]>([
-    { name: 'Jugador 1', baseHp: startHp, resources: 0, shields: 0, experience: 0, leaderDeployed: false },
-    { name: 'Jugador 2', baseHp: startHp, resources: 0, shields: 0, experience: 0, leaderDeployed: false },
+    { name: 'Jugador 1', baseHp: startHp, resources: 0, shields: 0, experience: 0, leaderDeployed: false, baseName: '', baseImageUrl: '' },
+    { name: 'Jugador 2', baseHp: startHp, resources: 0, shields: 0, experience: 0, leaderDeployed: false, baseName: '', baseImageUrl: '' },
   ])
+  const [basePickerFor, setBasePickerFor] = useState<number | null>(null)
+  const [baseSearchQuery, setBaseSearchQuery] = useState('')
+  const [baseResults, setBaseResults] = useState<Card[]>([])
+  const [baseSearching, setBaseSearching] = useState(false)
   const [initiative, setInitiative] = useState(0)
   const [gameScore, setGameScore] = useState<[number, number]>([0, 0])
   const [currentGame, setCurrentGame] = useState(1)
@@ -94,6 +101,8 @@ export function TrackerPage() {
               shields: p.shieldTokens,
               experience: p.experienceTokens,
               leaderDeployed: p.leaderDeployed,
+              baseName: '',
+              baseImageUrl: '',
             })),
           )
           setInitiative(m.initiativeHolder)
@@ -133,13 +142,33 @@ export function TrackerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Base picker search
+  useEffect(() => {
+    if (basePickerFor === null) return
+    if (!baseSearchQuery.trim()) { setBaseResults([]); return }
+    setBaseSearching(true)
+    const timer = setTimeout(async () => {
+      const { cards } = await searchCards({ query: baseSearchQuery, type: 'Base', limit: 20 })
+      setBaseResults(cards)
+      setBaseSearching(false)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [baseSearchQuery, basePickerFor])
+
+  const selectBase = (card: Card, playerIdx: number) => {
+    setPlayers(prev => prev.map((p, i) => i === playerIdx ? { ...p, baseName: card.name, baseImageUrl: card.imageUrl, baseHp: card.hp || p.baseHp } : p))
+    setBasePickerFor(null)
+    setBaseSearchQuery('')
+    setBaseResults([])
+  }
+
   const updatePlayer = useCallback((idx: number, field: keyof PlayerData, value: number | boolean) => {
     setPlayers((prev) => prev.map((p, i) => (i === idx ? { ...p, [field]: value } : p)))
   }, [])
 
   const resetGame = () => {
     if (confirm('¿Iniciar nuevo game? Los contadores se resetearán.')) {
-      setPlayers((prev) => prev.map((p) => ({ ...p, baseHp: startHp, resources: 0, shields: 0, experience: 0, leaderDeployed: false })))
+      setPlayers((prev) => prev.map((p) => ({ ...p, baseHp: p.baseImageUrl ? p.baseHp : startHp, resources: 0, shields: 0, experience: 0, leaderDeployed: false })))
     }
   }
 
@@ -207,17 +236,32 @@ export function TrackerPage() {
           {isInit && <Badge variant="amber">INICIATIVA</Badge>}
         </div>
 
-        {/* Main HP Counter */}
-        <div className="flex items-center justify-center mb-3">
-          <Counter
-            value={p.baseHp}
-            onChange={(v) => updatePlayer(idx, 'baseHp', v)}
-            min={0}
-            max={99}
-            label="BASE HP"
-            size="lg"
-            color={p.baseHp <= 5 ? '#EF4444' : undefined}
-          />
+        {/* Base selector + HP Counter */}
+        <div className="flex items-center justify-center gap-2 mb-3">
+          {p.baseImageUrl ? (
+            <button onClick={() => setBasePickerFor(idx)} className="w-12 h-16 rounded-lg overflow-hidden border border-swu-border flex-shrink-0 active:scale-95 transition-transform">
+              <img src={p.baseImageUrl} alt={p.baseName} className="w-full h-full object-cover" />
+            </button>
+          ) : (
+            <button
+              onClick={() => setBasePickerFor(idx)}
+              className="w-12 h-16 rounded-lg border-2 border-dashed border-swu-border flex items-center justify-center text-swu-muted active:bg-swu-surface transition-colors flex-shrink-0"
+            >
+              <Search size={14} />
+            </button>
+          )}
+          <div className="flex-1">
+            {p.baseName && <p className="text-[9px] text-swu-muted text-center truncate mb-0.5">{p.baseName}</p>}
+            <Counter
+              value={p.baseHp}
+              onChange={(v) => updatePlayer(idx, 'baseHp', v)}
+              min={0}
+              max={99}
+              label="BASE HP"
+              size="lg"
+              color={p.baseHp <= 5 ? '#EF4444' : undefined}
+            />
+          </div>
         </div>
 
         {/* Sub counters */}
@@ -386,6 +430,64 @@ export function TrackerPage() {
 
       {/* Player 2 */}
       <PlayerPanel idx={1} flipped={false} />
+
+      {/* Base Picker Modal */}
+      {basePickerFor !== null && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex flex-col">
+          <div className="bg-swu-bg p-4 space-y-3 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-swu-text">Seleccionar Base — {players[basePickerFor].name}</h3>
+              <button onClick={() => { setBasePickerFor(null); setBaseSearchQuery(''); setBaseResults([]) }} className="p-2 text-swu-muted">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-swu-muted" />
+              <input
+                autoFocus
+                value={baseSearchQuery}
+                onChange={(e) => setBaseSearchQuery(e.target.value)}
+                placeholder="Buscar base por nombre..."
+                className="w-full bg-swu-surface border border-swu-border rounded-xl py-3 pl-10 pr-3 text-sm text-swu-text outline-none focus:border-swu-accent"
+              />
+            </div>
+
+            {baseSearching && (
+              <div className="text-center py-4">
+                <div className="animate-pulse text-sm text-swu-muted">Buscando...</div>
+              </div>
+            )}
+
+            <div className="space-y-1">
+              {baseResults.map((card) => (
+                <button
+                  key={card.id}
+                  onClick={() => selectBase(card, basePickerFor)}
+                  className="w-full bg-swu-surface rounded-xl p-3 border border-swu-border flex items-center gap-3 text-left active:scale-[0.98] transition-transform"
+                >
+                  {card.imageUrl && (
+                    <img src={card.imageUrl} alt={card.name} className="w-12 h-16 rounded-lg object-cover bg-swu-bg flex-shrink-0" loading="lazy" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-swu-text truncate">{card.name}</p>
+                    {card.subtitle && <p className="text-xs text-swu-muted truncate">{card.subtitle}</p>}
+                    <p className="text-xs text-swu-muted mt-0.5">{card.setCode} · HP: <span className="font-bold text-swu-accent">{card.hp}</span></p>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {!baseSearching && baseSearchQuery && baseResults.length === 0 && (
+              <p className="text-xs text-swu-muted text-center py-4">No se encontraron bases. Intente otro nombre.</p>
+            )}
+
+            {!baseSearchQuery && (
+              <p className="text-xs text-swu-muted text-center py-4">Escriba el nombre de la base para buscar</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
