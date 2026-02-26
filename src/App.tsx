@@ -3,6 +3,7 @@ import { AppLayout } from './components/layout/AppLayout'
 import { HomePage } from './features/home/HomePage'
 import { PlayPage } from './features/play/PlayPage'
 import { TrackerPage } from './features/play/TrackerPage'
+import { SavedMatchesPage } from './features/play/SavedMatchesPage'
 import { EventsPage } from './features/events/EventsPage'
 import { JoinEventPage } from './features/events/JoinEventPage'
 import { CardsPage } from './features/cards/CardsPage'
@@ -17,6 +18,7 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/play" element={<PlayPage />} />
           <Route path="/play/tracker/:mode" element={<TrackerPage />} />
+          <Route path="/play/saved" element={<SavedMatchesPage />} />
           <Route path="/events" element={<EventsPage />} />
           <Route path="/events/join" element={<JoinEventPage />} />
           <Route path="/cards" element={<CardsPage />} />

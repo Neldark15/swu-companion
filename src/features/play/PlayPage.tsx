@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Swords, Users, Settings2, History } from 'lucide-react'
+import { useMatchPersistence } from '../../hooks/useMatchPersistence'
 
 const modes = [
   {
@@ -28,7 +29,12 @@ const modes = [
 
 export function PlayPage() {
   const navigate = useNavigate()
-  const [savedCount] = useState(3)
+  const { countSaved } = useMatchPersistence(null)
+  const [savedCount, setSavedCount] = useState(0)
+
+  useEffect(() => {
+    countSaved().then(setSavedCount)
+  }, [countSaved])
 
   return (
     <div className="p-4 space-y-4">
@@ -61,7 +67,9 @@ export function PlayPage() {
           <History size={20} />
           <span className="text-sm font-medium">Partidas Guardadas</span>
         </div>
-        <span className="text-sm font-bold text-swu-accent">{savedCount}</span>
+        {savedCount > 0 && (
+          <span className="text-sm font-bold text-swu-accent">{savedCount}</span>
+        )}
       </button>
     </div>
   )
