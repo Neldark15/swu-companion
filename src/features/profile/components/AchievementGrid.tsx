@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ACHIEVEMENTS, ASPECT_CONFIG, type Aspect } from '../../../services/gamification'
+import { SWU_ICON_MAP, IconLocked } from '../../../components/icons/SWUIcons'
 
 interface AchievementGridProps {
   unlockedIds: string[]
@@ -42,6 +43,7 @@ export function AchievementGrid({ unlockedIds, achievementDates }: AchievementGr
         {ASPECTS.map((asp) => {
           const config = ASPECT_CONFIG[asp]
           const isActive = selectedAspect === asp
+          const AspectIcon = SWU_ICON_MAP[config.svgIcon]
           return (
             <button
               key={asp}
@@ -52,7 +54,7 @@ export function AchievementGrid({ unlockedIds, achievementDates }: AchievementGr
                   : 'bg-swu-surface text-swu-muted border border-swu-border'
               }`}
             >
-              <span>{config.icon}</span>
+              {AspectIcon ? <AspectIcon size={12} /> : <span>{config.icon}</span>}
               <span>{config.label}</span>
             </button>
           )
@@ -64,6 +66,7 @@ export function AchievementGrid({ unlockedIds, achievementDates }: AchievementGr
         {filtered.map((ach) => {
           const unlocked = unlockedIds.includes(ach.id)
           const config = ASPECT_CONFIG[ach.aspect]
+          const AchIcon = SWU_ICON_MAP[ach.svgIcon]
           return (
             <button
               key={ach.id}
@@ -80,7 +83,13 @@ export function AchievementGrid({ unlockedIds, achievementDates }: AchievementGr
                   ? `${config.bgColor} ${config.borderColor}`
                   : 'bg-swu-bg border-swu-border'
               }`}>
-                <span className="text-lg -rotate-45">{unlocked ? ach.icon : '🔒'}</span>
+                <div className="-rotate-45">
+                  {unlocked ? (
+                    AchIcon ? <AchIcon size={20} className={config.textColor} /> : <span className="text-lg">{ach.icon}</span>
+                  ) : (
+                    <IconLocked size={18} className="text-swu-muted" />
+                  )}
+                </div>
               </div>
 
               <p className={`text-[10px] font-bold text-center truncate ${unlocked ? config.textColor : 'text-swu-muted'}`}>
@@ -103,11 +112,16 @@ export function AchievementGrid({ unlockedIds, achievementDates }: AchievementGr
         const unlocked = unlockedIds.includes(ach.id)
         const config = ASPECT_CONFIG[ach.aspect]
         const date = achievementDates[ach.id]
+        const DetailIcon = SWU_ICON_MAP[ach.svgIcon]
 
         return (
           <div className={`rounded-xl p-4 border ${config.bgColor} ${config.borderColor} space-y-1`}>
             <div className="flex items-center gap-2">
-              <span className="text-xl">{ach.icon}</span>
+              {DetailIcon ? (
+                <DetailIcon size={24} className={config.textColor} />
+              ) : (
+                <span className="text-xl">{ach.icon}</span>
+              )}
               <div>
                 <p className={`text-sm font-bold ${config.textColor}`}>{ach.name}</p>
                 <p className="text-[11px] text-swu-muted">{ach.description}</p>

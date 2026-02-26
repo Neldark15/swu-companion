@@ -1,4 +1,5 @@
 import { calculateLevel } from '../../../services/gamification'
+import { IconXp } from '../../../components/icons/SWUIcons'
 
 interface XpBarProps {
   xp: number
@@ -17,7 +18,10 @@ export function XpBar({ xp }: XpBarProps) {
           </span>
           <span className={`text-sm font-bold ${rank.color}`}>{rank.name}</span>
         </div>
-        <span className="text-[11px] text-swu-muted font-mono">{xpCurrent}/{xpNeeded} XP</span>
+        <div className="flex items-center gap-1">
+          <IconXp size={14} className="text-amber-400" />
+          <span className="text-[11px] text-swu-muted font-mono">{xpCurrent}/{xpNeeded} XP</span>
+        </div>
       </div>
 
       {/* XP Bar */}

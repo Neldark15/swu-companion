@@ -14,7 +14,8 @@ export interface Achievement {
   name: string
   description: string
   aspect: Aspect
-  icon: string        // Emoji icon
+  icon: string        // Emoji fallback
+  svgIcon: string     // Key for SWU_ICON_MAP
   threshold: number   // Value needed to unlock
   statKey: string     // Which stat to check
 }
@@ -63,6 +64,7 @@ export interface AspectBar {
   aspect: Aspect
   label: string
   icon: string
+  svgIcon: string
   value: number
   maxValue: number
   progress: number     // 0-1
@@ -101,57 +103,57 @@ export const XP_VALUES: Record<XpAction, number> = {
 
 export const ACHIEVEMENTS: Achievement[] = [
   // Vigilance (Azul) — Consistencia
-  { id: 'vig_1', name: 'Centinela', description: '10 partidas jugadas', aspect: 'Vigilance', icon: '🛡️', threshold: 10, statKey: 'matchesPlayed' },
-  { id: 'vig_2', name: 'Guardián', description: '50 partidas jugadas', aspect: 'Vigilance', icon: '🏰', threshold: 50, statKey: 'matchesPlayed' },
-  { id: 'vig_3', name: 'Protector', description: '100 partidas jugadas', aspect: 'Vigilance', icon: '⚜️', threshold: 100, statKey: 'matchesPlayed' },
-  { id: 'vig_4', name: 'Fortaleza', description: 'Login 7 días seguidos', aspect: 'Vigilance', icon: '🗓️', threshold: 7, statKey: 'loginDays' },
-  { id: 'vig_5', name: 'Incansable', description: 'Login 30 días seguidos', aspect: 'Vigilance', icon: '📅', threshold: 30, statKey: 'loginDays' },
+  { id: 'vig_1', name: 'Centinela', description: '10 partidas jugadas', aspect: 'Vigilance', icon: '🛡️', svgIcon: 'sentinel', threshold: 10, statKey: 'matchesPlayed' },
+  { id: 'vig_2', name: 'Guardián', description: '50 partidas jugadas', aspect: 'Vigilance', icon: '🏰', svgIcon: 'fortress', threshold: 50, statKey: 'matchesPlayed' },
+  { id: 'vig_3', name: 'Protector', description: '100 partidas jugadas', aspect: 'Vigilance', icon: '⚜️', svgIcon: 'vigilance', threshold: 100, statKey: 'matchesPlayed' },
+  { id: 'vig_4', name: 'Fortaleza', description: 'Login 7 días seguidos', aspect: 'Vigilance', icon: '🗓️', svgIcon: 'calendar', threshold: 7, statKey: 'loginDays' },
+  { id: 'vig_5', name: 'Incansable', description: 'Login 30 días seguidos', aspect: 'Vigilance', icon: '📅', svgIcon: 'calendar', threshold: 30, statKey: 'loginDays' },
 
   // Command (Verde) — Torneos
-  { id: 'cmd_1', name: 'Estratega', description: 'Crear 1 torneo', aspect: 'Command', icon: '📋', threshold: 1, statKey: 'tournamentsCreated' },
-  { id: 'cmd_2', name: 'Comandante', description: 'Finalizar 5 torneos', aspect: 'Command', icon: '🎖️', threshold: 5, statKey: 'tournamentsFinished' },
-  { id: 'cmd_3', name: 'General', description: 'Finalizar 10 torneos', aspect: 'Command', icon: '⭐', threshold: 10, statKey: 'tournamentsFinished' },
-  { id: 'cmd_4', name: 'Táctico', description: 'Finalizar 15 torneos', aspect: 'Command', icon: '🎯', threshold: 15, statKey: 'tournamentsFinished' },
-  { id: 'cmd_5', name: 'Mariscal', description: 'Finalizar 25 torneos', aspect: 'Command', icon: '👑', threshold: 25, statKey: 'tournamentsFinished' },
+  { id: 'cmd_1', name: 'Estratega', description: 'Crear 1 torneo', aspect: 'Command', icon: '📋', svgIcon: 'strategy', threshold: 1, statKey: 'tournamentsCreated' },
+  { id: 'cmd_2', name: 'Comandante', description: 'Finalizar 5 torneos', aspect: 'Command', icon: '🎖️', svgIcon: 'medal', threshold: 5, statKey: 'tournamentsFinished' },
+  { id: 'cmd_3', name: 'General', description: 'Finalizar 10 torneos', aspect: 'Command', icon: '⭐', svgIcon: 'star', threshold: 10, statKey: 'tournamentsFinished' },
+  { id: 'cmd_4', name: 'Táctico', description: 'Finalizar 15 torneos', aspect: 'Command', icon: '🎯', svgIcon: 'cunning', threshold: 15, statKey: 'tournamentsFinished' },
+  { id: 'cmd_5', name: 'Mariscal', description: 'Finalizar 25 torneos', aspect: 'Command', icon: '👑', svgIcon: 'crown', threshold: 25, statKey: 'tournamentsFinished' },
 
   // Aggression (Rojo) — Victorias
-  { id: 'agg_1', name: 'Primera Sangre', description: '1 victoria', aspect: 'Aggression', icon: '⚔️', threshold: 1, statKey: 'wins' },
-  { id: 'agg_2', name: 'Gladiador', description: '10 victorias', aspect: 'Aggression', icon: '🗡️', threshold: 10, statKey: 'wins' },
-  { id: 'agg_3', name: 'Conquistador', description: '50 victorias', aspect: 'Aggression', icon: '🔥', threshold: 50, statKey: 'wins' },
-  { id: 'agg_4', name: 'Imparable', description: '100 victorias', aspect: 'Aggression', icon: '💀', threshold: 100, statKey: 'wins' },
-  { id: 'agg_5', name: 'Leyenda', description: 'Racha de 3 victorias', aspect: 'Aggression', icon: '🏆', threshold: 3, statKey: 'bestStreak' },
+  { id: 'agg_1', name: 'Primera Sangre', description: '1 victoria', aspect: 'Aggression', icon: '⚔️', svgIcon: 'blade', threshold: 1, statKey: 'wins' },
+  { id: 'agg_2', name: 'Gladiador', description: '10 victorias', aspect: 'Aggression', icon: '🗡️', svgIcon: 'dual_blades', threshold: 10, statKey: 'wins' },
+  { id: 'agg_3', name: 'Conquistador', description: '50 victorias', aspect: 'Aggression', icon: '🔥', svgIcon: 'aggression', threshold: 50, statKey: 'wins' },
+  { id: 'agg_4', name: 'Imparable', description: '100 victorias', aspect: 'Aggression', icon: '💀', svgIcon: 'skull', threshold: 100, statKey: 'wins' },
+  { id: 'agg_5', name: 'Leyenda', description: 'Racha de 3 victorias', aspect: 'Aggression', icon: '🏆', svgIcon: 'trophy', threshold: 3, statKey: 'bestStreak' },
 
   // Cunning (Amarillo) — Deckbuilding
-  { id: 'cun_1', name: 'Aprendiz', description: '1 deck creado', aspect: 'Cunning', icon: '📝', threshold: 1, statKey: 'decksCreated' },
-  { id: 'cun_2', name: 'Ingeniero', description: '5 decks creados', aspect: 'Cunning', icon: '🔧', threshold: 5, statKey: 'decksCreated' },
-  { id: 'cun_3', name: 'Arquitecto', description: '10 decks creados', aspect: 'Cunning', icon: '🏗️', threshold: 10, statKey: 'decksCreated' },
-  { id: 'cun_4', name: 'Maestro Constructor', description: '5 decks válidos', aspect: 'Cunning', icon: '✅', threshold: 5, statKey: 'decksValid' },
-  { id: 'cun_5', name: 'Innovador', description: '20 decks creados', aspect: 'Cunning', icon: '💡', threshold: 20, statKey: 'decksCreated' },
+  { id: 'cun_1', name: 'Aprendiz', description: '1 deck creado', aspect: 'Cunning', icon: '📝', svgIcon: 'draft', threshold: 1, statKey: 'decksCreated' },
+  { id: 'cun_2', name: 'Ingeniero', description: '5 decks creados', aspect: 'Cunning', icon: '🔧', svgIcon: 'wrench', threshold: 5, statKey: 'decksCreated' },
+  { id: 'cun_3', name: 'Arquitecto', description: '10 decks creados', aspect: 'Cunning', icon: '🏗️', svgIcon: 'blueprint', threshold: 10, statKey: 'decksCreated' },
+  { id: 'cun_4', name: 'Maestro Constructor', description: '5 decks válidos', aspect: 'Cunning', icon: '✅', svgIcon: 'valid', threshold: 5, statKey: 'decksValid' },
+  { id: 'cun_5', name: 'Innovador', description: '20 decks creados', aspect: 'Cunning', icon: '💡', svgIcon: 'lightbulb', threshold: 20, statKey: 'decksCreated' },
 
   // Heroism (Cian) — Colección
-  { id: 'her_1', name: 'Coleccionista', description: '50 cartas en colección', aspect: 'Heroism', icon: '📦', threshold: 50, statKey: 'cardsCollected' },
-  { id: 'her_2', name: 'Archivista', description: '200 cartas en colección', aspect: 'Heroism', icon: '📚', threshold: 200, statKey: 'cardsCollected' },
-  { id: 'her_3', name: 'Curador', description: '500 cartas en colección', aspect: 'Heroism', icon: '🗃️', threshold: 500, statKey: 'cardsCollected' },
-  { id: 'her_4', name: 'Enciclopedista', description: '1000 cartas', aspect: 'Heroism', icon: '🌟', threshold: 1000, statKey: 'cardsCollected' },
-  { id: 'her_5', name: 'Bibliófilo', description: '50 cartas favoritas', aspect: 'Heroism', icon: '❤️', threshold: 50, statKey: 'cardsFavorited' },
+  { id: 'her_1', name: 'Coleccionista', description: '50 cartas en colección', aspect: 'Heroism', icon: '📦', svgIcon: 'chest', threshold: 50, statKey: 'cardsCollected' },
+  { id: 'her_2', name: 'Archivista', description: '200 cartas en colección', aspect: 'Heroism', icon: '📚', svgIcon: 'books', threshold: 200, statKey: 'cardsCollected' },
+  { id: 'her_3', name: 'Curador', description: '500 cartas en colección', aspect: 'Heroism', icon: '🗃️', svgIcon: 'archive', threshold: 500, statKey: 'cardsCollected' },
+  { id: 'her_4', name: 'Enciclopedista', description: '1000 cartas', aspect: 'Heroism', icon: '🌟', svgIcon: 'glowing_star', threshold: 1000, statKey: 'cardsCollected' },
+  { id: 'her_5', name: 'Bibliófilo', description: '50 cartas favoritas', aspect: 'Heroism', icon: '❤️', svgIcon: 'heart', threshold: 50, statKey: 'cardsFavorited' },
 
   // Villainy (Púrpura) — Especiales
-  { id: 'vil_1', name: 'Iniciado', description: 'Crear perfil', aspect: 'Villainy', icon: '🌑', threshold: 1, statKey: '_profileCreated' },
-  { id: 'vil_2', name: 'Blindado', description: 'Registrar Passkey', aspect: 'Villainy', icon: '🔐', threshold: 1, statKey: '_hasPasskey' },
-  { id: 'vil_3', name: 'Diversificado', description: 'Jugar 2+ modos', aspect: 'Villainy', icon: '🎭', threshold: 2, statKey: '_modesPlayed' },
-  { id: 'vil_4', name: 'Completo', description: 'Logro de cada aspecto', aspect: 'Villainy', icon: '♾️', threshold: 6, statKey: '_aspectsCovered' },
-  { id: 'vil_5', name: 'Maestro Oscuro', description: 'Alcanzar nivel 20', aspect: 'Villainy', icon: '👿', threshold: 20, statKey: 'level' },
+  { id: 'vil_1', name: 'Iniciado', description: 'Crear perfil', aspect: 'Villainy', icon: '🌑', svgIcon: 'new_moon', threshold: 1, statKey: '_profileCreated' },
+  { id: 'vil_2', name: 'Blindado', description: 'Registrar Passkey', aspect: 'Villainy', icon: '🔐', svgIcon: 'passkey', threshold: 1, statKey: '_hasPasskey' },
+  { id: 'vil_3', name: 'Diversificado', description: 'Jugar 2+ modos', aspect: 'Villainy', icon: '🎭', svgIcon: 'masks', threshold: 2, statKey: '_modesPlayed' },
+  { id: 'vil_4', name: 'Completo', description: 'Logro de cada aspecto', aspect: 'Villainy', icon: '♾️', svgIcon: 'infinity', threshold: 6, statKey: '_aspectsCovered' },
+  { id: 'vil_5', name: 'Maestro Oscuro', description: 'Alcanzar nivel 20', aspect: 'Villainy', icon: '👿', svgIcon: 'dark_lord', threshold: 20, statKey: 'level' },
 ]
 
 // ─── ASPECT CONFIG ──────────────────────────────────────────────────
 
-export const ASPECT_CONFIG: Record<Aspect, { label: string; icon: string; color: string; bgColor: string; textColor: string; borderColor: string }> = {
-  Vigilance: { label: 'Vigilancia', icon: '🛡️', color: 'from-blue-500 to-blue-700', bgColor: 'bg-blue-500/20', textColor: 'text-blue-400', borderColor: 'border-blue-500/30' },
-  Command: { label: 'Comando', icon: '⚔️', color: 'from-green-500 to-green-700', bgColor: 'bg-green-500/20', textColor: 'text-green-400', borderColor: 'border-green-500/30' },
-  Aggression: { label: 'Agresión', icon: '🔥', color: 'from-red-500 to-red-700', bgColor: 'bg-red-500/20', textColor: 'text-red-400', borderColor: 'border-red-500/30' },
-  Cunning: { label: 'Astucia', icon: '🎯', color: 'from-yellow-500 to-yellow-700', bgColor: 'bg-yellow-500/20', textColor: 'text-yellow-400', borderColor: 'border-yellow-500/30' },
-  Heroism: { label: 'Heroísmo', icon: '💎', color: 'from-cyan-400 to-cyan-600', bgColor: 'bg-cyan-500/20', textColor: 'text-cyan-300', borderColor: 'border-cyan-500/30' },
-  Villainy: { label: 'Villanía', icon: '🌙', color: 'from-purple-500 to-purple-700', bgColor: 'bg-purple-500/20', textColor: 'text-purple-400', borderColor: 'border-purple-500/30' },
+export const ASPECT_CONFIG: Record<Aspect, { label: string; icon: string; svgIcon: string; color: string; bgColor: string; textColor: string; borderColor: string }> = {
+  Vigilance: { label: 'Vigilancia', icon: '🛡️', svgIcon: 'vigilance', color: 'from-blue-500 to-blue-700', bgColor: 'bg-blue-500/20', textColor: 'text-blue-400', borderColor: 'border-blue-500/30' },
+  Command: { label: 'Comando', icon: '⚔️', svgIcon: 'command', color: 'from-green-500 to-green-700', bgColor: 'bg-green-500/20', textColor: 'text-green-400', borderColor: 'border-green-500/30' },
+  Aggression: { label: 'Agresión', icon: '🔥', svgIcon: 'aggression', color: 'from-red-500 to-red-700', bgColor: 'bg-red-500/20', textColor: 'text-red-400', borderColor: 'border-red-500/30' },
+  Cunning: { label: 'Astucia', icon: '🎯', svgIcon: 'cunning', color: 'from-yellow-500 to-yellow-700', bgColor: 'bg-yellow-500/20', textColor: 'text-yellow-400', borderColor: 'border-yellow-500/30' },
+  Heroism: { label: 'Heroísmo', icon: '💎', svgIcon: 'heroism', color: 'from-cyan-400 to-cyan-600', bgColor: 'bg-cyan-500/20', textColor: 'text-cyan-300', borderColor: 'border-cyan-500/30' },
+  Villainy: { label: 'Villanía', icon: '🌙', svgIcon: 'villainy', color: 'from-purple-500 to-purple-700', bgColor: 'bg-purple-500/20', textColor: 'text-purple-400', borderColor: 'border-purple-500/30' },
 }
 
 // ─── FUNCTIONS ──────────────────────────────────────────────────────
