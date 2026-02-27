@@ -1,9 +1,18 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { db, type UserProfile } from '../services/db'
-import { hashPin, verifyPin, createPasskey, authenticateWithPasskey, authenticateWithAnyPasskey } from '../services/crypto'
+import { supabase, isSupabaseReady } from '../services/supabase'
+import { syncProfileToCloud, syncStatsToCloud, pullAllFromCloud, addMonthlyXp } from '../services/sync'
+import { createPasskey, authenticateWithPasskey, authenticateWithAnyPasskey } from '../services/crypto'
+import { createDefaultStats } from '../services/gamification'
+import type { User } from '@supabase/supabase-js'
 
 interface AuthState {
+  // Cloud auth
+  supabaseUser: User | null
+  isOnline: boolean
+
+  // Local profile (Dexie cache)
   currentProfileId: string | null
   currentProfile: UserProfile | null
   profiles: UserProfile[]
@@ -11,39 +20,86 @@ interface AuthState {
   // Core
   setCurrentProfile: (profile: UserProfile | null) => void
   loadProfiles: () => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
+  initAuth: () => Promise<void>
 
-  // Registration
-  createProfile: (data: {
+  // Registration (email + password)
+  register: (data: {
     name: string
-    pin: string
+    email: string
+    password: string
     avatar: string
-    email?: string
-  }) => Promise<UserProfile>
+  }) => Promise<{ ok: boolean; error?: string }>
 
-  // Login
-  login: (profileId: string, pin: string) => Promise<boolean>
+  // Login (email + password)
+  login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>
+
+  // Passkey (local quick login, still works)
   loginWithPasskey: (profileId: string) => Promise<boolean>
   loginWithAnyPasskey: () => Promise<boolean>
+  registerPasskey: () => Promise<boolean>
+  removePasskey: () => Promise<void>
+
+  // Password recovery
+  resetPassword: (email: string) => Promise<{ ok: boolean; error?: string }>
 
   // Profile management
   updateProfile: (data: Partial<Pick<UserProfile, 'name' | 'avatar' | 'email'>>) => Promise<void>
-  changePin: (oldPin: string, newPin: string) => Promise<boolean>
-  registerPasskey: () => Promise<boolean>
-  removePasskey: () => Promise<void>
   deleteProfile: (profileId: string) => Promise<void>
-}
-
-function generateId() {
-  return `u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
 
 export const useAuth = create<AuthState>()(
   persist(
     (set, get) => ({
+      supabaseUser: null,
+      isOnline: isSupabaseReady(),
       currentProfileId: null,
       currentProfile: null,
       profiles: [],
+
+      // ─── INIT: Listen for Supabase auth changes ───
+      initAuth: async () => {
+        if (!isSupabaseReady()) return
+
+        // Check existing session
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user) {
+          const user = session.user
+          set({ supabaseUser: user })
+
+          // Ensure local profile exists for this user
+          let profile = await db.profiles.get(user.id)
+          if (!profile) {
+            profile = {
+              id: user.id,
+              name: user.user_metadata?.name || 'Jugador',
+              email: user.email || '',
+              avatar: user.user_metadata?.avatar || '🎯',
+              createdAt: Date.now(),
+            }
+            await db.profiles.put(profile)
+          }
+
+          const profiles = await db.profiles.toArray()
+          set({
+            profiles,
+            currentProfile: profile,
+            currentProfileId: profile.id,
+          })
+
+          // Sync from cloud
+          pullAllFromCloud(user.id, profile.id).catch(() => {})
+        }
+
+        // Listen for future auth changes
+        supabase.auth.onAuthStateChange(async (event, session) => {
+          if (event === 'SIGNED_IN' && session?.user) {
+            set({ supabaseUser: session.user })
+          } else if (event === 'SIGNED_OUT') {
+            set({ supabaseUser: null, currentProfile: null, currentProfileId: null })
+          }
+        })
+      },
 
       loadProfiles: async () => {
         const profiles = await db.profiles.toArray()
@@ -55,60 +111,135 @@ export const useAuth = create<AuthState>()(
         }
       },
 
-      createProfile: async ({ name, pin, avatar, email }) => {
-        const { hash, salt } = await hashPin(pin)
+      // ─── REGISTER (Supabase Auth) ───
+      register: async ({ name, email, password, avatar }) => {
+        if (!isSupabaseReady()) {
+          return { ok: false, error: 'Sin conexión al servidor' }
+        }
+
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { name, avatar },
+          },
+        })
+
+        if (error) {
+          // Map common errors to Spanish
+          if (error.message.includes('already registered')) {
+            return { ok: false, error: 'Este correo ya está registrado' }
+          }
+          if (error.message.includes('password')) {
+            return { ok: false, error: 'La contraseña debe tener al menos 6 caracteres' }
+          }
+          return { ok: false, error: error.message }
+        }
+
+        if (!data.user) {
+          return { ok: false, error: 'Error al crear la cuenta' }
+        }
+
+        const user = data.user
+
+        // Create local profile
         const profile: UserProfile = {
-          id: generateId(),
+          id: user.id,
           name,
-          email: email || undefined,
-          pin: hash,
-          pinSalt: salt,
+          email,
           avatar,
           createdAt: Date.now(),
         }
         await db.profiles.put(profile)
+
+        // Create local player stats
+        const stats = createDefaultStats(user.id)
+        await db.playerStats.put(stats)
+
+        // Sync profile to cloud
+        syncProfileToCloud(user.id, name, avatar).catch(() => {})
+        syncStatsToCloud(user.id, stats).catch(() => {})
+
         const profiles = await db.profiles.toArray()
-        set({ profiles, currentProfile: profile, currentProfileId: profile.id })
-        return profile
+        set({
+          supabaseUser: user,
+          profiles,
+          currentProfile: profile,
+          currentProfileId: profile.id,
+        })
+
+        return { ok: true }
       },
 
-      login: async (profileId: string, pin: string) => {
-        const profile = await db.profiles.get(profileId)
-        if (!profile) return false
-
-        // Legacy migration: plaintext PIN → hashed
-        if (profile.pinPlain && !profile.pinSalt) {
-          if (profile.pinPlain !== pin) return false
-          // Migrate to hashed PIN
-          const { hash, salt } = await hashPin(pin)
-          const updated: UserProfile = {
-            ...profile,
-            pin: hash,
-            pinSalt: salt,
-            pinPlain: undefined,
-          }
-          await db.profiles.put(updated)
-          const profiles = await db.profiles.toArray()
-          set({ profiles, currentProfile: updated, currentProfileId: updated.id })
-          return true
+      // ─── LOGIN (Supabase Auth) ───
+      login: async (email: string, password: string) => {
+        if (!isSupabaseReady()) {
+          return { ok: false, error: 'Sin conexión al servidor' }
         }
 
-        // Normal hashed PIN verification
-        if (!profile.pin || !profile.pinSalt) return false
-        const valid = await verifyPin(pin, profile.pin, profile.pinSalt)
-        if (!valid) return false
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
 
-        set({ currentProfile: profile, currentProfileId: profile.id })
-        return true
+        if (error) {
+          if (error.message.includes('Invalid login')) {
+            return { ok: false, error: 'Correo o contraseña incorrectos' }
+          }
+          if (error.message.includes('Email not confirmed')) {
+            return { ok: false, error: 'Debe confirmar su correo primero. Revise su bandeja.' }
+          }
+          return { ok: false, error: error.message }
+        }
+
+        if (!data.user) {
+          return { ok: false, error: 'Error al iniciar sesión' }
+        }
+
+        const user = data.user
+
+        // Ensure local profile exists
+        let profile = await db.profiles.get(user.id)
+        if (!profile) {
+          // Pull profile info from cloud
+          const { data: cloudProfile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single()
+
+          profile = {
+            id: user.id,
+            name: cloudProfile?.name || user.user_metadata?.name || 'Jugador',
+            email: user.email || '',
+            avatar: cloudProfile?.avatar || user.user_metadata?.avatar || '🎯',
+            createdAt: Date.now(),
+          }
+          await db.profiles.put(profile)
+        }
+
+        const profiles = await db.profiles.toArray()
+        set({
+          supabaseUser: user,
+          profiles,
+          currentProfile: profile,
+          currentProfileId: profile.id,
+        })
+
+        // Pull all data from cloud in background
+        pullAllFromCloud(user.id, profile.id).catch(() => {})
+
+        return { ok: true }
       },
 
+      // ─── PASSKEY LOGIN (local, for convenience) ───
       loginWithPasskey: async (profileId: string) => {
         const profile = await db.profiles.get(profileId)
         if (!profile?.credentialId) return false
-
         const ok = await authenticateWithPasskey(profile.credentialId)
         if (!ok) return false
 
+        // If we have a Supabase session, great. Otherwise just set local profile.
         set({ currentProfile: profile, currentProfileId: profile.id })
         return true
       },
@@ -121,59 +252,42 @@ export const useAuth = create<AuthState>()(
         const profile = allProfiles.find(p => p.credentialId === matchedCredId)
         if (!profile) return false
 
-        set({
-          profiles: allProfiles,
-          currentProfile: profile,
-          currentProfileId: profile.id,
-        })
+        set({ profiles: allProfiles, currentProfile: profile, currentProfileId: profile.id })
         return true
       },
 
+      // ─── PASSWORD RECOVERY ───
+      resetPassword: async (email: string) => {
+        if (!isSupabaseReady()) {
+          return { ok: false, error: 'Sin conexión al servidor' }
+        }
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/profile`,
+        })
+        if (error) return { ok: false, error: error.message }
+        return { ok: true }
+      },
+
+      // ─── PROFILE MANAGEMENT ───
       updateProfile: async (data) => {
-        const { currentProfile } = get()
+        const { currentProfile, supabaseUser } = get()
         if (!currentProfile) return
         const updated = { ...currentProfile, ...data }
         await db.profiles.put(updated)
         const profiles = await db.profiles.toArray()
         set({ profiles, currentProfile: updated })
-      },
 
-      changePin: async (oldPin: string, newPin: string) => {
-        const { currentProfile } = get()
-        if (!currentProfile) return false
-
-        // Verify old PIN
-        if (currentProfile.pinPlain) {
-          if (currentProfile.pinPlain !== oldPin) return false
-        } else if (currentProfile.pin && currentProfile.pinSalt) {
-          const valid = await verifyPin(oldPin, currentProfile.pin, currentProfile.pinSalt)
-          if (!valid) return false
-        } else {
-          return false
+        // Sync to cloud
+        if (supabaseUser) {
+          syncProfileToCloud(supabaseUser.id, updated.name, updated.avatar).catch(() => {})
         }
-
-        const { hash, salt } = await hashPin(newPin)
-        const updated: UserProfile = {
-          ...currentProfile,
-          pin: hash,
-          pinSalt: salt,
-          pinPlain: undefined,
-        }
-        await db.profiles.put(updated)
-        const profiles = await db.profiles.toArray()
-        set({ profiles, currentProfile: updated })
-        return true
       },
 
       registerPasskey: async () => {
         const { currentProfile } = get()
         if (!currentProfile) return false
-
         try {
-          const { credentialId, publicKey } = await createPasskey(
-            currentProfile.id,
-            currentProfile.name
-          )
+          const { credentialId, publicKey } = await createPasskey(currentProfile.id, currentProfile.name)
           const updated: UserProfile = {
             ...currentProfile,
             credentialId,
@@ -201,8 +315,11 @@ export const useAuth = create<AuthState>()(
         set({ profiles, currentProfile: updated })
       },
 
-      logout: () => {
-        set({ currentProfile: null, currentProfileId: null })
+      logout: async () => {
+        if (isSupabaseReady()) {
+          await supabase.auth.signOut().catch(() => {})
+        }
+        set({ currentProfile: null, currentProfileId: null, supabaseUser: null })
       },
 
       setCurrentProfile: (profile) => {
@@ -211,6 +328,7 @@ export const useAuth = create<AuthState>()(
 
       deleteProfile: async (profileId: string) => {
         await db.profiles.delete(profileId)
+        await db.playerStats.delete(profileId)
         const profiles = await db.profiles.toArray()
         const { currentProfileId } = get()
         if (currentProfileId === profileId) {
@@ -226,3 +344,20 @@ export const useAuth = create<AuthState>()(
     }
   )
 )
+
+// ─── HELPER: Add XP with cloud sync ─────────────────────────────
+
+export async function addXpWithSync(profileId: string, xpAmount: number) {
+  const stats = await db.playerStats.get(profileId)
+  if (!stats) return
+
+  stats.xp += xpAmount
+  await db.playerStats.put(stats)
+
+  // Sync to cloud
+  const { supabaseUser } = useAuth.getState()
+  if (supabaseUser) {
+    syncStatsToCloud(supabaseUser.id, stats).catch(() => {})
+    addMonthlyXp(supabaseUser.id, xpAmount).catch(() => {})
+  }
+}

@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronRight, History, Heart, Star, Layers, BookOpen, Trophy,
-  LogOut, UserPlus, Lock, User, Trash2, Shield, Palette,
-  Fingerprint, Mail, Key, ChevronLeft, Eye, EyeOff, AlertTriangle,
+  LogOut, UserPlus, User, Shield, Palette,
+  Fingerprint, Mail, ChevronLeft, Eye, EyeOff, Lock, KeyRound,
 } from 'lucide-react'
 import { db } from '../../services/db'
 import { useAuth } from '../../hooks/useAuth'
@@ -12,50 +12,48 @@ import { createDefaultStats, getAspectBars, checkAchievements, calculateLevel, t
 import { XpBar } from './components/XpBar'
 import { AspectBars } from './components/AspectBars'
 import { AchievementGrid } from './components/AchievementGrid'
-import type { UserProfile } from '../../services/db'
+import { MonthlyRank } from './components/MonthlyRank'
 
 const avatarOptions = ['🎯', '⚔️', '🛡️', '🚀', '🌟', '💎', '🔥', '🌙', '👾', '🎲', '🐉', '🦅', '⭐', '🎭', '🏆', '🌀']
 
-type View = 'select' | 'register-info' | 'register-pin' | 'register-passkey' | 'login' | 'profile' | 'customize' | 'security' | 'change-pin'
+type View = 'select' | 'register' | 'login' | 'forgot-password' | 'profile' | 'customize' | 'security' | 'register-passkey'
 
 export function ProfilePage() {
   const navigate = useNavigate()
   const auth = useAuth()
-  const { currentProfile, profiles, loadProfiles, logout } = auth
+  const { currentProfile, profiles, loadProfiles, logout, supabaseUser } = auth
 
   const [view, setView] = useState<View>(currentProfile ? 'profile' : 'select')
   const [stats, setStats] = useState({ matches: 0, tournaments: 0, decks: 0, favorites: 0 })
   const [passkeySupported, setPasskeySupported] = useState(false)
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null)
 
-  // Register state (multi-step)
+  // Register state
   const [regName, setRegName] = useState('')
   const [regEmail, setRegEmail] = useState('')
+  const [regPassword, setRegPassword] = useState('')
+  const [regPasswordConfirm, setRegPasswordConfirm] = useState('')
   const [regAvatar, setRegAvatar] = useState('🎯')
-  const [regPin, setRegPin] = useState('')
-  const [regPinConfirm, setRegPinConfirm] = useState('')
   const [regError, setRegError] = useState('')
-  const [showPin, setShowPin] = useState(false)
+  const [regLoading, setRegLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   // Login state
-  const [loginProfile, setLoginProfile] = useState<UserProfile | null>(null)
-  const [loginPin, setLoginPin] = useState('')
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
   const [loginError, setLoginError] = useState('')
   const [loginLoading, setLoginLoading] = useState(false)
+
+  // Forgot password state
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotError, setForgotError] = useState('')
+  const [forgotSuccess, setForgotSuccess] = useState(false)
 
   // Customization state
   const [customAvatar, setCustomAvatar] = useState(currentProfile?.avatar || '🎯')
   const [customName, setCustomName] = useState(currentProfile?.name || '')
-  const [customEmail, setCustomEmail] = useState(currentProfile?.email || '')
 
-  // Change PIN state
-  const [oldPin, setOldPin] = useState('')
-  const [newPin, setNewPin] = useState('')
-  const [newPinConfirm, setNewPinConfirm] = useState('')
-  const [pinChangeError, setPinChangeError] = useState('')
-  const [pinChangeSuccess, setPinChangeSuccess] = useState(false)
-
-  useEffect(() => { loadProfiles() }, [loadProfiles])
+  useEffect(() => { loadProfiles(); auth.initAuth() }, [])
   useEffect(() => { isPasskeyReady().then(setPasskeySupported) }, [])
 
   useEffect(() => {
@@ -63,7 +61,6 @@ export function ProfilePage() {
       setView('profile')
       setCustomAvatar(currentProfile.avatar)
       setCustomName(currentProfile.name)
-      setCustomEmail(currentProfile.email || '')
 
       // Load basic stats
       Promise.all([
@@ -139,142 +136,77 @@ export function ProfilePage() {
 
   // ─── HANDLERS ───
 
-  const goToRegister = () => {
-    setRegName(''); setRegEmail(''); setRegPin(''); setRegPinConfirm('')
-    setRegError(''); setRegAvatar('🎯'); setShowPin(false)
-    setView('register-info')
-  }
-
-  const handleRegisterStep1 = () => {
+  const handleRegister = async () => {
     setRegError('')
-    if (!regName.trim() || regName.trim().length < 2) {
-      setRegError('El nombre debe tener al menos 2 caracteres'); return
-    }
-    if (regEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regEmail)) {
-      setRegError('Correo electrónico inválido'); return
-    }
-    setView('register-pin')
-  }
+    if (!regName.trim() || regName.trim().length < 2) { setRegError('El nombre debe tener al menos 2 caracteres'); return }
+    if (!regEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regEmail)) { setRegError('Correo electrónico inválido'); return }
+    if (regPassword.length < 6) { setRegError('La contraseña debe tener al menos 6 caracteres'); return }
+    if (regPassword !== regPasswordConfirm) { setRegError('Las contraseñas no coinciden'); return }
 
-  const handleRegisterStep2 = async () => {
-    setRegError('')
-    if (regPin.length < 4) { setRegError('El PIN debe tener al menos 4 dígitos'); return }
-    if (regPin !== regPinConfirm) { setRegError('Los PIN no coinciden'); return }
-
-    await auth.createProfile({
+    setRegLoading(true)
+    const result = await auth.register({
       name: regName.trim(),
-      pin: regPin,
+      email: regEmail.trim(),
+      password: regPassword,
       avatar: regAvatar,
-      email: regEmail.trim() || undefined,
     })
+    setRegLoading(false)
 
+    if (!result.ok) {
+      setRegError(result.error || 'Error al crear la cuenta')
+      return
+    }
+
+    // Offer passkey registration
     if (passkeySupported) {
       setView('register-passkey')
     }
-    // If no passkey support, createProfile already sets currentProfile → useEffect → 'profile'
-  }
-
-  const handleRegisterPasskey = async () => {
-    const ok = await auth.registerPasskey()
-    if (!ok) {
-      // User cancelled or error — proceed anyway, they already have PIN
-    }
-    setView('profile')
-  }
-
-  const handleSkipPasskey = () => setView('profile')
-
-  const startLogin = (p: UserProfile) => {
-    setLoginProfile(p); setLoginPin(''); setLoginError(''); setLoginLoading(false)
-    setView('login')
+    // If no passkey, register already sets currentProfile → useEffect → 'profile'
   }
 
   const handleLogin = async () => {
     setLoginError('')
-    if (!loginProfile || !loginPin) { setLoginError('Ingrese su PIN'); return }
+    if (!loginEmail.trim()) { setLoginError('Ingrese su correo electrónico'); return }
+    if (!loginPassword) { setLoginError('Ingrese su contraseña'); return }
+
     setLoginLoading(true)
-    const ok = await auth.login(loginProfile.id, loginPin)
+    const result = await auth.login(loginEmail.trim(), loginPassword)
     setLoginLoading(false)
-    if (!ok) { setLoginError('PIN incorrecto'); return }
-    setLoginPin(''); setLoginProfile(null)
+
+    if (!result.ok) {
+      setLoginError(result.error || 'Error al iniciar sesión')
+      return
+    }
+    // login sets currentProfile → useEffect → 'profile'
+    setLoginEmail(''); setLoginPassword('')
   }
 
-  const handlePasskeyLogin = async (profile: UserProfile) => {
-    setLoginLoading(true)
-    const ok = await auth.loginWithPasskey(profile.id)
-    setLoginLoading(false)
-    if (!ok) {
-      startLogin(profile) // Fallback to PIN
+  const handleForgotPassword = async () => {
+    setForgotError(''); setForgotSuccess(false)
+    if (!forgotEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forgotEmail)) {
+      setForgotError('Ingrese un correo electrónico válido'); return
     }
+    const result = await auth.resetPassword(forgotEmail.trim())
+    if (!result.ok) { setForgotError(result.error || 'Error al enviar correo'); return }
+    setForgotSuccess(true)
+  }
+
+  const handleRegisterPasskey = async () => {
+    await auth.registerPasskey()
+    setView('profile')
   }
 
   const handleAnyPasskeyLogin = async () => {
     setLoginLoading(true)
     const ok = await auth.loginWithAnyPasskey()
     setLoginLoading(false)
-    if (!ok) {
-      setLoginError('No se pudo autenticar. Intente con PIN.')
-    }
-  }
-
-  const handleDelete = async (profileId: string) => {
-    if (!confirm('¿Eliminar este perfil? Esta acción no se puede deshacer.')) return
-    await auth.deleteProfile(profileId)
+    if (!ok) setLoginError('No se pudo autenticar con passkey')
   }
 
   const saveCustomization = async () => {
-    await auth.updateProfile({
-      name: customName.trim() || currentProfile?.name,
-      avatar: customAvatar,
-      email: customEmail.trim() || undefined,
-    })
+    await auth.updateProfile({ name: customName.trim() || currentProfile?.name, avatar: customAvatar })
     setView('profile')
   }
-
-  const handleChangePin = async () => {
-    setPinChangeError(''); setPinChangeSuccess(false)
-    if (!oldPin) { setPinChangeError('Ingrese su PIN actual'); return }
-    if (newPin.length < 4) { setPinChangeError('El nuevo PIN debe tener al menos 4 dígitos'); return }
-    if (newPin !== newPinConfirm) { setPinChangeError('Los PIN no coinciden'); return }
-    const ok = await auth.changePin(oldPin, newPin)
-    if (!ok) { setPinChangeError('PIN actual incorrecto'); return }
-    setPinChangeSuccess(true)
-    setOldPin(''); setNewPin(''); setNewPinConfirm('')
-    setTimeout(() => setView('security'), 1500)
-  }
-
-  const handleRegisterPasskeySecurity = async () => {
-    await auth.registerPasskey()
-    // Profile will update via store
-  }
-
-  const handleRemovePasskey = async () => {
-    if (!confirm('¿Eliminar la passkey? Necesitará usar su PIN para ingresar.')) return
-    await auth.removePasskey()
-  }
-
-  // ─── PIN input component ───
-  const PinInput = ({ value, onChange, placeholder, autoFocus, onSubmit }: {
-    value: string; onChange: (v: string) => void; placeholder?: string; autoFocus?: boolean; onSubmit?: () => void
-  }) => (
-    <div className="relative">
-      <input
-        type={showPin ? 'text' : 'password'}
-        inputMode="numeric"
-        autoFocus={autoFocus}
-        value={value}
-        onChange={(e) => onChange(e.target.value.replace(/\D/g, ''))}
-        placeholder={placeholder || '••••'}
-        maxLength={8}
-        className="w-full bg-swu-bg border border-swu-border rounded-xl p-3.5 text-xl font-mono tracking-[0.3em] text-center text-swu-text outline-none focus:border-swu-accent pr-12"
-        onKeyDown={(e) => { if (e.key === 'Enter' && onSubmit) onSubmit() }}
-      />
-      <button type="button" onClick={() => setShowPin(!showPin)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-swu-muted p-1">
-        {showPin ? <EyeOff size={18} /> : <Eye size={18} />}
-      </button>
-    </div>
-  )
 
   // ─── BACK BUTTON ───
   const BackButton = ({ to, label }: { to: View; label?: string }) => (
@@ -284,49 +216,34 @@ export function ProfilePage() {
   )
 
   // ═══════════════════════════════════════════════════════════════════
-  // SELECT PROFILE
+  // SELECT (Landing)
   // ═══════════════════════════════════════════════════════════════════
   if (view === 'select') {
     const profilesWithPasskey = profiles.filter(p => p.credentialId)
     return (
       <div className="p-4 space-y-5 pb-24">
-        {/* Header */}
         <div className="text-center pt-2">
           <User size={40} className="mx-auto text-swu-accent mb-2" />
           <h2 className="text-lg font-bold text-swu-text">Bienvenido</h2>
           <p className="text-xs text-swu-muted mt-0.5">Inicie sesión o cree una cuenta nueva</p>
         </div>
 
-        {/* Two main action buttons — ALWAYS visible */}
         <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => {
-              if (profiles.length > 0) {
-                // Show profile list for login
-                setView('select') // Already here, scroll down
-                document.getElementById('profile-list')?.scrollIntoView({ behavior: 'smooth' })
-              } else {
-                setLoginError('No hay cuentas registradas. Cree una cuenta primero.')
-              }
-            }}
-            className="bg-swu-surface rounded-xl p-4 border border-swu-accent/40 flex flex-col items-center gap-2 active:scale-[0.97] transition-transform"
-          >
+          <button onClick={() => { setLoginEmail(''); setLoginPassword(''); setLoginError(''); setView('login') }}
+            className="bg-swu-surface rounded-xl p-4 border border-swu-accent/40 flex flex-col items-center gap-2 active:scale-[0.97] transition-transform">
             <div className="w-12 h-12 rounded-full bg-swu-accent/20 flex items-center justify-center">
               <Lock size={22} className="text-swu-accent" />
             </div>
             <span className="text-sm font-bold text-swu-accent">Iniciar Sesión</span>
-            <span className="text-[10px] text-swu-muted">Ya tengo cuenta</span>
+            <span className="text-[10px] text-swu-muted">Email + contraseña</span>
           </button>
-
-          <button
-            onClick={goToRegister}
-            className="bg-swu-surface rounded-xl p-4 border border-swu-green/40 flex flex-col items-center gap-2 active:scale-[0.97] transition-transform"
-          >
+          <button onClick={() => { setRegName(''); setRegEmail(''); setRegPassword(''); setRegPasswordConfirm(''); setRegError(''); setRegAvatar('🎯'); setView('register') }}
+            className="bg-swu-surface rounded-xl p-4 border border-swu-green/40 flex flex-col items-center gap-2 active:scale-[0.97] transition-transform">
             <div className="w-12 h-12 rounded-full bg-swu-green/20 flex items-center justify-center">
               <UserPlus size={22} className="text-swu-green" />
             </div>
             <span className="text-sm font-bold text-swu-green">Crear Cuenta</span>
-            <span className="text-[10px] text-swu-muted">Soy nuevo</span>
+            <span className="text-[10px] text-swu-muted">Registro gratuito</span>
           </button>
         </div>
 
@@ -339,64 +256,32 @@ export function ProfilePage() {
           </button>
         )}
 
-        {loginError && !loginProfile && (
-          <p className="text-sm text-swu-red text-center">{loginError}</p>
-        )}
-
-        {/* Existing profiles list */}
-        {profiles.length > 0 && (
-          <div id="profile-list" className="space-y-2">
-            <p className="text-xs font-bold text-swu-muted uppercase tracking-widest">Cuentas en este dispositivo</p>
-            {profiles.map((p) => (
-              <div key={p.id} className="bg-swu-surface rounded-xl p-3.5 border border-swu-border flex items-center gap-3">
-                <span className="text-3xl">{p.avatar}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-swu-text truncate">{p.name}</p>
-                  {p.email && <p className="text-[10px] text-swu-muted truncate">{p.email}</p>}
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] text-swu-muted">{new Date(p.createdAt).toLocaleDateString()}</span>
-                    {p.credentialId && <Fingerprint size={10} className="text-swu-accent" />}
-                  </div>
-                </div>
-                <div className="flex gap-1.5 shrink-0">
-                  {p.credentialId && passkeySupported && (
-                    <button onClick={() => handlePasskeyLogin(p)}
-                      className="p-2.5 rounded-lg bg-swu-accent/10 text-swu-accent active:scale-95 transition-transform" title="Passkey">
-                      <Fingerprint size={18} />
-                    </button>
-                  )}
-                  <button onClick={() => startLogin(p)}
-                    className="px-3.5 py-2 rounded-lg bg-swu-accent text-white text-sm font-bold active:scale-95 transition-transform flex items-center gap-1.5">
-                    <Lock size={14} /> Entrar
-                  </button>
-                  <button onClick={() => handleDelete(p.id)}
-                    className="p-2 rounded-lg bg-swu-red/10 text-swu-red active:scale-95 transition-transform">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Info about cloud accounts */}
+        <div className="bg-swu-bg rounded-xl p-3 flex items-start gap-2">
+          <Shield size={14} className="text-swu-green mt-0.5 shrink-0" />
+          <p className="text-[11px] text-swu-muted">
+            Las cuentas se guardan en la nube. Puede iniciar sesión desde cualquier dispositivo con su correo y contraseña.
+          </p>
+        </div>
 
         <button onClick={() => navigate('/')} className="w-full py-2 text-sm text-swu-muted text-center">
-          Continuar sin perfil
+          Continuar sin cuenta
         </button>
       </div>
     )
   }
 
   // ═══════════════════════════════════════════════════════════════════
-  // REGISTER STEP 1: Info
+  // REGISTER
   // ═══════════════════════════════════════════════════════════════════
-  if (view === 'register-info') {
+  if (view === 'register') {
     return (
       <div className="p-4 space-y-5 pb-24">
         <BackButton to="select" />
         <div className="text-center">
           <span className="text-5xl block mb-2">{regAvatar}</span>
           <h2 className="text-lg font-bold text-swu-text">Crear Cuenta</h2>
-          <p className="text-xs text-swu-muted mt-0.5">Paso 1 de {passkeySupported ? '3' : '2'} — Información</p>
+          <p className="text-xs text-swu-muted mt-0.5">Su cuenta se sincroniza en todos sus dispositivos</p>
         </div>
         <div className="bg-swu-surface rounded-2xl p-5 border border-swu-border space-y-4">
           {/* Avatar */}
@@ -419,67 +304,50 @@ export function ProfilePage() {
           </div>
           {/* Email */}
           <div>
-            <p className="text-xs text-swu-muted mb-1.5">Correo Electrónico (opcional)</p>
+            <p className="text-xs text-swu-muted mb-1.5">Correo Electrónico *</p>
             <div className="relative">
               <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-swu-muted" />
               <input type="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} placeholder="correo@ejemplo.com"
                 className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 pl-10 text-sm text-swu-text outline-none focus:border-swu-accent" />
             </div>
-            <p className="text-[10px] text-swu-muted mt-1">Para identificar su cuenta y futuras funciones</p>
+          </div>
+          {/* Password */}
+          <div>
+            <p className="text-xs text-swu-muted mb-1.5">Contraseña * (mínimo 6 caracteres)</p>
+            <div className="relative">
+              <KeyRound size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-swu-muted" />
+              <input type={showPassword ? 'text' : 'password'} value={regPassword} onChange={(e) => setRegPassword(e.target.value)} placeholder="••••••••"
+                className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 pl-10 pr-12 text-sm text-swu-text outline-none focus:border-swu-accent" />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-swu-muted p-1">
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+          {/* Confirm Password */}
+          <div>
+            <p className="text-xs text-swu-muted mb-1.5">Confirmar Contraseña *</p>
+            <input type={showPassword ? 'text' : 'password'} value={regPasswordConfirm} onChange={(e) => setRegPasswordConfirm(e.target.value)} placeholder="••••••••"
+              onKeyDown={(e) => { if (e.key === 'Enter') handleRegister() }}
+              className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 text-sm text-swu-text outline-none focus:border-swu-accent" />
           </div>
 
           {regError && <p className="text-sm text-swu-red text-center font-medium">{regError}</p>}
 
-          <button onClick={handleRegisterStep1}
-            className="w-full py-3.5 rounded-xl bg-swu-accent text-white font-bold text-base active:scale-[0.98] transition-transform">
-            Siguiente →
+          <button onClick={handleRegister} disabled={regLoading}
+            className={`w-full py-3.5 rounded-xl font-bold text-base transition-all ${!regLoading ? 'bg-swu-green text-white active:scale-[0.98]' : 'bg-swu-border text-swu-muted'}`}>
+            {regLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
           </button>
+
+          <p className="text-[10px] text-swu-muted text-center">
+            Al crear una cuenta, acepta que sus datos se almacenan de forma segura en la nube.
+          </p>
         </div>
       </div>
     )
   }
 
   // ═══════════════════════════════════════════════════════════════════
-  // REGISTER STEP 2: PIN
-  // ═══════════════════════════════════════════════════════════════════
-  if (view === 'register-pin') {
-    return (
-      <div className="p-4 space-y-5 pb-24">
-        <BackButton to="register-info" />
-        <div className="text-center">
-          <Lock size={40} className="mx-auto text-swu-accent mb-2" />
-          <h2 className="text-lg font-bold text-swu-text">Crear PIN</h2>
-          <p className="text-xs text-swu-muted mt-0.5">Paso 2 de {passkeySupported ? '3' : '2'} — Seguridad</p>
-        </div>
-        <div className="bg-swu-surface rounded-2xl p-5 border border-swu-border space-y-4">
-          <div>
-            <p className="text-xs text-swu-muted mb-1.5">PIN (4-8 dígitos)</p>
-            <PinInput value={regPin} onChange={setRegPin} autoFocus />
-          </div>
-          <div>
-            <p className="text-xs text-swu-muted mb-1.5">Confirmar PIN</p>
-            <PinInput value={regPinConfirm} onChange={setRegPinConfirm} onSubmit={handleRegisterStep2} />
-          </div>
-
-          <div className="bg-swu-bg rounded-lg p-3 flex items-start gap-2">
-            <Shield size={14} className="text-swu-accent mt-0.5 shrink-0" />
-            <p className="text-[11px] text-swu-muted">Su PIN se almacena encriptado con PBKDF2. Nadie puede ver su PIN real.</p>
-          </div>
-
-          {regError && <p className="text-sm text-swu-red text-center font-medium">{regError}</p>}
-
-          <button onClick={handleRegisterStep2}
-            className={`w-full py-3.5 rounded-xl font-bold text-base transition-all ${regPin.length >= 4 && regPinConfirm.length >= 4 ? 'bg-swu-green text-white active:scale-[0.98]' : 'bg-swu-border text-swu-muted cursor-not-allowed'}`}
-            disabled={regPin.length < 4 || regPinConfirm.length < 4}>
-            Crear Cuenta
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // ═══════════════════════════════════════════════════════════════════
-  // REGISTER STEP 3: Passkey (optional)
+  // REGISTER PASSKEY (optional, after signup)
   // ═══════════════════════════════════════════════════════════════════
   if (view === 'register-passkey') {
     return (
@@ -487,32 +355,23 @@ export function ProfilePage() {
         <div className="text-center pt-4">
           <Fingerprint size={56} className="mx-auto text-swu-accent mb-3" />
           <h2 className="text-lg font-bold text-swu-text">Inicio Rápido</h2>
-          <p className="text-xs text-swu-muted mt-0.5">Paso 3 de 3 — Passkey (opcional)</p>
+          <p className="text-xs text-swu-muted mt-0.5">Passkey (opcional)</p>
         </div>
         <div className="bg-swu-surface rounded-2xl p-5 border border-swu-border space-y-4">
           <p className="text-sm text-swu-text text-center">
-            ¿Desea usar huella digital o reconocimiento facial para iniciar sesión rápidamente?
+            ¿Usar huella digital o reconocimiento facial para iniciar sesión rápidamente en este dispositivo?
           </p>
-
-          <div className="space-y-2">
-            {['Su passkey se sincroniza con iCloud/Google automáticamente',
-              'Más seguro que un PIN',
-              'Inicie sesión en un toque'
-            ].map((t) => (
-              <div key={t} className="flex items-center gap-2 text-xs text-swu-muted">
-                <Shield size={12} className="text-swu-green shrink-0" />
-                <span>{t}</span>
-              </div>
-            ))}
-          </div>
-
+          {['Su passkey se sincroniza con iCloud/Google', 'Más rápido que escribir contraseña', 'Inicie sesión en un toque'
+          ].map((t) => (
+            <div key={t} className="flex items-center gap-2 text-xs text-swu-muted">
+              <Shield size={12} className="text-swu-green shrink-0" /><span>{t}</span>
+            </div>
+          ))}
           <button onClick={handleRegisterPasskey}
             className="w-full py-3.5 rounded-xl bg-swu-accent text-white font-bold text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-transform">
             <Fingerprint size={20} /> Registrar Passkey
           </button>
-
-          <button onClick={handleSkipPasskey}
-            className="w-full py-2 text-sm text-swu-muted text-center">
+          <button onClick={() => setView('profile')} className="w-full py-2 text-sm text-swu-muted text-center">
             Omitir por ahora
           </button>
         </div>
@@ -523,42 +382,96 @@ export function ProfilePage() {
   // ═══════════════════════════════════════════════════════════════════
   // LOGIN
   // ═══════════════════════════════════════════════════════════════════
-  if (view === 'login' && loginProfile) {
+  if (view === 'login') {
     return (
       <div className="p-4 space-y-5 pb-24">
         <BackButton to="select" />
         <div className="text-center">
-          <span className="text-5xl block mb-2">{loginProfile.avatar}</span>
-          <h2 className="text-lg font-bold text-swu-text">{loginProfile.name}</h2>
-          {loginProfile.email && <p className="text-xs text-swu-muted mt-0.5">{loginProfile.email}</p>}
+          <Lock size={40} className="mx-auto text-swu-accent mb-2" />
+          <h2 className="text-lg font-bold text-swu-text">Iniciar Sesión</h2>
+          <p className="text-xs text-swu-muted mt-0.5">Ingrese con su correo y contraseña</p>
         </div>
         <div className="bg-swu-surface rounded-2xl p-5 border border-swu-border space-y-4">
-          <div className="flex items-center gap-2 text-sm text-swu-muted"><Lock size={14} /><span>Ingrese su PIN</span></div>
-          <PinInput value={loginPin} onChange={setLoginPin} autoFocus onSubmit={handleLogin} />
+          <div>
+            <p className="text-xs text-swu-muted mb-1.5">Correo Electrónico</p>
+            <div className="relative">
+              <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-swu-muted" />
+              <input type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="correo@ejemplo.com" autoFocus
+                className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 pl-10 text-sm text-swu-text outline-none focus:border-swu-accent" />
+            </div>
+          </div>
+          <div>
+            <p className="text-xs text-swu-muted mb-1.5">Contraseña</p>
+            <div className="relative">
+              <KeyRound size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-swu-muted" />
+              <input type={showPassword ? 'text' : 'password'} value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)} placeholder="••••••••"
+                onKeyDown={(e) => { if (e.key === 'Enter') handleLogin() }}
+                className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 pl-10 pr-12 text-sm text-swu-text outline-none focus:border-swu-accent" />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-swu-muted p-1">
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
 
           {loginError && <p className="text-sm text-swu-red text-center font-medium">{loginError}</p>}
 
-          <button onClick={handleLogin} disabled={loginPin.length < 4 || loginLoading}
-            className={`w-full py-3.5 rounded-xl font-bold text-base transition-all ${loginPin.length >= 4 && !loginLoading ? 'bg-swu-accent text-white active:scale-[0.98]' : 'bg-swu-border text-swu-muted cursor-not-allowed'}`}>
+          <button onClick={handleLogin} disabled={loginLoading}
+            className={`w-full py-3.5 rounded-xl font-bold text-base transition-all ${!loginLoading ? 'bg-swu-accent text-white active:scale-[0.98]' : 'bg-swu-border text-swu-muted'}`}>
             {loginLoading ? 'Verificando...' : 'Ingresar'}
           </button>
 
-          {loginProfile.credentialId && passkeySupported && (
-            <button onClick={() => handlePasskeyLogin(loginProfile)} disabled={loginLoading}
+          <button onClick={() => { setForgotEmail(loginEmail); setForgotError(''); setForgotSuccess(false); setView('forgot-password') }}
+            className="w-full py-2 text-sm text-swu-accent text-center font-medium">
+            ¿Olvidó su contraseña?
+          </button>
+
+          {passkeySupported && profiles.some(p => p.credentialId) && (
+            <button onClick={handleAnyPasskeyLogin} disabled={loginLoading}
               className="w-full py-3 rounded-xl bg-swu-accent/10 border border-swu-accent/30 text-swu-accent font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-50">
               <Fingerprint size={18} /> Usar Passkey
             </button>
           )}
+        </div>
+      </div>
+    )
+  }
 
-          {/* Forgot PIN info */}
-          <div className="bg-swu-bg rounded-lg p-3 flex items-start gap-2">
-            <AlertTriangle size={14} className="text-swu-amber mt-0.5 shrink-0" />
-            <div>
-              <p className="text-[11px] text-swu-muted">
-                ¿Olvidó su PIN? {loginProfile.credentialId ? 'Use su passkey para ingresar y cambie el PIN desde Seguridad.' : 'Si no tiene passkey registrada, los datos locales no pueden recuperarse.'}
-              </p>
+  // ═══════════════════════════════════════════════════════════════════
+  // FORGOT PASSWORD
+  // ═══════════════════════════════════════════════════════════════════
+  if (view === 'forgot-password') {
+    return (
+      <div className="p-4 space-y-5 pb-24">
+        <BackButton to="login" />
+        <div className="text-center">
+          <Mail size={40} className="mx-auto text-swu-accent mb-2" />
+          <h2 className="text-lg font-bold text-swu-text">Recuperar Contraseña</h2>
+          <p className="text-xs text-swu-muted mt-0.5">Le enviaremos un enlace para restablecer su contraseña</p>
+        </div>
+        <div className="bg-swu-surface rounded-2xl p-5 border border-swu-border space-y-4">
+          <div>
+            <p className="text-xs text-swu-muted mb-1.5">Correo Electrónico</p>
+            <div className="relative">
+              <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-swu-muted" />
+              <input type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} placeholder="correo@ejemplo.com" autoFocus
+                onKeyDown={(e) => { if (e.key === 'Enter') handleForgotPassword() }}
+                className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 pl-10 text-sm text-swu-text outline-none focus:border-swu-accent" />
             </div>
           </div>
+
+          {forgotError && <p className="text-sm text-swu-red text-center font-medium">{forgotError}</p>}
+          {forgotSuccess && (
+            <div className="bg-swu-green/10 rounded-lg p-3 border border-swu-green/30">
+              <p className="text-sm text-swu-green text-center font-medium">Correo enviado exitosamente</p>
+              <p className="text-[10px] text-swu-muted text-center mt-1">Revise su bandeja de entrada (y spam) para el enlace de recuperación.</p>
+            </div>
+          )}
+
+          <button onClick={handleForgotPassword} disabled={forgotSuccess}
+            className={`w-full py-3.5 rounded-xl font-bold text-base transition-all ${!forgotSuccess ? 'bg-swu-accent text-white active:scale-[0.98]' : 'bg-swu-border text-swu-muted'}`}>
+            Enviar Enlace
+          </button>
         </div>
       </div>
     )
@@ -592,14 +505,6 @@ export function ProfilePage() {
             <input value={customName} onChange={(e) => setCustomName(e.target.value)} maxLength={30}
               className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 text-sm text-swu-text outline-none focus:border-swu-accent" />
           </div>
-          <div>
-            <p className="text-xs text-swu-muted mb-1.5">Correo Electrónico</p>
-            <div className="relative">
-              <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-swu-muted" />
-              <input type="email" value={customEmail} onChange={(e) => setCustomEmail(e.target.value)} placeholder="correo@ejemplo.com"
-                className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 pl-10 text-sm text-swu-text outline-none focus:border-swu-accent" />
-            </div>
-          </div>
           <button onClick={saveCustomization}
             className="w-full py-3.5 rounded-xl bg-swu-accent text-white font-bold text-base active:scale-[0.98] transition-transform">
             Guardar Cambios
@@ -621,17 +526,17 @@ export function ProfilePage() {
           <h2 className="text-lg font-bold text-swu-text">Seguridad</h2>
         </div>
 
-        {/* PIN Section */}
+        {/* Account info */}
         <div className="bg-swu-surface rounded-2xl p-4 border border-swu-border space-y-3">
           <div className="flex items-center gap-2">
-            <Key size={16} className="text-swu-accent" />
-            <p className="text-sm font-bold text-swu-text">PIN de Acceso</p>
+            <Mail size={16} className="text-swu-accent" />
+            <p className="text-sm font-bold text-swu-text">Cuenta</p>
           </div>
-          <p className="text-xs text-swu-muted">Su PIN está protegido con encriptación PBKDF2</p>
-          <button onClick={() => { setOldPin(''); setNewPin(''); setNewPinConfirm(''); setPinChangeError(''); setPinChangeSuccess(false); setView('change-pin') }}
-            className="w-full py-2.5 rounded-xl bg-swu-bg border border-swu-border text-swu-text text-sm font-medium active:scale-[0.98] transition-transform">
-            Cambiar PIN
-          </button>
+          <p className="text-xs text-swu-muted">{currentProfile?.email || 'Sin correo'}</p>
+          <div className="flex items-center gap-2 bg-swu-green/10 rounded-lg px-3 py-2">
+            <Shield size={14} className="text-swu-green" />
+            <p className="text-xs text-swu-green font-medium">Cuenta sincronizada en la nube</p>
+          </div>
         </div>
 
         {/* Passkey Section */}
@@ -640,14 +545,13 @@ export function ProfilePage() {
             <Fingerprint size={16} className="text-swu-accent" />
             <p className="text-sm font-bold text-swu-text">Passkey (Biometría)</p>
           </div>
-
           {currentProfile?.credentialId ? (
             <>
               <div className="flex items-center gap-2 bg-swu-green/10 rounded-lg px-3 py-2">
                 <Shield size={14} className="text-swu-green" />
                 <p className="text-xs text-swu-green font-medium">Passkey registrada y activa</p>
               </div>
-              <button onClick={handleRemovePasskey}
+              <button onClick={async () => { if (confirm('¿Eliminar la passkey?')) await auth.removePasskey() }}
                 className="w-full py-2.5 rounded-xl bg-swu-red/10 border border-swu-red/30 text-swu-red text-sm font-medium active:scale-[0.98] transition-transform">
                 Eliminar Passkey
               </button>
@@ -655,57 +559,19 @@ export function ProfilePage() {
           ) : passkeySupported ? (
             <>
               <p className="text-xs text-swu-muted">Use huella/rostro para iniciar sesión más rápido</p>
-              <button onClick={handleRegisterPasskeySecurity}
+              <button onClick={() => auth.registerPasskey()}
                 className="w-full py-2.5 rounded-xl bg-swu-accent text-white text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform">
                 <Fingerprint size={16} /> Registrar Passkey
               </button>
             </>
           ) : (
-            <p className="text-xs text-swu-muted">Su dispositivo no soporta passkeys (WebAuthn)</p>
+            <p className="text-xs text-swu-muted">Su dispositivo no soporta passkeys</p>
           )}
         </div>
 
-        {/* Info */}
         <div className="bg-swu-bg rounded-xl p-4 space-y-2">
           <p className="text-xs font-bold text-swu-muted">Acerca de la seguridad</p>
-          <p className="text-[11px] text-swu-muted">Todos sus datos se almacenan localmente en su dispositivo. Si tiene una passkey, esta se sincroniza automáticamente vía iCloud Keychain (Apple) o Google Password Manager (Android/Chrome).</p>
-        </div>
-      </div>
-    )
-  }
-
-  // ═══════════════════════════════════════════════════════════════════
-  // CHANGE PIN
-  // ═══════════════════════════════════════════════════════════════════
-  if (view === 'change-pin') {
-    return (
-      <div className="p-4 space-y-5 pb-24">
-        <BackButton to="security" />
-        <div className="text-center">
-          <Key size={40} className="mx-auto text-swu-accent mb-2" />
-          <h2 className="text-lg font-bold text-swu-text">Cambiar PIN</h2>
-        </div>
-        <div className="bg-swu-surface rounded-2xl p-5 border border-swu-border space-y-4">
-          <div>
-            <p className="text-xs text-swu-muted mb-1.5">PIN Actual</p>
-            <PinInput value={oldPin} onChange={setOldPin} autoFocus />
-          </div>
-          <div>
-            <p className="text-xs text-swu-muted mb-1.5">Nuevo PIN (4-8 dígitos)</p>
-            <PinInput value={newPin} onChange={setNewPin} />
-          </div>
-          <div>
-            <p className="text-xs text-swu-muted mb-1.5">Confirmar Nuevo PIN</p>
-            <PinInput value={newPinConfirm} onChange={setNewPinConfirm} onSubmit={handleChangePin} />
-          </div>
-
-          {pinChangeError && <p className="text-sm text-swu-red text-center font-medium">{pinChangeError}</p>}
-          {pinChangeSuccess && <p className="text-sm text-swu-green text-center font-medium">PIN cambiado exitosamente</p>}
-
-          <button onClick={handleChangePin} disabled={oldPin.length < 4 || newPin.length < 4}
-            className={`w-full py-3.5 rounded-xl font-bold text-base transition-all ${oldPin.length >= 4 && newPin.length >= 4 ? 'bg-swu-accent text-white active:scale-[0.98]' : 'bg-swu-border text-swu-muted cursor-not-allowed'}`}>
-            Guardar Nuevo PIN
-          </button>
+          <p className="text-[11px] text-swu-muted">Su cuenta está protegida por Supabase Auth. La contraseña se almacena encriptada en la nube. La passkey es local de este dispositivo para acceso rápido.</p>
         </div>
       </div>
     )
@@ -742,19 +608,14 @@ export function ProfilePage() {
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-extrabold text-swu-text truncate">{currentProfile?.name || 'Jugador'}</h2>
             <div className="flex items-center gap-2">
-              {levelInfo && (
-                <span className={`text-[11px] font-bold ${levelInfo.rank.color}`}>{levelInfo.rank.name}</span>
-              )}
+              {levelInfo && <span className={`text-[11px] font-bold ${levelInfo.rank.color}`}>{levelInfo.rank.name}</span>}
               {currentProfile?.credentialId && <Fingerprint size={10} className="text-swu-accent" />}
+              {supabaseUser && (
+                <span className="text-[9px] bg-swu-green/20 text-swu-green px-1.5 py-0.5 rounded-full font-bold">Online</span>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-1 bg-swu-green/20 px-2 py-0.5 rounded-full shrink-0">
-            <Shield size={10} className="text-swu-green" />
-            <span className="text-[10px] font-bold text-swu-green">Activo</span>
-          </div>
         </div>
-
-        {/* XP Bar */}
         {playerStats && <XpBar xp={playerStats.xp} />}
       </div>
 
@@ -773,7 +634,12 @@ export function ProfilePage() {
         ))}
       </div>
 
-      {/* Aspect Bars — HUD style */}
+      {/* Monthly Rank */}
+      <div className="bg-swu-surface rounded-2xl p-4 border border-swu-border">
+        <MonthlyRank userId={supabaseUser?.id || null} />
+      </div>
+
+      {/* Aspect Bars */}
       {aspectBars.length > 0 && (
         <div className="bg-swu-surface rounded-2xl p-4 border border-swu-border">
           <AspectBars bars={aspectBars} />
@@ -783,10 +649,7 @@ export function ProfilePage() {
       {/* Achievements */}
       {playerStats && (
         <div className="bg-swu-surface rounded-2xl p-4 border border-swu-border">
-          <AchievementGrid
-            unlockedIds={playerStats.unlockedAchievements}
-            achievementDates={playerStats.achievementDates}
-          />
+          <AchievementGrid unlockedIds={playerStats.unlockedAchievements} achievementDates={playerStats.achievementDates} />
         </div>
       )}
 
@@ -821,7 +684,7 @@ export function ProfilePage() {
       </div>
 
       {/* Logout */}
-      <button onClick={() => { logout(); setView('select') }}
+      <button onClick={async () => { await logout(); setView('select') }}
         className="w-full py-3 rounded-xl bg-swu-red/10 border border-swu-red/30 text-swu-red font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform">
         <LogOut size={18} /> Cerrar Sesión
       </button>
