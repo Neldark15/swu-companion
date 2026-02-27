@@ -106,7 +106,7 @@ export function HomePage() {
           {/* Top status bar with logo */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <img src="/swu-logo-title.png" alt="SWU" className="w-10 h-10 object-contain drop-shadow-lg" />
+              <img src="/swu-logo-title.png" alt="SWU" className="w-8 h-10 object-contain drop-shadow-lg" />
               <div>
                 <h1 className="text-lg font-extrabold text-white tracking-tight leading-tight drop-shadow-md">
                   SWU Companion

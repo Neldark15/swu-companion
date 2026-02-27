@@ -60,18 +60,33 @@ export interface LevelInfo {
   progress: number     // 0-1
 }
 
+export type AspectTier = 'copper' | 'silver' | 'gold' | 'kyber'
+
+export const TIER_ORDER: AspectTier[] = ['copper', 'silver', 'gold', 'kyber']
+
+export const TIER_CONFIG: Record<AspectTier, { label: string; borderColor: string; glowColor: string }> = {
+  copper: { label: 'Cobre', borderColor: '#B87333', glowColor: 'rgba(184,115,51,0.4)' },
+  silver: { label: 'Plata', borderColor: '#C0C0C0', glowColor: 'rgba(192,192,192,0.4)' },
+  gold:   { label: 'Oro',   borderColor: '#FFD700', glowColor: 'rgba(255,215,0,0.4)' },
+  kyber:  { label: 'Kyber', borderColor: '#00BFFF', glowColor: 'rgba(0,191,255,0.6)' },
+}
+
 export interface AspectBar {
   aspect: Aspect
   label: string
   icon: string
   svgIcon: string
-  value: number
-  maxValue: number
-  progress: number     // 0-1
-  color: string        // Tailwind gradient from color
+  value: number          // raw stat value
+  maxValue: number       // max for current tier threshold
+  progress: number       // 0-1 within current tier
+  color: string          // Tailwind gradient from color
   bgColor: string
   textColor: string
-  displayValue: string
+  borderColor: string
+  displayValue: string   // "45/100"
+  tier: AspectTier       // current tier
+  tierIndex: number      // 0-3
+  tierProgress: number   // 0-100 display value within tier
 }
 
 // ─── RANKS ──────────────────────────────────────────────────────────
@@ -147,13 +162,16 @@ export const ACHIEVEMENTS: Achievement[] = [
 
 // ─── ASPECT CONFIG ──────────────────────────────────────────────────
 
-export const ASPECT_CONFIG: Record<Aspect, { label: string; icon: string; svgIcon: string; color: string; bgColor: string; textColor: string; borderColor: string }> = {
-  Vigilance: { label: 'Vigilancia', icon: '🛡️', svgIcon: 'vigilance', color: 'from-blue-500 to-blue-700', bgColor: 'bg-blue-500/20', textColor: 'text-blue-400', borderColor: 'border-blue-500/30' },
-  Command: { label: 'Comando', icon: '⚔️', svgIcon: 'command', color: 'from-green-500 to-green-700', bgColor: 'bg-green-500/20', textColor: 'text-green-400', borderColor: 'border-green-500/30' },
-  Aggression: { label: 'Agresión', icon: '🔥', svgIcon: 'aggression', color: 'from-red-500 to-red-700', bgColor: 'bg-red-500/20', textColor: 'text-red-400', borderColor: 'border-red-500/30' },
-  Cunning: { label: 'Astucia', icon: '🎯', svgIcon: 'cunning', color: 'from-yellow-500 to-yellow-700', bgColor: 'bg-yellow-500/20', textColor: 'text-yellow-400', borderColor: 'border-yellow-500/30' },
-  Heroism: { label: 'Heroísmo', icon: '💎', svgIcon: 'heroism', color: 'from-cyan-400 to-cyan-600', bgColor: 'bg-cyan-500/20', textColor: 'text-cyan-300', borderColor: 'border-cyan-500/30' },
-  Villainy: { label: 'Villanía', icon: '🌙', svgIcon: 'villainy', color: 'from-purple-500 to-purple-700', bgColor: 'bg-purple-500/20', textColor: 'text-purple-400', borderColor: 'border-purple-500/30' },
+export const ASPECT_CONFIG: Record<Aspect, {
+  label: string; icon: string; svgIcon: string; color: string; bgColor: string;
+  textColor: string; borderColor: string; tierThresholds: number[]; statKey: string;
+}> = {
+  Vigilance: { label: 'Vigilancia', icon: '🛡️', svgIcon: 'vigilance', color: 'from-blue-500 to-blue-700', bgColor: 'bg-blue-500/20', textColor: 'text-blue-400', borderColor: 'border-blue-500/30', tierThresholds: [100, 200, 300, 400], statKey: 'matchesPlayed' },
+  Command: { label: 'Comando', icon: '⚔️', svgIcon: 'command', color: 'from-green-500 to-green-700', bgColor: 'bg-green-500/20', textColor: 'text-green-400', borderColor: 'border-green-500/30', tierThresholds: [25, 50, 75, 100], statKey: 'tournamentsFinished' },
+  Aggression: { label: 'Agresión', icon: '🔥', svgIcon: 'aggression', color: 'from-red-500 to-red-700', bgColor: 'bg-red-500/20', textColor: 'text-red-400', borderColor: 'border-red-500/30', tierThresholds: [25, 50, 100, 200], statKey: 'wins' },
+  Cunning: { label: 'Astucia', icon: '🎯', svgIcon: 'cunning', color: 'from-yellow-500 to-yellow-700', bgColor: 'bg-yellow-500/20', textColor: 'text-yellow-400', borderColor: 'border-yellow-500/30', tierThresholds: [10, 25, 50, 100], statKey: 'decksCreated' },
+  Heroism: { label: 'Heroísmo', icon: '💎', svgIcon: 'heroism', color: 'from-cyan-400 to-cyan-600', bgColor: 'bg-cyan-500/20', textColor: 'text-cyan-300', borderColor: 'border-cyan-500/30', tierThresholds: [100, 300, 600, 1000], statKey: 'cardsCollected' },
+  Villainy: { label: 'Villanía', icon: '🌙', svgIcon: 'villainy', color: 'from-purple-500 to-purple-700', bgColor: 'bg-purple-500/20', textColor: 'text-purple-400', borderColor: 'border-purple-500/30', tierThresholds: [8, 15, 22, 30], statKey: 'unlockedCount' },
 }
 
 // ─── FUNCTIONS ──────────────────────────────────────────────────────
@@ -222,74 +240,70 @@ export function checkAchievements(stats: PlayerStats): string[] {
   return newUnlocks
 }
 
+/** Calculate tier info for a given raw value and tier thresholds */
+function calculateTier(rawValue: number, thresholds: number[]): { tier: AspectTier; tierIndex: number; progress: number; tierProgress: number; displayMax: number } {
+  // thresholds = [100, 200, 300, 400] means:
+  // Tier 0 (copper): 0-99, tier 1 (silver): 100-199, etc.
+  for (let i = 0; i < thresholds.length; i++) {
+    const prevThreshold = i === 0 ? 0 : thresholds[i - 1]
+    const currentThreshold = thresholds[i]
+    const range = currentThreshold - prevThreshold
+
+    if (rawValue < currentThreshold) {
+      const withinTier = rawValue - prevThreshold
+      const progress = withinTier / range
+      const tierProgress = Math.round(progress * 100)
+      return {
+        tier: TIER_ORDER[i],
+        tierIndex: i,
+        progress,
+        tierProgress,
+        displayMax: 100,
+      }
+    }
+  }
+  // Maxed out — kyber tier, full bar
+  return { tier: 'kyber', tierIndex: 3, progress: 1, tierProgress: 100, displayMax: 100 }
+}
+
 export function getAspectBars(stats: PlayerStats): AspectBar[] {
-  const totalAchievements = ACHIEVEMENTS.length
   const unlockedCount = stats.unlockedAchievements.length
+  const aspects: Aspect[] = ['Vigilance', 'Command', 'Aggression', 'Cunning', 'Heroism', 'Villainy']
 
-  const bars: AspectBar[] = [
-    {
-      ...ASPECT_CONFIG.Vigilance,
-      aspect: 'Vigilance',
-      label: ASPECT_CONFIG.Vigilance.label,
-      icon: ASPECT_CONFIG.Vigilance.icon,
-      value: stats.matchesPlayed,
-      maxValue: 100,
-      progress: Math.min(stats.matchesPlayed / 100, 1),
-      displayValue: `${stats.matchesPlayed}/100`,
-    },
-    {
-      ...ASPECT_CONFIG.Command,
-      aspect: 'Command',
-      label: ASPECT_CONFIG.Command.label,
-      icon: ASPECT_CONFIG.Command.icon,
-      value: stats.tournamentsFinished,
-      maxValue: 10,
-      progress: Math.min(stats.tournamentsFinished / 10, 1),
-      displayValue: `${stats.tournamentsFinished}/10`,
-    },
-    {
-      ...ASPECT_CONFIG.Aggression,
-      aspect: 'Aggression',
-      label: ASPECT_CONFIG.Aggression.label,
-      icon: ASPECT_CONFIG.Aggression.icon,
-      value: stats.matchesPlayed > 0 ? Math.round((stats.wins / stats.matchesPlayed) * 100) : 0,
-      maxValue: 100,
-      progress: stats.matchesPlayed > 0 ? stats.wins / stats.matchesPlayed : 0,
-      displayValue: stats.matchesPlayed > 0 ? `${Math.round((stats.wins / stats.matchesPlayed) * 100)}%` : '0%',
-    },
-    {
-      ...ASPECT_CONFIG.Cunning,
-      aspect: 'Cunning',
-      label: ASPECT_CONFIG.Cunning.label,
-      icon: ASPECT_CONFIG.Cunning.icon,
-      value: stats.decksCreated,
-      maxValue: 10,
-      progress: Math.min(stats.decksCreated / 10, 1),
-      displayValue: `${stats.decksCreated}/10`,
-    },
-    {
-      ...ASPECT_CONFIG.Heroism,
-      aspect: 'Heroism',
-      label: ASPECT_CONFIG.Heroism.label,
-      icon: ASPECT_CONFIG.Heroism.icon,
-      value: stats.cardsCollected,
-      maxValue: 1000,
-      progress: Math.min(stats.cardsCollected / 1000, 1),
-      displayValue: `${stats.cardsCollected}/1000`,
-    },
-    {
-      ...ASPECT_CONFIG.Villainy,
-      aspect: 'Villainy',
-      label: ASPECT_CONFIG.Villainy.label,
-      icon: ASPECT_CONFIG.Villainy.icon,
-      value: unlockedCount,
-      maxValue: totalAchievements,
-      progress: totalAchievements > 0 ? unlockedCount / totalAchievements : 0,
-      displayValue: `${unlockedCount}/${totalAchievements}`,
-    },
-  ]
+  return aspects.map((aspect) => {
+    const config = ASPECT_CONFIG[aspect]
+    // Get raw stat value
+    let rawValue: number
+    switch (config.statKey) {
+      case 'matchesPlayed': rawValue = stats.matchesPlayed; break
+      case 'tournamentsFinished': rawValue = stats.tournamentsFinished; break
+      case 'wins': rawValue = stats.wins; break
+      case 'decksCreated': rawValue = stats.decksCreated; break
+      case 'cardsCollected': rawValue = stats.cardsCollected; break
+      case 'unlockedCount': rawValue = unlockedCount; break
+      default: rawValue = 0
+    }
 
-  return bars
+    const tierInfo = calculateTier(rawValue, config.tierThresholds)
+
+    return {
+      aspect,
+      label: config.label,
+      icon: config.icon,
+      svgIcon: config.svgIcon,
+      value: rawValue,
+      maxValue: tierInfo.displayMax,
+      progress: tierInfo.progress,
+      color: config.color,
+      bgColor: config.bgColor,
+      textColor: config.textColor,
+      borderColor: config.borderColor,
+      displayValue: `${tierInfo.tierProgress}/100`,
+      tier: tierInfo.tier,
+      tierIndex: tierInfo.tierIndex,
+      tierProgress: tierInfo.tierProgress,
+    }
+  })
 }
 
 export function createDefaultStats(profileId: string): PlayerStats {

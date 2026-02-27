@@ -330,3 +330,26 @@ CREATE POLICY "news_delete" ON public.news
   USING (
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
   );
+
+-- ═══════════════════════════════════════════════════════════════
+-- TRIVIA SYSTEM — "Archivos Jedi" daily trivia
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS public.trivia_progress (
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  date DATE NOT NULL DEFAULT CURRENT_DATE,
+  questions_answered INT DEFAULT 0,
+  correct_answers INT DEFAULT 0,
+  xp_earned INT DEFAULT 0,
+  answered_ids TEXT[] DEFAULT '{}',
+  PRIMARY KEY (user_id, date)
+);
+
+ALTER TABLE public.trivia_progress ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "trivia_select" ON public.trivia_progress
+  FOR SELECT TO authenticated USING (user_id = auth.uid());
+CREATE POLICY "trivia_insert" ON public.trivia_progress
+  FOR INSERT TO authenticated WITH CHECK (user_id = auth.uid());
+CREATE POLICY "trivia_update" ON public.trivia_progress
+  FOR UPDATE TO authenticated USING (user_id = auth.uid());
