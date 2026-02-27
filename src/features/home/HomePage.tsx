@@ -3,7 +3,7 @@ import { Swords, Trophy, Layers, Dice6, User, LogIn, BookOpen, BarChart3, Extern
 import { useAuth } from '../../hooks/useAuth'
 
 /* Avatar helper: detect image-based avatar vs emoji */
-const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order']
+const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
 
 /*  ────────────────────────────────────────────
  *  BASE — Main cockpit / galactic command panel

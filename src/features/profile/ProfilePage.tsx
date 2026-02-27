@@ -30,6 +30,15 @@ const swAvatars = [
   { id: 'rebel-alliance', name: 'Alianza Rebelde' },
   { id: 'galactic-empire', name: 'Imperio' },
   { id: 'first-order', name: 'Primera Orden' },
+  { id: 'first-order-2', name: 'Primera Orden Alt' },
+  { id: 'starfighter', name: 'Caza Estelar' },
+  { id: 'sith-empire', name: 'Imperio Sith' },
+  { id: 'rebel-alliance-2', name: 'Rebelde Alt' },
+  { id: 'jedi-order-2', name: 'Jedi Alt' },
+  { id: 'new-republic', name: 'Nueva República' },
+  { id: 'empire-gear', name: 'Engranaje Imperial' },
+  { id: 'separatist', name: 'Separatistas' },
+  { id: 'galactic-republic', name: 'República Galáctica' },
 ]
 
 /** Get avatar src from avatar string (supports old emojis + new ids) */
