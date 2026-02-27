@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Hexagon, Swords, Calendar, Trophy, type LucideIcon } from 'lucide-react'
+import { Hexagon, Calendar, Trophy, type LucideIcon } from 'lucide-react'
 
 type TabDef =
   | { id: string; label: string; icon: LucideIcon; img?: undefined }
@@ -7,7 +7,7 @@ type TabDef =
 
 const tabs: TabDef[] = [
   { id: '/', label: 'Base', icon: Hexagon },
-  { id: '/play', label: 'Jugar', icon: Swords },
+  { id: '/play', label: 'Jugar', img: '/jugar-icon.png' },
   { id: '/events', label: 'Eventos', icon: Calendar },
   { id: '/rank', label: 'Consejo', icon: Trophy },
   { id: '/profile', label: 'Holocrón', img: '/holocron-icon.png' },
