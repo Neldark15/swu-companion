@@ -204,7 +204,10 @@ export async function loadFullDatabase(): Promise<number> {
         await db.cards.clear()
       }
 
-      const res = await fetch(`${API_BASE}/export/all`)
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 60000) // 60s timeout
+      const res = await fetch(`${API_BASE}/export/all`, { signal: controller.signal })
+      clearTimeout(timeout)
       if (!res.ok) throw new Error(`Export API ${res.status}`)
       const data = await res.json()
 

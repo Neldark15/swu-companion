@@ -46,25 +46,31 @@ export function CardsPage() {
   const [hasSearched, setHasSearched] = useState(false)
   const [dbLoading, setDbLoading] = useState(!isDatabaseReady())
   const [dbCardCount, setDbCardCount] = useState(0)
+  const [dbError, setDbError] = useState(false)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Load database on mount
   useEffect(() => {
-    getSets().then(setSets)
+    getSets().then(setSets).catch(() => {})
 
     if (!isDatabaseReady()) {
       setDbLoading(true)
-      loadFullDatabase().then((count) => {
-        setDbCardCount(count)
-        setDbLoading(false)
-      })
+      loadFullDatabase()
+        .then((count) => {
+          setDbCardCount(count)
+          setDbLoading(false)
+        })
+        .catch(() => {
+          setDbLoading(false)
+          setDbError(true)
+        })
     }
   }, [])
 
   const doSearch = useCallback(
     async (reset = true) => {
-      if (dbLoading) return
+      if (dbLoading && !isDatabaseReady()) return
 
       const params: SearchParams = {
         query: query || undefined,
@@ -145,6 +151,28 @@ export function CardsPage() {
         </div>
       )}
 
+      {dbError && (
+        <div className="bg-swu-red/10 border border-swu-red/30 rounded-xl p-4 flex items-center gap-3">
+          <WifiOff size={20} className="text-swu-red flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-bold text-swu-red">Error al descargar cartas</p>
+            <p className="text-xs text-swu-muted">Verifique su conexión a internet</p>
+          </div>
+          <button
+            onClick={() => {
+              setDbError(false)
+              setDbLoading(true)
+              loadFullDatabase()
+                .then((count) => { setDbCardCount(count); setDbLoading(false) })
+                .catch(() => { setDbLoading(false); setDbError(true) })
+            }}
+            className="text-xs font-bold text-swu-accent bg-swu-accent/10 px-3 py-1.5 rounded-lg"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
       {!dbLoading && dbCardCount > 0 && !hasSearched && (
         <div className="bg-swu-green/10 border border-swu-green/30 rounded-xl px-3 py-2 flex items-center gap-2">
           <Database size={14} className="text-swu-green" />
@@ -160,9 +188,8 @@ export function CardsPage() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar por nombre, texto, trait..."
-            disabled={dbLoading}
-            className="w-full bg-swu-surface border border-swu-border rounded-xl py-3 pl-10 pr-9 text-sm text-swu-text outline-none focus:border-swu-accent transition-colors disabled:opacity-50"
+            placeholder={dbLoading ? "Descargando cartas..." : "Buscar por nombre, texto, trait..."}
+            className="w-full bg-swu-surface border border-swu-border rounded-xl py-3 pl-10 pr-9 text-sm text-swu-text outline-none focus:border-swu-accent transition-colors"
           />
           {query && (
             <button onClick={() => setQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-swu-muted">

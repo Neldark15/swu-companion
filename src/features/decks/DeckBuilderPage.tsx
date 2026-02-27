@@ -60,7 +60,9 @@ export function DeckBuilderPage() {
   useEffect(() => {
     if (!isDatabaseReady()) {
       setDbLoading(true)
-      loadFullDatabase().then(() => setDbLoading(false))
+      loadFullDatabase()
+        .then(() => setDbLoading(false))
+        .catch(() => setDbLoading(false))
     }
   }, [])
 
@@ -103,7 +105,7 @@ export function DeckBuilderPage() {
 
   const doSearch = useCallback(async (query: string) => {
     if (!query.trim()) { setSearchResults([]); setSearchTotal(0); return }
-    if (dbLoading) return
+    if (dbLoading && !isDatabaseReady()) return
     setSearching(true)
     try {
       const { cards, total } = await searchCards({ query, limit: 30 })
@@ -292,8 +294,8 @@ export function DeckBuilderPage() {
           </div>
           <div className="relative">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-swu-muted" />
-            <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Buscar por nombre..." disabled={dbLoading}
-              className="w-full bg-swu-surface border border-swu-border rounded-xl py-3 pl-10 pr-3 text-sm text-swu-text outline-none focus:border-swu-accent disabled:opacity-50" />
+            <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={dbLoading ? "Descargando cartas..." : "Buscar por nombre..."}
+              className="w-full bg-swu-surface border border-swu-border rounded-xl py-3 pl-10 pr-3 text-sm text-swu-text outline-none focus:border-swu-accent" />
             {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-swu-muted"><X size={16} /></button>}
           </div>
           {searching && <div className="flex items-center justify-center py-8"><Loader2 size={24} className="text-swu-accent animate-spin" /></div>}
