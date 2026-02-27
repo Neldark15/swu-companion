@@ -13,6 +13,7 @@ import { XpBar } from './components/XpBar'
 import { AspectBars } from './components/AspectBars'
 import { AchievementGrid } from './components/AchievementGrid'
 import { TriviaSection } from './components/TriviaSection'
+import { TowerDefenseGame } from './components/TowerDefenseGame'
 
 /* ── Star Wars avatar options (images in /avatars/) ── */
 const swAvatars = [
@@ -717,6 +718,21 @@ export function ProfilePage() {
       {auth.supabaseUser && (
         <div className="bg-swu-surface rounded-2xl p-4 border border-swu-border">
           <TriviaSection
+            userId={auth.supabaseUser.id}
+            onXpGained={(xp) => {
+              if (playerStats) {
+                const updated = { ...playerStats, xp: playerStats.xp + xp }
+                setPlayerStats(updated)
+              }
+            }}
+          />
+        </div>
+      )}
+
+      {/* Defensa de la Base Estelar — Tower Defense */}
+      {auth.supabaseUser && (
+        <div className="bg-swu-surface rounded-2xl p-4 border border-swu-border">
+          <TowerDefenseGame
             userId={auth.supabaseUser.id}
             onXpGained={(xp) => {
               if (playerStats) {
