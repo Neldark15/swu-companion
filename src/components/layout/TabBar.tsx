@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Hexagon, type LucideIcon } from 'lucide-react'
+import { useUIStore } from '../../hooks/useUIStore'
 
 type TabDef =
   | { id: string; label: string; icon: LucideIcon; img?: undefined }
@@ -22,8 +23,11 @@ export function TabBar() {
     return location.pathname.startsWith(path)
   }
 
-  // Hide tab bar on tracker page (face-to-face play)
+  const hideTabBar = useUIStore((s) => s.hideTabBar)
+
+  // Hide tab bar on tracker page or when game is fullscreen
   if (location.pathname.includes('/play/tracker/')) return null
+  if (hideTabBar) return null
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-swu-surface border-t border-swu-border pb-safe">

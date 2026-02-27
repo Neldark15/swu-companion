@@ -5,6 +5,7 @@ import { render, resetStarCache } from '../../../services/towerDefense/renderer'
 import { type GameState, type TowerType, TOWER_CONFIGS, GAME_CONFIG } from '../../../services/towerDefense/index'
 import { calculateGameXP, explainXP } from '../../../services/towerDefense/xpSystem'
 import { saveGameScore, getTodayGameCount, getTowerDefenseStats, type TowerDefenseStats } from '../../../services/gameProgress'
+import { useUIStore } from '../../../hooks/useUIStore'
 
 interface TowerDefenseGameProps {
   userId: string
@@ -22,10 +23,17 @@ export function TowerDefenseGame({ userId, onXpGained }: TowerDefenseGameProps) 
   const [todayCount, setTodayCount] = useState(0)
   const [resultData, setResultData] = useState<{ wave: number; score: number; xp: number; duration: number } | null>(null)
   const [saving, setSaving] = useState(false)
+  const setHideTabBar = useUIStore((s) => s.setHideTabBar)
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<TowerDefenseEngine | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Hide TabBar while playing, restore on unmount
+  useEffect(() => {
+    setHideTabBar(screen === 'playing')
+    return () => setHideTabBar(false)
+  }, [screen, setHideTabBar])
 
   // Load stats
   useEffect(() => {
