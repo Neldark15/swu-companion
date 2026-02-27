@@ -10,17 +10,20 @@ import {
   CheckCircle2,
   XCircle,
   ArrowRight,
+  SearchX,
 } from 'lucide-react'
+import { supabase, isSupabaseReady } from '../../services/supabase'
 
 type JoinState = 'idle' | 'validating' | 'found' | 'not_found' | 'joining' | 'joined'
 type ScanState = 'idle' | 'requesting' | 'scanning' | 'found' | 'error'
 
-// Mock event data for demo
-const MOCK_EVENTS: Record<string, { name: string; format: string; organizer: string; players: number; maxPlayers: number }> = {
-  'SWU2026A': { name: 'FNM - Tienda El Refugio', format: 'Premier', organizer: 'Carlos M.', players: 8, maxPlayers: 16 },
-  'NOVA001': { name: 'Torneo NOVA #1', format: 'Premier', organizer: 'Nel', players: 5, maxPlayers: 8 },
-  'DRAFT42': { name: 'Draft Night', format: 'Draft', organizer: 'Liga SWU SV', players: 6, maxPlayers: 8 },
-  'TEST123': { name: 'Evento de Prueba', format: 'Sealed', organizer: 'Admin', players: 2, maxPlayers: 32 },
+interface FoundEvent {
+  id: string
+  name: string
+  format: string
+  organizer: string
+  players: number
+  maxPlayers: number
 }
 
 export function JoinEventPage() {
@@ -28,20 +31,11 @@ export function JoinEventPage() {
   const [code, setCode] = useState('')
   const [joinState, setJoinState] = useState<JoinState>('idle')
   const [scanState, setScanState] = useState<ScanState>('idle')
-  const [foundEvent, setFoundEvent] = useState<typeof MOCK_EVENTS[string] | null>(null)
+  const [foundEvent, setFoundEvent] = useState<FoundEvent | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const scanIntervalRef = useRef<ReturnType<typeof setInterval>>(undefined)
 
-  // Auto-focus the code input
   useEffect(() => {
     inputRef.current?.focus()
-  }, [])
-
-  // Cleanup scan interval
-  useEffect(() => {
-    return () => {
-      if (scanIntervalRef.current) clearInterval(scanIntervalRef.current)
-    }
   }, [])
 
   const handleCodeChange = (value: string) => {
@@ -51,63 +45,69 @@ export function JoinEventPage() {
     setFoundEvent(null)
   }
 
-  const validateCode = () => {
+  const validateCode = async () => {
     if (code.length < 4) return
     setJoinState('validating')
 
-    // Simulate API call
-    setTimeout(() => {
-      const event = MOCK_EVENTS[code]
-      if (event) {
-        setFoundEvent(event)
-        setJoinState('found')
-      } else {
+    if (!isSupabaseReady()) {
+      setJoinState('not_found')
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('tournaments')
+        .select('id, name, format, organizer_name, current_players, max_players')
+        .eq('code', code)
+        .eq('status', 'open')
+        .single()
+
+      if (error || !data) {
         setJoinState('not_found')
+        return
       }
-    }, 1200)
+
+      setFoundEvent({
+        id: data.id,
+        name: data.name,
+        format: data.format,
+        organizer: data.organizer_name,
+        players: data.current_players,
+        maxPlayers: data.max_players,
+      })
+      setJoinState('found')
+    } catch {
+      setJoinState('not_found')
+    }
   }
 
-  const joinEvent = () => {
+  const joinEvent = async () => {
     if (!foundEvent) return
     setJoinState('joining')
 
-    // Simulate joining
+    // TODO: Implement real join via Supabase
     setTimeout(() => {
       setJoinState('joined')
-      // Navigate to lobby after brief success state
       setTimeout(() => {
         navigate(`/events/lobby/${code}`)
       }, 800)
     }, 1500)
   }
 
-  const startQrScan = () => {
+  const startQrScan = async () => {
     setScanState('requesting')
 
-    // Simulate camera permission request
-    setTimeout(() => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      stream.getTracks().forEach(t => t.stop())
       setScanState('scanning')
-
-      // Simulate scanning animation then finding a code
-      let ticks = 0
-      scanIntervalRef.current = setInterval(() => {
-        ticks++
-        if (ticks >= 15) {
-          if (scanIntervalRef.current) clearInterval(scanIntervalRef.current)
-          // Simulate finding a QR code
-          const codes = Object.keys(MOCK_EVENTS)
-          const found = codes[Math.floor(Math.random() * codes.length)]
-          setCode(found)
-          setFoundEvent(MOCK_EVENTS[found])
-          setScanState('found')
-          setJoinState('found')
-        }
-      }, 200)
-    }, 1500)
+      // TODO: Implement real QR scanning with a library like @zxing/browser
+    } catch {
+      setScanState('error')
+    }
   }
 
   const cancelScan = () => {
-    if (scanIntervalRef.current) clearInterval(scanIntervalRef.current)
     setScanState('idle')
   }
 
@@ -136,7 +136,7 @@ export function JoinEventPage() {
             ref={inputRef}
             value={code}
             onChange={(e) => handleCodeChange(e.target.value)}
-            placeholder="SWU2026A"
+            placeholder="CÓDIGO"
             maxLength={8}
             className="w-full bg-swu-bg border-2 border-swu-border rounded-xl p-4 text-2xl font-mono font-bold tracking-[0.3em] text-center text-swu-text outline-none focus:border-swu-accent transition-colors"
             onKeyDown={(e) => {
@@ -147,7 +147,6 @@ export function JoinEventPage() {
             }}
           />
 
-          {/* Status indicator */}
           {joinState !== 'idle' && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
               {joinState === 'validating' && <Loader2 size={22} className="text-swu-accent animate-spin" />}
@@ -159,12 +158,10 @@ export function JoinEventPage() {
           )}
         </div>
 
-        {/* Format hint */}
         <p className="text-[11px] text-swu-muted text-center">
           Formato: letras y números, 4-8 caracteres
         </p>
 
-        {/* Error message */}
         {joinState === 'not_found' && (
           <div className="bg-swu-red/10 border border-swu-red/30 rounded-xl p-3 text-center">
             <p className="text-sm text-swu-red font-semibold">Evento no encontrado</p>
@@ -172,7 +169,6 @@ export function JoinEventPage() {
           </div>
         )}
 
-        {/* Found event card */}
         {joinState === 'found' && foundEvent && (
           <div className="bg-swu-green/10 border border-swu-green/30 rounded-xl p-4 space-y-2">
             <div className="flex items-center gap-2">
@@ -198,7 +194,6 @@ export function JoinEventPage() {
           </div>
         )}
 
-        {/* Action buttons */}
         {joinState === 'found' ? (
           <button
             onClick={joinEvent}
@@ -268,23 +263,16 @@ export function JoinEventPage() {
         </div>
       ) : scanState === 'scanning' ? (
         <div className="bg-swu-bg rounded-2xl border border-swu-accent overflow-hidden">
-          {/* Simulated camera viewfinder */}
           <div className="relative aspect-square max-h-64 bg-black/90 flex items-center justify-center">
-            {/* Scan frame */}
             <div className="w-48 h-48 relative">
-              {/* Corner brackets */}
               <div className="absolute top-0 left-0 w-8 h-8 border-l-2 border-t-2 border-swu-accent" />
               <div className="absolute top-0 right-0 w-8 h-8 border-r-2 border-t-2 border-swu-accent" />
               <div className="absolute bottom-0 left-0 w-8 h-8 border-l-2 border-b-2 border-swu-accent" />
               <div className="absolute bottom-0 right-0 w-8 h-8 border-r-2 border-b-2 border-swu-accent" />
-
-              {/* Scanning line animation */}
               <div className="absolute inset-x-0 h-0.5 bg-swu-accent/80 animate-pulse"
                    style={{ top: '50%', boxShadow: '0 0 12px rgba(59, 130, 246, 0.5)' }}
               />
             </div>
-
-            {/* Camera icon overlay */}
             <Camera size={24} className="absolute top-3 right-3 text-white/30" />
           </div>
 
@@ -325,15 +313,15 @@ export function JoinEventPage() {
         </div>
       ) : null}
 
-      {/* Demo codes hint */}
-      <div className="bg-swu-surface/50 rounded-xl p-3 border border-swu-border/50">
-        <p className="text-[11px] text-swu-muted text-center">
-          Demo: pruebe los códigos <span className="font-mono font-bold text-swu-accent">SWU2026A</span>,{' '}
-          <span className="font-mono font-bold text-swu-accent">NOVA001</span>,{' '}
-          <span className="font-mono font-bold text-swu-accent">DRAFT42</span> o{' '}
-          <span className="font-mono font-bold text-swu-accent">TEST123</span>
-        </p>
-      </div>
+      {/* Empty state info */}
+      {!isSupabaseReady() && (
+        <div className="bg-swu-surface/50 rounded-xl p-3 border border-swu-border/50 flex items-center gap-2">
+          <SearchX size={16} className="text-swu-muted flex-shrink-0" />
+          <p className="text-[11px] text-swu-muted">
+            Necesita conexión a internet para buscar eventos.
+          </p>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,14 +1,31 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { QrCode, Trophy } from 'lucide-react'
+import { QrCode, Trophy, Calendar, Swords } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
-
-const recentEvents = [
-  { name: 'FNM - Tienda El Refugio', date: '21 Feb 2026', result: '3-1', pos: '2do de 12' },
-  { name: 'Torneo Casero #5', date: '15 Feb 2026', result: '2-1', pos: '1ro de 6' },
-]
+import { db } from '../../services/db'
+import type { Tournament } from '../../types'
 
 export function EventsPage() {
   const navigate = useNavigate()
+  const [recentTournaments, setRecentTournaments] = useState<Tournament[]>([])
+
+  useEffect(() => {
+    db.tournaments
+      .orderBy('createdAt')
+      .reverse()
+      .limit(10)
+      .toArray()
+      .then(setRecentTournaments)
+      .catch(() => {})
+  }, [])
+
+  const formatDate = (ts: number) => {
+    return new Date(ts).toLocaleDateString('es-SV', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })
+  }
 
   return (
     <div className="p-4 space-y-5">
@@ -34,18 +51,35 @@ export function EventsPage() {
       </div>
 
       <div>
-        <h3 className="text-sm font-bold text-swu-text mb-3">Eventos Recientes</h3>
-        <div className="space-y-2">
-          {recentEvents.map((e) => (
-            <div key={e.name} className="bg-swu-surface rounded-xl p-3 border border-swu-border">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-sm text-swu-text">{e.name}</span>
-                <Badge variant="green">{e.result}</Badge>
+        <h3 className="text-sm font-bold text-swu-text mb-3">Torneos Recientes</h3>
+        {recentTournaments.length === 0 ? (
+          <div className="bg-swu-surface rounded-2xl border border-swu-border p-8 text-center space-y-2">
+            <Swords size={32} className="mx-auto text-swu-muted/30" />
+            <p className="text-sm text-swu-muted">No hay torneos registrados aún</p>
+            <p className="text-xs text-swu-muted/70">Cree un torneo casero o únase a un evento para comenzar</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {recentTournaments.map((t) => (
+              <div key={t.id} className="bg-swu-surface rounded-xl p-3 border border-swu-border">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-sm text-swu-text">{t.name}</span>
+                  <Badge variant={t.status === 'finished' ? 'green' : t.status === 'active' ? 'accent' : 'default'}>
+                    {t.status === 'finished' ? 'Finalizado' : t.status === 'active' ? 'Activo' : 'Pendiente'}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-swu-muted mt-1">
+                  <Calendar size={12} />
+                  <span>{formatDate(t.createdAt)}</span>
+                  <span>·</span>
+                  <span>{t.players.length} jugadores</span>
+                  <span>·</span>
+                  <span>Ronda {t.rounds.length}/{t.maxRounds}</span>
+                </div>
               </div>
-              <p className="text-xs text-swu-muted mt-1">{e.date} · {e.pos}</p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
