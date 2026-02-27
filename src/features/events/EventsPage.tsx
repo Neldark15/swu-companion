@@ -3,12 +3,25 @@ import { useNavigate } from 'react-router-dom'
 import {
   QrCode, Trophy, Calendar, Swords, Crown, Users,
   MapPin, Loader2, CheckCircle2, LogIn, ChevronRight, Trash2,
+  Pencil, X, Save,
 } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { db } from '../../services/db'
 import { useAuth } from '../../hooks/useAuth'
-import { getOfficialEvents, joinOfficialEvent, leaveOfficialEvent, deleteOfficialEvent, type OfficialEvent } from '../../services/events'
+import { getOfficialEvents, joinOfficialEvent, leaveOfficialEvent, deleteOfficialEvent, updateOfficialEvent, type OfficialEvent } from '../../services/events'
 import type { Tournament } from '../../types'
+
+/** Parse an ISO date string into separate date + time values for inputs */
+function parseDateTime(iso: string | null): { date: string; time: string } {
+  if (!iso) return { date: '', time: '' }
+  const d = new Date(iso)
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  return { date: `${yyyy}-${mm}-${dd}`, time: `${hh}:${min}` }
+}
 
 export function EventsPage() {
   const navigate = useNavigate()
@@ -19,6 +32,13 @@ export function EventsPage() {
   const [joiningEventId, setJoiningEventId] = useState<string | null>(null)
   const [deletingEventId, setDeletingEventId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+
+  // Edit state (admin only)
+  const [editingEventId, setEditingEventId] = useState<string | null>(null)
+  const [editDate, setEditDate] = useState('')
+  const [editTime, setEditTime] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState('')
 
   // Load local tournaments
   useEffect(() => {
@@ -69,6 +89,43 @@ export function EventsPage() {
     }
     setDeletingEventId(null)
     setConfirmDeleteId(null)
+  }
+
+  const startEditing = (event: OfficialEvent) => {
+    const { date, time } = parseDateTime(event.date)
+    setEditDate(date)
+    setEditTime(time)
+    setEditError('')
+    setEditingEventId(event.id)
+  }
+
+  const cancelEditing = () => {
+    setEditingEventId(null)
+    setEditError('')
+  }
+
+  const saveEditing = async () => {
+    if (!editingEventId) return
+    setEditSaving(true)
+    setEditError('')
+
+    const newDate = editDate && editTime
+      ? `${editDate}T${editTime}:00`
+      : editDate
+        ? `${editDate}T00:00:00`
+        : null
+
+    const result = await updateOfficialEvent(editingEventId, { date: newDate })
+
+    if (!result.ok) {
+      setEditError(result.error || 'Error al guardar')
+      setEditSaving(false)
+      return
+    }
+
+    await loadEvents()
+    setEditingEventId(null)
+    setEditSaving(false)
   }
 
   const formatDate = (ts: number | string) => {
@@ -203,7 +260,51 @@ export function EventsPage() {
                   </span>
                 </div>
 
-                {/* Organizer + Code */}
+                {/* ── Admin Edit Panel (inline) ── */}
+                {auth.isAdmin && editingEventId === event.id && (
+                  <div className="bg-swu-bg rounded-xl p-3 border border-swu-accent/20 space-y-3">
+                    <p className="text-[11px] font-bold text-swu-accent tracking-wider uppercase">Editar Fecha / Hora</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-swu-muted block mb-1">Fecha</label>
+                        <input
+                          type="date"
+                          value={editDate}
+                          onChange={(e) => setEditDate(e.target.value)}
+                          className="w-full bg-swu-surface border border-swu-border rounded-lg px-2.5 py-2 text-sm text-swu-text outline-none focus:border-swu-accent"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-swu-muted block mb-1">Hora</label>
+                        <input
+                          type="time"
+                          value={editTime}
+                          onChange={(e) => setEditTime(e.target.value)}
+                          className="w-full bg-swu-surface border border-swu-border rounded-lg px-2.5 py-2 text-sm text-swu-text outline-none focus:border-swu-accent"
+                        />
+                      </div>
+                    </div>
+                    {editError && <p className="text-[11px] text-red-400 font-medium">{editError}</p>}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={saveEditing}
+                        disabled={editSaving}
+                        className="flex-1 py-2 rounded-lg bg-swu-accent text-white text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.97] transition-transform disabled:opacity-50"
+                      >
+                        {editSaving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                        {editSaving ? 'Guardando...' : 'Guardar'}
+                      </button>
+                      <button
+                        onClick={cancelEditing}
+                        className="px-4 py-2 rounded-lg bg-swu-border text-swu-muted text-xs font-bold flex items-center gap-1.5 active:scale-[0.97] transition-transform"
+                      >
+                        <X size={12} /> Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Organizer + Code + Admin Actions */}
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] text-swu-muted">
                     Org: <span className="text-swu-text font-medium">{event.organizer_avatar} {event.organizer_name}</span>
@@ -212,32 +313,43 @@ export function EventsPage() {
                     <span className="font-mono text-xs font-bold text-swu-accent bg-swu-accent/10 px-2 py-0.5 rounded">
                       {event.code}
                     </span>
-                    {auth.isAdmin && (
-                      confirmDeleteId === event.id ? (
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleDeleteEvent(event.id)}
-                            disabled={deletingEventId === event.id}
-                            className="text-[10px] bg-red-500/20 text-red-400 px-2 py-1 rounded font-bold"
-                          >
-                            {deletingEventId === event.id ? '...' : 'Sí, eliminar'}
-                          </button>
-                          <button
-                            onClick={() => setConfirmDeleteId(null)}
-                            className="text-[10px] bg-swu-border text-swu-muted px-2 py-1 rounded font-bold"
-                          >
-                            No
-                          </button>
-                        </div>
-                      ) : (
+                    {auth.isAdmin && editingEventId !== event.id && (
+                      <>
+                        {/* Edit button */}
                         <button
-                          onClick={() => setConfirmDeleteId(event.id)}
-                          className="p-1 rounded-lg bg-red-500/10 text-red-400 active:scale-95 transition-transform"
-                          title="Eliminar evento"
+                          onClick={() => startEditing(event)}
+                          className="p-1 rounded-lg bg-swu-accent/10 text-swu-accent active:scale-95 transition-transform"
+                          title="Editar fecha/hora"
                         >
-                          <Trash2 size={14} />
+                          <Pencil size={14} />
                         </button>
-                      )
+                        {/* Delete button */}
+                        {confirmDeleteId === event.id ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleDeleteEvent(event.id)}
+                              disabled={deletingEventId === event.id}
+                              className="text-[10px] bg-red-500/20 text-red-400 px-2 py-1 rounded font-bold"
+                            >
+                              {deletingEventId === event.id ? '...' : 'Sí, eliminar'}
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="text-[10px] bg-swu-border text-swu-muted px-2 py-1 rounded font-bold"
+                            >
+                              No
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmDeleteId(event.id)}
+                            className="p-1 rounded-lg bg-red-500/10 text-red-400 active:scale-95 transition-transform"
+                            title="Eliminar evento"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

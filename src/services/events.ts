@@ -272,6 +272,21 @@ export async function updateEventStatus(
   return { ok: true }
 }
 
+export async function updateOfficialEvent(
+  eventId: string,
+  updates: { date?: string | null; location?: string | null; name?: string }
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
+
+  const { error } = await supabase
+    .from('official_events')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', eventId)
+
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
+}
+
 export async function deleteOfficialEvent(eventId: string): Promise<{ ok: boolean; error?: string }> {
   if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
 
