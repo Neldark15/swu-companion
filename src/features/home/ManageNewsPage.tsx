@@ -10,7 +10,6 @@ import {
   Newspaper,
   ExternalLink,
   Image,
-  X,
   Save,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
