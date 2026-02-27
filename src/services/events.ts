@@ -271,3 +271,16 @@ export async function updateEventStatus(
   if (error) return { ok: false, error: error.message }
   return { ok: true }
 }
+
+export async function deleteOfficialEvent(eventId: string): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
+
+  // CASCADE on event_registrations handles cleanup automatically
+  const { error } = await supabase
+    .from('official_events')
+    .delete()
+    .eq('id', eventId)
+
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
+}

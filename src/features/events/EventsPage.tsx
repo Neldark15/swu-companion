@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   QrCode, Trophy, Calendar, Swords, Crown, Users,
-  MapPin, Loader2, CheckCircle2, LogIn, ChevronRight,
+  MapPin, Loader2, CheckCircle2, LogIn, ChevronRight, Trash2,
 } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { db } from '../../services/db'
 import { useAuth } from '../../hooks/useAuth'
-import { getOfficialEvents, joinOfficialEvent, leaveOfficialEvent, type OfficialEvent } from '../../services/events'
+import { getOfficialEvents, joinOfficialEvent, leaveOfficialEvent, deleteOfficialEvent, type OfficialEvent } from '../../services/events'
 import type { Tournament } from '../../types'
 
 export function EventsPage() {
@@ -17,6 +17,8 @@ export function EventsPage() {
   const [officialEvents, setOfficialEvents] = useState<OfficialEvent[]>([])
   const [loadingEvents, setLoadingEvents] = useState(true)
   const [joiningEventId, setJoiningEventId] = useState<string | null>(null)
+  const [deletingEventId, setDeletingEventId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   // Load local tournaments
   useEffect(() => {
@@ -57,6 +59,16 @@ export function EventsPage() {
 
     await loadEvents()
     setJoiningEventId(null)
+  }
+
+  const handleDeleteEvent = async (eventId: string) => {
+    setDeletingEventId(eventId)
+    const result = await deleteOfficialEvent(eventId)
+    if (result.ok) {
+      setOfficialEvents(prev => prev.filter(e => e.id !== eventId))
+    }
+    setDeletingEventId(null)
+    setConfirmDeleteId(null)
   }
 
   const formatDate = (ts: number | string) => {
@@ -196,9 +208,38 @@ export function EventsPage() {
                   <span className="text-[11px] text-swu-muted">
                     Org: <span className="text-swu-text font-medium">{event.organizer_avatar} {event.organizer_name}</span>
                   </span>
-                  <span className="font-mono text-xs font-bold text-swu-accent bg-swu-accent/10 px-2 py-0.5 rounded">
-                    {event.code}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold text-swu-accent bg-swu-accent/10 px-2 py-0.5 rounded">
+                      {event.code}
+                    </span>
+                    {auth.isAdmin && (
+                      confirmDeleteId === event.id ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleDeleteEvent(event.id)}
+                            disabled={deletingEventId === event.id}
+                            className="text-[10px] bg-red-500/20 text-red-400 px-2 py-1 rounded font-bold"
+                          >
+                            {deletingEventId === event.id ? '...' : 'Sí, eliminar'}
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="text-[10px] bg-swu-border text-swu-muted px-2 py-1 rounded font-bold"
+                          >
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDeleteId(event.id)}
+                          className="p-1 rounded-lg bg-red-500/10 text-red-400 active:scale-95 transition-transform"
+                          title="Eliminar evento"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )
+                    )}
+                  </div>
                 </div>
 
                 {/* Join/Leave button */}

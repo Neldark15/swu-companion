@@ -251,6 +251,13 @@ CREATE POLICY "events_update" ON public.official_events
   FOR UPDATE TO authenticated
   USING (organizer_id = auth.uid());
 
+-- Admins can delete events
+CREATE POLICY "events_delete" ON public.official_events
+  FOR DELETE TO authenticated
+  USING (
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
 -- Registrations: users see their own + organizers see their event's registrations
 CREATE POLICY "reg_select" ON public.event_registrations
   FOR SELECT TO authenticated
@@ -293,9 +300,12 @@ CREATE TABLE IF NOT EXISTS public.news (
 
 ALTER TABLE public.news ENABLE ROW LEVEL SECURITY;
 
--- Everyone (even non-authenticated) can read published news
+-- Everyone can read published news; admins can see all (including drafts)
 CREATE POLICY "news_select" ON public.news
-  FOR SELECT USING (published = true);
+  FOR SELECT USING (
+    published = true
+    OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
 
 -- Only admins can create news
 CREATE POLICY "news_insert" ON public.news
