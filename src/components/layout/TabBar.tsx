@@ -1,8 +1,8 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Home, Swords, Calendar, BookOpen, User } from 'lucide-react'
+import { Hexagon, Swords, Calendar, BookOpen, User } from 'lucide-react'
 
 const tabs = [
-  { id: '/', label: 'Inicio', icon: Home },
+  { id: '/', label: 'Base', icon: Hexagon },
   { id: '/play', label: 'Jugar', icon: Swords },
   { id: '/events', label: 'Eventos', icon: Calendar },
   { id: '/decks', label: 'Decks', icon: BookOpen },

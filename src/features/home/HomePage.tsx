@@ -1,187 +1,244 @@
-import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Swords, Trophy, Layers, Dice6, ExternalLink, User, LogIn, Newspaper, Settings2, Loader2, RefreshCw } from 'lucide-react'
-import { Badge } from '../../components/ui/Badge'
+import { Swords, Trophy, Layers, Dice6, User, LogIn, BookOpen, BarChart3, ExternalLink } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-import { getNews, type NewsItem } from '../../services/news'
 
-const quickActions = [
-  { icon: Swords, label: 'Nueva Partida', color: 'text-swu-green', bg: 'bg-swu-green/10', to: '/play' },
-  { icon: Trophy, label: 'Torneo', color: 'text-swu-amber', bg: 'bg-swu-amber/10', to: '/events/tournament' },
-  { icon: Layers, label: 'Buscar Cartas', color: 'text-swu-accent', bg: 'bg-swu-accent/10', to: '/cards' },
-  { icon: Dice6, label: 'Utilidades', color: 'text-purple-400', bg: 'bg-purple-500/10', to: '/utilities' },
+/*  ────────────────────────────────────────────
+ *  BASE — Main cockpit / galactic command panel
+ *  Star Wars ship console aesthetic:
+ *    – angular borders, scan-line overlays
+ *    – amber/cyan accent lighting on dark panels
+ *    – technical font treatments
+ *  ──────────────────────────────────────────── */
+
+const mainSystems = [
+  {
+    icon: Swords,
+    label: 'Nueva Partida',
+    sub: 'Iniciar combate',
+    color: 'swu-green',
+    glow: 'shadow-[0_0_18px_rgba(74,222,128,0.15)]',
+    to: '/play',
+  },
+  {
+    icon: Trophy,
+    label: 'Torneo',
+    sub: 'Eventos organizados',
+    color: 'swu-amber',
+    glow: 'shadow-[0_0_18px_rgba(251,191,36,0.15)]',
+    to: '/events/tournament',
+  },
+  {
+    icon: Layers,
+    label: 'Buscar Cartas',
+    sub: 'Base de datos',
+    color: 'swu-accent',
+    glow: 'shadow-[0_0_18px_rgba(56,189,248,0.15)]',
+    to: '/cards',
+  },
+  {
+    icon: BookOpen,
+    label: 'Mis Decks',
+    sub: 'Constructor',
+    color: 'swu-accent',
+    glow: 'shadow-[0_0_18px_rgba(56,189,248,0.15)]',
+    to: '/decks',
+  },
+  {
+    icon: Dice6,
+    label: 'Utilidades',
+    sub: 'Herramientas',
+    color: 'purple-400',
+    glow: 'shadow-[0_0_18px_rgba(192,132,252,0.15)]',
+    to: '/utilities',
+  },
+  {
+    icon: BarChart3,
+    label: 'Ranking',
+    sub: 'Leaderboard mensual',
+    color: 'swu-amber',
+    glow: 'shadow-[0_0_18px_rgba(251,191,36,0.15)]',
+    to: '/rank',
+  },
 ]
-
-const tagVariant: Record<string, 'amber' | 'green' | 'accent' | 'purple' | 'default'> = {
-  amber: 'amber', green: 'green', accent: 'accent', purple: 'purple', default: 'default',
-}
-
-// Auto-refresh interval: 2 minutes
-const REFRESH_INTERVAL = 2 * 60 * 1000
 
 export function HomePage() {
   const navigate = useNavigate()
-  const { currentProfile, isAdmin } = useAuth()
-  const [news, setNews] = useState<NewsItem[]>([])
-  const [loadingNews, setLoadingNews] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-
-  const loadNews = async (showRefresh = false) => {
-    if (showRefresh) setRefreshing(true)
-    else setLoadingNews(true)
-
-    const items = await getNews(15)
-    setNews(items)
-
-    setLoadingNews(false)
-    setRefreshing(false)
-  }
-
-  // Initial load + auto-refresh
-  useEffect(() => {
-    loadNews()
-    const interval = setInterval(() => loadNews(), REFRESH_INTERVAL)
-    return () => clearInterval(interval)
-  }, [])
-
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr)
-    return d.toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })
-  }
+  const { currentProfile } = useAuth()
 
   return (
-    <div className="p-4 space-y-5">
-      {/* Profile / Login Button */}
-      {currentProfile ? (
-        <button
-          onClick={() => navigate('/profile')}
-          className="w-full bg-swu-surface border border-swu-border rounded-xl p-3 flex items-center gap-3 active:scale-[0.98] transition-transform"
-        >
-          <div className="w-10 h-10 rounded-full bg-swu-accent/20 flex items-center justify-center text-xl">
-            {currentProfile.avatar || '🎮'}
-          </div>
-          <div className="flex-1 text-left">
-            <p className="text-sm font-bold text-swu-text">{currentProfile.name}</p>
-            <p className="text-[11px] text-swu-muted">Ver mi perfil</p>
-          </div>
-          <User size={18} className="text-swu-muted" />
-        </button>
-      ) : (
-        <button
-          onClick={() => navigate('/profile')}
-          className="w-full bg-gradient-to-r from-swu-accent/20 to-swu-amber/20 border border-swu-accent/40 rounded-xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform"
-        >
-          <div className="w-10 h-10 rounded-full bg-swu-accent/30 flex items-center justify-center">
-            <LogIn size={20} className="text-swu-accent" />
-          </div>
-          <div className="flex-1 text-left">
-            <p className="text-sm font-bold text-swu-accent">Iniciar Sesión</p>
-            <p className="text-[11px] text-swu-muted">Ingrese o cree su cuenta para guardar progreso</p>
-          </div>
-        </button>
-      )}
-
-      {/* Hero Banner */}
-      <div className="relative rounded-2xl overflow-hidden border border-swu-amber/30">
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-black/20 z-10" />
-        <img
-          src="https://images.unsplash.com/photo-1608889175157-718b6205a50a?w=800&h=400&fit=crop"
-          alt="SWU"
-          className="w-full h-48 object-cover"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+    <div className="min-h-screen bg-swu-bg pb-28">
+      {/* ── Cockpit Header ── */}
+      <div className="relative overflow-hidden">
+        {/* Scan-line overlay */}
+        <div
+          className="absolute inset-0 z-10 pointer-events-none opacity-[0.03]"
+          style={{
+            backgroundImage:
+              'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.08) 2px, rgba(255,255,255,0.08) 4px)',
+          }}
         />
-        <div className="absolute bottom-0 left-0 right-0 p-5 z-20">
-          <p className="text-[11px] text-swu-amber font-bold tracking-widest uppercase">Próximo Set</p>
-          <h2 className="text-2xl font-extrabold text-white mt-1">A Lawless Time</h2>
-          <p className="text-sm text-gray-300 mt-1">260+ cartas · Lanzamiento: 13 Mar 2026</p>
-          <div className="flex gap-2 mt-1.5">
-            <span className="text-[10px] bg-swu-amber/30 text-swu-amber px-2 py-0.5 rounded-full font-bold">Crédito</span>
-            <span className="text-[10px] bg-swu-accent/30 text-swu-accent px-2 py-0.5 rounded-full font-bold">Multi-Aspecto</span>
+
+        {/* Gradient backdrop */}
+        <div className="relative z-0 bg-gradient-to-b from-swu-accent/10 via-swu-bg to-swu-bg px-5 pt-8 pb-4">
+          {/* Top status bar */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <p className="text-[10px] tracking-[0.35em] uppercase text-swu-amber font-bold">
+                Sistema Operativo
+              </p>
+              <h1 className="text-2xl font-extrabold text-swu-text tracking-tight">
+                B A S E
+              </h1>
+            </div>
+
+            {/* Status indicator */}
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-swu-green animate-pulse" />
+              <span className="text-[10px] text-swu-green font-mono font-bold tracking-wider uppercase">
+                Online
+              </span>
+            </div>
           </div>
-          <div className="flex gap-2 mt-3">
-            <button onClick={() => navigate('/cards')} className="bg-swu-accent text-white text-sm font-semibold px-5 py-2 rounded-lg active:scale-95 transition-transform">Ver Cartas</button>
-            <a href="https://starwarsunlimited.com/articles/a-lawless-time" target="_blank" rel="noopener noreferrer"
-              className="bg-white/10 backdrop-blur text-white text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-1.5 active:scale-95 transition-transform border border-white/20">
-              Info <ExternalLink size={12} />
-            </a>
-          </div>
+
+          {/* Profile / Login Button */}
+          {currentProfile ? (
+            <button
+              onClick={() => navigate('/profile')}
+              className="w-full rounded-xl p-3 flex items-center gap-3 active:scale-[0.98] transition-transform
+                         bg-swu-surface/60 backdrop-blur border border-swu-border/60"
+            >
+              <div className="w-11 h-11 rounded-lg bg-swu-accent/15 border border-swu-accent/30 flex items-center justify-center text-xl">
+                {currentProfile.avatar || '🎮'}
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-bold text-swu-text">{currentProfile.name}</p>
+                <p className="text-[10px] text-swu-muted font-mono tracking-wider">PILOTO ACTIVO</p>
+              </div>
+              <User size={16} className="text-swu-muted" />
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate('/profile')}
+              className="w-full rounded-xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform
+                         bg-gradient-to-r from-swu-accent/15 to-swu-amber/15 border border-swu-accent/30"
+            >
+              <div className="w-11 h-11 rounded-lg bg-swu-accent/20 border border-swu-accent/40 flex items-center justify-center">
+                <LogIn size={20} className="text-swu-accent" />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-bold text-swu-accent">Iniciar Sesión</p>
+                <p className="text-[10px] text-swu-muted">Ingrese para sincronizar datos</p>
+              </div>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 gap-3">
-        {quickActions.map((a) => {
-          const Icon = a.icon
+      {/* ── Decorative separator ── */}
+      <div className="px-5 py-1">
+        <div className="flex items-center gap-2">
+          <div className="h-px flex-1 bg-gradient-to-r from-swu-amber/40 to-transparent" />
+          <span className="text-[9px] text-swu-amber/60 font-mono tracking-[0.3em]">SISTEMAS</span>
+          <div className="h-px flex-1 bg-gradient-to-l from-swu-amber/40 to-transparent" />
+        </div>
+      </div>
+
+      {/* ── Main Systems Grid (ship console buttons) ── */}
+      <div className="px-5 pt-2 grid grid-cols-2 gap-3">
+        {mainSystems.map((sys) => {
+          const Icon = sys.icon
           return (
-            <button key={a.label} onClick={() => navigate(a.to)}
-              className={`${a.bg} border border-swu-border rounded-xl p-4 flex items-center gap-3 active:scale-[0.97] transition-transform`}>
-              <Icon size={22} className={a.color} />
-              <span className={`font-semibold text-sm ${a.color}`}>{a.label}</span>
+            <button
+              key={sys.label}
+              onClick={() => navigate(sys.to)}
+              className={`relative overflow-hidden rounded-xl border border-swu-border bg-swu-surface
+                          p-4 flex flex-col gap-2.5 text-left
+                          active:scale-[0.96] transition-all duration-150
+                          ${sys.glow}`}
+            >
+              {/* Corner accent */}
+              <div
+                className={`absolute top-0 right-0 w-12 h-12 opacity-[0.07]`}
+                style={{
+                  background: `radial-gradient(circle at top right, currentColor 0%, transparent 70%)`,
+                }}
+              />
+              {/* Corner notch decoration (ship panel style) */}
+              <div className={`absolute top-0 left-0 w-5 h-0.5 bg-${sys.color}/40 rounded-br`} />
+              <div className={`absolute top-0 left-0 w-0.5 h-5 bg-${sys.color}/40 rounded-br`} />
+
+              <div className={`w-10 h-10 rounded-lg bg-${sys.color}/10 border border-${sys.color}/20 flex items-center justify-center`}>
+                <Icon size={20} className={`text-${sys.color}`} />
+              </div>
+              <div>
+                <p className={`text-sm font-bold text-${sys.color}`}>{sys.label}</p>
+                <p className="text-[10px] text-swu-muted font-mono tracking-wider uppercase">{sys.sub}</p>
+              </div>
             </button>
           )
         })}
       </div>
 
-      {/* News Feed */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-swu-text">Noticias y Actualizaciones</h3>
-          <div className="flex items-center gap-2">
-            {isAdmin && (
+      {/* ── Next Set Banner (compact ship-terminal style) ── */}
+      <div className="px-5 pt-5">
+        <div className="relative rounded-xl overflow-hidden border border-swu-amber/20 bg-swu-surface">
+          {/* Scan line overlay */}
+          <div
+            className="absolute inset-0 pointer-events-none opacity-[0.03] z-10"
+            style={{
+              backgroundImage:
+                'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.06) 2px, rgba(255,255,255,0.06) 4px)',
+            }}
+          />
+
+          <div className="relative z-0 p-4">
+            {/* Terminal header */}
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-swu-amber animate-pulse" />
+              <span className="text-[9px] text-swu-amber font-mono tracking-[0.3em] uppercase font-bold">
+                Transmisión entrante
+              </span>
+            </div>
+
+            <h3 className="text-lg font-extrabold text-swu-text">A Lawless Time</h3>
+            <p className="text-xs text-swu-muted mt-0.5 font-mono">260+ cartas · 13 MAR 2026</p>
+
+            <div className="flex gap-1.5 mt-2">
+              <span className="text-[9px] bg-swu-amber/15 text-swu-amber px-2 py-0.5 rounded font-bold border border-swu-amber/20">
+                Crédito
+              </span>
+              <span className="text-[9px] bg-swu-accent/15 text-swu-accent px-2 py-0.5 rounded font-bold border border-swu-accent/20">
+                Multi-Aspecto
+              </span>
+            </div>
+
+            <div className="flex gap-2 mt-3">
               <button
-                onClick={() => navigate('/news/manage')}
-                className="p-1.5 rounded-lg bg-swu-accent/10 text-swu-accent active:scale-95 transition-transform"
-                title="Gestionar noticias"
+                onClick={() => navigate('/cards')}
+                className="bg-swu-accent/15 text-swu-accent text-xs font-bold px-4 py-2 rounded-lg
+                           border border-swu-accent/30 active:scale-95 transition-transform"
               >
-                <Settings2 size={14} />
+                Ver Cartas
               </button>
-            )}
-            <button
-              onClick={() => loadNews(true)}
-              disabled={refreshing}
-              className="p-1.5 rounded-lg bg-swu-surface text-swu-muted active:scale-95 transition-transform"
-              title="Actualizar"
-            >
-              <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-            </button>
+              <a
+                href="https://starwarsunlimited.com/articles/a-lawless-time"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-swu-surface text-swu-muted text-xs font-bold px-4 py-2 rounded-lg
+                           border border-swu-border flex items-center gap-1.5 active:scale-95 transition-transform"
+              >
+                Info <ExternalLink size={10} />
+              </a>
+            </div>
           </div>
         </div>
+      </div>
 
-        {loadingNews ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 size={24} className="text-swu-accent animate-spin" />
-          </div>
-        ) : news.length === 0 ? (
-          <div className="bg-swu-surface rounded-xl border border-swu-border p-6 text-center">
-            <Newspaper size={32} className="mx-auto text-swu-muted mb-2" />
-            <p className="text-sm text-swu-muted">No hay noticias por el momento.</p>
-            <p className="text-xs text-swu-muted mt-1">Las noticias se actualizan automáticamente.</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {news.map((n) => (
-              <div key={n.id} className="bg-swu-surface rounded-xl border border-swu-border overflow-hidden"
-                onClick={() => n.url && window.open(n.url, '_blank')} role={n.url ? 'button' : undefined}
-                style={n.url ? { cursor: 'pointer' } : undefined}>
-                {n.image_url && (
-                  <img src={n.image_url} alt="" className="w-full h-28 object-cover" loading="lazy"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                )}
-                <div className="p-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <Badge variant={tagVariant[n.tag_color] || 'default'}>{n.tag}</Badge>
-                    <div className="flex items-center gap-1">
-                      <span className="text-[11px] text-swu-muted">{formatDate(n.created_at)}</span>
-                      {n.url && <ExternalLink size={10} className="text-swu-muted" />}
-                    </div>
-                  </div>
-                  <p className="text-sm font-medium text-swu-text">{n.title}</p>
-                  <p className="text-xs text-swu-muted mt-1">{n.summary}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+      {/* ── Footer version indicator ── */}
+      <div className="px-5 pt-5 pb-2 text-center">
+        <p className="text-[9px] text-swu-muted/40 font-mono tracking-widest">
+          SWU COMPANION v1.0 — EL SALVADOR
+        </p>
       </div>
     </div>
   )
