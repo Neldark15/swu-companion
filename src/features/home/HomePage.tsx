@@ -79,8 +79,19 @@ export function HomePage() {
 
   return (
     <div className="min-h-screen bg-swu-bg pb-28">
-      {/* ── Cockpit Header ── */}
+      {/* ── Cockpit Header with Banner ── */}
       <div className="relative overflow-hidden">
+        {/* Banner background image */}
+        <div className="absolute inset-0 z-0">
+          <img
+            src="/banner-base.png"
+            alt=""
+            className="w-full h-full object-cover object-center"
+          />
+          {/* Gradient fade over banner */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-swu-bg" />
+        </div>
+
         {/* Scan-line overlay */}
         <div
           className="absolute inset-0 z-10 pointer-events-none opacity-[0.03]"
@@ -90,21 +101,24 @@ export function HomePage() {
           }}
         />
 
-        {/* Gradient backdrop */}
-        <div className="relative z-0 bg-gradient-to-b from-swu-accent/10 via-swu-bg to-swu-bg px-5 pt-8 pb-4">
-          {/* Top status bar */}
+        {/* Content over banner */}
+        <div className="relative z-20 px-5 pt-8 pb-4">
+          {/* Top status bar with logo */}
           <div className="flex items-center justify-between mb-6">
-            <div>
-              <p className="text-[10px] tracking-[0.35em] uppercase text-swu-amber font-bold">
-                Sistema Operativo
-              </p>
-              <h1 className="text-2xl font-extrabold text-swu-text tracking-tight">
-                B A S E
-              </h1>
+            <div className="flex items-center gap-3">
+              <img src="/swu-logo-title.png" alt="SWU" className="w-10 h-10 object-contain drop-shadow-lg" />
+              <div>
+                <h1 className="text-lg font-extrabold text-white tracking-tight leading-tight drop-shadow-md">
+                  SWU Companion
+                </h1>
+                <p className="text-[9px] tracking-[0.3em] uppercase text-swu-amber font-bold drop-shadow-sm">
+                  Centro de Mando
+                </p>
+              </div>
             </div>
 
             {/* Status indicator */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 bg-black/30 rounded-full px-2.5 py-1 backdrop-blur-sm">
               <div className="w-2 h-2 rounded-full bg-swu-green animate-pulse" />
               <span className="text-[10px] text-swu-green font-mono font-bold tracking-wider uppercase">
                 Online
