@@ -19,6 +19,7 @@ import { ManageNewsPage } from './features/home/ManageNewsPage'
 import { UtilitiesPage } from './features/utilities/UtilitiesPage'
 import { ProfilePage } from './features/profile/ProfilePage'
 import { SettingsPage } from './features/settings/SettingsPage'
+import { RankingPage } from './features/rank/RankingPage'
 
 export default function App() {
   return (
@@ -42,6 +43,7 @@ export default function App() {
           <Route path="/decks/:id" element={<DeckBuilderPage />} />
           <Route path="/news/manage" element={<ManageNewsPage />} />
           <Route path="/utilities" element={<UtilitiesPage />} />
+          <Route path="/rank" element={<RankingPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/*" element={<SettingsPage />} />

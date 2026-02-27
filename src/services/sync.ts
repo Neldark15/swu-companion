@@ -258,6 +258,72 @@ export async function deleteDeckFromCloud(deckId: string) {
   }
 }
 
+// ─── GLOBAL LEADERBOARD ──────────────────────────────────────────
+
+export interface GlobalLeaderboardEntry {
+  userId: string
+  name: string
+  avatar: string
+  level: number
+  xp: number
+  wins: number
+  losses: number
+  matchesPlayed: number
+  tournamentsFinished: number
+  tournamentsCreated: number
+  decksCreated: number
+  bestStreak: number
+  unlockedAchievements: string[]
+}
+
+export async function getGlobalLeaderboard(): Promise<GlobalLeaderboardEntry[]> {
+  if (!isSupabaseReady()) return []
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(`
+        id,
+        name,
+        avatar,
+        player_stats!inner(
+          level, xp, wins, losses, matches_played,
+          tournaments_finished, tournaments_created,
+          decks_created, best_streak, unlocked_achievements
+        )
+      `)
+      .order('name')
+
+    if (error || !data) return []
+
+    return data.map((row: Record<string, unknown>) => {
+      const stats = row.player_stats as Record<string, unknown>
+      return {
+        userId: row.id as string,
+        name: (row.name as string) || 'Jugador',
+        avatar: (row.avatar as string) || '🎯',
+        level: (stats?.level as number) || 1,
+        xp: (stats?.xp as number) || 0,
+        wins: (stats?.wins as number) || 0,
+        losses: (stats?.losses as number) || 0,
+        matchesPlayed: (stats?.matches_played as number) || 0,
+        tournamentsFinished: (stats?.tournaments_finished as number) || 0,
+        tournamentsCreated: (stats?.tournaments_created as number) || 0,
+        decksCreated: (stats?.decks_created as number) || 0,
+        bestStreak: (stats?.best_streak as number) || 0,
+        unlockedAchievements: (stats?.unlocked_achievements as string[]) || [],
+      }
+    })
+      // Sort: tournaments finished DESC, then wins DESC, then XP DESC
+      .sort((a, b) =>
+        b.tournamentsFinished - a.tournamentsFinished ||
+        b.wins - a.wins ||
+        b.xp - a.xp
+      )
+  } catch {
+    return []
+  }
+}
+
 // ─── FULL PULL (on login) ───────────────────────────────────────
 
 export async function pullAllFromCloud(userId: string, localProfileId: string) {
