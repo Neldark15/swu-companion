@@ -1,12 +1,12 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Hexagon, Swords, Calendar, BookOpen, Shield } from 'lucide-react'
+import { Hexagon, Swords, Calendar, Trophy, BookOpen } from 'lucide-react'
 
 const tabs = [
   { id: '/', label: 'Base', icon: Hexagon },
   { id: '/play', label: 'Jugar', icon: Swords },
   { id: '/events', label: 'Eventos', icon: Calendar },
-  { id: '/decks', label: 'Decks', icon: BookOpen },
-  { id: '/profile', label: 'Holored', icon: Shield },
+  { id: '/rank', label: 'Consejo', icon: Trophy },
+  { id: '/profile', label: 'Holocrón', icon: BookOpen },
 ]
 
 export function TabBar() {
