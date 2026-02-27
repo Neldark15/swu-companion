@@ -4,10 +4,7 @@ import { useAuth } from '../../hooks/useAuth'
 
 /*  ────────────────────────────────────────────
  *  BASE — Main cockpit / galactic command panel
- *  Star Wars ship console aesthetic:
- *    – angular borders, scan-line overlays
- *    – amber/cyan accent lighting on dark panels
- *    – technical font treatments
+ *  Star Wars ship console aesthetic
  *  ──────────────────────────────────────────── */
 
 const mainSystems = [
@@ -15,7 +12,9 @@ const mainSystems = [
     icon: Swords,
     label: 'Nueva Partida',
     sub: 'Iniciar combate',
-    color: 'swu-green',
+    textClass: 'text-swu-green',
+    iconBg: 'bg-swu-green/10 border-swu-green/20',
+    notchBg: 'bg-swu-green/40',
     glow: 'shadow-[0_0_18px_rgba(74,222,128,0.15)]',
     to: '/play',
   },
@@ -23,7 +22,9 @@ const mainSystems = [
     icon: Trophy,
     label: 'Torneo',
     sub: 'Eventos organizados',
-    color: 'swu-amber',
+    textClass: 'text-swu-amber',
+    iconBg: 'bg-swu-amber/10 border-swu-amber/20',
+    notchBg: 'bg-swu-amber/40',
     glow: 'shadow-[0_0_18px_rgba(251,191,36,0.15)]',
     to: '/events/tournament',
   },
@@ -31,7 +32,9 @@ const mainSystems = [
     icon: Layers,
     label: 'Buscar Cartas',
     sub: 'Base de datos',
-    color: 'swu-accent',
+    textClass: 'text-swu-accent',
+    iconBg: 'bg-swu-accent/10 border-swu-accent/20',
+    notchBg: 'bg-swu-accent/40',
     glow: 'shadow-[0_0_18px_rgba(56,189,248,0.15)]',
     to: '/cards',
   },
@@ -39,7 +42,9 @@ const mainSystems = [
     icon: BookOpen,
     label: 'Mis Decks',
     sub: 'Constructor',
-    color: 'swu-accent',
+    textClass: 'text-swu-accent',
+    iconBg: 'bg-swu-accent/10 border-swu-accent/20',
+    notchBg: 'bg-swu-accent/40',
     glow: 'shadow-[0_0_18px_rgba(56,189,248,0.15)]',
     to: '/decks',
   },
@@ -47,7 +52,9 @@ const mainSystems = [
     icon: Dice6,
     label: 'Utilidades',
     sub: 'Herramientas',
-    color: 'purple-400',
+    textClass: 'text-purple-400',
+    iconBg: 'bg-purple-500/10 border-purple-400/20',
+    notchBg: 'bg-purple-400/40',
     glow: 'shadow-[0_0_18px_rgba(192,132,252,0.15)]',
     to: '/utilities',
   },
@@ -55,7 +62,9 @@ const mainSystems = [
     icon: BarChart3,
     label: 'Ranking',
     sub: 'Leaderboard mensual',
-    color: 'swu-amber',
+    textClass: 'text-swu-amber',
+    iconBg: 'bg-swu-amber/10 border-swu-amber/20',
+    notchBg: 'bg-swu-amber/40',
     glow: 'shadow-[0_0_18px_rgba(251,191,36,0.15)]',
     to: '/rank',
   },
@@ -104,8 +113,7 @@ export function HomePage() {
           {currentProfile ? (
             <button
               onClick={() => navigate('/profile')}
-              className="w-full rounded-xl p-3 flex items-center gap-3 active:scale-[0.98] transition-transform
-                         bg-swu-surface/60 backdrop-blur border border-swu-border/60"
+              className="w-full rounded-xl p-3 flex items-center gap-3 active:scale-[0.98] transition-transform bg-swu-surface/60 backdrop-blur border border-swu-border/60"
             >
               <div className="w-11 h-11 rounded-lg bg-swu-accent/15 border border-swu-accent/30 flex items-center justify-center text-xl">
                 {currentProfile.avatar || '🎮'}
@@ -119,8 +127,7 @@ export function HomePage() {
           ) : (
             <button
               onClick={() => navigate('/profile')}
-              className="w-full rounded-xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform
-                         bg-gradient-to-r from-swu-accent/15 to-swu-amber/15 border border-swu-accent/30"
+              className="w-full rounded-xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform bg-gradient-to-r from-swu-accent/15 to-swu-amber/15 border border-swu-accent/30"
             >
               <div className="w-11 h-11 rounded-lg bg-swu-accent/20 border border-swu-accent/40 flex items-center justify-center">
                 <LogIn size={20} className="text-swu-accent" />
@@ -151,27 +158,17 @@ export function HomePage() {
             <button
               key={sys.label}
               onClick={() => navigate(sys.to)}
-              className={`relative overflow-hidden rounded-xl border border-swu-border bg-swu-surface
-                          p-4 flex flex-col gap-2.5 text-left
-                          active:scale-[0.96] transition-all duration-150
-                          ${sys.glow}`}
+              className={`relative overflow-hidden rounded-xl border border-swu-border bg-swu-surface p-4 flex flex-col gap-2.5 text-left active:scale-[0.96] transition-all duration-150 ${sys.glow}`}
             >
-              {/* Corner accent */}
-              <div
-                className={`absolute top-0 right-0 w-12 h-12 opacity-[0.07]`}
-                style={{
-                  background: `radial-gradient(circle at top right, currentColor 0%, transparent 70%)`,
-                }}
-              />
               {/* Corner notch decoration (ship panel style) */}
-              <div className={`absolute top-0 left-0 w-5 h-0.5 bg-${sys.color}/40 rounded-br`} />
-              <div className={`absolute top-0 left-0 w-0.5 h-5 bg-${sys.color}/40 rounded-br`} />
+              <div className={`absolute top-0 left-0 w-5 h-0.5 ${sys.notchBg} rounded-br`} />
+              <div className={`absolute top-0 left-0 w-0.5 h-5 ${sys.notchBg} rounded-br`} />
 
-              <div className={`w-10 h-10 rounded-lg bg-${sys.color}/10 border border-${sys.color}/20 flex items-center justify-center`}>
-                <Icon size={20} className={`text-${sys.color}`} />
+              <div className={`w-10 h-10 rounded-lg border flex items-center justify-center ${sys.iconBg}`}>
+                <Icon size={20} className={sys.textClass} />
               </div>
               <div>
-                <p className={`text-sm font-bold text-${sys.color}`}>{sys.label}</p>
+                <p className={`text-sm font-bold ${sys.textClass}`}>{sys.label}</p>
                 <p className="text-[10px] text-swu-muted font-mono tracking-wider uppercase">{sys.sub}</p>
               </div>
             </button>
@@ -215,8 +212,7 @@ export function HomePage() {
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => navigate('/cards')}
-                className="bg-swu-accent/15 text-swu-accent text-xs font-bold px-4 py-2 rounded-lg
-                           border border-swu-accent/30 active:scale-95 transition-transform"
+                className="bg-swu-accent/15 text-swu-accent text-xs font-bold px-4 py-2 rounded-lg border border-swu-accent/30 active:scale-95 transition-transform"
               >
                 Ver Cartas
               </button>
@@ -224,8 +220,7 @@ export function HomePage() {
                 href="https://starwarsunlimited.com/articles/a-lawless-time"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-swu-surface text-swu-muted text-xs font-bold px-4 py-2 rounded-lg
-                           border border-swu-border flex items-center gap-1.5 active:scale-95 transition-transform"
+                className="bg-swu-surface text-swu-muted text-xs font-bold px-4 py-2 rounded-lg border border-swu-border flex items-center gap-1.5 active:scale-95 transition-transform"
               >
                 Info <ExternalLink size={10} />
               </a>
