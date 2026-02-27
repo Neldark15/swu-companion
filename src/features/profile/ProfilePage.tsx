@@ -12,7 +12,6 @@ import { createDefaultStats, getAspectBars, checkAchievements, calculateLevel, t
 import { XpBar } from './components/XpBar'
 import { AspectBars } from './components/AspectBars'
 import { AchievementGrid } from './components/AchievementGrid'
-import { MonthlyRank } from './components/MonthlyRank'
 
 /* ── Star Wars avatar options (images in /avatars/) ── */
 const swAvatars = [
@@ -688,11 +687,6 @@ export function ProfilePage() {
             <p className="text-[9px] text-swu-muted">{s.label}</p>
           </div>
         ))}
-      </div>
-
-      {/* Monthly Rank */}
-      <div className="bg-swu-surface rounded-2xl p-4 border border-swu-border">
-        <MonthlyRank userId={supabaseUser?.id || null} />
       </div>
 
       {/* Aspect Bars */}
