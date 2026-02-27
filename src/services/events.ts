@@ -278,12 +278,16 @@ export async function updateOfficialEvent(
 ): Promise<{ ok: boolean; error?: string }> {
   if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('official_events')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', eventId)
+    .select()
 
   if (error) return { ok: false, error: error.message }
+  if (!data || data.length === 0) {
+    return { ok: false, error: 'Sin permiso para editar este evento. Verifique la política RLS en Supabase.' }
+  }
   return { ok: true }
 }
 
@@ -291,11 +295,15 @@ export async function deleteOfficialEvent(eventId: string): Promise<{ ok: boolea
   if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
 
   // CASCADE on event_registrations handles cleanup automatically
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('official_events')
     .delete()
     .eq('id', eventId)
+    .select()
 
   if (error) return { ok: false, error: error.message }
+  if (!data || data.length === 0) {
+    return { ok: false, error: 'Sin permiso para eliminar este evento' }
+  }
   return { ok: true }
 }

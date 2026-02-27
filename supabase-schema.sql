@@ -246,10 +246,13 @@ CREATE POLICY "events_insert" ON public.official_events
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
   );
 
--- Organizer can update their own events
+-- Organizer or admin can update events
 CREATE POLICY "events_update" ON public.official_events
   FOR UPDATE TO authenticated
-  USING (organizer_id = auth.uid());
+  USING (
+    organizer_id = auth.uid()
+    OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
 
 -- Admins can delete events
 CREATE POLICY "events_delete" ON public.official_events
