@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { BookOpen, CheckCircle2, XCircle, ChevronRight, Zap, Flame, Star } from 'lucide-react'
 import { getDailyQuestions, getTodayProgress, recordTriviaAnswer, getTriviaStats, type TriviaQuestion, type TriviaProgress } from '../../../services/trivia'
 
@@ -18,6 +18,8 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
   const [sessionCorrect, setSessionCorrect] = useState(0)
   const [sessionXp, setSessionXp] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [transitioning, setTransitioning] = useState(false)
+  const transitionRef = useRef(false)
 
   // Load data on mount
   useEffect(() => {
@@ -52,8 +54,9 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
     setSessionXp(0)
   }
 
-  const handleAnswer = async (optionIndex: number) => {
-    if (selectedAnswer !== null) return // Already answered
+  const handleAnswer = useCallback(async (optionIndex: number) => {
+    // Block if already answered OR transitioning between questions
+    if (selectedAnswer !== null || transitioning || transitionRef.current) return
     setSelectedAnswer(optionIndex)
     setShowResult(true)
 
@@ -79,18 +82,26 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
       xpEarned: (prev?.xpEarned || 0) + (isCorrect ? 2 : 0),
       answeredIds: [...(prev?.answeredIds || []), question.id],
     }))
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAnswer, transitioning, currentIndex, userId, onXpGained])
 
-  const nextQuestion = () => {
+  const nextQuestion = useCallback(() => {
     if (currentIndex + 1 >= unanswered.length) {
-      // Done for today
       setPlaying(false)
       return
     }
-    setCurrentIndex(prev => prev + 1)
+    // Block interactions during transition to prevent ghost taps
+    setTransitioning(true)
+    transitionRef.current = true
     setSelectedAnswer(null)
     setShowResult(false)
-  }
+    setCurrentIndex(prev => prev + 1)
+    // Re-enable after a short delay so touch events from "Siguiente" don't hit the new options
+    setTimeout(() => {
+      setTransitioning(false)
+      transitionRef.current = false
+    }, 400)
+  }, [currentIndex, unanswered.length])
 
   if (loading) return null
 
@@ -153,8 +164,8 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
                 <button
                   key={i}
                   onClick={() => handleAnswer(i)}
-                  disabled={showResult}
-                  className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm font-medium transition-all active:scale-[0.98] ${style}`}
+                  disabled={showResult || transitioning}
+                  className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm font-medium transition-all active:scale-[0.98] ${style} ${transitioning ? 'pointer-events-none' : ''}`}
                 >
                   <span className="text-[10px] font-bold mr-2 opacity-50">{['A', 'B', 'C', 'D'][i]}</span>
                   {option}
@@ -182,7 +193,7 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
           {showResult && (
             <button
               onClick={nextQuestion}
-              className="w-full py-2.5 rounded-lg bg-swu-accent text-white text-sm font-bold flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform"
+              className="w-full py-2.5 rounded-lg bg-swu-accent text-white text-sm font-bold flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform select-none touch-manipulation"
             >
               {currentIndex + 1 >= unanswered.length ? 'Finalizar' : 'Siguiente'}
               <ChevronRight size={14} />
