@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Trash2, BookOpen, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { Plus, Trash2, BookOpen, AlertTriangle, CheckCircle2, Swords } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { db } from '../../services/db'
+import { getCardById } from '../../services/swuApi'
 import type { Deck } from '../../types'
 
 function timeAgo(ts: number): string {
@@ -28,23 +29,74 @@ const formatLabels: Record<string, string> = {
   limited: 'Limited',
 }
 
+// Cache for card images to avoid repeated lookups
+const imageCache = new Map<string, string>()
+
 export function DeckListPage() {
   const navigate = useNavigate()
   const [decks, setDecks] = useState<Deck[]>([])
   const [loading, setLoading] = useState(true)
+  const [cardImages, setCardImages] = useState<Map<string, string>>(new Map())
 
-  useEffect(() => {
-    db.decks.orderBy('updatedAt').reverse().toArray().then((d) => {
-      setDecks(d)
-      setLoading(false)
+  const loadDecks = useCallback(async () => {
+    setLoading(true)
+    const d = await db.decks.orderBy('updatedAt').reverse().toArray()
+    setDecks(d)
+    setLoading(false)
+
+    // Load card images for leaders and bases
+    const cardIds = new Set<string>()
+    d.forEach(deck => {
+      deck.leaders.forEach(l => cardIds.add(l.cardId))
+      if (deck.base) cardIds.add(deck.base.cardId)
     })
+
+    const newImages = new Map<string, string>(imageCache)
+    const toFetch = [...cardIds].filter(id => !imageCache.has(id))
+
+    if (toFetch.length > 0) {
+      const results = await Promise.all(
+        toFetch.map(async (id) => {
+          const card = await getCardById(id)
+          return { id, imageUrl: card?.imageUrl || '' }
+        })
+      )
+      results.forEach(({ id, imageUrl }) => {
+        if (imageUrl) {
+          newImages.set(id, imageUrl)
+          imageCache.set(id, imageUrl)
+        }
+      })
+    }
+
+    setCardImages(newImages)
   }, [])
 
-  const handleDelete = async (id: string) => {
-    if (confirm('¿Eliminar este deck?')) {
-      await db.decks.delete(id)
-      setDecks((prev) => prev.filter((d) => d.id !== id))
+  // Load on mount and when navigating back
+  useEffect(() => {
+    loadDecks()
+  }, [loadDecks])
+
+  // Also reload when page becomes visible (e.g. navigating back)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') loadDecks()
     }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [loadDecks])
+
+  // Re-load when this component mounts (handles back navigation from deck builder)
+  useEffect(() => {
+    const handleFocus = () => loadDecks()
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [loadDecks])
+
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    await db.decks.delete(id)
+    setDecks((prev) => prev.filter((d) => d.id !== id))
   }
 
   return (
@@ -75,48 +127,107 @@ export function DeckListPage() {
           </button>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {decks.map((deck) => {
             const mainCount = countCards(deck.mainDeck)
             const sideCount = countCards(deck.sideboard)
-            const leaderName = deck.leaders[0]?.name || 'Sin leader'
-            const baseName = deck.base?.name || 'Sin base'
+            const leader = deck.leaders[0]
+            const base = deck.base
+            const leaderImg = leader ? cardImages.get(leader.cardId) : undefined
+            const baseImg = base ? cardImages.get(base.cardId) : undefined
+            const targetSize = deck.format === 'sealed' || deck.format === 'draft' || deck.format === 'limited' ? 30 : 50
 
             return (
-              <div key={deck.id} className="bg-swu-surface rounded-xl border border-swu-border p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+              <div
+                key={deck.id}
+                onClick={() => navigate(`/decks/${deck.id}`)}
+                className="bg-swu-surface rounded-2xl border border-swu-border overflow-hidden active:scale-[0.99] transition-transform cursor-pointer"
+              >
+                {/* Card thumbnails header */}
+                <div className="flex h-24 bg-swu-bg relative">
+                  {/* Leader image */}
+                  <div className="flex-1 relative overflow-hidden">
+                    {leaderImg ? (
+                      <img
+                        src={leaderImg}
+                        alt={leader?.name || ''}
+                        className="w-full h-full object-cover object-top"
+                        loading="lazy"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Swords size={24} className="text-swu-muted/20" />
+                      </div>
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1">
+                      <p className="text-[9px] text-swu-amber font-bold">LÍDER</p>
+                      <p className="text-[10px] text-white font-medium truncate">{leader?.name || 'Sin líder'}</p>
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="w-px bg-swu-border" />
+
+                  {/* Base image */}
+                  <div className="flex-1 relative overflow-hidden">
+                    {baseImg ? (
+                      <img
+                        src={baseImg}
+                        alt={base?.name || ''}
+                        className="w-full h-full object-cover object-top"
+                        loading="lazy"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <BookOpen size={24} className="text-swu-muted/20" />
+                      </div>
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1">
+                      <p className="text-[9px] text-swu-green font-bold">BASE</p>
+                      <p className="text-[10px] text-white font-medium truncate">{base?.name || 'Sin base'}</p>
+                    </div>
+                  </div>
+
+                  {/* Validity badge */}
+                  <div className="absolute top-2 right-2">
+                    {deck.isValid ? (
+                      <div className="bg-swu-green/90 rounded-full p-1">
+                        <CheckCircle2 size={12} className="text-white" />
+                      </div>
+                    ) : (
+                      <div className="bg-swu-amber/90 rounded-full p-1">
+                        <AlertTriangle size={12} className="text-white" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Info */}
+                <div className="p-3 space-y-2">
+                  <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-swu-text">{deck.name}</span>
                     <Badge variant="accent">{formatLabels[deck.format] || deck.format}</Badge>
                   </div>
-                  {deck.isValid ? (
-                    <CheckCircle2 size={16} className="text-swu-green" />
-                  ) : (
-                    <AlertTriangle size={16} className="text-swu-amber" />
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-[11px] text-swu-muted">
+                      <span className="font-mono font-bold text-swu-accent">{mainCount}/{targetSize}</span>
+                      {sideCount > 0 && <span>Side: {sideCount}</span>}
+                      <span>{timeAgo(deck.updatedAt)}</span>
+                    </div>
+                    <button
+                      onClick={(e) => handleDelete(deck.id, e)}
+                      className="p-1.5 rounded-lg bg-swu-red/10 text-swu-red active:scale-95 transition-transform"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+
+                  {!deck.isValid && deck.validationErrors.length > 0 && (
+                    <p className="text-[10px] text-swu-amber">{deck.validationErrors[0]}</p>
                   )}
-                </div>
-
-                <p className="text-[10px] text-swu-muted">
-                  {leaderName} · {baseName} · {mainCount}/50 mazo · {sideCount} side · {timeAgo(deck.updatedAt)}
-                </p>
-
-                {deck.validationErrors.length > 0 && (
-                  <p className="text-[10px] text-swu-amber">{deck.validationErrors[0]}</p>
-                )}
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => navigate(`/decks/${deck.id}`)}
-                    className="flex-1 py-2 rounded-lg bg-swu-accent/20 border border-swu-accent/40 text-swu-accent text-xs font-bold active:scale-95 transition-transform"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => handleDelete(deck.id)}
-                    className="py-2 px-4 rounded-lg bg-swu-red/10 border border-swu-red/30 text-swu-red text-xs font-bold active:scale-95 transition-transform"
-                  >
-                    <Trash2 size={14} />
-                  </button>
                 </div>
               </div>
             )
