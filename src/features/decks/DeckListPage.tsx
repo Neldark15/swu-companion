@@ -4,7 +4,7 @@ import { Plus, Trash2, BookOpen, AlertTriangle, CheckCircle2, Swords } from 'luc
 import { Badge } from '../../components/ui/Badge'
 import { db } from '../../services/db'
 import { getCardById } from '../../services/swuApi'
-import { deleteDeckFromCloud } from '../../services/sync'
+import { deleteDeckFromCloud, pullDecksFromCloud } from '../../services/sync'
 import { useAuth } from '../../hooks/useAuth'
 import type { Deck } from '../../types'
 
@@ -43,6 +43,12 @@ export function DeckListPage() {
 
   const loadDecks = useCallback(async () => {
     setLoading(true)
+
+    // If user is logged in, pull latest decks from cloud first
+    if (supabaseUser) {
+      await pullDecksFromCloud(supabaseUser.id).catch(() => {})
+    }
+
     const d = await db.decks.orderBy('updatedAt').reverse().toArray()
     setDecks(d)
     setLoading(false)
@@ -73,7 +79,7 @@ export function DeckListPage() {
     }
 
     setCardImages(newImages)
-  }, [])
+  }, [supabaseUser])
 
   // Load on mount and when navigating back
   useEffect(() => {

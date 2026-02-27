@@ -224,6 +224,31 @@ export async function syncDeckToCloud(userId: string, deck: Deck) {
   }
 }
 
+/** Pull decks from Supabase and merge into local IndexedDB */
+export async function pullDecksFromCloud(userId: string): Promise<boolean> {
+  if (!isSupabaseReady()) return false
+  try {
+    const { data: decks, error } = await supabase
+      .from('decks')
+      .select('*')
+      .eq('user_id', userId)
+    if (error || !decks) return false
+
+    for (const d of decks) {
+      const localDeck = {
+        ...d.data,
+        id: d.id,
+        name: d.name,
+        format: d.format,
+      }
+      await db.decks.put(localDeck)
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function deleteDeckFromCloud(deckId: string) {
   if (!isSupabaseReady()) return
   try {
