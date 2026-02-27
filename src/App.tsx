@@ -15,6 +15,7 @@ import { DeckListPage } from './features/decks/DeckListPage'
 import { DeckBuilderPage } from './features/decks/DeckBuilderPage'
 import { EventLobbyPage } from './features/events/EventLobbyPage'
 import { CreateEventPage } from './features/events/CreateEventPage'
+import { ManageNewsPage } from './features/home/ManageNewsPage'
 import { UtilitiesPage } from './features/utilities/UtilitiesPage'
 import { ProfilePage } from './features/profile/ProfilePage'
 import { SettingsPage } from './features/settings/SettingsPage'
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/cards/:id" element={<CardDetailPage />} />
           <Route path="/decks" element={<DeckListPage />} />
           <Route path="/decks/:id" element={<DeckBuilderPage />} />
+          <Route path="/news/manage" element={<ManageNewsPage />} />
           <Route path="/utilities" element={<UtilitiesPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />

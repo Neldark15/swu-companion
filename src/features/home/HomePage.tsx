@@ -1,7 +1,9 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Swords, Trophy, Layers, Dice6, ExternalLink, User, LogIn } from 'lucide-react'
+import { Swords, Trophy, Layers, Dice6, ExternalLink, User, LogIn, Newspaper, Settings2, Loader2, RefreshCw } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { useAuth } from '../../hooks/useAuth'
+import { getNews, type NewsItem } from '../../services/news'
 
 const quickActions = [
   { icon: Swords, label: 'Nueva Partida', color: 'text-swu-green', bg: 'bg-swu-green/10', to: '/play' },
@@ -10,56 +12,42 @@ const quickActions = [
   { icon: Dice6, label: 'Utilidades', color: 'text-purple-400', bg: 'bg-purple-500/10', to: '/utilities' },
 ]
 
-const news = [
-  {
-    title: 'A Lawless Time — Nuevo set Marzo 2026',
-    date: '26 Feb 2026',
-    tag: 'Set Nuevo',
-    tagColor: 'amber' as const,
-    summary: 'Set 7 con 260+ cartas, tokens de Crédito y cartas multi-aspecto. Pre-release: 6 Mar.',
-    url: 'https://starwarsunlimited.com/articles/a-lawless-time',
-    imageUrl: 'https://images.unsplash.com/photo-1608889175157-718b6205a50a?w=600&h=200&fit=crop',
-  },
-  {
-    title: 'Galactics 2026 — Boletos disponibles',
-    date: '17 Feb 2026',
-    tag: 'Eventos',
-    tagColor: 'green' as const,
-    summary: 'Boletos para el Galactic Championship. Promos exclusivas early bird.',
-    url: 'https://starwarsunlimited.com/articles/tickets-to-galactics',
-    imageUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&h=200&fit=crop',
-  },
-  {
-    title: 'Roadmap 2026: 3 sets + mazos Twin Suns',
-    date: '10 Feb 2026',
-    tag: 'Roadmap',
-    tagColor: 'accent' as const,
-    summary: 'A Lawless Time (Mar), Ashes of the Empire (Jul), Homeworlds (Nov) + precons Twin Suns.',
-    url: 'https://icv2.com/articles/news/view/61111/fantasy-flight-reveals-2026-star-wars-unlimited-releases',
-  },
-  {
-    title: 'Secrets of Power — Meta actual',
-    date: '2 Feb 2026',
-    tag: 'Meta',
-    tagColor: 'purple' as const,
-    summary: 'Análisis del meta con SEC. Líderes más jugados y decks tier 1.',
-  },
-  {
-    title: 'Store Championship Q1 — Temporada abierta',
-    date: '20 Ene 2026',
-    tag: 'OP',
-    tagColor: 'default' as const,
-    summary: 'Temporada de Store Championships Q1 2026 en curso. Consulte su tienda local.',
-  },
-]
-
 const tagVariant: Record<string, 'amber' | 'green' | 'accent' | 'purple' | 'default'> = {
   amber: 'amber', green: 'green', accent: 'accent', purple: 'purple', default: 'default',
 }
 
+// Auto-refresh interval: 2 minutes
+const REFRESH_INTERVAL = 2 * 60 * 1000
+
 export function HomePage() {
   const navigate = useNavigate()
-  const { currentProfile } = useAuth()
+  const { currentProfile, isAdmin } = useAuth()
+  const [news, setNews] = useState<NewsItem[]>([])
+  const [loadingNews, setLoadingNews] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const loadNews = async (showRefresh = false) => {
+    if (showRefresh) setRefreshing(true)
+    else setLoadingNews(true)
+
+    const items = await getNews(15)
+    setNews(items)
+
+    setLoadingNews(false)
+    setRefreshing(false)
+  }
+
+  // Initial load + auto-refresh
+  useEffect(() => {
+    loadNews()
+    const interval = setInterval(() => loadNews(), REFRESH_INTERVAL)
+    return () => clearInterval(interval)
+  }, [])
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr)
+    return d.toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })
+  }
 
   return (
     <div className="p-4 space-y-5">
@@ -136,30 +124,64 @@ export function HomePage() {
 
       {/* News Feed */}
       <div>
-        <h3 className="text-sm font-bold text-swu-text mb-3">Noticias y Actualizaciones</h3>
-        <div className="space-y-2">
-          {news.map((n) => (
-            <div key={n.title} className="bg-swu-surface rounded-xl border border-swu-border overflow-hidden"
-              onClick={() => n.url && window.open(n.url, '_blank')} role={n.url ? 'button' : undefined}
-              style={n.url ? { cursor: 'pointer' } : undefined}>
-              {n.imageUrl && (
-                <img src={n.imageUrl} alt="" className="w-full h-28 object-cover" loading="lazy"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-              )}
-              <div className="p-3">
-                <div className="flex items-center justify-between mb-1">
-                  <Badge variant={tagVariant[n.tagColor]}>{n.tag}</Badge>
-                  <div className="flex items-center gap-1">
-                    <span className="text-[11px] text-swu-muted">{n.date}</span>
-                    {n.url && <ExternalLink size={10} className="text-swu-muted" />}
-                  </div>
-                </div>
-                <p className="text-sm font-medium text-swu-text">{n.title}</p>
-                <p className="text-xs text-swu-muted mt-1">{n.summary}</p>
-              </div>
-            </div>
-          ))}
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-swu-text">Noticias y Actualizaciones</h3>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button
+                onClick={() => navigate('/news/manage')}
+                className="p-1.5 rounded-lg bg-swu-accent/10 text-swu-accent active:scale-95 transition-transform"
+                title="Gestionar noticias"
+              >
+                <Settings2 size={14} />
+              </button>
+            )}
+            <button
+              onClick={() => loadNews(true)}
+              disabled={refreshing}
+              className="p-1.5 rounded-lg bg-swu-surface text-swu-muted active:scale-95 transition-transform"
+              title="Actualizar"
+            >
+              <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+            </button>
+          </div>
         </div>
+
+        {loadingNews ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 size={24} className="text-swu-accent animate-spin" />
+          </div>
+        ) : news.length === 0 ? (
+          <div className="bg-swu-surface rounded-xl border border-swu-border p-6 text-center">
+            <Newspaper size={32} className="mx-auto text-swu-muted mb-2" />
+            <p className="text-sm text-swu-muted">No hay noticias por el momento.</p>
+            <p className="text-xs text-swu-muted mt-1">Las noticias se actualizan automáticamente.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {news.map((n) => (
+              <div key={n.id} className="bg-swu-surface rounded-xl border border-swu-border overflow-hidden"
+                onClick={() => n.url && window.open(n.url, '_blank')} role={n.url ? 'button' : undefined}
+                style={n.url ? { cursor: 'pointer' } : undefined}>
+                {n.image_url && (
+                  <img src={n.image_url} alt="" className="w-full h-28 object-cover" loading="lazy"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                )}
+                <div className="p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <Badge variant={tagVariant[n.tag_color] || 'default'}>{n.tag}</Badge>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[11px] text-swu-muted">{formatDate(n.created_at)}</span>
+                      {n.url && <ExternalLink size={10} className="text-swu-muted" />}
+                    </div>
+                  </div>
+                  <p className="text-sm font-medium text-swu-text">{n.title}</p>
+                  <p className="text-xs text-swu-muted mt-1">{n.summary}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

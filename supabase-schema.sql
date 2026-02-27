@@ -271,3 +271,49 @@ CREATE POLICY "reg_insert" ON public.event_registrations
 CREATE POLICY "reg_delete" ON public.event_registrations
   FOR DELETE TO authenticated
   USING (user_id = auth.uid());
+
+-- ═══════════════════════════════════════════════════════════════
+-- NEWS SYSTEM (v3) — Admin-managed news feed
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS public.news (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  author_id UUID REFERENCES auth.users(id) NOT NULL,
+  title TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  tag TEXT NOT NULL DEFAULT 'General',
+  tag_color TEXT NOT NULL DEFAULT 'default',
+  url TEXT,
+  image_url TEXT,
+  pinned BOOLEAN DEFAULT false,
+  published BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.news ENABLE ROW LEVEL SECURITY;
+
+-- Everyone (even non-authenticated) can read published news
+CREATE POLICY "news_select" ON public.news
+  FOR SELECT USING (published = true);
+
+-- Only admins can create news
+CREATE POLICY "news_insert" ON public.news
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- Only admins can update news
+CREATE POLICY "news_update" ON public.news
+  FOR UPDATE TO authenticated
+  USING (
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- Only admins can delete news
+CREATE POLICY "news_delete" ON public.news
+  FOR DELETE TO authenticated
+  USING (
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
