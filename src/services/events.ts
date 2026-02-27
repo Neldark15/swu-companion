@@ -276,17 +276,32 @@ export async function updateOfficialEvent(
   eventId: string,
   updates: { date?: string | null; location?: string | null; name?: string }
 ): Promise<{ ok: boolean; error?: string }> {
-  if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
+  if (!isSupabaseReady()) return { ok: false, error: 'Supabase no configurado' }
 
-  const { data, error } = await supabase
+  // Verify we have an authenticated session
+  const { data: session } = await supabase.auth.getSession()
+  if (!session?.session) {
+    return { ok: false, error: 'No hay sesión activa. Cierre sesión y vuelva a iniciar.' }
+  }
+
+  console.log('[updateEvent] eventId:', eventId, 'updates:', updates, 'userId:', session.session.user.id)
+
+  const payload: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  if (updates.date !== undefined) payload.date = updates.date
+  if (updates.location !== undefined) payload.location = updates.location
+  if (updates.name !== undefined) payload.name = updates.name
+
+  const { data, error, status, statusText } = await supabase
     .from('official_events')
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update(payload)
     .eq('id', eventId)
     .select()
 
-  if (error) return { ok: false, error: error.message }
+  console.log('[updateEvent] response:', { data, error, status, statusText })
+
+  if (error) return { ok: false, error: `Error ${status}: ${error.message}` }
   if (!data || data.length === 0) {
-    return { ok: false, error: 'Sin permiso para editar este evento. Verifique la política RLS en Supabase.' }
+    return { ok: false, error: `Sin permiso (RLS). Status: ${status}. Verifique que ejecutó el SQL fix en Supabase Dashboard.` }
   }
   return { ok: true }
 }

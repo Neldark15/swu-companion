@@ -109,23 +109,33 @@ export function EventsPage() {
     setEditSaving(true)
     setEditError('')
 
-    const newDate = editDate && editTime
-      ? `${editDate}T${editTime}:00`
-      : editDate
-        ? `${editDate}T00:00:00`
-        : null
+    try {
+      // Build ISO date string — use full ISO 8601 format
+      let newDate: string | null = null
+      if (editDate) {
+        const timeStr = editTime || '00:00'
+        newDate = new Date(`${editDate}T${timeStr}:00`).toISOString()
+      }
 
-    const result = await updateOfficialEvent(editingEventId, { date: newDate })
+      console.log('[saveEditing] eventId:', editingEventId, 'newDate:', newDate, 'editDate:', editDate, 'editTime:', editTime)
 
-    if (!result.ok) {
-      setEditError(result.error || 'Error al guardar')
+      const result = await updateOfficialEvent(editingEventId, { date: newDate })
+
+      if (!result.ok) {
+        setEditError(result.error || 'Error desconocido al guardar')
+        setEditSaving(false)
+        return
+      }
+
+      // Success - reload and close
+      await loadEvents()
+      setEditingEventId(null)
       setEditSaving(false)
-      return
+    } catch (err) {
+      console.error('[saveEditing] exception:', err)
+      setEditError(`Excepción: ${err instanceof Error ? err.message : String(err)}`)
+      setEditSaving(false)
     }
-
-    await loadEvents()
-    setEditingEventId(null)
-    setEditSaving(false)
   }
 
   const formatDate = (ts: number | string) => {
@@ -291,7 +301,11 @@ export function EventsPage() {
                         />
                       </div>
                     </div>
-                    {editError && <p className="text-[11px] text-red-400 font-medium">{editError}</p>}
+                    {editError && (
+                      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-2">
+                        <p className="text-[11px] text-red-400 font-medium">{editError}</p>
+                      </div>
+                    )}
                     <div className="flex gap-2">
                       <button
                         onClick={saveEditing}
