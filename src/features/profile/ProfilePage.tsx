@@ -14,7 +14,49 @@ import { AspectBars } from './components/AspectBars'
 import { AchievementGrid } from './components/AchievementGrid'
 import { MonthlyRank } from './components/MonthlyRank'
 
-const avatarOptions = ['🎯', '⚔️', '🛡️', '🚀', '🌟', '💎', '🔥', '🌙', '👾', '🎲', '🐉', '🦅', '⭐', '🎭', '🏆', '🌀']
+/* ── Star Wars avatar options (images in /avatars/) ── */
+const swAvatars = [
+  { id: 'chewbacca', name: 'Chewbacca' },
+  { id: 'r2d2', name: 'R2-D2' },
+  { id: 'c3po', name: 'C-3PO' },
+  { id: 'bb8', name: 'BB-8' },
+  { id: 'pilot', name: 'Piloto' },
+  { id: 'boba-fett', name: 'Boba Fett' },
+  { id: 'stormtrooper', name: 'Stormtrooper' },
+  { id: 'darth-vader', name: 'Darth Vader' },
+  { id: 'phasma', name: 'Phasma' },
+  { id: 'kylo-ren', name: 'Kylo Ren' },
+  { id: 'jedi-order', name: 'Orden Jedi' },
+  { id: 'phoenix', name: 'Fénix' },
+  { id: 'rebel-alliance', name: 'Alianza Rebelde' },
+  { id: 'galactic-empire', name: 'Imperio' },
+  { id: 'first-order', name: 'Primera Orden' },
+]
+
+/** Get avatar src from avatar string (supports old emojis + new ids) */
+function getAvatarSrc(avatar: string): string | null {
+  if (swAvatars.some(a => a.id === avatar)) {
+    return `/avatars/${avatar}.png`
+  }
+  return null // it's an emoji
+}
+
+/** Render avatar: image or emoji fallback */
+function AvatarDisplay({ avatar, size = 'md' }: { avatar: string; size?: 'sm' | 'md' | 'lg' | 'xl' }) {
+  const src = getAvatarSrc(avatar)
+  const sizeClasses = {
+    sm: 'w-10 h-10',
+    md: 'w-14 h-14',
+    lg: 'w-20 h-20',
+    xl: 'w-24 h-24',
+  }
+  const textSizes = { sm: 'text-xl', md: 'text-3xl', lg: 'text-5xl', xl: 'text-6xl' }
+
+  if (src) {
+    return <img src={src} alt={avatar} className={`${sizeClasses[size]} object-contain`} />
+  }
+  return <span className={textSizes[size]}>{avatar}</span>
+}
 
 type View = 'select' | 'register' | 'login' | 'forgot-password' | 'profile' | 'customize' | 'security' | 'register-passkey'
 
@@ -33,7 +75,7 @@ export function ProfilePage() {
   const [regEmail, setRegEmail] = useState('')
   const [regPassword, setRegPassword] = useState('')
   const [regPasswordConfirm, setRegPasswordConfirm] = useState('')
-  const [regAvatar, setRegAvatar] = useState('🎯')
+  const [regAvatar, setRegAvatar] = useState('darth-vader')
   const [regError, setRegError] = useState('')
   const [regLoading, setRegLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -50,7 +92,7 @@ export function ProfilePage() {
   const [forgotSuccess, setForgotSuccess] = useState(false)
 
   // Customization state
-  const [customAvatar, setCustomAvatar] = useState(currentProfile?.avatar || '🎯')
+  const [customAvatar, setCustomAvatar] = useState(currentProfile?.avatar || 'darth-vader')
   const [customName, setCustomName] = useState(currentProfile?.name || '')
 
   useEffect(() => { loadProfiles(); auth.initAuth() }, [])
@@ -237,7 +279,7 @@ export function ProfilePage() {
             <span className="text-sm font-bold text-swu-accent">Iniciar Sesión</span>
             <span className="text-[10px] text-swu-muted">Email + contraseña</span>
           </button>
-          <button onClick={() => { setRegName(''); setRegEmail(''); setRegPassword(''); setRegPasswordConfirm(''); setRegError(''); setRegAvatar('🎯'); setView('register') }}
+          <button onClick={() => { setRegName(''); setRegEmail(''); setRegPassword(''); setRegPasswordConfirm(''); setRegError(''); setRegAvatar('darth-vader'); setView('register') }}
             className="bg-swu-surface rounded-xl p-4 border border-swu-green/40 flex flex-col items-center gap-2 active:scale-[0.97] transition-transform">
             <div className="w-12 h-12 rounded-full bg-swu-green/20 flex items-center justify-center">
               <UserPlus size={22} className="text-swu-green" />
@@ -279,22 +321,29 @@ export function ProfilePage() {
       <div className="p-4 space-y-5 pb-24">
         <BackButton to="select" />
         <div className="text-center">
-          <span className="text-5xl block mb-2">{regAvatar}</span>
+          <div className="flex justify-center mb-2">
+            <AvatarDisplay avatar={regAvatar} size="xl" />
+          </div>
           <h2 className="text-lg font-bold text-swu-text">Crear Cuenta</h2>
           <p className="text-xs text-swu-muted mt-0.5">Su cuenta se sincroniza en todos sus dispositivos</p>
         </div>
         <div className="bg-swu-surface rounded-2xl p-5 border border-swu-border space-y-4">
-          {/* Avatar */}
+          {/* Avatar selector */}
           <div>
-            <p className="text-xs text-swu-muted mb-2">Avatar</p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {avatarOptions.map((a) => (
-                <button key={a} onClick={() => setRegAvatar(a)}
-                  className={`w-11 h-11 rounded-xl text-xl flex items-center justify-center border-2 transition-colors ${regAvatar === a ? 'border-swu-accent bg-swu-accent/20' : 'border-swu-border bg-swu-bg'}`}>
-                  {a}
+            <p className="text-xs text-swu-muted mb-2">Elige tu avatar</p>
+            <div className="grid grid-cols-5 gap-2 justify-items-center">
+              {swAvatars.map((a) => (
+                <button key={a.id} onClick={() => setRegAvatar(a.id)}
+                  className={`w-14 h-14 rounded-xl flex items-center justify-center border-2 transition-all p-1 ${regAvatar === a.id ? 'border-swu-accent bg-swu-accent/20 scale-110' : 'border-swu-border bg-swu-bg'}`}>
+                  <img src={`/avatars/${a.id}.png`} alt={a.name} className="w-10 h-10 object-contain" />
                 </button>
               ))}
             </div>
+            {regAvatar && (
+              <p className="text-[10px] text-swu-accent text-center mt-1.5 font-mono tracking-wider">
+                {swAvatars.find(a => a.id === regAvatar)?.name}
+              </p>
+            )}
           </div>
           {/* Name */}
           <div>
@@ -485,20 +534,27 @@ export function ProfilePage() {
       <div className="p-4 space-y-5 pb-24">
         <BackButton to="profile" />
         <div className="text-center">
-          <span className="text-6xl block mb-2">{customAvatar}</span>
+          <div className="flex justify-center mb-2">
+            <AvatarDisplay avatar={customAvatar} size="xl" />
+          </div>
           <h2 className="text-lg font-bold text-swu-text">Personalizar Perfil</h2>
         </div>
         <div className="bg-swu-surface rounded-2xl p-5 border border-swu-border space-y-5">
           <div>
-            <p className="text-xs text-swu-muted mb-2">Avatar</p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {avatarOptions.map((a) => (
-                <button key={a} onClick={() => setCustomAvatar(a)}
-                  className={`w-12 h-12 rounded-xl text-2xl flex items-center justify-center border-2 transition-colors ${customAvatar === a ? 'border-swu-accent bg-swu-accent/20' : 'border-swu-border bg-swu-bg'}`}>
-                  {a}
+            <p className="text-xs text-swu-muted mb-2">Elige tu avatar</p>
+            <div className="grid grid-cols-5 gap-2 justify-items-center">
+              {swAvatars.map((a) => (
+                <button key={a.id} onClick={() => setCustomAvatar(a.id)}
+                  className={`w-14 h-14 rounded-xl flex items-center justify-center border-2 transition-all p-1 ${customAvatar === a.id ? 'border-swu-accent bg-swu-accent/20 scale-110' : 'border-swu-border bg-swu-bg'}`}>
+                  <img src={`/avatars/${a.id}.png`} alt={a.name} className="w-10 h-10 object-contain" />
                 </button>
               ))}
             </div>
+            {customAvatar && (
+              <p className="text-[10px] text-swu-accent text-center mt-1.5 font-mono tracking-wider">
+                {swAvatars.find(a => a.id === customAvatar)?.name || customAvatar}
+              </p>
+            )}
           </div>
           <div>
             <p className="text-xs text-swu-muted mb-1.5">Nombre</p>
@@ -598,7 +654,7 @@ export function ProfilePage() {
       <div className="bg-gradient-to-br from-swu-accent/15 to-amber-500/10 rounded-2xl p-4 border border-swu-accent/20">
         <div className="flex items-center gap-3 mb-3">
           <div className="relative">
-            <span className="text-4xl">{currentProfile?.avatar || '🎯'}</span>
+            <AvatarDisplay avatar={currentProfile?.avatar || 'darth-vader'} size="lg" />
             {levelInfo && (
               <div className={`absolute -bottom-1 -right-1 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md ${levelInfo.rank.bgColor} ${levelInfo.rank.color} ${levelInfo.rank.borderColor} border`}>
                 {levelInfo.level}

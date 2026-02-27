@@ -2,6 +2,9 @@ import { useNavigate } from 'react-router-dom'
 import { Swords, Trophy, Layers, Dice6, User, LogIn, BookOpen, BarChart3, ExternalLink } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
+/* Avatar helper: detect image-based avatar vs emoji */
+const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order']
+
 /*  ────────────────────────────────────────────
  *  BASE — Main cockpit / galactic command panel
  *  Star Wars ship console aesthetic
@@ -115,8 +118,11 @@ export function HomePage() {
               onClick={() => navigate('/profile')}
               className="w-full rounded-xl p-3 flex items-center gap-3 active:scale-[0.98] transition-transform bg-swu-surface/60 backdrop-blur border border-swu-border/60"
             >
-              <div className="w-11 h-11 rounded-lg bg-swu-accent/15 border border-swu-accent/30 flex items-center justify-center text-xl">
-                {currentProfile.avatar || '🎮'}
+              <div className="w-11 h-11 rounded-lg bg-swu-accent/15 border border-swu-accent/30 flex items-center justify-center overflow-hidden">
+                {swAvatarIds.includes(currentProfile.avatar)
+                  ? <img src={`/avatars/${currentProfile.avatar}.png`} alt="" className="w-9 h-9 object-contain" />
+                  : <span className="text-xl">{currentProfile.avatar || '🎮'}</span>
+                }
               </div>
               <div className="flex-1 text-left">
                 <p className="text-sm font-bold text-swu-text">{currentProfile.name}</p>
