@@ -197,3 +197,77 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ═══════════════════════════════════════════════════════════════
+-- ADMIN / EVENTS SYSTEM (v2)
+-- ═══════════════════════════════════════════════════════════════
+
+-- Add role column to profiles
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
+
+-- 9. Official Events (created by admins, visible to all)
+CREATE TABLE IF NOT EXISTS public.official_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organizer_id UUID REFERENCES auth.users(id) NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+  format TEXT NOT NULL DEFAULT 'premier',
+  match_type TEXT NOT NULL DEFAULT 'bo1',
+  code TEXT UNIQUE NOT NULL,
+  max_players INT NOT NULL DEFAULT 32,
+  date TIMESTAMPTZ,
+  location TEXT,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','active','finished','cancelled')),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 10. Event Registrations
+CREATE TABLE IF NOT EXISTS public.event_registrations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id UUID REFERENCES public.official_events(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES auth.users(id) NOT NULL,
+  status TEXT DEFAULT 'registered' CHECK (status IN ('registered','checked_in','dropped')),
+  registered_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(event_id, user_id)
+);
+
+ALTER TABLE public.official_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.event_registrations ENABLE ROW LEVEL SECURITY;
+
+-- All authenticated users can view official events
+CREATE POLICY "events_select" ON public.official_events
+  FOR SELECT TO authenticated USING (true);
+
+-- Only admins can create events
+CREATE POLICY "events_insert" ON public.official_events
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- Organizer can update their own events
+CREATE POLICY "events_update" ON public.official_events
+  FOR UPDATE TO authenticated
+  USING (organizer_id = auth.uid());
+
+-- Registrations: users see their own + organizers see their event's registrations
+CREATE POLICY "reg_select" ON public.event_registrations
+  FOR SELECT TO authenticated
+  USING (
+    user_id = auth.uid()
+    OR EXISTS (
+      SELECT 1 FROM public.official_events
+      WHERE id = event_id AND organizer_id = auth.uid()
+    )
+  );
+
+-- Users can register themselves
+CREATE POLICY "reg_insert" ON public.event_registrations
+  FOR INSERT TO authenticated
+  WITH CHECK (user_id = auth.uid());
+
+-- Users can unregister themselves
+CREATE POLICY "reg_delete" ON public.event_registrations
+  FOR DELETE TO authenticated
+  USING (user_id = auth.uid());

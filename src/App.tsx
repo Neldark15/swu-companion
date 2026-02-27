@@ -14,6 +14,7 @@ import { CardDetailPage } from './features/cards/CardDetailPage'
 import { DeckListPage } from './features/decks/DeckListPage'
 import { DeckBuilderPage } from './features/decks/DeckBuilderPage'
 import { EventLobbyPage } from './features/events/EventLobbyPage'
+import { CreateEventPage } from './features/events/CreateEventPage'
 import { UtilitiesPage } from './features/utilities/UtilitiesPage'
 import { ProfilePage } from './features/profile/ProfilePage'
 import { SettingsPage } from './features/settings/SettingsPage'
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/play/saved" element={<SavedMatchesPage />} />
           <Route path="/events" element={<EventsPage />} />
           <Route path="/events/join" element={<JoinEventPage />} />
+          <Route path="/events/create" element={<CreateEventPage />} />
           <Route path="/events/tournament" element={<TournamentListPage />} />
           <Route path="/events/tournament/new" element={<TournamentSetupPage />} />
           <Route path="/events/tournament/:id" element={<TournamentLivePage />} />

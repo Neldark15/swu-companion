@@ -12,7 +12,9 @@ import {
   ArrowRight,
   SearchX,
 } from 'lucide-react'
-import { supabase, isSupabaseReady } from '../../services/supabase'
+import { isSupabaseReady } from '../../services/supabase'
+import { useAuth } from '../../hooks/useAuth'
+import { getEventByCode, joinOfficialEvent } from '../../services/events'
 
 type JoinState = 'idle' | 'validating' | 'found' | 'not_found' | 'joining' | 'joined'
 type ScanState = 'idle' | 'requesting' | 'scanning' | 'found' | 'error'
@@ -28,6 +30,7 @@ interface FoundEvent {
 
 export function JoinEventPage() {
   const navigate = useNavigate()
+  const auth = useAuth()
   const [code, setCode] = useState('')
   const [joinState, setJoinState] = useState<JoinState>('idle')
   const [scanState, setScanState] = useState<ScanState>('idle')
@@ -55,25 +58,20 @@ export function JoinEventPage() {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('tournaments')
-        .select('id, name, format, organizer_name, current_players, max_players')
-        .eq('code', code)
-        .eq('status', 'open')
-        .single()
+      const event = await getEventByCode(code)
 
-      if (error || !data) {
+      if (!event) {
         setJoinState('not_found')
         return
       }
 
       setFoundEvent({
-        id: data.id,
-        name: data.name,
-        format: data.format,
-        organizer: data.organizer_name,
-        players: data.current_players,
-        maxPlayers: data.max_players,
+        id: event.id,
+        name: event.name,
+        format: event.format,
+        organizer: event.organizer_name || 'Organizador',
+        players: event.registered_count || 0,
+        maxPlayers: event.max_players,
       })
       setJoinState('found')
     } catch {
@@ -82,16 +80,27 @@ export function JoinEventPage() {
   }
 
   const joinEvent = async () => {
-    if (!foundEvent) return
+    if (!foundEvent || !auth.supabaseUser) return
     setJoinState('joining')
 
-    // TODO: Implement real join via Supabase
-    setTimeout(() => {
+    const result = await joinOfficialEvent(foundEvent.id, auth.supabaseUser.id)
+
+    if (result.ok) {
       setJoinState('joined')
       setTimeout(() => {
-        navigate(`/events/lobby/${code}`)
-      }, 800)
-    }, 1500)
+        navigate('/events')
+      }, 1000)
+    } else {
+      // If already registered, still show success
+      if (result.error?.includes('Ya está inscrito')) {
+        setJoinState('joined')
+        setTimeout(() => {
+          navigate('/events')
+        }, 1000)
+      } else {
+        setJoinState('found') // Go back to found state
+      }
+    }
   }
 
   const startQrScan = async () => {

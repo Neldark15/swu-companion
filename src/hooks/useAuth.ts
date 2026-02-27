@@ -5,12 +5,15 @@ import { supabase, isSupabaseReady } from '../services/supabase'
 import { syncProfileToCloud, syncStatsToCloud, pullAllFromCloud, addMonthlyXp } from '../services/sync'
 import { createPasskey, authenticateWithPasskey, authenticateWithAnyPasskey } from '../services/crypto'
 import { createDefaultStats } from '../services/gamification'
+import { getUserRole } from '../services/events'
 import type { User } from '@supabase/supabase-js'
 
 interface AuthState {
   // Cloud auth
   supabaseUser: User | null
   isOnline: boolean
+  role: 'user' | 'admin'
+  isAdmin: boolean
 
   // Local profile (Dexie cache)
   currentProfileId: string | null
@@ -53,6 +56,8 @@ export const useAuth = create<AuthState>()(
     (set, get) => ({
       supabaseUser: null,
       isOnline: isSupabaseReady(),
+      role: 'user',
+      isAdmin: false,
       currentProfileId: null,
       currentProfile: null,
       profiles: [],
@@ -81,10 +86,16 @@ export const useAuth = create<AuthState>()(
           }
 
           const profiles = await db.profiles.toArray()
+
+          // Check role from Supabase
+          const role = await getUserRole(user.id) as 'user' | 'admin'
+
           set({
             profiles,
             currentProfile: profile,
             currentProfileId: profile.id,
+            role,
+            isAdmin: role === 'admin',
           })
 
           // Sync from cloud
@@ -219,11 +230,17 @@ export const useAuth = create<AuthState>()(
         }
 
         const profiles = await db.profiles.toArray()
+
+        // Check role from Supabase
+        const role = await getUserRole(user.id) as 'user' | 'admin'
+
         set({
           supabaseUser: user,
           profiles,
           currentProfile: profile,
           currentProfileId: profile.id,
+          role,
+          isAdmin: role === 'admin',
         })
 
         // Pull all data from cloud in background
@@ -319,7 +336,7 @@ export const useAuth = create<AuthState>()(
         if (isSupabaseReady()) {
           await supabase.auth.signOut().catch(() => {})
         }
-        set({ currentProfile: null, currentProfileId: null, supabaseUser: null })
+        set({ currentProfile: null, currentProfileId: null, supabaseUser: null, role: 'user', isAdmin: false })
       },
 
       setCurrentProfile: (profile) => {
