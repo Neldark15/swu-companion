@@ -172,11 +172,17 @@ export const useAuth = create<AuthState>()(
         syncStatsToCloud(user.id, stats).catch(() => {})
 
         const profiles = await db.profiles.toArray()
+
+        // Check role
+        const role = await getUserRole(user.id) as 'user' | 'admin'
+
         set({
           supabaseUser: user,
           profiles,
           currentProfile: profile,
           currentProfileId: profile.id,
+          role,
+          isAdmin: role === 'admin',
         })
 
         return { ok: true }
@@ -357,7 +363,11 @@ export const useAuth = create<AuthState>()(
     }),
     {
       name: 'swu-auth',
-      partialize: (state) => ({ currentProfileId: state.currentProfileId }),
+      partialize: (state) => ({
+        currentProfileId: state.currentProfileId,
+        role: state.role,
+        isAdmin: state.isAdmin,
+      }),
     }
   )
 )
