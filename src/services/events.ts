@@ -121,16 +121,22 @@ export async function createOfficialEvent(data: {
 export async function getOfficialEvents(userId?: string): Promise<OfficialEvent[]> {
   if (!isSupabaseReady()) return []
 
+  // Fetch events
   const { data: events, error } = await supabase
     .from('official_events')
-    .select(`
-      *,
-      profiles!official_events_organizer_id_fkey (name, avatar)
-    `)
+    .select('*')
     .in('status', ['open', 'active'])
     .order('created_at', { ascending: false })
 
-  if (error || !events) return []
+  if (error || !events || events.length === 0) return []
+
+  // Fetch organizer profiles separately (organizer_id refs auth.users, profiles.id = auth.users.id)
+  const organizerIds = [...new Set(events.map(e => e.organizer_id))]
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, name, avatar')
+    .in('id', organizerIds)
+  const profileMap = new Map((profiles || []).map(p => [p.id, p]))
 
   // Get registration counts
   const eventIds = events.map(e => e.id)
@@ -151,11 +157,10 @@ export async function getOfficialEvents(userId?: string): Promise<OfficialEvent[
   }
 
   return events.map(e => {
-    const profile = e.profiles as unknown as { name: string; avatar: string } | null
+    const profile = profileMap.get(e.organizer_id)
     const count = (regCounts || []).filter(r => r.event_id === e.id).length
     return {
       ...e,
-      profiles: undefined,
       organizer_name: profile?.name || 'Organizador',
       organizer_avatar: profile?.avatar || '🎯',
       registered_count: count,
@@ -169,15 +174,19 @@ export async function getEventByCode(code: string): Promise<OfficialEvent | null
 
   const { data, error } = await supabase
     .from('official_events')
-    .select(`
-      *,
-      profiles!official_events_organizer_id_fkey (name, avatar)
-    `)
+    .select('*')
     .eq('code', code.toUpperCase())
     .in('status', ['open', 'active'])
     .single()
 
   if (error || !data) return null
+
+  // Get organizer profile
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('name, avatar')
+    .eq('id', data.organizer_id)
+    .single()
 
   // Get registration count
   const { count } = await supabase
@@ -185,10 +194,8 @@ export async function getEventByCode(code: string): Promise<OfficialEvent | null
     .select('*', { count: 'exact', head: true })
     .eq('event_id', data.id)
 
-  const profile = data.profiles as unknown as { name: string; avatar: string } | null
   return {
     ...data,
-    profiles: undefined,
     organizer_name: profile?.name || 'Organizador',
     organizer_avatar: profile?.avatar || '🎯',
     registered_count: count || 0,
