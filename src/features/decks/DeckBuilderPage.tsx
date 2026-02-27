@@ -7,6 +7,8 @@ import {
 import { db } from '../../services/db'
 import { searchCards, loadFullDatabase, isDatabaseReady } from '../../services/swuApi'
 import { validateDeck, canAddCard } from '../../services/deckValidator'
+import { syncDeckToCloud } from '../../services/sync'
+import { useAuth } from '../../hooks/useAuth'
 import type { Deck, DeckCard, Card, TournamentFormat } from '../../types'
 
 function generateId() {
@@ -30,6 +32,7 @@ type Tab = 'deck' | 'search'
 export function DeckBuilderPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { supabaseUser } = useAuth()
   const isNew = id === 'new'
 
   const [deck, setDeck] = useState<Deck>({
@@ -95,13 +98,16 @@ export function DeckBuilderPage() {
   const saveDeck = useCallback(async () => {
     const toSave = { ...deck, updatedAt: Date.now() }
     await db.decks.put(toSave)
+    if (supabaseUser) syncDeckToCloud(supabaseUser.id, toSave).catch(() => {})
     setSaveFlash(true)
     setTimeout(() => setSaveFlash(false), 1200)
-  }, [deck])
+  }, [deck, supabaseUser])
 
   const autoSave = useCallback(async (d: Deck) => {
-    await db.decks.put({ ...d, updatedAt: Date.now() }).catch(() => {})
-  }, [])
+    const toSave = { ...d, updatedAt: Date.now() }
+    await db.decks.put(toSave).catch(() => {})
+    if (supabaseUser) syncDeckToCloud(supabaseUser.id, toSave).catch(() => {})
+  }, [supabaseUser])
 
   const doSearch = useCallback(async (query: string) => {
     if (!query.trim()) { setSearchResults([]); setSearchTotal(0); return }

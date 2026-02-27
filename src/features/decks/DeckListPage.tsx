@@ -4,6 +4,8 @@ import { Plus, Trash2, BookOpen, AlertTriangle, CheckCircle2, Swords } from 'luc
 import { Badge } from '../../components/ui/Badge'
 import { db } from '../../services/db'
 import { getCardById } from '../../services/swuApi'
+import { deleteDeckFromCloud } from '../../services/sync'
+import { useAuth } from '../../hooks/useAuth'
 import type { Deck } from '../../types'
 
 function timeAgo(ts: number): string {
@@ -34,6 +36,7 @@ const imageCache = new Map<string, string>()
 
 export function DeckListPage() {
   const navigate = useNavigate()
+  const { supabaseUser } = useAuth()
   const [decks, setDecks] = useState<Deck[]>([])
   const [loading, setLoading] = useState(true)
   const [cardImages, setCardImages] = useState<Map<string, string>>(new Map())
@@ -96,6 +99,7 @@ export function DeckListPage() {
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
     await db.decks.delete(id)
+    if (supabaseUser) deleteDeckFromCloud(id).catch(() => {})
     setDecks((prev) => prev.filter((d) => d.id !== id))
   }
 

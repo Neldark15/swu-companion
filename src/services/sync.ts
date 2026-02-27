@@ -196,6 +196,43 @@ export async function getMyMonthlyXp(userId: string, month?: string): Promise<nu
   }
 }
 
+// ─── DECK SYNC ─────────────────────────────────────────────────
+
+import type { Deck } from '../types'
+
+export async function syncDeckToCloud(userId: string, deck: Deck) {
+  if (!isSupabaseReady()) return
+  try {
+    await supabase.from('decks').upsert({
+      id: deck.id,
+      user_id: userId,
+      name: deck.name,
+      format: deck.format,
+      data: {
+        leaders: deck.leaders,
+        base: deck.base,
+        mainDeck: deck.mainDeck,
+        sideboard: deck.sideboard,
+        isValid: deck.isValid,
+        validationErrors: deck.validationErrors,
+        createdAt: deck.createdAt,
+        updatedAt: deck.updatedAt,
+      },
+    })
+  } catch (e) {
+    console.warn('[Sync] Failed to sync deck:', e)
+  }
+}
+
+export async function deleteDeckFromCloud(deckId: string) {
+  if (!isSupabaseReady()) return
+  try {
+    await supabase.from('decks').delete().eq('id', deckId)
+  } catch (e) {
+    console.warn('[Sync] Failed to delete deck from cloud:', e)
+  }
+}
+
 // ─── FULL PULL (on login) ───────────────────────────────────────
 
 export async function pullAllFromCloud(userId: string, localProfileId: string) {
