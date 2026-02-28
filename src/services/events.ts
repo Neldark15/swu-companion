@@ -71,6 +71,7 @@ export async function createOfficialEvent(data: {
   description?: string
   format: string
   matchType: string
+  tournamentType?: 'swiss' | 'elimination'
   maxPlayers: number
   date?: string
   location?: string
@@ -100,6 +101,7 @@ export async function createOfficialEvent(data: {
       description: data.description || null,
       format: data.format,
       match_type: data.matchType,
+      tournament_type: data.tournamentType || 'swiss',
       code,
       max_players: data.maxPlayers,
       date: data.date || null,

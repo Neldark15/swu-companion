@@ -15,6 +15,8 @@ import { DeckListPage } from './features/decks/DeckListPage'
 import { DeckBuilderPage } from './features/decks/DeckBuilderPage'
 import { EventLobbyPage } from './features/events/EventLobbyPage'
 import { CreateEventPage } from './features/events/CreateEventPage'
+import TournamentDashboard from './features/events/TournamentDashboard'
+import TournamentPublicView from './features/events/TournamentPublicView'
 import { ManageNewsPage } from './features/home/ManageNewsPage'
 import { UtilitiesPage } from './features/utilities/UtilitiesPage'
 import { ProfilePage } from './features/profile/ProfilePage'
@@ -37,6 +39,8 @@ export default function App() {
           <Route path="/events/tournament/new" element={<TournamentSetupPage />} />
           <Route path="/events/tournament/:id" element={<TournamentLivePage />} />
           <Route path="/events/lobby/:code" element={<EventLobbyPage />} />
+          <Route path="/events/dashboard/:code" element={<TournamentDashboard />} />
+          <Route path="/events/live/:code" element={<TournamentPublicView />} />
           <Route path="/cards" element={<CardsPage />} />
           <Route path="/cards/:id" element={<CardDetailPage />} />
           <Route path="/decks" element={<DeckListPage />} />

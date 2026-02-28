@@ -395,6 +395,26 @@ export function EventsPage() {
                     )}
                   </button>
                 )}
+
+                {/* Tournament actions */}
+                {event.status === 'active' && (
+                  <div className="flex gap-2">
+                    {auth.isAdmin && (
+                      <button
+                        onClick={() => navigate(`/events/dashboard/${event.code}`)}
+                        className="flex-1 py-2 rounded-xl text-xs font-bold bg-swu-amber/10 border border-swu-amber/30 text-swu-amber flex items-center justify-center gap-1"
+                      >
+                        <Crown size={14} /> Dashboard
+                      </button>
+                    )}
+                    <button
+                      onClick={() => navigate(`/events/live/${event.code}`)}
+                      className="flex-1 py-2 rounded-xl text-xs font-bold bg-swu-accent/10 border border-swu-accent/30 text-swu-accent flex items-center justify-center gap-1"
+                    >
+                      <Trophy size={14} /> Standings
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

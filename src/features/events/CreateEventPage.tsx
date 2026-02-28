@@ -12,6 +12,7 @@ import {
   MapPin,
   Users,
   Swords,
+  Trophy,
   Zap,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
@@ -33,6 +34,11 @@ const MATCH_OPTIONS = [
 
 const PLAYER_LIMITS = [8, 16, 24, 32, 48, 64]
 
+const TOURNAMENT_TYPE_OPTIONS = [
+  { value: 'swiss', label: 'Suizo', desc: 'Todos juegan, ranking por puntos' },
+  { value: 'elimination', label: 'Eliminación', desc: 'Bracket directo, pierdes y sales' },
+]
+
 export function CreateEventPage() {
   const navigate = useNavigate()
   const auth = useAuth()
@@ -46,6 +52,7 @@ export function CreateEventPage() {
   const [description, setDescription] = useState('')
   const [format, setFormat] = useState('premier')
   const [matchType, setMatchType] = useState('bo1')
+  const [tournamentType, setTournamentType] = useState<'swiss' | 'elimination'>('swiss')
   const [maxPlayers, setMaxPlayers] = useState(32)
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
@@ -87,6 +94,7 @@ export function CreateEventPage() {
       description: description.trim() || undefined,
       format,
       matchType,
+      tournamentType,
       maxPlayers,
       date: dateStr,
       location: location.trim() || undefined,
@@ -274,6 +282,29 @@ export function CreateEventPage() {
               onClick={() => setMatchType(opt.value)}
               className={`flex-1 p-3 rounded-xl border text-center transition-colors ${
                 matchType === opt.value
+                  ? 'bg-swu-accent/10 border-swu-accent text-swu-accent'
+                  : 'bg-swu-surface border-swu-border text-swu-text'
+              }`}
+            >
+              <p className="text-sm font-bold">{opt.label}</p>
+              <p className="text-[11px] text-swu-muted">{opt.desc}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tournament Type */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-bold text-swu-muted uppercase tracking-wider flex items-center gap-1">
+          <Trophy size={12} /> Sistema de Torneo
+        </label>
+        <div className="flex gap-2">
+          {TOURNAMENT_TYPE_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => setTournamentType(opt.value as 'swiss' | 'elimination')}
+              className={`flex-1 p-3 rounded-xl border text-center transition-colors ${
+                tournamentType === opt.value
                   ? 'bg-swu-accent/10 border-swu-accent text-swu-accent'
                   : 'bg-swu-surface border-swu-border text-swu-text'
               }`}
