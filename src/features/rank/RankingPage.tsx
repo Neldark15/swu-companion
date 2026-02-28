@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Trophy, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
+import { Trophy, ChevronLeft, ChevronRight, RefreshCw, Swords, Medal } from 'lucide-react'
 import { getGlobalLeaderboard, getMonthlyLeaderboard, getMyMonthlyXp, type GlobalLeaderboardEntry, type LeaderboardEntry } from '../../services/sync'
+import { getGlobalTournamentRanking, getMonthlyTournamentRanking, type RankingEntry } from '../../services/tournamentPoints'
 import { ACHIEVEMENTS } from '../../services/gamification'
 import { useAuth } from '../../hooks/useAuth'
 import { IconXp } from '../../components/icons/SWUIcons'
@@ -46,7 +47,8 @@ function nextMonth(m: string) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-type Tab = 'global' | 'monthly'
+type Tab = 'global' | 'monthly' | 'tournament'
+type TournamentSubTab = 'global' | 'monthly'
 
 /* ── Decorative diagonal lines SVG (Star Wars style) ── */
 function DiagonalLines() {
@@ -76,7 +78,14 @@ export function RankingPage() {
   const [monthlyBoard, setMonthlyBoard] = useState<LeaderboardEntry[]>([])
   const [myXp, setMyXp] = useState(0)
 
+  // Tournament ranking
+  const [tournamentSubTab, setTournamentSubTab] = useState<TournamentSubTab>('global')
+  const [tournamentMonth, setTournamentMonth] = useState(getCurrentMonth)
+  const [tournamentGlobalRanking, setTournamentGlobalRanking] = useState<RankingEntry[]>([])
+  const [tournamentMonthlyRanking, setTournamentMonthlyRanking] = useState<RankingEntry[]>([])
+
   const isCurrentMonth = month === getCurrentMonth()
+  const isTournamentCurrentMonth = tournamentMonth === getCurrentMonth()
 
   const loadGlobal = async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true)
@@ -98,10 +107,25 @@ export function RankingPage() {
     setLoading(false)
   }
 
+  const loadTournamentRanking = async (showRefresh = false) => {
+    if (showRefresh) setRefreshing(true)
+    else setLoading(true)
+    if (tournamentSubTab === 'global') {
+      const data = await getGlobalTournamentRanking()
+      setTournamentGlobalRanking(data)
+    } else {
+      const data = await getMonthlyTournamentRanking(tournamentMonth)
+      setTournamentMonthlyRanking(data)
+    }
+    setLoading(false)
+    setRefreshing(false)
+  }
+
   useEffect(() => {
     if (tab === 'global') loadGlobal()
-    else loadMonthly()
-  }, [tab, month])
+    else if (tab === 'monthly') loadMonthly()
+    else loadTournamentRanking()
+  }, [tab, month, tournamentSubTab, tournamentMonth])
 
   /* ── Podium ring colors ── */
   const podiumRing = [
@@ -172,6 +196,41 @@ export function RankingPage() {
     )
   }
 
+  /* ── Tournament podium card ── */
+  function TournamentPodiumCard({ entry, idx, avatarSize }: { entry: RankingEntry; idx: number; avatarSize: 'md' | 'lg' | 'xl' }) {
+    return (
+      <div className="flex flex-col items-center gap-1">
+        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${podiumLabel[idx]}`}>
+          #{idx + 1}
+        </span>
+        <div className={`rounded-full ${podiumRing[idx]} p-0.5 bg-gray-900`}>
+          <div className="rounded-full bg-gray-800 flex items-center justify-center overflow-hidden p-1">
+            <AvatarImg avatar={entry.avatar} size={avatarSize} />
+          </div>
+        </div>
+        <p className="text-[11px] font-bold text-gray-100 max-w-[90px] truncate text-center">
+          {entry.name}
+        </p>
+        <div className="flex items-center gap-0.5">
+          <Medal size={10} className="text-amber-400" />
+          <span className="text-[10px] font-bold text-amber-400">{entry.totalRankingPoints} pts</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-[9px]">
+          <span className="text-red-400 font-bold">{entry.tournamentCount}T</span>
+          <span className="text-gray-500">|</span>
+          <span className="text-red-300/70 font-bold">{entry.totalWins}W</span>
+          {entry.bestPosition <= 3 && (
+            <>
+              <span className="text-gray-500">|</span>
+              <Trophy size={8} className="text-amber-400" />
+              <span className="text-amber-400/80 font-bold">#{entry.bestPosition}</span>
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   /* ── List row renderer ── */
   function ListRow({ entry, rank, isMe, isGlobal }: { entry: GlobalLeaderboardEntry | LeaderboardEntry; rank: number; isMe: boolean; isGlobal: boolean }) {
     const badges = 'unlockedAchievements' in entry
@@ -228,6 +287,46 @@ export function RankingPage() {
     )
   }
 
+  /* ── Tournament list row ── */
+  function TournamentListRow({ entry, rank, isMe }: { entry: RankingEntry; rank: number; isMe: boolean }) {
+    return (
+      <div
+        className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors ${
+          isMe
+            ? 'bg-red-500/10 border border-red-500/30'
+            : 'bg-gray-800/60 border border-gray-700/40'
+        }`}
+      >
+        <span className="text-sm font-extrabold text-red-500/70 font-mono w-8 text-center">#{rank}</span>
+        <div className="shrink-0 rounded-full ring-1 ring-gray-600 p-0.5 bg-gray-900">
+          <div className="rounded-full bg-gray-800 flex items-center justify-center overflow-hidden p-0.5">
+            <AvatarImg avatar={entry.avatar} size="sm" />
+          </div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className={`text-xs font-bold truncate ${isMe ? 'text-red-400' : 'text-gray-200'}`}>
+            {entry.name} {isMe && <span className="text-red-500/60 text-[9px]">(Tú)</span>}
+          </p>
+          <div className="flex items-center gap-1.5 text-[9px]">
+            <span className="text-gray-500">{entry.tournamentCount} torneo{entry.tournamentCount !== 1 ? 's' : ''}</span>
+            <span className="text-gray-600">·</span>
+            <span className="text-gray-500">{entry.totalWins}W</span>
+            {entry.bestPosition <= 3 && (
+              <>
+                <span className="text-gray-600">·</span>
+                <span className="text-amber-400/60">Mejor: #{entry.bestPosition}</span>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <Medal size={12} className="text-amber-400" />
+          <span className="text-sm font-extrabold text-amber-400 font-mono">{entry.totalRankingPoints}</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="relative min-h-screen pb-28 overflow-hidden">
       {/* Background */}
@@ -263,29 +362,30 @@ export function RankingPage() {
 
         {/* ═══ TAB SWITCHER ═══ */}
         <div className="flex bg-gray-900/80 rounded-xl border border-red-900/20 p-1 backdrop-blur-sm">
-          <button
-            onClick={() => setTab('global')}
-            className={`flex-1 py-2.5 rounded-lg text-xs font-extrabold tracking-wider uppercase transition-all ${
-              tab === 'global'
-                ? 'bg-red-500/15 text-red-400 border border-red-500/20 shadow-lg shadow-red-500/5'
-                : 'text-gray-500 border border-transparent'
-            }`}
-          >
-            Global
-          </button>
-          <button
-            onClick={() => setTab('monthly')}
-            className={`flex-1 py-2.5 rounded-lg text-xs font-extrabold tracking-wider uppercase transition-all ${
-              tab === 'monthly'
-                ? 'bg-red-500/15 text-red-400 border border-red-500/20 shadow-lg shadow-red-500/5'
-                : 'text-gray-500 border border-transparent'
-            }`}
-          >
-            Mensual
-          </button>
+          {([
+            { key: 'global' as Tab, label: 'Global' },
+            { key: 'monthly' as Tab, label: 'Mensual' },
+            { key: 'tournament' as Tab, label: 'Torneos' },
+          ]).map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`flex-1 py-2.5 rounded-lg text-xs font-extrabold tracking-wider uppercase transition-all ${
+                tab === t.key
+                  ? 'bg-red-500/15 text-red-400 border border-red-500/20 shadow-lg shadow-red-500/5'
+                  : 'text-gray-500 border border-transparent'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
           {/* Refresh button */}
           <button
-            onClick={() => tab === 'global' ? loadGlobal(true) : loadMonthly()}
+            onClick={() => {
+              if (tab === 'global') loadGlobal(true)
+              else if (tab === 'monthly') loadMonthly()
+              else loadTournamentRanking(true)
+            }}
             disabled={refreshing}
             className="px-3 py-2 rounded-lg text-gray-500 active:scale-90 transition-transform"
           >
@@ -309,6 +409,67 @@ export function RankingPage() {
             >
               <ChevronRight size={18} />
             </button>
+          </div>
+        )}
+
+        {/* ═══ TOURNAMENT SUB-TABS + MONTH CONTROLS ═══ */}
+        {tab === 'tournament' && (
+          <div className="space-y-3">
+            {/* Sub-tab toggle */}
+            <div className="flex bg-gray-800/50 rounded-lg border border-gray-700/30 p-0.5">
+              <button
+                onClick={() => setTournamentSubTab('global')}
+                className={`flex-1 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
+                  tournamentSubTab === 'global'
+                    ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
+                    : 'text-gray-500 border border-transparent'
+                }`}
+              >
+                <Swords size={11} /> Global
+              </button>
+              <button
+                onClick={() => setTournamentSubTab('monthly')}
+                className={`flex-1 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
+                  tournamentSubTab === 'monthly'
+                    ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
+                    : 'text-gray-500 border border-transparent'
+                }`}
+              >
+                <Medal size={11} /> Mensual
+              </button>
+            </div>
+
+            {/* Month navigation for monthly tournament */}
+            {tournamentSubTab === 'monthly' && (
+              <div className="flex items-center justify-center gap-3">
+                <button onClick={() => setTournamentMonth(prevMonth(tournamentMonth))} className="p-1.5 text-amber-500/60 active:scale-90 active:text-amber-400">
+                  <ChevronLeft size={18} />
+                </button>
+                <span className="text-xs font-bold text-gray-300 min-w-[130px] text-center tracking-wider uppercase font-mono">
+                  {formatMonth(tournamentMonth)}
+                </span>
+                <button
+                  onClick={() => !isTournamentCurrentMonth && setTournamentMonth(nextMonth(tournamentMonth))}
+                  className={`p-1.5 active:scale-90 ${isTournamentCurrentMonth ? 'text-gray-700' : 'text-amber-500/60 active:text-amber-400'}`}
+                  disabled={isTournamentCurrentMonth}
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            )}
+
+            {/* Points legend */}
+            <div className="flex items-center justify-center gap-3 text-[9px] text-gray-500 font-mono">
+              <span>1o=10</span>
+              <span className="text-gray-700">·</span>
+              <span>2o=7</span>
+              <span className="text-gray-700">·</span>
+              <span>3o=5</span>
+              <span className="text-gray-700">·</span>
+              <span>4o=3</span>
+              <span className="text-gray-700">·</span>
+              <span>+3/W +1/D</span>
+            </div>
           </div>
         )}
 
@@ -406,7 +567,7 @@ export function RankingPage() {
               })()}
             </div>
           )
-        ) : (
+        ) : tab === 'monthly' ? (
           /* ═══════════════════════════════════════ MONTHLY RANKING ═══ */
           monthlyBoard.length === 0 ? (
             <div className="text-center py-16">
@@ -501,6 +662,103 @@ export function RankingPage() {
               })()}
             </div>
           )
+        ) : (
+          /* ═══════════════════════════════════════ TOURNAMENT RANKING ═══ */
+          (() => {
+            const ranking = tournamentSubTab === 'global' ? tournamentGlobalRanking : tournamentMonthlyRanking
+            if (ranking.length === 0) {
+              return (
+                <div className="text-center py-16">
+                  <Swords size={40} className="mx-auto text-gray-700 mb-3" />
+                  <p className="text-sm text-gray-500">Sin resultados de torneos</p>
+                  <p className="text-[10px] text-gray-600 mt-1 font-mono">
+                    {tournamentSubTab === 'global' ? 'JUEGUE TORNEOS PARA SUBIR AL RANKING' : 'SIN TORNEOS ESTE MES'}
+                  </p>
+                </div>
+              )
+            }
+
+            return (
+              <div className="space-y-4">
+                {/* ── PODIUM TOURNAMENT ── */}
+                <div className="relative bg-gray-900/50 rounded-2xl border border-amber-900/15 p-4 pt-3 backdrop-blur-sm">
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+
+                  <div className="relative flex items-end justify-center gap-3">
+                    {/* 2nd */}
+                    <div className="flex-1 flex justify-center pt-6">
+                      {ranking[1] ? (
+                        <TournamentPodiumCard entry={ranking[1]} idx={1} avatarSize="md" />
+                      ) : (
+                        <div className="text-center">
+                          <div className="w-12 h-12 rounded-full bg-gray-800 border border-gray-700 mx-auto" />
+                          <p className="text-[9px] text-gray-600 mt-1">---</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 1st */}
+                    <div className="flex-1 flex justify-center">
+                      {ranking[0] && (
+                        <TournamentPodiumCard entry={ranking[0]} idx={0} avatarSize="xl" />
+                      )}
+                    </div>
+
+                    {/* 3rd */}
+                    <div className="flex-1 flex justify-center pt-8">
+                      {ranking[2] ? (
+                        <TournamentPodiumCard entry={ranking[2]} idx={2} avatarSize="md" />
+                      ) : (
+                        <div className="text-center">
+                          <div className="w-12 h-12 rounded-full bg-gray-800 border border-gray-700 mx-auto" />
+                          <p className="text-[9px] text-gray-600 mt-1">---</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 h-px bg-gradient-to-r from-transparent via-amber-500/20 to-transparent" />
+                </div>
+
+                {/* ── REST OF LIST ── */}
+                {ranking.length > 3 && (
+                  <div className="space-y-2">
+                    {ranking.slice(3).map((entry, i) => (
+                      <TournamentListRow
+                        key={entry.userId}
+                        entry={entry}
+                        rank={i + 4}
+                        isMe={supabaseUser?.id === entry.userId}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* ── MY POSITION ── */}
+                {supabaseUser && (() => {
+                  const myIdx = ranking.findIndex(e => e.userId === supabaseUser.id)
+                  if (myIdx >= 0) {
+                    return (
+                      <div className="bg-amber-500/8 rounded-2xl px-4 py-3 border border-amber-500/15 flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] text-amber-500/50 font-mono uppercase tracking-wider">Tu Posición</p>
+                          <p className="text-lg font-extrabold text-amber-400">#{myIdx + 1} <span className="text-xs text-gray-500 font-normal">de {ranking.length}</span></p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] text-amber-500/50 font-mono uppercase tracking-wider">Puntos</p>
+                          <div className="flex items-center gap-1 justify-end">
+                            <Medal size={14} className="text-amber-400" />
+                            <span className="text-lg font-extrabold text-gray-300 font-mono">{ranking[myIdx].totalRankingPoints}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  }
+                  return null
+                })()}
+              </div>
+            )
+          })()
         )}
 
         {/* Footer decoration */}

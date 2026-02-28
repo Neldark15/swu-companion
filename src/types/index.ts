@@ -47,6 +47,7 @@ export interface TournamentPlayer {
   gameLosses: number
   byes: number
   opponentIds: string[]
+  supabaseUserId?: string // linked cloud account (null = guest)
 }
 
 export interface TournamentPairing {
@@ -69,6 +70,7 @@ export interface Tournament {
   name: string
   format: TournamentFormat
   matchType: MatchType
+  tournamentType?: 'swiss' | 'elimination'
   maxRounds: number
   avoidRematches: boolean
   players: TournamentPlayer[]
