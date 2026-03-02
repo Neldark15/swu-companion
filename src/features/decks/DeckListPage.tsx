@@ -49,7 +49,8 @@ export function DeckListPage() {
       await pullDecksFromCloud(supabaseUser.id).catch(() => {})
     }
 
-    const d = await db.decks.orderBy('updatedAt').reverse().toArray()
+    const all = await db.decks.toArray()
+    const d = all.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
     setDecks(d)
     setLoading(false)
 
