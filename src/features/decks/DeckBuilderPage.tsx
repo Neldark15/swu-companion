@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ChevronLeft, Plus, Minus, Search, X, Save, Check,
-  AlertTriangle, CheckCircle2, Loader2, BookOpen, Layers
+  AlertTriangle, CheckCircle2, Loader2, BookOpen, Layers, Package,
 } from 'lucide-react'
 import { db } from '../../services/db'
-import { searchCards, loadFullDatabase, isDatabaseReady } from '../../services/swuApi'
+import { searchCards, loadFullDatabase, isDatabaseReady, getCardById } from '../../services/swuApi'
 import { validateDeck, canAddCard } from '../../services/deckValidator'
 import { syncDeckToCloud } from '../../services/sync'
 import { useAuth } from '../../hooks/useAuth'
@@ -28,6 +28,9 @@ const formatLabels: Record<string, string> = {
 }
 
 type Tab = 'deck' | 'search'
+
+// ─── Image cache for card thumbnails ─────────────────────
+const imgCache = new Map<string, string>()
 
 export function DeckBuilderPage() {
   const { id } = useParams<{ id: string }>()
@@ -59,6 +62,10 @@ export function DeckBuilderPage() {
   const [editingName, setEditingName] = useState(false)
   const [addTarget, setAddTarget] = useState<'mainDeck' | 'sideboard'>('mainDeck')
 
+  // Card images state
+  const [cardImages, setCardImages] = useState<Map<string, string>>(new Map(imgCache))
+  const loadedRef = useRef(new Set<string>())
+
   // Ensure DB is loaded for search
   useEffect(() => {
     if (!isDatabaseReady()) {
@@ -74,7 +81,6 @@ export function DeckBuilderPage() {
     if (isNew) {
       db.decks.put({ ...deck, updatedAt: Date.now() }).catch(() => {})
     }
-    // Only on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -94,6 +100,33 @@ export function DeckBuilderPage() {
     setDeck((prev) => ({ ...prev, isValid: result.isValid, validationErrors: result.errors }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deck.leaders, deck.base, deck.mainDeck, deck.sideboard, deck.format])
+
+  // ─── Load card images for all cards in deck ────────────
+  useEffect(() => {
+    const allCardIds = new Set<string>()
+    deck.leaders.forEach(c => allCardIds.add(c.cardId))
+    if (deck.base) allCardIds.add(deck.base.cardId)
+    deck.mainDeck.forEach(c => allCardIds.add(c.cardId))
+    deck.sideboard.forEach(c => allCardIds.add(c.cardId))
+
+    const toFetch = [...allCardIds].filter(cid => !loadedRef.current.has(cid) && !imgCache.has(cid))
+    if (toFetch.length === 0) return
+
+    toFetch.forEach(cid => loadedRef.current.add(cid))
+
+    Promise.all(
+      toFetch.map(async (cid) => {
+        const card = await getCardById(cid)
+        return { cid, url: card?.imageUrl || '' }
+      })
+    ).then((results) => {
+      const newMap = new Map(imgCache)
+      results.forEach(({ cid, url }) => {
+        if (url) { newMap.set(cid, url); imgCache.set(cid, url) }
+      })
+      setCardImages(new Map(newMap))
+    })
+  }, [deck.leaders, deck.base, deck.mainDeck, deck.sideboard])
 
   const saveDeck = useCallback(async () => {
     const toSave = { ...deck, updatedAt: Date.now() }
@@ -128,6 +161,12 @@ export function DeckBuilderPage() {
   }, [searchQuery, doSearch, dbLoading])
 
   const addCardToDeck = (card: Card) => {
+    // Cache image immediately
+    if (card.imageUrl && !imgCache.has(card.id)) {
+      imgCache.set(card.id, card.imageUrl)
+      setCardImages(new Map(imgCache))
+    }
+
     if (card.type === 'Leader' || card.isLeader) {
       const existing = deck.leaders.find((c) => c.cardId === card.id)
       if (existing) return
@@ -185,6 +224,11 @@ export function DeckBuilderPage() {
   const sideCount = countCards(deck.sideboard)
   const targetSize = deck.format === 'sealed' || deck.format === 'draft' || deck.format === 'limited' ? 30 : 50
 
+  // ─── Expansion breakdown ─────────────────────────────
+  const setBreakdown = new Map<string, number>()
+  deck.mainDeck.forEach(c => setBreakdown.set(c.setCode, (setBreakdown.get(c.setCode) || 0) + c.quantity))
+  deck.sideboard.forEach(c => setBreakdown.set(c.setCode, (setBreakdown.get(c.setCode) || 0) + c.quantity))
+
   return (
     <div className="p-3 space-y-3 pb-24">
       <div className="flex items-center justify-between">
@@ -231,62 +275,164 @@ export function DeckBuilderPage() {
       </div>
 
       {tab === 'deck' && (
-        <div className="space-y-3">
-          <div>
-            <p className="text-xs font-bold text-swu-amber mb-1.5">Líder ({deck.leaders.length})</p>
-            {deck.leaders.length === 0 ? (
-              <p className="text-[10px] text-swu-muted bg-swu-surface rounded-lg p-3 border border-swu-border text-center">Busque un Líder para agregarlo</p>
-            ) : deck.leaders.map((c) => (
-              <div key={c.cardId} className="bg-swu-surface rounded-lg p-2.5 border border-swu-amber/30 flex items-center justify-between">
-                <div><span className="text-sm font-bold text-swu-text">{c.name}</span>{c.subtitle && <span className="text-xs text-swu-muted ml-1.5">{c.subtitle}</span>}</div>
-                <button onClick={() => removeCard('leaders', c.cardId)} className="text-swu-red p-1"><X size={14} /></button>
-              </div>
-            ))}
+        <div className="space-y-4">
+
+          {/* ═══ LÍDER + BASE — Hero cards with large images ═══ */}
+          <div className="grid grid-cols-2 gap-2">
+            {/* Leader card */}
+            <div>
+              <p className="text-[10px] font-bold text-swu-amber mb-1 uppercase tracking-wider">Líder</p>
+              {deck.leaders.length === 0 ? (
+                <div className="aspect-[5/7] bg-swu-surface rounded-xl border border-dashed border-swu-amber/30 flex flex-col items-center justify-center gap-1">
+                  <Search size={20} className="text-swu-amber/30" />
+                  <p className="text-[9px] text-swu-muted">Buscar Líder</p>
+                </div>
+              ) : deck.leaders.map((c) => {
+                const img = cardImages.get(c.cardId)
+                return (
+                  <div key={c.cardId} className="relative group">
+                    <div className="aspect-[5/7] bg-swu-bg rounded-xl border border-swu-amber/40 overflow-hidden">
+                      {img ? (
+                        <img src={img} alt={c.name} className="w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Loader2 size={20} className="text-swu-amber/30 animate-spin" />
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => removeCard('leaders', c.cardId)}
+                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 text-swu-red flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity active:opacity-100"
+                    >
+                      <X size={12} />
+                    </button>
+                    <p className="text-[10px] font-bold text-swu-text mt-1 truncate text-center">{c.name}</p>
+                    {c.subtitle && <p className="text-[8px] text-swu-muted truncate text-center">{c.subtitle}</p>}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Base card */}
+            <div>
+              <p className="text-[10px] font-bold text-swu-green mb-1 uppercase tracking-wider">Base</p>
+              {!deck.base ? (
+                <div className="aspect-[5/7] bg-swu-surface rounded-xl border border-dashed border-swu-green/30 flex flex-col items-center justify-center gap-1">
+                  <Search size={20} className="text-swu-green/30" />
+                  <p className="text-[9px] text-swu-muted">Buscar Base</p>
+                </div>
+              ) : (() => {
+                const img = cardImages.get(deck.base!.cardId)
+                return (
+                  <div className="relative group">
+                    <div className="aspect-[5/7] bg-swu-bg rounded-xl border border-swu-green/40 overflow-hidden">
+                      {img ? (
+                        <img src={img} alt={deck.base!.name} className="w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Loader2 size={20} className="text-swu-green/30 animate-spin" />
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => removeCard('base', '')}
+                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 text-swu-red flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity active:opacity-100"
+                    >
+                      <X size={12} />
+                    </button>
+                    <p className="text-[10px] font-bold text-swu-text mt-1 truncate text-center">{deck.base!.name}</p>
+                    {deck.base!.subtitle && <p className="text-[8px] text-swu-muted truncate text-center">{deck.base!.subtitle}</p>}
+                  </div>
+                )
+              })()}
+            </div>
           </div>
-          <div>
-            <p className="text-xs font-bold text-swu-green mb-1.5">Base ({deck.base ? 1 : 0})</p>
-            {!deck.base ? (
-              <p className="text-[10px] text-swu-muted bg-swu-surface rounded-lg p-3 border border-swu-border text-center">Busque una Base para agregarla</p>
-            ) : (
-              <div className="bg-swu-surface rounded-lg p-2.5 border border-swu-green/30 flex items-center justify-between">
-                <div><span className="text-sm font-bold text-swu-text">{deck.base.name}</span>{deck.base.subtitle && <span className="text-xs text-swu-muted ml-1.5">{deck.base.subtitle}</span>}</div>
-                <button onClick={() => removeCard('base', '')} className="text-swu-red p-1"><X size={14} /></button>
-              </div>
-            )}
-          </div>
+
+          {/* ═══ Expansion breakdown ═══ */}
+          {setBreakdown.size > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <Package size={12} className="text-swu-muted" />
+              {[...setBreakdown.entries()].sort((a, b) => b[1] - a[1]).map(([code, qty]) => (
+                <span key={code} className="text-[10px] bg-swu-surface border border-swu-border rounded-md px-1.5 py-0.5 text-swu-muted font-mono">
+                  <span className="text-swu-accent font-bold">{code}</span> ×{qty}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* ═══ MAZO PRINCIPAL — with thumbnails ═══ */}
           <div>
             <p className="text-xs font-bold text-swu-accent mb-1.5">Mazo Principal ({mainCount}/{targetSize})</p>
             {deck.mainDeck.length === 0 ? (
               <p className="text-[10px] text-swu-muted bg-swu-surface rounded-lg p-3 border border-swu-border text-center">Vaya a "Buscar" para agregar cartas</p>
             ) : (
-              <div className="space-y-1">{deck.mainDeck.map((c) => (
-                <div key={c.cardId} className="bg-swu-surface rounded-lg px-2.5 py-2 border border-swu-border flex items-center gap-2">
-                  <span className="w-6 h-6 rounded bg-swu-accent/20 text-swu-accent text-xs font-bold flex items-center justify-center font-mono">{c.quantity}</span>
-                  <div className="flex-1 min-w-0"><span className="text-sm text-swu-text truncate block">{c.name}</span></div>
-                  <span className="text-[9px] text-swu-muted">{c.setCode}</span>
-                  <div className="flex gap-1">
-                    <button onClick={() => removeCard('mainDeck', c.cardId)} className="w-6 h-6 rounded bg-swu-red/10 text-swu-red flex items-center justify-center"><Minus size={12} /></button>
-                    <button onClick={() => incrementCard('mainDeck', c.cardId)} className="w-6 h-6 rounded bg-swu-green/10 text-swu-green flex items-center justify-center"><Plus size={12} /></button>
+              <div className="space-y-1">{deck.mainDeck.map((c) => {
+                const img = cardImages.get(c.cardId)
+                return (
+                  <div key={c.cardId} className="bg-swu-surface rounded-lg px-2 py-1.5 border border-swu-border flex items-center gap-2">
+                    {/* Thumbnail */}
+                    <div className="w-8 h-11 rounded bg-swu-bg flex-shrink-0 overflow-hidden">
+                      {img ? (
+                        <img src={img} alt="" className="w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <BookOpen size={10} className="text-swu-muted/30" />
+                        </div>
+                      )}
+                    </div>
+                    {/* Quantity badge */}
+                    <span className="w-6 h-6 rounded bg-swu-accent/20 text-swu-accent text-xs font-bold flex items-center justify-center font-mono flex-shrink-0">{c.quantity}</span>
+                    {/* Name + set */}
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm text-swu-text truncate block">{c.name}</span>
+                      <span className="text-[9px] text-swu-muted font-mono">{c.setCode}</span>
+                    </div>
+                    {/* Controls */}
+                    <div className="flex gap-1 flex-shrink-0">
+                      <button onClick={() => removeCard('mainDeck', c.cardId)} className="w-6 h-6 rounded bg-swu-red/10 text-swu-red flex items-center justify-center"><Minus size={12} /></button>
+                      <button onClick={() => incrementCard('mainDeck', c.cardId)} className="w-6 h-6 rounded bg-swu-green/10 text-swu-green flex items-center justify-center"><Plus size={12} /></button>
+                    </div>
                   </div>
-                </div>
-              ))}</div>
+                )
+              })}</div>
             )}
           </div>
+
+          {/* ═══ SIDEBOARD — with thumbnails ═══ */}
           <div>
             <p className="text-xs font-bold text-purple-400 mb-1.5">Sideboard ({sideCount}/10)</p>
             {deck.sideboard.length === 0 ? (
               <p className="text-[10px] text-swu-muted bg-swu-surface rounded-lg p-3 border border-swu-border text-center">Opcional</p>
             ) : (
-              <div className="space-y-1">{deck.sideboard.map((c) => (
-                <div key={c.cardId} className="bg-swu-surface rounded-lg px-2.5 py-2 border border-swu-border flex items-center gap-2">
-                  <span className="w-6 h-6 rounded bg-purple-400/20 text-purple-400 text-xs font-bold flex items-center justify-center font-mono">{c.quantity}</span>
-                  <div className="flex-1 min-w-0"><span className="text-sm text-swu-text truncate block">{c.name}</span></div>
-                  <div className="flex gap-1">
-                    <button onClick={() => removeCard('sideboard', c.cardId)} className="w-6 h-6 rounded bg-swu-red/10 text-swu-red flex items-center justify-center"><Minus size={12} /></button>
-                    <button onClick={() => incrementCard('sideboard', c.cardId)} className="w-6 h-6 rounded bg-swu-green/10 text-swu-green flex items-center justify-center"><Plus size={12} /></button>
+              <div className="space-y-1">{deck.sideboard.map((c) => {
+                const img = cardImages.get(c.cardId)
+                return (
+                  <div key={c.cardId} className="bg-swu-surface rounded-lg px-2 py-1.5 border border-swu-border flex items-center gap-2">
+                    {/* Thumbnail */}
+                    <div className="w-8 h-11 rounded bg-swu-bg flex-shrink-0 overflow-hidden">
+                      {img ? (
+                        <img src={img} alt="" className="w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <BookOpen size={10} className="text-swu-muted/30" />
+                        </div>
+                      )}
+                    </div>
+                    {/* Quantity badge */}
+                    <span className="w-6 h-6 rounded bg-purple-400/20 text-purple-400 text-xs font-bold flex items-center justify-center font-mono flex-shrink-0">{c.quantity}</span>
+                    {/* Name + set */}
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm text-swu-text truncate block">{c.name}</span>
+                      <span className="text-[9px] text-swu-muted font-mono">{c.setCode}</span>
+                    </div>
+                    {/* Controls */}
+                    <div className="flex gap-1 flex-shrink-0">
+                      <button onClick={() => removeCard('sideboard', c.cardId)} className="w-6 h-6 rounded bg-swu-red/10 text-swu-red flex items-center justify-center"><Minus size={12} /></button>
+                      <button onClick={() => incrementCard('sideboard', c.cardId)} className="w-6 h-6 rounded bg-swu-green/10 text-swu-green flex items-center justify-center"><Plus size={12} /></button>
+                    </div>
                   </div>
-                </div>
-              ))}</div>
+                )
+              })}</div>
             )}
           </div>
         </div>
