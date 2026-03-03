@@ -9,9 +9,10 @@ import type { TournamentFormat, MatchType, Tournament } from '../../types'
 
 const formats: { id: TournamentFormat; label: string; desc: string }[] = [
   { id: 'premier', label: 'Premier', desc: 'Construido estándar' },
+  { id: 'twin_suns', label: 'Twin Suns', desc: 'Singleton, 2 leaders, 80+ cartas' },
+  { id: 'trilogy', label: 'Trilogy', desc: '3 decks, sin sideboard, Bo3' },
   { id: 'sealed', label: 'Sealed', desc: 'Limitado (sobres)' },
   { id: 'draft', label: 'Draft', desc: 'Limitado (draft)' },
-  { id: 'twin_suns', label: 'Twin Suns', desc: 'Singleton, 2 leaders' },
 ]
 
 interface PlayerSlot {

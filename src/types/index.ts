@@ -1,7 +1,7 @@
 // ─── Match Tracker Types ───
 export type GameMode = 'premier' | 'twin_suns' | 'custom'
 export type MatchType = 'bo1' | 'bo3'
-export type TournamentFormat = 'premier' | 'sealed' | 'draft' | 'twin_suns'
+export type TournamentFormat = 'premier' | 'sealed' | 'draft' | 'twin_suns' | 'trilogy'
 
 export interface PlayerState {
   name: string

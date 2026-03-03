@@ -27,6 +27,7 @@ function countCards(cards: { quantity: number }[]): number {
 const formatLabels: Record<string, string> = {
   premier: 'Premier',
   twin_suns: 'Twin Suns',
+  trilogy: 'Trilogy',
   sealed: 'Sealed',
   draft: 'Draft',
   limited: 'Limited',

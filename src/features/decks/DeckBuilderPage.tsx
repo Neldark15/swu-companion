@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { db } from '../../services/db'
 import { searchCards, loadFullDatabase, isDatabaseReady, getCardById } from '../../services/swuApi'
-import { validateDeck, canAddCard, getEffectiveMinDeckSize } from '../../services/deckValidator'
+import { validateDeck, canAddCard, getEffectiveMinDeckSize, getFormatRules } from '../../services/deckValidator'
 import { syncDeckToCloud } from '../../services/sync'
 import { useAuth } from '../../hooks/useAuth'
 import type { Deck, DeckCard, Card, TournamentFormat } from '../../types'
@@ -22,6 +22,7 @@ function countCards(cards: DeckCard[]): number {
 const formatLabels: Record<string, string> = {
   premier: 'Premier',
   twin_suns: 'Twin Suns',
+  trilogy: 'Trilogy',
   sealed: 'Sealed',
   draft: 'Draft',
   limited: 'Limited',
@@ -268,6 +269,7 @@ export function DeckBuilderPage() {
   const mainCount = countCards(deck.mainDeck)
   const sideCount = countCards(deck.sideboard)
   const targetSize = getEffectiveMinDeckSize(deck.format, baseText)
+  const fmtRules = getFormatRules(deck.format)
 
   // ─── Expansion breakdown ─────────────────────────────
   const setBreakdown = new Map<string, number>()
@@ -300,8 +302,20 @@ export function DeckBuilderPage() {
       <div className={`flex items-center gap-2 rounded-lg px-3 py-2 border ${deck.isValid ? 'bg-swu-green/10 border-swu-green/30' : 'bg-swu-amber/10 border-swu-amber/30'}`}>
         {deck.isValid ? <CheckCircle2 size={14} className="text-swu-green" /> : <AlertTriangle size={14} className="text-swu-amber" />}
         <span className={`text-xs font-bold ${deck.isValid ? 'text-swu-green' : 'text-swu-amber'}`}>{deck.isValid ? 'Deck válido' : deck.validationErrors[0] || 'Deck incompleto'}</span>
-        <span className="text-[10px] text-swu-muted ml-auto">{mainCount}/{targetSize}</span>
+        <span className="text-[10px] text-swu-muted ml-auto">{mainCount}/{targetSize} mín.</span>
       </div>
+
+      {/* Format info banners */}
+      {deck.format === 'twin_suns' && (
+        <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg px-3 py-2">
+          <p className="text-[10px] text-orange-400 font-bold">Twin Suns: 2 Leaders (misma alineación), singleton (1 copia), 80+ cartas</p>
+        </div>
+      )}
+      {deck.format === 'trilogy' && (
+        <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg px-3 py-2">
+          <p className="text-[10px] text-cyan-400 font-bold">Trilogy: Sin sideboard. Máx 3 copias de cada carta entre los 3 decks del grupo.</p>
+        </div>
+      )}
 
       {dbLoading && (
         <div className="bg-swu-accent/10 border border-swu-accent/30 rounded-xl p-3 flex items-center gap-2">
@@ -491,9 +505,9 @@ export function DeckBuilderPage() {
             )}
           </div>
 
-          {/* ═══ SIDEBOARD — with thumbnails ═══ */}
-          <div>
-            <p className="text-xs font-bold text-purple-400 mb-1.5">Sideboard ({sideCount}/10)</p>
+          {/* ═══ SIDEBOARD — with thumbnails (hidden for formats without sideboard) ═══ */}
+          {fmtRules.hasSideboard && <div>
+            <p className="text-xs font-bold text-purple-400 mb-1.5">Sideboard ({sideCount}/{fmtRules.sideboard})</p>
             {deck.sideboard.length === 0 ? (
               <p className="text-[10px] text-swu-muted bg-swu-surface rounded-lg p-3 border border-swu-border text-center">Opcional</p>
             ) : (
@@ -527,16 +541,18 @@ export function DeckBuilderPage() {
                 )
               })}</div>
             )}
-          </div>
+          </div>}
         </div>
       )}
 
       {tab === 'search' && (
         <div className="space-y-3">
-          <div className="flex gap-2">
-            <button onClick={() => setAddTarget('mainDeck')} className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors ${addTarget === 'mainDeck' ? 'bg-swu-accent/20 border-swu-accent text-swu-accent' : 'bg-swu-surface border-swu-border text-swu-muted'}`}>Mazo ({mainCount})</button>
-            <button onClick={() => setAddTarget('sideboard')} className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors ${addTarget === 'sideboard' ? 'bg-purple-400/20 border-purple-400 text-purple-400' : 'bg-swu-surface border-swu-border text-swu-muted'}`}>Sideboard ({sideCount})</button>
-          </div>
+          {fmtRules.hasSideboard ? (
+            <div className="flex gap-2">
+              <button onClick={() => setAddTarget('mainDeck')} className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors ${addTarget === 'mainDeck' ? 'bg-swu-accent/20 border-swu-accent text-swu-accent' : 'bg-swu-surface border-swu-border text-swu-muted'}`}>Mazo ({mainCount})</button>
+              <button onClick={() => setAddTarget('sideboard')} className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors ${addTarget === 'sideboard' ? 'bg-purple-400/20 border-purple-400 text-purple-400' : 'bg-swu-surface border-swu-border text-swu-muted'}`}>Sideboard ({sideCount})</button>
+            </div>
+          ) : null}
           <div className="relative">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-swu-muted" />
             <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={dbLoading ? "Descargando cartas..." : "Buscar por nombre..."}

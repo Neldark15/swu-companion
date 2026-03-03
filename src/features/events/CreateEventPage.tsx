@@ -22,9 +22,10 @@ type ViewState = 'form' | 'creating' | 'created'
 
 const FORMAT_OPTIONS = [
   { value: 'premier', label: 'Premier', desc: 'Formato estándar competitivo' },
+  { value: 'twin_suns', label: 'Twin Suns', desc: 'Singleton, 2 líderes, 80+ cartas' },
+  { value: 'trilogy', label: 'Trilogy', desc: '3 decks, sin sideboard, Bo3' },
   { value: 'sealed', label: 'Sealed', desc: 'Abrir packs y construir deck' },
   { value: 'draft', label: 'Draft', desc: 'Selección de cartas en ronda' },
-  { value: 'twin_suns', label: 'Twin Suns', desc: 'Formato alternativo de 2 líderes' },
 ]
 
 const MATCH_OPTIONS = [

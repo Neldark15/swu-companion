@@ -1,12 +1,12 @@
 /**
  * Deck Validation for Star Wars: Unlimited
- * Rules:
- * - 1 Leader (2 for Twin Suns)
- * - 1 Base
- * - Main deck: minimum card count varies by format (no maximum)
- * - Sideboard: up to 10 cards (Premier / Twin Suns)
- * - Max 3 copies of any non-unique card (1 in Twin Suns)
- * - Max 1 copy of any unique card
+ *
+ * Formats:
+ * - Premier: 1 Leader, 1 Base, 50+ cards, max 3 copies, 10-card sideboard
+ * - Twin Suns: 2 Leaders (share Heroism/Villainy), 1 Base, 80+ cards, singleton (1 copy), 10-card sideboard
+ * - Trilogy: 1 Leader, 1 Base, 50+ cards, max 3 copies, NO sideboard
+ *           (cross-deck 3-copy limit validated separately)
+ * - Sealed/Draft/Limited: 1 Leader, 1 Base, 30+ cards, max 3 copies, no sideboard
  *
  * Some bases modify the minimum deck size:
  *   - Data Vault (JTL-024): +10
@@ -32,22 +32,28 @@ export interface DeckStats {
   typeBreakdown: Record<string, number>
 }
 
-const FORMAT_RULES: Record<string, { leaders: number; mainDeck: number; sideboard: number; maxCopies: number }> = {
-  premier: { leaders: 1, mainDeck: 50, sideboard: 10, maxCopies: 3 },
-  twin_suns: { leaders: 2, mainDeck: 80, sideboard: 10, maxCopies: 1 },
-  sealed: { leaders: 1, mainDeck: 30, sideboard: 0, maxCopies: 3 },
-  draft: { leaders: 1, mainDeck: 30, sideboard: 0, maxCopies: 3 },
-  limited: { leaders: 1, mainDeck: 30, sideboard: 0, maxCopies: 3 },
+export interface FormatRules {
+  leaders: number
+  mainDeck: number      // minimum deck size
+  sideboard: number     // max sideboard cards (0 = no sideboard)
+  maxCopies: number     // max copies of any non-unique card
+  hasSideboard: boolean // whether format allows sideboard
+}
+
+const FORMAT_RULES: Record<string, FormatRules> = {
+  premier:   { leaders: 1, mainDeck: 50, sideboard: 10, maxCopies: 3, hasSideboard: true },
+  twin_suns: { leaders: 2, mainDeck: 80, sideboard: 10, maxCopies: 1, hasSideboard: true },
+  trilogy:   { leaders: 1, mainDeck: 50, sideboard: 0,  maxCopies: 3, hasSideboard: false },
+  sealed:    { leaders: 1, mainDeck: 30, sideboard: 0,  maxCopies: 3, hasSideboard: false },
+  draft:     { leaders: 1, mainDeck: 30, sideboard: 0,  maxCopies: 3, hasSideboard: false },
+  limited:   { leaders: 1, mainDeck: 30, sideboard: 0,  maxCopies: 3, hasSideboard: false },
 }
 
 /**
  * Patterns that match base card text modifying deck size.
- * Returns a positive number to increase, negative to decrease.
  */
 const DECK_SIZE_MODIFIERS: { pattern: RegExp; delta: number }[] = [
-  // "Your minimum deck size is increased by 10"
   { pattern: /minimum deck size is increased by (\d+)/i, delta: 10 },
-  // Future-proof: "Your minimum deck size is decreased by X"
   { pattern: /minimum deck size is decreased by (\d+)/i, delta: -10 },
 ]
 
@@ -72,6 +78,13 @@ export function getEffectiveMinDeckSize(format: string, baseText?: string): numb
   const rules = FORMAT_RULES[format] || FORMAT_RULES.premier
   const baseMod = baseText ? getBaseDeckSizeModifier(baseText) : 0
   return Math.max(1, rules.mainDeck + baseMod)
+}
+
+/**
+ * Get the format rules for a given format.
+ */
+export function getFormatRules(format: string): FormatRules {
+  return FORMAT_RULES[format] || FORMAT_RULES.premier
 }
 
 function countCards(cards: DeckCard[]): number {
@@ -107,20 +120,35 @@ export function validateDeck(deck: Deck, baseText?: string): ValidationResult {
   }
 
   // Sideboard
-  if (sideboardSize > rules.sideboard) {
+  if (!rules.hasSideboard && sideboardSize > 0) {
+    errors.push(`${deck.format === 'trilogy' ? 'Trilogy' : 'Este formato'} no permite sideboard`)
+  } else if (rules.hasSideboard && sideboardSize > rules.sideboard) {
     errors.push(`El sideboard tiene ${sideboardSize} cartas (máximo ${rules.sideboard})`)
   }
 
   // Copy limits in main deck
   for (const card of deck.mainDeck) {
     if (card.quantity > rules.maxCopies) {
-      errors.push(`${card.name}: máximo ${rules.maxCopies} copias (tiene ${card.quantity})`)
+      errors.push(`${card.name}: máximo ${rules.maxCopies} copia${rules.maxCopies > 1 ? 's' : ''} (tiene ${card.quantity})`)
+    }
+  }
+
+  // Twin Suns specific: warn about singleton
+  if (deck.format === 'twin_suns') {
+    for (const card of deck.mainDeck) {
+      if (card.quantity > 1) {
+        errors.push(`Twin Suns es singleton: ${card.name} tiene ${card.quantity} copias (máx 1)`)
+      }
     }
   }
 
   // Warnings
   if (mainDeckSize > 0 && mainDeckSize < minDeckSize) {
     warnings.push(`Faltan ${minDeckSize - mainDeckSize} cartas en el mazo principal`)
+  }
+
+  if (deck.format === 'trilogy') {
+    warnings.push('Trilogy: máx 3 copias de cada carta entre los 3 decks del grupo')
   }
 
   // Cost curve stats
@@ -159,6 +187,11 @@ export function canAddCard(
   const rules = FORMAT_RULES[deck.format] || FORMAT_RULES.premier
   const list = target === 'mainDeck' ? deck.mainDeck : deck.sideboard
 
+  // Block sideboard additions for formats without sideboard
+  if (target === 'sideboard' && !rules.hasSideboard) {
+    return { allowed: false, reason: 'Este formato no permite sideboard' }
+  }
+
   const existing = list.find((c) => c.cardId === cardId)
   const currentQty = existing?.quantity ?? 0
 
@@ -167,11 +200,10 @@ export function canAddCard(
   }
 
   if (currentQty >= rules.maxCopies) {
-    return { allowed: false, reason: `Máximo ${rules.maxCopies} copias permitidas` }
+    return { allowed: false, reason: `Máximo ${rules.maxCopies} copia${rules.maxCopies > 1 ? 's' : ''} permitida${rules.maxCopies > 1 ? 's' : ''}` }
   }
 
   // Main deck has NO maximum — only minimum is enforced at validation time
-  // Users can add as many cards as they want above the minimum
 
   if (target === 'sideboard') {
     const totalSide = countCards(deck.sideboard)
