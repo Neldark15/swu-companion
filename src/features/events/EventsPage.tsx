@@ -158,7 +158,7 @@ export function EventsPage() {
     <div className="p-4 space-y-5 pb-24">
       {/* Header with SWU logo */}
       <div className="flex items-center gap-3">
-        <img src="/swu-logo-sm.png" alt="SWU" className="w-12 h-14 object-contain" />
+        <img src="/swu-logo-sm.png" alt="SWU" className="w-36 h-42 object-contain" />
         <div>
           <h2 className="text-lg font-bold text-swu-text leading-tight">Eventos</h2>
           <p className="text-[9px] text-swu-muted font-mono tracking-[0.2em] uppercase">Star Wars Unlimited</p>
