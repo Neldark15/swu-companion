@@ -5,6 +5,7 @@ import { Badge } from '../../components/ui/Badge'
 import { db } from '../../services/db'
 import { getCardById } from '../../services/swuApi'
 import { deleteDeckFromCloud, pullDecksFromCloud } from '../../services/sync'
+import { getEffectiveMinDeckSize } from '../../services/deckValidator'
 import { useAuth } from '../../hooks/useAuth'
 import type { Deck } from '../../types'
 
@@ -40,6 +41,7 @@ export function DeckListPage() {
   const [decks, setDecks] = useState<Deck[]>([])
   const [loading, setLoading] = useState(true)
   const [cardImages, setCardImages] = useState<Map<string, string>>(new Map())
+  const [baseTexts, setBaseTexts] = useState<Map<string, string>>(new Map())
 
   const loadDecks = useCallback(async () => {
     setLoading(true)
@@ -62,24 +64,41 @@ export function DeckListPage() {
     })
 
     const newImages = new Map<string, string>(imageCache)
+    const newBaseTexts = new Map<string, string>()
     const toFetch = [...cardIds].filter(id => !imageCache.has(id))
+
+    // Collect base card IDs for text lookup
+    const baseCardIds = new Set<string>()
+    d.forEach(deck => { if (deck.base) baseCardIds.add(deck.base.cardId) })
 
     if (toFetch.length > 0) {
       const results = await Promise.all(
         toFetch.map(async (id) => {
           const card = await getCardById(id)
-          return { id, imageUrl: card?.imageUrl || '' }
+          return { id, imageUrl: card?.imageUrl || '', text: card?.text || '' }
         })
       )
-      results.forEach(({ id, imageUrl }) => {
+      results.forEach(({ id, imageUrl, text }) => {
         if (imageUrl) {
           newImages.set(id, imageUrl)
           imageCache.set(id, imageUrl)
         }
+        if (baseCardIds.has(id) && text) {
+          newBaseTexts.set(id, text)
+        }
       })
     }
 
+    // Also fetch base texts for cards already cached (images loaded but text not)
+    for (const baseId of baseCardIds) {
+      if (!newBaseTexts.has(baseId)) {
+        const card = await getCardById(baseId)
+        if (card?.text) newBaseTexts.set(baseId, card.text)
+      }
+    }
+
     setCardImages(newImages)
+    setBaseTexts(newBaseTexts)
   }, [supabaseUser])
 
   // Load on mount and when navigating back
@@ -146,7 +165,8 @@ export function DeckListPage() {
             const base = deck.base
             const leaderImg = leader ? cardImages.get(leader.cardId) : undefined
             const baseImg = base ? cardImages.get(base.cardId) : undefined
-            const targetSize = deck.format === 'sealed' || deck.format === 'draft' || deck.format === 'limited' ? 30 : 50
+            const bText = deck.base ? baseTexts.get(deck.base.cardId) || '' : ''
+            const targetSize = getEffectiveMinDeckSize(deck.format, bText)
 
             return (
               <div

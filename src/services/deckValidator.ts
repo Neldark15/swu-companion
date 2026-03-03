@@ -1,13 +1,15 @@
 /**
  * Deck Validation for Star Wars: Unlimited
- * Premier format rules:
- * - Exactly 1 Leader (or 2 for Twin Suns)
- * - Exactly 1 Base
- * - Main deck: exactly 50 cards (Premier) or 50 (Twin Suns)
- * - Sideboard: up to 10 cards
- * - Max 3 copies of any non-unique card
+ * Rules:
+ * - 1 Leader (2 for Twin Suns)
+ * - 1 Base
+ * - Main deck: minimum card count varies by format (no maximum)
+ * - Sideboard: up to 10 cards (Premier / Twin Suns)
+ * - Max 3 copies of any non-unique card (1 in Twin Suns)
  * - Max 1 copy of any unique card
- * - No duplicate unique names across the deck
+ *
+ * Some bases modify the minimum deck size:
+ *   - Data Vault (JTL-024): +10
  */
 
 import type { Deck, DeckCard } from '../types'
@@ -32,20 +34,55 @@ export interface DeckStats {
 
 const FORMAT_RULES: Record<string, { leaders: number; mainDeck: number; sideboard: number; maxCopies: number }> = {
   premier: { leaders: 1, mainDeck: 50, sideboard: 10, maxCopies: 3 },
-  twin_suns: { leaders: 2, mainDeck: 50, sideboard: 10, maxCopies: 1 },
+  twin_suns: { leaders: 2, mainDeck: 80, sideboard: 10, maxCopies: 1 },
   sealed: { leaders: 1, mainDeck: 30, sideboard: 0, maxCopies: 3 },
   draft: { leaders: 1, mainDeck: 30, sideboard: 0, maxCopies: 3 },
   limited: { leaders: 1, mainDeck: 30, sideboard: 0, maxCopies: 3 },
+}
+
+/**
+ * Patterns that match base card text modifying deck size.
+ * Returns a positive number to increase, negative to decrease.
+ */
+const DECK_SIZE_MODIFIERS: { pattern: RegExp; delta: number }[] = [
+  // "Your minimum deck size is increased by 10"
+  { pattern: /minimum deck size is increased by (\d+)/i, delta: 10 },
+  // Future-proof: "Your minimum deck size is decreased by X"
+  { pattern: /minimum deck size is decreased by (\d+)/i, delta: -10 },
+]
+
+/**
+ * Given a base card's text, calculate how much it modifies the minimum deck size.
+ */
+export function getBaseDeckSizeModifier(baseText: string): number {
+  for (const mod of DECK_SIZE_MODIFIERS) {
+    const match = baseText.match(mod.pattern)
+    if (match) {
+      const num = parseInt(match[1], 10)
+      return mod.delta > 0 ? num : -num
+    }
+  }
+  return 0
+}
+
+/**
+ * Calculate the effective minimum deck size for a given format and base text.
+ */
+export function getEffectiveMinDeckSize(format: string, baseText?: string): number {
+  const rules = FORMAT_RULES[format] || FORMAT_RULES.premier
+  const baseMod = baseText ? getBaseDeckSizeModifier(baseText) : 0
+  return Math.max(1, rules.mainDeck + baseMod)
 }
 
 function countCards(cards: DeckCard[]): number {
   return cards.reduce((sum, c) => sum + c.quantity, 0)
 }
 
-export function validateDeck(deck: Deck): ValidationResult {
+export function validateDeck(deck: Deck, baseText?: string): ValidationResult {
   const errors: string[] = []
   const warnings: string[] = []
   const rules = FORMAT_RULES[deck.format] || FORMAT_RULES.premier
+  const minDeckSize = getEffectiveMinDeckSize(deck.format, baseText)
 
   const leaderCount = countCards(deck.leaders)
   const baseCount = deck.base ? 1 : 0
@@ -64,11 +101,9 @@ export function validateDeck(deck: Deck): ValidationResult {
     errors.push('Se necesita 1 Base')
   }
 
-  // Main deck size
-  if (mainDeckSize < rules.mainDeck) {
-    errors.push(`El mazo necesita ${rules.mainDeck} cartas (tiene ${mainDeckSize})`)
-  } else if (mainDeckSize > rules.mainDeck) {
-    errors.push(`El mazo tiene ${mainDeckSize} cartas (máximo ${rules.mainDeck})`)
+  // Main deck size — minimum only, NO maximum
+  if (mainDeckSize < minDeckSize) {
+    errors.push(`El mazo necesita mínimo ${minDeckSize} cartas (tiene ${mainDeckSize})`)
   }
 
   // Sideboard
@@ -84,8 +119,8 @@ export function validateDeck(deck: Deck): ValidationResult {
   }
 
   // Warnings
-  if (mainDeckSize > 0 && mainDeckSize < rules.mainDeck) {
-    warnings.push(`Faltan ${rules.mainDeck - mainDeckSize} cartas en el mazo principal`)
+  if (mainDeckSize > 0 && mainDeckSize < minDeckSize) {
+    warnings.push(`Faltan ${minDeckSize - mainDeckSize} cartas en el mazo principal`)
   }
 
   // Cost curve stats
@@ -93,7 +128,6 @@ export function validateDeck(deck: Deck): ValidationResult {
   const typeBreakdown: Record<string, number> = {}
   const aspectBreakdown: Record<string, number> = {}
 
-  // Stats would require full card data; populated by UI when available
   void deck.mainDeck
 
   const stats: DeckStats = {
@@ -136,12 +170,8 @@ export function canAddCard(
     return { allowed: false, reason: `Máximo ${rules.maxCopies} copias permitidas` }
   }
 
-  if (target === 'mainDeck') {
-    const totalMain = countCards(deck.mainDeck)
-    if (totalMain >= rules.mainDeck) {
-      return { allowed: false, reason: `Mazo principal lleno (${rules.mainDeck} cartas)` }
-    }
-  }
+  // Main deck has NO maximum — only minimum is enforced at validation time
+  // Users can add as many cards as they want above the minimum
 
   if (target === 'sideboard') {
     const totalSide = countCards(deck.sideboard)

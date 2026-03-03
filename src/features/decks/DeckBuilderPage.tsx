@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { db } from '../../services/db'
 import { searchCards, loadFullDatabase, isDatabaseReady, getCardById } from '../../services/swuApi'
-import { validateDeck, canAddCard } from '../../services/deckValidator'
+import { validateDeck, canAddCard, getEffectiveMinDeckSize } from '../../services/deckValidator'
 import { syncDeckToCloud } from '../../services/sync'
 import { useAuth } from '../../hooks/useAuth'
 import type { Deck, DeckCard, Card, TournamentFormat } from '../../types'
@@ -62,6 +62,9 @@ export function DeckBuilderPage() {
   const [saveFlash, setSaveFlash] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [addTarget, setAddTarget] = useState<'mainDeck' | 'sideboard'>('mainDeck')
+
+  // Base card text for deck-size modifiers (e.g. Data Vault +10)
+  const [baseText, setBaseText] = useState('')
 
   // Card images state
   const [cardImages, setCardImages] = useState<Map<string, string>>(new Map(imgCache))
@@ -121,12 +124,20 @@ export function DeckBuilderPage() {
     }
   }, [id, isNew])
 
+  // Load base card text when base changes (for deck-size modifiers)
+  useEffect(() => {
+    if (!deck.base) { setBaseText(''); return }
+    getCardById(deck.base.cardId).then(card => {
+      setBaseText(card?.text || '')
+    })
+  }, [deck.base?.cardId])
+
   // Validate on changes
   useEffect(() => {
-    const result = validateDeck(deck)
+    const result = validateDeck(deck, baseText)
     setDeck((prev) => ({ ...prev, isValid: result.isValid, validationErrors: result.errors }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deck.leaders, deck.base, deck.mainDeck, deck.sideboard, deck.format])
+  }, [deck.leaders, deck.base, deck.mainDeck, deck.sideboard, deck.format, baseText])
 
   // ─── Load card images for all cards in deck ────────────
   useEffect(() => {
@@ -256,7 +267,7 @@ export function DeckBuilderPage() {
 
   const mainCount = countCards(deck.mainDeck)
   const sideCount = countCards(deck.sideboard)
-  const targetSize = deck.format === 'sealed' || deck.format === 'draft' || deck.format === 'limited' ? 30 : 50
+  const targetSize = getEffectiveMinDeckSize(deck.format, baseText)
 
   // ─── Expansion breakdown ─────────────────────────────
   const setBreakdown = new Map<string, number>()
@@ -444,7 +455,7 @@ export function DeckBuilderPage() {
 
           {/* ═══ MAZO PRINCIPAL — with thumbnails ═══ */}
           <div>
-            <p className="text-xs font-bold text-swu-accent mb-1.5">Mazo Principal ({mainCount}/{targetSize})</p>
+            <p className="text-xs font-bold text-swu-accent mb-1.5">Mazo Principal ({mainCount}/{targetSize} mín.)</p>
             {deck.mainDeck.length === 0 ? (
               <p className="text-[10px] text-swu-muted bg-swu-surface rounded-lg p-3 border border-swu-border text-center">Vaya a "Buscar" para agregar cartas</p>
             ) : (
