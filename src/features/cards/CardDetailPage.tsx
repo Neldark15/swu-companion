@@ -4,6 +4,8 @@ import { ChevronLeft, Heart, Loader2, AlertCircle, BookOpen, Star } from 'lucide
 import { Badge } from '../../components/ui/Badge'
 import { getCardById } from '../../services/swuApi'
 import { db } from '../../services/db'
+import { syncFavoriteToCloud } from '../../services/sync'
+import { useAuth } from '../../hooks/useAuth'
 import type { Card } from '../../types'
 
 const typeVariant: Record<string, 'amber' | 'accent' | 'green' | 'purple' | 'default'> = {
@@ -33,6 +35,7 @@ const aspectColors: Record<string, string> = {
 export function CardDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { supabaseUser } = useAuth()
   const [card, setCard] = useState<Card | null>(null)
   const [loading, setLoading] = useState(true)
   const [isFavorite, setIsFavorite] = useState(false)
@@ -53,12 +56,18 @@ export function CardDetailPage() {
 
   const toggleFavorite = async () => {
     if (!id) return
+    const newFav = !isFavorite
     if (isFavorite) {
       await db.favoriteCards.delete(id)
     } else {
       await db.favoriteCards.put({ cardId: id })
     }
-    setIsFavorite(!isFavorite)
+    setIsFavorite(newFav)
+
+    // Sync to cloud
+    if (supabaseUser) {
+      syncFavoriteToCloud(supabaseUser.id, id, newFav).catch(() => {})
+    }
   }
 
   if (loading) {

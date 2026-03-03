@@ -324,15 +324,168 @@ export async function getGlobalLeaderboard(): Promise<GlobalLeaderboardEntry[]> 
   }
 }
 
+// ─── COLLECTION SYNC ────────────────────────────────────────────
+
+export async function syncCollectionItemToCloud(userId: string, cardId: string, quantity: number) {
+  if (!isSupabaseReady()) return
+  try {
+    if (quantity <= 0) {
+      await supabase.from('collection').delete()
+        .eq('user_id', userId)
+        .eq('card_id', cardId)
+    } else {
+      await supabase.from('collection').upsert({
+        user_id: userId,
+        card_id: cardId,
+        quantity,
+      })
+    }
+  } catch (e) {
+    console.warn('[Sync] Failed to sync collection item:', e)
+  }
+}
+
+export async function syncFullCollectionToCloud(userId: string) {
+  if (!isSupabaseReady()) return
+  try {
+    const items = await db.collection.toArray()
+    if (items.length === 0) return
+
+    // Batch upsert
+    const rows = items.map(c => ({
+      user_id: userId,
+      card_id: c.cardId,
+      quantity: c.quantity || 1,
+    }))
+    await supabase.from('collection').upsert(rows)
+  } catch (e) {
+    console.warn('[Sync] Failed to sync full collection:', e)
+  }
+}
+
+// ─── FAVORITES SYNC ─────────────────────────────────────────────
+
+export async function syncFavoriteToCloud(userId: string, cardId: string, isFavorite: boolean) {
+  if (!isSupabaseReady()) return
+  try {
+    if (isFavorite) {
+      await supabase.from('favorite_cards').upsert({
+        user_id: userId,
+        card_id: cardId,
+      })
+    } else {
+      await supabase.from('favorite_cards').delete()
+        .eq('user_id', userId)
+        .eq('card_id', cardId)
+    }
+  } catch (e) {
+    console.warn('[Sync] Failed to sync favorite:', e)
+  }
+}
+
+export async function syncAllFavoritesToCloud(userId: string) {
+  if (!isSupabaseReady()) return
+  try {
+    const favs = await db.favoriteCards.toArray()
+    if (favs.length === 0) return
+
+    const rows = favs.map(f => ({
+      user_id: userId,
+      card_id: f.cardId,
+    }))
+    await supabase.from('favorite_cards').upsert(rows)
+  } catch (e) {
+    console.warn('[Sync] Failed to sync all favorites:', e)
+  }
+}
+
+// ─── SETTINGS SYNC ──────────────────────────────────────────────
+
+export async function syncSettingsToCloud(userId: string, settings: Record<string, unknown>) {
+  if (!isSupabaseReady()) return
+  try {
+    await supabase.from('profiles').update({
+      settings,
+    }).eq('id', userId)
+  } catch (e) {
+    console.warn('[Sync] Failed to sync settings:', e)
+  }
+}
+
+export async function pullSettingsFromCloud(userId: string): Promise<Record<string, unknown> | null> {
+  if (!isSupabaseReady()) return null
+  try {
+    const { data } = await supabase
+      .from('profiles')
+      .select('settings')
+      .eq('id', userId)
+      .single()
+    return (data?.settings as Record<string, unknown>) || null
+  } catch {
+    return null
+  }
+}
+
 // ─── FULL PULL (on login) ───────────────────────────────────────
 
 export async function pullAllFromCloud(userId: string, localProfileId: string) {
   if (!isSupabaseReady()) return
 
+  console.log('[Sync] Starting full pull from cloud for user:', userId)
+
+  // Pull profile (name, avatar, settings) — ensures new devices get the latest
+  try {
+    const { data: cloudProfile } = await supabase
+      .from('profiles')
+      .select('name, avatar, settings')
+      .eq('id', userId)
+      .single()
+    if (cloudProfile) {
+      const localProfile = await db.profiles.get(localProfileId)
+      if (localProfile) {
+        const updated = {
+          ...localProfile,
+          name: cloudProfile.name || localProfile.name,
+          avatar: cloudProfile.avatar || localProfile.avatar,
+        }
+        await db.profiles.put(updated)
+      }
+
+      // Restore settings to localStorage if cloud has them
+      if (cloudProfile.settings && typeof cloudProfile.settings === 'object') {
+        const settings = cloudProfile.settings as Record<string, unknown>
+        if (Object.keys(settings).length > 0) {
+          const existing = localStorage.getItem('swu-settings')
+          if (!existing || existing === '{}') {
+            localStorage.setItem('swu-settings', JSON.stringify({ state: settings, version: 0 }))
+            console.log('[Sync] Restored settings from cloud')
+          }
+        }
+      }
+    }
+  } catch { /* offline */ }
+
   // Pull stats
   const cloudStats = await pullStatsFromCloud(userId, localProfileId)
   if (cloudStats) {
-    await db.playerStats.put(cloudStats)
+    // Merge: keep higher values (cloud wins if XP/wins are higher)
+    const localStats = await db.playerStats.get(localProfileId)
+    if (localStats) {
+      const merged = {
+        ...cloudStats,
+        xp: Math.max(cloudStats.xp, localStats.xp),
+        wins: Math.max(cloudStats.wins, localStats.wins),
+        losses: Math.max(cloudStats.losses, localStats.losses),
+        matchesPlayed: Math.max(cloudStats.matchesPlayed, localStats.matchesPlayed),
+        bestStreak: Math.max(cloudStats.bestStreak, localStats.bestStreak),
+        decksCreated: Math.max(cloudStats.decksCreated, localStats.decksCreated),
+        tournamentsFinished: Math.max(cloudStats.tournamentsFinished, localStats.tournamentsFinished),
+      }
+      await db.playerStats.put(merged)
+    } else {
+      await db.playerStats.put(cloudStats)
+    }
+    console.log('[Sync] Stats pulled from cloud')
   }
 
   // Pull matches
@@ -341,11 +494,12 @@ export async function pullAllFromCloud(userId: string, localProfileId: string) {
       .from('matches')
       .select('*')
       .eq('user_id', userId)
-    if (matches) {
+    if (matches && matches.length > 0) {
       for (const m of matches) {
         const localMatch = { ...m.data, id: m.id, profileId: localProfileId }
         await db.matches.put(localMatch)
       }
+      console.log(`[Sync] Pulled ${matches.length} matches`)
     }
   } catch { /* offline */ }
 
@@ -355,11 +509,18 @@ export async function pullAllFromCloud(userId: string, localProfileId: string) {
       .from('decks')
       .select('*')
       .eq('user_id', userId)
-    if (decks) {
+    if (decks && decks.length > 0) {
       for (const d of decks) {
-        const localDeck = { ...d.data, id: d.id, name: d.name, format: d.format, profileId: localProfileId }
+        const localDeck = {
+          ...d.data,
+          id: d.id,
+          name: d.name,
+          format: d.format,
+          profileId: localProfileId,
+        }
         await db.decks.put(localDeck)
       }
+      console.log(`[Sync] Pulled ${decks.length} decks`)
     }
   } catch { /* offline */ }
 
@@ -369,10 +530,11 @@ export async function pullAllFromCloud(userId: string, localProfileId: string) {
       .from('collection')
       .select('*')
       .eq('user_id', userId)
-    if (coll) {
+    if (coll && coll.length > 0) {
       for (const c of coll) {
         await db.collection.put({ cardId: c.card_id, quantity: c.quantity, profileId: localProfileId })
       }
+      console.log(`[Sync] Pulled ${coll.length} collection items`)
     }
   } catch { /* offline */ }
 
@@ -382,10 +544,13 @@ export async function pullAllFromCloud(userId: string, localProfileId: string) {
       .from('favorite_cards')
       .select('*')
       .eq('user_id', userId)
-    if (favs) {
+    if (favs && favs.length > 0) {
       for (const f of favs) {
         await db.favoriteCards.put({ cardId: f.card_id, profileId: localProfileId })
       }
+      console.log(`[Sync] Pulled ${favs.length} favorites`)
     }
   } catch { /* offline */ }
+
+  console.log('[Sync] Full pull complete')
 }
