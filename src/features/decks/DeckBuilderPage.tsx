@@ -67,7 +67,31 @@ export function DeckBuilderPage() {
   const [cardImages, setCardImages] = useState<Map<string, string>>(new Map(imgCache))
   const [backImages, setBackImages] = useState<Map<string, string>>(new Map(backImgCache))
   const loadedRef = useRef(new Set<string>())
-  const [flippedLeaders, setFlippedLeaders] = useState<Set<string>>(new Set())
+
+  // Leader flip animation: 'front' | 'to-back' | 'back' | 'to-front'
+  type FlipPhase = 'front' | 'to-back' | 'back' | 'to-front'
+  const [leaderFlip, setLeaderFlip] = useState<Record<string, FlipPhase>>({})
+  const flipTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+
+  const toggleLeaderFlip = useCallback((cardId: string) => {
+    if (flipTimers.current[cardId]) clearTimeout(flipTimers.current[cardId])
+
+    setLeaderFlip(p => {
+      const cur = p[cardId] || 'front'
+      const next: FlipPhase = (cur === 'front' || cur === 'to-front') ? 'to-back' : 'to-front'
+      return { ...p, [cardId]: next }
+    })
+
+    // After the card reaches edge (400ms), swap to final state
+    flipTimers.current[cardId] = setTimeout(() => {
+      setLeaderFlip(p => {
+        const cur = p[cardId]
+        if (cur === 'to-back') return { ...p, [cardId]: 'back' as FlipPhase }
+        if (cur === 'to-front') return { ...p, [cardId]: 'front' as FlipPhase }
+        return p
+      })
+    }, 400)
+  }, [])
 
   // Ensure DB is loaded for search
   useEffect(() => {
@@ -287,74 +311,83 @@ export function DeckBuilderPage() {
       {tab === 'deck' && (
         <div className="space-y-4">
 
-          {/* ═══ LÍDER + BASE — Landscape cards with flip animation ═══ */}
-          <div className="space-y-3">
-            {/* Leader card — HORIZONTAL / landscape */}
+          {/* ═══ LÍDER + BASE — Side by side, landscape, flip with orientation change ═══ */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* ── Leader card ── */}
             <div>
-              <p className="text-[10px] font-bold text-swu-amber mb-1 uppercase tracking-wider flex items-center gap-1">Líder</p>
+              <p className="text-[10px] font-bold text-swu-amber mb-1 uppercase tracking-wider">Líder</p>
               {deck.leaders.length === 0 ? (
                 <div className="aspect-[7/5] bg-swu-surface rounded-xl border border-dashed border-swu-amber/30 flex flex-col items-center justify-center gap-1">
-                  <Search size={20} className="text-swu-amber/30" />
-                  <p className="text-[9px] text-swu-muted">Buscar Líder</p>
+                  <Search size={16} className="text-swu-amber/30" />
+                  <p className="text-[9px] text-swu-muted">Buscar</p>
                 </div>
               ) : deck.leaders.map((c) => {
                 const img = cardImages.get(c.cardId)
                 const backImg = backImages.get(c.cardId)
-                const isFlipped = flippedLeaders.has(c.cardId)
-                const toggleFlip = () => {
-                  setFlippedLeaders(prev => {
-                    const ns = new Set(prev)
-                    if (ns.has(c.cardId)) ns.delete(c.cardId); else ns.add(c.cardId)
-                    return ns
-                  })
-                }
+                const phase = leaderFlip[c.cardId] || 'front'
+                const showBack = phase === 'back' || phase === 'to-front'
+                const isEdge = phase === 'to-back' || phase === 'to-front'
+                const isPortrait = phase === 'back' || phase === 'to-front'
+
                 return (
                   <div key={c.cardId} className="relative group">
-                    {/* 3D Flip container */}
-                    <div className="aspect-[7/5] [perspective:1000px]">
+                    {/* Outer container — aspect ratio transitions from landscape to portrait */}
+                    <div
+                      className="rounded-xl border-2 border-swu-amber/40 bg-swu-bg overflow-hidden"
+                      style={{
+                        aspectRatio: isPortrait ? '5 / 7' : '7 / 5',
+                        transition: 'aspect-ratio 0.4s ease-in-out',
+                      }}
+                    >
+                      {/* Inner card — rotates to edge during flip */}
                       <div
-                        className="relative w-full h-full transition-transform duration-700 [transform-style:preserve-3d]"
-                        style={{ transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
+                        className="w-full h-full"
+                        style={{
+                          transform: isEdge
+                            ? 'perspective(800px) rotateY(90deg) scale(0.92)'
+                            : 'perspective(800px) rotateY(0deg) scale(1)',
+                          transition: 'transform 0.4s ease-in-out',
+                        }}
                       >
-                        {/* Front face */}
-                        <div className="absolute inset-0 [backface-visibility:hidden] bg-swu-bg rounded-xl border-2 border-swu-amber/40 overflow-hidden">
-                          {img ? (
-                            <img src={img} alt={c.name} className="w-full h-full object-cover" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Loader2 size={24} className="text-swu-amber/30 animate-spin" />
-                            </div>
-                          )}
-                        </div>
-                        {/* Back face */}
-                        <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] bg-swu-bg rounded-xl border-2 border-swu-amber/40 overflow-hidden">
-                          {backImg ? (
+                        {showBack ? (
+                          backImg ? (
                             <img src={backImg} alt={`${c.name} reverso`} className="w-full h-full object-cover" loading="lazy" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-swu-amber/10 to-swu-surface">
-                              <p className="text-xs text-swu-muted">Sin reverso</p>
+                              <p className="text-[9px] text-swu-muted">Sin reverso</p>
                             </div>
-                          )}
-                        </div>
+                          )
+                        ) : (
+                          img ? (
+                            <img src={img} alt={c.name} className="w-full h-full object-cover" loading="lazy" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Loader2 size={20} className="text-swu-amber/30 animate-spin" />
+                            </div>
+                          )
+                        )}
                       </div>
                     </div>
+
                     {/* Flip button */}
                     {backImg && (
                       <button
-                        onClick={toggleFlip}
-                        className="absolute bottom-12 left-2 w-8 h-8 rounded-full bg-black/70 text-swu-amber flex items-center justify-center shadow-lg active:scale-90 transition-transform z-10"
+                        onClick={() => toggleLeaderFlip(c.cardId)}
+                        className="absolute bottom-8 left-1.5 w-7 h-7 rounded-full bg-black/70 text-swu-amber flex items-center justify-center shadow-lg active:scale-90 transition-transform z-10"
                         title="Voltear carta"
                       >
-                        <RotateCw size={14} className={`transition-transform duration-500 ${isFlipped ? 'rotate-180' : ''}`} />
+                        <RotateCw size={12} className={`transition-transform duration-500 ${showBack ? 'rotate-180' : ''}`} />
                       </button>
                     )}
+
                     {/* Remove button */}
                     <button
                       onClick={() => removeCard('leaders', c.cardId)}
-                      className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 text-swu-red flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity active:opacity-100 z-10"
+                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 text-swu-red flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity active:opacity-100 z-10"
                     >
-                      <X size={14} />
+                      <X size={12} />
                     </button>
+
                     <p className="text-[10px] font-bold text-swu-text mt-1 truncate text-center">{c.name}</p>
                     {c.subtitle && <p className="text-[8px] text-swu-muted truncate text-center">{c.subtitle}</p>}
                   </div>
@@ -362,13 +395,13 @@ export function DeckBuilderPage() {
               })}
             </div>
 
-            {/* Base card — HORIZONTAL / landscape */}
+            {/* ── Base card — always landscape ── */}
             <div>
               <p className="text-[10px] font-bold text-swu-green mb-1 uppercase tracking-wider">Base</p>
               {!deck.base ? (
                 <div className="aspect-[7/5] bg-swu-surface rounded-xl border border-dashed border-swu-green/30 flex flex-col items-center justify-center gap-1">
-                  <Search size={20} className="text-swu-green/30" />
-                  <p className="text-[9px] text-swu-muted">Buscar Base</p>
+                  <Search size={16} className="text-swu-green/30" />
+                  <p className="text-[9px] text-swu-muted">Buscar</p>
                 </div>
               ) : (() => {
                 const img = cardImages.get(deck.base!.cardId)
@@ -379,15 +412,15 @@ export function DeckBuilderPage() {
                         <img src={img} alt={deck.base!.name} className="w-full h-full object-cover" loading="lazy" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <Loader2 size={24} className="text-swu-green/30 animate-spin" />
+                          <Loader2 size={20} className="text-swu-green/30 animate-spin" />
                         </div>
                       )}
                     </div>
                     <button
                       onClick={() => removeCard('base', '')}
-                      className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 text-swu-red flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity active:opacity-100 z-10"
+                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 text-swu-red flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity active:opacity-100 z-10"
                     >
-                      <X size={14} />
+                      <X size={12} />
                     </button>
                     <p className="text-[10px] font-bold text-swu-text mt-1 truncate text-center">{deck.base!.name}</p>
                     {deck.base!.subtitle && <p className="text-[8px] text-swu-muted truncate text-center">{deck.base!.subtitle}</p>}
