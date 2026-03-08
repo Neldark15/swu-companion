@@ -123,7 +123,7 @@ export function JoinEventPage() {
   const codeValid = code.length >= 4
 
   return (
-    <div className="p-4 lg:p-6 space-y-5 pb-24 lg:pb-8 max-w-5xl mx-auto">
+    <div className="p-4 lg:p-6 space-y-5 pb-8 lg:pb-8 max-w-5xl mx-auto">
       <button onClick={() => navigate('/events')} className="flex items-center gap-1 text-sm text-swu-muted">
         <ChevronLeft size={18} /> Volver
       </button>

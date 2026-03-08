@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Header } from './Header'
-import { TabBar } from './TabBar'
 import { SideNav } from './SideNav'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -23,10 +22,9 @@ export function AppLayout() {
         {/* Mobile: constrained width. Desktop: full width with max */}
         <div className="max-w-lg lg:max-w-full mx-auto min-h-screen relative">
           <Header />
-          <main className="pb-20 lg:pb-6 overflow-y-auto">
+          <main className="pb-6 overflow-y-auto">
             <Outlet />
           </main>
-          <TabBar />
         </div>
       </div>
     </div>

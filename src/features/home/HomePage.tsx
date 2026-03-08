@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Trophy, Layers, Dice6, User, LogIn, BookOpen, BarChart3, ExternalLink, Package, Skull, ScrollText, Medal } from 'lucide-react'
+import { Trophy, Layers, Dice6, User, LogIn, BookOpen, ExternalLink, Package, Skull, ScrollText, Medal, Swords, Shield } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
 /* Avatar helper: detect image-based avatar vs emoji */
@@ -11,6 +11,16 @@ const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormt
  *  ──────────────────────────────────────────── */
 
 const mainSystems = [
+  {
+    icon: Swords,
+    label: 'Duelo',
+    sub: 'Tracker en vivo',
+    textClass: 'text-swu-red',
+    iconBg: 'bg-swu-red/10 border-swu-red/20',
+    notchBg: 'bg-swu-red/40',
+    glow: 'shadow-[0_0_18px_rgba(239,68,68,0.15)]',
+    to: '/play',
+  },
   {
     icon: ScrollText,
     label: 'Holocrón de Duelos',
@@ -72,8 +82,8 @@ const mainSystems = [
     to: '/decks',
   },
   {
-    icon: BarChart3,
-    label: 'Ranking',
+    icon: Shield,
+    label: 'Consejo Jedi',
     sub: 'Leaderboard mensual',
     textClass: 'text-swu-amber',
     iconBg: 'bg-swu-amber/10 border-swu-amber/20',
@@ -108,7 +118,7 @@ export function HomePage() {
   const { currentProfile } = useAuth()
 
   return (
-    <div className="min-h-screen bg-swu-bg pb-28">
+    <div className="min-h-screen bg-swu-bg pb-8">
       {/* ── Cockpit Header with Banner ── */}
       <div className="relative overflow-hidden">
         {/* Banner background image */}

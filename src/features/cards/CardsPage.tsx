@@ -140,7 +140,7 @@ export function CardsPage() {
   const mainSets = sets.filter((s) => !['C24', 'C25', 'P25', 'P26', 'GG', 'J24', 'J25', 'G25', 'TS26', 'IBH'].includes(s.code))
 
   return (
-    <div className="p-4 lg:p-6 space-y-3 pb-24 lg:pb-8 max-w-5xl mx-auto">
+    <div className="p-4 lg:p-6 space-y-3 pb-8 lg:pb-8 max-w-5xl mx-auto">
       {/* Database loading indicator */}
       {dbLoading && (
         <div className="bg-swu-accent/10 border border-swu-accent/30 rounded-xl p-4 flex items-center gap-3">

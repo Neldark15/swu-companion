@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Hexagon, Layers, BookOpen, Dice6, Package, Skull, Medal, type LucideIcon } from 'lucide-react'
+import { Hexagon, Layers, BookOpen, Dice6, Package, Skull, Medal, Swords, ScrollText, Trophy, Shield, type LucideIcon } from 'lucide-react'
 
 type NavItem =
   | { id: string; label: string; sub: string; icon: LucideIcon; img?: undefined }
@@ -7,17 +7,18 @@ type NavItem =
 
 const mainNav: NavItem[] = [
   { id: '/', label: 'Base', sub: 'Centro de mando', icon: Hexagon },
-  { id: '/arena', label: 'Holocrón', sub: 'Registro de duelos', img: '/jugar-icon.png' },
+  { id: '/play', label: 'Duelo', sub: 'Tracker en vivo', icon: Swords },
+  { id: '/arena', label: 'Holocrón', sub: 'Registro de duelos', icon: ScrollText },
   { id: '/melee', label: 'Circuito', sub: 'Melee.gg', icon: Medal },
-  { id: '/events', label: 'Eventos', sub: 'Torneos', img: '/eventos-icon.png' },
-  { id: '/rank', label: 'Consejo', sub: 'Leaderboard', img: '/consejo-icon.png' },
-  { id: '/profile', label: 'Holocrón', sub: 'Mi perfil', img: '/holocron-icon.png' },
+  { id: '/events', label: 'Torneo', sub: 'Eventos organizados', icon: Trophy },
+  { id: '/profile', label: 'Mi Perfil', sub: 'Holocrón', img: '/holocron-icon.png' },
 ]
 
 const secondaryNav: NavItem[] = [
   { id: '/collection', label: 'Mi Botín', sub: 'Colección', icon: Package },
   { id: '/explore', label: 'Contrabando', sub: 'Explorar', icon: Skull },
   { id: '/decks', label: 'Mis Decks', sub: 'Constructor', icon: BookOpen },
+  { id: '/rank', label: 'Consejo Jedi', sub: 'Leaderboard', icon: Shield },
   { id: '/cards', label: 'Buscar Cartas', sub: 'Base de datos', icon: Layers },
   { id: '/utilities', label: 'Utilidades', sub: 'Herramientas', icon: Dice6 },
 ]

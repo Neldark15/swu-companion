@@ -155,7 +155,7 @@ export function EventsPage() {
   }
 
   return (
-    <div className="p-4 lg:p-6 space-y-5 pb-24 lg:pb-8 max-w-5xl mx-auto">
+    <div className="p-4 lg:p-6 space-y-5 pb-8 lg:pb-8 max-w-5xl mx-auto">
       {/* Header with SWU logo */}
       <div className="flex items-center gap-3">
         <img src="/swu-logo-sm.png" alt="SWU" className="w-36 h-42 object-contain" />

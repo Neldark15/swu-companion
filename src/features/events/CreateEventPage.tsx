@@ -215,7 +215,7 @@ export function CreateEventPage() {
 
   // ─── FORM VIEW ─────────────────────────────────────────────
   return (
-    <div className="p-4 space-y-5 pb-24">
+    <div className="p-4 space-y-5 pb-8">
       <button onClick={() => navigate('/events')} className="flex items-center gap-1 text-sm text-swu-muted">
         <ChevronLeft size={18} /> Volver
       </button>

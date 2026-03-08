@@ -75,7 +75,7 @@ export function ArenaPage() {
   }
 
   return (
-    <div className="p-4 lg:p-6 pb-24 lg:pb-8 max-w-5xl mx-auto space-y-4">
+    <div className="p-4 lg:p-6 pb-8 lg:pb-8 max-w-5xl mx-auto space-y-4">
       {/* Banner */}
       <div className="relative overflow-hidden rounded-2xl border border-swu-amber/20 bg-gradient-to-br from-swu-surface via-swu-surface to-swu-amber/5 p-5">
         <div

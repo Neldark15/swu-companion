@@ -38,7 +38,7 @@ export function ArenaFeedPage() {
   }
 
   return (
-    <div className="p-4 lg:p-6 pb-24 lg:pb-8 max-w-5xl mx-auto space-y-3">
+    <div className="p-4 lg:p-6 pb-8 lg:pb-8 max-w-5xl mx-auto space-y-3">
       {/* Header */}
       <div className="flex items-center gap-3">
         <button onClick={() => navigate('/arena')} className="text-swu-muted">
