@@ -303,11 +303,22 @@ export async function getExploreProfiles(limit = 50): Promise<PublicProfile[]> {
   if (!isSupabaseReady()) return []
 
   try {
-    const { data } = await supabase
+    // Try updated_at first, fall back to created_at
+    let { data, error } = await supabase
       .from('profiles')
       .select('id, name, avatar, bio, is_public')
       .order('updated_at', { ascending: false })
       .limit(limit)
+
+    // If updated_at doesn't exist yet, try created_at
+    if (error || !data) {
+      const fallback = await supabase
+        .from('profiles')
+        .select('id, name, avatar, bio, is_public')
+        .order('created_at', { ascending: false })
+        .limit(limit)
+      data = fallback.data
+    }
 
     if (!data) return []
 
