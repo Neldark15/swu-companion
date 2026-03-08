@@ -234,15 +234,13 @@ export async function pullDecksFromCloud(userId: string): Promise<boolean> {
       .eq('user_id', userId)
     if (error || !decks) return false
 
-    for (const d of decks) {
-      const localDeck = {
-        ...d.data,
-        id: d.id,
-        name: d.name,
-        format: d.format,
-      }
-      await db.decks.put(localDeck)
-    }
+    const localDecks = decks.map(d => ({
+      ...d.data,
+      id: d.id,
+      name: d.name,
+      format: d.format,
+    }))
+    await db.decks.bulkPut(localDecks)
     return true
   } catch {
     return false
@@ -488,69 +486,42 @@ export async function pullAllFromCloud(userId: string, localProfileId: string) {
     console.log('[Sync] Stats pulled from cloud')
   }
 
-  // Pull matches
-  try {
-    const { data: matches } = await supabase
-      .from('matches')
-      .select('*')
-      .eq('user_id', userId)
-    if (matches && matches.length > 0) {
-      for (const m of matches) {
-        const localMatch = { ...m.data, id: m.id, profileId: localProfileId }
-        await db.matches.put(localMatch)
+  // Pull matches, decks, collection, favorites — ALL IN PARALLEL with bulkPut
+  const results = await Promise.allSettled([
+    // Matches
+    supabase.from('matches').select('*').eq('user_id', userId).then(({ data }) => {
+      if (data && data.length > 0) {
+        const items = data.map(m => ({ ...m.data, id: m.id, profileId: localProfileId }))
+        return db.matches.bulkPut(items).then(() => console.log(`[Sync] Pulled ${data.length} matches`))
       }
-      console.log(`[Sync] Pulled ${matches.length} matches`)
-    }
-  } catch { /* offline */ }
+    }),
+    // Decks
+    supabase.from('decks').select('*').eq('user_id', userId).then(({ data }) => {
+      if (data && data.length > 0) {
+        const items = data.map(d => ({ ...d.data, id: d.id, name: d.name, format: d.format, profileId: localProfileId }))
+        return db.decks.bulkPut(items).then(() => console.log(`[Sync] Pulled ${data.length} decks`))
+      }
+    }),
+    // Collection
+    supabase.from('collection').select('*').eq('user_id', userId).then(({ data }) => {
+      if (data && data.length > 0) {
+        const items = data.map(c => ({ cardId: c.card_id, quantity: c.quantity, profileId: localProfileId }))
+        return db.collection.bulkPut(items).then(() => console.log(`[Sync] Pulled ${data.length} collection items`))
+      }
+    }),
+    // Favorites
+    supabase.from('favorite_cards').select('*').eq('user_id', userId).then(({ data }) => {
+      if (data && data.length > 0) {
+        const items = data.map(f => ({ cardId: f.card_id, profileId: localProfileId }))
+        return db.favoriteCards.bulkPut(items).then(() => console.log(`[Sync] Pulled ${data.length} favorites`))
+      }
+    }),
+  ])
 
-  // Pull decks
-  try {
-    const { data: decks } = await supabase
-      .from('decks')
-      .select('*')
-      .eq('user_id', userId)
-    if (decks && decks.length > 0) {
-      for (const d of decks) {
-        const localDeck = {
-          ...d.data,
-          id: d.id,
-          name: d.name,
-          format: d.format,
-          profileId: localProfileId,
-        }
-        await db.decks.put(localDeck)
-      }
-      console.log(`[Sync] Pulled ${decks.length} decks`)
-    }
-  } catch { /* offline */ }
-
-  // Pull collection
-  try {
-    const { data: coll } = await supabase
-      .from('collection')
-      .select('*')
-      .eq('user_id', userId)
-    if (coll && coll.length > 0) {
-      for (const c of coll) {
-        await db.collection.put({ cardId: c.card_id, quantity: c.quantity, profileId: localProfileId })
-      }
-      console.log(`[Sync] Pulled ${coll.length} collection items`)
-    }
-  } catch { /* offline */ }
-
-  // Pull favorites
-  try {
-    const { data: favs } = await supabase
-      .from('favorite_cards')
-      .select('*')
-      .eq('user_id', userId)
-    if (favs && favs.length > 0) {
-      for (const f of favs) {
-        await db.favoriteCards.put({ cardId: f.card_id, profileId: localProfileId })
-      }
-      console.log(`[Sync] Pulled ${favs.length} favorites`)
-    }
-  } catch { /* offline */ }
+  // Log any failures
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') console.warn(`[Sync] Pull #${i} failed:`, r.reason)
+  })
 
   console.log('[Sync] Full pull complete')
 }

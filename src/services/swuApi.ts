@@ -327,18 +327,32 @@ async function searchLocalCards(params: SearchParams): Promise<{ cards: Card[]; 
   return { cards: paged, total }
 }
 
+// ─── In-memory card cache (avoids repeated Dexie lookups) ───
+
+const _cardMemCache = new Map<string, Card>()
+
 // ─── Single card ───
 
 export async function getCardById(id: string): Promise<Card | null> {
-  const local = await db.cards.get(id)
-  if (local) return local
+  // 1. Memory cache (instant)
+  const mem = _cardMemCache.get(id)
+  if (mem) return mem
 
+  // 2. IndexedDB
+  const local = await db.cards.get(id)
+  if (local) {
+    _cardMemCache.set(id, local)
+    return local
+  }
+
+  // 3. Network fallback
   try {
     const res = await fetch(`${API_BASE}/cards/${id}?format=json`)
     if (res.ok) {
       const data = await res.json()
       if (data.card) {
         const card = mapApiCard(data.card)
+        _cardMemCache.set(id, card)
         await db.cards.put(card).catch(() => {})
         return card
       }
@@ -348,6 +362,47 @@ export async function getCardById(id: string): Promise<Card | null> {
   }
 
   return null
+}
+
+/**
+ * Batch load multiple cards at once (single Dexie query).
+ * Much faster than calling getCardById() in a loop.
+ */
+export async function getCardsByIds(ids: string[]): Promise<Map<string, Card>> {
+  const result = new Map<string, Card>()
+  if (ids.length === 0) return result
+
+  // Check memory cache first
+  const missing: string[] = []
+  for (const id of ids) {
+    const mem = _cardMemCache.get(id)
+    if (mem) {
+      result.set(id, mem)
+    } else {
+      missing.push(id)
+    }
+  }
+
+  if (missing.length === 0) return result
+
+  // Single Dexie batch query
+  try {
+    const cards = await db.cards.where('id').anyOf(missing).toArray()
+    for (const card of cards) {
+      _cardMemCache.set(card.id, card)
+      result.set(card.id, card)
+    }
+  } catch {
+    // fallback: individual lookups
+    for (const id of missing) {
+      if (!result.has(id)) {
+        const card = await getCardById(id)
+        if (card) result.set(id, card)
+      }
+    }
+  }
+
+  return result
 }
 
 // ─── Sets ───

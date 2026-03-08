@@ -5,7 +5,7 @@ import {
   AlertTriangle, CheckCircle2, Loader2, BookOpen, Layers, Package, RotateCw,
 } from 'lucide-react'
 import { db } from '../../services/db'
-import { searchCards, loadFullDatabase, isDatabaseReady, getCardById } from '../../services/swuApi'
+import { searchCards, loadFullDatabase, isDatabaseReady, getCardById, getCardsByIds } from '../../services/swuApi'
 import { validateDeck, canAddCard, getEffectiveMinDeckSize, getFormatRules } from '../../services/deckValidator'
 import { syncDeckToCloud } from '../../services/sync'
 import { useAuth } from '../../hooks/useAuth'
@@ -153,18 +153,14 @@ export function DeckBuilderPage() {
 
     toFetch.forEach(cid => loadedRef.current.add(cid))
 
-    Promise.all(
-      toFetch.map(async (cid) => {
-        const card = await getCardById(cid)
-        return { cid, url: card?.imageUrl || '', backUrl: card?.backImageUrl || '' }
-      })
-    ).then((results) => {
+    // Batch load all card data in a single Dexie query
+    getCardsByIds(toFetch).then((cardMap) => {
       const newMap = new Map(imgCache)
       const newBackMap = new Map(backImgCache)
-      results.forEach(({ cid, url, backUrl }) => {
-        if (url) { newMap.set(cid, url); imgCache.set(cid, url) }
-        if (backUrl) { newBackMap.set(cid, backUrl); backImgCache.set(cid, backUrl) }
-      })
+      for (const [cid, card] of cardMap) {
+        if (card.imageUrl) { newMap.set(cid, card.imageUrl); imgCache.set(cid, card.imageUrl) }
+        if (card.backImageUrl) { newBackMap.set(cid, card.backImageUrl); backImgCache.set(cid, card.backImageUrl) }
+      }
       setCardImages(new Map(newMap))
       setBackImages(new Map(newBackMap))
     })

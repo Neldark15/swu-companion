@@ -5,7 +5,7 @@ import {
   Package, DollarSign, Layers, TrendingUp,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-import { getCardById } from '../../services/swuApi'
+import { getCardsByIds } from '../../services/swuApi'
 import {
   getMyCollectionWithPrices,
   updateCollectionQuantity,
@@ -47,15 +47,9 @@ export function CollectionPage() {
         if (cancelled) return
         setItems(collItems)
 
-        // Load card details for each item
-        const cardMap = new Map<string, Card>()
-        const promises = collItems.map(async (item) => {
-          try {
-            const card = await getCardById(item.cardId)
-            if (card) cardMap.set(item.cardId, card)
-          } catch { /* skip */ }
-        })
-        await Promise.all(promises)
+        // Load card details in a single batch query
+        const cardIds = collItems.map(i => i.cardId)
+        const cardMap = await getCardsByIds(cardIds)
         if (!cancelled) setCards(cardMap)
       } catch (e) {
         console.warn('[Collection] Failed to load:', e)

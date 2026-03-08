@@ -18,8 +18,11 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
   const [sessionCorrect, setSessionCorrect] = useState(0)
   const [sessionXp, setSessionXp] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [transitioning, setTransitioning] = useState(false)
-  const transitionRef = useRef(false)
+
+  // Key that changes each question to force full re-mount of options
+  const [questionKey, setQuestionKey] = useState(0)
+  // Hard lock: true = absolutely no answer clicks accepted
+  const lockedRef = useRef(false)
 
   // Load data on mount
   useEffect(() => {
@@ -52,11 +55,16 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
     setShowResult(false)
     setSessionCorrect(0)
     setSessionXp(0)
+    setQuestionKey(0)
+    lockedRef.current = false
   }
 
   const handleAnswer = useCallback(async (optionIndex: number) => {
-    // Block if already answered OR transitioning between questions
-    if (selectedAnswer !== null || transitioning || transitionRef.current) return
+    // Hard lock — if locked, reject immediately
+    if (lockedRef.current) return
+    // Already answered this question
+    if (selectedAnswer !== null) return
+
     setSelectedAnswer(optionIndex)
     setShowResult(true)
 
@@ -83,24 +91,32 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
       answeredIds: [...(prev?.answeredIds || []), question.id],
     }))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAnswer, transitioning, currentIndex, userId, onXpGained])
+  }, [selectedAnswer, currentIndex, userId, onXpGained])
 
-  const nextQuestion = useCallback(() => {
+  const nextQuestion = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    // Prevent event from bubbling to anything underneath
+    e.preventDefault()
+    e.stopPropagation()
+
+    // Lock immediately so no ghost taps can register
+    lockedRef.current = true
+
     if (currentIndex + 1 >= unanswered.length) {
       setPlaying(false)
       return
     }
-    // Block interactions during transition to prevent ghost taps
-    setTransitioning(true)
-    transitionRef.current = true
+
+    // Reset state for next question
     setSelectedAnswer(null)
     setShowResult(false)
     setCurrentIndex(prev => prev + 1)
-    // Re-enable after a short delay so touch events from "Siguiente" don't hit the new options
+    // Change key to force React to fully unmount/remount option buttons
+    setQuestionKey(prev => prev + 1)
+
+    // Unlock after a generous delay so any residual touch events are gone
     setTimeout(() => {
-      setTransitioning(false)
-      transitionRef.current = false
-    }, 400)
+      lockedRef.current = false
+    }, 500)
   }, [currentIndex, unanswered.length])
 
   if (loading) return null
@@ -137,8 +153,8 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
           ))}
         </div>
 
-        {/* Question card */}
-        <div className="bg-swu-surface rounded-xl border border-swu-border p-4 space-y-3">
+        {/* Question card — key forces full re-mount on question change */}
+        <div key={questionKey} className="bg-swu-surface rounded-xl border border-swu-border p-4 space-y-3">
           <div className="flex items-start gap-2">
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-swu-accent/20 text-swu-accent uppercase shrink-0">
               {question.category === 'swu' ? 'SWU' : 'Universo'}
@@ -146,7 +162,7 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
             <p className="text-sm font-bold text-swu-text">{question.question}</p>
           </div>
 
-          {/* Options */}
+          {/* Options — each button gets unique key with questionKey prefix to force unmount */}
           <div className="space-y-2">
             {question.options.map((option, i) => {
               let style = 'bg-swu-bg border-swu-border text-swu-text'
@@ -162,10 +178,14 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
 
               return (
                 <button
-                  key={i}
-                  onClick={() => handleAnswer(i)}
-                  disabled={showResult || transitioning}
-                  className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm font-medium transition-all active:scale-[0.98] ${style} ${transitioning ? 'pointer-events-none' : ''}`}
+                  key={`q${questionKey}-opt${i}`}
+                  onPointerUp={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleAnswer(i)
+                  }}
+                  disabled={showResult || lockedRef.current}
+                  className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm font-medium transition-all select-none touch-manipulation ${style}`}
                 >
                   <span className="text-[10px] font-bold mr-2 opacity-50">{['A', 'B', 'C', 'D'][i]}</span>
                   {option}
@@ -192,8 +212,8 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
 
           {showResult && (
             <button
-              onClick={nextQuestion}
-              className="w-full py-2.5 rounded-lg bg-swu-accent text-white text-sm font-bold flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform select-none touch-manipulation"
+              onPointerUp={nextQuestion}
+              className="w-full py-2.5 rounded-lg bg-swu-accent text-white text-sm font-bold flex items-center justify-center gap-1.5 select-none touch-manipulation"
             >
               {currentIndex + 1 >= unanswered.length ? 'Finalizar' : 'Siguiente'}
               <ChevronRight size={14} />

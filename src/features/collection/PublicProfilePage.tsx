@@ -7,7 +7,7 @@ import {
   type PublicProfile,
 } from '../../services/collectionService'
 import { getPricesForCards, formatPrice, type PriceInfo } from '../../services/pricing'
-import { getCardById } from '../../services/swuApi'
+import { getCardsByIds } from '../../services/swuApi'
 import type { Card } from '../../types'
 
 interface CollectionDisplayItem {
@@ -57,23 +57,19 @@ export function PublicProfilePage() {
         const collItems = await getPublicCollection(userId!)
         if (cancelled) return
 
-        // Load card details + prices
+        // Load card details + prices in parallel batch queries
         const cardIds = collItems.map(i => i.cardId)
-        const prices = await getPricesForCards(cardIds)
+        const [cardMap, prices] = await Promise.all([
+          getCardsByIds(cardIds),
+          getPricesForCards(cardIds),
+        ])
 
-        const displayItems: CollectionDisplayItem[] = []
-        for (const item of collItems) {
-          let card: Card | null = null
-          try {
-            card = await getCardById(item.cardId)
-          } catch { /* skip */ }
-          displayItems.push({
-            cardId: item.cardId,
-            quantity: item.quantity,
-            card,
-            price: prices.get(item.cardId) ?? null,
-          })
-        }
+        const displayItems: CollectionDisplayItem[] = collItems.map(item => ({
+          cardId: item.cardId,
+          quantity: item.quantity,
+          card: cardMap.get(item.cardId) ?? null,
+          price: prices.get(item.cardId) ?? null,
+        }))
 
         if (!cancelled) {
           displayItems.sort((a, b) =>
