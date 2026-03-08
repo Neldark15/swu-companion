@@ -15,6 +15,15 @@ export interface UserProfile {
   createdAt: number
 }
 
+export interface CardPrice {
+  cardId: string
+  marketPrice: number | null
+  lowPrice: number | null
+  highPrice: number | null
+  source: string             // 'swudb' | 'tcgapi' | 'manual'
+  lastUpdated: number
+}
+
 export class SWUDatabase extends Dexie {
   matches!: Table<MatchState, string>
   tournaments!: Table<Tournament, string>
@@ -25,6 +34,7 @@ export class SWUDatabase extends Dexie {
   wishlist!: Table<{ cardId: string; profileId?: string }, string>
   profiles!: Table<UserProfile, string>
   playerStats!: Table<PlayerStats, string>
+  cardPrices!: Table<CardPrice, string>
 
   constructor() {
     super('swu-companion')
@@ -61,7 +71,6 @@ export class SWUDatabase extends Dexie {
       wishlist: 'cardId, profileId',
       profiles: 'id, name, email, credentialId',
     }).upgrade(async (tx) => {
-      // Migrate plaintext PINs: move pin → pinPlain for lazy hashing on next login
       const profiles = tx.table('profiles')
       await profiles.toCollection().modify((profile: UserProfile) => {
         if (profile.pin && !profile.pinSalt) {
@@ -83,6 +92,20 @@ export class SWUDatabase extends Dexie {
       wishlist: 'cardId, profileId',
       profiles: 'id, name, email, credentialId',
       playerStats: 'profileId',
+    })
+
+    // v5: Add cardPrices table for price caching
+    this.version(5).stores({
+      matches: 'id, mode, isActive, createdAt, profileId',
+      tournaments: 'id, status, createdAt, profileId',
+      decks: 'id, name, format, createdAt, profileId',
+      cards: 'id, name, type, rarity, setCode, *aspects, *keywords, *traits',
+      favoriteCards: 'cardId, profileId',
+      collection: 'cardId, profileId',
+      wishlist: 'cardId, profileId',
+      profiles: 'id, name, email, credentialId',
+      playerStats: 'profileId',
+      cardPrices: 'cardId',
     })
   }
 }

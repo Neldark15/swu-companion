@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Heart, Loader2, AlertCircle, BookOpen, Star } from 'lucide-react'
+import { ChevronLeft, Heart, Loader2, AlertCircle, BookOpen, Star, Package, Plus, Minus } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { getCardById } from '../../services/swuApi'
 import { db } from '../../services/db'
 import { syncFavoriteToCloud } from '../../services/sync'
 import { useAuth } from '../../hooks/useAuth'
+import { getCardQuantity, updateCollectionQuantity } from '../../services/collectionService'
+import { formatPrice } from '../../services/pricing'
+import { getLocalPrice } from '../../services/pricing'
 import type { Card } from '../../types'
 
 const typeVariant: Record<string, 'amber' | 'accent' | 'green' | 'purple' | 'default'> = {
@@ -36,10 +39,13 @@ export function CardDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { supabaseUser } = useAuth()
+  const { currentProfileId } = useAuth()
   const [card, setCard] = useState<Card | null>(null)
   const [loading, setLoading] = useState(true)
   const [isFavorite, setIsFavorite] = useState(false)
   const [showBack, setShowBack] = useState(false)
+  const [collectionQty, setCollectionQty] = useState(0)
+  const [priceMarket, setPriceMarket] = useState<number | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -47,12 +53,23 @@ export function CardDetailPage() {
     Promise.all([
       getCardById(id),
       db.favoriteCards.get(id),
-    ]).then(([c, fav]) => {
+      getCardQuantity(id),
+      getLocalPrice(id),
+    ]).then(([c, fav, qty, price]) => {
       setCard(c)
       setIsFavorite(!!fav)
+      setCollectionQty(qty)
+      setPriceMarket(price?.market ?? null)
       setLoading(false)
     })
   }, [id])
+
+  const handleCollectionChange = async (delta: number) => {
+    if (!id) return
+    const newQty = Math.max(0, collectionQty + delta)
+    setCollectionQty(newQty)
+    await updateCollectionQuantity(id, newQty, currentProfileId ?? undefined, supabaseUser?.id)
+  }
 
   const toggleFavorite = async () => {
     if (!id) return
@@ -234,6 +251,45 @@ export function CardDetailPage() {
           <p className="text-sm text-swu-text">{card.epicAction}</p>
         </div>
       )}
+
+      {/* Collection + Price */}
+      <div className="bg-swu-accent/10 rounded-xl p-4 border border-swu-accent/30">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Package size={16} className="text-swu-accent" />
+            <span className="text-sm font-bold text-swu-accent">Colección</span>
+          </div>
+          {priceMarket != null && priceMarket > 0 && (
+            <span className="text-sm font-bold text-swu-green">{formatPrice(priceMarket)}</span>
+          )}
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-swu-muted">
+            {collectionQty > 0
+              ? `Tienes ${collectionQty} copia${collectionQty > 1 ? 's' : ''}`
+              : 'No está en tu colección'}
+          </span>
+          <div className="flex items-center gap-2">
+            {collectionQty > 0 && (
+              <button
+                onClick={() => handleCollectionChange(-1)}
+                className="w-8 h-8 rounded-lg bg-swu-surface border border-swu-border text-swu-muted
+                           flex items-center justify-center active:scale-95"
+              >
+                <Minus size={14} />
+              </button>
+            )}
+            <span className="w-8 text-center text-sm font-bold text-swu-text">{collectionQty}</span>
+            <button
+              onClick={() => handleCollectionChange(1)}
+              className="w-8 h-8 rounded-lg bg-swu-accent/20 border border-swu-accent/40 text-swu-accent
+                         flex items-center justify-center active:scale-95"
+            >
+              <Plus size={14} />
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Meta */}
       <div className="bg-swu-surface rounded-xl p-3 border border-swu-border">

@@ -22,6 +22,9 @@ import { UtilitiesPage } from './features/utilities/UtilitiesPage'
 import { ProfilePage } from './features/profile/ProfilePage'
 import { SettingsPage } from './features/settings/SettingsPage'
 import { RankingPage } from './features/rank/RankingPage'
+import { CollectionPage } from './features/collection/CollectionPage'
+import { PublicProfilePage } from './features/collection/PublicProfilePage'
+import { ExplorePage } from './features/collection/ExplorePage'
 
 export default function App() {
   return (
@@ -45,6 +48,9 @@ export default function App() {
           <Route path="/cards/:id" element={<CardDetailPage />} />
           <Route path="/decks" element={<DeckListPage />} />
           <Route path="/decks/:id" element={<DeckBuilderPage />} />
+          <Route path="/collection" element={<CollectionPage />} />
+          <Route path="/u/:userId" element={<PublicProfilePage />} />
+          <Route path="/explore" element={<ExplorePage />} />
           <Route path="/news/manage" element={<ManageNewsPage />} />
           <Route path="/utilities" element={<UtilitiesPage />} />
           <Route path="/rank" element={<RankingPage />} />

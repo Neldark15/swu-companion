@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronRight, History, Heart, Star, Layers, BookOpen, Trophy,
-  LogOut, UserPlus, User, Shield, Palette,
+  LogOut, UserPlus, User, Shield, Palette, Package, Globe,
   Fingerprint, Mail, ChevronLeft, Eye, EyeOff, Lock, KeyRound,
 } from 'lucide-react'
 import { db } from '../../services/db'
@@ -650,6 +650,8 @@ export function ProfilePage() {
   const aspectBars = playerStats ? getAspectBars(playerStats) : []
 
   const menuItems = [
+    { icon: Package, label: 'Mi Colección', to: '/collection', count: undefined, highlight: true },
+    { icon: Globe, label: 'Explorar Coleccionistas', to: '/explore' },
     { icon: History, label: 'Historial de Partidas', to: '/play/saved', count: stats.matches },
     { icon: Trophy, label: 'Mis Torneos', to: '/events/tournament', count: stats.tournaments },
     { icon: Layers, label: 'Mis Decks', to: '/decks', count: stats.decks },
@@ -762,11 +764,16 @@ export function ProfilePage() {
       <div className="space-y-1">
         {menuItems.map((item) => {
           const Icon = item.icon
+          const isHighlight = 'highlight' in item && item.highlight
           return (
             <button key={item.label} onClick={() => navigate(item.to)}
-              className="w-full bg-swu-surface rounded-xl px-4 py-3 border border-swu-border flex items-center gap-3 active:scale-[0.99] transition-transform">
-              <Icon size={18} className="text-swu-muted" />
-              <span className="flex-1 text-left text-sm font-medium text-swu-text">{item.label}</span>
+              className={`w-full rounded-xl px-4 py-3 border flex items-center gap-3 active:scale-[0.99] transition-transform ${
+                isHighlight
+                  ? 'bg-swu-accent/10 border-swu-accent/30'
+                  : 'bg-swu-surface border-swu-border'
+              }`}>
+              <Icon size={18} className={isHighlight ? 'text-swu-accent' : 'text-swu-muted'} />
+              <span className={`flex-1 text-left text-sm font-medium ${isHighlight ? 'text-swu-accent' : 'text-swu-text'}`}>{item.label}</span>
               {item.count !== undefined && <span className="text-xs text-swu-muted font-mono">{item.count}</span>}
               <ChevronRight size={16} className="text-swu-muted" />
             </button>
