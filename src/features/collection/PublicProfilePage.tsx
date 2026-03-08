@@ -1,14 +1,16 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Package, DollarSign, Layers, Lock, Search } from 'lucide-react'
+import { ArrowLeft, Package, DollarSign, Layers, Lock, Search, RefreshCw, Loader2 } from 'lucide-react'
 import {
   getPublicProfile,
   getPublicCollection,
   type PublicProfile,
 } from '../../services/collectionService'
-import { getPricesForCards, formatPrice, type PriceInfo } from '../../services/pricing'
+import { getPricesForCards, fetchTCGPrices, formatPrice, type PriceInfo } from '../../services/pricing'
 import { getCardsByIds } from '../../services/swuApi'
 import type { Card } from '../../types'
+
+const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
 
 interface CollectionDisplayItem {
   cardId: string
@@ -27,6 +29,47 @@ export function PublicProfilePage() {
   const [notFound, setNotFound] = useState(false)
   const [isPrivate, setIsPrivate] = useState(false)
   const [search, setSearch] = useState('')
+  const [refreshing, setRefreshing] = useState(false)
+  const [refreshMsg, setRefreshMsg] = useState('')
+
+  const handleRefreshPrices = async () => {
+    if (refreshing || items.length === 0) return
+    setRefreshing(true)
+    setRefreshMsg('Obteniendo precios de TCGPlayer...')
+
+    try {
+      const cardsToPrice = items
+        .filter(i => i.card)
+        .map(i => ({
+          id: i.cardId,
+          name: i.card!.name,
+          subtitle: i.card!.subtitle || null,
+          setCode: i.card!.setCode || '',
+        }))
+
+      const count = await fetchTCGPrices(cardsToPrice, (setCode, fetched) => {
+        setRefreshMsg(`${setCode}: ${fetched} precios obtenidos...`)
+      })
+
+      // Reload prices
+      const cardIds = items.map(i => i.cardId)
+      const newPrices = await getPricesForCards(cardIds)
+      setItems(prev =>
+        prev.map(item => ({
+          ...item,
+          price: newPrices.get(item.cardId) ?? item.price,
+        })),
+      )
+
+      setRefreshMsg(`${count} precios actualizados`)
+      setTimeout(() => setRefreshMsg(''), 3000)
+    } catch {
+      setRefreshMsg('Error al obtener precios')
+      setTimeout(() => setRefreshMsg(''), 3000)
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   useEffect(() => {
     if (!userId) return
@@ -165,7 +208,12 @@ export function PublicProfilePage() {
           <>
             {/* Profile header */}
             <div className="bg-swu-surface rounded-xl p-4 border border-swu-border text-center">
-              <div className="text-4xl mb-2">{profile.avatar}</div>
+              <div className="w-16 h-16 rounded-full bg-swu-bg mx-auto mb-2 flex items-center justify-center overflow-hidden">
+                {swAvatarIds.includes(profile.avatar)
+                  ? <img src={`/avatars/${profile.avatar}.png`} alt="" className="w-12 h-12 object-contain" />
+                  : <span className="text-4xl">{profile.avatar}</span>
+                }
+              </div>
               <div className="text-lg font-bold text-swu-text">{profile.name}</div>
               {profile.bio && (
                 <div className="text-sm text-swu-muted mt-1">{profile.bio}</div>
@@ -190,6 +238,24 @@ export function PublicProfilePage() {
                 <div className="text-[10px] text-swu-muted">Valor</div>
               </div>
             </div>
+
+            {/* Refresh Prices Button */}
+            {items.length > 0 && (
+              <button
+                onClick={handleRefreshPrices}
+                disabled={refreshing}
+                className="w-full py-2.5 rounded-xl bg-swu-green/10 border border-swu-green/30 text-swu-green
+                           font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all
+                           disabled:opacity-50"
+              >
+                {refreshing ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <RefreshCw size={16} />
+                )}
+                {refreshMsg || 'Actualizar Precios'}
+              </button>
+            )}
 
             {/* Search */}
             {items.length > 5 && (

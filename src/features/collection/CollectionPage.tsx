@@ -19,8 +19,16 @@ import { importCollectionFromFile, type ImportResult } from '../../services/coll
 import { CardImage } from '../../components/CardImage'
 import type { Card } from '../../types'
 
-type SortKey = 'name' | 'price' | 'quantity' | 'rarity'
+type SortKey = 'name' | 'price' | 'quantity' | 'rarity' | 'set'
 type FilterType = '' | 'Unit' | 'Event' | 'Upgrade' | 'Leader' | 'Base'
+
+const SET_LABELS: Record<string, string> = {
+  SOR: 'Spark of Rebellion',
+  SHD: 'Shadows of the Galaxy',
+  TWI: 'Twilight of the Republic',
+  JTL: 'Jump to Lightspeed',
+  ALT: 'A Lawless Time',
+}
 
 const RARITY_ORDER: Record<string, number> = {
   Legendary: 0, Special: 1, Rare: 2, Uncommon: 3, Common: 4,
@@ -37,6 +45,8 @@ export function CollectionPage() {
   const [sortBy, setSortBy] = useState<SortKey>('name')
   const [filterType, setFilterType] = useState<FilterType>('')
   const [showFilters, setShowFilters] = useState(false)
+  const [filterSet, setFilterSet] = useState('')
+  const [filterRarity, setFilterRarity] = useState('')
   const [isPublic, setIsPublic] = useState(true)
   const [fetchingPrices, setFetchingPrices] = useState(false)
   const [priceStatus, setPriceStatus] = useState('')
@@ -80,6 +90,26 @@ export function CollectionPage() {
   // Stats
   const stats = useMemo(() => calculateCollectionStats(items), [items])
 
+  // Available sets in collection
+  const availableSets = useMemo(() => {
+    const sets = new Set<string>()
+    for (const item of items) {
+      const card = cards.get(item.cardId)
+      if (card?.setCode) sets.add(card.setCode)
+    }
+    return Array.from(sets).sort()
+  }, [items, cards])
+
+  // Available rarities in collection
+  const availableRarities = useMemo(() => {
+    const rarities = new Set<string>()
+    for (const item of items) {
+      const card = cards.get(item.cardId)
+      if (card?.rarity) rarities.add(card.rarity)
+    }
+    return ['Legendary', 'Special', 'Rare', 'Uncommon', 'Common'].filter(r => rarities.has(r))
+  }, [items, cards])
+
   // Filtered + sorted items
   const displayed = useMemo(() => {
     let list = [...items]
@@ -103,6 +133,22 @@ export function CollectionPage() {
       })
     }
 
+    // Filter by set
+    if (filterSet) {
+      list = list.filter(item => {
+        const card = cards.get(item.cardId)
+        return card?.setCode === filterSet
+      })
+    }
+
+    // Filter by rarity
+    if (filterRarity) {
+      list = list.filter(item => {
+        const card = cards.get(item.cardId)
+        return card?.rarity === filterRarity
+      })
+    }
+
     // Sort
     list.sort((a, b) => {
       const ca = cards.get(a.cardId)
@@ -122,13 +168,15 @@ export function CollectionPage() {
           const rb = RARITY_ORDER[cb?.rarity ?? 'Common'] ?? 5
           return ra - rb
         }
+        case 'set':
+          return (ca?.setCode ?? '').localeCompare(cb?.setCode ?? '')
         default:
           return 0
       }
     })
 
     return list
-  }, [items, cards, search, filterType, sortBy])
+  }, [items, cards, search, filterType, filterSet, filterRarity, sortBy])
 
   // Handlers
   const handleTogglePublic = useCallback(async () => {
@@ -453,7 +501,7 @@ export function CollectionPage() {
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`p-2.5 rounded-xl border transition-colors ${
-              showFilters || filterType
+              showFilters || filterType || filterSet || filterRarity
                 ? 'bg-swu-accent/15 border-swu-accent text-swu-accent'
                 : 'bg-swu-surface border-swu-border text-swu-muted'
             }`}
@@ -465,6 +513,7 @@ export function CollectionPage() {
         {/* Filter options */}
         {showFilters && (
           <div className="bg-swu-surface rounded-xl p-3 border border-swu-border space-y-3">
+            {/* Type filter */}
             <div>
               <div className="text-xs text-swu-muted mb-2">Tipo</div>
               <div className="flex flex-wrap gap-1.5">
@@ -483,6 +532,77 @@ export function CollectionPage() {
                 ))}
               </div>
             </div>
+
+            {/* Set filter */}
+            {availableSets.length > 0 && (
+              <div>
+                <div className="text-xs text-swu-muted mb-2">Set</div>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    onClick={() => setFilterSet('')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                      filterSet === ''
+                        ? 'bg-swu-amber text-white'
+                        : 'bg-swu-bg text-swu-muted'
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  {availableSets.map(s => (
+                    <button
+                      key={s}
+                      onClick={() => setFilterSet(filterSet === s ? '' : s)}
+                      title={SET_LABELS[s] || s}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                        filterSet === s
+                          ? 'bg-swu-amber text-white'
+                          : 'bg-swu-bg text-swu-muted'
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Rarity filter */}
+            {availableRarities.length > 0 && (
+              <div>
+                <div className="text-xs text-swu-muted mb-2">Rareza</div>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    onClick={() => setFilterRarity('')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                      filterRarity === ''
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-swu-bg text-swu-muted'
+                    }`}
+                  >
+                    Todas
+                  </button>
+                  {availableRarities.map(r => (
+                    <button
+                      key={r}
+                      onClick={() => setFilterRarity(filterRarity === r ? '' : r)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                        filterRarity === r
+                          ? r === 'Legendary' ? 'bg-swu-amber text-white'
+                            : r === 'Rare' ? 'bg-swu-accent text-white'
+                            : r === 'Special' ? 'bg-purple-500 text-white'
+                            : r === 'Uncommon' ? 'bg-swu-green text-white'
+                            : 'bg-swu-muted text-white'
+                          : 'bg-swu-bg text-swu-muted'
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sort */}
             <div>
               <div className="text-xs text-swu-muted mb-2">Ordenar por</div>
               <div className="flex flex-wrap gap-1.5">
@@ -491,6 +611,7 @@ export function CollectionPage() {
                   ['price', 'Precio'],
                   ['quantity', 'Cantidad'],
                   ['rarity', 'Rareza'],
+                  ['set', 'Set'],
                 ] as [SortKey, string][]).map(([key, label]) => (
                   <button
                     key={key}
@@ -506,6 +627,35 @@ export function CollectionPage() {
                 ))}
               </div>
             </div>
+
+            {/* Active filters indicator + clear */}
+            {(filterType || filterSet || filterRarity) && (
+              <div className="flex items-center justify-between pt-1 border-t border-swu-border/50">
+                <div className="flex flex-wrap gap-1">
+                  {filterType && (
+                    <span className="px-2 py-0.5 rounded-full bg-swu-accent/15 text-swu-accent text-[10px] font-medium">
+                      {filterType}
+                    </span>
+                  )}
+                  {filterSet && (
+                    <span className="px-2 py-0.5 rounded-full bg-swu-amber/15 text-swu-amber text-[10px] font-medium">
+                      {filterSet}
+                    </span>
+                  )}
+                  {filterRarity && (
+                    <span className="px-2 py-0.5 rounded-full bg-purple-400/15 text-purple-400 text-[10px] font-medium">
+                      {filterRarity}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => { setFilterType(''); setFilterSet(''); setFilterRarity('') }}
+                  className="text-[10px] text-swu-red font-medium"
+                >
+                  Limpiar filtros
+                </button>
+              </div>
+            )}
           </div>
         )}
 
