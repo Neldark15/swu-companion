@@ -3,6 +3,27 @@ import { persist } from 'zustand/middleware'
 import { syncSettingsToCloud } from '../services/sync'
 import { useAuth } from './useAuth'
 
+// ── Accent Color System ──
+export type AccentColor = 'red' | 'green' | 'blue' | 'purple'
+
+export const ACCENT_COLORS: Record<AccentColor, string> = {
+  red:    '#EF4444',
+  green:  '#22C55E',
+  blue:   '#60A5FA',
+  purple: '#A78BFA',
+}
+
+export const ACCENT_LABELS: Record<AccentColor, string> = {
+  red:    'Rojo',
+  green:  'Verde',
+  blue:   'Azul',
+  purple: 'Púrpura',
+}
+
+export function applyAccentColor(color: AccentColor) {
+  document.documentElement.style.setProperty('--color-swu-accent', ACCENT_COLORS[color])
+}
+
 interface SettingsState {
   theme: 'dark' | 'light'
   fontSize: 'sm' | 'md' | 'lg' | 'xl'
@@ -11,12 +32,14 @@ interface SettingsState {
   showExperience: boolean
   showResources: boolean
   playerName: string
+  accentColor: AccentColor
 
   setTheme: (t: 'dark' | 'light') => void
   setFontSize: (s: 'sm' | 'md' | 'lg' | 'xl') => void
   toggleHaptic: () => void
   toggleCounter: (counter: 'showShields' | 'showExperience' | 'showResources') => void
   setPlayerName: (name: string) => void
+  setAccentColor: (c: AccentColor) => void
 }
 
 /** Debounced cloud sync for settings */
@@ -35,6 +58,7 @@ function debouncedSyncSettings() {
       showExperience: state.showExperience,
       showResources: state.showResources,
       playerName: state.playerName,
+      accentColor: state.accentColor,
     }
     syncSettingsToCloud(supabaseUser.id, settingsData).catch(() => {})
   }, 1500)
@@ -50,12 +74,14 @@ export const useSettings = create<SettingsState>()(
       showExperience: true,
       showResources: true,
       playerName: '',
+      accentColor: 'red',
 
       setTheme: (theme) => { set({ theme }); debouncedSyncSettings() },
       setFontSize: (fontSize) => { set({ fontSize }); debouncedSyncSettings() },
       toggleHaptic: () => { set((s) => ({ hapticFeedback: !s.hapticFeedback })); debouncedSyncSettings() },
       toggleCounter: (counter) => { set((s) => ({ [counter]: !s[counter] })); debouncedSyncSettings() },
       setPlayerName: (playerName) => { set({ playerName }); debouncedSyncSettings() },
+      setAccentColor: (accentColor) => { set({ accentColor }); applyAccentColor(accentColor); debouncedSyncSettings() },
     }),
     { name: 'swu-settings' }
   )

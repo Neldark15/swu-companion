@@ -42,7 +42,7 @@ export function Header() {
   const pageTitle = getPageTitle(location.pathname)
 
   return (
-    <header className="sticky top-0 z-50 bg-swu-surface border-b border-swu-border px-4 lg:px-6 py-3 flex items-center justify-between">
+    <header className="sticky top-0 z-50 bg-swu-surface shadow-[0_4px_10px_#111118] px-4 lg:px-6 py-3 flex items-center justify-between">
       {/* Mobile: logo. Desktop: page title */}
       <div className="flex items-center gap-2">
         <div className="lg:hidden flex items-center gap-2">
@@ -64,7 +64,7 @@ export function Header() {
         </button>
 
         {open && (
-          <div className="absolute right-0 top-full mt-2 w-52 bg-swu-surface border border-swu-border rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+          <div className="absolute right-0 top-full mt-2 w-52 bg-swu-surface rounded-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
             {menuItems.map((item) => (
               <button
                 key={item.path}

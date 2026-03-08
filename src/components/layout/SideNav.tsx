@@ -66,7 +66,7 @@ export function SideNav() {
   }
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 xl:w-72 bg-swu-surface border-r border-swu-border min-h-screen fixed left-0 top-0 z-40">
+    <aside className="hidden lg:flex flex-col w-64 xl:w-72 bg-swu-surface shadow-[4px_0_10px_#111118] min-h-screen fixed left-0 top-0 z-40">
       {/* Logo */}
       <div className="px-5 py-5 flex items-center gap-3 border-b border-swu-border">
         <img src="/swu-logo-title.png" alt="SWU" className="w-10 h-12 object-contain" />
