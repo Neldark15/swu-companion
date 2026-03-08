@@ -15,10 +15,10 @@ const mainNav: NavItem[] = [
 ]
 
 const secondaryNav: NavItem[] = [
-  { id: '/cards', label: 'Buscar Cartas', sub: 'Base de datos', icon: Layers },
-  { id: '/decks', label: 'Mis Decks', sub: 'Constructor', icon: BookOpen },
   { id: '/collection', label: 'Mi Botín', sub: 'Colección', icon: Package },
   { id: '/explore', label: 'Contrabando', sub: 'Explorar', icon: Skull },
+  { id: '/decks', label: 'Mis Decks', sub: 'Constructor', icon: BookOpen },
+  { id: '/cards', label: 'Buscar Cartas', sub: 'Base de datos', icon: Layers },
   { id: '/utilities', label: 'Utilidades', sub: 'Herramientas', icon: Dice6 },
 ]
 
