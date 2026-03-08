@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Settings, X } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 const menuItems = [
   { label: 'Configuración', path: '/settings' },
@@ -9,10 +9,27 @@ const menuItems = [
   { label: 'Legal / Privacidad', path: '/settings/legal' },
 ]
 
+/* Maps route to a page title for desktop breadcrumb */
+function getPageTitle(pathname: string): string {
+  if (pathname === '/') return 'Base'
+  if (pathname.startsWith('/play')) return 'Duelo'
+  if (pathname.startsWith('/events')) return 'Eventos'
+  if (pathname.startsWith('/rank')) return 'Consejo'
+  if (pathname.startsWith('/profile')) return 'Holocrón'
+  if (pathname.startsWith('/cards')) return 'Buscar Cartas'
+  if (pathname.startsWith('/decks')) return 'Mis Decks'
+  if (pathname.startsWith('/collection')) return 'Mi Botín'
+  if (pathname.startsWith('/explore')) return 'Contrabando'
+  if (pathname.startsWith('/utilities')) return 'Utilidades'
+  if (pathname.startsWith('/settings')) return 'Configuración'
+  return 'SWU Companion'
+}
+
 export function Header() {
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const location = useLocation()
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -22,11 +39,19 @@ export function Header() {
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
+  const pageTitle = getPageTitle(location.pathname)
+
   return (
-    <header className="sticky top-0 z-50 bg-swu-surface border-b border-swu-border px-4 py-3 flex items-center justify-between">
+    <header className="sticky top-0 z-50 bg-swu-surface border-b border-swu-border px-4 lg:px-6 py-3 flex items-center justify-between">
+      {/* Mobile: logo. Desktop: page title */}
       <div className="flex items-center gap-2">
-        <span className="text-lg font-extrabold text-swu-amber tracking-tight">SWU</span>
-        <span className="text-base font-semibold text-swu-text">Companion</span>
+        <div className="lg:hidden flex items-center gap-2">
+          <span className="text-lg font-extrabold text-swu-amber tracking-tight">SWU</span>
+          <span className="text-base font-semibold text-swu-text">Companion</span>
+        </div>
+        <div className="hidden lg:flex items-center gap-3">
+          <h1 className="text-lg font-bold text-swu-text">{pageTitle}</h1>
+        </div>
       </div>
 
       <div className="relative" ref={menuRef}>

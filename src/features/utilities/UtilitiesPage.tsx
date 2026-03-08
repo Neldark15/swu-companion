@@ -72,7 +72,7 @@ export function UtilitiesPage() {
   }
 
   return (
-    <div className="p-4 space-y-5 pb-24">
+    <div className="p-4 lg:p-6 space-y-5 pb-24 lg:pb-8 max-w-5xl mx-auto">
       <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-swu-muted">
         <ChevronLeft size={18} /> Volver
       </button>

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Header } from './Header'
 import { TabBar } from './TabBar'
+import { SideNav } from './SideNav'
 import { useAuth } from '../../hooks/useAuth'
 
 export function AppLayout() {
@@ -13,12 +14,21 @@ export function AppLayout() {
   }, [initAuth])
 
   return (
-    <div className="max-w-lg mx-auto min-h-screen bg-swu-bg relative">
-      <Header />
-      <main className="pb-20 overflow-y-auto">
-        <Outlet />
-      </main>
-      <TabBar />
+    <div className="min-h-screen bg-swu-bg">
+      {/* Desktop sidebar — hidden on mobile */}
+      <SideNav />
+
+      {/* Main content area */}
+      <div className="lg:ml-64 xl:ml-72">
+        {/* Mobile: constrained width. Desktop: full width with max */}
+        <div className="max-w-lg lg:max-w-full mx-auto min-h-screen relative">
+          <Header />
+          <main className="pb-20 lg:pb-6 overflow-y-auto">
+            <Outlet />
+          </main>
+          <TabBar />
+        </div>
+      </div>
     </div>
   )
 }

@@ -272,7 +272,7 @@ export function ProfilePage() {
   if (view === 'select') {
     const profilesWithPasskey = profiles.filter(p => p.credentialId)
     return (
-      <div className="p-4 space-y-5 pb-24">
+      <div className="p-4 lg:p-6 space-y-5 pb-24 lg:pb-8 max-w-5xl mx-auto">
         <div className="text-center pt-2">
           <User size={40} className="mx-auto text-swu-accent mb-2" />
           <h2 className="text-lg font-bold text-swu-text">Bienvenido</h2>
@@ -327,7 +327,7 @@ export function ProfilePage() {
   // ═══════════════════════════════════════════════════════════════════
   if (view === 'register') {
     return (
-      <div className="p-4 space-y-5 pb-24">
+      <div className="p-4 lg:p-6 space-y-5 pb-24 lg:pb-8 max-w-5xl mx-auto">
         <BackButton to="select" />
         <div className="text-center">
           <div className="flex justify-center mb-2">
@@ -409,7 +409,7 @@ export function ProfilePage() {
   // ═══════════════════════════════════════════════════════════════════
   if (view === 'register-passkey') {
     return (
-      <div className="p-4 space-y-5 pb-24">
+      <div className="p-4 lg:p-6 space-y-5 pb-24 lg:pb-8 max-w-5xl mx-auto">
         <div className="text-center pt-4">
           <Fingerprint size={56} className="mx-auto text-swu-accent mb-3" />
           <h2 className="text-lg font-bold text-swu-text">Inicio Rápido</h2>
@@ -442,7 +442,7 @@ export function ProfilePage() {
   // ═══════════════════════════════════════════════════════════════════
   if (view === 'login') {
     return (
-      <div className="p-4 space-y-5 pb-24">
+      <div className="p-4 lg:p-6 space-y-5 pb-24 lg:pb-8 max-w-5xl mx-auto">
         <BackButton to="select" />
         <div className="text-center">
           <Lock size={40} className="mx-auto text-swu-accent mb-2" />
@@ -500,7 +500,7 @@ export function ProfilePage() {
   // ═══════════════════════════════════════════════════════════════════
   if (view === 'forgot-password') {
     return (
-      <div className="p-4 space-y-5 pb-24">
+      <div className="p-4 lg:p-6 space-y-5 pb-24 lg:pb-8 max-w-5xl mx-auto">
         <BackButton to="login" />
         <div className="text-center">
           <Mail size={40} className="mx-auto text-swu-accent mb-2" />
@@ -540,7 +540,7 @@ export function ProfilePage() {
   // ═══════════════════════════════════════════════════════════════════
   if (view === 'customize') {
     return (
-      <div className="p-4 space-y-5 pb-24">
+      <div className="p-4 lg:p-6 space-y-5 pb-24 lg:pb-8 max-w-5xl mx-auto">
         <BackButton to="profile" />
         <div className="text-center">
           <div className="flex justify-center mb-2">
@@ -584,7 +584,7 @@ export function ProfilePage() {
   // ═══════════════════════════════════════════════════════════════════
   if (view === 'security') {
     return (
-      <div className="p-4 space-y-5 pb-24">
+      <div className="p-4 lg:p-6 space-y-5 pb-24 lg:pb-8 max-w-5xl mx-auto">
         <BackButton to="profile" />
         <div className="text-center">
           <Shield size={40} className="mx-auto text-swu-accent mb-2" />
@@ -660,7 +660,7 @@ export function ProfilePage() {
   ]
 
   return (
-    <div className="p-4 space-y-4 pb-24">
+    <div className="p-4 lg:p-6 space-y-4 pb-24 lg:pb-8 max-w-5xl mx-auto">
       {/* Header with level */}
       <div className="bg-gradient-to-br from-swu-accent/15 to-amber-500/10 rounded-2xl p-4 border border-swu-accent/20">
         <div className="flex items-center gap-3 mb-3">

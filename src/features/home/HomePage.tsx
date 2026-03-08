@@ -191,7 +191,7 @@ export function HomePage() {
       </div>
 
       {/* ── Main Systems Grid (ship console buttons) ── */}
-      <div className="px-5 pt-2 grid grid-cols-2 gap-3">
+      <div className="px-5 pt-2 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4">
         {mainSystems.map((sys) => {
           const Icon = sys.icon
           return (

@@ -131,7 +131,7 @@ export function DeckListPage() {
   }
 
   return (
-    <div className="p-4 space-y-4 pb-24">
+    <div className="p-4 lg:p-6 space-y-4 pb-24 lg:pb-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-swu-text">Mis Decks</h2>
         <button

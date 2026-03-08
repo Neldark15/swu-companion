@@ -246,7 +246,7 @@ export function CollectionPage() {
     <div className="min-h-screen bg-swu-bg pb-24">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-swu-bg/95 backdrop-blur border-b border-swu-border">
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
+        <div className="max-w-lg lg:max-w-5xl mx-auto px-4 lg:px-6 py-3 flex items-center gap-3">
           <button onClick={() => navigate(-1)} className="text-swu-muted">
             <ArrowLeft size={20} />
           </button>
@@ -273,9 +273,9 @@ export function CollectionPage() {
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
+      <div className="max-w-lg lg:max-w-5xl mx-auto px-4 lg:px-6 py-4 space-y-4">
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 lg:grid-cols-4 gap-2 lg:gap-3">
           <div className="bg-swu-surface rounded-xl p-3 text-center border border-swu-border">
             <Package size={16} className="mx-auto text-swu-accent mb-1" />
             <div className="text-lg font-bold text-swu-text">{stats.uniqueCards}</div>
@@ -533,10 +533,11 @@ export function CollectionPage() {
 
         {/* Card list */}
         {!loading && displayed.length > 0 && (
-          <div className="space-y-1.5">
-            <div className="text-xs text-swu-muted px-1">
+          <div>
+            <div className="text-xs text-swu-muted px-1 mb-1.5">
               {displayed.length} carta{displayed.length !== 1 ? 's' : ''}
             </div>
+            <div className="space-y-1.5 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0">
             {displayed.map(item => {
               const card = cards.get(item.cardId)
               return (
@@ -603,6 +604,7 @@ export function CollectionPage() {
                 </div>
               )
             })}
+            </div>
           </div>
         )}
 

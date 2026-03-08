@@ -124,7 +124,7 @@ export function PublicProfilePage() {
     <div className="min-h-screen bg-swu-bg pb-24">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-swu-bg/95 backdrop-blur border-b border-swu-border">
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
+        <div className="max-w-lg lg:max-w-5xl mx-auto px-4 lg:px-6 py-3 flex items-center gap-3">
           <button onClick={() => navigate(-1)} className="text-swu-muted">
             <ArrowLeft size={20} />
           </button>
@@ -134,7 +134,7 @@ export function PublicProfilePage() {
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
+      <div className="max-w-lg lg:max-w-5xl mx-auto px-4 lg:px-6 py-4 space-y-4">
         {/* Loading */}
         {loading && (
           <div className="text-center py-16 text-swu-muted">

@@ -30,7 +30,7 @@ export function TabBar() {
   if (hideTabBar) return null
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-swu-surface border-t border-swu-border pb-safe">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-swu-surface border-t border-swu-border pb-safe lg:hidden">
       <div className="max-w-lg mx-auto flex justify-around items-center py-1.5">
         {tabs.map((tab) => {
           const active = isActive(tab.id)

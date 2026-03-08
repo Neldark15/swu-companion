@@ -274,7 +274,7 @@ export function DeckBuilderPage() {
   deck.sideboard.forEach(c => setBreakdown.set(c.setCode, (setBreakdown.get(c.setCode) || 0) + c.quantity))
 
   return (
-    <div className="p-3 space-y-3 pb-24">
+    <div className="p-3 lg:p-6 space-y-3 pb-24 lg:pb-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <button onClick={() => navigate('/decks')} className="flex items-center gap-1 text-sm text-swu-muted"><ChevronLeft size={18} /> Decks</button>
         <button onClick={saveDeck} className={`p-2 rounded-lg border transition-colors ${saveFlash ? 'bg-swu-green/20 border-swu-green/40 text-swu-green' : 'bg-swu-surface border-swu-border text-swu-muted'}`}>

@@ -255,7 +255,7 @@ export default function TournamentDashboard() {
     <div className="min-h-screen bg-swu-bg pb-20">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-swu-surface border-b border-swu-border">
-        <div className="max-w-lg mx-auto px-4 py-3">
+        <div className="max-w-lg lg:max-w-5xl mx-auto px-4 lg:px-6 py-3">
           <div className="flex items-center gap-3">
             <button onClick={() => navigate('/events')} className="text-swu-muted">
               <ArrowLeft size={20} />
@@ -288,19 +288,19 @@ export default function TournamentDashboard() {
 
       {/* Messages */}
       {error && (
-        <div className="max-w-lg mx-auto px-4 mt-2">
+        <div className="max-w-lg lg:max-w-5xl mx-auto px-4 lg:px-6 mt-2">
           <div className="bg-red-500/20 text-red-400 text-xs p-2 rounded">{error}</div>
         </div>
       )}
       {success && (
-        <div className="max-w-lg mx-auto px-4 mt-2">
+        <div className="max-w-lg lg:max-w-5xl mx-auto px-4 lg:px-6 mt-2">
           <div className="bg-green-500/20 text-green-400 text-xs p-2 rounded">{success}</div>
         </div>
       )}
 
       {/* Timer bar */}
       {event.round_timer_end && (
-        <div className="max-w-lg mx-auto px-4 mt-3">
+        <div className="max-w-lg lg:max-w-5xl mx-auto px-4 lg:px-6 mt-3">
           <div className="bg-swu-surface border border-swu-border rounded-lg p-3 text-center">
             <RoundTimer endTime={event.round_timer_end} />
           </div>
@@ -308,7 +308,7 @@ export default function TournamentDashboard() {
       )}
 
       {/* Tabs */}
-      <div className="max-w-lg mx-auto px-4 mt-3">
+      <div className="max-w-lg lg:max-w-5xl mx-auto px-4 lg:px-6 mt-3">
         <div className="flex gap-1 bg-swu-surface rounded-lg p-1 border border-swu-border">
           {tabs.map((tab) => (
             <button
@@ -328,7 +328,7 @@ export default function TournamentDashboard() {
       </div>
 
       {/* Content */}
-      <div className="max-w-lg mx-auto px-4 mt-4">
+      <div className="max-w-lg lg:max-w-5xl mx-auto px-4 lg:px-6 mt-4">
         {/* ── Rounds Tab ── */}
         {activeTab === 'rounds' && (
           <div className="space-y-3">

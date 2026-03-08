@@ -152,7 +152,7 @@ export function EventLobbyPage() {
   const totalCount = players.length
 
   return (
-    <div className="p-4 space-y-4 pb-24">
+    <div className="p-4 lg:p-6 space-y-4 pb-24 lg:pb-8 max-w-5xl mx-auto">
       {/* Header */}
       <button onClick={handleLeave} className="flex items-center gap-1 text-sm text-swu-muted">
         <ChevronLeft size={18} /> Salir del Lobby
