@@ -18,6 +18,9 @@ import { supabase, isSupabaseReady } from './supabase'
 
 const PRICE_CACHE_TTL = 7 * 24 * 60 * 60 * 1000 // 7 days
 
+// In-memory price cache to avoid repeated Dexie lookups
+const _priceMemCache = new Map<string, PriceInfo>()
+
 export interface PriceInfo {
   cardId: string
   market: number | null
@@ -29,12 +32,16 @@ export interface PriceInfo {
 
 // ─── Local Cache ──────────────────────────────────────────
 
-/** Get price from local Dexie cache */
+/** Get price from local Dexie cache (with in-memory layer) */
 export async function getLocalPrice(cardId: string): Promise<PriceInfo | null> {
+  // Check memory first
+  const mem = _priceMemCache.get(cardId)
+  if (mem) return mem
+
   try {
     const cached = await db.cardPrices.get(cardId)
     if (!cached) return null
-    return {
+    const info: PriceInfo = {
       cardId: cached.cardId,
       market: cached.marketPrice,
       low: cached.lowPrice,
@@ -42,25 +49,43 @@ export async function getLocalPrice(cardId: string): Promise<PriceInfo | null> {
       source: cached.source,
       updatedAt: cached.lastUpdated,
     }
+    _priceMemCache.set(cardId, info)
+    return info
   } catch {
     return null
   }
 }
 
-/** Get prices for multiple cards from local cache */
+/** Get prices for multiple cards from local cache (with in-memory layer) */
 export async function getLocalPrices(cardIds: string[]): Promise<Map<string, PriceInfo>> {
   const result = new Map<string, PriceInfo>()
+  const missing: string[] = []
+
+  // Check memory first
+  for (const id of cardIds) {
+    const mem = _priceMemCache.get(id)
+    if (mem) {
+      result.set(id, mem)
+    } else {
+      missing.push(id)
+    }
+  }
+
+  if (missing.length === 0) return result
+
   try {
-    const all = await db.cardPrices.where('cardId').anyOf(cardIds).toArray()
+    const all = await db.cardPrices.where('cardId').anyOf(missing).toArray()
     for (const p of all) {
-      result.set(p.cardId, {
+      const info: PriceInfo = {
         cardId: p.cardId,
         market: p.marketPrice,
         low: p.lowPrice,
         high: p.highPrice,
         source: p.source,
         updatedAt: p.lastUpdated,
-      })
+      }
+      result.set(p.cardId, info)
+      _priceMemCache.set(p.cardId, info)
     }
   } catch {
     // ignore errors, return what we have
