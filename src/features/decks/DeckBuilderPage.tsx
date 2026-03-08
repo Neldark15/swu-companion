@@ -9,6 +9,7 @@ import { searchCards, loadFullDatabase, isDatabaseReady, getCardById, getCardsBy
 import { validateDeck, canAddCard, getEffectiveMinDeckSize, getFormatRules } from '../../services/deckValidator'
 import { syncDeckToCloud } from '../../services/sync'
 import { useAuth } from '../../hooks/useAuth'
+import { CardImage } from '../../components/CardImage'
 import type { Deck, DeckCard, Card, TournamentFormat } from '../../types'
 
 function generateId() {
@@ -567,7 +568,7 @@ export function DeckBuilderPage() {
                 return (
                   <button key={card.id} onClick={() => addCardToDeck(card)} disabled={isLeaderInDeck || isBaseInDeck}
                     className="w-full bg-swu-surface rounded-lg p-2.5 border border-swu-border flex items-center gap-2 text-left active:scale-[0.99] transition-transform disabled:opacity-40">
-                    {card.imageUrl && <img src={card.imageUrl} alt="" className="w-10 h-14 rounded object-cover bg-swu-bg flex-shrink-0" loading="lazy" />}
+                    <CardImage src={card.imageUrl} alt={card.name} className="w-10 h-14" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-swu-text truncate">{card.name}</p>
                       <div className="flex gap-1 mt-0.5">

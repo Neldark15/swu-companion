@@ -16,6 +16,7 @@ import {
 } from '../../services/collectionService'
 import { formatPrice, fetchTCGPrices } from '../../services/pricing'
 import { importCollectionFromFile, type ImportResult } from '../../services/collectionImport'
+import { CardImage } from '../../components/CardImage'
 import type { Card } from '../../types'
 
 type SortKey = 'name' | 'price' | 'quantity' | 'rarity'
@@ -548,18 +549,7 @@ export function CollectionPage() {
                     onClick={() => navigate(`/cards/${item.cardId}`)}
                     className="flex-shrink-0"
                   >
-                    {card?.imageUrl ? (
-                      <img
-                        src={card.imageUrl}
-                        alt={card.name}
-                        className="w-12 h-16 rounded-lg object-cover bg-swu-bg"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-12 h-16 rounded-lg bg-swu-bg flex items-center justify-center">
-                        <Package size={16} className="text-swu-muted" />
-                      </div>
-                    )}
+                    <CardImage src={card?.imageUrl} alt={card?.name} className="w-12 h-16" />
                   </button>
 
                   {/* Card info */}

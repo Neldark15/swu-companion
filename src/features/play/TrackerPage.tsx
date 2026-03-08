@@ -6,6 +6,7 @@ import { Badge } from '../../components/ui/Badge'
 import { useMatchPersistence } from '../../hooks/useMatchPersistence'
 import { searchCards } from '../../services/swuApi'
 import { db } from '../../services/db'
+import { CardImage } from '../../components/CardImage'
 import type { GameMode, MatchState, GameResult, Card, Deck } from '../../types'
 
 interface PlayerData {
@@ -502,7 +503,7 @@ export function TrackerPage() {
             <div className="space-y-1">
               {baseResults.map((card) => (
                 <button key={card.id} onClick={() => selectBase(card, basePickerFor)} className="w-full bg-swu-surface rounded-xl p-3 border border-swu-border flex items-center gap-3 text-left active:scale-[0.98] transition-transform">
-                  {card.imageUrl && <img src={card.imageUrl} alt={card.name} className="w-12 h-16 rounded-lg object-cover bg-swu-bg flex-shrink-0" loading="lazy" />}
+                  <CardImage src={card.imageUrl} alt={card.name} className="w-12 h-16" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-swu-text truncate">{card.name}</p>
                     {card.subtitle && <p className="text-xs text-swu-muted truncate">{card.subtitle}</p>}

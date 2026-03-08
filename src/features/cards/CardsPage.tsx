@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, SlidersHorizontal, X, Loader2, WifiOff, Database, CheckCircle2 } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
+import { CardImage } from '../../components/CardImage'
 import { searchCards, getSets, loadFullDatabase, isDatabaseReady, type SearchParams } from '../../services/swuApi'
 import type { Card, SetInfo } from '../../types'
 
@@ -293,9 +294,7 @@ export function CardsPage() {
               onClick={() => navigate(`/cards/${c.id}`)}
               className="w-full bg-swu-surface rounded-xl p-3 border border-swu-border flex items-center gap-3 text-left active:scale-[0.99] transition-transform"
             >
-              {c.imageUrl && (
-                <img src={c.imageUrl} alt={c.name} className="w-12 h-16 rounded-lg object-cover bg-swu-bg flex-shrink-0" loading="lazy" />
-              )}
+              <CardImage src={c.imageUrl} alt={c.name} className="w-12 h-16" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-sm text-swu-text truncate">{c.name}</span>
