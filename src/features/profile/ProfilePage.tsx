@@ -649,8 +649,8 @@ export function ProfilePage() {
   const aspectBars = playerStats ? getAspectBars(playerStats) : []
 
   const menuItems = [
-    { icon: Package, label: 'Mi Colección', to: '/collection', count: undefined, highlight: true },
-    { icon: Globe, label: 'Explorar Coleccionistas', to: '/explore' },
+    { icon: Package, label: 'Mi Botín de Cartas', to: '/collection', count: undefined, highlight: true },
+    { icon: Globe, label: 'Contrabando de Cartas', to: '/explore' },
     { icon: History, label: 'Historial de Partidas', to: '/play/saved', count: stats.matches },
     { icon: Trophy, label: 'Mis Torneos', to: '/events/tournament', count: stats.tournaments },
     { icon: Layers, label: 'Mis Decks', to: '/decks', count: stats.decks },

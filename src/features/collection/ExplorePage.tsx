@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Search, Users, Globe } from 'lucide-react'
+import { ArrowLeft, Search, Users, Skull, Package, Eye, EyeOff } from 'lucide-react'
 import {
   searchPublicProfiles,
   getExploreProfiles,
   type PublicProfile,
 } from '../../services/collectionService'
+
+/* Avatar helper: detect image-based avatar vs emoji */
+const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
 
 export function ExplorePage() {
   const navigate = useNavigate()
@@ -14,16 +17,16 @@ export function ExplorePage() {
   const [loading, setLoading] = useState(true)
   const [searching, setSearching] = useState(false)
 
-  // Load featured profiles on mount
+  // Load ALL profiles on mount
   useEffect(() => {
     let cancelled = false
     async function load() {
       setLoading(true)
       try {
-        const data = await getExploreProfiles(30)
+        const data = await getExploreProfiles(50)
         if (!cancelled) setProfiles(data)
       } catch (e) {
-        console.warn('[Explore] Failed to load profiles:', e)
+        console.warn('[Contrabando] Failed to load profiles:', e)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -32,13 +35,12 @@ export function ExplorePage() {
     return () => { cancelled = true }
   }, [])
 
-  // Search handler with debounce
+  // Search handler
   const handleSearch = useCallback(async (q: string) => {
     setQuery(q)
     if (!q.trim()) {
-      // Reset to explore list
       setSearching(true)
-      const data = await getExploreProfiles(30)
+      const data = await getExploreProfiles(50)
       setProfiles(data)
       setSearching(false)
       return
@@ -63,37 +65,45 @@ export function ExplorePage() {
           <button onClick={() => navigate(-1)} className="text-swu-muted">
             <ArrowLeft size={20} />
           </button>
-          <h1 className="text-lg font-bold text-swu-text flex-1">Explorar Coleccionistas</h1>
+          <Skull size={20} className="text-red-400" />
+          <h1 className="text-lg font-bold text-swu-text flex-1">Contrabando de Cartas</h1>
         </div>
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
+        {/* Flavor text */}
+        <div className="bg-red-500/5 rounded-xl border border-red-500/15 p-3">
+          <p className="text-xs text-red-300/80 font-mono text-center">
+            Todos los contrabandistas de la galaxia y su botín de cartas
+          </p>
+        </div>
+
         {/* Search */}
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-swu-muted" />
           <input
             type="text"
-            placeholder="Buscar por nombre de usuario..."
+            placeholder="Buscar contrabandista..."
             value={query}
             onChange={e => handleSearch(e.target.value)}
             className="w-full bg-swu-surface border border-swu-border rounded-xl pl-9 pr-3 py-2.5
-                       text-sm text-swu-text placeholder:text-swu-muted focus:border-swu-accent outline-none"
+                       text-sm text-swu-text placeholder:text-swu-muted focus:border-red-400 outline-none"
           />
         </div>
 
         {/* Section label */}
         <div className="flex items-center gap-2 text-swu-muted">
-          <Globe size={14} />
+          <Users size={14} />
           <span className="text-xs font-medium">
-            {query.trim() ? `Resultados para "${query}"` : 'Coleccionistas recientes'}
+            {query.trim() ? `Resultados para "${query}"` : `${profiles.length} contrabandistas registrados`}
           </span>
         </div>
 
         {/* Loading */}
         {(loading || searching) && (
           <div className="text-center py-12 text-swu-muted">
-            <div className="animate-spin w-8 h-8 border-2 border-swu-accent border-t-transparent rounded-full mx-auto mb-3" />
-            Buscando...
+            <div className="animate-spin w-8 h-8 border-2 border-red-400 border-t-transparent rounded-full mx-auto mb-3" />
+            Rastreando contrabandistas...
           </div>
         )}
 
@@ -103,8 +113,8 @@ export function ExplorePage() {
             <Users size={48} className="mx-auto text-swu-muted/30 mb-4" />
             <p className="text-swu-muted text-sm">
               {query.trim()
-                ? 'No se encontraron usuarios con ese nombre'
-                : 'No hay perfiles públicos aún'}
+                ? 'No se encontró ningún contrabandista con ese nombre'
+                : 'No hay contrabandistas registrados aún'}
             </p>
           </div>
         )}
@@ -119,21 +129,36 @@ export function ExplorePage() {
                 className="w-full bg-swu-surface rounded-xl p-3 border border-swu-border
                            flex items-center gap-3 text-left active:scale-[0.99] transition-transform"
               >
+                {/* Avatar */}
                 <div className="w-10 h-10 rounded-full bg-swu-bg flex items-center justify-center
-                                text-lg flex-shrink-0">
-                  {p.avatar}
+                                text-lg flex-shrink-0 overflow-hidden">
+                  {swAvatarIds.includes(p.avatar)
+                    ? <img src={`/avatars/${p.avatar}.png`} alt="" className="w-8 h-8 object-contain" />
+                    : <span>{p.avatar}</span>
+                  }
                 </div>
+
+                {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-swu-text truncate">{p.name}</div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium text-swu-text truncate">{p.name}</span>
+                    {p.isPublic
+                      ? <Eye size={10} className="text-swu-green flex-shrink-0" />
+                      : <EyeOff size={10} className="text-swu-muted flex-shrink-0" />
+                    }
+                  </div>
                   {p.bio && (
                     <div className="text-xs text-swu-muted truncate mt-0.5">{p.bio}</div>
                   )}
                 </div>
-                {p.cardCount > 0 && (
-                  <div className="text-xs text-swu-accent font-medium flex-shrink-0">
-                    {p.cardCount} cartas
-                  </div>
-                )}
+
+                {/* Card count */}
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <Package size={12} className={p.cardCount > 0 ? 'text-red-400' : 'text-swu-muted/40'} />
+                  <span className={`text-xs font-medium ${p.cardCount > 0 ? 'text-red-400' : 'text-swu-muted/40'}`}>
+                    {p.cardCount}
+                  </span>
+                </div>
               </button>
             ))}
           </div>

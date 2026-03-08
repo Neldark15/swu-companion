@@ -166,7 +166,7 @@ export function CollectionPage() {
           <button onClick={() => navigate(-1)} className="text-swu-muted">
             <ArrowLeft size={20} />
           </button>
-          <h1 className="text-lg font-bold text-swu-text flex-1">Mi Colección</h1>
+          <h1 className="text-lg font-bold text-swu-text flex-1">Mi Botín de Cartas</h1>
           {supabaseUser && (
             <button
               onClick={handleTogglePublic}

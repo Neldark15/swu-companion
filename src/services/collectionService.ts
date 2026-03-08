@@ -258,7 +258,7 @@ export async function getPublicCollection(
   }
 }
 
-/** Search public profiles by name */
+/** Search ALL profiles by name (contrabando = all users visible) */
 export async function searchPublicProfiles(query: string): Promise<PublicProfile[]> {
   if (!isSupabaseReady() || !query.trim()) return []
 
@@ -266,50 +266,72 @@ export async function searchPublicProfiles(query: string): Promise<PublicProfile
     const { data } = await supabase
       .from('profiles')
       .select('id, name, avatar, bio, is_public')
-      .eq('is_public', true)
       .ilike('name', `%${query}%`)
-      .limit(20)
+      .limit(30)
 
     if (!data) return []
 
-    return data.map(p => ({
-      id: p.id,
-      name: p.name,
-      avatar: p.avatar || '👤',
-      bio: p.bio || null,
-      isPublic: true,
-      cardCount: 0,
-      estimatedValue: 0,
-    }))
+    // Get collection counts for all matched users in parallel
+    const profilesWithCounts = await Promise.all(
+      data.map(async (p) => {
+        const { count } = await supabase
+          .from('collection')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', p.id)
+
+        return {
+          id: p.id,
+          name: p.name,
+          avatar: p.avatar || '👤',
+          bio: p.bio || null,
+          isPublic: p.is_public ?? true,
+          cardCount: count ?? 0,
+          estimatedValue: 0,
+        }
+      }),
+    )
+
+    return profilesWithCounts
   } catch (e) {
     console.warn('[Collection] Failed to search profiles:', e)
     return []
   }
 }
 
-/** Get recent public profiles for explore page */
-export async function getExploreProfiles(limit = 20): Promise<PublicProfile[]> {
+/** Get ALL profiles for the contrabando page (all users, sorted by recent) */
+export async function getExploreProfiles(limit = 50): Promise<PublicProfile[]> {
   if (!isSupabaseReady()) return []
 
   try {
     const { data } = await supabase
       .from('profiles')
       .select('id, name, avatar, bio, is_public')
-      .eq('is_public', true)
       .order('updated_at', { ascending: false })
       .limit(limit)
 
     if (!data) return []
 
-    return data.map(p => ({
-      id: p.id,
-      name: p.name,
-      avatar: p.avatar || '👤',
-      bio: p.bio || null,
-      isPublic: true,
-      cardCount: 0,
-      estimatedValue: 0,
-    }))
+    // Get collection counts for all users in parallel
+    const profilesWithCounts = await Promise.all(
+      data.map(async (p) => {
+        const { count } = await supabase
+          .from('collection')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', p.id)
+
+        return {
+          id: p.id,
+          name: p.name,
+          avatar: p.avatar || '👤',
+          bio: p.bio || null,
+          isPublic: p.is_public ?? true,
+          cardCount: count ?? 0,
+          estimatedValue: 0,
+        }
+      }),
+    )
+
+    return profilesWithCounts
   } catch (e) {
     console.warn('[Collection] Failed to get explore profiles:', e)
     return []

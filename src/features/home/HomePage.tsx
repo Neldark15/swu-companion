@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Swords, Trophy, Layers, Dice6, User, LogIn, BookOpen, BarChart3, ExternalLink } from 'lucide-react'
+import { Swords, Trophy, Layers, Dice6, User, LogIn, BookOpen, BarChart3, ExternalLink, Package, Skull } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
 /* Avatar helper: detect image-based avatar vs emoji */
@@ -70,6 +70,26 @@ const mainSystems = [
     notchBg: 'bg-swu-amber/40',
     glow: 'shadow-[0_0_18px_rgba(251,191,36,0.15)]',
     to: '/rank',
+  },
+  {
+    icon: Package,
+    label: 'Mi Botín',
+    sub: 'Colección de cartas',
+    textClass: 'text-swu-green',
+    iconBg: 'bg-swu-green/10 border-swu-green/20',
+    notchBg: 'bg-swu-green/40',
+    glow: 'shadow-[0_0_18px_rgba(74,222,128,0.15)]',
+    to: '/collection',
+  },
+  {
+    icon: Skull,
+    label: 'Contrabando',
+    sub: 'Explorar colecciones',
+    textClass: 'text-red-400',
+    iconBg: 'bg-red-500/10 border-red-400/20',
+    notchBg: 'bg-red-400/40',
+    glow: 'shadow-[0_0_18px_rgba(248,113,113,0.15)]',
+    to: '/explore',
   },
 ]
 
