@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie'
-import type { MatchState, Tournament, Deck, Card } from '../../types'
+import type { MatchState, Tournament, Deck, Card, MatchLog } from '../../types'
 import type { PlayerStats } from '../gamification'
 
 export interface UserProfile {
@@ -35,6 +35,7 @@ export class SWUDatabase extends Dexie {
   profiles!: Table<UserProfile, string>
   playerStats!: Table<PlayerStats, string>
   cardPrices!: Table<CardPrice, string>
+  matchLogs!: Table<MatchLog, string>
 
   constructor() {
     super('swu-companion')
@@ -106,6 +107,21 @@ export class SWUDatabase extends Dexie {
       profiles: 'id, name, email, credentialId',
       playerStats: 'profileId',
       cardPrices: 'cardId',
+    })
+
+    // v6: Add matchLogs table for Holocrón de Duelos
+    this.version(6).stores({
+      matches: 'id, mode, isActive, createdAt, profileId',
+      tournaments: 'id, status, createdAt, profileId',
+      decks: 'id, name, format, createdAt, profileId',
+      cards: 'id, name, type, rarity, setCode, *aspects, *keywords, *traits',
+      favoriteCards: 'cardId, profileId',
+      collection: 'cardId, profileId',
+      wishlist: 'cardId, profileId',
+      profiles: 'id, name, email, credentialId',
+      playerStats: 'profileId',
+      cardPrices: 'cardId',
+      matchLogs: 'id, userId, recordedAt, gameMode',
     })
   }
 }

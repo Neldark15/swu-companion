@@ -29,6 +29,11 @@ const RankingPage = lazy(() => import('./features/rank/RankingPage').then(m => (
 const CollectionPage = lazy(() => import('./features/collection/CollectionPage').then(m => ({ default: m.CollectionPage })))
 const PublicProfilePage = lazy(() => import('./features/collection/PublicProfilePage').then(m => ({ default: m.PublicProfilePage })))
 const ExplorePage = lazy(() => import('./features/collection/ExplorePage').then(m => ({ default: m.ExplorePage })))
+const ArenaPage = lazy(() => import('./features/arena/ArenaPage').then(m => ({ default: m.ArenaPage })))
+const ArenaLogPage = lazy(() => import('./features/arena/ArenaLogPage').then(m => ({ default: m.ArenaLogPage })))
+const ArenaHistoryPage = lazy(() => import('./features/arena/ArenaHistoryPage').then(m => ({ default: m.ArenaHistoryPage })))
+const ArenaStatsPage = lazy(() => import('./features/arena/ArenaStatsPage').then(m => ({ default: m.ArenaStatsPage })))
+const ArenaFeedPage = lazy(() => import('./features/arena/ArenaFeedPage').then(m => ({ default: m.ArenaFeedPage })))
 
 function PageLoader() {
   return (
@@ -61,6 +66,11 @@ export default function App() {
             <Route path="/cards/:id" element={<CardDetailPage />} />
             <Route path="/decks" element={<DeckListPage />} />
             <Route path="/decks/:id" element={<DeckBuilderPage />} />
+            <Route path="/arena" element={<ArenaPage />} />
+            <Route path="/arena/log" element={<ArenaLogPage />} />
+            <Route path="/arena/history" element={<ArenaHistoryPage />} />
+            <Route path="/arena/stats" element={<ArenaStatsPage />} />
+            <Route path="/arena/feed" element={<ArenaFeedPage />} />
             <Route path="/collection" element={<CollectionPage />} />
             <Route path="/u/:userId" element={<PublicProfilePage />} />
             <Route path="/explore" element={<ExplorePage />} />

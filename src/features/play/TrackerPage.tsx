@@ -410,6 +410,21 @@ export function TrackerPage() {
             </div>
           ))}
         </div>
+        <button
+          onClick={() => {
+            const params = new URLSearchParams({
+              p1: players[0]?.name || '',
+              p2: players[1]?.name || '',
+              mode,
+              score: `${gameScore[0]}-${gameScore[1]}`,
+              winner: String(gameScore[0] >= 2 ? 1 : 2),
+            })
+            navigate(`/arena/log?${params.toString()}`)
+          }}
+          className="w-full max-w-xs py-3 rounded-xl bg-swu-green/15 border border-swu-green/40 text-swu-green font-bold text-sm active:scale-95 transition-transform"
+        >
+          Registrar en Holocrón
+        </button>
         <div className="flex gap-3 w-full max-w-xs">
           <button onClick={() => navigate('/play')} className="flex-1 py-3 rounded-xl bg-swu-surface border border-swu-border text-swu-text font-bold text-sm">Volver</button>
           <button

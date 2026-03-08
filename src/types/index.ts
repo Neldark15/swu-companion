@@ -160,3 +160,34 @@ export interface FeedItem {
   date: string
   tag: string
 }
+
+// ─── Arena / Holocrón de Duelos Types ───
+export interface MatchLog {
+  id: string
+  userId?: string
+  player1Name: string
+  player2Name: string
+  player1ProfileId?: string
+  player2ProfileId?: string
+  player1DeckName?: string
+  player2DeckName?: string
+  gameMode: GameMode
+  winnerPlayer: 1 | 2
+  gameResults?: { winner: number }[]
+  finalScore: [number, number]
+  notes?: string
+  recordedAt: number
+  createdAt: number
+}
+
+export interface ArenaStats {
+  matchesPlayed: number
+  wins: number
+  losses: number
+  winrate: number
+  currentStreak: number
+  bestStreak: number
+  byMode: Record<string, { wins: number; losses: number }>
+  topDecks: { name: string; wins: number; losses: number }[]
+  recentOpponents: { name: string; profileId?: string; count: number }[]
+}

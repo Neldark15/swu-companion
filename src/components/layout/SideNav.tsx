@@ -7,7 +7,7 @@ type NavItem =
 
 const mainNav: NavItem[] = [
   { id: '/', label: 'Base', sub: 'Centro de mando', icon: Hexagon },
-  { id: '/play', label: 'Duelo', sub: 'Iniciar combate', img: '/jugar-icon.png' },
+  { id: '/arena', label: 'Holocrón', sub: 'Registro de duelos', img: '/jugar-icon.png' },
   { id: '/events', label: 'Eventos', sub: 'Torneos', img: '/eventos-icon.png' },
   { id: '/rank', label: 'Consejo', sub: 'Leaderboard', img: '/consejo-icon.png' },
   { id: '/profile', label: 'Holocrón', sub: 'Mi perfil', img: '/holocron-icon.png' },

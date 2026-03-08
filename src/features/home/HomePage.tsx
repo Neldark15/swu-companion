@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Swords, Trophy, Layers, Dice6, User, LogIn, BookOpen, BarChart3, ExternalLink, Package, Skull } from 'lucide-react'
+import { Trophy, Layers, Dice6, User, LogIn, BookOpen, BarChart3, ExternalLink, Package, Skull, ScrollText } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
 /* Avatar helper: detect image-based avatar vs emoji */
@@ -12,14 +12,14 @@ const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormt
 
 const mainSystems = [
   {
-    icon: Swords,
-    label: 'Nueva Partida',
-    sub: 'Iniciar combate',
+    icon: ScrollText,
+    label: 'Holocrón de Duelos',
+    sub: 'Registro de combate',
     textClass: 'text-swu-green',
     iconBg: 'bg-swu-green/10 border-swu-green/20',
     notchBg: 'bg-swu-green/40',
     glow: 'shadow-[0_0_18px_rgba(74,222,128,0.15)]',
-    to: '/play',
+    to: '/arena',
   },
   {
     icon: Trophy,
