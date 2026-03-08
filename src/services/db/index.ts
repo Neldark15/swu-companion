@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie'
-import type { MatchState, Tournament, Deck, Card, MatchLog } from '../../types'
+import type { MatchState, Tournament, Deck, Card, MatchLog, MeleeTournament } from '../../types'
 import type { PlayerStats } from '../gamification'
 
 export interface UserProfile {
@@ -36,6 +36,7 @@ export class SWUDatabase extends Dexie {
   playerStats!: Table<PlayerStats, string>
   cardPrices!: Table<CardPrice, string>
   matchLogs!: Table<MatchLog, string>
+  meleeTournaments!: Table<MeleeTournament, string>
 
   constructor() {
     super('swu-companion')
@@ -122,6 +123,22 @@ export class SWUDatabase extends Dexie {
       playerStats: 'profileId',
       cardPrices: 'cardId',
       matchLogs: 'id, userId, recordedAt, gameMode',
+    })
+
+    // v7: Add meleeTournaments table for Melee.gg integration
+    this.version(7).stores({
+      matches: 'id, mode, isActive, createdAt, profileId',
+      tournaments: 'id, status, createdAt, profileId',
+      decks: 'id, name, format, createdAt, profileId',
+      cards: 'id, name, type, rarity, setCode, *aspects, *keywords, *traits',
+      favoriteCards: 'cardId, profileId',
+      collection: 'cardId, profileId',
+      wishlist: 'cardId, profileId',
+      profiles: 'id, name, email, credentialId',
+      playerStats: 'profileId',
+      cardPrices: 'cardId',
+      matchLogs: 'id, userId, recordedAt, gameMode',
+      meleeTournaments: 'id, userId, date, format, meleeId',
     })
   }
 }

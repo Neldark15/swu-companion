@@ -34,6 +34,9 @@ const ArenaLogPage = lazy(() => import('./features/arena/ArenaLogPage').then(m =
 const ArenaHistoryPage = lazy(() => import('./features/arena/ArenaHistoryPage').then(m => ({ default: m.ArenaHistoryPage })))
 const ArenaStatsPage = lazy(() => import('./features/arena/ArenaStatsPage').then(m => ({ default: m.ArenaStatsPage })))
 const ArenaFeedPage = lazy(() => import('./features/arena/ArenaFeedPage').then(m => ({ default: m.ArenaFeedPage })))
+const MeleeHubPage = lazy(() => import('./features/melee/MeleeHubPage').then(m => ({ default: m.MeleeHubPage })))
+const MeleeAddPage = lazy(() => import('./features/melee/MeleeAddPage').then(m => ({ default: m.MeleeAddPage })))
+const MeleeDetailPage = lazy(() => import('./features/melee/MeleeDetailPage').then(m => ({ default: m.MeleeDetailPage })))
 
 function PageLoader() {
   return (
@@ -71,6 +74,9 @@ export default function App() {
             <Route path="/arena/history" element={<ArenaHistoryPage />} />
             <Route path="/arena/stats" element={<ArenaStatsPage />} />
             <Route path="/arena/feed" element={<ArenaFeedPage />} />
+            <Route path="/melee" element={<MeleeHubPage />} />
+            <Route path="/melee/add" element={<MeleeAddPage />} />
+            <Route path="/melee/:id" element={<MeleeDetailPage />} />
             <Route path="/collection" element={<CollectionPage />} />
             <Route path="/u/:userId" element={<PublicProfilePage />} />
             <Route path="/explore" element={<ExplorePage />} />

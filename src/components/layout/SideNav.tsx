@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Hexagon, Layers, BookOpen, Dice6, Package, Skull, type LucideIcon } from 'lucide-react'
+import { Hexagon, Layers, BookOpen, Dice6, Package, Skull, Medal, type LucideIcon } from 'lucide-react'
 
 type NavItem =
   | { id: string; label: string; sub: string; icon: LucideIcon; img?: undefined }
@@ -8,6 +8,7 @@ type NavItem =
 const mainNav: NavItem[] = [
   { id: '/', label: 'Base', sub: 'Centro de mando', icon: Hexagon },
   { id: '/arena', label: 'Holocrón', sub: 'Registro de duelos', img: '/jugar-icon.png' },
+  { id: '/melee', label: 'Circuito', sub: 'Melee.gg', icon: Medal },
   { id: '/events', label: 'Eventos', sub: 'Torneos', img: '/eventos-icon.png' },
   { id: '/rank', label: 'Consejo', sub: 'Leaderboard', img: '/consejo-icon.png' },
   { id: '/profile', label: 'Holocrón', sub: 'Mi perfil', img: '/holocron-icon.png' },

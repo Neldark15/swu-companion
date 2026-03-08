@@ -180,6 +180,43 @@ export interface MatchLog {
   createdAt: number
 }
 
+// ─── Melee Tournament Tracker Types ───
+export interface MeleeTournament {
+  id: string
+  userId?: string
+  name: string
+  meleeUrl?: string          // e.g. https://melee.gg/Tournament/View/353255
+  meleeId?: string           // extracted tournament ID from URL
+  date: string               // YYYY-MM-DD
+  location?: string
+  organizer?: string
+  format: TournamentFormat
+  playerCount?: number
+  standing?: number          // final standing (1st, 2nd, etc.)
+  wins: number
+  losses: number
+  draws: number
+  deckName?: string          // deck used
+  deckLeader?: string        // leader card name
+  deckBase?: string          // base card name
+  notes?: string
+  tags?: string[]            // e.g. ['Planetary Qualifier', 'Store Showdown']
+  recordedAt: number
+  createdAt: number
+}
+
+export interface MeleeTournamentStats {
+  totalEvents: number
+  totalWins: number
+  totalLosses: number
+  totalDraws: number
+  avgStanding: number | null
+  bestStanding: number | null
+  topDecks: { name: string; count: number; avgStanding: number | null }[]
+  byFormat: Record<string, { events: number; wins: number; losses: number }>
+  eventsByMonth: { month: string; count: number }[]
+}
+
 export interface ArenaStats {
   matchesPlayed: number
   wins: number

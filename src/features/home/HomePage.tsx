@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Trophy, Layers, Dice6, User, LogIn, BookOpen, BarChart3, ExternalLink, Package, Skull, ScrollText } from 'lucide-react'
+import { Trophy, Layers, Dice6, User, LogIn, BookOpen, BarChart3, ExternalLink, Package, Skull, ScrollText, Medal } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
 /* Avatar helper: detect image-based avatar vs emoji */
@@ -20,6 +20,16 @@ const mainSystems = [
     notchBg: 'bg-swu-green/40',
     glow: 'shadow-[0_0_18px_rgba(74,222,128,0.15)]',
     to: '/arena',
+  },
+  {
+    icon: Medal,
+    label: 'Circuito Melee',
+    sub: 'Historial competitivo',
+    textClass: 'text-swu-amber',
+    iconBg: 'bg-swu-amber/10 border-swu-amber/20',
+    notchBg: 'bg-swu-amber/40',
+    glow: 'shadow-[0_0_18px_rgba(251,191,36,0.15)]',
+    to: '/melee',
   },
   {
     icon: Trophy,
