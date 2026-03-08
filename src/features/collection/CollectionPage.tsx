@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Search, SlidersHorizontal, Eye, EyeOff,
-  Package, DollarSign, Layers, TrendingUp, RefreshCw,
+  Package, DollarSign, Layers, TrendingUp, RefreshCw, Upload, X, FileUp,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { getCardsByIds } from '../../services/swuApi'
@@ -15,6 +15,7 @@ import {
   type CollectionCardWithPrice,
 } from '../../services/collectionService'
 import { formatPrice, fetchTCGPrices } from '../../services/pricing'
+import { importCollectionFromFile, type ImportResult } from '../../services/collectionImport'
 import type { Card } from '../../types'
 
 type SortKey = 'name' | 'price' | 'quantity' | 'rarity'
@@ -38,6 +39,12 @@ export function CollectionPage() {
   const [isPublic, setIsPublic] = useState(true)
   const [fetchingPrices, setFetchingPrices] = useState(false)
   const [priceStatus, setPriceStatus] = useState('')
+  const [showImport, setShowImport] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<ImportResult | null>(null)
+  const [importProgress, setImportProgress] = useState('')
+  const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Load collection
   useEffect(() => {
@@ -183,6 +190,47 @@ export function CollectionPage() {
     }
   }, [fetchingPrices, items, cards, currentProfileId])
 
+  const handleImportFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || importing) return
+
+    setImporting(true)
+    setImportResult(null)
+    setImportProgress('Leyendo archivo...')
+
+    try {
+      const result = await importCollectionFromFile(
+        file,
+        supabaseUser?.id,
+        importMode,
+        (processed, total) => {
+          setImportProgress(`Procesando... ${processed}/${total} cartas`)
+        },
+      )
+
+      setImportResult(result)
+      setImportProgress('')
+
+      // Reload collection
+      const collItems = await getMyCollectionWithPrices(currentProfileId ?? undefined)
+      setItems(collItems)
+      const cardIds = collItems.map(i => i.cardId)
+      const cardMap = await getCardsByIds(cardIds)
+      setCards(cardMap)
+    } catch (err) {
+      setImportResult({
+        total: 0, matched: 0, added: 0, updated: 0,
+        notFound: [],
+        errors: [`Error: ${err}`],
+      })
+      setImportProgress('')
+    } finally {
+      setImporting(false)
+      // Reset file input
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }, [importing, supabaseUser, importMode, currentProfileId])
+
   const rarityColor = (r?: string) => {
     switch (r) {
       case 'Legendary': return 'text-swu-amber'
@@ -267,6 +315,125 @@ export function CollectionPage() {
         </button>
         {priceStatus && !fetchingPrices && (
           <div className="text-center text-[10px] text-swu-green font-mono">{priceStatus}</div>
+        )}
+
+        {/* Import from SWUDB */}
+        <button
+          onClick={() => { setShowImport(!showImport); setImportResult(null) }}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium
+                     border transition-colors bg-swu-surface border-swu-border text-swu-muted
+                     hover:text-swu-amber hover:border-swu-amber/30"
+        >
+          <Upload size={14} />
+          Importar Colección (swudb.com)
+        </button>
+
+        {showImport && (
+          <div className="bg-swu-surface rounded-xl border border-swu-amber/20 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-swu-amber flex items-center gap-2">
+                <FileUp size={16} /> Importar desde swudb.com
+              </h3>
+              <button onClick={() => setShowImport(false)} className="text-swu-muted">
+                <X size={16} />
+              </button>
+            </div>
+
+            <p className="text-[11px] text-swu-muted leading-relaxed">
+              Exporte su colección desde swudb.com en formato <b className="text-swu-text">CSV</b> o{' '}
+              <b className="text-swu-text">JSON</b> y súbala aquí. El formato esperado es:{' '}
+              <code className="text-swu-amber text-[10px]">Set,CardNumber,Count,IsFoil</code>
+            </p>
+
+            {/* Mode selector */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setImportMode('merge')}
+                className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                  importMode === 'merge'
+                    ? 'bg-swu-amber/15 border-swu-amber/40 text-swu-amber'
+                    : 'bg-swu-bg border-swu-border text-swu-muted'
+                }`}
+              >
+                Combinar (sumar)
+              </button>
+              <button
+                onClick={() => setImportMode('replace')}
+                className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                  importMode === 'replace'
+                    ? 'bg-red-500/15 border-red-500/40 text-red-400'
+                    : 'bg-swu-bg border-swu-border text-swu-muted'
+                }`}
+              >
+                Reemplazar todo
+              </button>
+            </div>
+            {importMode === 'replace' && (
+              <p className="text-[10px] text-red-400 text-center">
+                ⚠ Esto borrará su colección actual y la reemplazará con el archivo
+              </p>
+            )}
+
+            {/* File input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,.json,.txt"
+              onChange={handleImportFile}
+              disabled={importing}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importing}
+              className={`w-full py-3 rounded-xl text-sm font-medium border-2 border-dashed transition-colors ${
+                importing
+                  ? 'border-swu-amber/30 text-swu-amber bg-swu-amber/5'
+                  : 'border-swu-border text-swu-muted hover:border-swu-amber/40 hover:text-swu-amber'
+              }`}
+            >
+              {importing ? importProgress || 'Importando...' : '📁 Seleccionar archivo CSV / JSON'}
+            </button>
+
+            {/* Import result */}
+            {importResult && (
+              <div className={`rounded-xl p-3 text-xs space-y-1 border ${
+                importResult.errors.length > 0
+                  ? 'bg-red-500/5 border-red-500/20'
+                  : 'bg-swu-green/5 border-swu-green/20'
+              }`}>
+                <div className="font-bold text-swu-text">
+                  {importResult.errors.length > 0 && importResult.matched === 0
+                    ? '❌ Error en la importación'
+                    : '✅ Importación completada'}
+                </div>
+                {importResult.matched > 0 && (
+                  <>
+                    <div className="text-swu-green">
+                      {importResult.added} cartas nuevas, {importResult.updated} actualizadas
+                    </div>
+                    <div className="text-swu-muted">
+                      {importResult.matched} de {importResult.total} reconocidas
+                    </div>
+                  </>
+                )}
+                {importResult.notFound.length > 0 && (
+                  <details className="text-swu-muted">
+                    <summary className="cursor-pointer text-swu-amber">
+                      {importResult.notFound.length} no encontradas
+                    </summary>
+                    <div className="mt-1 text-[10px] max-h-20 overflow-y-auto font-mono">
+                      {importResult.notFound.slice(0, 20).join(', ')}
+                      {importResult.notFound.length > 20 && ` ...y ${importResult.notFound.length - 20} más`}
+                    </div>
+                  </details>
+                )}
+                {importResult.errors.map((err, i) => (
+                  <div key={i} className="text-red-400">{err}</div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Search + Filters */}
