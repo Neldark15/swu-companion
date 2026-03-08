@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Settings, X } from 'lucide-react'
+import { Settings, X, Hexagon, ChevronLeft } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 const menuItems = [
@@ -13,9 +13,11 @@ const menuItems = [
 function getPageTitle(pathname: string): string {
   if (pathname === '/') return 'Base'
   if (pathname.startsWith('/play')) return 'Duelo'
-  if (pathname.startsWith('/events')) return 'Eventos'
-  if (pathname.startsWith('/rank')) return 'Consejo'
-  if (pathname.startsWith('/profile')) return 'Holocrón'
+  if (pathname.startsWith('/events')) return 'Torneos'
+  if (pathname.startsWith('/rank')) return 'Consejo Jedi'
+  if (pathname.startsWith('/arena')) return 'Holocrón'
+  if (pathname.startsWith('/melee')) return 'Circuito Melee'
+  if (pathname.startsWith('/profile')) return 'Mi Perfil'
   if (pathname.startsWith('/cards')) return 'Buscar Cartas'
   if (pathname.startsWith('/decks')) return 'Mis Decks'
   if (pathname.startsWith('/collection')) return 'Mi Botín'
@@ -39,19 +41,50 @@ export function Header() {
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
+  const isHome = location.pathname === '/'
   const pageTitle = getPageTitle(location.pathname)
 
   return (
     <header className="sticky top-0 z-50 bg-swu-surface shadow-[0_4px_10px_#111118] px-4 lg:px-6 py-3 flex items-center justify-between">
-      {/* Mobile: logo. Desktop: page title */}
+      {/* Left side: Base button (on inner pages) or logo (on home) */}
       <div className="flex items-center gap-2">
-        <div className="lg:hidden flex items-center gap-2">
-          <span className="text-lg font-extrabold text-swu-amber tracking-tight">SWU</span>
-          <span className="text-base font-semibold text-swu-text">Companion</span>
-        </div>
-        <div className="hidden lg:flex items-center gap-3">
-          <h1 className="text-lg font-bold text-swu-text">{pageTitle}</h1>
-        </div>
+        {isHome ? (
+          <>
+            {/* Mobile: logo */}
+            <div className="lg:hidden flex items-center gap-2">
+              <span className="text-lg font-extrabold text-swu-amber tracking-tight">SWU</span>
+              <span className="text-base font-semibold text-swu-text">Companion</span>
+            </div>
+            {/* Desktop: page title */}
+            <div className="hidden lg:flex items-center gap-3">
+              <h1 className="text-lg font-bold text-swu-text">{pageTitle}</h1>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Mobile: Back to Base button */}
+            <button
+              onClick={() => navigate('/')}
+              className="lg:hidden flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-swu-bg neu-inset text-swu-muted hover:text-swu-accent active:scale-95 transition-all"
+            >
+              <Hexagon size={16} className="text-swu-accent" />
+              <span className="text-xs font-bold tracking-wide">Base</span>
+            </button>
+            {/* Mobile: page title next to base button */}
+            <span className="lg:hidden text-sm font-semibold text-swu-text ml-1">{pageTitle}</span>
+            {/* Desktop: breadcrumb style */}
+            <div className="hidden lg:flex items-center gap-2">
+              <button
+                onClick={() => navigate('/')}
+                className="text-sm text-swu-muted hover:text-swu-accent transition-colors font-medium"
+              >
+                Base
+              </button>
+              <ChevronLeft size={14} className="text-swu-muted rotate-180" />
+              <h1 className="text-lg font-bold text-swu-text">{pageTitle}</h1>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="relative" ref={menuRef}>

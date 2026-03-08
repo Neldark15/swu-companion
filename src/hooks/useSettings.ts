@@ -4,13 +4,15 @@ import { syncSettingsToCloud } from '../services/sync'
 import { useAuth } from './useAuth'
 
 // ── Accent Color System ──
-export type AccentColor = 'red' | 'green' | 'blue' | 'purple'
+export type AccentColor = 'red' | 'green' | 'blue' | 'purple' | 'yellow' | 'white'
 
 export const ACCENT_COLORS: Record<AccentColor, string> = {
   red:    '#EF4444',
   green:  '#22C55E',
   blue:   '#60A5FA',
   purple: '#A78BFA',
+  yellow: '#FACC15',
+  white:  '#E2E8F0',
 }
 
 export const ACCENT_LABELS: Record<AccentColor, string> = {
@@ -18,6 +20,8 @@ export const ACCENT_LABELS: Record<AccentColor, string> = {
   green:  'Verde',
   blue:   'Azul',
   purple: 'Púrpura',
+  yellow: 'Amarillo',
+  white:  'Blanco',
 }
 
 export function applyAccentColor(color: AccentColor) {
