@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Search, SlidersHorizontal, Eye, EyeOff,
-  Package, DollarSign, Layers, TrendingUp,
+  Package, DollarSign, Layers, TrendingUp, RefreshCw,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { getCardsByIds } from '../../services/swuApi'
@@ -14,7 +14,7 @@ import {
   getMyPublicStatus,
   type CollectionCardWithPrice,
 } from '../../services/collectionService'
-import { formatPrice } from '../../services/pricing'
+import { formatPrice, fetchTCGPrices } from '../../services/pricing'
 import type { Card } from '../../types'
 
 type SortKey = 'name' | 'price' | 'quantity' | 'rarity'
@@ -36,6 +36,8 @@ export function CollectionPage() {
   const [filterType, setFilterType] = useState<FilterType>('')
   const [showFilters, setShowFilters] = useState(false)
   const [isPublic, setIsPublic] = useState(true)
+  const [fetchingPrices, setFetchingPrices] = useState(false)
+  const [priceStatus, setPriceStatus] = useState('')
 
   // Load collection
   useEffect(() => {
@@ -148,6 +150,39 @@ export function CollectionPage() {
     )
   }, [items, currentProfileId, supabaseUser])
 
+  const handleFetchPrices = useCallback(async () => {
+    if (fetchingPrices || items.length === 0) return
+    setFetchingPrices(true)
+    setPriceStatus('Conectando con TCGPlayer...')
+
+    try {
+      // Build card info for pricing
+      const cardInfos = items
+        .map(item => {
+          const card = cards.get(item.cardId)
+          if (!card) return null
+          return { id: card.id, name: card.name, subtitle: card.subtitle, setCode: card.setCode }
+        })
+        .filter(Boolean) as { id: string; name: string; subtitle: string | null; setCode: string }[]
+
+      const count = await fetchTCGPrices(cardInfos, (setCode, fetched) => {
+        setPriceStatus(`${setCode}... ${fetched} precios`)
+      })
+
+      setPriceStatus(`✓ ${count} precios actualizados`)
+
+      // Reload collection with new prices
+      const collItems = await getMyCollectionWithPrices(currentProfileId ?? undefined)
+      setItems(collItems)
+    } catch (e) {
+      console.warn('[Collection] Price fetch failed:', e)
+      setPriceStatus('Error al obtener precios')
+    } finally {
+      setFetchingPrices(false)
+      setTimeout(() => setPriceStatus(''), 4000)
+    }
+  }, [fetchingPrices, items, cards, currentProfileId])
+
   const rarityColor = (r?: string) => {
     switch (r) {
       case 'Legendary': return 'text-swu-amber'
@@ -215,6 +250,24 @@ export function CollectionPage() {
             <div className="text-[10px] text-swu-muted">Con precio</div>
           </div>
         </div>
+
+        {/* Fetch Prices button */}
+        <button
+          onClick={handleFetchPrices}
+          disabled={fetchingPrices || items.length === 0}
+          className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium
+                     border transition-colors ${
+                       fetchingPrices
+                         ? 'bg-swu-green/10 border-swu-green/30 text-swu-green'
+                         : 'bg-swu-surface border-swu-border text-swu-muted hover:text-swu-green hover:border-swu-green/30'
+                     }`}
+        >
+          <RefreshCw size={14} className={fetchingPrices ? 'animate-spin' : ''} />
+          {fetchingPrices ? priceStatus : 'Actualizar Precios (TCGPlayer)'}
+        </button>
+        {priceStatus && !fetchingPrices && (
+          <div className="text-center text-[10px] text-swu-green font-mono">{priceStatus}</div>
+        )}
 
         {/* Search + Filters */}
         <div className="flex gap-2">
@@ -360,16 +413,14 @@ export function CollectionPage() {
                         <span className="text-[10px] text-swu-muted">{card.setCode}</span>
                       )}
                     </div>
-                    {item.price?.market != null && item.price.market > 0 && (
-                      <div className="text-xs text-swu-green mt-0.5">
-                        {formatPrice(item.price.market)}
-                        {item.quantity > 1 && (
-                          <span className="text-swu-muted ml-1">
-                            (×{item.quantity} = {formatPrice(item.price.market * item.quantity)})
-                          </span>
-                        )}
-                      </div>
-                    )}
+                    <div className={`text-xs mt-0.5 ${item.price?.market ? 'text-swu-green' : 'text-swu-muted/50'}`}>
+                      {formatPrice(item.price?.market)}
+                      {item.price?.market && item.quantity > 1 && (
+                        <span className="text-swu-muted ml-1">
+                          (×{item.quantity} = {formatPrice(item.price.market * item.quantity)})
+                        </span>
+                      )}
+                    </div>
                   </button>
 
                   {/* Quantity controls */}

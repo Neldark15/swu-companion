@@ -274,6 +274,188 @@ export async function pullAllPricesFromCloud(): Promise<number> {
   }
 }
 
+// ─── TCGPlayer Price Fetching (via tcgcsv.com) ──────────
+
+const SWU_CATEGORY_ID = 79
+
+/** Map our set codes to tcgcsv.com group IDs */
+const SET_GROUP_MAP: Record<string, number> = {
+  SOR: 23405,  // Spark of Rebellion
+  SHD: 23488,  // Shadows of the Galaxy
+  TWI: 23597,  // Twilight of the Republic
+  JTL: 23956,  // Jump to Lightspeed
+  LOF: 24279,  // Legends of the Force (tentative)
+  SOP: 24387,  // Secrets of Power (tentative)
+  ALT: 24572,  // A Lawless Time (tentative)
+}
+
+interface TCGProduct {
+  productId: number
+  name: string
+  cleanName: string
+  groupId: number
+}
+
+interface TCGPrice {
+  productId: number
+  marketPrice: number | null
+  lowPrice: number | null
+  highPrice: number | null
+  subTypeName: string
+}
+
+/**
+ * Normalize a card name for fuzzy matching.
+ * Removes accents, punctuation, extra spaces, lowercases.
+ */
+function normalizeName(name: string): string {
+  return name
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9 ]/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+}
+
+/**
+ * Fetch prices from tcgcsv.com for cards in a specific set.
+ * Returns a map of our cardId → PriceInfo.
+ */
+async function fetchSetPrices(
+  groupId: number,
+  cardsInSet: { id: string; name: string; subtitle: string | null }[],
+): Promise<PriceInfo[]> {
+  const results: PriceInfo[] = []
+
+  try {
+    // 1. Fetch products for this set group
+    const prodResp = await fetch(
+      `https://tcgcsv.com/tcgplayer/${SWU_CATEGORY_ID}/${groupId}/products`,
+    )
+    if (!prodResp.ok) return results
+    const prodData = await prodResp.json()
+    const products: TCGProduct[] = prodData.results || prodData || []
+
+    // 2. Fetch prices for this set group
+    const priceResp = await fetch(
+      `https://tcgcsv.com/tcgplayer/${SWU_CATEGORY_ID}/${groupId}/prices`,
+    )
+    if (!priceResp.ok) return results
+    const priceData = await priceResp.json()
+    const prices: TCGPrice[] = priceData.results || priceData || []
+
+    // 3. Build product name → price map (prefer "Normal" subtype)
+    const priceByProductId = new Map<number, TCGPrice>()
+    for (const p of prices) {
+      const existing = priceByProductId.get(p.productId)
+      // Prefer Normal over Foil/Hyperspace
+      if (!existing || p.subTypeName === 'Normal') {
+        priceByProductId.set(p.productId, p)
+      }
+    }
+
+    // 4. Build normalized product name → { productId, cleanName }
+    const prodByName = new Map<string, TCGProduct>()
+    for (const prod of products) {
+      const key = normalizeName(prod.cleanName || prod.name)
+      prodByName.set(key, prod)
+    }
+
+    // 5. Match our cards to products by name
+    for (const card of cardsInSet) {
+      // Try exact name match first
+      let matchKey = normalizeName(card.name)
+      let prod = prodByName.get(matchKey)
+
+      // Try with subtitle: "Name - Subtitle"
+      if (!prod && card.subtitle) {
+        matchKey = normalizeName(`${card.name} ${card.subtitle}`)
+        prod = prodByName.get(matchKey)
+      }
+
+      if (prod) {
+        const price = priceByProductId.get(prod.productId)
+        if (price) {
+          results.push({
+            cardId: card.id,
+            market: price.marketPrice,
+            low: price.lowPrice,
+            high: price.highPrice,
+            source: 'tcgplayer',
+            updatedAt: Date.now(),
+          })
+        }
+      }
+    }
+  } catch (e) {
+    console.warn(`[Pricing] Failed to fetch TCGPlayer prices for group ${groupId}:`, e)
+  }
+
+  return results
+}
+
+/**
+ * Fetch and cache prices for a list of cards from tcgcsv.com (TCGPlayer).
+ * Groups cards by set, fetches prices per set, saves to local + cloud cache.
+ * Returns the number of prices fetched.
+ *
+ * @param cards - Array of { id, name, subtitle, setCode } for cards to price
+ * @param onProgress - Optional callback (setCode, fetched, total)
+ */
+export async function fetchTCGPrices(
+  cards: { id: string; name: string; subtitle: string | null; setCode: string }[],
+  onProgress?: (setCode: string, fetched: number, total: number) => void,
+): Promise<number> {
+  // Group cards by setCode
+  const bySet = new Map<string, typeof cards>()
+  for (const c of cards) {
+    const group = bySet.get(c.setCode) || []
+    group.push(c)
+    bySet.set(c.setCode, group)
+  }
+
+  let totalFetched = 0
+  const totalSets = bySet.size
+  let setsProcessed = 0
+
+  for (const [setCode, setCards] of bySet) {
+    const groupId = SET_GROUP_MAP[setCode]
+    if (!groupId) {
+      setsProcessed++
+      continue
+    }
+
+    const prices = await fetchSetPrices(groupId, setCards)
+    totalFetched += prices.length
+
+    // Save to local cache
+    if (prices.length > 0) {
+      const localPrices: CardPrice[] = prices.map(p => ({
+        cardId: p.cardId,
+        marketPrice: p.market,
+        lowPrice: p.low,
+        highPrice: p.high,
+        source: p.source,
+        lastUpdated: p.updatedAt,
+      }))
+      await saveLocalPrices(localPrices)
+
+      // Update memory cache
+      for (const p of prices) {
+        _priceMemCache.set(p.cardId, p)
+      }
+
+      // Save to cloud
+      saveCloudPrices(prices).catch(() => {})
+    }
+
+    setsProcessed++
+    onProgress?.(setCode, totalFetched, totalSets)
+  }
+
+  return totalFetched
+}
+
 /**
  * Format price for display.
  */
