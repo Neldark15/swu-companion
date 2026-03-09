@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Search, SlidersHorizontal, Eye, EyeOff,
-  Package, DollarSign, Layers, TrendingUp, RefreshCw, Upload, X, FileUp,
+  Package, DollarSign, Layers, TrendingUp, RefreshCw, Upload, X, FileUp, Trash2, AlertTriangle,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { getCardsByIds } from '../../services/swuApi'
@@ -16,6 +16,8 @@ import {
 } from '../../services/collectionService'
 import { formatPrice, fetchTCGPrices } from '../../services/pricing'
 import { importCollectionFromFile, type ImportResult } from '../../services/collectionImport'
+import { db } from '../../services/db'
+import { supabase, isSupabaseReady } from '../../services/supabase'
 import { CardImage } from '../../components/CardImage'
 import type { Card } from '../../types'
 
@@ -56,6 +58,8 @@ export function CollectionPage() {
   const [importProgress, setImportProgress] = useState('')
   const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   // Load collection
   useEffect(() => {
@@ -255,6 +259,7 @@ export function CollectionPage() {
         (processed, total) => {
           setImportProgress(`Procesando... ${processed}/${total} cartas`)
         },
+        currentProfileId ?? undefined,
       )
 
       setImportResult(result)
@@ -279,6 +284,30 @@ export function CollectionPage() {
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }, [importing, supabaseUser, importMode, currentProfileId])
+
+  const handleDeleteCollection = useCallback(async () => {
+    setDeleting(true)
+    try {
+      // Clear local Dexie collection for this profile
+      if (currentProfileId) {
+        const toDelete = await db.collection.where('profileId').equals(currentProfileId).primaryKeys()
+        await db.collection.bulkDelete(toDelete)
+      } else {
+        await db.collection.clear()
+      }
+      // Clear cloud collection
+      if (supabaseUser?.id && isSupabaseReady()) {
+        await supabase.from('collection').delete().eq('user_id', supabaseUser.id)
+      }
+      setItems([])
+      setCards(new Map())
+      setShowDeleteConfirm(false)
+    } catch (e) {
+      console.warn('[Collection] Failed to delete:', e)
+    } finally {
+      setDeleting(false)
+    }
+  }, [currentProfileId, supabaseUser])
 
   const rarityColor = (r?: string) => {
     switch (r) {
@@ -762,6 +791,63 @@ export function CollectionPage() {
         {!loading && items.length > 0 && displayed.length === 0 && (
           <div className="text-center py-8 text-swu-muted text-sm">
             No se encontraron cartas con esos filtros
+          </div>
+        )}
+
+        {/* Delete collection button */}
+        {!loading && items.length > 0 && (
+          <div className="pt-6 border-t border-swu-border/30">
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="w-full py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400
+                         font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+            >
+              <Trash2 size={16} />
+              Borrar colección completa
+            </button>
+          </div>
+        )}
+
+        {/* Delete confirmation modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+            <div className="bg-swu-surface rounded-2xl border border-red-500/30 p-5 max-w-sm w-full space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-500/15 flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle size={20} className="text-red-400" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-swu-text">¿Borrar toda la colección?</div>
+                  <div className="text-xs text-swu-muted mt-0.5">
+                    Se eliminarán las {items.length} cartas ({items.reduce((s, i) => s + i.quantity, 0)} copias).
+                    Esta acción no se puede deshacer.
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={deleting}
+                  className="flex-1 py-2.5 rounded-xl bg-swu-bg border border-swu-border text-swu-muted
+                             text-sm font-medium active:scale-[0.98]"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDeleteCollection}
+                  disabled={deleting}
+                  className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-bold
+                             flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50"
+                >
+                  {deleting ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Trash2 size={14} />
+                  )}
+                  {deleting ? 'Borrando...' : 'Sí, borrar todo'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

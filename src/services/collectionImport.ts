@@ -211,6 +211,7 @@ export async function importToCollection(
   userId?: string,
   mode: 'merge' | 'replace' = 'merge',
   onProgress?: (processed: number, total: number) => void,
+  profileId?: string,
 ): Promise<ImportResult> {
   const result: ImportResult = {
     total: cards.length,
@@ -226,7 +227,13 @@ export async function importToCollection(
   // If replace mode, clear existing collection first
   if (mode === 'replace') {
     try {
-      await db.collection.clear()
+      // Only clear cards for the current profile, not the entire table
+      if (profileId) {
+        const toDelete = await db.collection.where('profileId').equals(profileId).primaryKeys()
+        await db.collection.bulkDelete(toDelete)
+      } else {
+        await db.collection.clear()
+      }
       if (userId && isSupabaseReady()) {
         await supabase.from('collection').delete().eq('user_id', userId)
       }
@@ -308,11 +315,13 @@ export async function importToCollection(
 
     try {
       if (mode === 'merge') {
-        // Get existing quantity and add
-        const existing = await db.collection.get(cardId) as { quantity?: number } | undefined
+        // Get existing quantity and add — filter by profileId if present
+        const existing = profileId
+          ? await db.collection.where({ cardId, profileId }).first() as { quantity?: number } | undefined
+          : await db.collection.get(cardId) as { quantity?: number } | undefined
         const newQty = (existing?.quantity ?? 0) + card.quantity
 
-        await db.collection.put({ cardId, quantity: newQty })
+        await db.collection.put({ cardId, quantity: newQty, ...(profileId ? { profileId } : {}) })
 
         if (userId && isSupabaseReady()) {
           batchCloud.push({ user_id: userId, card_id: cardId, quantity: newQty })
@@ -325,7 +334,7 @@ export async function importToCollection(
         }
       } else {
         // Replace mode: just set the quantity
-        await db.collection.put({ cardId, quantity: card.quantity })
+        await db.collection.put({ cardId, quantity: card.quantity, ...(profileId ? { profileId } : {}) })
 
         if (userId && isSupabaseReady()) {
           batchCloud.push({ user_id: userId, card_id: cardId, quantity: card.quantity })
@@ -367,6 +376,7 @@ export async function importCollectionFromFile(
   userId?: string,
   mode: 'merge' | 'replace' = 'merge',
   onProgress?: (processed: number, total: number) => void,
+  profileId?: string,
 ): Promise<ImportResult> {
   const text = await readFileAsText(file)
   const cards = parseCollectionFile(text, file.name)
@@ -379,5 +389,5 @@ export async function importCollectionFromFile(
     }
   }
 
-  return importToCollection(cards, userId, mode, onProgress)
+  return importToCollection(cards, userId, mode, onProgress, profileId)
 }
