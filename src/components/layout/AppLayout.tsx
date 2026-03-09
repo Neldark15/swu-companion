@@ -4,7 +4,7 @@ import { Header } from './Header'
 import { SideNav } from './SideNav'
 import { useAuth } from '../../hooks/useAuth'
 import { NotificationToast } from '../ui/NotificationToast'
-import { PageTransition } from '../PageTransition'
+import { PageTransition, usePrefetchRoutes } from '../PageTransition'
 
 export function AppLayout() {
   const initAuth = useAuth(s => s.initAuth)
@@ -13,6 +13,9 @@ export function AppLayout() {
   useEffect(() => {
     initAuth()
   }, [initAuth])
+
+  // Prefetch critical route chunks after initial render
+  usePrefetchRoutes()
 
   return (
     <div className="min-h-screen bg-swu-bg">
