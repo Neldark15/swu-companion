@@ -5,6 +5,8 @@
  */
 
 import { supabase, isSupabaseReady } from './supabase'
+import { updateMissionProgress } from './missionService'
+import { addRelationshipPoints } from './relationshipService'
 
 // ─── TYPES ──────────────────────────────────────────────────────────
 
@@ -174,6 +176,12 @@ export async function sendGift(
 
     // Update sender stats (increment gifts_sent + small xp + reputation)
     await updateSenderStats(senderId)
+
+    // Update mission progress for gift_sent objective (Diplomacia Galáctica)
+    await updateMissionProgress(senderId, 'gift_sent').catch(() => {})
+
+    // Add relationship points between sender and recipient
+    await addRelationshipPoints(senderId, recipientId, 3, 'gift').catch(() => {})
 
     return { success: true, diminished }
   } catch (e) {
