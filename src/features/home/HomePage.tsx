@@ -169,7 +169,7 @@ export function HomePage() {
               <img src="/swu-logo-title.png" alt="SWU" className="w-16 h-20 object-contain drop-shadow-lg" />
               <div>
                 <h1 className="text-lg font-extrabold text-white tracking-tight leading-tight drop-shadow-md">
-                  SWU Companion
+                  HOLOCRON SWU
                 </h1>
                 <p className="text-[9px] tracking-[0.3em] uppercase text-swu-amber font-bold drop-shadow-sm">
                   Centro de Mando

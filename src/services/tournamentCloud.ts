@@ -1,5 +1,5 @@
 /**
- * Tournament Cloud Service — SWU Companion
+ * Tournament Cloud Service — HOLOCRON SWU
  * Manages cloud-based tournaments via Supabase
  * Supports Swiss and Single Elimination formats
  */

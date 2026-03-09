@@ -22,8 +22,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'robots.txt', 'apple-touch-icon.png'],
       manifest: {
-        name: 'SWU Companion',
-        short_name: 'SWU',
+        name: 'HOLOCRON SWU',
+        short_name: 'HOLOCRON',
         description: 'Star Wars: Unlimited Companion App — Trackers, Events, Cards & Decks',
         theme_color: '#0F172A',
         background_color: '#0F172A',

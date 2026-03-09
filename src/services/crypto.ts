@@ -65,7 +65,7 @@ export async function verifyPin(
 
 // ─── WebAuthn Passkeys ──────────────────────────────────────────────
 
-const RP_NAME = 'SWU Companion'
+const RP_NAME = 'HOLOCRON SWU'
 
 /** Check if the browser supports WebAuthn + platform authenticator (biometrics) */
 export function isPasskeyAvailable(): boolean {

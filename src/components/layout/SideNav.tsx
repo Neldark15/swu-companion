@@ -76,7 +76,7 @@ export function SideNav() {
         <img src="/swu-logo-title.png" alt="SWU" className="w-10 h-12 object-contain" />
         <div className="flex-1">
           <h1 className="text-base font-extrabold text-swu-amber tracking-tight leading-tight">
-            SWU Companion
+            HOLOCRON SWU
           </h1>
           <p className="text-[9px] tracking-[0.2em] uppercase text-swu-muted font-mono">
             Centro de Mando

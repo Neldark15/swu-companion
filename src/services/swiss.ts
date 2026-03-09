@@ -1,5 +1,5 @@
 /**
- * Swiss Tournament Algorithm for SWU Companion
+ * Swiss Tournament Algorithm for HOLOCRON SWU
  * - Pair players with similar points
  * - Avoid rematches when possible
  * - Handle byes for odd player counts

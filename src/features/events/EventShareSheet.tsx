@@ -20,7 +20,7 @@ export function EventShareSheet({ eventCode, eventName, onClose }: EventShareShe
     if (navigator.share) {
       navigator.share({
         title: eventName,
-        text: `¡Únete al evento "${eventName}" en SWU Companion! Código: ${eventCode}`,
+        text: `¡Únete al evento "${eventName}" en HOLOCRON SWU! Código: ${eventCode}`,
         url: window.location.origin,
       }).catch(() => {})
     } else {

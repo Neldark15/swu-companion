@@ -222,7 +222,7 @@ export default function TournamentPublicView() {
 
       {/* Footer */}
       <div className="text-center text-xs text-swu-muted pb-4">
-        SWU Companion · {event.code}
+        HOLOCRON SWU · {event.code}
       </div>
     </div>
   )

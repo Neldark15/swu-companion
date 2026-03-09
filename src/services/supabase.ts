@@ -1,5 +1,5 @@
 /**
- * Supabase Client — SWU Companion
+ * Supabase Client — HOLOCRON SWU
  * Cloud backend for auth, profiles, stats and sync
  */
 

@@ -150,7 +150,7 @@ export function SettingsPage() {
       </div>
 
       <p className="text-[11px] text-swu-muted text-center pt-2">
-        SWU Companion v1.0.0 · Fan-made · No afiliado a FFG/Lucasfilm/Disney
+        HOLOCRON SWU v1.0.0 · Fan-made · No afiliado a FFG/Lucasfilm/Disney
       </p>
     </div>
   )

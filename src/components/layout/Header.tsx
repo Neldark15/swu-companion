@@ -27,7 +27,7 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith('/misiones')) return 'Misiones'
   if (pathname.startsWith('/espionaje')) return 'Espionaje'
   if (pathname.startsWith('/settings')) return 'Configuración'
-  return 'SWU Companion'
+  return 'HOLOCRON SWU'
 }
 
 export function Header() {
