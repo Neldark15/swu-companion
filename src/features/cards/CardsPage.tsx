@@ -291,7 +291,7 @@ export function CardsPage() {
               onClick={() => navigate(`/cards/${c.id}`)}
               className="w-full bg-swu-surface rounded-xl p-3 border border-swu-border flex items-center gap-3 text-left active:scale-[0.99] transition-transform"
             >
-              <CardImage src={c.imageUrl} alt={c.name} className="w-12 h-16" />
+              <CardImage src={(c.isLeader && c.backImageUrl) ? c.backImageUrl : c.imageUrl} alt={c.name} className="w-12 h-16" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-sm text-swu-text truncate">{c.name}</span>
