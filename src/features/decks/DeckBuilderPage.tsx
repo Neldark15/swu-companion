@@ -5,7 +5,7 @@ import {
   AlertTriangle, CheckCircle2, Loader2, BookOpen, Layers, Package, RotateCw,
 } from 'lucide-react'
 import { db } from '../../services/db'
-import { searchCards, loadFullDatabase, isDatabaseReady, getCardById, getCardsByIds } from '../../services/swuApi'
+import { searchCards, getCardById, getCardsByIds } from '../../services/swuApi'
 import { validateDeck, canAddCard, getEffectiveMinDeckSize, getFormatRules } from '../../services/deckValidator'
 import { syncDeckToCloud } from '../../services/sync'
 import { useAuth } from '../../hooks/useAuth'
@@ -55,7 +55,6 @@ export function DeckBuilderPage() {
     updatedAt: Date.now(),
   })
   const [loading, setLoading] = useState(!isNew)
-  const [dbLoading, setDbLoading] = useState(!isDatabaseReady())
   const [tab, setTab] = useState<Tab>('deck')
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Card[]>([])
@@ -96,16 +95,6 @@ export function DeckBuilderPage() {
         return p
       })
     }, 400)
-  }, [])
-
-  // Ensure DB is loaded for search
-  useEffect(() => {
-    if (!isDatabaseReady()) {
-      setDbLoading(true)
-      loadFullDatabase()
-        .then(() => setDbLoading(false))
-        .catch(() => setDbLoading(false))
-    }
   }, [])
 
   // Auto-save new deck immediately so it exists in DB
@@ -183,7 +172,6 @@ export function DeckBuilderPage() {
 
   const doSearch = useCallback(async (query: string) => {
     if (!query.trim()) { setSearchResults([]); setSearchTotal(0); return }
-    if (dbLoading && !isDatabaseReady()) return
     setSearching(true)
     try {
       const { cards, total } = await searchCards({ query, limit: 30 })
@@ -191,13 +179,12 @@ export function DeckBuilderPage() {
       setSearchTotal(total)
     } catch { setSearchResults([]) }
     setSearching(false)
-  }, [dbLoading])
+  }, [])
 
   useEffect(() => {
-    if (dbLoading) return
     const timer = setTimeout(() => doSearch(searchQuery), 300)
     return () => clearTimeout(timer)
-  }, [searchQuery, doSearch, dbLoading])
+  }, [searchQuery, doSearch])
 
   const addCardToDeck = (card: Card) => {
     // Cache image immediately
@@ -311,13 +298,6 @@ export function DeckBuilderPage() {
       {deck.format === 'trilogy' && (
         <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg px-3 py-2">
           <p className="text-[10px] text-cyan-400 font-bold">Trilogy: Sin sideboard. Máx 3 copias de cada carta entre los 3 decks del grupo.</p>
-        </div>
-      )}
-
-      {dbLoading && (
-        <div className="bg-swu-accent/10 border border-swu-accent/30 rounded-xl p-3 flex items-center gap-2">
-          <Loader2 size={16} className="text-swu-accent animate-spin" />
-          <p className="text-xs text-swu-accent font-bold">Cargando base de datos...</p>
         </div>
       )}
 
@@ -552,7 +532,7 @@ export function DeckBuilderPage() {
           ) : null}
           <div className="relative">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-swu-muted" />
-            <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={dbLoading ? "Descargando cartas..." : "Buscar por nombre..."}
+            <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Buscar por nombre..."
               className="w-full bg-swu-surface border border-swu-border rounded-xl py-3 pl-10 pr-3 text-sm text-swu-text outline-none focus:border-swu-accent" />
             {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-swu-muted"><X size={16} /></button>}
           </div>
