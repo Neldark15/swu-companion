@@ -58,8 +58,8 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
   }
 
   const handleAnswer = useCallback((optionIndex: number) => {
-    if (locked) return
-    if (selectedAnswer !== null) return
+    // Guard: prevent double answers
+    if (showResult || selectedAnswer !== null || locked) return
 
     setLocked(true)
     setSelectedAnswer(optionIndex)
@@ -91,7 +91,7 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
       xpEarned: (prev?.xpEarned || 0) + (isCorrect ? 2 : 0),
       answeredIds: [...(prev?.answeredIds || []), question.id],
     }))
-  }, [locked, selectedAnswer, currentIndex, unanswered, userId, onXpGained])
+  }, [showResult, selectedAnswer, locked, currentIndex, unanswered, userId, onXpGained])
 
   const nextQuestion = useCallback(() => {
     if (currentIndex + 1 >= unanswered.length) {
@@ -99,14 +99,12 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
       return
     }
 
-    // Reset for next question — unlock immediately since we use state now
+    // Reset everything for next question
+    setLocked(false)
     setSelectedAnswer(null)
     setShowResult(false)
-    setCurrentIndex(prev => prev + 1)
     setAnswerAnim('idle')
-    // Small delay before unlocking to prevent accidental double-taps
-    setLocked(true)
-    setTimeout(() => setLocked(false), 300)
+    setCurrentIndex(prev => prev + 1)
   }, [currentIndex, unanswered.length])
 
   if (loading) return null
@@ -168,10 +166,11 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
             <p className="text-sm font-bold text-swu-text leading-snug">{question.question}</p>
           </div>
 
-          {/* Options */}
+          {/* Options — NO disabled prop, all logic in handler for reliable mobile taps */}
           <div className="space-y-2">
             {question.options.map((option, i) => {
-              let style = 'bg-swu-bg border-swu-border text-swu-text active:scale-[0.98]'
+              const answered = showResult || selectedAnswer !== null
+              let style = 'bg-swu-bg border-swu-border text-swu-text'
               let iconEl: React.ReactNode = null
 
               if (showResult) {
@@ -187,16 +186,22 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
               }
 
               return (
-                <button
+                <div
                   key={`${currentIndex}-${i}`}
-                  onClick={() => handleAnswer(i)}
-                  disabled={showResult || locked}
-                  className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm font-medium transition-all duration-200 select-none touch-manipulation flex items-center gap-2 ${style} disabled:pointer-events-none`}
+                  role="button"
+                  tabIndex={0}
+                  onPointerUp={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    if (!answered) handleAnswer(i)
+                  }}
+                  className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm font-medium transition-all duration-200 select-none flex items-center gap-2 cursor-pointer ${style} ${!answered ? 'active:scale-[0.98]' : 'cursor-default'}`}
+                  style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
                 >
                   <span className="text-[10px] font-bold opacity-40 shrink-0 w-4">{['A', 'B', 'C', 'D'][i]}</span>
                   <span className="flex-1">{option}</span>
                   {iconEl}
-                </button>
+                </div>
               )
             })}
           </div>
