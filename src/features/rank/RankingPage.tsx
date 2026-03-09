@@ -12,10 +12,21 @@ const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormt
 function AvatarImg({ avatar, size = 'md' }: { avatar: string; size?: 'sm' | 'md' | 'lg' | 'xl' }) {
   const cls = { sm: 'w-8 h-8', md: 'w-12 h-12', lg: 'w-16 h-16', xl: 'w-20 h-20' }
   const txtCls = { sm: 'text-lg', md: 'text-2xl', lg: 'text-4xl', xl: 'text-5xl' }
+  if (avatar?.startsWith('data:image/')) {
+    return <img src={avatar} alt="" className={`${cls[size]} object-cover rounded-full`} />
+  }
   if (swAvatarIds.includes(avatar)) {
     return <img src={`/avatars/${avatar}.png`} alt="" className={`${cls[size]} object-contain`} />
   }
   return <span className={txtCls[size]}>{avatar || '🎯'}</span>
+}
+
+/** Detect names that look like UIDs or garbage and sanitize */
+function sanitizeName(name: string): string {
+  if (!name) return 'Jugador'
+  // If name looks like a UID (20+ chars, no spaces, alphanumeric mix)
+  if (name.length >= 20 && !/\s/.test(name) && /^[a-zA-Z0-9_\-]+$/.test(name)) return 'Jugador'
+  return name
 }
 
 /* ── Important achievements to display as badges ── */
@@ -161,8 +172,8 @@ export function RankingPage() {
         </div>
 
         {/* Name */}
-        <p className="text-[11px] font-bold text-gray-100 max-w-[90px] truncate text-center">
-          {entry.name}
+        <p className="text-[11px] font-bold text-gray-100 max-w-[100px] truncate text-center">
+          {sanitizeName(entry.name)}
         </p>
 
         {/* Level */}
@@ -208,8 +219,8 @@ export function RankingPage() {
             <AvatarImg avatar={entry.avatar} size={avatarSize} />
           </div>
         </div>
-        <p className="text-[11px] font-bold text-gray-100 max-w-[90px] truncate text-center">
-          {entry.name}
+        <p className="text-[11px] font-bold text-gray-100 max-w-[100px] truncate text-center">
+          {sanitizeName(entry.name)}
         </p>
         <div className="flex items-center gap-0.5">
           <Medal size={10} className="text-amber-400" />
@@ -258,7 +269,7 @@ export function RankingPage() {
         {/* Name + badges */}
         <div className="flex-1 min-w-0">
           <p className={`text-xs font-bold truncate ${isMe ? 'text-red-400' : 'text-gray-200'}`}>
-            {entry.name} {isMe && <span className="text-red-500/60 text-[9px]">(Tú)</span>}
+            {sanitizeName(entry.name)} {isMe && <span className="text-red-500/60 text-[9px]">(Tú)</span>}
           </p>
           <div className="flex items-center gap-1">
             <span className="text-[9px] text-gray-500 font-mono">Nv.{entry.level}</span>
@@ -305,7 +316,7 @@ export function RankingPage() {
         </div>
         <div className="flex-1 min-w-0">
           <p className={`text-xs font-bold truncate ${isMe ? 'text-red-400' : 'text-gray-200'}`}>
-            {entry.name} {isMe && <span className="text-red-500/60 text-[9px]">(Tú)</span>}
+            {sanitizeName(entry.name)} {isMe && <span className="text-red-500/60 text-[9px]">(Tú)</span>}
           </p>
           <div className="flex items-center gap-1.5 text-[9px]">
             <span className="text-gray-500">{entry.tournamentCount} torneo{entry.tournamentCount !== 1 ? 's' : ''}</span>

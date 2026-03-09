@@ -3,6 +3,13 @@
  * Supabase = source of truth, Dexie = offline cache
  */
 
+/** Detect names that look like UIDs/tokens and return 'Jugador' instead */
+function sanitizeName(name: string | null | undefined): string {
+  if (!name) return 'Jugador'
+  if (name.length >= 20 && !/\s/.test(name) && /^[a-zA-Z0-9_\-]+$/.test(name)) return 'Jugador'
+  return name
+}
+
 import { supabase, isSupabaseReady } from './supabase'
 import { db } from './db'
 import type { PlayerStats } from './gamification'
@@ -208,7 +215,7 @@ export async function getMonthlyLeaderboard(month?: string): Promise<Leaderboard
       const stats = row.player_stats as Record<string, unknown>
       return {
         userId: row.user_id as string,
-        name: (profile?.name as string) || 'Jugador',
+        name: sanitizeName(profile?.name as string),
         avatar: (profile?.avatar as string) || '🎯',
         xpGained: (row.xp_gained as number) || 0,
         level: (stats?.level as number) || 1,
@@ -428,7 +435,7 @@ export async function getGlobalLeaderboard(): Promise<GlobalLeaderboardEntry[]> 
       const stats = row.player_stats as Record<string, unknown>
       return {
         userId: row.id as string,
-        name: (row.name as string) || 'Jugador',
+        name: sanitizeName(row.name as string),
         avatar: (row.avatar as string) || '🎯',
         level: (stats?.level as number) || 1,
         xp: (stats?.xp as number) || 0,

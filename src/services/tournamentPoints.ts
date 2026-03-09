@@ -8,6 +8,13 @@ import { addMonthlyXp } from './sync'
 import { XP_VALUES, calculateLevel } from './gamification'
 import { db } from './db'
 
+/** Detect names that look like UIDs/tokens and return 'Jugador' instead */
+function sanitizeDisplayName(name: string | null | undefined): string {
+  if (!name) return 'Jugador'
+  if (name.length >= 20 && !/\s/.test(name) && /^[a-zA-Z0-9_\-]+$/.test(name)) return 'Jugador'
+  return name
+}
+
 // Position-based tournament points (mixto system)
 const POSITION_POINTS: Record<number, number> = {
   1: 10,
@@ -204,7 +211,7 @@ export async function getGlobalTournamentRanking(): Promise<RankingEntry[]> {
       } else {
         userMap.set(row.user_id, {
           userId: row.user_id,
-          name: profile?.name || 'Jugador',
+          name: sanitizeDisplayName(profile?.name),
           avatar: profile?.avatar || '🎯',
           totalRankingPoints: row.ranking_points || 0,
           tournamentCount: 1,
@@ -260,7 +267,7 @@ export async function getMonthlyTournamentRanking(month?: string): Promise<Ranki
       } else {
         userMap.set(row.user_id, {
           userId: row.user_id,
-          name: profile?.name || 'Jugador',
+          name: sanitizeDisplayName(profile?.name),
           avatar: profile?.avatar || '🎯',
           totalRankingPoints: row.ranking_points || 0,
           tournamentCount: 1,
