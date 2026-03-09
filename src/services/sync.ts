@@ -248,6 +248,7 @@ export async function syncDeckToCloud(userId: string, deck: Deck) {
       user_id: userId,
       name: deck.name,
       format: deck.format,
+      is_public: deck.isPublic ?? true,
       data: {
         leaders: deck.leaders,
         base: deck.base,
@@ -255,6 +256,7 @@ export async function syncDeckToCloud(userId: string, deck: Deck) {
         sideboard: deck.sideboard,
         isValid: deck.isValid,
         validationErrors: deck.validationErrors,
+        isPublic: deck.isPublic ?? true,
         createdAt: deck.createdAt,
         updatedAt: deck.updatedAt,
       },
@@ -279,11 +281,57 @@ export async function pullDecksFromCloud(userId: string): Promise<boolean> {
       id: d.id,
       name: d.name,
       format: d.format,
+      isPublic: d.is_public ?? d.data?.isPublic ?? true,
     }))
     await db.decks.bulkPut(localDecks)
     return true
   } catch {
     return false
+  }
+}
+
+/** Get public decks for a user (for spy profile) */
+export async function getPublicDecks(userId: string): Promise<{
+  id: string
+  name: string
+  format: string
+  isValid: boolean
+  leaderName: string
+  leaderCardId: string
+  baseName: string
+  baseCardId: string
+  mainDeckCount: number
+}[]> {
+  if (!isSupabaseReady()) return []
+  try {
+    const { data, error } = await supabase
+      .from('decks')
+      .select('id, name, format, is_public, data')
+      .eq('user_id', userId)
+      .eq('is_public', true)
+    if (error || !data) return []
+
+    return data.map(d => {
+      const deck = d.data as Record<string, unknown> || {}
+      const leaders = (deck.leaders as { name: string; cardId: string }[]) || []
+      const base = deck.base as { name: string; cardId: string } | null
+      const mainDeck = (deck.mainDeck as { quantity: number }[]) || []
+      const mainCount = mainDeck.reduce((s, c) => s + (c.quantity || 1), 0)
+      return {
+        id: d.id,
+        name: d.name,
+        format: d.format,
+        isValid: (deck.isValid as boolean) ?? false,
+        leaderName: leaders[0]?.name || '',
+        leaderCardId: leaders[0]?.cardId || '',
+        baseName: base?.name || '',
+        baseCardId: base?.cardId || '',
+        mainDeckCount: mainCount,
+      }
+    })
+  } catch (e) {
+    console.warn('[Sync] Failed to get public decks:', e)
+    return []
   }
 }
 
@@ -565,7 +613,7 @@ export async function pullAllFromCloud(userId: string, localProfileId: string) {
     // Decks
     supabase.from('decks').select('*').eq('user_id', userId).then(({ data }) => {
       if (data && data.length > 0) {
-        const items = data.map(d => ({ ...d.data, id: d.id, name: d.name, format: d.format, profileId: localProfileId }))
+        const items = data.map(d => ({ ...d.data, id: d.id, name: d.name, format: d.format, isPublic: d.is_public ?? d.data?.isPublic ?? true, profileId: localProfileId }))
         return db.decks.bulkPut(items).then(() => console.log(`[Sync] Pulled ${data.length} decks`))
       }
     }),

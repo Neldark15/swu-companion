@@ -52,6 +52,7 @@ export function DeckBuilderPage() {
     sideboard: [],
     isValid: false,
     validationErrors: [],
+    isPublic: true,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   })

@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Trash2, BookOpen, AlertTriangle, CheckCircle2, Swords } from 'lucide-react'
+import { Plus, Trash2, BookOpen, AlertTriangle, CheckCircle2, Swords, Eye, EyeOff } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { db } from '../../services/db'
 import { getCardById } from '../../services/swuApi'
-import { deleteDeckFromCloud, pullDecksFromCloud } from '../../services/sync'
+import { deleteDeckFromCloud, pullDecksFromCloud, syncDeckToCloud } from '../../services/sync'
 import { getEffectiveMinDeckSize } from '../../services/deckValidator'
 import { useAuth } from '../../hooks/useAuth'
 import type { Deck } from '../../types'
@@ -130,6 +130,16 @@ export function DeckListPage() {
     setDecks((prev) => prev.filter((d) => d.id !== id))
   }
 
+  const handleTogglePublic = async (deckId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    const target = decks.find(d => d.id === deckId)
+    if (!target) return
+    const updated = { ...target, isPublic: !(target.isPublic ?? true), updatedAt: Date.now() }
+    await db.decks.put(updated)
+    if (supabaseUser) syncDeckToCloud(supabaseUser.id, updated).catch(() => {})
+    setDecks(prev => prev.map(d => d.id === deckId ? updated : d))
+  }
+
   return (
     <div className="p-4 lg:p-6 space-y-4 pb-8 lg:pb-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
@@ -249,12 +259,25 @@ export function DeckListPage() {
                       {sideCount > 0 && <span>Side: {sideCount}</span>}
                       <span>{timeAgo(deck.updatedAt)}</span>
                     </div>
-                    <button
-                      onClick={(e) => handleDelete(deck.id, e)}
-                      className="p-1.5 rounded-lg bg-swu-red/10 text-swu-red active:scale-95 transition-transform"
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={(e) => handleTogglePublic(deck.id, e)}
+                        className={`p-1.5 rounded-lg active:scale-95 transition-all ${
+                          (deck.isPublic ?? true)
+                            ? 'bg-indigo-500/15 text-indigo-400'
+                            : 'bg-swu-bg text-swu-muted/50'
+                        }`}
+                        title={(deck.isPublic ?? true) ? 'Público — visible en espionaje' : 'Privado — oculto en espionaje'}
+                      >
+                        {(deck.isPublic ?? true) ? <Eye size={13} /> : <EyeOff size={13} />}
+                      </button>
+                      <button
+                        onClick={(e) => handleDelete(deck.id, e)}
+                        className="p-1.5 rounded-lg bg-swu-red/10 text-swu-red active:scale-95 transition-transform"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </div>
 
                   {!deck.isValid && deck.validationErrors.length > 0 && (

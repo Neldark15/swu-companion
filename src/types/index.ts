@@ -138,6 +138,7 @@ export interface Deck {
   sideboard: DeckCard[]
   isValid: boolean
   validationErrors: string[]
+  isPublic: boolean
   createdAt: number
   updatedAt: number
 }
