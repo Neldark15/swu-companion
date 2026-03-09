@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Settings, X, Hexagon, ChevronLeft } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { NotificationBell } from '../ui/NotificationBell'
 
 const menuItems = [
   { label: 'Configuración', path: '/settings' },
@@ -23,6 +24,8 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith('/collection')) return 'Mi Botín'
   if (pathname.startsWith('/explore')) return 'Contrabando'
   if (pathname.startsWith('/utilities')) return 'Utilidades'
+  if (pathname.startsWith('/misiones')) return 'Misiones'
+  if (pathname.startsWith('/espionaje')) return 'Espionaje'
   if (pathname.startsWith('/settings')) return 'Configuración'
   return 'SWU Companion'
 }
@@ -87,6 +90,8 @@ export function Header() {
         )}
       </div>
 
+      <div className="flex items-center gap-2">
+        <NotificationBell />
       <div className="relative" ref={menuRef}>
         <button
           onClick={() => setOpen(!open)}
@@ -109,6 +114,7 @@ export function Header() {
             ))}
           </div>
         )}
+      </div>
       </div>
     </header>
   )

@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Hexagon, Layers, BookOpen, Dice6, Package, Skull, Medal, Swords, ScrollText, Trophy, Shield, Eye, type LucideIcon } from 'lucide-react'
+import { Hexagon, Layers, BookOpen, Dice6, Package, Skull, Medal, Swords, ScrollText, Trophy, Shield, Eye, Target, type LucideIcon } from 'lucide-react'
+import { NotificationBell } from '../ui/NotificationBell'
 
 type NavItem =
   | { id: string; label: string; sub: string; icon: LucideIcon; img?: undefined }
@@ -18,6 +19,7 @@ const secondaryNav: NavItem[] = [
   { id: '/collection', label: 'Mi Botín', sub: 'Colección', icon: Package },
   { id: '/explore', label: 'Contrabando', sub: 'Explorar', icon: Skull },
   { id: '/espionaje', label: 'Espionaje', sub: 'Transmisiones', icon: Eye },
+  { id: '/misiones', label: 'Misiones', sub: 'Órdenes del Día', icon: Target },
   { id: '/decks', label: 'Mis Decks', sub: 'Constructor', icon: BookOpen },
   { id: '/rank', label: 'Consejo Jedi', sub: 'Leaderboard', icon: Shield },
   { id: '/cards', label: 'Buscar Cartas', sub: 'Base de datos', icon: Layers },
@@ -69,10 +71,10 @@ export function SideNav() {
 
   return (
     <aside className="hidden lg:flex flex-col w-64 xl:w-72 bg-swu-surface shadow-[4px_0_10px_#111118] min-h-screen fixed left-0 top-0 z-40">
-      {/* Logo */}
+      {/* Logo + Notification Bell */}
       <div className="px-5 py-5 flex items-center gap-3 border-b border-swu-border">
         <img src="/swu-logo-title.png" alt="SWU" className="w-10 h-12 object-contain" />
-        <div>
+        <div className="flex-1">
           <h1 className="text-base font-extrabold text-swu-amber tracking-tight leading-tight">
             SWU Companion
           </h1>
@@ -80,6 +82,7 @@ export function SideNav() {
             Centro de Mando
           </p>
         </div>
+        <NotificationBell />
       </div>
 
       {/* Main Navigation */}

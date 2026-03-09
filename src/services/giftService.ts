@@ -8,7 +8,7 @@ import { supabase, isSupabaseReady } from './supabase'
 
 // ─── TYPES ──────────────────────────────────────────────────────────
 
-export type GiftType = 'leccion_jedi' | 'creditos_imperiales' | 'beskar'
+export type GiftType = 'leccion_jedi' | 'creditos_imperiales' | 'beskar' | 'holocron' | 'cristal_kyber'
 
 export interface Gift {
   id: string
@@ -59,6 +59,24 @@ export const GIFT_TYPES: GiftTypeInfo[] = [
     color: 'text-cyan-300',
     bgColor: 'bg-cyan-500/20',
   },
+  {
+    type: 'holocron',
+    label: 'Holocrón de Reconocimiento',
+    description: 'Gesto de respeto entre jugadores. Otorga XP al receptor.',
+    xp: 10,
+    icon: '🔮',
+    color: 'text-purple-400',
+    bgColor: 'bg-purple-500/20',
+  },
+  {
+    type: 'cristal_kyber',
+    label: 'Cristal Kyber',
+    description: 'Cristal de energía raro y poderoso. Regalo de élite.',
+    xp: 20,
+    icon: '💎',
+    color: 'text-sky-300',
+    bgColor: 'bg-sky-500/20',
+  },
 ]
 
 const DAILY_LIMIT = 5
@@ -90,12 +108,32 @@ export async function getRemainingGifts(senderId: string): Promise<number> {
   return Math.max(0, DAILY_LIMIT - sent)
 }
 
+/** Get diminishing returns multiplier for gifts between same pair in last 7 days */
+async function getDiminishingMultiplier(senderId: string, recipientId: string): Promise<number> {
+  try {
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    const { count } = await supabase
+      .from('gifts')
+      .select('*', { count: 'exact', head: true })
+      .eq('sender_id', senderId)
+      .eq('recipient_id', recipientId)
+      .gte('created_at', weekAgo)
+
+    const previousGifts = count || 0
+    if (previousGifts === 0) return 1.0   // 100%
+    if (previousGifts === 1) return 0.5   // 50%
+    return 0.25                            // 25% (3rd+ gift)
+  } catch {
+    return 1.0
+  }
+}
+
 /** Send a gift from sender to recipient */
 export async function sendGift(
   senderId: string,
   recipientId: string,
   giftType: GiftType,
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; diminished?: boolean }> {
   if (!isSupabaseReady()) return { success: false, error: 'Sin conexión a la nube' }
 
   // Validate: no self-gifting
@@ -114,12 +152,17 @@ export async function sendGift(
   if (!giftInfo) return { success: false, error: 'Tipo de regalo inválido' }
 
   try {
-    // Insert gift record
+    // Apply diminishing returns
+    const multiplier = await getDiminishingMultiplier(senderId, recipientId)
+    const effectiveXp = Math.max(1, Math.round(giftInfo.xp * multiplier))
+    const diminished = multiplier < 1.0
+
+    // Insert gift record with effective XP
     const { error: insertError } = await supabase.from('gifts').insert({
       sender_id: senderId,
       recipient_id: recipientId,
       gift_type: giftType,
-      xp_amount: giftInfo.xp,
+      xp_amount: effectiveXp,
     })
     if (insertError) {
       console.warn('[Gift] Insert error:', insertError)
@@ -127,12 +170,12 @@ export async function sendGift(
     }
 
     // Update recipient stats (increment gifts_received + type-specific + xp)
-    await updateRecipientStats(recipientId, giftType, giftInfo.xp)
+    await updateRecipientStats(recipientId, giftType, effectiveXp)
 
-    // Update sender stats (increment gifts_sent + small xp)
+    // Update sender stats (increment gifts_sent + small xp + reputation)
     await updateSenderStats(senderId)
 
-    return { success: true }
+    return { success: true, diminished }
   } catch (e) {
     console.warn('[Gift] Failed to send gift:', e)
     return { success: false, error: 'Error inesperado al enviar el regalo' }
@@ -142,10 +185,9 @@ export async function sendGift(
 /** Update recipient's player_stats after receiving a gift */
 async function updateRecipientStats(recipientId: string, giftType: GiftType, xpAmount: number) {
   try {
-    // Fetch current stats
     const { data } = await supabase
       .from('player_stats')
-      .select('xp, gifts_received, lecciones_jedi_received, creditos_imperiales_received, beskar_received')
+      .select('xp, gifts_received, lecciones_jedi_received, creditos_imperiales_received, beskar_received, holocron_received, cristal_kyber_received, social_reputation')
       .eq('user_id', recipientId)
       .single()
 
@@ -154,6 +196,7 @@ async function updateRecipientStats(recipientId: string, giftType: GiftType, xpA
     const updates: Record<string, number> = {
       xp: (data.xp || 0) + xpAmount,
       gifts_received: (data.gifts_received || 0) + 1,
+      social_reputation: (data.social_reputation || 0) + 1, // +1 rep for receiving
     }
 
     // Increment type-specific counter
@@ -163,6 +206,10 @@ async function updateRecipientStats(recipientId: string, giftType: GiftType, xpA
       updates.creditos_imperiales_received = (data.creditos_imperiales_received || 0) + 1
     } else if (giftType === 'beskar') {
       updates.beskar_received = (data.beskar_received || 0) + 1
+    } else if (giftType === 'holocron') {
+      updates.holocron_received = (data.holocron_received || 0) + 1
+    } else if (giftType === 'cristal_kyber') {
+      updates.cristal_kyber_received = (data.cristal_kyber_received || 0) + 1
     }
 
     await supabase
@@ -174,12 +221,12 @@ async function updateRecipientStats(recipientId: string, giftType: GiftType, xpA
   }
 }
 
-/** Update sender's player_stats after sending a gift (+5 XP bonus) */
+/** Update sender's player_stats after sending a gift (+5 XP bonus + reputation) */
 async function updateSenderStats(senderId: string) {
   try {
     const { data } = await supabase
       .from('player_stats')
-      .select('xp, gifts_sent')
+      .select('xp, gifts_sent, social_reputation')
       .eq('user_id', senderId)
       .single()
 
@@ -190,6 +237,7 @@ async function updateSenderStats(senderId: string) {
       .update({
         xp: (data.xp || 0) + 5,
         gifts_sent: (data.gifts_sent || 0) + 1,
+        social_reputation: (data.social_reputation || 0) + 2, // +2 rep for sending
         updated_at: new Date().toISOString(),
       })
       .eq('user_id', senderId)

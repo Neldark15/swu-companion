@@ -18,6 +18,8 @@ import {
   type PlayerStats,
 } from '../../services/gamification'
 import { AspectIcon } from '../../components/icons/AspectIcon'
+import { getRelationship, type RelationshipLevel } from '../../services/relationshipService'
+import { getTitleById, getTitleRarity } from '../../services/cosmeticsService'
 
 const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
 
@@ -51,6 +53,16 @@ function statsFromRow(row: Record<string, unknown>): PlayerStats {
     leccionesJediReceived: (row.lecciones_jedi_received as number) || 0,
     creditosImperialesReceived: (row.creditos_imperiales_received as number) || 0,
     beskarReceived: (row.beskar_received as number) || 0,
+    holocronReceived: (row.holocron_received as number) || 0,
+    cristalKyberReceived: (row.cristal_kyber_received as number) || 0,
+    dailyMissionsCompleted: (row.daily_missions_completed as number) || 0,
+    weeklyMissionsCompleted: (row.weekly_missions_completed as number) || 0,
+    socialReputation: (row.social_reputation as number) || 0,
+    activeTitle: (row.active_title as string) || '',
+    unlockedTitles: (row.unlocked_titles as string[]) || [],
+    missionStreak: (row.mission_streak as number) || 0,
+    bestMissionStreak: (row.best_mission_streak as number) || 0,
+    relationshipCount: (row.relationship_count as number) || 0,
     unlockedAchievements: (row.unlocked_achievements as string[]) || [],
     achievementDates: (row.achievement_dates as Record<string, number>) || {},
   }
@@ -68,6 +80,7 @@ export function SpyProfilePage() {
   const [sending, setSending] = useState(false)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [selectedGift, setSelectedGift] = useState<GiftType | null>(null)
+  const [bond, setBond] = useState<{ points: number; level: number; levelInfo: RelationshipLevel } | null>(null)
 
   // Load target player data
   useEffect(() => {
@@ -81,10 +94,16 @@ export function SpyProfilePage() {
         setProfile(p)
         if (stats) setPlayerStats(statsFromRow(stats))
 
-        // Check remaining gifts for current user
+        // Check remaining gifts + bond for current user
         if (supabaseUser?.id) {
-          const rem = await getRemainingGifts(supabaseUser.id)
-          if (!cancelled) setRemaining(rem)
+          const [rem, rel] = await Promise.all([
+            getRemainingGifts(supabaseUser.id),
+            getRelationship(supabaseUser.id, userId!),
+          ])
+          if (!cancelled) {
+            setRemaining(rem)
+            setBond(rel)
+          }
         }
       } catch (e) {
         console.warn('[SpyProfile] Load error:', e)
@@ -162,6 +181,13 @@ export function SpyProfilePage() {
             </div>
             <div className="flex-1 min-w-0">
               <h2 className="text-xl font-bold text-swu-text truncate">{profile.name}</h2>
+              {/* Active title */}
+              {playerStats?.activeTitle && (() => {
+                const t = getTitleById(playerStats.activeTitle)
+                if (!t) return null
+                const r = getTitleRarity(playerStats.activeTitle)
+                return <p className={`text-[10px] font-bold ${r.color} mt-0.5`}>{t.name}</p>
+              })()}
               {profile.bio && <p className="text-xs text-swu-muted mt-0.5 line-clamp-2">{profile.bio}</p>}
               {levelInfo && (
                 <div className="flex items-center gap-2 mt-1.5">
@@ -193,6 +219,44 @@ export function SpyProfilePage() {
             </div>
           )}
         </div>
+
+        {/* Bond level — only if logged in and not self */}
+        {bond && !isSelf && bond.points > 0 && (
+          <div className="bg-swu-surface rounded-2xl border border-swu-border p-4">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">{bond.levelInfo.icon}</span>
+              <div className="flex-1">
+                <p className={`text-sm font-bold ${bond.levelInfo.color}`}>{bond.levelInfo.name}</p>
+                <p className="text-[10px] text-swu-muted">Vínculo · {bond.points} pts</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] text-swu-muted">Nivel {bond.level}/4</p>
+              </div>
+            </div>
+            {/* Bond progress bar */}
+            <div className="mt-2 h-1.5 bg-swu-bg rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
+                style={{ width: `${Math.min((bond.points / 100) * 100, 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Reputation */}
+        {playerStats && playerStats.socialReputation > 0 && (
+          <div className="bg-swu-surface rounded-2xl border border-swu-border p-4">
+            <div className="flex items-center gap-2">
+              <span className="text-base">⭐</span>
+              <span className="text-xs font-bold text-swu-muted uppercase tracking-wider">Reputación</span>
+              <span className="text-sm font-bold text-amber-400 ml-auto">{playerStats.socialReputation}</span>
+              <span className="text-amber-400 text-xs">
+                {'★'.repeat(Math.min(Math.floor(playerStats.socialReputation / 20) + 1, 5))}
+                {'☆'.repeat(Math.max(5 - Math.floor(playerStats.socialReputation / 20) - 1, 0))}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Gift section — only if logged in and not self */}
         {supabaseUser && !isSelf && (

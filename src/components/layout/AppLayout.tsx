@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'
 import { Header } from './Header'
 import { SideNav } from './SideNav'
 import { useAuth } from '../../hooks/useAuth'
+import { NotificationToast } from '../ui/NotificationToast'
 
 export function AppLayout() {
   const initAuth = useAuth(s => s.initAuth)
@@ -14,6 +15,9 @@ export function AppLayout() {
 
   return (
     <div className="min-h-screen bg-swu-bg">
+      {/* Global notification toast */}
+      <NotificationToast />
+
       {/* Desktop sidebar — hidden on mobile */}
       <SideNav />
 

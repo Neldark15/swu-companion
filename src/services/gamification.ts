@@ -11,6 +11,10 @@
  *   Villanía       – Especiales (perfil, passkey, modos, nivel)
  *   Progreso       – Meta-logros (registro Holocrón, completar categorías)
  *   Transmisiones  – Regalos enviados/recibidos (sistema social Espionaje)
+ *
+ * Capas adicionales:
+ *   Misiones diarias/semanales, Vínculos, Reputación,
+ *   Logros Ocultos, Títulos cosméticos, Notificaciones
  */
 
 // ─── TYPES ──────────────────────────────────────────────────────────
@@ -19,7 +23,9 @@ export type Aspect = 'Vigilance' | 'Command' | 'Aggression' | 'Cunning' | 'Heroi
 export type XpAction = 'match_played' | 'match_won' | 'tournament_created' | 'tournament_finished' |
   'deck_created' | 'deck_valid' | 'card_favorited' | 'card_collected' | 'daily_login' |
   'tournament_won' | 'arena_match_logged' |
-  'gift_leccion_received' | 'gift_creditos_received' | 'gift_beskar_received' | 'gift_sent'
+  'gift_leccion_received' | 'gift_creditos_received' | 'gift_beskar_received' | 'gift_sent' |
+  'gift_holocron_received' | 'gift_kyber_received' |
+  'daily_mission_completed' | 'weekly_mission_completed' | 'achievement_unlocked'
 
 export interface Achievement {
   id: string
@@ -30,6 +36,7 @@ export interface Achievement {
   svgIcon: string     // Key for SWU_ICON_MAP
   threshold: number   // Value needed to unlock
   statKey: string     // Which stat to check
+  isHidden?: boolean  // Hidden until unlocked (secret achievements)
 }
 
 export interface Rank {
@@ -69,6 +76,16 @@ export interface PlayerStats {
   leccionesJediReceived: number
   creditosImperialesReceived: number
   beskarReceived: number
+  holocronReceived: number
+  cristalKyberReceived: number
+  dailyMissionsCompleted: number
+  weeklyMissionsCompleted: number
+  socialReputation: number
+  activeTitle: string
+  unlockedTitles: string[]
+  missionStreak: number          // consecutive days completing all dailies
+  bestMissionStreak: number
+  relationshipCount: number      // number of bonds at level 3+
   unlockedAchievements: string[]
   achievementDates: Record<string, number> // achievementId → timestamp
 }
@@ -114,12 +131,13 @@ export interface AspectBar {
 // ─── RANKS ──────────────────────────────────────────────────────────
 
 export const RANKS: Rank[] = [
-  { name: 'Youngling', minLevel: 1, maxLevel: 5, color: 'text-gray-400', bgColor: 'bg-gray-500/20', borderColor: 'border-gray-500/30' },
-  { name: 'Padawan', minLevel: 6, maxLevel: 10, color: 'text-blue-400', bgColor: 'bg-blue-500/20', borderColor: 'border-blue-500/30' },
-  { name: 'Caballero Jedi', minLevel: 11, maxLevel: 15, color: 'text-green-400', bgColor: 'bg-green-500/20', borderColor: 'border-green-500/30' },
-  { name: 'Maestro Jedi', minLevel: 16, maxLevel: 20, color: 'text-yellow-400', bgColor: 'bg-yellow-500/20', borderColor: 'border-yellow-500/30' },
-  { name: 'Miembro del Consejo', minLevel: 21, maxLevel: 25, color: 'text-amber-400', bgColor: 'bg-amber-500/20', borderColor: 'border-amber-500/30' },
-  { name: 'Gran Maestro', minLevel: 26, maxLevel: 999, color: 'text-amber-300', bgColor: 'bg-amber-400/20', borderColor: 'border-amber-400/40' },
+  { name: 'Iniciado del Borde Exterior', minLevel: 1, maxLevel: 3, color: 'text-gray-400', bgColor: 'bg-gray-500/20', borderColor: 'border-gray-500/30' },
+  { name: 'Cadete de la Alianza', minLevel: 4, maxLevel: 6, color: 'text-blue-400', bgColor: 'bg-blue-500/20', borderColor: 'border-blue-500/30' },
+  { name: 'Estratega de Escuadrón', minLevel: 7, maxLevel: 10, color: 'text-green-400', bgColor: 'bg-green-500/20', borderColor: 'border-green-500/30' },
+  { name: 'Comandante del Sector', minLevel: 11, maxLevel: 15, color: 'text-yellow-400', bgColor: 'bg-yellow-500/20', borderColor: 'border-yellow-500/30' },
+  { name: 'Guardián Kyber', minLevel: 16, maxLevel: 20, color: 'text-amber-400', bgColor: 'bg-amber-500/20', borderColor: 'border-amber-500/30' },
+  { name: 'Maestro del Holocrón', minLevel: 21, maxLevel: 25, color: 'text-amber-300', bgColor: 'bg-amber-400/20', borderColor: 'border-amber-400/40' },
+  { name: 'Gran Maestro Galáctico', minLevel: 26, maxLevel: 999, color: 'text-yellow-300', bgColor: 'bg-yellow-400/20', borderColor: 'border-yellow-400/40' },
 ]
 
 // ─── XP CONFIG ──────────────────────────────────────────────────────
@@ -139,7 +157,12 @@ export const XP_VALUES: Record<XpAction, number> = {
   gift_leccion_received: 15,
   gift_creditos_received: 15,
   gift_beskar_received: 30,
+  gift_holocron_received: 10,
+  gift_kyber_received: 20,
   gift_sent: 5,
+  daily_mission_completed: 20,
+  weekly_mission_completed: 60,
+  achievement_unlocked: 40,
 }
 
 // ─── ACHIEVEMENTS ───────────────────────────────────────────────────
@@ -249,6 +272,17 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'trn_6', name: 'Nodo Galáctico', description: 'Recibir 250 regalos', aspect: 'Transmissions', icon: '🛰️', svgIcon: 'crown', threshold: 250, statKey: 'giftsReceived' },
   { id: 'trn_7', name: 'Benefactor', description: 'Enviar 10 regalos', aspect: 'Transmissions', icon: '🎁', svgIcon: 'heart', threshold: 10, statKey: 'giftsSent' },
   { id: 'trn_8', name: 'Gran Donante', description: 'Enviar 50 regalos', aspect: 'Transmissions', icon: '💝', svgIcon: 'heart', threshold: 50, statKey: 'giftsSent' },
+
+  // ═══════════════════════════════════════════════════════════════════
+  // LOGROS OCULTOS — No cuentan para balance base de 64
+  // Se muestran como "???" hasta desbloquearse
+  // ═══════════════════════════════════════════════════════════════════
+  { id: 'hid_1', name: 'No es una Luna', description: 'Racha de 5+ victorias en un mismo día', aspect: 'Aggression', icon: '🌑', svgIcon: 'new_moon', threshold: 5, statKey: 'bestStreak', isHidden: true },
+  { id: 'hid_2', name: 'Siempre Dos No Más', description: 'Vínculo nivel 3 con al menos 2 jugadores', aspect: 'Villainy', icon: '👥', svgIcon: 'masks', threshold: 2, statKey: 'relationshipCount', isHidden: true },
+  { id: 'hid_3', name: 'Tengo un Mal Presentimiento', description: 'Perder 10 partidas', aspect: 'Villainy', icon: '😰', svgIcon: 'skull', threshold: 10, statKey: 'losses', isHidden: true },
+  { id: 'hid_4', name: 'El Elegido del Meta', description: 'Tener 10 decks válidos', aspect: 'Cunning', icon: '🎯', svgIcon: 'cunning', threshold: 10, statKey: 'decksValid', isHidden: true },
+  { id: 'hid_5', name: 'Esta es la Vía', description: 'Enviar 20 Beskar', aspect: 'Transmissions', icon: '🛡️', svgIcon: 'sentinel', threshold: 20, statKey: 'beskarSent', isHidden: true },
+  { id: 'hid_6', name: 'Que la Fuerza te Acompañe', description: 'Racha de 7 días completando misiones', aspect: 'Vigilance', icon: '✨', svgIcon: 'glowing_star', threshold: 7, statKey: 'bestMissionStreak', isHidden: true },
 ]
 
 // ─── ASPECT CONFIG ──────────────────────────────────────────────────
@@ -466,6 +500,16 @@ export function createDefaultStats(profileId: string): PlayerStats {
     leccionesJediReceived: 0,
     creditosImperialesReceived: 0,
     beskarReceived: 0,
+    holocronReceived: 0,
+    cristalKyberReceived: 0,
+    dailyMissionsCompleted: 0,
+    weeklyMissionsCompleted: 0,
+    socialReputation: 0,
+    activeTitle: '',
+    unlockedTitles: [],
+    missionStreak: 0,
+    bestMissionStreak: 0,
+    relationshipCount: 0,
     unlockedAchievements: ['vil_1'], // "Iniciado" unlocked on profile creation
     achievementDates: { vil_1: Date.now() },
   }

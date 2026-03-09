@@ -39,6 +39,7 @@ const MeleeAddPage = lazy(() => import('./features/melee/MeleeAddPage').then(m =
 const MeleeDetailPage = lazy(() => import('./features/melee/MeleeDetailPage').then(m => ({ default: m.MeleeDetailPage })))
 const EspionajePage = lazy(() => import('./features/espionaje/EspionajePage').then(m => ({ default: m.EspionajePage })))
 const SpyProfilePage = lazy(() => import('./features/espionaje/SpyProfilePage').then(m => ({ default: m.SpyProfilePage })))
+const MissionsPage = lazy(() => import('./features/missions/MissionsPage'))
 
 function PageLoader() {
   return (
@@ -81,6 +82,7 @@ export default function App() {
             <Route path="/melee/:id" element={<MeleeDetailPage />} />
             <Route path="/espionaje" element={<EspionajePage />} />
             <Route path="/espionaje/:userId" element={<SpyProfilePage />} />
+            <Route path="/misiones" element={<MissionsPage />} />
             <Route path="/collection" element={<CollectionPage />} />
             <Route path="/u/:userId" element={<PublicProfilePage />} />
             <Route path="/explore" element={<ExplorePage />} />

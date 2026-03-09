@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Lock } from 'lucide-react'
 import { ACHIEVEMENTS, ASPECT_CONFIG, type Aspect } from '../../../services/gamification'
 import { SWU_ICON_MAP, IconLocked } from '../../../components/icons/SWUIcons'
 import { AspectIcon } from '../../../components/icons/AspectIcon'
@@ -14,19 +15,32 @@ export function AchievementGrid({ unlockedIds, achievementDates }: AchievementGr
   const [selectedAspect, setSelectedAspect] = useState<Aspect | 'all'>('all')
   const [selectedAch, setSelectedAch] = useState<string | null>(null)
 
-  const filtered = selectedAspect === 'all'
-    ? ACHIEVEMENTS
-    : ACHIEVEMENTS.filter(a => a.aspect === selectedAspect)
+  // Regular achievements (non-hidden)
+  const regularAchievements = ACHIEVEMENTS.filter(a => !a.isHidden)
+  // Hidden achievements: only show if unlocked
+  const hiddenUnlocked = ACHIEVEMENTS.filter(a => a.isHidden && unlockedIds.includes(a.id))
+  // Hidden locked: show as mystery "???"
+  const hiddenLocked = ACHIEVEMENTS.filter(a => a.isHidden && !unlockedIds.includes(a.id))
 
-  const unlockedCount = unlockedIds.length
-  const totalCount = ACHIEVEMENTS.length
+  const filtered = selectedAspect === 'all'
+    ? [...regularAchievements, ...hiddenUnlocked, ...hiddenLocked]
+    : regularAchievements.filter(a => a.aspect === selectedAspect)
+
+  const unlockedCount = unlockedIds.filter(id => regularAchievements.some(a => a.id === id)).length
+  const totalCount = regularAchievements.length
+  const secretCount = hiddenUnlocked.length
 
   return (
     <div className="space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between">
         <p className="text-xs font-bold text-swu-muted uppercase tracking-widest">Logros</p>
-        <span className="text-[11px] text-swu-muted font-mono">{unlockedCount}/{totalCount}</span>
+        <div className="flex items-center gap-2">
+          {secretCount > 0 && (
+            <span className="text-[10px] text-yellow-400 font-bold">+{secretCount} secretos</span>
+          )}
+          <span className="text-[11px] text-swu-muted font-mono">{unlockedCount}/{totalCount}</span>
+        </div>
       </div>
 
       {/* Aspect filter tabs — uses official SWU aspect icons */}
@@ -44,8 +58,9 @@ export function AchievementGrid({ unlockedIds, achievementDates }: AchievementGr
         {ASPECTS.map((asp) => {
           const config = ASPECT_CONFIG[asp]
           const isActive = selectedAspect === asp
-          const aspUnlocked = ACHIEVEMENTS.filter(a => a.aspect === asp && unlockedIds.includes(a.id)).length
-          const aspTotal = ACHIEVEMENTS.filter(a => a.aspect === asp).length
+          const aspAchs = regularAchievements.filter(a => a.aspect === asp)
+          const aspUnlocked = aspAchs.filter(a => unlockedIds.includes(a.id)).length
+          const aspTotal = aspAchs.length
           return (
             <button
               key={asp}
@@ -68,8 +83,30 @@ export function AchievementGrid({ unlockedIds, achievementDates }: AchievementGr
       <div className="grid grid-cols-3 gap-2">
         {filtered.map((ach) => {
           const unlocked = unlockedIds.includes(ach.id)
+          const isHidden = ach.isHidden
           const config = ASPECT_CONFIG[ach.aspect]
           const AchIcon = SWU_ICON_MAP[ach.svgIcon]
+
+          // Hidden and locked — show mystery card
+          if (isHidden && !unlocked) {
+            return (
+              <div
+                key={ach.id}
+                className="relative rounded-xl p-3 border bg-swu-surface/30 border-yellow-500/20 opacity-60"
+              >
+                <div className="w-10 h-10 mx-auto mb-1.5 rounded-lg rotate-45 flex items-center justify-center border bg-swu-bg border-yellow-500/20">
+                  <div className="-rotate-45">
+                    <Lock size={16} className="text-yellow-500/50" />
+                  </div>
+                </div>
+                <p className="text-[10px] font-bold text-center text-yellow-500/50">???</p>
+                <div className="absolute top-1 right-1">
+                  <span className="text-[8px] text-yellow-400/60 font-bold">SECRETO</span>
+                </div>
+              </div>
+            )
+          }
+
           return (
             <button
               key={ach.id}
@@ -80,6 +117,13 @@ export function AchievementGrid({ unlockedIds, achievementDates }: AchievementGr
                   : 'bg-swu-surface/50 border-swu-border/50 opacity-50'
               }`}
             >
+              {/* Secret badge for unlocked hidden achievements */}
+              {isHidden && unlocked && (
+                <div className="absolute top-1 right-1">
+                  <span className="text-[7px] bg-yellow-500/20 text-yellow-400 px-1 py-0.5 rounded font-bold">SECRETO</span>
+                </div>
+              )}
+
               {/* Diamond frame icon */}
               <div className={`w-10 h-10 mx-auto mb-1.5 rounded-lg rotate-45 flex items-center justify-center border ${
                 unlocked
@@ -128,7 +172,12 @@ export function AchievementGrid({ unlockedIds, achievementDates }: AchievementGr
                 <DetailIcon size={22} className={config.textColor} />
               )}
               <div>
-                <p className={`text-sm font-bold ${config.textColor}`}>{ach.name}</p>
+                <div className="flex items-center gap-2">
+                  <p className={`text-sm font-bold ${config.textColor}`}>{ach.name}</p>
+                  {ach.isHidden && (
+                    <span className="text-[8px] bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded font-bold">SECRETO</span>
+                  )}
+                </div>
                 <p className="text-[11px] text-swu-muted">{ach.description}</p>
               </div>
             </div>

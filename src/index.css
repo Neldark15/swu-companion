@@ -87,3 +87,12 @@ input:focus, textarea:focus, select:focus {
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
 }
+
+@keyframes slide-in-top {
+  from { transform: translateX(-50%) translateY(-120%); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+.animate-slide-in-top {
+  animation: slide-in-top 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
