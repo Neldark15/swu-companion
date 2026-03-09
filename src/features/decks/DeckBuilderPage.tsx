@@ -10,6 +10,7 @@ import { validateDeck, canAddCard, getEffectiveMinDeckSize, getFormatRules } fro
 import { syncDeckToCloud } from '../../services/sync'
 import { useAuth } from '../../hooks/useAuth'
 import { CardImage } from '../../components/CardImage'
+import { translateType } from '../../services/translations'
 import type { Deck, DeckCard, Card, TournamentFormat } from '../../types'
 
 function generateId() {
@@ -552,7 +553,7 @@ export function DeckBuilderPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-swu-text truncate">{card.name}</p>
                       <div className="flex gap-1 mt-0.5">
-                        <span className="text-[9px] text-swu-muted">{card.type}</span>
+                        <span className="text-[9px] text-swu-muted">{translateType(card.type)}</span>
                         {card.cost !== null && <span className="text-[9px] text-swu-amber font-bold">⬡{card.cost}</span>}
                         {card.arena && <span className="text-[9px] text-swu-muted">· {card.arena}</span>}
                       </div>

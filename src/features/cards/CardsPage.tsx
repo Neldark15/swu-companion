@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, SlidersHorizontal, X, Loader2, WifiOff, Database, CheckCircle2 } from 'lucide-react'
+import { Search, SlidersHorizontal, X, Loader2, WifiOff } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { CardImage } from '../../components/CardImage'
-import { searchCards, getSets, loadFullDatabase, isDatabaseReady, type SearchParams } from '../../services/swuApi'
+import { searchCards, getSets, getLocalCardCount, type SearchParams } from '../../services/swuApi'
 import { getPricesForCards, fetchTCGPrices, formatPrice, type PriceInfo } from '../../services/pricing'
+import { translateType, translateRarity, translateArena } from '../../services/translations'
 import type { Card, SetInfo } from '../../types'
 
 const typeVariant: Record<string, 'amber' | 'accent' | 'green' | 'purple' | 'default'> = {
@@ -46,37 +47,21 @@ export function CardsPage() {
   const [offline, setOffline] = useState(false)
   const [sets, setSets] = useState<SetInfo[]>([])
   const [hasSearched, setHasSearched] = useState(false)
-  const [dbLoading, setDbLoading] = useState(!isDatabaseReady())
-  const [dbCardCount, setDbCardCount] = useState(0)
-  const [dbError, setDbError] = useState(false)
+  const [localCount, setLocalCount] = useState(0)
   const [prices, setPrices] = useState<Map<string, PriceInfo>>(new Map())
   const [pricesLoading, setPricesLoading] = useState(false)
   const priceFetchRef = useRef(0) // dedup guard
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Load database on mount
+  // Load sets on mount
   useEffect(() => {
     getSets().then(setSets).catch(() => {})
-
-    if (!isDatabaseReady()) {
-      setDbLoading(true)
-      loadFullDatabase()
-        .then((count) => {
-          setDbCardCount(count)
-          setDbLoading(false)
-        })
-        .catch(() => {
-          setDbLoading(false)
-          setDbError(true)
-        })
-    }
+    getLocalCardCount().then(setLocalCount).catch(() => {})
   }, [])
 
   const doSearch = useCallback(
     async (reset = true) => {
-      if (dbLoading && !isDatabaseReady()) return
-
       const params: SearchParams = {
         query: query || undefined,
         type: selectedType || undefined,
@@ -111,7 +96,7 @@ export function CardsPage() {
         setLoadingMore(false)
       }
     },
-    [query, selectedType, selectedAspect, selectedSet, selectedArena, selectedRarity, cards.length, dbLoading],
+    [query, selectedType, selectedAspect, selectedSet, selectedArena, selectedRarity, cards.length],
   )
 
   // Auto-load prices when cards change
@@ -159,7 +144,6 @@ export function CardsPage() {
 
   // Debounced search on query/filter change
   useEffect(() => {
-    if (dbLoading) return
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
       doSearch(true)
@@ -168,7 +152,7 @@ export function CardsPage() {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, selectedType, selectedAspect, selectedSet, selectedArena, selectedRarity, dbLoading])
+  }, [query, selectedType, selectedAspect, selectedSet, selectedArena, selectedRarity])
 
   const toggleFilter = (current: string | null, value: string, setter: (v: string | null) => void) => {
     setter(current === value ? null : value)
@@ -188,47 +172,6 @@ export function CardsPage() {
 
   return (
     <div className="p-4 lg:p-6 space-y-3 pb-8 lg:pb-8 max-w-5xl mx-auto">
-      {/* Database loading indicator */}
-      {dbLoading && (
-        <div className="bg-swu-accent/10 border border-swu-accent/30 rounded-xl p-4 flex items-center gap-3">
-          <Loader2 size={20} className="text-swu-accent animate-spin flex-shrink-0" />
-          <div>
-            <p className="text-sm font-bold text-swu-accent">Descargando base de datos...</p>
-            <p className="text-xs text-swu-muted">Primera vez: 7500+ cartas para búsqueda instantánea</p>
-          </div>
-        </div>
-      )}
-
-      {dbError && (
-        <div className="bg-swu-red/10 border border-swu-red/30 rounded-xl p-4 flex items-center gap-3">
-          <WifiOff size={20} className="text-swu-red flex-shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-bold text-swu-red">Error al descargar cartas</p>
-            <p className="text-xs text-swu-muted">Verifique su conexión a internet</p>
-          </div>
-          <button
-            onClick={() => {
-              setDbError(false)
-              setDbLoading(true)
-              loadFullDatabase()
-                .then((count) => { setDbCardCount(count); setDbLoading(false) })
-                .catch(() => { setDbLoading(false); setDbError(true) })
-            }}
-            className="text-xs font-bold text-swu-accent bg-swu-accent/10 px-3 py-1.5 rounded-lg"
-          >
-            Reintentar
-          </button>
-        </div>
-      )}
-
-      {!dbLoading && dbCardCount > 0 && !hasSearched && (
-        <div className="bg-swu-green/10 border border-swu-green/30 rounded-xl px-3 py-2 flex items-center gap-2">
-          <Database size={14} className="text-swu-green" />
-          <span className="text-xs text-swu-green font-medium">{dbCardCount.toLocaleString()} cartas listas</span>
-          <CheckCircle2 size={12} className="text-swu-green ml-auto" />
-        </div>
-      )}
-
       {/* Search */}
       <div className="flex gap-2">
         <div className="flex-1 relative">
@@ -236,7 +179,7 @@ export function CardsPage() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={dbLoading ? "Descargando cartas..." : "Buscar por nombre, texto, trait..."}
+            placeholder={localCount > 0 ? `Buscar en ${localCount.toLocaleString()} cartas en caché...` : "Usa filtros para explorar o escribe un nombre..."}
             className="w-full bg-swu-surface border border-swu-border rounded-xl py-3 pl-10 pr-9 text-sm text-swu-text outline-none focus:border-swu-accent transition-colors"
           />
           {query && (
@@ -355,9 +298,9 @@ export function CardsPage() {
                   {c.subtitle && <span className="text-xs text-swu-muted truncate">{c.subtitle}</span>}
                 </div>
                 <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                  <Badge variant={typeVariant[c.type] || 'default'}>{c.type}</Badge>
-                  <Badge variant={rarityVariant[c.rarity] || 'default'}>{c.rarity}</Badge>
-                  {c.arena && <Badge>{c.arena}</Badge>}
+                  <Badge variant={typeVariant[c.type] || 'default'}>{translateType(c.type)}</Badge>
+                  <Badge variant={rarityVariant[c.rarity] || 'default'}>{translateRarity(c.rarity)}</Badge>
+                  {c.arena && <Badge>{translateArena(c.arena)}</Badge>}
                   <span className="text-[9px] text-swu-muted">{c.setCode} #{c.setNumber}</span>
                 </div>
               </div>

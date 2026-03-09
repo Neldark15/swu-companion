@@ -9,6 +9,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { getCardQuantity, updateCollectionQuantity } from '../../services/collectionService'
 import { formatPrice, getLocalPrice, type PriceInfo } from '../../services/pricing'
 import { getPricesForCards, fetchTCGPrices } from '../../services/pricing'
+import { translateType, translateRarity, translateArena, translateAspect, translateKeyword, translateTrait, translateCardText } from '../../services/translations'
 import type { Card } from '../../types'
 
 const typeVariant: Record<string, 'amber' | 'accent' | 'green' | 'purple' | 'default'> = {
@@ -169,9 +170,9 @@ export function CardDetailPage() {
 
       {/* Badges */}
       <div className="flex flex-wrap gap-1.5 justify-center">
-        <Badge variant={typeVariant[card.type] || 'default'}>{card.type}</Badge>
-        <Badge variant={rarityVariant[card.rarity] || 'default'}>{card.rarity}</Badge>
-        {card.arena && <Badge>{card.arena}</Badge>}
+        <Badge variant={typeVariant[card.type] || 'default'}>{translateType(card.type)}</Badge>
+        <Badge variant={rarityVariant[card.rarity] || 'default'}>{translateRarity(card.rarity)}</Badge>
+        {card.arena && <Badge>{translateArena(card.arena)}</Badge>}
         {card.isUnique && <Badge variant="purple">Única</Badge>}
       </div>
 
@@ -209,7 +210,7 @@ export function CardDetailPage() {
                 key={a}
                 className={`px-3 py-1 rounded-lg text-xs font-bold border ${aspectColors[a] || 'bg-swu-surface text-swu-text border-swu-border'}`}
               >
-                {a}
+                {translateAspect(a)}
               </span>
             ))}
           </div>
@@ -220,7 +221,7 @@ export function CardDetailPage() {
       {card.traits.length > 0 && (
         <div>
           <p className="text-xs text-swu-muted mb-1.5">Rasgos</p>
-          <p className="text-sm text-swu-text">{card.traits.join(' · ')}</p>
+          <p className="text-sm text-swu-text">{card.traits.map(t => translateTrait(t)).join(' · ')}</p>
         </div>
       )}
 
@@ -230,7 +231,7 @@ export function CardDetailPage() {
           <p className="text-xs text-swu-muted mb-1.5">Palabras Clave</p>
           <div className="flex flex-wrap gap-1.5">
             {card.keywords.map((k) => (
-              <Badge key={k} variant="accent">{k}</Badge>
+              <Badge key={k} variant="accent">{translateKeyword(k)}</Badge>
             ))}
           </div>
         </div>
@@ -243,7 +244,7 @@ export function CardDetailPage() {
             <BookOpen size={14} className="text-swu-accent" />
             <p className="text-xs font-bold text-swu-muted">Texto de Carta</p>
           </div>
-          <p className="text-sm text-swu-text leading-relaxed whitespace-pre-wrap">{card.text}</p>
+          <p className="text-sm text-swu-text leading-relaxed whitespace-pre-wrap">{translateCardText(card.text)}</p>
         </div>
       )}
 
@@ -251,7 +252,7 @@ export function CardDetailPage() {
       {card.deployBox && (
         <div className="bg-swu-amber/10 rounded-xl p-4 border border-swu-amber/30">
           <p className="text-xs font-bold text-swu-amber mb-1">Despliegue</p>
-          <p className="text-sm text-swu-text">{card.deployBox}</p>
+          <p className="text-sm text-swu-text">{translateCardText(card.deployBox)}</p>
         </div>
       )}
 
@@ -262,7 +263,7 @@ export function CardDetailPage() {
             <Star size={14} className="text-purple-400" />
             <p className="text-xs font-bold text-purple-400">Acción Épica</p>
           </div>
-          <p className="text-sm text-swu-text">{card.epicAction}</p>
+          <p className="text-sm text-swu-text">{translateCardText(card.epicAction)}</p>
         </div>
       )}
 
