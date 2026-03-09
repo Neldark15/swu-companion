@@ -127,7 +127,7 @@ CREATE POLICY "Users can update own relationships"
 -- ─── 5. Índice adicional en gifts para diminishing returns ──
 
 CREATE INDEX IF NOT EXISTS idx_gifts_pair_recent
-  ON gifts (sender_id, recipient_id, sent_at DESC);
+  ON gifts (sender_id, recipient_id, created_at DESC);
 
 -- ============================================================
 -- FIN — Ejecutar todo de una vez en Supabase SQL Editor
