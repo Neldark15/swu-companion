@@ -30,6 +30,7 @@ const mainSystems = [
     notchBg: 'bg-swu-green/40',
     glow: 'shadow-[0_0_18px_rgba(74,222,128,0.15)]',
     to: '/arena',
+    auth: true,
   },
   {
     icon: Medal,
@@ -60,6 +61,7 @@ const mainSystems = [
     notchBg: 'bg-swu-green/40',
     glow: 'shadow-[0_0_18px_rgba(74,222,128,0.15)]',
     to: '/collection',
+    auth: true,
   },
   {
     icon: Skull,
@@ -70,6 +72,7 @@ const mainSystems = [
     notchBg: 'bg-red-400/40',
     glow: 'shadow-[0_0_18px_rgba(248,113,113,0.15)]',
     to: '/explore',
+    auth: true,
   },
   {
     icon: BookOpen,
@@ -80,6 +83,7 @@ const mainSystems = [
     notchBg: 'bg-swu-accent/40',
     glow: 'shadow-[0_0_18px_rgba(56,189,248,0.15)]',
     to: '/decks',
+    auth: true,
   },
   {
     icon: Eye,
@@ -90,6 +94,7 @@ const mainSystems = [
     notchBg: 'bg-indigo-400/40',
     glow: 'shadow-[0_0_18px_rgba(129,140,248,0.15)]',
     to: '/espionaje',
+    auth: true,
   },
   {
     icon: Target,
@@ -100,6 +105,7 @@ const mainSystems = [
     notchBg: 'bg-orange-400/40',
     glow: 'shadow-[0_0_18px_rgba(251,146,60,0.15)]',
     to: '/misiones',
+    auth: true,
   },
   {
     icon: Shield,
@@ -110,6 +116,7 @@ const mainSystems = [
     notchBg: 'bg-swu-amber/40',
     glow: 'shadow-[0_0_18px_rgba(251,191,36,0.15)]',
     to: '/rank',
+    auth: true,
   },
   {
     icon: Layers,
@@ -232,7 +239,7 @@ export function HomePage() {
 
       {/* ── Main Systems Grid (ship console buttons) ── */}
       <div className="px-5 pt-2 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4">
-        {mainSystems.map((sys) => {
+        {mainSystems.filter(s => !s.auth || currentProfile).map((sys) => {
           const Icon = sys.icon
           return (
             <button
