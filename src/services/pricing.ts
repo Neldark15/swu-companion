@@ -24,8 +24,10 @@ export type { PriceVariant }
 export interface PriceInfo {
   cardId: string
   market: number | null   // Normal market price
+  mid: number | null      // Mid price (≈ Most Recent Sale)
   low: number | null
   high: number | null
+  directLow: number | null
   source: string
   updatedAt: number
   /** Price variants by subtype: Normal, Foil, Hyperspace, etc. */
@@ -46,8 +48,10 @@ export async function getLocalPrice(cardId: string): Promise<PriceInfo | null> {
     const info: PriceInfo = {
       cardId: cached.cardId,
       market: cached.marketPrice,
+      mid: cached.midPrice ?? null,
       low: cached.lowPrice,
       high: cached.highPrice,
+      directLow: cached.directLowPrice ?? null,
       source: cached.source,
       updatedAt: cached.lastUpdated,
       variants: cached.variants ? JSON.parse(cached.variants) : undefined,
@@ -82,8 +86,10 @@ export async function getLocalPrices(cardIds: string[]): Promise<Map<string, Pri
       const info: PriceInfo = {
         cardId: p.cardId,
         market: p.marketPrice,
+        mid: p.midPrice ?? null,
         low: p.lowPrice,
         high: p.highPrice,
+        directLow: p.directLowPrice ?? null,
         source: p.source,
         updatedAt: p.lastUpdated,
         variants: p.variants ? JSON.parse(p.variants) : undefined,
@@ -119,7 +125,7 @@ export async function getCloudPrices(cardIds: string[]): Promise<Map<string, Pri
       const chunk = cardIds.slice(i, i + 100)
       const { data } = await supabase
         .from('card_prices')
-        .select('card_id, market_price, low_price, high_price, source, last_updated, variants')
+        .select('card_id, market_price, mid_price, low_price, high_price, direct_low_price, source, last_updated, variants')
         .in('card_id', chunk)
 
       if (data) {
@@ -127,8 +133,10 @@ export async function getCloudPrices(cardIds: string[]): Promise<Map<string, Pri
           result.set(row.card_id, {
             cardId: row.card_id,
             market: row.market_price,
+            mid: row.mid_price ?? null,
             low: row.low_price,
             high: row.high_price,
+            directLow: row.direct_low_price ?? null,
             source: row.source || 'cloud',
             updatedAt: new Date(row.last_updated).getTime(),
             variants: row.variants ? (typeof row.variants === 'string' ? JSON.parse(row.variants) : row.variants) : undefined,
@@ -151,8 +159,10 @@ export async function saveCloudPrices(prices: PriceInfo[]): Promise<void> {
     const rows = prices.map(p => ({
       card_id: p.cardId,
       market_price: p.market,
+      mid_price: p.mid,
       low_price: p.low,
       high_price: p.high,
+      direct_low_price: p.directLow,
       source: p.source,
       last_updated: new Date(p.updatedAt).toISOString(),
       variants: p.variants ? JSON.stringify(p.variants) : null,
@@ -203,8 +213,10 @@ export async function getPricesForCards(cardIds: string[]): Promise<Map<string, 
       toSaveLocally.push({
         cardId: id,
         marketPrice: cloudPrice.market,
+        midPrice: cloudPrice.mid,
         lowPrice: cloudPrice.low,
         highPrice: cloudPrice.high,
+        directLowPrice: cloudPrice.directLow,
         source: cloudPrice.source,
         lastUpdated: cloudPrice.updatedAt,
       })
@@ -233,8 +245,10 @@ export async function setCardPrice(
   const price: CardPrice = {
     cardId,
     marketPrice: market,
+    midPrice: null,
     lowPrice: low ?? null,
     highPrice: high ?? null,
+    directLowPrice: null,
     source: 'manual',
     lastUpdated: now,
   }
@@ -243,8 +257,10 @@ export async function setCardPrice(
   await saveCloudPrices([{
     cardId,
     market,
+    mid: null,
     low: low ?? null,
     high: high ?? null,
+    directLow: null,
     source: 'manual',
     updatedAt: now,
   }])
@@ -259,15 +275,17 @@ export async function pullAllPricesFromCloud(): Promise<number> {
   try {
     const { data } = await supabase
       .from('card_prices')
-      .select('card_id, market_price, low_price, high_price, source, last_updated')
+      .select('card_id, market_price, mid_price, low_price, high_price, direct_low_price, source, last_updated')
 
     if (!data || data.length === 0) return 0
 
     const localPrices: CardPrice[] = data.map(row => ({
       cardId: row.card_id,
       marketPrice: row.market_price,
+      midPrice: row.mid_price ?? null,
       lowPrice: row.low_price,
       highPrice: row.high_price,
+      directLowPrice: row.direct_low_price ?? null,
       source: row.source || 'cloud',
       lastUpdated: new Date(row.last_updated).getTime(),
     }))
@@ -305,9 +323,11 @@ interface TCGProduct {
 
 interface TCGPrice {
   productId: number
-  marketPrice: number | null
   lowPrice: number | null
+  midPrice: number | null
   highPrice: number | null
+  marketPrice: number | null
+  directLowPrice: number | null
   subTypeName: string
 }
 
@@ -442,8 +462,10 @@ async function fetchSetPrices(
             const subName = pp.subTypeName || 'Normal'
             variants[subName] = {
               market: pp.marketPrice,
+              mid: pp.midPrice,
               low: pp.lowPrice,
               high: pp.highPrice,
+              directLow: pp.directLowPrice,
             }
             if (subName === 'Normal') normalPrice = pp
           }
@@ -454,8 +476,10 @@ async function fetchSetPrices(
           results.push({
             cardId: card.id,
             market: primary.marketPrice,
+            mid: primary.midPrice,
             low: primary.lowPrice,
             high: primary.highPrice,
+            directLow: primary.directLowPrice,
             source: 'tcgplayer',
             updatedAt: Date.now(),
             variants: Object.keys(variants).length > 1 ? variants : undefined,
@@ -509,8 +533,10 @@ export async function fetchTCGPrices(
       const localPrices: CardPrice[] = prices.map(p => ({
         cardId: p.cardId,
         marketPrice: p.market,
+        midPrice: p.mid,
         lowPrice: p.low,
         highPrice: p.high,
+        directLowPrice: p.directLow,
         source: p.source,
         variants: p.variants ? JSON.stringify(p.variants) : undefined,
         lastUpdated: p.updatedAt,

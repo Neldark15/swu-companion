@@ -277,28 +277,52 @@ export function CardDetailPage() {
           </div>
 
           {priceInfo && priceInfo.variants && Object.keys(priceInfo.variants).length > 0 ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {Object.entries(priceInfo.variants).map(([subtype, v]) => (
-                <div key={subtype} className="flex items-center justify-between py-1.5 border-b border-swu-border/30 last:border-0">
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${
+                <div key={subtype} className="bg-swu-bg/50 rounded-lg p-3 border border-swu-border/20">
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-md inline-block mb-2 ${
                     subtype === 'Normal' ? 'bg-swu-surface text-swu-text' :
                     subtype === 'Foil' ? 'bg-swu-amber/20 text-swu-amber' :
                     subtype.includes('Hyperspace') ? 'bg-purple-400/20 text-purple-400' :
                     subtype.includes('Showcase') ? 'bg-cyan-400/20 text-cyan-300' :
                     'bg-swu-surface text-swu-muted'
                   }`}>{subtype}</span>
-                  <div className="flex items-center gap-3 text-xs">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-swu-green/10 rounded-lg p-2 text-center">
+                      <p className="text-[10px] text-swu-muted uppercase tracking-wide">Market Price</p>
+                      <p className="text-base font-extrabold text-swu-green">{formatPrice(v.market)}</p>
+                    </div>
+                    <div className="bg-swu-amber/10 rounded-lg p-2 text-center">
+                      <p className="text-[10px] text-swu-muted uppercase tracking-wide">Most Recent Sale</p>
+                      <p className="text-base font-extrabold text-swu-amber">{formatPrice(v.mid)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-2 text-[10px]">
                     <span className="text-swu-muted">Low <span className="text-swu-text font-bold">{formatPrice(v.low)}</span></span>
-                    <span className="text-swu-green font-extrabold text-sm">{formatPrice(v.market)}</span>
                     <span className="text-swu-muted">High <span className="text-swu-text font-bold">{formatPrice(v.high)}</span></span>
+                    {v.directLow != null && v.directLow > 0 && (
+                      <span className="text-swu-muted">Direct <span className="text-cyan-300 font-bold">{formatPrice(v.directLow)}</span></span>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           ) : priceInfo ? (
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-swu-muted">Market Price</span>
-              <span className="text-sm font-extrabold text-swu-green">{formatPrice(priceInfo.market)}</span>
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-swu-green/10 rounded-lg p-2 text-center">
+                  <p className="text-[10px] text-swu-muted uppercase tracking-wide">Market Price</p>
+                  <p className="text-base font-extrabold text-swu-green">{formatPrice(priceInfo.market)}</p>
+                </div>
+                <div className="bg-swu-amber/10 rounded-lg p-2 text-center">
+                  <p className="text-[10px] text-swu-muted uppercase tracking-wide">Most Recent Sale</p>
+                  <p className="text-base font-extrabold text-swu-amber">{formatPrice(priceInfo.mid)}</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="text-swu-muted">Low <span className="text-swu-text font-bold">{formatPrice(priceInfo.low)}</span></span>
+                <span className="text-swu-muted">High <span className="text-swu-text font-bold">{formatPrice(priceInfo.high)}</span></span>
+              </div>
             </div>
           ) : null}
         </div>

@@ -18,17 +18,21 @@ export interface UserProfile {
 export interface PriceVariant {
   market: number | null
   low: number | null
+  mid: number | null
   high: number | null
+  directLow: number | null
 }
 
 export interface CardPrice {
   cardId: string
   marketPrice: number | null
+  midPrice: number | null
   lowPrice: number | null
   highPrice: number | null
+  directLowPrice: number | null
   source: string             // 'tcgplayer' | 'manual'
   lastUpdated: number
-  /** JSON map of subtype → { market, low, high } e.g. { "Normal": {...}, "Foil": {...} } */
+  /** JSON map of subtype → { market, low, mid, high, directLow } */
   variants?: string
 }
 
