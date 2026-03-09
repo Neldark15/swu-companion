@@ -21,7 +21,7 @@ export async function saveMeleeTournament(
 ): Promise<MeleeTournament> {
   const tournament: MeleeTournament = {
     ...data,
-    id: crypto.randomUUID(),
+    id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `m_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
     createdAt: Date.now(),
   }
 

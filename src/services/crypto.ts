@@ -125,7 +125,11 @@ export async function createPasskey(
   const response = credential.response as AuthenticatorAttestationResponse
   return {
     credentialId: bufferToBase64(credential.rawId),
-    publicKey: bufferToBase64(response.getPublicKey?.() || new ArrayBuffer(0)),
+    publicKey: bufferToBase64(
+      typeof response.getPublicKey === 'function'
+        ? (response.getPublicKey() || new ArrayBuffer(0))
+        : new ArrayBuffer(0)
+    ),
   }
 }
 

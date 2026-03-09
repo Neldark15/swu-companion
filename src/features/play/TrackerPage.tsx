@@ -361,7 +361,7 @@ export function TrackerPage() {
   // Player count picker for Twin Suns
   if (showPlayerCountPicker) {
     return (
-      <div className="p-4 flex flex-col items-center justify-center gap-6" style={{ minHeight: 'calc(100vh - 52px - 64px)' }}>
+      <div className="p-4 flex flex-col items-center justify-center gap-6" style={{ minHeight: 'calc(var(--app-vh, 100vh) - 52px - 64px)' }}>
         <Users size={48} className="text-swu-amber" />
         <h2 className="text-xl font-extrabold text-swu-text">Twin Suns</h2>
         <p className="text-sm text-swu-muted text-center">¿Cuántos jugadores participarán?</p>
@@ -394,7 +394,7 @@ export function TrackerPage() {
     const winnerIdx = gameScore[0] >= 2 ? 0 : 1
     const winner = players[winnerIdx]
     return (
-      <div className="p-4 flex flex-col items-center justify-center gap-6" style={{ minHeight: 'calc(100vh - 52px - 64px)' }}>
+      <div className="p-4 flex flex-col items-center justify-center gap-6" style={{ minHeight: 'calc(var(--app-vh, 100vh) - 52px - 64px)' }}>
         <Trophy size={64} className="text-swu-amber" />
         <h2 className="text-2xl font-extrabold text-swu-text text-center">¡{winner.name} gana!</h2>
         <div className="flex items-center gap-3">
@@ -447,7 +447,7 @@ export function TrackerPage() {
   const is2Player = players.length <= 2
 
   return (
-    <div className="p-2 flex flex-col gap-1.5" style={{ height: 'calc(100vh - 52px - 64px)' }}>
+    <div className="p-2 flex flex-col gap-1.5" style={{ height: 'calc(var(--app-vh, 100vh) - 52px - 64px)' }}>
       {/* Top bar */}
       <div className="flex items-center justify-between">
         <button onClick={() => navigate('/play')} className="flex items-center gap-1 text-sm text-swu-muted">
