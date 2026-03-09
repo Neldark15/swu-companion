@@ -124,6 +124,7 @@ const mainSystems = [
     notchBg: 'bg-swu-accent/40',
     glow: 'shadow-[0_0_18px_rgba(56,189,248,0.15)]',
     to: '/cards',
+    auth: true,
   },
   {
     icon: ChanceCubeIcon,
