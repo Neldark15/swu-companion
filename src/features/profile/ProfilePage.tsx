@@ -67,7 +67,7 @@ function AvatarDisplay({ avatar, size = 'md' }: { avatar: string; size?: 'sm' | 
   return <span className={textSizes[size]}>{avatar}</span>
 }
 
-type View = 'select' | 'register' | 'login' | 'forgot-password' | 'profile' | 'customize' | 'security' | 'register-passkey'
+type View = 'select' | 'register' | 'login' | 'forgot-password' | 'reset-password' | 'profile' | 'customize' | 'security' | 'register-passkey'
 
 export function ProfilePage() {
   const navigate = useNavigate()
@@ -100,12 +100,30 @@ export function ProfilePage() {
   const [forgotError, setForgotError] = useState('')
   const [forgotSuccess, setForgotSuccess] = useState(false)
 
+  // Reset password state (after recovery link)
+  const [newPassword, setNewPassword] = useState('')
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('')
+  const [resetError, setResetError] = useState('')
+  const [resetSuccess, setResetSuccess] = useState(false)
+  const [resetLoading, setResetLoading] = useState(false)
+
   // Customization state
   const [customAvatar, setCustomAvatar] = useState(currentProfile?.avatar || 'darth-vader')
   const [customName, setCustomName] = useState(currentProfile?.name || '')
 
   useEffect(() => { loadProfiles(); auth.initAuth() }, [])
   useEffect(() => { isPasskeyReady().then(setPasskeySupported) }, [])
+
+  // Detect password recovery mode from Supabase link
+  useEffect(() => {
+    if (auth.isRecoveryMode) {
+      setView('reset-password')
+      setNewPassword('')
+      setNewPasswordConfirm('')
+      setResetError('')
+      setResetSuccess(false)
+    }
+  }, [auth.isRecoveryMode])
 
   useEffect(() => {
     if (currentProfile) {
@@ -240,6 +258,22 @@ export function ProfilePage() {
     const result = await auth.resetPassword(forgotEmail.trim())
     if (!result.ok) { setForgotError(result.error || 'Error al enviar correo'); return }
     setForgotSuccess(true)
+  }
+
+  const handleResetPassword = async () => {
+    setResetError('')
+    if (newPassword.length < 6) { setResetError('La contraseña debe tener al menos 6 caracteres'); return }
+    if (newPassword !== newPasswordConfirm) { setResetError('Las contraseñas no coinciden'); return }
+
+    setResetLoading(true)
+    const result = await auth.updatePassword(newPassword)
+    setResetLoading(false)
+
+    if (!result.ok) {
+      setResetError(result.error || 'Error al actualizar la contraseña')
+      return
+    }
+    setResetSuccess(true)
   }
 
   const handleRegisterPasskey = async () => {
@@ -530,6 +564,63 @@ export function ProfilePage() {
             className={`w-full py-3.5 rounded-xl font-bold text-base transition-all ${!forgotSuccess ? 'bg-swu-accent text-white active:scale-[0.98]' : 'bg-swu-border text-swu-muted'}`}>
             Enviar Enlace
           </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // RESET PASSWORD (after clicking recovery link)
+  // ═══════════════════════════════════════════════════════════════════
+  if (view === 'reset-password') {
+    return (
+      <div className="p-4 lg:p-6 space-y-5 pb-8 lg:pb-8 max-w-5xl mx-auto">
+        <div className="text-center">
+          <KeyRound size={40} className="mx-auto text-swu-accent mb-2" />
+          <h2 className="text-lg font-bold text-swu-text">Nueva Contraseña</h2>
+          <p className="text-xs text-swu-muted mt-0.5">Ingrese su nueva contraseña para restablecer el acceso</p>
+        </div>
+        <div className="bg-swu-surface rounded-2xl p-5 border border-swu-border space-y-4">
+          {!resetSuccess ? (
+            <>
+              <div>
+                <p className="text-xs text-swu-muted mb-1.5">Nueva Contraseña * (mínimo 6 caracteres)</p>
+                <div className="relative">
+                  <KeyRound size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-swu-muted" />
+                  <input type={showPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" autoFocus
+                    className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 pl-10 pr-12 text-sm text-swu-text outline-none focus:border-swu-accent" />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-swu-muted p-1">
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-swu-muted mb-1.5">Confirmar Nueva Contraseña *</p>
+                <input type={showPassword ? 'text' : 'password'} value={newPasswordConfirm} onChange={(e) => setNewPasswordConfirm(e.target.value)} placeholder="••••••••"
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleResetPassword() }}
+                  className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 text-sm text-swu-text outline-none focus:border-swu-accent" />
+              </div>
+
+              {resetError && <p className="text-sm text-swu-red text-center font-medium">{resetError}</p>}
+
+              <button onClick={handleResetPassword} disabled={resetLoading}
+                className={`w-full py-3.5 rounded-xl font-bold text-base transition-all ${!resetLoading ? 'bg-swu-accent text-white active:scale-[0.98]' : 'bg-swu-border text-swu-muted'}`}>
+                {resetLoading ? 'Actualizando...' : 'Cambiar Contraseña'}
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="bg-swu-green/10 rounded-lg p-4 border border-swu-green/30 text-center">
+                <Shield size={28} className="mx-auto text-swu-green mb-2" />
+                <p className="text-sm text-swu-green font-bold">Contraseña actualizada exitosamente</p>
+                <p className="text-[10px] text-swu-muted mt-1">Ya puede iniciar sesión con su nueva contraseña</p>
+              </div>
+              <button onClick={() => { auth.clearRecoveryMode(); setView(currentProfile ? 'profile' : 'select') }}
+                className="w-full py-3.5 rounded-xl bg-swu-accent text-white font-bold text-base active:scale-[0.98] transition-transform">
+                Continuar
+              </button>
+            </>
+          )}
         </div>
       </div>
     )

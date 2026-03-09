@@ -14,6 +14,7 @@ interface AuthState {
   isOnline: boolean
   role: 'user' | 'admin'
   isAdmin: boolean
+  isRecoveryMode: boolean
 
   // Local profile (Dexie cache)
   currentProfileId: string | null
@@ -45,6 +46,8 @@ interface AuthState {
 
   // Password recovery
   resetPassword: (email: string) => Promise<{ ok: boolean; error?: string }>
+  updatePassword: (newPassword: string) => Promise<{ ok: boolean; error?: string }>
+  clearRecoveryMode: () => void
 
   // Profile management
   updateProfile: (data: Partial<Pick<UserProfile, 'name' | 'avatar' | 'email'>>) => Promise<void>
@@ -58,6 +61,7 @@ export const useAuth = create<AuthState>()(
       isOnline: isSupabaseReady(),
       role: 'user',
       isAdmin: false,
+      isRecoveryMode: false,
       currentProfileId: null,
       currentProfile: null,
       profiles: [],
@@ -104,10 +108,12 @@ export const useAuth = create<AuthState>()(
 
         // Listen for future auth changes
         supabase.auth.onAuthStateChange(async (event, session) => {
-          if (event === 'SIGNED_IN' && session?.user) {
+          if (event === 'PASSWORD_RECOVERY' && session?.user) {
+            set({ supabaseUser: session.user, isRecoveryMode: true })
+          } else if (event === 'SIGNED_IN' && session?.user) {
             set({ supabaseUser: session.user })
           } else if (event === 'SIGNED_OUT') {
-            set({ supabaseUser: null, currentProfile: null, currentProfileId: null })
+            set({ supabaseUser: null, currentProfile: null, currentProfileId: null, isRecoveryMode: false })
           }
         })
       },
@@ -291,6 +297,26 @@ export const useAuth = create<AuthState>()(
         return { ok: true }
       },
 
+      // ─── UPDATE PASSWORD (after recovery link) ───
+      updatePassword: async (newPassword: string) => {
+        if (!isSupabaseReady()) {
+          return { ok: false, error: 'Sin conexión al servidor' }
+        }
+        const { error } = await supabase.auth.updateUser({ password: newPassword })
+        if (error) {
+          if (error.message.includes('should be different')) {
+            return { ok: false, error: 'La nueva contraseña debe ser diferente a la actual' }
+          }
+          return { ok: false, error: error.message }
+        }
+        set({ isRecoveryMode: false })
+        return { ok: true }
+      },
+
+      clearRecoveryMode: () => {
+        set({ isRecoveryMode: false })
+      },
+
       // ─── PROFILE MANAGEMENT ───
       updateProfile: async (data) => {
         const { currentProfile, supabaseUser } = get()
@@ -342,7 +368,7 @@ export const useAuth = create<AuthState>()(
         if (isSupabaseReady()) {
           await supabase.auth.signOut().catch(() => {})
         }
-        set({ currentProfile: null, currentProfileId: null, supabaseUser: null, role: 'user', isAdmin: false })
+        set({ currentProfile: null, currentProfileId: null, supabaseUser: null, role: 'user', isAdmin: false, isRecoveryMode: false })
       },
 
       setCurrentProfile: (profile) => {
