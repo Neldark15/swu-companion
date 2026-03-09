@@ -61,7 +61,7 @@ function statsToSnake(stats: PlayerStats, userId: string) {
 }
 
 /** Convert snake_case from Supabase to camelCase PlayerStats */
-function statsFromSnake(row: Record<string, unknown>, profileId: string): PlayerStats {
+export function statsFromSnake(row: Record<string, unknown>, profileId: string): PlayerStats {
   return {
     profileId,
     xp: (row.xp as number) || 0,
@@ -536,6 +536,15 @@ export async function pullAllFromCloud(userId: string, localProfileId: string) {
         missionStreak: Math.max(cloudStats.missionStreak, localStats.missionStreak),
         bestMissionStreak: Math.max(cloudStats.bestMissionStreak, localStats.bestMissionStreak),
         relationshipCount: Math.max(cloudStats.relationshipCount, localStats.relationshipCount),
+        // Non-numeric fields: keep the more complete/recent value
+        currentStreak: Math.max(cloudStats.currentStreak, localStats.currentStreak),
+        loginDays: Math.max(cloudStats.loginDays, localStats.loginDays),
+        lastLoginDate: cloudStats.lastLoginDate > localStats.lastLoginDate ? cloudStats.lastLoginDate : localStats.lastLoginDate,
+        modesPlayed: Array.from(new Set([...cloudStats.modesPlayed, ...localStats.modesPlayed])),
+        activeTitle: cloudStats.activeTitle || localStats.activeTitle,
+        unlockedTitles: Array.from(new Set([...cloudStats.unlockedTitles, ...localStats.unlockedTitles])),
+        unlockedAchievements: Array.from(new Set([...cloudStats.unlockedAchievements, ...localStats.unlockedAchievements])),
+        achievementDates: { ...localStats.achievementDates, ...cloudStats.achievementDates },
       }
       await db.playerStats.put(merged)
     } else {

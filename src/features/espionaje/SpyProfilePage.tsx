@@ -20,52 +20,13 @@ import {
 import { AspectIcon } from '../../components/icons/AspectIcon'
 import { getRelationship, type RelationshipLevel } from '../../services/relationshipService'
 import { getTitleById, getTitleRarity } from '../../services/cosmeticsService'
+import { statsFromSnake } from '../../services/sync'
 
 const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
 
 /** Convert Supabase snake_case stats to PlayerStats for display */
 function statsFromRow(row: Record<string, unknown>): PlayerStats {
-  return {
-    profileId: '',
-    xp: (row.xp as number) || 0,
-    level: (row.level as number) || 1,
-    wins: (row.wins as number) || 0,
-    losses: (row.losses as number) || 0,
-    matchesPlayed: (row.matches_played as number) || 0,
-    tournamentsCreated: (row.tournaments_created as number) || 0,
-    tournamentsFinished: (row.tournaments_finished as number) || 0,
-    tournamentWins: (row.tournament_wins as number) || 0,
-    tournamentTopPlacements: (row.tournament_top_placements as number) || 0,
-    decksCreated: (row.decks_created as number) || 0,
-    decksValid: (row.decks_valid as number) || 0,
-    cardsCollected: (row.cards_collected as number) || 0,
-    cardsFavorited: (row.cards_favorited as number) || 0,
-    legendaryCards: (row.legendary_cards as number) || 0,
-    rareCards: (row.rare_cards as number) || 0,
-    currentStreak: (row.current_streak as number) || 0,
-    bestStreak: (row.best_streak as number) || 0,
-    loginDays: (row.login_days as number) || 1,
-    lastLoginDate: (row.last_login_date as string) || '',
-    modesPlayed: (row.modes_played as string[]) || [],
-    arenaMatchesLogged: (row.arena_matches_logged as number) || 0,
-    giftsReceived: (row.gifts_received as number) || 0,
-    giftsSent: (row.gifts_sent as number) || 0,
-    leccionesJediReceived: (row.lecciones_jedi_received as number) || 0,
-    creditosImperialesReceived: (row.creditos_imperiales_received as number) || 0,
-    beskarReceived: (row.beskar_received as number) || 0,
-    holocronReceived: (row.holocron_received as number) || 0,
-    cristalKyberReceived: (row.cristal_kyber_received as number) || 0,
-    dailyMissionsCompleted: (row.daily_missions_completed as number) || 0,
-    weeklyMissionsCompleted: (row.weekly_missions_completed as number) || 0,
-    socialReputation: (row.social_reputation as number) || 0,
-    activeTitle: (row.active_title as string) || '',
-    unlockedTitles: (row.unlocked_titles as string[]) || [],
-    missionStreak: (row.mission_streak as number) || 0,
-    bestMissionStreak: (row.best_mission_streak as number) || 0,
-    relationshipCount: (row.relationship_count as number) || 0,
-    unlockedAchievements: (row.unlocked_achievements as string[]) || [],
-    achievementDates: (row.achievement_dates as Record<string, number>) || {},
-  }
+  return statsFromSnake(row, '')
 }
 
 export function SpyProfilePage() {
