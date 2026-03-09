@@ -23,8 +23,13 @@ import { getTitleById, getTitleRarity } from '../../services/cosmeticsService'
 import { statsFromSnake, getPublicDecks, type PublicDeck } from '../../services/sync'
 import { GiftIcon } from '../../components/icons/GiftIcon'
 import { DeckVisualViewer } from './DeckVisualViewer'
+import { ProfileFrame } from '../profile/components/ProfileFrame'
 
 const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
+
+function isPhotoAvatar(avatar: string) {
+  return avatar.startsWith('data:image/')
+}
 
 /** Convert Supabase snake_case stats to PlayerStats for display */
 function statsFromRow(row: Record<string, unknown>): PlayerStats {
@@ -141,12 +146,16 @@ export function SpyProfilePage() {
         {/* Player card */}
         <div className="bg-swu-surface rounded-2xl border border-swu-border p-5">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-swu-bg flex items-center justify-center text-3xl flex-shrink-0 overflow-hidden border-2 border-indigo-500/30">
-              {swAvatarIds.includes(profile.avatar)
-                ? <img src={`/avatars/${profile.avatar}.png`} alt="" className="w-12 h-12 object-contain" />
-                : <span>{profile.avatar}</span>
-              }
-            </div>
+            <ProfileFrame level={levelInfo?.level ?? 1} size={64}>
+              <div className="w-full h-full flex items-center justify-center text-3xl bg-swu-bg">
+                {isPhotoAvatar(profile.avatar)
+                  ? <img src={profile.avatar} alt="" className="w-full h-full object-cover rounded-full" />
+                  : swAvatarIds.includes(profile.avatar)
+                    ? <img src={`/avatars/${profile.avatar}.png`} alt="" className="w-12 h-12 object-contain" />
+                    : <span>{profile.avatar}</span>
+                }
+              </div>
+            </ProfileFrame>
             <div className="flex-1 min-w-0">
               <h2 className="text-xl font-bold text-swu-text truncate">{profile.name}</h2>
               {/* Active title */}

@@ -28,6 +28,19 @@ export function applyAccentColor(color: AccentColor) {
   document.documentElement.style.setProperty('--color-swu-accent', ACCENT_COLORS[color])
 }
 
+// ── Saber Colors (for XP bar lightsaber) ──
+export type SaberColor = 'blue' | 'green' | 'red' | 'purple' | 'yellow' | 'white' | 'orange'
+
+export const SABER_COLORS: Record<SaberColor, { core: string; glow: string; label: string }> = {
+  blue:   { core: '#4FC3F7', glow: '#1565C0', label: 'Azul' },
+  green:  { core: '#81C784', glow: '#2E7D32', label: 'Verde' },
+  red:    { core: '#EF5350', glow: '#B71C1C', label: 'Rojo' },
+  purple: { core: '#CE93D8', glow: '#6A1B9A', label: 'Púrpura' },
+  yellow: { core: '#FFF176', glow: '#F9A825', label: 'Amarillo' },
+  white:  { core: '#F5F5F5', glow: '#B0BEC5', label: 'Blanco' },
+  orange: { core: '#FFB74D', glow: '#E65100', label: 'Naranja' },
+}
+
 interface SettingsState {
   theme: 'dark' | 'light'
   fontSize: 'sm' | 'md' | 'lg' | 'xl'
@@ -37,6 +50,7 @@ interface SettingsState {
   showResources: boolean
   playerName: string
   accentColor: AccentColor
+  saberColor: SaberColor
 
   setTheme: (t: 'dark' | 'light') => void
   setFontSize: (s: 'sm' | 'md' | 'lg' | 'xl') => void
@@ -44,6 +58,7 @@ interface SettingsState {
   toggleCounter: (counter: 'showShields' | 'showExperience' | 'showResources') => void
   setPlayerName: (name: string) => void
   setAccentColor: (c: AccentColor) => void
+  setSaberColor: (c: SaberColor) => void
 }
 
 /** Debounced cloud sync for settings */
@@ -63,6 +78,7 @@ function debouncedSyncSettings() {
       showResources: state.showResources,
       playerName: state.playerName,
       accentColor: state.accentColor,
+      saberColor: state.saberColor,
     }
     syncSettingsToCloud(supabaseUser.id, settingsData).catch(() => {})
   }, 1500)
@@ -79,6 +95,7 @@ export const useSettings = create<SettingsState>()(
       showResources: true,
       playerName: '',
       accentColor: 'red',
+      saberColor: 'blue',
 
       setTheme: (theme) => { set({ theme }); debouncedSyncSettings() },
       setFontSize: (fontSize) => { set({ fontSize }); debouncedSyncSettings() },
@@ -86,6 +103,7 @@ export const useSettings = create<SettingsState>()(
       toggleCounter: (counter) => { set((s) => ({ [counter]: !s[counter] })); debouncedSyncSettings() },
       setPlayerName: (playerName) => { set({ playerName }); debouncedSyncSettings() },
       setAccentColor: (accentColor) => { set({ accentColor }); applyAccentColor(accentColor); debouncedSyncSettings() },
+      setSaberColor: (saberColor) => { set({ saberColor }); debouncedSyncSettings() },
     }),
     { name: 'swu-settings' }
   )

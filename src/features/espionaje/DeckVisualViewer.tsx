@@ -260,32 +260,6 @@ export function DeckVisualViewer({ deck }: { deck: PublicDeck }) {
             </div>
           )}
 
-          {/* Leader + Base — horizontal, larger */}
-          <div>
-            <SectionLabel icon={Swords} label="Líder & Base" count={deck.leaders.length + (deck.base ? 1 : 0)} color="text-swu-amber" />
-            <div className="flex gap-3">
-              {deck.leaders.map((c, i) => (
-                <HorizontalCard
-                  key={`leader-${i}`}
-                  card={c}
-                  cardData={cardDataMap.get(c.cardId)}
-                  label="Líder"
-                  labelColor="text-swu-amber"
-                  size="normal"
-                />
-              ))}
-              {deck.base && (
-                <HorizontalCard
-                  card={deck.base}
-                  cardData={cardDataMap.get(deck.base.cardId)}
-                  label="Base"
-                  labelColor="text-swu-green"
-                  size="normal"
-                />
-              )}
-            </div>
-          </div>
-
           {/* Main Deck grid */}
           {deck.mainDeck.length > 0 && (
             <div>

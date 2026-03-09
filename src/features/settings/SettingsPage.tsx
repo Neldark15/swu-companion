@@ -1,13 +1,13 @@
 import { useState } from 'react'
-import { ChevronLeft, Palette, Type, Vibrate, MessageSquare, Shield, Info, Smartphone, Check, KeyRound, Eye, EyeOff } from 'lucide-react'
+import { ChevronLeft, Palette, Type, Vibrate, MessageSquare, Shield, Info, Smartphone, Check, KeyRound, Eye, EyeOff, Zap } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useSettings, ACCENT_COLORS, ACCENT_LABELS } from '../../hooks/useSettings'
-import type { AccentColor } from '../../hooks/useSettings'
+import { useSettings, ACCENT_COLORS, ACCENT_LABELS, SABER_COLORS } from '../../hooks/useSettings'
+import type { AccentColor, SaberColor } from '../../hooks/useSettings'
 import { useAuth } from '../../hooks/useAuth'
 
 export function SettingsPage() {
   const navigate = useNavigate()
-  const { accentColor, setAccentColor, fontSize, setFontSize, hapticFeedback, toggleHaptic } = useSettings()
+  const { accentColor, setAccentColor, fontSize, setFontSize, hapticFeedback, toggleHaptic, saberColor, setSaberColor } = useSettings()
   const auth = useAuth()
   const [showAbout, setShowAbout] = useState(false)
 
@@ -80,6 +80,50 @@ export function SettingsPage() {
                   </span>
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Saber Color Picker */}
+          <div className="border-t border-swu-border/30 p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <Zap size={20} className="text-swu-accent" />
+              <span className="text-sm font-medium text-swu-text">Color de sable de luz</span>
+            </div>
+            <div className="flex gap-2 justify-center flex-wrap">
+              {(Object.keys(SABER_COLORS) as SaberColor[]).map((color) => (
+                <button
+                  key={color}
+                  onClick={() => setSaberColor(color)}
+                  className="flex flex-col items-center gap-1"
+                >
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${
+                      saberColor === color ? 'scale-110' : 'opacity-70 hover:opacity-100'
+                    }`}
+                    style={{
+                      background: `radial-gradient(circle, ${SABER_COLORS[color].core} 40%, ${SABER_COLORS[color].glow} 100%)`,
+                      boxShadow: saberColor === color
+                        ? `0 0 16px ${SABER_COLORS[color].core}80, 0 0 0 2px var(--color-swu-surface), 0 0 0 4px ${SABER_COLORS[color].core}`
+                        : `0 0 8px ${SABER_COLORS[color].core}30`,
+                    }}
+                  >
+                    {saberColor === color && <Check size={16} className="text-white" strokeWidth={3} style={{ filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.5))' }} />}
+                  </div>
+                  <span className={`text-[9px] font-mono ${saberColor === color ? 'text-swu-text font-bold' : 'text-swu-muted'}`}>
+                    {SABER_COLORS[color].label}
+                  </span>
+                </button>
+              ))}
+            </div>
+            {/* Mini preview bar */}
+            <div className="mt-3 mx-4 h-2 rounded-full overflow-hidden bg-black/40">
+              <div
+                className="h-full rounded-full w-3/4 transition-all duration-500"
+                style={{
+                  background: `linear-gradient(90deg, ${SABER_COLORS[saberColor].glow}, ${SABER_COLORS[saberColor].core} 60%, white)`,
+                  boxShadow: `0 0 8px ${SABER_COLORS[saberColor].core}, 0 0 16px ${SABER_COLORS[saberColor].core}60`,
+                }}
+              />
             </div>
           </div>
 

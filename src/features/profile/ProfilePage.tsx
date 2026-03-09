@@ -4,13 +4,15 @@ import {
   ChevronRight, History, Heart, Star, Layers, BookOpen, Trophy,
   LogOut, UserPlus, User, Shield, Palette, Package, Globe,
   Fingerprint, Mail, ChevronLeft, Eye, EyeOff, Lock, KeyRound,
+  Camera,
 } from 'lucide-react'
 import { db } from '../../services/db'
 import { useAuth } from '../../hooks/useAuth'
 import { syncStatsToCloud } from '../../services/sync'
 import { isPasskeyReady } from '../../services/crypto'
 import { createDefaultStats, getAspectBars, checkAchievements, calculateLevel, type PlayerStats } from '../../services/gamification'
-import { XpBar } from './components/XpBar'
+import { LightsaberXpBar } from './components/LightsaberXpBar'
+import { ProfileFrame } from './components/ProfileFrame'
 import { AspectBars } from './components/AspectBars'
 import { AchievementGrid } from './components/AchievementGrid'
 import { TriviaSection } from './components/TriviaSection'
@@ -43,15 +45,19 @@ const swAvatars = [
   { id: 'galactic-republic', name: 'República Galáctica' },
 ]
 
-/** Get avatar src from avatar string (supports old emojis + new ids) */
+/** Check if avatar is a data URI (uploaded photo) */
+function isPhotoAvatar(avatar: string): boolean {
+  return avatar.startsWith('data:image/')
+}
+
+/** Get avatar src from avatar string (supports data URI, icon IDs, emojis) */
 function getAvatarSrc(avatar: string): string | null {
-  if (swAvatars.some(a => a.id === avatar)) {
-    return `/avatars/${avatar}.png`
-  }
+  if (isPhotoAvatar(avatar)) return avatar
+  if (swAvatars.some(a => a.id === avatar)) return `/avatars/${avatar}.png`
   return null // it's an emoji
 }
 
-/** Render avatar: image or emoji fallback */
+/** Render avatar: photo, icon image, or emoji fallback */
 function AvatarDisplay({ avatar, size = 'md' }: { avatar: string; size?: 'sm' | 'md' | 'lg' | 'xl' }) {
   const src = getAvatarSrc(avatar)
   const sizeClasses = {
@@ -63,9 +69,38 @@ function AvatarDisplay({ avatar, size = 'md' }: { avatar: string; size?: 'sm' | 
   const textSizes = { sm: 'text-xl', md: 'text-3xl', lg: 'text-5xl', xl: 'text-6xl' }
 
   if (src) {
-    return <img src={src} alt={avatar} className={`${sizeClasses[size]} object-contain`} />
+    return (
+      <img
+        src={src}
+        alt={isPhotoAvatar(avatar) ? 'Foto de perfil' : avatar}
+        className={`${sizeClasses[size]} ${isPhotoAvatar(avatar) ? 'object-cover rounded-full' : 'object-contain'}`}
+      />
+    )
   }
   return <span className={textSizes[size]}>{avatar}</span>
+}
+
+/** Compress and resize image to a max dimension, returns data URI */
+async function compressImage(file: File, maxSize = 200, quality = 0.7): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      let { width, height } = img
+      if (width > height) {
+        if (width > maxSize) { height *= maxSize / width; width = maxSize }
+      } else {
+        if (height > maxSize) { width *= maxSize / height; height = maxSize }
+      }
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0, width, height)
+      resolve(canvas.toDataURL('image/jpeg', quality))
+    }
+    img.onerror = reject
+    img.src = URL.createObjectURL(file)
+  })
 }
 
 type View = 'select' | 'register' | 'login' | 'forgot-password' | 'reset-password' | 'profile' | 'customize' | 'security' | 'register-passkey'
@@ -637,32 +672,67 @@ export function ProfilePage() {
   // CUSTOMIZE
   // ═══════════════════════════════════════════════════════════════════
   if (view === 'customize') {
+    const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+      if (!file.type.startsWith('image/')) return
+      try {
+        const dataUri = await compressImage(file, 200, 0.7)
+        setCustomAvatar(dataUri)
+      } catch {
+        console.warn('Failed to process image')
+      }
+    }
+
+    const customizeLevelInfo = playerStats ? calculateLevel(playerStats.xp) : null
+
     return (
       <div className="p-4 lg:p-6 space-y-5 pb-8 lg:pb-8 max-w-5xl mx-auto">
         <BackButton to="profile" />
         <div className="text-center">
           <div className="flex justify-center mb-2">
-            <AvatarDisplay avatar={customAvatar} size="xl" />
+            <ProfileFrame level={customizeLevelInfo?.level || 1} size={88}>
+              <div className="w-full h-full flex items-center justify-center overflow-hidden">
+                <AvatarDisplay avatar={customAvatar} size="xl" />
+              </div>
+            </ProfileFrame>
           </div>
           <h2 className="text-lg font-bold text-swu-text">Personalizar Perfil</h2>
         </div>
         <div className="bg-swu-surface rounded-2xl p-5 border border-swu-border space-y-5">
+          {/* Photo upload */}
           <div>
-            <p className="text-xs text-swu-muted mb-2">Elige tu avatar</p>
-            <div className="grid grid-cols-5 gap-2 justify-items-center">
+            <p className="text-xs text-swu-muted mb-2">Subir foto de perfil</p>
+            <label className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 border-dashed border-swu-border hover:border-swu-accent/50 bg-swu-bg cursor-pointer transition-colors active:scale-[0.98]">
+              <Camera size={18} className="text-swu-accent" />
+              <span className="text-sm font-medium text-swu-accent">Elegir imagen</span>
+              <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+            </label>
+            {isPhotoAvatar(customAvatar) && (
+              <button onClick={() => setCustomAvatar('darth-vader')} className="w-full mt-2 text-[11px] text-swu-red text-center">
+                Quitar foto y usar icono
+              </button>
+            )}
+          </div>
+
+          {/* Icon avatars */}
+          <div>
+            <p className="text-xs text-swu-muted mb-2">O elige un icono</p>
+            <div className="grid grid-cols-6 gap-1.5 justify-items-center">
               {swAvatars.map((a) => (
                 <button key={a.id} onClick={() => setCustomAvatar(a.id)}
-                  className={`w-14 h-14 rounded-xl flex items-center justify-center border-2 transition-all p-1 ${customAvatar === a.id ? 'border-swu-accent bg-swu-accent/20 scale-110' : 'border-swu-border bg-swu-bg'}`}>
-                  <img src={`/avatars/${a.id}.png`} alt={a.name} className="w-10 h-10 object-contain" />
+                  className={`w-12 h-12 rounded-xl flex items-center justify-center border-2 transition-all p-0.5 ${customAvatar === a.id ? 'border-swu-accent bg-swu-accent/20 scale-110' : 'border-swu-border bg-swu-bg'}`}>
+                  <img src={`/avatars/${a.id}.png`} alt={a.name} className="w-9 h-9 object-contain" />
                 </button>
               ))}
             </div>
-            {customAvatar && (
+            {customAvatar && !isPhotoAvatar(customAvatar) && (
               <p className="text-[10px] text-swu-accent text-center mt-1.5 font-mono tracking-wider">
                 {swAvatars.find(a => a.id === customAvatar)?.name || customAvatar}
               </p>
             )}
           </div>
+
           <div>
             <p className="text-xs text-swu-muted mb-1.5">Nombre</p>
             <input value={customName} onChange={(e) => setCustomName(e.target.value)} maxLength={30}
@@ -759,17 +829,14 @@ export function ProfilePage() {
 
   return (
     <div className="p-4 lg:p-6 space-y-4 pb-8 lg:pb-8 max-w-5xl mx-auto">
-      {/* Header with level */}
+      {/* Header with level frame */}
       <div className="bg-gradient-to-br from-swu-accent/15 to-amber-500/10 rounded-2xl p-4 border border-swu-accent/20">
         <div className="flex items-center gap-3 mb-3">
-          <div className="relative">
-            <AvatarDisplay avatar={currentProfile?.avatar || 'darth-vader'} size="lg" />
-            {levelInfo && (
-              <div className={`absolute -bottom-1 -right-1 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md ${levelInfo.rank.bgColor} ${levelInfo.rank.color} ${levelInfo.rank.borderColor} border`}>
-                {levelInfo.level}
-              </div>
-            )}
-          </div>
+          <ProfileFrame level={levelInfo?.level || 1} size={72}>
+            <div className="w-full h-full flex items-center justify-center overflow-hidden">
+              <AvatarDisplay avatar={currentProfile?.avatar || 'darth-vader'} size="lg" />
+            </div>
+          </ProfileFrame>
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-extrabold text-swu-text truncate">{currentProfile?.name || 'Jugador'}</h2>
             <div className="flex items-center gap-2">
@@ -781,7 +848,7 @@ export function ProfilePage() {
             </div>
           </div>
         </div>
-        {playerStats && <XpBar xp={playerStats.xp} />}
+        {playerStats && <LightsaberXpBar xp={playerStats.xp} />}
       </div>
 
       {/* Quick Stats Row */}
