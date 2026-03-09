@@ -20,6 +20,7 @@ const mainSystems = [
     notchBg: 'bg-swu-red/40',
     glow: 'shadow-[0_0_18px_rgba(239,68,68,0.15)]',
     to: '/play',
+    auth: true,
   },
   {
     icon: ScrollText,
@@ -41,6 +42,7 @@ const mainSystems = [
     notchBg: 'bg-swu-amber/40',
     glow: 'shadow-[0_0_18px_rgba(251,191,36,0.15)]',
     to: '/melee',
+    auth: true,
   },
   {
     icon: Trophy,
@@ -51,6 +53,7 @@ const mainSystems = [
     notchBg: 'bg-swu-amber/40',
     glow: 'shadow-[0_0_18px_rgba(251,191,36,0.15)]',
     to: '/events/tournament',
+    auth: true,
   },
   {
     icon: Package,

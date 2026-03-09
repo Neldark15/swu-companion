@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AppLayout } from './components/layout/AppLayout'
+import { AuthGate } from './components/AuthGate'
 import { Loader2 } from 'lucide-react'
 
 // Lazy-loaded pages — each becomes its own chunk
@@ -49,49 +50,57 @@ function PageLoader() {
   )
 }
 
+/** Wrap protected pages */
+function P({ children }: { children: React.ReactNode }) {
+  return <AuthGate>{children}</AuthGate>
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route element={<AppLayout />}>
+            {/* ── Public routes ── */}
             <Route path="/" element={<HomePage />} />
-            <Route path="/play" element={<PlayPage />} />
-            <Route path="/play/tracker/:mode" element={<TrackerPage />} />
-            <Route path="/play/saved" element={<SavedMatchesPage />} />
-            <Route path="/events" element={<EventsPage />} />
-            <Route path="/events/join" element={<JoinEventPage />} />
-            <Route path="/events/create" element={<CreateEventPage />} />
-            <Route path="/events/tournament" element={<TournamentListPage />} />
-            <Route path="/events/tournament/new" element={<TournamentSetupPage />} />
-            <Route path="/events/tournament/:id" element={<TournamentLivePage />} />
-            <Route path="/events/lobby/:code" element={<EventLobbyPage />} />
-            <Route path="/events/dashboard/:code" element={<TournamentDashboard />} />
-            <Route path="/events/live/:code" element={<TournamentPublicView />} />
             <Route path="/cards" element={<CardsPage />} />
             <Route path="/cards/:id" element={<CardDetailPage />} />
-            <Route path="/decks" element={<DeckListPage />} />
-            <Route path="/decks/:id" element={<DeckBuilderPage />} />
-            <Route path="/arena" element={<ArenaPage />} />
-            <Route path="/arena/log" element={<ArenaLogPage />} />
-            <Route path="/arena/history" element={<ArenaHistoryPage />} />
-            <Route path="/arena/stats" element={<ArenaStatsPage />} />
-            <Route path="/arena/feed" element={<ArenaFeedPage />} />
-            <Route path="/melee" element={<MeleeHubPage />} />
-            <Route path="/melee/add" element={<MeleeAddPage />} />
-            <Route path="/melee/:id" element={<MeleeDetailPage />} />
-            <Route path="/espionaje" element={<EspionajePage />} />
-            <Route path="/espionaje/:userId" element={<SpyProfilePage />} />
-            <Route path="/misiones" element={<MissionsPage />} />
-            <Route path="/collection" element={<CollectionPage />} />
-            <Route path="/u/:userId" element={<PublicProfilePage />} />
-            <Route path="/explore" element={<ExplorePage />} />
-            <Route path="/news/manage" element={<ManageNewsPage />} />
             <Route path="/utilities" element={<UtilitiesPage />} />
-            <Route path="/rank" element={<RankingPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/settings/*" element={<SettingsPage />} />
+            <Route path="/events/live/:code" element={<TournamentPublicView />} />
+            <Route path="/u/:userId" element={<PublicProfilePage />} />
+
+            {/* ── Protected routes (require login) ── */}
+            <Route path="/play" element={<P><PlayPage /></P>} />
+            <Route path="/play/tracker/:mode" element={<P><TrackerPage /></P>} />
+            <Route path="/play/saved" element={<P><SavedMatchesPage /></P>} />
+            <Route path="/events" element={<P><EventsPage /></P>} />
+            <Route path="/events/join" element={<P><JoinEventPage /></P>} />
+            <Route path="/events/create" element={<P><CreateEventPage /></P>} />
+            <Route path="/events/tournament" element={<P><TournamentListPage /></P>} />
+            <Route path="/events/tournament/new" element={<P><TournamentSetupPage /></P>} />
+            <Route path="/events/tournament/:id" element={<P><TournamentLivePage /></P>} />
+            <Route path="/events/lobby/:code" element={<P><EventLobbyPage /></P>} />
+            <Route path="/events/dashboard/:code" element={<P><TournamentDashboard /></P>} />
+            <Route path="/arena" element={<P><ArenaPage /></P>} />
+            <Route path="/arena/log" element={<P><ArenaLogPage /></P>} />
+            <Route path="/arena/history" element={<P><ArenaHistoryPage /></P>} />
+            <Route path="/arena/stats" element={<P><ArenaStatsPage /></P>} />
+            <Route path="/arena/feed" element={<P><ArenaFeedPage /></P>} />
+            <Route path="/melee" element={<P><MeleeHubPage /></P>} />
+            <Route path="/melee/add" element={<P><MeleeAddPage /></P>} />
+            <Route path="/melee/:id" element={<P><MeleeDetailPage /></P>} />
+            <Route path="/decks" element={<P><DeckListPage /></P>} />
+            <Route path="/decks/:id" element={<P><DeckBuilderPage /></P>} />
+            <Route path="/collection" element={<P><CollectionPage /></P>} />
+            <Route path="/explore" element={<P><ExplorePage /></P>} />
+            <Route path="/espionaje" element={<P><EspionajePage /></P>} />
+            <Route path="/espionaje/:userId" element={<P><SpyProfilePage /></P>} />
+            <Route path="/misiones" element={<P><MissionsPage /></P>} />
+            <Route path="/rank" element={<P><RankingPage /></P>} />
+            <Route path="/news/manage" element={<P><ManageNewsPage /></P>} />
           </Route>
         </Routes>
       </Suspense>
