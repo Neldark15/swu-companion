@@ -55,8 +55,8 @@ export function Header() {
           <>
             {/* Mobile: logo */}
             <div className="lg:hidden flex items-center gap-2">
-              <span className="text-lg font-extrabold text-swu-amber tracking-tight">SWU</span>
-              <span className="text-base font-semibold text-swu-text">Companion</span>
+              <span className="text-lg font-extrabold text-swu-amber tracking-tight">HOLOCRON</span>
+              <span className="text-base font-semibold text-swu-text">SWU</span>
             </div>
             {/* Desktop: page title */}
             <div className="hidden lg:flex items-center gap-3">
