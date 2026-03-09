@@ -22,6 +22,7 @@ import { getRelationship, type RelationshipLevel } from '../../services/relation
 import { getTitleById, getTitleRarity } from '../../services/cosmeticsService'
 import { statsFromSnake, getPublicDecks } from '../../services/sync'
 import { getCardById } from '../../services/swuApi'
+import { GiftIcon } from '../../components/icons/GiftIcon'
 
 const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
 
@@ -269,7 +270,7 @@ export function SpyProfilePage() {
                       : 'bg-swu-bg border-swu-border hover:border-swu-border/60'
                   } ${remaining <= 0 ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'}`}
                 >
-                  <span className="text-2xl block mb-1">{gift.icon}</span>
+                  <span className="block mb-1 flex justify-center"><GiftIcon type={gift.type} size={36} /></span>
                   <p className={`text-[10px] font-bold ${gift.color}`}>{gift.label}</p>
                   <p className="text-[9px] text-swu-muted">+{gift.xp} XP</p>
                 </button>
