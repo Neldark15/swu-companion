@@ -15,7 +15,7 @@
 
 import { db } from './db'
 import { supabase, isSupabaseReady } from './supabase'
-import { searchCards } from './swuApi'
+import { loadFullDatabase } from './swuApi'
 
 export interface ImportedCard {
   setCode: string
@@ -304,6 +304,14 @@ export async function importToCollection(
     }
   }
 
+  // Ensure local card database is loaded before matching
+  onProgress?.(0, consolidated.size)
+  try {
+    await loadFullDatabase()
+  } catch {
+    // If full DB load fails, we'll still try with whatever we have locally
+  }
+
   // Look up card IDs from our local Dexie cards table
   const allCards = await db.cards.toArray()
   const cardLookup = new Map<string, string>() // "SOR_1" → cardId
@@ -314,58 +322,22 @@ export async function importToCollection(
   }
 
   // Helper: try to find card locally by set+number
-  async function tryLocalLookup(set: string, num: number): Promise<string | null> {
+  function tryLocalLookup(set: string, num: number): string | null {
     const key = `${set}_${num}`
-    if (cardLookup.has(key)) return cardLookup.get(key)!
-
-    const dbCard = await db.cards
-      .where('setCode').equals(set)
-      .filter(c => c.setNumber === num)
-      .first()
-    if (dbCard) {
-      cardLookup.set(key, dbCard.id)
-      return dbCard.id
-    }
-    return null
+    return cardLookup.get(key) ?? null
   }
 
-  // Helper: try API search for a card
-  async function tryApiLookup(set: string, num: number): Promise<string | null> {
-    try {
-      const paddedNum = String(num).padStart(3, '0')
-      const { cards: found } = await searchCards({ query: `${set} ${paddedNum}`, limit: 10 })
-      const exact = found.find(c => c.setCode === set && c.setNumber === num)
-      if (exact) {
-        const key = `${set}_${num}`
-        cardLookup.set(key, exact.id)
-        await db.cards.put(exact).catch(() => {})
-        return exact.id
-      }
-    } catch {
-      // API unavailable
-    }
-    return null
-  }
-
-  // Fallback: for cards not in local DB, try API lookup by set+number
-  // Supports SWUDB variant set codes by trying base set as fallback
-  async function resolveCardId(setCode: string, cardNumber: number): Promise<string | null> {
+  // Resolve card ID: try exact set code, then try base set code (strip SWUDB variant suffixes)
+  function resolveCardId(setCode: string, cardNumber: number): string | null {
     // 1. Try exact set code (already normalized via alias map)
-    const local = await tryLocalLookup(setCode, cardNumber)
+    const local = tryLocalLookup(setCode, cardNumber)
     if (local) return local
 
-    // 2. Try API with exact set code
-    const api = await tryApiLookup(setCode, cardNumber)
-    if (api) return api
-
-    // 3. Try with base set code (strip SWUDB variant suffixes)
+    // 2. Try with base set code (strip SWUDB variant suffixes like OP, PR, SH, PQ, tokens)
     const baseSet = getBaseSetCode(setCode)
     if (baseSet && baseSet !== setCode) {
-      const localBase = await tryLocalLookup(baseSet, cardNumber)
+      const localBase = tryLocalLookup(baseSet, cardNumber)
       if (localBase) return localBase
-
-      const apiBase = await tryApiLookup(baseSet, cardNumber)
-      if (apiBase) return apiBase
     }
 
     return null
@@ -376,7 +348,7 @@ export async function importToCollection(
   const batchCloud: { user_id: string; card_id: string; quantity: number }[] = []
 
   for (const [, card] of consolidated) {
-    const cardId = await resolveCardId(card.setCode, card.cardNumber)
+    const cardId = resolveCardId(card.setCode, card.cardNumber)
 
     if (!cardId) {
       result.notFound.push(`${card.setCode} #${String(card.cardNumber).padStart(3, '0')}`)
