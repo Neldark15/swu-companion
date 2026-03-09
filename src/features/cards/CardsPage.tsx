@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, SlidersHorizontal, X, Loader2, WifiOff } from 'lucide-react'
+import { Search, SlidersHorizontal, X, Loader2, WifiOff, Plus, Minus } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { CardImage } from '../../components/CardImage'
 import { searchCards, getSets, getLocalCardCount, type SearchParams } from '../../services/swuApi'
 import { getPricesForCards, fetchTCGPrices, formatPrice, type PriceInfo } from '../../services/pricing'
+import { getCardQuantity, updateCollectionQuantity } from '../../services/collectionService'
+import { useAuth } from '../../hooks/useAuth'
 import { translateType, translateRarity, translateArena } from '../../services/translations'
 import type { Card, SetInfo } from '../../types'
 
@@ -32,6 +34,8 @@ const PAGE_SIZE = 30
 
 export function CardsPage() {
   const navigate = useNavigate()
+  const { supabaseUser, currentProfileId } = useAuth()
+  const [collectionQtys, setCollectionQtys] = useState<Map<string, number>>(new Map())
   const [query, setQuery] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [selectedType, setSelectedType] = useState<string | null>(null)
@@ -141,6 +145,31 @@ export function CardsPage() {
 
     loadPrices()
   }, [cards])
+
+  // Load collection quantities for displayed cards
+  useEffect(() => {
+    if (cards.length === 0) return
+    Promise.all(cards.map(c => getCardQuantity(c.id).then(qty => [c.id, qty] as const)))
+      .then(pairs => {
+        const map = new Map<string, number>()
+        for (const [id, qty] of pairs) if (qty > 0) map.set(id, qty)
+        setCollectionQtys(map)
+      })
+      .catch(() => {})
+  }, [cards])
+
+  const handleCollectionChange = async (cardId: string, delta: number, e: React.MouseEvent) => {
+    e.stopPropagation()
+    const current = collectionQtys.get(cardId) || 0
+    const newQty = Math.max(0, current + delta)
+    setCollectionQtys(prev => {
+      const next = new Map(prev)
+      if (newQty > 0) next.set(cardId, newQty)
+      else next.delete(cardId)
+      return next
+    })
+    await updateCollectionQuantity(cardId, newQty, currentProfileId ?? undefined, supabaseUser?.id)
+  }
 
   // Debounced search on query/filter change
   useEffect(() => {
@@ -304,19 +333,41 @@ export function CardsPage() {
                   <span className="text-[9px] text-swu-muted">{c.setCode} #{c.setNumber}</span>
                 </div>
               </div>
-              <div className="text-right flex-shrink-0">
-                {c.cost !== null && <p className="text-xl font-extrabold text-swu-amber font-mono">{c.cost}</p>}
-                {c.power !== null && c.hp !== null && (
-                  <p className="text-xs text-swu-muted">{c.power}/{c.hp}</p>
-                )}
-                {prices.get(c.id)?.market != null && prices.get(c.id)!.market! > 0 && (
-                  <div className="mt-0.5">
-                    <p className="text-[11px] font-bold text-swu-green">{formatPrice(prices.get(c.id)!.market)}</p>
-                    {prices.get(c.id)!.variants && Object.keys(prices.get(c.id)!.variants!).length > 1 && (
-                      <p className="text-[8px] text-swu-amber">{Object.keys(prices.get(c.id)!.variants!).filter(k => k !== 'Normal').join(' · ')}</p>
-                    )}
-                  </div>
-                )}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="text-right">
+                  {c.cost !== null && <p className="text-xl font-extrabold text-swu-amber font-mono">{c.cost}</p>}
+                  {c.power !== null && c.hp !== null && (
+                    <p className="text-xs text-swu-muted">{c.power}/{c.hp}</p>
+                  )}
+                  {prices.get(c.id)?.market != null && prices.get(c.id)!.market! > 0 && (
+                    <div className="mt-0.5">
+                      <p className="text-[11px] font-bold text-swu-green">{formatPrice(prices.get(c.id)!.market)}</p>
+                      {prices.get(c.id)!.variants && Object.keys(prices.get(c.id)!.variants!).length > 1 && (
+                        <p className="text-[8px] text-swu-amber">{Object.keys(prices.get(c.id)!.variants!).filter(k => k !== 'Normal').join(' · ')}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {/* Collection +/- */}
+                <div className="flex flex-col items-center gap-0.5" onClick={e => e.stopPropagation()}>
+                  <button
+                    onClick={(e) => handleCollectionChange(c.id, 1, e)}
+                    className="w-7 h-7 rounded-lg bg-swu-accent/15 border border-swu-accent/30 text-swu-accent flex items-center justify-center active:scale-90 transition-transform"
+                  >
+                    <Plus size={12} />
+                  </button>
+                  <span className={`text-[10px] font-bold font-mono ${(collectionQtys.get(c.id) || 0) > 0 ? 'text-swu-accent' : 'text-swu-muted/40'}`}>
+                    {collectionQtys.get(c.id) || 0}
+                  </span>
+                  {(collectionQtys.get(c.id) || 0) > 0 && (
+                    <button
+                      onClick={(e) => handleCollectionChange(c.id, -1, e)}
+                      className="w-7 h-7 rounded-lg bg-swu-red/15 border border-swu-red/30 text-swu-red flex items-center justify-center active:scale-90 transition-transform"
+                    >
+                      <Minus size={12} />
+                    </button>
+                  )}
+                </div>
               </div>
             </button>
           ))}
