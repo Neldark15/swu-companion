@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Trophy, Layers, Dice6, User, LogIn, BookOpen, ExternalLink, Package, Skull, ScrollText, Medal, Swords, Shield, Eye, Target } from 'lucide-react'
+import { Trophy, Layers, Dice6, User, LogIn, BookOpen, ExternalLink, Package, Skull, ScrollText, Medal, Shield, Eye, Target } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
 /* Avatar helper: detect image-based avatar vs emoji */
@@ -11,17 +11,6 @@ const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormt
  *  ──────────────────────────────────────────── */
 
 const mainSystems = [
-  {
-    icon: Swords,
-    label: 'Duelo',
-    sub: 'Tracker en vivo',
-    textClass: 'text-swu-red',
-    iconBg: 'bg-swu-red/10 border-swu-red/20',
-    notchBg: 'bg-swu-red/40',
-    glow: 'shadow-[0_0_18px_rgba(239,68,68,0.15)]',
-    to: '/play',
-    auth: true,
-  },
   {
     icon: ScrollText,
     label: 'Holocrón de Duelos',
@@ -46,13 +35,13 @@ const mainSystems = [
   },
   {
     icon: Trophy,
-    label: 'Torneo',
-    sub: 'Eventos organizados',
+    label: 'Eventos',
+    sub: 'Torneos y más',
     textClass: 'text-swu-amber',
     iconBg: 'bg-swu-amber/10 border-swu-amber/20',
     notchBg: 'bg-swu-amber/40',
     glow: 'shadow-[0_0_18px_rgba(251,191,36,0.15)]',
-    to: '/events/tournament',
+    to: '/events',
     auth: true,
   },
   {
