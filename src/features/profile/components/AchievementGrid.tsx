@@ -8,7 +8,7 @@ interface AchievementGridProps {
   achievementDates: Record<string, number>
 }
 
-const ASPECTS: Aspect[] = ['Vigilance', 'Command', 'Aggression', 'Cunning', 'Heroism', 'Villainy']
+const ASPECTS: Aspect[] = ['Vigilance', 'Command', 'Aggression', 'Cunning', 'Heroism', 'Villainy', 'Progress']
 
 export function AchievementGrid({ unlockedIds, achievementDates }: AchievementGridProps) {
   const [selectedAspect, setSelectedAspect] = useState<Aspect | 'all'>('all')
@@ -44,6 +44,8 @@ export function AchievementGrid({ unlockedIds, achievementDates }: AchievementGr
         {ASPECTS.map((asp) => {
           const config = ASPECT_CONFIG[asp]
           const isActive = selectedAspect === asp
+          const aspUnlocked = ACHIEVEMENTS.filter(a => a.aspect === asp && unlockedIds.includes(a.id)).length
+          const aspTotal = ACHIEVEMENTS.filter(a => a.aspect === asp).length
           return (
             <button
               key={asp}
@@ -56,6 +58,7 @@ export function AchievementGrid({ unlockedIds, achievementDates }: AchievementGr
             >
               <AspectIcon aspect={asp} size={14} />
               <span>{config.label}</span>
+              <span className="opacity-60 font-mono">{aspUnlocked}/{aspTotal}</span>
             </button>
           )
         })}
