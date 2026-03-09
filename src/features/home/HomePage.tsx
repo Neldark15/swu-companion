@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Trophy, Layers, Dice6, User, LogIn, BookOpen, ExternalLink, Package, Skull, ScrollText, Medal, Swords, Shield } from 'lucide-react'
+import { Trophy, Layers, Dice6, User, LogIn, BookOpen, ExternalLink, Package, Skull, ScrollText, Medal, Swords, Shield, Eye, Target } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
 /* Avatar helper: detect image-based avatar vs emoji */
@@ -80,6 +80,26 @@ const mainSystems = [
     notchBg: 'bg-swu-accent/40',
     glow: 'shadow-[0_0_18px_rgba(56,189,248,0.15)]',
     to: '/decks',
+  },
+  {
+    icon: Eye,
+    label: 'Espionaje',
+    sub: 'Transmisiones sociales',
+    textClass: 'text-indigo-400',
+    iconBg: 'bg-indigo-500/10 border-indigo-400/20',
+    notchBg: 'bg-indigo-400/40',
+    glow: 'shadow-[0_0_18px_rgba(129,140,248,0.15)]',
+    to: '/espionaje',
+  },
+  {
+    icon: Target,
+    label: 'Misiones',
+    sub: 'Órdenes del día',
+    textClass: 'text-orange-400',
+    iconBg: 'bg-orange-500/10 border-orange-400/20',
+    notchBg: 'bg-orange-400/40',
+    glow: 'shadow-[0_0_18px_rgba(251,146,60,0.15)]',
+    to: '/misiones',
   },
   {
     icon: Shield,
