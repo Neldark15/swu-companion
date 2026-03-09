@@ -45,11 +45,61 @@ function readFileAsText(file: File): Promise<string> {
   })
 }
 
+// ─── SWUDB → API Set Code Mapping ───────────────────────
+// SWUDB uses different set codes than the swuapi.com API for many sub-sets.
+// This maps SWUDB codes to their API equivalents.
+
+/** Direct alias: SWUDB code → API code (when the same cards exist under a different code) */
+const SWUDB_SET_ALIASES: Record<string, string> = {
+  // Convention exclusives
+  CE24: 'C24', CE25: 'C25',
+  // Gamegenic
+  GGTS: 'GG',
+  // A Lawless Time (SWUDB uses ALT sometimes)
+  ALT: 'LAW',
+}
+
+/**
+ * Extract the base set code from a SWUDB variant code.
+ * SWUDB appends suffixes for sub-sets:
+ *   OP = Organized Play, PR = Prerelease Promos, SH = Store Showdown,
+ *   PQ = Planetary Qualifier, P = Weekly Play (some sets)
+ *   T prefix = Tokens (TSOR, TSHD, TTWI, TJTL, TLOF, TSEC, TLAW)
+ *   EE24 / GC23 = Event promos (special cases)
+ */
+function getBaseSetCode(code: string): string | null {
+  // Special event promo codes → parent set
+  const eventPromoMap: Record<string, string> = {
+    EE24: 'SHD', GC23: 'SOR',
+  }
+  if (eventPromoMap[code]) return eventPromoMap[code]
+
+  // Token sets: T prefix + base code (TSOR→SOR, TSHD→SHD, TTWI→TWI, etc.)
+  if (/^T[A-Z]{2,4}$/.test(code) && code.length >= 4) {
+    return code.slice(1)
+  }
+
+  // Suffix-based variants: strip OP, PR, SH, PQ from end
+  const suffixMatch = code.match(/^([A-Z]{2,4})(OP|PR|SH|PQ)$/)
+  if (suffixMatch) return suffixMatch[1]
+
+  // Weekly Play suffix: LAWP→LAW (but JTLP, SECP, LOFP exist in API so don't strip those)
+  // Only strip P if the resulting base is a known main set
+  const knownMainSets = ['SOR', 'SHD', 'TWI', 'JTL', 'LOF', 'SEC', 'LAW']
+  if (code.endsWith('P') && code.length >= 4) {
+    const base = code.slice(0, -1)
+    if (knownMainSets.includes(base)) return base
+  }
+
+  return null
+}
+
 // ─── Parsers ─────────────────────────────────────────────
 
-/** Normalize set code: uppercase, trim */
+/** Normalize set code: uppercase, trim, apply alias mapping */
 function normalizeSetCode(raw: string): string {
-  return raw.trim().toUpperCase()
+  const code = raw.trim().toUpperCase()
+  return SWUDB_SET_ALIASES[code] || code
 }
 
 /** Parse card number: remove leading zeros, handle "001" → 1 */
@@ -263,35 +313,59 @@ export async function importToCollection(
     cardLookup.set(key, c.id)
   }
 
-  // Fallback: for cards not in local DB, try API lookup by set+number
-  async function resolveCardId(setCode: string, cardNumber: number): Promise<string | null> {
-    const localKey = `${setCode}_${cardNumber}`
-    if (cardLookup.has(localKey)) return cardLookup.get(localKey)!
+  // Helper: try to find card locally by set+number
+  async function tryLocalLookup(set: string, num: number): Promise<string | null> {
+    const key = `${set}_${num}`
+    if (cardLookup.has(key)) return cardLookup.get(key)!
 
-    // Try Dexie query directly (in case toArray missed indexed entries)
     const dbCard = await db.cards
-      .where('setCode').equals(setCode)
-      .filter(c => c.setNumber === cardNumber)
+      .where('setCode').equals(set)
+      .filter(c => c.setNumber === num)
       .first()
     if (dbCard) {
-      cardLookup.set(localKey, dbCard.id)
+      cardLookup.set(key, dbCard.id)
       return dbCard.id
     }
+    return null
+  }
 
-    // Fallback: search API by set code + number
+  // Helper: try API search for a card
+  async function tryApiLookup(set: string, num: number): Promise<string | null> {
     try {
-      const paddedNum = String(cardNumber).padStart(3, '0')
-      const { cards: found } = await searchCards({ query: `${setCode} ${paddedNum}`, limit: 10 })
-      // Find exact match by set+number
-      const exact = found.find(c => c.setCode === setCode && c.setNumber === cardNumber)
+      const paddedNum = String(num).padStart(3, '0')
+      const { cards: found } = await searchCards({ query: `${set} ${paddedNum}`, limit: 10 })
+      const exact = found.find(c => c.setCode === set && c.setNumber === num)
       if (exact) {
-        cardLookup.set(localKey, exact.id)
-        // Also cache in Dexie for future lookups
+        const key = `${set}_${num}`
+        cardLookup.set(key, exact.id)
         await db.cards.put(exact).catch(() => {})
         return exact.id
       }
     } catch {
-      // API unavailable, skip
+      // API unavailable
+    }
+    return null
+  }
+
+  // Fallback: for cards not in local DB, try API lookup by set+number
+  // Supports SWUDB variant set codes by trying base set as fallback
+  async function resolveCardId(setCode: string, cardNumber: number): Promise<string | null> {
+    // 1. Try exact set code (already normalized via alias map)
+    const local = await tryLocalLookup(setCode, cardNumber)
+    if (local) return local
+
+    // 2. Try API with exact set code
+    const api = await tryApiLookup(setCode, cardNumber)
+    if (api) return api
+
+    // 3. Try with base set code (strip SWUDB variant suffixes)
+    const baseSet = getBaseSetCode(setCode)
+    if (baseSet && baseSet !== setCode) {
+      const localBase = await tryLocalLookup(baseSet, cardNumber)
+      if (localBase) return localBase
+
+      const apiBase = await tryApiLookup(baseSet, cardNumber)
+      if (apiBase) return apiBase
     }
 
     return null
