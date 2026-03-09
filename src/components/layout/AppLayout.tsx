@@ -4,6 +4,7 @@ import { Header } from './Header'
 import { SideNav } from './SideNav'
 import { useAuth } from '../../hooks/useAuth'
 import { NotificationToast } from '../ui/NotificationToast'
+import { PageTransition } from '../PageTransition'
 
 export function AppLayout() {
   const initAuth = useAuth(s => s.initAuth)
@@ -27,7 +28,9 @@ export function AppLayout() {
         <div className="max-w-lg lg:max-w-full mx-auto min-h-screen relative">
           <Header />
           <main className="pb-6 overflow-y-auto">
-            <Outlet />
+            <PageTransition>
+              <Outlet />
+            </PageTransition>
           </main>
         </div>
       </div>

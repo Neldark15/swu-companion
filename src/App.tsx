@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AppLayout } from './components/layout/AppLayout'
 import { AuthGate } from './components/AuthGate'
-import { Loader2 } from 'lucide-react'
+import { HolocronLoader } from './components/PageTransition'
 
 // Lazy-loaded pages — each becomes its own chunk
 const HomePage = lazy(() => import('./features/home/HomePage').then(m => ({ default: m.HomePage })))
@@ -43,11 +43,7 @@ const SpyProfilePage = lazy(() => import('./features/espionaje/SpyProfilePage').
 const MissionsPage = lazy(() => import('./features/missions/MissionsPage'))
 
 function PageLoader() {
-  return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 size={28} className="text-swu-accent animate-spin" />
-    </div>
-  )
+  return <HolocronLoader />
 }
 
 /** Wrap protected pages */
