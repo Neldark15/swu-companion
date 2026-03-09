@@ -312,16 +312,22 @@ export function SpyProfilePage() {
           </div>
         )}
 
-        {/* Public Decks */}
-        {publicDecks.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Swords size={14} className="text-indigo-400" />
-                <p className="text-xs font-bold text-swu-muted uppercase tracking-widest">Decks Públicos</p>
-              </div>
-              <span className="text-[11px] text-swu-muted font-mono">{publicDecks.length}</span>
+        {/* Public Decks — always visible */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Swords size={14} className="text-indigo-400" />
+              <p className="text-xs font-bold text-swu-muted uppercase tracking-widest">Decks Públicos</p>
             </div>
+            <span className="text-[11px] text-swu-muted font-mono">{publicDecks.length}</span>
+          </div>
+
+          {publicDecks.length === 0 ? (
+            <div className="bg-swu-surface rounded-xl border border-dashed border-swu-border/50 p-6 flex flex-col items-center justify-center gap-2">
+              <Swords size={24} className="text-swu-muted/20" />
+              <p className="text-xs text-swu-muted text-center">Este jugador no tiene decks públicos</p>
+            </div>
+          ) : (
             <div className="space-y-2">
               {publicDecks.map(d => {
                 const leaderImg = deckImages.get(d.leaderCardId)
@@ -382,8 +388,8 @@ export function SpyProfilePage() {
                 )
               })}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Aspect Bars */}
         {aspectBars.length > 0 && (
