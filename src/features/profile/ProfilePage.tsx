@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { db } from '../../services/db'
 import { useAuth } from '../../hooks/useAuth'
+import { syncStatsToCloud } from '../../services/sync'
 import { isPasskeyReady } from '../../services/crypto'
 import { createDefaultStats, getAspectBars, checkAchievements, calculateLevel, type PlayerStats } from '../../services/gamification'
 import { XpBar } from './components/XpBar'
@@ -194,6 +195,12 @@ export function ProfilePage() {
 
         await db.playerStats.put(ps)
         setPlayerStats(ps)
+
+        // Sync updated stats to cloud so other users see them in Espionaje
+        const { supabaseUser } = useAuth.getState()
+        if (supabaseUser) {
+          syncStatsToCloud(supabaseUser.id, ps).catch(() => {})
+        }
       }
 
       loadPlayerStats()

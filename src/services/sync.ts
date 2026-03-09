@@ -638,6 +638,8 @@ export async function pullAllFromCloud(userId: string, localProfileId: string) {
         achievementDates: { ...localStats.achievementDates, ...cloudStats.achievementDates },
       }
       await db.playerStats.put(merged)
+      // Push merged stats back to cloud so both sides stay in sync
+      syncStatsToCloud(userId, merged).catch(() => {})
     } else {
       await db.playerStats.put(cloudStats)
     }
