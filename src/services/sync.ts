@@ -243,7 +243,7 @@ import type { Deck } from '../types'
 export async function syncDeckToCloud(userId: string, deck: Deck) {
   if (!isSupabaseReady()) return
   try {
-    await supabase.from('decks').upsert({
+    const payload = {
       id: deck.id,
       user_id: userId,
       name: deck.name,
@@ -259,9 +259,15 @@ export async function syncDeckToCloud(userId: string, deck: Deck) {
         createdAt: deck.createdAt,
         updatedAt: deck.updatedAt,
       },
-    })
+    }
+    const { error } = await supabase.from('decks').upsert(payload)
+    if (error) {
+      console.error('[Sync] Deck upsert error:', error.code, error.message, error.details, error.hint)
+    } else {
+      console.log('[Sync] Deck synced OK:', deck.id, deck.name)
+    }
   } catch (e) {
-    console.warn('[Sync] Failed to sync deck:', e)
+    console.error('[Sync] Failed to sync deck (exception):', e)
   }
 }
 
@@ -273,7 +279,12 @@ export async function pullDecksFromCloud(userId: string): Promise<boolean> {
       .from('decks')
       .select('*')
       .eq('user_id', userId)
-    if (error || !decks) return false
+    if (error) {
+      console.error('[Sync] Pull decks error:', error.code, error.message)
+      return false
+    }
+    if (!decks) return false
+    console.log(`[Sync] Pulled ${decks.length} decks from cloud`)
 
     const localDecks = decks.map(d => ({
       ...d.data,
@@ -284,7 +295,8 @@ export async function pullDecksFromCloud(userId: string): Promise<boolean> {
     }))
     await db.decks.bulkPut(localDecks)
     return true
-  } catch {
+  } catch (e) {
+    console.error('[Sync] Pull decks exception:', e)
     return false
   }
 }
@@ -309,7 +321,12 @@ export async function getPublicDecks(userId: string): Promise<{
       .from('decks')
       .select('id, name, format, data')
       .eq('user_id', userId)
-    if (error || !data) return []
+    if (error) {
+      console.error('[Sync] Public decks query error:', error.code, error.message)
+      return []
+    }
+    if (!data) return []
+    console.log(`[Sync] Found ${data.length} decks for spy profile, userId=${userId}`)
 
     return data
       .filter(d => {
