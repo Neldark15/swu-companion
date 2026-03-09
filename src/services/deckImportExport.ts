@@ -12,7 +12,7 @@
  */
 
 import { db } from './db'
-import { searchCards } from './swuApi'
+import { searchCards, loadFullDatabase } from './swuApi'
 import type { Deck, DeckCard, Card } from '../types'
 
 // ─── Types ───────────────────────────────────────────────
@@ -52,28 +52,6 @@ async function findCardBySetNumber(setCode: string, setNumber: number): Promise<
   return cards || null
 }
 
-/** Look up card by name (fuzzy) — used for Melee text format */
-async function findCardByName(name: string, subtitle?: string): Promise<Card | null> {
-  const fullName = subtitle ? `${name}, ${subtitle}` : name
-  // Try exact search first
-  const { cards } = await searchCards({ query: fullName, limit: 5 })
-  if (cards.length === 0) return null
-
-  // Prefer exact name match
-  const exact = cards.find(c => {
-    const cName = c.subtitle ? `${c.name}, ${c.subtitle}` : c.name
-    return cName.toLowerCase() === fullName.toLowerCase()
-  })
-  if (exact) return exact
-
-  // Try name-only match
-  const nameMatch = cards.find(c => c.name.toLowerCase() === name.toLowerCase())
-  if (nameMatch) return nameMatch
-
-  // Return first result as fallback
-  return cards[0]
-}
-
 function toDeckCard(card: Card, quantity: number): DeckCard {
   return {
     cardId: card.id,
@@ -98,6 +76,9 @@ async function importSwudbJson(text: string): Promise<DeckImportResult> {
     result.errors.push('JSON inválido')
     return result
   }
+
+  // Preload full database for local lookups
+  await loadFullDatabase().catch(() => {})
 
   // Ensure we have some deck structure
   if (!data.leader && !data.deck) {
@@ -182,10 +163,79 @@ async function importSwudbJson(text: string): Promise<DeckImportResult> {
 
 // ─── Melee Text Import ───────────────────────────────────
 
+/** Build in-memory lookup maps from local DB for fast name matching */
+async function buildNameLookup(): Promise<{
+  byExact: Map<string, Card>  // "name|subtitle" → Card
+  byName: Map<string, Card>   // "name" → Card (first match)
+}> {
+  const allCards = await db.cards.toArray()
+  const byExact = new Map<string, Card>()
+  const byName = new Map<string, Card>()
+
+  for (const c of allCards) {
+    const key = c.subtitle
+      ? `${c.name.toLowerCase()}|${c.subtitle.toLowerCase()}`
+      : c.name.toLowerCase()
+    byExact.set(key, c)
+    // byName: only store first occurrence
+    const nameKey = c.name.toLowerCase()
+    if (!byName.has(nameKey)) byName.set(nameKey, c)
+  }
+
+  return { byExact, byName }
+}
+
+/** Fast local lookup by name, falls back to API search */
+async function findCardFast(
+  name: string,
+  subtitle: string | undefined,
+  lookup: { byExact: Map<string, Card>; byName: Map<string, Card> },
+): Promise<Card | null> {
+  const nameLower = name.toLowerCase().trim()
+  const subtitleLower = subtitle?.toLowerCase().trim() || ''
+
+  // 1) Exact match with subtitle in local map
+  if (subtitleLower) {
+    const exactKey = `${nameLower}|${subtitleLower}`
+    const exact = lookup.byExact.get(exactKey)
+    if (exact) return exact
+  }
+
+  // 2) Name-only match in local map
+  const byName = lookup.byName.get(nameLower)
+  if (byName) return byName
+
+  // 3) Fallback: API search
+  try {
+    const fullQuery = subtitle ? `${name} ${subtitle}` : name
+    const { cards } = await searchCards({ query: fullQuery, limit: 10 })
+    if (cards.length > 0) {
+      // Prefer exact match
+      const exact = cards.find(c => {
+        if (c.name.toLowerCase() !== nameLower) return false
+        if (subtitleLower && c.subtitle) return c.subtitle.toLowerCase() === subtitleLower
+        return true
+      })
+      if (exact) return exact
+      const nameOnly = cards.find(c => c.name.toLowerCase() === nameLower)
+      if (nameOnly) return nameOnly
+      return cards[0]
+    }
+  } catch {
+    // API failed
+  }
+
+  return null
+}
+
 async function importMeleeText(text: string): Promise<DeckImportResult> {
   const result: DeckImportResult = {
     success: false, errors: [], warnings: [], matchedCards: 0, totalCards: 0,
   }
+
+  // Preload full card database for fast local lookups
+  await loadFullDatabase().catch(() => {})
+  const lookup = await buildNameLookup()
 
   const lines = text.trim().split(/\r?\n/)
   let section: 'none' | 'leader' | 'base' | 'maindeck' | 'sideboard' = 'none'
@@ -235,7 +285,7 @@ async function importMeleeText(text: string): Promise<DeckImportResult> {
     if (!cardName) continue
 
     result.totalCards++
-    const card = await findCardByName(cardName, subtitle)
+    const card = await findCardFast(cardName, subtitle || undefined, lookup)
 
     if (!card) {
       result.warnings.push(`No encontrada: ${cardName}${subtitle ? ` | ${subtitle}` : ''}`)
