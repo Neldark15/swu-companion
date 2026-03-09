@@ -7,8 +7,8 @@ import { db } from '../../services/db'
 import { syncFavoriteToCloud } from '../../services/sync'
 import { useAuth } from '../../hooks/useAuth'
 import { getCardQuantity, updateCollectionQuantity } from '../../services/collectionService'
-import { formatPrice } from '../../services/pricing'
-import { getLocalPrice } from '../../services/pricing'
+import { formatPrice, getLocalPrice, type PriceInfo } from '../../services/pricing'
+import { getPricesForCards, fetchTCGPrices } from '../../services/pricing'
 import type { Card } from '../../types'
 
 const typeVariant: Record<string, 'amber' | 'accent' | 'green' | 'purple' | 'default'> = {
@@ -45,7 +45,8 @@ export function CardDetailPage() {
   const [isFavorite, setIsFavorite] = useState(false)
   const [showBack, setShowBack] = useState(false)
   const [collectionQty, setCollectionQty] = useState(0)
-  const [priceMarket, setPriceMarket] = useState<number | null>(null)
+  const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null)
+  const [priceLoading, setPriceLoading] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -59,8 +60,21 @@ export function CardDetailPage() {
       setCard(c)
       setIsFavorite(!!fav)
       setCollectionQty(qty)
-      setPriceMarket(price?.market ?? null)
+      setPriceInfo(price)
       setLoading(false)
+
+      // If no cached price, fetch from TCGPlayer
+      if (!price && c) {
+        setPriceLoading(true)
+        fetchTCGPrices([{ id: c.id, name: c.name, subtitle: c.subtitle || null, setCode: c.setCode, setNumber: c.setNumber }])
+          .then(() => getPricesForCards([c.id]))
+          .then(map => {
+            const fetched = map.get(c.id)
+            if (fetched) setPriceInfo(fetched)
+          })
+          .catch(() => {})
+          .finally(() => setPriceLoading(false))
+      }
     })
   }, [id])
 
@@ -252,16 +266,48 @@ export function CardDetailPage() {
         </div>
       )}
 
-      {/* Collection + Price */}
-      <div className="bg-swu-accent/10 rounded-xl p-4 border border-swu-accent/30">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Package size={16} className="text-swu-accent" />
-            <span className="text-sm font-bold text-swu-accent">Colección</span>
+      {/* Prices by Variant */}
+      {(priceInfo || priceLoading) && (
+        <div className="bg-swu-green/10 rounded-xl p-4 border border-swu-green/30">
+          <div className="flex items-center gap-2 mb-3">
+            <Package size={16} className="text-swu-green" />
+            <span className="text-sm font-bold text-swu-green">Precios TCGPlayer</span>
+            {priceLoading && <Loader2 size={12} className="text-swu-green animate-spin" />}
           </div>
-          {priceMarket != null && priceMarket > 0 && (
-            <span className="text-sm font-bold text-swu-green">{formatPrice(priceMarket)}</span>
-          )}
+
+          {priceInfo && priceInfo.variants && Object.keys(priceInfo.variants).length > 0 ? (
+            <div className="space-y-2">
+              {Object.entries(priceInfo.variants).map(([subtype, v]) => (
+                <div key={subtype} className="flex items-center justify-between py-1.5 border-b border-swu-border/30 last:border-0">
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${
+                    subtype === 'Normal' ? 'bg-swu-surface text-swu-text' :
+                    subtype === 'Foil' ? 'bg-swu-amber/20 text-swu-amber' :
+                    subtype.includes('Hyperspace') ? 'bg-purple-400/20 text-purple-400' :
+                    subtype.includes('Showcase') ? 'bg-cyan-400/20 text-cyan-300' :
+                    'bg-swu-surface text-swu-muted'
+                  }`}>{subtype}</span>
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="text-swu-muted">Low <span className="text-swu-text font-bold">{formatPrice(v.low)}</span></span>
+                    <span className="text-swu-green font-extrabold text-sm">{formatPrice(v.market)}</span>
+                    <span className="text-swu-muted">High <span className="text-swu-text font-bold">{formatPrice(v.high)}</span></span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : priceInfo ? (
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-swu-muted">Market Price</span>
+              <span className="text-sm font-extrabold text-swu-green">{formatPrice(priceInfo.market)}</span>
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {/* Collection */}
+      <div className="bg-swu-accent/10 rounded-xl p-4 border border-swu-accent/30">
+        <div className="flex items-center gap-2 mb-3">
+          <Package size={16} className="text-swu-accent" />
+          <span className="text-sm font-bold text-swu-accent">Colección</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs text-swu-muted">

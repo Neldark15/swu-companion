@@ -11,7 +11,7 @@
  * Matching: Multi-strategy (name, name+subtitle, set number, partial name)
  */
 
-import { db, type CardPrice } from './db'
+import { db, type CardPrice, type PriceVariant } from './db'
 import { supabase, isSupabaseReady } from './supabase'
 
 const PRICE_CACHE_TTL = 7 * 24 * 60 * 60 * 1000 // 7 days
@@ -19,13 +19,17 @@ const PRICE_CACHE_TTL = 7 * 24 * 60 * 60 * 1000 // 7 days
 // In-memory price cache to avoid repeated Dexie lookups
 const _priceMemCache = new Map<string, PriceInfo>()
 
+export type { PriceVariant }
+
 export interface PriceInfo {
   cardId: string
-  market: number | null
+  market: number | null   // Normal market price
   low: number | null
   high: number | null
   source: string
   updatedAt: number
+  /** Price variants by subtype: Normal, Foil, Hyperspace, etc. */
+  variants?: Record<string, PriceVariant>
 }
 
 // ─── Local Cache ──────────────────────────────────────────
@@ -46,6 +50,7 @@ export async function getLocalPrice(cardId: string): Promise<PriceInfo | null> {
       high: cached.highPrice,
       source: cached.source,
       updatedAt: cached.lastUpdated,
+      variants: cached.variants ? JSON.parse(cached.variants) : undefined,
     }
     _priceMemCache.set(cardId, info)
     return info
@@ -81,6 +86,7 @@ export async function getLocalPrices(cardIds: string[]): Promise<Map<string, Pri
         high: p.highPrice,
         source: p.source,
         updatedAt: p.lastUpdated,
+        variants: p.variants ? JSON.parse(p.variants) : undefined,
       }
       result.set(p.cardId, info)
       _priceMemCache.set(p.cardId, info)
@@ -113,7 +119,7 @@ export async function getCloudPrices(cardIds: string[]): Promise<Map<string, Pri
       const chunk = cardIds.slice(i, i + 100)
       const { data } = await supabase
         .from('card_prices')
-        .select('card_id, market_price, low_price, high_price, source, last_updated')
+        .select('card_id, market_price, low_price, high_price, source, last_updated, variants')
         .in('card_id', chunk)
 
       if (data) {
@@ -125,6 +131,7 @@ export async function getCloudPrices(cardIds: string[]): Promise<Map<string, Pri
             high: row.high_price,
             source: row.source || 'cloud',
             updatedAt: new Date(row.last_updated).getTime(),
+            variants: row.variants ? (typeof row.variants === 'string' ? JSON.parse(row.variants) : row.variants) : undefined,
           })
         }
       }
@@ -148,6 +155,7 @@ export async function saveCloudPrices(prices: PriceInfo[]): Promise<void> {
       high_price: p.high,
       source: p.source,
       last_updated: new Date(p.updatedAt).toISOString(),
+      variants: p.variants ? JSON.stringify(p.variants) : null,
     }))
     await supabase.from('card_prices').upsert(rows)
   } catch (e) {
@@ -358,14 +366,12 @@ async function fetchSetPrices(
     const priceData = await priceResp.json()
     const prices: TCGPrice[] = priceData.results || priceData || []
 
-    // 3. Build product name → price map (prefer "Normal" subtype)
-    const priceByProductId = new Map<number, TCGPrice>()
+    // 3. Build product → ALL price subtypes map
+    const allPricesByProductId = new Map<number, TCGPrice[]>()
     for (const p of prices) {
-      const existing = priceByProductId.get(p.productId)
-      // Prefer Normal over Foil/Hyperspace
-      if (!existing || p.subTypeName === 'Normal') {
-        priceByProductId.set(p.productId, p)
-      }
+      const list = allPricesByProductId.get(p.productId) || []
+      list.push(p)
+      allPricesByProductId.set(p.productId, list)
     }
 
     // 4. Build multiple lookup maps for better matching
@@ -426,15 +432,33 @@ async function fetchSetPrices(
       }
 
       if (prod) {
-        const price = priceByProductId.get(prod.productId)
-        if (price) {
+        const prodPrices = allPricesByProductId.get(prod.productId)
+        if (prodPrices && prodPrices.length > 0) {
+          // Build variants map from all subtypes
+          const variants: Record<string, PriceVariant> = {}
+          let normalPrice: TCGPrice | undefined
+
+          for (const pp of prodPrices) {
+            const subName = pp.subTypeName || 'Normal'
+            variants[subName] = {
+              market: pp.marketPrice,
+              low: pp.lowPrice,
+              high: pp.highPrice,
+            }
+            if (subName === 'Normal') normalPrice = pp
+          }
+
+          // Use Normal as primary, fall back to first available
+          const primary = normalPrice || prodPrices[0]
+
           results.push({
             cardId: card.id,
-            market: price.marketPrice,
-            low: price.lowPrice,
-            high: price.highPrice,
+            market: primary.marketPrice,
+            low: primary.lowPrice,
+            high: primary.highPrice,
             source: 'tcgplayer',
             updatedAt: Date.now(),
+            variants: Object.keys(variants).length > 1 ? variants : undefined,
           })
         }
       }
@@ -488,6 +512,7 @@ export async function fetchTCGPrices(
         lowPrice: p.low,
         highPrice: p.high,
         source: p.source,
+        variants: p.variants ? JSON.stringify(p.variants) : undefined,
         lastUpdated: p.updatedAt,
       }))
       await saveLocalPrices(localPrices)

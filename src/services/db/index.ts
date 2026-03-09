@@ -15,13 +15,21 @@ export interface UserProfile {
   createdAt: number
 }
 
+export interface PriceVariant {
+  market: number | null
+  low: number | null
+  high: number | null
+}
+
 export interface CardPrice {
   cardId: string
   marketPrice: number | null
   lowPrice: number | null
   highPrice: number | null
-  source: string             // 'swudb' | 'tcgapi' | 'manual'
+  source: string             // 'tcgplayer' | 'manual'
   lastUpdated: number
+  /** JSON map of subtype → { market, low, high } e.g. { "Normal": {...}, "Foil": {...} } */
+  variants?: string
 }
 
 export class SWUDatabase extends Dexie {

@@ -367,7 +367,12 @@ export function CardsPage() {
                   <p className="text-xs text-swu-muted">{c.power}/{c.hp}</p>
                 )}
                 {prices.get(c.id)?.market != null && prices.get(c.id)!.market! > 0 && (
-                  <p className="text-[11px] font-bold text-swu-green mt-0.5">{formatPrice(prices.get(c.id)!.market)}</p>
+                  <div className="mt-0.5">
+                    <p className="text-[11px] font-bold text-swu-green">{formatPrice(prices.get(c.id)!.market)}</p>
+                    {prices.get(c.id)!.variants && Object.keys(prices.get(c.id)!.variants!).length > 1 && (
+                      <p className="text-[8px] text-swu-amber">{Object.keys(prices.get(c.id)!.variants!).filter(k => k !== 'Normal').join(' · ')}</p>
+                    )}
+                  </div>
                 )}
               </div>
             </button>
