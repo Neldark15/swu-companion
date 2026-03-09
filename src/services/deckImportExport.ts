@@ -5,6 +5,9 @@
  * - SWUDB JSON format: { metadata, leader, base, deck, sideboard }
  *   Card IDs: "SET_NUMBER" e.g. "SOR_017"
  *
+ * - SWUDB CSV format: Set,CardNumber,Count,IsFoil,Stamp
+ *   Example: SOR,017,1,False,
+ *
  * - Melee text format:
  *   Leader\n1 | Name | Subtitle\nBase\n1 | Name\nMainDeck\n3 | Name\nSideboard\n...
  *
@@ -319,6 +322,91 @@ async function importMeleeText(text: string): Promise<DeckImportResult> {
   return result
 }
 
+// ─── SWUDB CSV Import ────────────────────────────────────
+
+/** Detect if text looks like SWUDB CSV: header with Set,CardNumber,Count columns */
+function isSwudbCsv(text: string): boolean {
+  const firstLine = text.split(/\r?\n/)[0]?.toLowerCase().replace(/['"]/g, '') || ''
+  const cols = firstLine.split(',').map(c => c.trim())
+  return cols.some(c => /^set$/i.test(c)) && cols.some(c => /^cardnumber$/i.test(c))
+}
+
+async function importSwudbCsv(text: string): Promise<DeckImportResult> {
+  const result: DeckImportResult = {
+    success: false, errors: [], warnings: [], matchedCards: 0, totalCards: 0,
+  }
+
+  // Preload full database
+  await loadFullDatabase().catch(() => {})
+
+  const lines = text.trim().split(/\r?\n/)
+  if (lines.length < 2) {
+    result.errors.push('CSV vacío o sin datos')
+    return result
+  }
+
+  // Parse header
+  const header = lines[0].toLowerCase().replace(/['"]/g, '')
+  const cols = header.split(',').map(c => c.trim())
+  const setIdx = cols.findIndex(c => /^set$/i.test(c))
+  const numIdx = cols.findIndex(c => /^cardnumber$/i.test(c))
+  const countIdx = cols.findIndex(c => /^count$/i.test(c))
+
+  if (setIdx < 0 || numIdx < 0) {
+    result.errors.push('CSV no tiene columnas Set y CardNumber')
+    return result
+  }
+
+  const deck: Partial<Deck> = {
+    name: 'Deck Importado (CSV)',
+    leaders: [],
+    base: null,
+    mainDeck: [],
+    sideboard: [],
+  }
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (!line) continue
+
+    const parts = line.split(',').map(p => p.trim().replace(/^['"]|['"]$/g, ''))
+    const setCode = (parts[setIdx] || '').toUpperCase()
+    const cardNumber = parseInt((parts[numIdx] || '').replace(/^0+/, ''), 10)
+    const quantity = countIdx >= 0 ? (parseInt(parts[countIdx] || '1', 10) || 1) : 1
+
+    if (!setCode || !cardNumber || cardNumber <= 0) continue
+
+    result.totalCards++
+    const card = await findCardBySetNumber(setCode, cardNumber)
+
+    if (!card) {
+      result.warnings.push(`No encontrada: ${setCode} #${String(cardNumber).padStart(3, '0')}`)
+      continue
+    }
+
+    result.matchedCards++
+
+    // Auto-classify by card type
+    if (card.type === 'Leader') {
+      deck.leaders!.push(toDeckCard(card, 1))
+    } else if (card.type === 'Base') {
+      deck.base = toDeckCard(card, 1)
+    } else {
+      // Check if already in mainDeck (consolidate duplicates)
+      const existing = deck.mainDeck!.find(dc => dc.cardId === card.id)
+      if (existing) {
+        existing.quantity += quantity
+      } else {
+        deck.mainDeck!.push(toDeckCard(card, quantity))
+      }
+    }
+  }
+
+  result.success = result.matchedCards > 0
+  result.deck = deck
+  return result
+}
+
 // ─── Main Import ─────────────────────────────────────────
 
 /** Detect format and import deck from text/clipboard */
@@ -328,6 +416,11 @@ export async function importDeckFromText(text: string): Promise<DeckImportResult
   // Detect JSON
   if (trimmed.startsWith('{')) {
     return importSwudbJson(trimmed)
+  }
+
+  // Detect SWUDB CSV (header: Set,CardNumber,Count,...)
+  if (isSwudbCsv(trimmed)) {
+    return importSwudbCsv(trimmed)
   }
 
   // Otherwise treat as Melee/text format
@@ -376,6 +469,41 @@ export async function exportDeckAsSwudbJson(deck: Deck): Promise<string> {
   }
 
   return JSON.stringify(json, null, 2)
+}
+
+/** Export deck in SWUDB CSV format: Set,CardNumber,Count,IsFoil,Stamp */
+export async function exportDeckAsSwudbCsv(deck: Deck): Promise<string> {
+  const allCardIds = new Set<string>()
+  deck.leaders.forEach(c => allCardIds.add(c.cardId))
+  if (deck.base) allCardIds.add(deck.base.cardId)
+  deck.mainDeck.forEach(c => allCardIds.add(c.cardId))
+  deck.sideboard.forEach(c => allCardIds.add(c.cardId))
+
+  const cardMap = new Map<string, { setCode: string; setNumber: number }>()
+  const cards = await db.cards.where('id').anyOf([...allCardIds]).toArray()
+  for (const c of cards) {
+    cardMap.set(c.id, { setCode: c.setCode, setNumber: c.setNumber })
+  }
+
+  const lines: string[] = ['Set,CardNumber,Count,IsFoil,Stamp']
+
+  function addLine(cardId: string, qty: number) {
+    const info = cardMap.get(cardId)
+    if (!info) return
+    const num = String(info.setNumber).padStart(3, '0')
+    lines.push(`${info.setCode},${num},${qty},False,`)
+  }
+
+  // Leaders
+  for (const l of deck.leaders) addLine(l.cardId, 1)
+  // Base
+  if (deck.base) addLine(deck.base.cardId, 1)
+  // Main deck
+  for (const c of deck.mainDeck) addLine(c.cardId, c.quantity)
+  // Sideboard
+  for (const c of deck.sideboard) addLine(c.cardId, c.quantity)
+
+  return lines.join('\n')
 }
 
 /** Export deck in Melee text format */

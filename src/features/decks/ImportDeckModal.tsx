@@ -61,15 +61,16 @@ export function ImportDeckModal({ open, onClose, onImport }: Props) {
         {/* Body */}
         <div className="p-4 space-y-3">
           <p className="text-xs text-swu-muted">
-            Pegue un deck en formato <span className="text-swu-accent font-bold">SWUDB JSON</span> o{' '}
-            <span className="text-swu-amber font-bold">Melee texto</span> (copiado desde swudb.com u otra fuente).
+            Pegue un deck en formato <span className="text-swu-accent font-bold">SWUDB JSON</span>,{' '}
+            <span className="text-swu-amber font-bold">CSV</span> (Set,CardNumber,Count,IsFoil,Stamp) o{' '}
+            <span className="text-green-400 font-bold">Melee texto</span> copiado desde swudb.com.
           </p>
 
           <div className="relative">
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder={'Pegue aquí el deck...\n\nEjemplo JSON:\n{"metadata":{"name":"Mi Deck"},"leader":{"id":"SOR_017",...},...}\n\nEjemplo Melee:\nLeader\n1 | Han Solo | Audacious Smuggler\nBase\n1 | Echo Base\nMainDeck\n3 | Battlefield Marine'}
+              placeholder={'Pegue aquí el deck...\n\nEjemplo CSV (swudb.com):\nSet,CardNumber,Count,IsFoil,Stamp\nSOR,017,1,False,\n\nEjemplo Melee:\nLeader\n1 | Han Solo | Audacious Smuggler\nBase\n1 | Echo Base\nMainDeck\n3 | Battlefield Marine'}
               className="w-full h-40 p-3 bg-swu-bg border border-swu-border rounded-xl text-xs text-swu-text font-mono resize-none focus:outline-none focus:border-swu-accent/50"
             />
             <button

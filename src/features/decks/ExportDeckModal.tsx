@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { X, Copy, Check, FileJson, FileText } from 'lucide-react'
-import { exportDeckAsSwudbJson, exportDeckAsMeleeText } from '../../services/deckImportExport'
+import { X, Copy, Check, FileJson, FileText, FileSpreadsheet } from 'lucide-react'
+import { exportDeckAsSwudbJson, exportDeckAsMeleeText, exportDeckAsSwudbCsv } from '../../services/deckImportExport'
 import type { Deck } from '../../types'
 
 interface Props {
@@ -9,7 +9,7 @@ interface Props {
   onClose: () => void
 }
 
-type Format = 'json' | 'melee'
+type Format = 'json' | 'csv' | 'melee'
 
 export function ExportDeckModal({ open, deck, onClose }: Props) {
   const [format, setFormat] = useState<Format>('json')
@@ -25,7 +25,9 @@ export function ExportDeckModal({ open, deck, onClose }: Props) {
       try {
         const result = format === 'json'
           ? await exportDeckAsSwudbJson(deck)
-          : exportDeckAsMeleeText(deck)
+          : format === 'csv'
+            ? await exportDeckAsSwudbCsv(deck)
+            : exportDeckAsMeleeText(deck)
         setText(result)
       } catch {
         setText('Error al exportar')
@@ -66,7 +68,17 @@ export function ExportDeckModal({ open, deck, onClose }: Props) {
                 : 'bg-swu-bg border-swu-border text-swu-muted'
             }`}
           >
-            <FileJson size={14} /> SWUDB JSON
+            <FileJson size={14} /> JSON
+          </button>
+          <button
+            onClick={() => setFormat('csv')}
+            className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition-all ${
+              format === 'csv'
+                ? 'bg-green-500/15 border-green-500/40 text-green-400'
+                : 'bg-swu-bg border-swu-border text-swu-muted'
+            }`}
+          >
+            <FileSpreadsheet size={14} /> CSV
           </button>
           <button
             onClick={() => setFormat('melee')}
@@ -76,7 +88,7 @@ export function ExportDeckModal({ open, deck, onClose }: Props) {
                 : 'bg-swu-bg border-swu-border text-swu-muted'
             }`}
           >
-            <FileText size={14} /> Melee Texto
+            <FileText size={14} /> Melee
           </button>
         </div>
 
