@@ -8,7 +8,7 @@ interface AchievementGridProps {
   achievementDates: Record<string, number>
 }
 
-const ASPECTS: Aspect[] = ['Vigilance', 'Command', 'Aggression', 'Cunning', 'Heroism', 'Villainy', 'Progress']
+const ASPECTS: Aspect[] = ['Vigilance', 'Command', 'Aggression', 'Cunning', 'Heroism', 'Villainy', 'Progress', 'Transmissions']
 
 export function AchievementGrid({ unlockedIds, achievementDates }: AchievementGridProps) {
   const [selectedAspect, setSelectedAspect] = useState<Aspect | 'all'>('all')

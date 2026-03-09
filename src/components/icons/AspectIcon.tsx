@@ -23,6 +23,7 @@ const ASPECT_EMOJI: Record<Aspect, string> = {
   Heroism: '💎',
   Villainy: '🌙',
   Progress: '🌟',
+  Transmissions: '📡',
 }
 
 interface AspectIconProps {

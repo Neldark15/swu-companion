@@ -39,6 +39,11 @@ function statsToSnake(stats: PlayerStats, userId: string) {
     last_login_date: stats.lastLoginDate,
     modes_played: stats.modesPlayed,
     arena_matches_logged: stats.arenaMatchesLogged,
+    gifts_received: stats.giftsReceived,
+    gifts_sent: stats.giftsSent,
+    lecciones_jedi_received: stats.leccionesJediReceived,
+    creditos_imperiales_received: stats.creditosImperialesReceived,
+    beskar_received: stats.beskarReceived,
     unlocked_achievements: stats.unlockedAchievements,
     achievement_dates: stats.achievementDates,
     updated_at: new Date().toISOString(),
@@ -70,6 +75,11 @@ function statsFromSnake(row: Record<string, unknown>, profileId: string): Player
     lastLoginDate: (row.last_login_date as string) || new Date().toISOString().split('T')[0],
     modesPlayed: (row.modes_played as string[]) || [],
     arenaMatchesLogged: (row.arena_matches_logged as number) || 0,
+    giftsReceived: (row.gifts_received as number) || 0,
+    giftsSent: (row.gifts_sent as number) || 0,
+    leccionesJediReceived: (row.lecciones_jedi_received as number) || 0,
+    creditosImperialesReceived: (row.creditos_imperiales_received as number) || 0,
+    beskarReceived: (row.beskar_received as number) || 0,
     unlockedAchievements: (row.unlocked_achievements as string[]) || ['vil_1'],
     achievementDates: (row.achievement_dates as Record<string, number>) || {},
   }
@@ -493,6 +503,11 @@ export async function pullAllFromCloud(userId: string, localProfileId: string) {
         legendaryCards: Math.max(cloudStats.legendaryCards, localStats.legendaryCards),
         rareCards: Math.max(cloudStats.rareCards, localStats.rareCards),
         arenaMatchesLogged: Math.max(cloudStats.arenaMatchesLogged, localStats.arenaMatchesLogged),
+        giftsReceived: Math.max(cloudStats.giftsReceived, localStats.giftsReceived),
+        giftsSent: Math.max(cloudStats.giftsSent, localStats.giftsSent),
+        leccionesJediReceived: Math.max(cloudStats.leccionesJediReceived, localStats.leccionesJediReceived),
+        creditosImperialesReceived: Math.max(cloudStats.creditosImperialesReceived, localStats.creditosImperialesReceived),
+        beskarReceived: Math.max(cloudStats.beskarReceived, localStats.beskarReceived),
       }
       await db.playerStats.put(merged)
     } else {

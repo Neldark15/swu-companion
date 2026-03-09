@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Hexagon, Layers, BookOpen, Dice6, Package, Skull, Medal, Swords, ScrollText, Trophy, Shield, type LucideIcon } from 'lucide-react'
+import { Hexagon, Layers, BookOpen, Dice6, Package, Skull, Medal, Swords, ScrollText, Trophy, Shield, Eye, type LucideIcon } from 'lucide-react'
 
 type NavItem =
   | { id: string; label: string; sub: string; icon: LucideIcon; img?: undefined }
@@ -17,6 +17,7 @@ const mainNav: NavItem[] = [
 const secondaryNav: NavItem[] = [
   { id: '/collection', label: 'Mi Botín', sub: 'Colección', icon: Package },
   { id: '/explore', label: 'Contrabando', sub: 'Explorar', icon: Skull },
+  { id: '/espionaje', label: 'Espionaje', sub: 'Transmisiones', icon: Eye },
   { id: '/decks', label: 'Mis Decks', sub: 'Constructor', icon: BookOpen },
   { id: '/rank', label: 'Consejo Jedi', sub: 'Leaderboard', icon: Shield },
   { id: '/cards', label: 'Buscar Cartas', sub: 'Base de datos', icon: Layers },
