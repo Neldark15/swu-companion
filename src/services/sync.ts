@@ -301,10 +301,17 @@ export async function pullDecksFromCloud(userId: string): Promise<boolean> {
   }
 }
 
-/** Get public decks for a user (for spy profile).
- *  Reads isPublic from the `data` JSON column since the table may not have
- *  a dedicated `is_public` column yet. Filters client-side. */
-export async function getPublicDecks(userId: string): Promise<{
+/** DeckCard shape for visual viewer */
+export interface PublicDeckCard {
+  cardId: string
+  name: string
+  subtitle: string | null
+  quantity: number
+  setCode: string
+}
+
+/** Full public deck info including all cards */
+export interface PublicDeck {
   id: string
   name: string
   format: string
@@ -314,7 +321,16 @@ export async function getPublicDecks(userId: string): Promise<{
   baseName: string
   baseCardId: string
   mainDeckCount: number
-}[]> {
+  leaders: PublicDeckCard[]
+  base: PublicDeckCard | null
+  mainDeck: PublicDeckCard[]
+  sideboard: PublicDeckCard[]
+}
+
+/** Get public decks for a user (for spy profile).
+ *  Reads isPublic from the `data` JSON column since the table may not have
+ *  a dedicated `is_public` column yet. Filters client-side. */
+export async function getPublicDecks(userId: string): Promise<PublicDeck[]> {
   if (!isSupabaseReady()) return []
   try {
     const { data, error } = await supabase
@@ -331,14 +347,14 @@ export async function getPublicDecks(userId: string): Promise<{
     return data
       .filter(d => {
         const deck = d.data as Record<string, unknown> | null
-        // Default to public if isPublic is not set
         return deck ? (deck.isPublic !== false) : true
       })
       .map(d => {
         const deck = d.data as Record<string, unknown> || {}
-        const leaders = (deck.leaders as { name: string; cardId: string }[]) || []
-        const base = deck.base as { name: string; cardId: string } | null
-        const mainDeck = (deck.mainDeck as { quantity: number }[]) || []
+        const leaders = (deck.leaders as PublicDeckCard[]) || []
+        const base = deck.base as PublicDeckCard | null
+        const mainDeck = (deck.mainDeck as PublicDeckCard[]) || []
+        const sideboard = (deck.sideboard as PublicDeckCard[]) || []
         const mainCount = mainDeck.reduce((s, c) => s + (c.quantity || 1), 0)
         return {
           id: d.id,
@@ -350,6 +366,10 @@ export async function getPublicDecks(userId: string): Promise<{
           baseName: base?.name || '',
           baseCardId: base?.cardId || '',
           mainDeckCount: mainCount,
+          leaders,
+          base,
+          mainDeck,
+          sideboard,
         }
       })
   } catch (e) {

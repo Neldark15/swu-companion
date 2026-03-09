@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Eye, Send, Loader2, CheckCircle, XCircle, Swords, BookOpen, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Eye, Send, Loader2, CheckCircle, XCircle, Swords } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import {
   getPlayerPublicStats,
@@ -20,9 +20,9 @@ import {
 import { AspectIcon } from '../../components/icons/AspectIcon'
 import { getRelationship, type RelationshipLevel } from '../../services/relationshipService'
 import { getTitleById, getTitleRarity } from '../../services/cosmeticsService'
-import { statsFromSnake, getPublicDecks } from '../../services/sync'
-import { getCardById } from '../../services/swuApi'
+import { statsFromSnake, getPublicDecks, type PublicDeck } from '../../services/sync'
 import { GiftIcon } from '../../components/icons/GiftIcon'
+import { DeckVisualViewer } from './DeckVisualViewer'
 
 const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
 
@@ -44,11 +44,7 @@ export function SpyProfilePage() {
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [selectedGift, setSelectedGift] = useState<GiftType | null>(null)
   const [bond, setBond] = useState<{ points: number; level: number; levelInfo: RelationshipLevel } | null>(null)
-  const [publicDecks, setPublicDecks] = useState<{
-    id: string; name: string; format: string; isValid: boolean
-    leaderName: string; leaderCardId: string; baseName: string; baseCardId: string; mainDeckCount: number
-  }[]>([])
-  const [deckImages, setDeckImages] = useState<Map<string, string>>(new Map())
+  const [publicDecks, setPublicDecks] = useState<PublicDeck[]>([])
 
   // Load target player data
   useEffect(() => {
@@ -64,21 +60,7 @@ export function SpyProfilePage() {
 
         // Load public decks
         const decks = await getPublicDecks(userId!)
-        if (!cancelled) {
-          setPublicDecks(decks)
-          // Load leader/base images
-          const cardIds = new Set<string>()
-          decks.forEach(d => {
-            if (d.leaderCardId) cardIds.add(d.leaderCardId)
-            if (d.baseCardId) cardIds.add(d.baseCardId)
-          })
-          const imgs = new Map<string, string>()
-          await Promise.all([...cardIds].map(async cid => {
-            const card = await getCardById(cid)
-            if (card?.imageUrl) imgs.set(cid, card.imageUrl)
-          }))
-          if (!cancelled) setDeckImages(imgs)
-        }
+        if (!cancelled) setPublicDecks(decks)
 
         // Check remaining gifts + bond for current user
         if (supabaseUser?.id) {
@@ -313,7 +295,7 @@ export function SpyProfilePage() {
           </div>
         )}
 
-        {/* Public Decks — always visible */}
+        {/* Public Decks — visual viewer */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -330,64 +312,9 @@ export function SpyProfilePage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {publicDecks.map(d => {
-                const leaderImg = deckImages.get(d.leaderCardId)
-                const baseImg = deckImages.get(d.baseCardId)
-                return (
-                  <div key={d.id} className="bg-swu-surface rounded-xl border border-swu-border overflow-hidden">
-                    <div className="flex h-16 bg-swu-bg relative">
-                      {/* Leader thumbnail */}
-                      <div className="flex-1 relative overflow-hidden">
-                        {leaderImg ? (
-                          <img src={leaderImg} alt={d.leaderName} className="w-full h-full object-cover object-top" loading="lazy"
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Swords size={16} className="text-swu-muted/20" />
-                          </div>
-                        )}
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-0.5">
-                          <p className="text-[8px] text-swu-amber font-bold">LÍDER</p>
-                          <p className="text-[9px] text-white font-medium truncate">{d.leaderName || '—'}</p>
-                        </div>
-                      </div>
-                      <div className="w-px bg-swu-border" />
-                      {/* Base thumbnail */}
-                      <div className="flex-1 relative overflow-hidden">
-                        {baseImg ? (
-                          <img src={baseImg} alt={d.baseName} className="w-full h-full object-cover object-top" loading="lazy"
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <BookOpen size={16} className="text-swu-muted/20" />
-                          </div>
-                        )}
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-0.5">
-                          <p className="text-[8px] text-swu-green font-bold">BASE</p>
-                          <p className="text-[9px] text-white font-medium truncate">{d.baseName || '—'}</p>
-                        </div>
-                      </div>
-                      {/* Validity badge */}
-                      <div className="absolute top-1 right-1">
-                        {d.isValid ? (
-                          <div className="bg-swu-green/90 rounded-full p-0.5"><CheckCircle2 size={10} className="text-white" /></div>
-                        ) : (
-                          <div className="bg-swu-amber/90 rounded-full p-0.5"><AlertTriangle size={10} className="text-white" /></div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="px-3 py-2 flex items-center justify-between">
-                      <span className="text-xs font-bold text-swu-text truncate">{d.name}</span>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className="text-[10px] font-mono text-swu-accent font-bold">{d.mainDeckCount} cartas</span>
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 font-bold">
-                          {d.format === 'twin_suns' ? 'Twin Suns' : d.format.charAt(0).toUpperCase() + d.format.slice(1)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
+              {publicDecks.map(d => (
+                <DeckVisualViewer key={d.id} deck={d} />
+              ))}
             </div>
           )}
         </div>
