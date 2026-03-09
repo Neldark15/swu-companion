@@ -13,7 +13,10 @@ import { notifyMissionComplete } from './notificationService'
 
 export type MissionType = 'daily' | 'weekly'
 export type ObjectiveType = 'match_played' | 'match_won' | 'gift_sent' | 'deck_created' |
-  'arena_match_logged' | 'card_favorited' | 'deck_valid' | 'tournament_finished'
+  'arena_match_logged' | 'card_favorited' | 'deck_valid' | 'tournament_finished' |
+  'card_collected' | 'card_searched' | 'price_checked' | 'set_explored'
+
+export type RewardType = 'xp' | 'title' | 'xp_title'
 
 export interface MissionTemplate {
   id: string
@@ -24,6 +27,7 @@ export interface MissionTemplate {
   objectiveValue: number
   rewardXp: number
   icon: string
+  rewardTitle?: string  // título desbloqueado al reclamar
 }
 
 export interface UserMission {

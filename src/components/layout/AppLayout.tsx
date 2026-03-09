@@ -4,7 +4,6 @@ import { Header } from './Header'
 import { SideNav } from './SideNav'
 import { useAuth } from '../../hooks/useAuth'
 import { NotificationToast } from '../ui/NotificationToast'
-import { loadFullDatabase } from '../../services/swuApi'
 
 export function AppLayout() {
   const initAuth = useAuth(s => s.initAuth)
@@ -13,11 +12,6 @@ export function AppLayout() {
   useEffect(() => {
     initAuth()
   }, [initAuth])
-
-  // Pre-load card database in background on app start
-  useEffect(() => {
-    loadFullDatabase().catch(() => {})
-  }, [])
 
   return (
     <div className="min-h-screen bg-swu-bg">

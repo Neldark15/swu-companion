@@ -1,20 +1,20 @@
 /**
  * SWU API Client — api.swuapi.com
- * Uses /export/all for full card database + local search via Dexie
- * The API doesn't support text search, so we download everything once
- * and search locally in IndexedDB for instant results.
  *
- * IMPORTANT: /export/all returns camelCase fields (frontImageUrl)
- *            /cards endpoint returns snake_case (front_image_url)
+ * Hybrid search strategy:
+ * - Filter-based browsing (set, type, rarity) → API with pagination
+ * - Text search (name, traits, keywords) → Local IndexedDB search
+ * - Every card fetched from API gets cached locally for offline + text search
+ * - No upfront mass download required
+ *
+ * IMPORTANT: /cards endpoint returns snake_case (front_image_url)
+ *            /export/all returns camelCase (frontImageUrl)
  */
 
 import { db } from './db'
 import type { Card, SetInfo } from '../types'
 
 const API_BASE = 'https://api.swuapi.com'
-
-// DB version to force re-download when mapping changes
-const DB_VERSION = 2
 
 interface ApiCardSnake {
   id: string
@@ -159,53 +159,50 @@ export interface SearchParams {
   limit?: number
 }
 
-// ─── Card Database Management ───
+// ─── Cache helpers ───
 
-let _dbReady = false
-let _dbLoading = false
-let _dbLoadPromise: Promise<void> | null = null
+/** Cache cards to IndexedDB (non-blocking) */
+async function cacheCards(cards: Card[]): Promise<void> {
+  if (cards.length === 0) return
+  try {
+    await db.cards.bulkPut(cards).catch(() => {})
+  } catch {
+    // silent
+  }
+}
 
-async function getLocalCardCount(): Promise<number> {
+/** Get count of locally cached cards */
+export async function getLocalCardCount(): Promise<number> {
   return db.cards.count()
 }
 
-/** Check if our local DB has images (i.e. was loaded with correct mapping) */
-async function hasValidImages(): Promise<boolean> {
-  const sample = await db.cards.limit(5).toArray()
-  if (sample.length === 0) return false
-  // If most cards have empty imageUrl, the DB is stale
-  const withImages = sample.filter(c => c.imageUrl && c.imageUrl.startsWith('http'))
-  return withImages.length >= sample.length * 0.8
+// ─── Legacy compatibility flags ───
+let _dbReady = false
+
+export function isDatabaseReady(): boolean {
+  return _dbReady
 }
 
-/** Download ALL cards from the export endpoint and cache locally */
+/**
+ * Load full database (kept for compatibility but now optional).
+ * Other modules can call this to force a full download if needed.
+ */
+let _dbLoadPromise: Promise<number> | null = null
+
 export async function loadFullDatabase(): Promise<number> {
   if (_dbReady) return db.cards.count()
-  if (_dbLoading && _dbLoadPromise) {
-    await _dbLoadPromise
-    return db.cards.count()
-  }
+  if (_dbLoadPromise) return _dbLoadPromise
 
-  _dbLoading = true
   _dbLoadPromise = (async () => {
     try {
-      // Check if we already have a valid cache with images
-      const existing = await getLocalCardCount()
-      const validImages = existing > 5000 ? await hasValidImages() : false
-
-      if (existing > 5000 && validImages) {
+      const existing = await db.cards.count()
+      if (existing > 5000) {
         _dbReady = true
-        _dbLoading = false
-        return
-      }
-
-      // Clear old data without images
-      if (existing > 0 && !validImages) {
-        await db.cards.clear()
+        return existing
       }
 
       const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 60000) // 60s timeout
+      const timeout = setTimeout(() => controller.abort(), 60000)
       const res = await fetch(`${API_BASE}/export/all`, { signal: controller.signal })
       clearTimeout(timeout)
       if (!res.ok) throw new Error(`Export API ${res.status}`)
@@ -215,42 +212,129 @@ export async function loadFullDatabase(): Promise<number> {
       if (!Array.isArray(allCards) || allCards.length === 0) throw new Error('No cards in export')
 
       const mapped = allCards.map(mapApiCard)
-
-      // Batch insert into IndexedDB (chunks of 500)
       for (let i = 0; i < mapped.length; i += 500) {
-        const chunk = mapped.slice(i, i + 500)
-        await db.cards.bulkPut(chunk).catch(() => {})
+        await db.cards.bulkPut(mapped.slice(i, i + 500)).catch(() => {})
       }
 
-      // Save version marker
-      localStorage.setItem('swu-db-version', String(DB_VERSION))
-
       _dbReady = true
+      return mapped.length
     } catch (err) {
       console.error('Failed to load full card database:', err)
-      const count = await getLocalCardCount()
+      const count = await db.cards.count()
       if (count > 0) _dbReady = true
+      return count
     } finally {
-      _dbLoading = false
+      _dbLoadPromise = null
     }
   })()
 
-  await _dbLoadPromise
-  return db.cards.count()
+  return _dbLoadPromise
 }
 
-export function isDatabaseReady(): boolean {
-  return _dbReady
-}
+// ─── Hybrid Search ───
 
-// ─── Search (always local) ───
-
+/**
+ * Search cards using hybrid strategy:
+ * - If text query present → search locally in cached cards
+ * - If only filters (set/type/rarity) → fetch from API with pagination
+ * - Results are cached locally for future text searches
+ */
 export async function searchCards(params: SearchParams): Promise<{ cards: Card[]; total: number }> {
-  if (!_dbReady) {
-    await loadFullDatabase()
+  const hasTextQuery = !!params.query?.trim()
+  const hasApiFilters = !!(params.set || params.type || params.rarity)
+
+  // Text search → must search locally (API doesn't support it)
+  if (hasTextQuery) {
+    // If we have local data, search it
+    const localCount = await db.cards.count()
+    if (localCount > 0) {
+      return searchLocalCards(params)
+    }
+    // No local data and text query → can't do much, try loading from API with filters first
+    if (hasApiFilters) {
+      await fetchAndCacheFromApi(params)
+      return searchLocalCards(params)
+    }
+    // No data at all — return empty
+    return { cards: [], total: 0 }
   }
-  return searchLocalCards(params)
+
+  // Filter-only or no-filter → use API
+  if (hasApiFilters) {
+    return searchFromApi(params)
+  }
+
+  // No query, no filters → browse mode: fetch from API
+  return searchFromApi(params)
 }
+
+/**
+ * Fetch cards from API with filters and pagination.
+ * Each result page gets cached locally.
+ */
+async function searchFromApi(params: SearchParams): Promise<{ cards: Card[]; total: number }> {
+  try {
+    const queryParts: string[] = ['format=json']
+    if (params.set) queryParts.push(`set=${params.set}`)
+    if (params.type) queryParts.push(`type=${params.type}`)
+    if (params.rarity) queryParts.push(`rarity=${params.rarity}`)
+    queryParts.push(`limit=${params.limit ?? 30}`)
+    queryParts.push(`offset=${params.offset ?? 0}`)
+
+    const url = `${API_BASE}/cards?${queryParts.join('&')}`
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`API ${res.status}`)
+
+    const data = await res.json()
+    const apiCards: ApiCardSnake[] = data.cards || []
+    const total: number = data.pagination?.total ?? apiCards.length
+
+    const mapped = apiCards.map(mapApiCard)
+
+    // Cache to IndexedDB (background)
+    cacheCards(mapped)
+
+    // Apply additional filters that API doesn't support
+    let filtered = mapped
+    if (params.aspect) {
+      filtered = filtered.filter(c => c.aspects.includes(params.aspect!))
+    }
+    if (params.arena) {
+      filtered = filtered.filter(c => c.arena === params.arena)
+    }
+
+    return { cards: filtered, total }
+  } catch {
+    // Fallback to local search if offline
+    return searchLocalCards(params)
+  }
+}
+
+/**
+ * Fetch cards from API and cache them, without returning results.
+ * Used to pre-populate cache before a local text search.
+ */
+async function fetchAndCacheFromApi(params: SearchParams): Promise<void> {
+  try {
+    const queryParts: string[] = ['format=json']
+    if (params.set) queryParts.push(`set=${params.set}`)
+    if (params.type) queryParts.push(`type=${params.type}`)
+    if (params.rarity) queryParts.push(`rarity=${params.rarity}`)
+    queryParts.push('limit=300') // Fetch a big page to populate cache
+
+    const url = `${API_BASE}/cards?${queryParts.join('&')}`
+    const res = await fetch(url)
+    if (!res.ok) return
+    const data = await res.json()
+    const apiCards: ApiCardSnake[] = data.cards || []
+    const mapped = apiCards.map(mapApiCard)
+    await cacheCards(mapped)
+  } catch {
+    // silent
+  }
+}
+
+// ─── Local Search (in IndexedDB cache) ───
 
 async function searchLocalCards(params: SearchParams): Promise<{ cards: Card[]; total: number }> {
   let results: Card[]
@@ -306,16 +390,11 @@ async function searchLocalCards(params: SearchParams): Promise<{ cards: Card[]; 
 
   // Sort: Leaders first → Bases second → then by setCode + setNumber
   results.sort((a, b) => {
-    // Type priority: Leader=0, Base=1, others=2
     const typeOrder = (c: Card) => c.type === 'Leader' || c.isLeader ? 0 : c.type === 'Base' || c.isBase ? 1 : 2
     const ta = typeOrder(a)
     const tb = typeOrder(b)
     if (ta !== tb) return ta - tb
-
-    // Then by set code (alphabetical)
     if (a.setCode !== b.setCode) return a.setCode.localeCompare(b.setCode)
-
-    // Then by collection number
     return a.setNumber - b.setNumber
   })
 
@@ -431,7 +510,7 @@ export async function getSets(): Promise<SetInfo[]> {
   }
 }
 
-// ─── Preload ───
+// ─── Preload (optional — user can trigger manually) ───
 
 export async function preloadSet(_setCode: string): Promise<number> {
   return loadFullDatabase()
