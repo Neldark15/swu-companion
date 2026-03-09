@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { User, LogIn, ExternalLink } from 'lucide-react'
 import {
@@ -6,6 +7,8 @@ import {
   ChanceCubeIcon,
 } from '../../components/SWIcons'
 import { useAuth } from '../../hooks/useAuth'
+import { calculateLevel } from '../../services/gamification'
+import { db } from '../../services/db'
 
 /* Avatar helper: detect image-based avatar vs emoji */
 const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
@@ -142,6 +145,19 @@ export function HomePage() {
   const navigate = useNavigate()
   const { currentProfile } = useAuth()
 
+  // Load player rank from gamification stats
+  const [rankInfo, setRankInfo] = useState<{ name: string; color: string } | null>(null)
+
+  useEffect(() => {
+    if (!currentProfile) { setRankInfo(null); return }
+    db.playerStats.get(currentProfile.id).then(stats => {
+      if (stats) {
+        const lvl = calculateLevel(stats.xp)
+        setRankInfo({ name: lvl.rank.name, color: lvl.rank.color })
+      }
+    }).catch(() => {})
+  }, [currentProfile])
+
   return (
     <div className="min-h-screen bg-swu-bg pb-8">
       {/* ── Cockpit Header with Banner ── */}
@@ -205,7 +221,9 @@ export function HomePage() {
               </div>
               <div className="flex-1 text-left">
                 <p className="text-sm font-bold text-swu-text">{currentProfile.name}</p>
-                <p className="text-[10px] text-swu-muted font-mono tracking-wider">PILOTO ACTIVO</p>
+                <p className={`text-[10px] font-mono tracking-wider ${rankInfo?.color || 'text-swu-muted'}`}>
+                  {rankInfo?.name?.toUpperCase() || 'PILOTO ACTIVO'}
+                </p>
               </div>
               <User size={16} className="text-swu-muted" />
             </button>
