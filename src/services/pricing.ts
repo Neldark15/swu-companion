@@ -5,12 +5,10 @@
  * Strategy:
  * 1. Check local cache (Dexie cardPrices table) — instant, works offline
  * 2. Check cloud cache (Supabase card_prices table) — shared across users
- * 3. If both miss or expired (>7 days), attempt external API fetch
+ * 3. If both miss or expired (>7 days), fetch from TCGPlayer via tcgcsv.com
  *
- * External sources tried in order:
- *   - swu-db.com card data (free, no key) — currently no prices
- *   - tcgcsv.com bulk CSV export (free) — TCGPlayer sourced prices
- *   - Manual fallback: prices can be entered by users (crowd-sourced)
+ * Source: TCGPlayer prices via tcgcsv.com (free bulk API)
+ * Matching: Multi-strategy (name, name+subtitle, set number, partial name)
  */
 
 import { db, type CardPrice } from './db'
@@ -284,9 +282,10 @@ const SET_GROUP_MAP: Record<string, number> = {
   SHD: 23488,  // Shadows of the Galaxy
   TWI: 23597,  // Twilight of the Republic
   JTL: 23956,  // Jump to Lightspeed
-  LOF: 24279,  // Legends of the Force (tentative)
-  SOP: 24387,  // Secrets of Power (tentative)
-  ALT: 24572,  // A Lawless Time (tentative)
+  LOF: 24279,  // Legends of the Force
+  SOP: 24387,  // Secrets of Power
+  ALT: 24572,  // A Lawless Time
+  TS26: 24622, // Twin Suns
 }
 
 interface TCGProduct {
@@ -318,12 +317,27 @@ function normalizeName(name: string): string {
 }
 
 /**
+ * Extract the card number from a TCGPlayer product name.
+ * TCGPlayer often appends " - 123" or " (123/250)" etc.
+ */
+function extractTCGNumber(prodName: string): string | null {
+  // Match patterns like "- 042" or "- 42/252" at end
+  const dashMatch = prodName.match(/[-–]\s*0*(\d+)(?:\s*\/\s*\d+)?\s*$/)
+  if (dashMatch) return dashMatch[1]
+  // Match "(042/252)" or "(42)"
+  const parenMatch = prodName.match(/\(0*(\d+)(?:\s*\/\s*\d+)?\)\s*$/)
+  if (parenMatch) return parenMatch[1]
+  return null
+}
+
+/**
  * Fetch prices from tcgcsv.com for cards in a specific set.
+ * Uses multi-strategy matching: name, name+subtitle, card number.
  * Returns a map of our cardId → PriceInfo.
  */
 async function fetchSetPrices(
   groupId: number,
-  cardsInSet: { id: string; name: string; subtitle: string | null }[],
+  cardsInSet: { id: string; name: string; subtitle: string | null; setNumber?: string | number }[],
 ): Promise<PriceInfo[]> {
   const results: PriceInfo[] = []
 
@@ -354,23 +368,61 @@ async function fetchSetPrices(
       }
     }
 
-    // 4. Build normalized product name → { productId, cleanName }
+    // 4. Build multiple lookup maps for better matching
     const prodByName = new Map<string, TCGProduct>()
+    const prodByNumber = new Map<string, TCGProduct>()
+    const prodByPartialName = new Map<string, TCGProduct[]>()
     for (const prod of products) {
       const key = normalizeName(prod.cleanName || prod.name)
       prodByName.set(key, prod)
+
+      // Extract card number from product name for number-based matching
+      const num = extractTCGNumber(prod.name)
+      if (num) prodByNumber.set(num, prod)
+
+      // Build partial name index (first 2+ words) for fuzzy matching
+      const words = key.split(' ')
+      if (words.length >= 2) {
+        const partial = words.slice(0, 2).join(' ')
+        const list = prodByPartialName.get(partial) || []
+        list.push(prod)
+        prodByPartialName.set(partial, list)
+      }
     }
 
-    // 5. Match our cards to products by name
+    // 5. Match our cards to products using multiple strategies
     for (const card of cardsInSet) {
-      // Try exact name match first
-      let matchKey = normalizeName(card.name)
-      let prod = prodByName.get(matchKey)
+      let prod: TCGProduct | undefined
 
-      // Try with subtitle: "Name - Subtitle"
+      // Strategy 1: Exact normalized name
+      const nameKey = normalizeName(card.name)
+      prod = prodByName.get(nameKey)
+
+      // Strategy 2: Name + Subtitle (TCGPlayer often uses "Name - Subtitle")
       if (!prod && card.subtitle) {
-        matchKey = normalizeName(`${card.name} ${card.subtitle}`)
-        prod = prodByName.get(matchKey)
+        prod = prodByName.get(normalizeName(`${card.name} ${card.subtitle}`))
+      }
+
+      // Strategy 3: Match by card set number (most reliable for edge cases)
+      if (!prod && card.setNumber) {
+        const cardNum = String(Number(card.setNumber)) // strip leading zeros
+        prod = prodByNumber.get(cardNum)
+      }
+
+      // Strategy 4: Partial name match (first 2 words + subtitle check)
+      if (!prod) {
+        const words = nameKey.split(' ')
+        if (words.length >= 2) {
+          const partial = words.slice(0, 2).join(' ')
+          const candidates = prodByPartialName.get(partial)
+          if (candidates && candidates.length === 1) {
+            prod = candidates[0] // unambiguous partial match
+          } else if (candidates && card.subtitle) {
+            // Disambiguate with subtitle
+            const subKey = normalizeName(card.subtitle)
+            prod = candidates.find(c => normalizeName(c.cleanName || c.name).includes(subKey))
+          }
+        }
       }
 
       if (prod) {
@@ -403,7 +455,7 @@ async function fetchSetPrices(
  * @param onProgress - Optional callback (setCode, fetched, total)
  */
 export async function fetchTCGPrices(
-  cards: { id: string; name: string; subtitle: string | null; setCode: string }[],
+  cards: { id: string; name: string; subtitle: string | null; setCode: string; setNumber?: string | number }[],
   onProgress?: (setCode: string, fetched: number, total: number) => void,
 ): Promise<number> {
   // Group cards by setCode

@@ -4,6 +4,7 @@ import { Search, SlidersHorizontal, X, Loader2, WifiOff, Database, CheckCircle2 
 import { Badge } from '../../components/ui/Badge'
 import { CardImage } from '../../components/CardImage'
 import { searchCards, getSets, loadFullDatabase, isDatabaseReady, type SearchParams } from '../../services/swuApi'
+import { getPricesForCards, fetchTCGPrices, formatPrice, type PriceInfo } from '../../services/pricing'
 import type { Card, SetInfo } from '../../types'
 
 const typeVariant: Record<string, 'amber' | 'accent' | 'green' | 'purple' | 'default'> = {
@@ -48,6 +49,9 @@ export function CardsPage() {
   const [dbLoading, setDbLoading] = useState(!isDatabaseReady())
   const [dbCardCount, setDbCardCount] = useState(0)
   const [dbError, setDbError] = useState(false)
+  const [prices, setPrices] = useState<Map<string, PriceInfo>>(new Map())
+  const [pricesLoading, setPricesLoading] = useState(false)
+  const priceFetchRef = useRef(0) // dedup guard
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -109,6 +113,49 @@ export function CardsPage() {
     },
     [query, selectedType, selectedAspect, selectedSet, selectedArena, selectedRarity, cards.length, dbLoading],
   )
+
+  // Auto-load prices when cards change
+  useEffect(() => {
+    if (cards.length === 0) return
+    const fetchId = ++priceFetchRef.current
+
+    const loadPrices = async () => {
+      const cardIds = cards.map(c => c.id)
+      // 1. Get cached prices first (instant)
+      const cached = await getPricesForCards(cardIds)
+      if (fetchId !== priceFetchRef.current) return
+      setPrices(prev => {
+        const next = new Map(prev)
+        cached.forEach((v, k) => next.set(k, v))
+        return next
+      })
+
+      // 2. Find cards without prices and fetch from TCGPlayer
+      const missing = cards.filter(c => !cached.has(c.id))
+      if (missing.length > 0) {
+        setPricesLoading(true)
+        try {
+          await fetchTCGPrices(
+            missing.map(c => ({ id: c.id, name: c.name, subtitle: c.subtitle || null, setCode: c.setCode, setNumber: c.setNumber }))
+          )
+          if (fetchId !== priceFetchRef.current) return
+          // Re-read from cache after fetch
+          const updated = await getPricesForCards(cardIds)
+          if (fetchId !== priceFetchRef.current) return
+          setPrices(prev => {
+            const next = new Map(prev)
+            updated.forEach((v, k) => next.set(k, v))
+            return next
+          })
+        } catch {
+          // Silent fail — prices are optional
+        }
+        if (fetchId === priceFetchRef.current) setPricesLoading(false)
+      }
+    }
+
+    loadPrices()
+  }, [cards])
 
   // Debounced search on query/filter change
   useEffect(() => {
@@ -277,7 +324,14 @@ export function CardsPage() {
       )}
 
       {hasSearched && !loading && (
-        <p className="text-xs text-swu-muted">{total.toLocaleString()} cartas encontradas</p>
+        <div className="flex items-center gap-2">
+          <p className="text-xs text-swu-muted">{total.toLocaleString()} cartas encontradas</p>
+          {pricesLoading && (
+            <span className="text-[10px] text-swu-green flex items-center gap-1">
+              <Loader2 size={10} className="animate-spin" /> precios...
+            </span>
+          )}
+        </div>
       )}
 
       {loading && (
@@ -311,6 +365,9 @@ export function CardsPage() {
                 {c.cost !== null && <p className="text-xl font-extrabold text-swu-amber font-mono">{c.cost}</p>}
                 {c.power !== null && c.hp !== null && (
                   <p className="text-xs text-swu-muted">{c.power}/{c.hp}</p>
+                )}
+                {prices.get(c.id)?.market != null && prices.get(c.id)!.market! > 0 && (
+                  <p className="text-[11px] font-bold text-swu-green mt-0.5">{formatPrice(prices.get(c.id)!.market)}</p>
                 )}
               </div>
             </button>
