@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { BookOpen, CheckCircle2, XCircle, ChevronRight, Zap, Flame, Star } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { CheckCircle2, XCircle, ChevronRight, Zap, Flame, Star } from 'lucide-react'
+import { HolocronIcon } from '../../../components/SWIcons'
 import { getDailyQuestions, getTodayProgress, recordTriviaAnswer, getTriviaStats, type TriviaQuestion, type TriviaProgress } from '../../../services/trivia'
 
 interface TriviaSectionProps {
@@ -18,13 +19,11 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
   const [sessionCorrect, setSessionCorrect] = useState(0)
   const [sessionXp, setSessionXp] = useState(0)
   const [loading, setLoading] = useState(true)
+  // Use state instead of ref so disabled prop re-renders properly
+  const [locked, setLocked] = useState(false)
+  // Animation state for answer feedback
+  const [answerAnim, setAnswerAnim] = useState<'idle' | 'correct' | 'wrong'>('idle')
 
-  // Key that changes each question to force full re-mount of options
-  const [questionKey, setQuestionKey] = useState(0)
-  // Hard lock: true = absolutely no answer clicks accepted
-  const lockedRef = useRef(false)
-
-  // Load data on mount
   useEffect(() => {
     async function load() {
       const [prog, triviaStats] = await Promise.all([
@@ -44,7 +43,6 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
   const todayXp = progress?.xpEarned || 0
   const todayCorrect = progress?.correctAnswers || 0
 
-  // Get unanswered questions
   const answeredIds = progress?.answeredIds || []
   const unanswered = questions.filter(q => !answeredIds.includes(q.id))
 
@@ -55,32 +53,35 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
     setShowResult(false)
     setSessionCorrect(0)
     setSessionXp(0)
-    setQuestionKey(0)
-    lockedRef.current = false
+    setLocked(false)
+    setAnswerAnim('idle')
   }
 
-  const handleAnswer = useCallback(async (optionIndex: number) => {
-    // Hard lock — if locked, reject immediately
-    if (lockedRef.current) return
-    // Already answered this question
+  const handleAnswer = useCallback((optionIndex: number) => {
+    if (locked) return
     if (selectedAnswer !== null) return
 
+    setLocked(true)
     setSelectedAnswer(optionIndex)
     setShowResult(true)
 
     const question = unanswered[currentIndex]
+    if (!question) return
     const isCorrect = optionIndex === question.correctIndex
+
+    setAnswerAnim(isCorrect ? 'correct' : 'wrong')
 
     if (isCorrect) {
       setSessionCorrect(prev => prev + 1)
       setSessionXp(prev => prev + 2)
     }
 
-    // Record to Supabase
-    const result = await recordTriviaAnswer(userId, question.id, isCorrect)
-    if (result.ok && result.xpEarned > 0 && onXpGained) {
-      onXpGained(result.xpEarned)
-    }
+    // Record to Supabase (fire and forget, don't block UI)
+    recordTriviaAnswer(userId, question.id, isCorrect).then(result => {
+      if (result.ok && result.xpEarned > 0 && onXpGained) {
+        onXpGained(result.xpEarned)
+      }
+    })
 
     // Update local progress
     setProgress(prev => ({
@@ -90,33 +91,22 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
       xpEarned: (prev?.xpEarned || 0) + (isCorrect ? 2 : 0),
       answeredIds: [...(prev?.answeredIds || []), question.id],
     }))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAnswer, currentIndex, userId, onXpGained])
+  }, [locked, selectedAnswer, currentIndex, unanswered, userId, onXpGained])
 
-  const nextQuestion = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    // Prevent event from bubbling to anything underneath
-    e.preventDefault()
-    e.stopPropagation()
-
-    // Lock immediately so no ghost taps can register
-    lockedRef.current = true
-
+  const nextQuestion = useCallback(() => {
     if (currentIndex + 1 >= unanswered.length) {
       setPlaying(false)
       return
     }
 
-    // Reset state for next question
+    // Reset for next question — unlock immediately since we use state now
     setSelectedAnswer(null)
     setShowResult(false)
     setCurrentIndex(prev => prev + 1)
-    // Change key to force React to fully unmount/remount option buttons
-    setQuestionKey(prev => prev + 1)
-
-    // Unlock after a generous delay so any residual touch events are gone
-    setTimeout(() => {
-      lockedRef.current = false
-    }, 500)
+    setAnswerAnim('idle')
+    // Small delay before unlocking to prevent accidental double-taps
+    setLocked(true)
+    setTimeout(() => setLocked(false), 300)
   }, [currentIndex, unanswered.length])
 
   if (loading) return null
@@ -125,76 +115,87 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
   if (playing && unanswered.length > 0 && currentIndex < unanswered.length) {
     const question = unanswered[currentIndex]
     const isCorrect = selectedAnswer === question.correctIndex
+    const totalQ = Math.min(10, unanswered.length + answeredToday)
 
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <p className="text-xs font-bold text-swu-amber uppercase tracking-widest flex items-center gap-1.5">
-            <BookOpen size={14} /> Archivos Jedi
+            <HolocronIcon size={14} /> Archivos Jedi
           </p>
-          <span className="text-[10px] text-swu-muted font-mono">
-            {currentIndex + 1 + answeredToday}/{10}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-swu-muted font-mono">
+              {currentIndex + 1 + answeredToday}/{totalQ}
+            </span>
+            {sessionXp > 0 && (
+              <span className="text-[10px] font-bold text-swu-amber flex items-center gap-0.5">
+                <Zap size={10} /> +{sessionXp}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Progress dots */}
         <div className="flex gap-1">
-          {Array.from({ length: 10 }).map((_, i) => (
+          {Array.from({ length: totalQ }).map((_, i) => (
             <div
               key={i}
-              className={`h-1 flex-1 rounded-full transition-all ${
+              className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
                 i < answeredToday + currentIndex
                   ? 'bg-swu-amber'
                   : i === answeredToday + currentIndex
-                    ? 'bg-swu-accent animate-pulse'
+                    ? answerAnim === 'correct'
+                      ? 'bg-green-400'
+                      : answerAnim === 'wrong'
+                        ? 'bg-red-400'
+                        : 'bg-swu-accent animate-pulse'
                     : 'bg-swu-border'
               }`}
             />
           ))}
         </div>
 
-        {/* Question card — key forces full re-mount on question change */}
-        <div key={questionKey} className="bg-swu-surface rounded-xl border border-swu-border p-4 space-y-3">
+        {/* Question card */}
+        <div className="bg-swu-surface rounded-xl border border-swu-border p-4 space-y-3">
           <div className="flex items-start gap-2">
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-swu-accent/20 text-swu-accent uppercase shrink-0">
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase shrink-0 ${
+              question.category === 'swu'
+                ? 'bg-swu-accent/20 text-swu-accent'
+                : 'bg-swu-amber/20 text-swu-amber'
+            }`}>
               {question.category === 'swu' ? 'SWU' : 'Universo'}
             </span>
-            <p className="text-sm font-bold text-swu-text">{question.question}</p>
+            <p className="text-sm font-bold text-swu-text leading-snug">{question.question}</p>
           </div>
 
-          {/* Options — each button gets unique key with questionKey prefix to force unmount */}
+          {/* Options */}
           <div className="space-y-2">
             {question.options.map((option, i) => {
-              let style = 'bg-swu-bg border-swu-border text-swu-text'
+              let style = 'bg-swu-bg border-swu-border text-swu-text active:scale-[0.98]'
+              let iconEl: React.ReactNode = null
+
               if (showResult) {
                 if (i === question.correctIndex) {
-                  style = 'bg-green-500/20 border-green-500/40 text-green-400'
+                  style = 'bg-green-500/15 border-green-500/40 text-green-400 scale-[1.01]'
+                  iconEl = <CheckCircle2 size={14} className="text-green-400 shrink-0" />
                 } else if (i === selectedAnswer && !isCorrect) {
-                  style = 'bg-red-500/20 border-red-500/40 text-red-400'
+                  style = 'bg-red-500/15 border-red-500/40 text-red-400'
+                  iconEl = <XCircle size={14} className="text-red-400 shrink-0" />
                 } else {
-                  style = 'bg-swu-bg border-swu-border/50 text-swu-muted opacity-50'
+                  style = 'bg-swu-bg border-swu-border/40 text-swu-muted/40'
                 }
               }
 
               return (
                 <button
-                  key={`q${questionKey}-opt${i}`}
-                  onPointerUp={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    handleAnswer(i)
-                  }}
-                  disabled={showResult || lockedRef.current}
-                  className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm font-medium transition-all select-none touch-manipulation ${style}`}
+                  key={`${currentIndex}-${i}`}
+                  onClick={() => handleAnswer(i)}
+                  disabled={showResult || locked}
+                  className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm font-medium transition-all duration-200 select-none touch-manipulation flex items-center gap-2 ${style} disabled:pointer-events-none`}
                 >
-                  <span className="text-[10px] font-bold mr-2 opacity-50">{['A', 'B', 'C', 'D'][i]}</span>
-                  {option}
-                  {showResult && i === question.correctIndex && (
-                    <CheckCircle2 size={14} className="inline ml-2 text-green-400" />
-                  )}
-                  {showResult && i === selectedAnswer && !isCorrect && (
-                    <XCircle size={14} className="inline ml-2 text-red-400" />
-                  )}
+                  <span className="text-[10px] font-bold opacity-40 shrink-0 w-4">{['A', 'B', 'C', 'D'][i]}</span>
+                  <span className="flex-1">{option}</span>
+                  {iconEl}
                 </button>
               )
             })}
@@ -202,18 +203,22 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
 
           {/* Result feedback */}
           {showResult && (
-            <div className={`rounded-lg p-3 text-xs ${isCorrect ? 'bg-green-500/10 border border-green-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
+            <div className={`rounded-lg p-3 text-xs transition-all duration-300 ${
+              isCorrect
+                ? 'bg-green-500/10 border border-green-500/20'
+                : 'bg-red-500/10 border border-red-500/20'
+            }`}>
               <p className={`font-bold mb-1 ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
                 {isCorrect ? '¡Correcto! +2 XP' : 'Incorrecto'}
               </p>
-              <p className="text-swu-muted">{question.funFact}</p>
+              <p className="text-swu-muted leading-relaxed">{question.funFact}</p>
             </div>
           )}
 
           {showResult && (
             <button
-              onPointerUp={nextQuestion}
-              className="w-full py-2.5 rounded-lg bg-swu-accent text-white text-sm font-bold flex items-center justify-center gap-1.5 select-none touch-manipulation"
+              onClick={nextQuestion}
+              className="w-full py-2.5 rounded-lg bg-swu-accent text-white text-sm font-bold flex items-center justify-center gap-1.5 active:scale-[0.97] transition-transform select-none touch-manipulation"
             >
               {currentIndex + 1 >= unanswered.length ? 'Finalizar' : 'Siguiente'}
               <ChevronRight size={14} />
@@ -231,11 +236,13 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
   }
 
   // ── Summary / Start mode ──
+  const accuracy = stats.totalAnswered > 0 ? Math.round((stats.totalCorrect / stats.totalAnswered) * 100) : 0
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-xs font-bold text-swu-amber uppercase tracking-widest flex items-center gap-1.5">
-          <BookOpen size={14} /> Archivos Jedi
+          <HolocronIcon size={14} /> Archivos Jedi
         </p>
         <span className="text-[10px] text-swu-muted font-mono">{answeredToday}/10 hoy</span>
       </div>
@@ -262,14 +269,14 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
         {/* Progress bar for today */}
         <div className="relative h-2 bg-swu-bg rounded-full overflow-hidden">
           <div
-            className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-swu-amber to-yellow-400 transition-all"
+            className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-swu-amber to-yellow-400 transition-all duration-500"
             style={{ width: `${(answeredToday / 10) * 100}%` }}
           />
         </div>
 
         {/* All-time stats */}
         <div className="flex items-center justify-between text-[10px] text-swu-muted pt-1 border-t border-swu-border/50">
-          <span className="flex items-center gap-1"><Star size={10} /> {stats.totalCorrect} totales correctas</span>
+          <span className="flex items-center gap-1"><Star size={10} /> {stats.totalCorrect} correctas ({accuracy}%)</span>
           <span>{stats.totalAnswered} respondidas</span>
         </div>
 
@@ -279,7 +286,7 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
             onClick={startTrivia}
             className="w-full py-3 rounded-xl bg-gradient-to-r from-swu-amber to-yellow-500 text-black text-sm font-extrabold flex items-center justify-center gap-2 active:scale-[0.97] transition-transform"
           >
-            <BookOpen size={16} />
+            <HolocronIcon size={16} />
             {answeredToday === 0 ? 'Comenzar Trivia del Día' : `Continuar (${remainingToday} restantes)`}
           </button>
         ) : (
