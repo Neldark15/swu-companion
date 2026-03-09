@@ -15,6 +15,7 @@
 
 import { db } from './db'
 import { supabase, isSupabaseReady } from './supabase'
+import { searchCards } from './swuApi'
 
 export interface ImportedCard {
   setCode: string
@@ -255,12 +256,46 @@ export async function importToCollection(
     cardLookup.set(key, c.id)
   }
 
+  // Fallback: for cards not in local DB, try API lookup by set+number
+  async function resolveCardId(setCode: string, cardNumber: number): Promise<string | null> {
+    const localKey = `${setCode}_${cardNumber}`
+    if (cardLookup.has(localKey)) return cardLookup.get(localKey)!
+
+    // Try Dexie query directly (in case toArray missed indexed entries)
+    const dbCard = await db.cards
+      .where('setCode').equals(setCode)
+      .filter(c => c.setNumber === cardNumber)
+      .first()
+    if (dbCard) {
+      cardLookup.set(localKey, dbCard.id)
+      return dbCard.id
+    }
+
+    // Fallback: search API by set code + number
+    try {
+      const paddedNum = String(cardNumber).padStart(3, '0')
+      const { cards: found } = await searchCards({ query: `${setCode} ${paddedNum}`, limit: 10 })
+      // Find exact match by set+number
+      const exact = found.find(c => c.setCode === setCode && c.setNumber === cardNumber)
+      if (exact) {
+        cardLookup.set(localKey, exact.id)
+        // Also cache in Dexie for future lookups
+        await db.cards.put(exact).catch(() => {})
+        return exact.id
+      }
+    } catch {
+      // API unavailable, skip
+    }
+
+    return null
+  }
+
   // Process each consolidated card
   let processed = 0
   const batchCloud: { user_id: string; card_id: string; quantity: number }[] = []
 
-  for (const [key, card] of consolidated) {
-    const cardId = cardLookup.get(key)
+  for (const [, card] of consolidated) {
+    const cardId = await resolveCardId(card.setCode, card.cardNumber)
 
     if (!cardId) {
       result.notFound.push(`${card.setCode} #${String(card.cardNumber).padStart(3, '0')}`)

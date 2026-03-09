@@ -1,13 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Trash2, BookOpen, AlertTriangle, CheckCircle2, Swords, Eye, EyeOff } from 'lucide-react'
+import { Plus, Trash2, BookOpen, AlertTriangle, CheckCircle2, Swords, Eye, EyeOff, Upload, Share2 } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { db } from '../../services/db'
 import { getCardById } from '../../services/swuApi'
 import { deleteDeckFromCloud, pullDecksFromCloud, syncDeckToCloud } from '../../services/sync'
-import { getEffectiveMinDeckSize } from '../../services/deckValidator'
+import { validateDeck, getEffectiveMinDeckSize } from '../../services/deckValidator'
 import { useAuth } from '../../hooks/useAuth'
+import { ImportDeckModal } from './ImportDeckModal'
+import { ExportDeckModal } from './ExportDeckModal'
 import type { Deck } from '../../types'
+import type { DeckImportResult } from '../../services/deckImportExport'
 
 function timeAgo(ts: number): string {
   const diff = Date.now() - ts
@@ -43,6 +46,8 @@ export function DeckListPage() {
   const [loading, setLoading] = useState(true)
   const [cardImages, setCardImages] = useState<Map<string, string>>(new Map())
   const [baseTexts, setBaseTexts] = useState<Map<string, string>>(new Map())
+  const [showImport, setShowImport] = useState(false)
+  const [exportDeck, setExportDeck] = useState<Deck | null>(null)
 
   const loadDecks = useCallback(async () => {
     setLoading(true)
@@ -140,16 +145,58 @@ export function DeckListPage() {
     setDecks(prev => prev.map(d => d.id === deckId ? updated : d))
   }
 
+  const handleImportResult = async (result: DeckImportResult) => {
+    if (!result.success || !result.deck) return
+    const now = Date.now()
+    const newDeck: Deck = {
+      id: `d_${now}_${Math.random().toString(36).slice(2, 6)}`,
+      name: result.deck.name || 'Deck Importado',
+      format: 'premier',
+      leaders: result.deck.leaders || [],
+      base: result.deck.base || null,
+      mainDeck: result.deck.mainDeck || [],
+      sideboard: result.deck.sideboard || [],
+      isValid: false,
+      validationErrors: [],
+      isPublic: true,
+      createdAt: now,
+      updatedAt: now,
+    }
+    // Validate
+    const baseCard = newDeck.base ? await getCardById(newDeck.base.cardId) : null
+    const validation = validateDeck(newDeck, baseCard?.text)
+    newDeck.isValid = validation.isValid
+    newDeck.validationErrors = validation.errors
+
+    await db.decks.put(newDeck)
+    if (supabaseUser) syncDeckToCloud(supabaseUser.id, newDeck).catch(() => {})
+    loadDecks()
+  }
+
+  const handleExport = (deck: Deck, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setExportDeck(deck)
+  }
+
   return (
     <div className="p-4 lg:p-6 space-y-4 pb-8 lg:pb-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-swu-text">Mis Decks</h2>
-        <button
-          onClick={() => navigate('/decks/new')}
-          className="px-4 py-2 rounded-xl bg-swu-accent text-white font-bold text-sm flex items-center gap-1.5 active:scale-95 transition-transform"
-        >
-          <Plus size={16} /> Nuevo
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowImport(true)}
+            className="px-3 py-2 rounded-xl border border-swu-accent/30 bg-swu-accent/10 text-swu-accent font-bold text-sm flex items-center gap-1.5 active:scale-95 transition-transform"
+            title="Importar deck desde SWUDB o texto"
+          >
+            <Upload size={14} /> Importar
+          </button>
+          <button
+            onClick={() => navigate('/decks/new')}
+            className="px-4 py-2 rounded-xl bg-swu-accent text-white font-bold text-sm flex items-center gap-1.5 active:scale-95 transition-transform"
+          >
+            <Plus size={16} /> Nuevo
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -261,6 +308,13 @@ export function DeckListPage() {
                     </div>
                     <div className="flex items-center gap-1.5">
                       <button
+                        onClick={(e) => handleExport(deck, e)}
+                        className="p-1.5 rounded-lg bg-swu-accent/10 text-swu-accent active:scale-95 transition-transform"
+                        title="Exportar deck"
+                      >
+                        <Share2 size={13} />
+                      </button>
+                      <button
                         onClick={(e) => handleTogglePublic(deck.id, e)}
                         className={`p-1.5 rounded-lg active:scale-95 transition-all ${
                           (deck.isPublic ?? true)
@@ -289,6 +343,10 @@ export function DeckListPage() {
           })}
         </div>
       )}
+
+      {/* Import/Export Modals */}
+      <ImportDeckModal open={showImport} onClose={() => setShowImport(false)} onImport={handleImportResult} />
+      <ExportDeckModal open={!!exportDeck} deck={exportDeck} onClose={() => setExportDeck(null)} />
     </div>
   )
 }

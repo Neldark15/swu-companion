@@ -1,29 +1,37 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Hexagon, Layers, BookOpen, Dice6, Package, Skull, Medal, Swords, ScrollText, Trophy, Shield, Eye, Target, type LucideIcon } from 'lucide-react'
+import { Hexagon, Swords } from 'lucide-react'
+import {
+  DatapadIcon, MedalIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
+  DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
+  ChanceCubeIcon,
+} from '../SWIcons'
 import { NotificationBell } from '../ui/NotificationBell'
+import type { ComponentType } from 'react'
+
+type IconComp = ComponentType<{ size?: number; className?: string; strokeWidth?: number }>
 
 type NavItem =
-  | { id: string; label: string; sub: string; icon: LucideIcon; img?: undefined }
+  | { id: string; label: string; sub: string; icon: IconComp; img?: undefined }
   | { id: string; label: string; sub: string; img: string; icon?: undefined }
 
 const mainNav: NavItem[] = [
   { id: '/', label: 'Base', sub: 'Centro de mando', icon: Hexagon },
   { id: '/play', label: 'Duelo', sub: 'Tracker en vivo', icon: Swords },
-  { id: '/arena', label: 'Holocrón', sub: 'Registro de duelos', icon: ScrollText },
-  { id: '/melee', label: 'Circuito', sub: 'Melee.gg', icon: Medal },
-  { id: '/events', label: 'Torneo', sub: 'Eventos organizados', icon: Trophy },
+  { id: '/arena', label: 'Holocrón', sub: 'Registro de duelos', icon: DatapadIcon },
+  { id: '/melee', label: 'Circuito', sub: 'Melee.gg', icon: MedalIcon },
+  { id: '/events', label: 'Torneo', sub: 'Eventos organizados', icon: MandoTrophyIcon },
   { id: '/profile', label: 'Mi Perfil', sub: 'Holocrón', img: '/holocron-icon.png' },
 ]
 
 const secondaryNav: NavItem[] = [
-  { id: '/collection', label: 'Mi Botín', sub: 'Colección', icon: Package },
-  { id: '/explore', label: 'Contrabando', sub: 'Explorar', icon: Skull },
-  { id: '/espionaje', label: 'Espionaje', sub: 'Transmisiones', icon: Eye },
-  { id: '/misiones', label: 'Misiones', sub: 'Órdenes del Día', icon: Target },
-  { id: '/decks', label: 'Mis Decks', sub: 'Constructor', icon: BookOpen },
-  { id: '/rank', label: 'Consejo Jedi', sub: 'Leaderboard', icon: Shield },
-  { id: '/cards', label: 'Buscar Cartas', sub: 'Base de datos', icon: Layers },
-  { id: '/utilities', label: 'Utilidades', sub: 'Herramientas', icon: Dice6 },
+  { id: '/collection', label: 'Mi Botín', sub: 'Colección', icon: CargoIcon },
+  { id: '/explore', label: 'Contrabando', sub: 'Explorar', icon: BountyIcon },
+  { id: '/espionaje', label: 'Espionaje', sub: 'Transmisiones', icon: SpyIcon },
+  { id: '/misiones', label: 'Misiones', sub: 'Órdenes del Día', icon: DeathStarIcon },
+  { id: '/decks', label: 'Mis Decks', sub: 'Constructor', icon: DeckCardsIcon },
+  { id: '/rank', label: 'Consejo Jedi', sub: 'Leaderboard', icon: BeskarIcon },
+  { id: '/cards', label: 'Buscar Cartas', sub: 'Base de datos', icon: HolonetIcon },
+  { id: '/utilities', label: 'Utilidades', sub: 'Herramientas', icon: ChanceCubeIcon },
 ]
 
 export function SideNav() {
@@ -57,7 +65,7 @@ export function SideNav() {
               className={`w-5 h-5 object-contain transition-opacity ${active ? 'opacity-100 brightness-125' : 'opacity-60 group-hover:opacity-80'}`}
             />
           ) : item.icon ? (
-            <item.icon size={18} strokeWidth={active ? 2.5 : 2} />
+            <item.icon size={18} />
           ) : null}
         </div>
         <div className="flex-1 min-w-0">

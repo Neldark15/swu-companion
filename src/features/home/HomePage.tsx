@@ -1,5 +1,10 @@
 import { useNavigate } from 'react-router-dom'
-import { Trophy, Layers, Dice6, User, LogIn, BookOpen, ExternalLink, Package, Skull, ScrollText, Medal, Shield, Eye, Target } from 'lucide-react'
+import { User, LogIn, ExternalLink } from 'lucide-react'
+import {
+  DatapadIcon, MedalIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
+  DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
+  ChanceCubeIcon,
+} from '../../components/SWIcons'
 import { useAuth } from '../../hooks/useAuth'
 
 /* Avatar helper: detect image-based avatar vs emoji */
@@ -12,7 +17,7 @@ const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormt
 
 const mainSystems = [
   {
-    icon: ScrollText,
+    icon: DatapadIcon,
     label: 'Holocrón de Duelos',
     sub: 'Registro de combate',
     textClass: 'text-swu-green',
@@ -23,7 +28,7 @@ const mainSystems = [
     auth: true,
   },
   {
-    icon: Medal,
+    icon: MedalIcon,
     label: 'Circuito Melee',
     sub: 'Historial competitivo',
     textClass: 'text-swu-amber',
@@ -34,7 +39,7 @@ const mainSystems = [
     auth: true,
   },
   {
-    icon: Trophy,
+    icon: MandoTrophyIcon,
     label: 'Eventos',
     sub: 'Torneos y más',
     textClass: 'text-swu-amber',
@@ -45,7 +50,7 @@ const mainSystems = [
     auth: true,
   },
   {
-    icon: Package,
+    icon: CargoIcon,
     label: 'Mi Botín',
     sub: 'Colección de cartas',
     textClass: 'text-swu-green',
@@ -56,7 +61,7 @@ const mainSystems = [
     auth: true,
   },
   {
-    icon: Skull,
+    icon: BountyIcon,
     label: 'Contrabando',
     sub: 'Explorar colecciones',
     textClass: 'text-red-400',
@@ -67,7 +72,7 @@ const mainSystems = [
     auth: true,
   },
   {
-    icon: BookOpen,
+    icon: DeckCardsIcon,
     label: 'Mis Decks',
     sub: 'Constructor',
     textClass: 'text-swu-accent',
@@ -78,7 +83,7 @@ const mainSystems = [
     auth: true,
   },
   {
-    icon: Eye,
+    icon: SpyIcon,
     label: 'Espionaje',
     sub: 'Transmisiones sociales',
     textClass: 'text-indigo-400',
@@ -89,7 +94,7 @@ const mainSystems = [
     auth: true,
   },
   {
-    icon: Target,
+    icon: DeathStarIcon,
     label: 'Misiones',
     sub: 'Órdenes del día',
     textClass: 'text-orange-400',
@@ -100,7 +105,7 @@ const mainSystems = [
     auth: true,
   },
   {
-    icon: Shield,
+    icon: BeskarIcon,
     label: 'Consejo Jedi',
     sub: 'Leaderboard mensual',
     textClass: 'text-swu-amber',
@@ -111,7 +116,7 @@ const mainSystems = [
     auth: true,
   },
   {
-    icon: Layers,
+    icon: HolonetIcon,
     label: 'Buscar Cartas',
     sub: 'Base de datos',
     textClass: 'text-swu-accent',
@@ -121,7 +126,7 @@ const mainSystems = [
     to: '/cards',
   },
   {
-    icon: Dice6,
+    icon: ChanceCubeIcon,
     label: 'Utilidades',
     sub: 'Herramientas',
     textClass: 'text-purple-400',
