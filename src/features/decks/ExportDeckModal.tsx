@@ -48,18 +48,19 @@ export function ExportDeckModal({ open, deck, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-swu-surface border border-swu-border rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="bg-swu-surface border border-swu-border rounded-t-2xl sm:rounded-2xl w-full max-w-lg flex flex-col"
+           style={{ maxHeight: '85vh' }}>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-swu-border">
-          <h3 className="text-base font-bold text-swu-text">Exportar: {deck.name}</h3>
+        <div className="flex items-center justify-between p-4 border-b border-swu-border flex-shrink-0">
+          <h3 className="text-base font-bold text-swu-text truncate pr-2">Exportar: {deck.name}</h3>
           <button onClick={onClose} className="p-1.5 rounded-lg bg-swu-bg text-swu-muted active:scale-95">
             <X size={16} />
           </button>
         </div>
 
         {/* Format toggle */}
-        <div className="px-4 pt-3 flex gap-2">
+        <div className="px-4 pt-3 flex gap-2 flex-shrink-0">
           <button
             onClick={() => setFormat('json')}
             className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition-all ${
@@ -92,17 +93,17 @@ export function ExportDeckModal({ open, deck, onClose }: Props) {
           </button>
         </div>
 
-        {/* Body */}
-        <div className="p-4">
+        {/* Body — scrollable textarea fills available space */}
+        <div className="p-4 flex-1 min-h-0 overflow-hidden">
           <textarea
             readOnly
             value={loading ? 'Generando...' : text}
-            className="w-full h-48 p-3 bg-swu-bg border border-swu-border rounded-xl text-xs text-swu-text font-mono resize-none focus:outline-none"
+            className="w-full h-full min-h-[200px] p-3 bg-swu-bg border border-swu-border rounded-xl text-xs text-swu-text font-mono resize-none focus:outline-none"
           />
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-swu-border flex gap-2">
+        <div className="p-4 border-t border-swu-border flex gap-2 flex-shrink-0">
           <button
             onClick={onClose}
             className="flex-1 py-2.5 rounded-xl border border-swu-border text-swu-muted text-sm font-bold active:scale-95"
