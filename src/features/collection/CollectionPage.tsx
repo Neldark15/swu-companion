@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Search, SlidersHorizontal, Eye, EyeOff,
-  Package, DollarSign, Layers, TrendingUp, RefreshCw, Upload, X, FileUp, Trash2, AlertTriangle,
+  Package, DollarSign, Layers, TrendingUp, RefreshCw, Upload, Download, X, FileUp, Trash2, AlertTriangle,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { getCardsByIds } from '../../services/swuApi'
@@ -16,6 +16,7 @@ import {
 } from '../../services/collectionService'
 import { formatPrice, fetchTCGPrices } from '../../services/pricing'
 import { importCollectionFromFile, type ImportResult } from '../../services/collectionImport'
+import { exportCollection, downloadFile, EXPORT_FORMATS, type ExportFormat } from '../../services/collectionExport'
 import { db } from '../../services/db'
 import { supabase, isSupabaseReady } from '../../services/supabase'
 import { CardImage } from '../../components/CardImage'
@@ -60,6 +61,9 @@ export function CollectionPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [showExport, setShowExport] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [exportStatus, setExportStatus] = useState('')
 
   // Load collection
   useEffect(() => {
@@ -309,6 +313,28 @@ export function CollectionPage() {
     }
   }, [currentProfileId, supabaseUser])
 
+  const handleExport = useCallback(async (format: ExportFormat) => {
+    if (exporting || items.length === 0) return
+    setExporting(true)
+    setExportStatus('Preparando exportación...')
+
+    try {
+      const { content, filename, mimeType } = await exportCollection(format, currentProfileId ?? undefined)
+      downloadFile(content, filename, mimeType)
+      setExportStatus(`✓ ${filename} descargado`)
+      setTimeout(() => {
+        setExportStatus('')
+        setShowExport(false)
+      }, 2500)
+    } catch (e) {
+      console.warn('[Collection] Export failed:', e)
+      setExportStatus(`Error: ${e instanceof Error ? e.message : 'Error al exportar'}`)
+      setTimeout(() => setExportStatus(''), 4000)
+    } finally {
+      setExporting(false)
+    }
+  }, [exporting, items, currentProfileId])
+
   const rarityColor = (r?: string) => {
     switch (r) {
       case 'Legendary': return 'text-swu-amber'
@@ -509,6 +535,68 @@ export function CollectionPage() {
                 {importResult.errors.map((err, i) => (
                   <div key={i} className="text-red-400">{err}</div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Export collection */}
+        <button
+          onClick={() => { setShowExport(!showExport); setExportStatus('') }}
+          disabled={items.length === 0}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium
+                     border transition-colors bg-swu-surface border-swu-border text-swu-muted
+                     hover:text-swu-green hover:border-swu-green/30 disabled:opacity-40 disabled:hover:text-swu-muted disabled:hover:border-swu-border"
+        >
+          <Download size={14} />
+          Exportar Colección
+        </button>
+
+        {showExport && (
+          <div className="bg-swu-surface rounded-xl border border-swu-green/20 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-swu-green flex items-center gap-2">
+                <Download size={16} /> Exportar colección
+              </h3>
+              <button onClick={() => setShowExport(false)} className="text-swu-muted">
+                <X size={16} />
+              </button>
+            </div>
+
+            <p className="text-[11px] text-swu-muted leading-relaxed">
+              Descargue su colección en el formato que prefiera.
+              El formato <b className="text-swu-text">CSV</b> es compatible con swudb.com.
+            </p>
+
+            <div className="grid grid-cols-2 gap-2">
+              {EXPORT_FORMATS.map(fmt => (
+                <button
+                  key={fmt.id}
+                  onClick={() => handleExport(fmt.id)}
+                  disabled={exporting}
+                  className="flex flex-col items-center gap-1.5 p-3 rounded-xl border border-swu-border
+                             bg-swu-bg hover:border-swu-green/40 hover:bg-swu-green/5
+                             transition-colors active:scale-[0.97] disabled:opacity-50"
+                >
+                  <span className="text-xl">{fmt.icon}</span>
+                  <span className="text-xs font-bold text-swu-text">{fmt.label}</span>
+                  <span className="text-[10px] text-swu-muted leading-tight text-center">{fmt.description}</span>
+                </button>
+              ))}
+            </div>
+
+            {exportStatus && (
+              <div className={`text-center text-xs font-medium py-2 rounded-lg ${
+                exportStatus.startsWith('✓')
+                  ? 'text-swu-green bg-swu-green/5'
+                  : exportStatus.startsWith('Error')
+                    ? 'text-red-400 bg-red-500/5'
+                    : 'text-swu-amber bg-swu-amber/5'
+              }`}>
+                {exporting && (
+                  <span className="inline-block w-3 h-3 border-2 border-swu-amber/30 border-t-swu-amber rounded-full animate-spin mr-2 align-middle" />
+                )}
+                {exportStatus}
               </div>
             )}
           </div>
