@@ -132,9 +132,11 @@ export function ExplorePage() {
                 {/* Avatar */}
                 <div className="w-10 h-10 rounded-full bg-swu-bg flex items-center justify-center
                                 text-lg flex-shrink-0 overflow-hidden">
-                  {swAvatarIds.includes(p.avatar)
-                    ? <img src={`/avatars/${p.avatar}.png`} alt="" className="w-8 h-8 object-contain" />
-                    : <span>{p.avatar}</span>
+                  {p.avatar?.startsWith('data:image/')
+                    ? <img src={p.avatar} alt="" className="w-10 h-10 object-cover rounded-full" />
+                    : swAvatarIds.includes(p.avatar)
+                      ? <img src={`/avatars/${p.avatar}.png`} alt="" className="w-8 h-8 object-contain" />
+                      : <span>{p.avatar}</span>
                   }
                 </div>
 

@@ -292,9 +292,11 @@ export function PublicProfilePage() {
             {/* Profile header */}
             <div className="bg-swu-surface rounded-xl p-4 border border-swu-border text-center">
               <div className="w-16 h-16 rounded-full bg-swu-bg mx-auto mb-2 flex items-center justify-center overflow-hidden">
-                {swAvatarIds.includes(profile.avatar)
-                  ? <img src={`/avatars/${profile.avatar}.png`} alt="" className="w-12 h-12 object-contain" />
-                  : <span className="text-4xl">{profile.avatar}</span>
+                {profile.avatar?.startsWith('data:image/')
+                  ? <img src={profile.avatar} alt="" className="w-16 h-16 object-cover rounded-full" />
+                  : swAvatarIds.includes(profile.avatar)
+                    ? <img src={`/avatars/${profile.avatar}.png`} alt="" className="w-12 h-12 object-contain" />
+                    : <span className="text-4xl">{profile.avatar}</span>
                 }
               </div>
               <div className="text-lg font-bold text-swu-text">{profile.name}</div>

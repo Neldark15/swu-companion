@@ -214,9 +214,11 @@ export function HomePage() {
               className="w-full rounded-xl p-3 flex items-center gap-3 active:scale-[0.98] transition-transform bg-swu-surface/60 backdrop-blur border border-swu-border/60"
             >
               <div className="w-11 h-11 rounded-lg bg-swu-accent/15 border border-swu-accent/30 flex items-center justify-center overflow-hidden">
-                {swAvatarIds.includes(currentProfile.avatar)
-                  ? <img src={`/avatars/${currentProfile.avatar}.png`} alt="" className="w-9 h-9 object-contain" />
-                  : <span className="text-xl">{currentProfile.avatar || '🎮'}</span>
+                {currentProfile.avatar?.startsWith('data:image/')
+                  ? <img src={currentProfile.avatar} alt="" className="w-11 h-11 object-cover rounded-lg" />
+                  : swAvatarIds.includes(currentProfile.avatar)
+                    ? <img src={`/avatars/${currentProfile.avatar}.png`} alt="" className="w-9 h-9 object-contain" />
+                    : <span className="text-xl">{currentProfile.avatar || '🎮'}</span>
                 }
               </div>
               <div className="flex-1 text-left">
