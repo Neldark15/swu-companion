@@ -9,7 +9,6 @@
  * 4. JSON Full: Complete collection data with prices
  */
 
-import { db } from './db'
 import { getMyCollectionWithPrices, type CollectionCardWithPrice } from './collectionService'
 import { getCardsByIds } from './swuApi'
 import { formatPrice } from './pricing'
@@ -268,12 +267,36 @@ export async function exportCollection(
 }
 
 /**
- * Trigger file download in the browser
+ * Trigger file download in the browser.
+ * Uses multiple strategies to support PWA standalone mode, iOS Safari, and regular browsers.
  */
 export function downloadFile(content: string, filename: string, mimeType: string) {
   const blob = new Blob([content], { type: `${mimeType};charset=utf-8` })
+
+  // Strategy 1: Try Web Share API (best for mobile PWA)
+  if (navigator.share && navigator.canShare) {
+    const file = new File([blob], filename, { type: mimeType })
+    const shareData = { files: [file] }
+    try {
+      if (navigator.canShare(shareData)) {
+        navigator.share(shareData).catch(() => {
+          // If share was cancelled or failed, fall back to other methods
+          fallbackDownload(blob, filename)
+        })
+        return
+      }
+    } catch {
+      // canShare threw, fall back
+    }
+  }
+
+  fallbackDownload(blob, filename)
+}
+
+function fallbackDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
 
+  // Strategy 2: Create a temporary link and click it
   const a = document.createElement('a')
   a.href = url
   a.download = filename
@@ -281,9 +304,19 @@ export function downloadFile(content: string, filename: string, mimeType: string
   document.body.appendChild(a)
   a.click()
 
+  // Strategy 3: If we're in standalone PWA mode, also try window.open as backup
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+    || (navigator as unknown as { standalone?: boolean }).standalone === true
+  if (isStandalone) {
+    // Give the click a moment, then open URL if download didn't trigger
+    setTimeout(() => {
+      window.open(url, '_blank')
+    }, 300)
+  }
+
   // Cleanup
   setTimeout(() => {
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-  }, 100)
+  }, 2000)
 }
