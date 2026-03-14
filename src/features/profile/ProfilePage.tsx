@@ -16,6 +16,7 @@ import { ProfileFrame } from './components/ProfileFrame'
 import { AspectBars } from './components/AspectBars'
 import { AchievementGrid } from './components/AchievementGrid'
 import { TriviaSection } from './components/TriviaSection'
+import { CONTINENTS, getCountryByCode, getContinentByCountryCode } from '../../data/regions'
 
 /* ── Star Wars avatar options (images in /avatars/) ── */
 const swAvatars = [
@@ -146,6 +147,8 @@ export function ProfilePage() {
   // Customization state
   const [customAvatar, setCustomAvatar] = useState(currentProfile?.avatar || 'darth-vader')
   const [customName, setCustomName] = useState(currentProfile?.name || '')
+  const [customCountry, setCustomCountry] = useState(currentProfile?.country || '')
+  const [customContinent, setCustomContinent] = useState(currentProfile?.continent || '')
 
   useEffect(() => { loadProfiles(); auth.initAuth() }, [])
   useEffect(() => { isPasskeyReady().then(setPasskeySupported) }, [])
@@ -331,7 +334,12 @@ export function ProfilePage() {
   }
 
   const saveCustomization = async () => {
-    await auth.updateProfile({ name: customName.trim() || currentProfile?.name, avatar: customAvatar })
+    await auth.updateProfile({
+      name: customName.trim() || currentProfile?.name,
+      avatar: customAvatar,
+      country: customCountry || undefined,
+      continent: customContinent || undefined,
+    })
     setView('profile')
   }
 
@@ -738,6 +746,78 @@ export function ProfilePage() {
             <input value={customName} onChange={(e) => setCustomName(e.target.value)} maxLength={30}
               className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 text-sm text-swu-text outline-none focus:border-swu-accent" />
           </div>
+
+          {/* Region selector: Continent → Country */}
+          <div>
+            <p className="text-xs text-swu-muted mb-1.5 flex items-center gap-1.5">
+              <Globe size={13} /> Región / Comunidad
+            </p>
+            {/* Continent selector */}
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {CONTINENTS.map((cont) => (
+                <button
+                  key={cont.id}
+                  onClick={() => {
+                    if (customContinent === cont.id) {
+                      setCustomContinent('')
+                      setCustomCountry('')
+                    } else {
+                      setCustomContinent(cont.id)
+                      setCustomCountry('')
+                    }
+                  }}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                    customContinent === cont.id
+                      ? 'bg-swu-accent/15 border-swu-accent text-swu-accent'
+                      : 'bg-swu-bg border-swu-border text-swu-muted hover:border-swu-accent/30'
+                  }`}
+                >
+                  {cont.icon} {cont.name}
+                </button>
+              ))}
+            </div>
+
+            {/* Country selector (shows when continent is selected) */}
+            {customContinent && (
+              <div className="bg-swu-bg rounded-xl border border-swu-border p-3">
+                <p className="text-[10px] text-swu-muted mb-2 uppercase tracking-wider">
+                  Seleccione su país
+                </p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {CONTINENTS.find(c => c.id === customContinent)?.countries.map((country) => (
+                    <button
+                      key={country.code}
+                      onClick={() => setCustomCountry(country.code)}
+                      className={`flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium border transition-all text-left ${
+                        customCountry === country.code
+                          ? 'bg-swu-accent/15 border-swu-accent text-swu-accent'
+                          : 'bg-swu-surface border-swu-border text-swu-text hover:border-swu-accent/30'
+                      }`}
+                    >
+                      <span className="text-base">{country.flag}</span>
+                      <span className="truncate">{country.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Current selection display */}
+            {customCountry && (
+              <div className="mt-2 flex items-center justify-between bg-swu-accent/5 border border-swu-accent/20 rounded-lg px-3 py-2">
+                <span className="text-xs text-swu-accent font-medium">
+                  {getCountryByCode(customCountry)?.flag} {getCountryByCode(customCountry)?.name}
+                </span>
+                <button
+                  onClick={() => { setCustomCountry(''); setCustomContinent('') }}
+                  className="text-[10px] text-swu-red"
+                >
+                  Quitar
+                </button>
+              </div>
+            )}
+          </div>
+
           <button onClick={saveCustomization}
             className="w-full py-3.5 rounded-xl bg-swu-accent text-white font-bold text-base active:scale-[0.98] transition-transform">
             Guardar Cambios
@@ -839,8 +919,13 @@ export function ProfilePage() {
           </ProfileFrame>
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-extrabold text-swu-text truncate">{currentProfile?.name || 'Jugador'}</h2>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {levelInfo && <span className={`text-[11px] font-bold ${levelInfo.rank.color}`}>{levelInfo.rank.name}</span>}
+              {currentProfile?.country && (
+                <span className="text-[10px] bg-swu-surface/80 px-1.5 py-0.5 rounded-full text-swu-muted font-medium">
+                  {getCountryByCode(currentProfile.country)?.flag} {getCountryByCode(currentProfile.country)?.name}
+                </span>
+              )}
               {currentProfile?.credentialId && <Fingerprint size={10} className="text-swu-accent" />}
               {supabaseUser && (
                 <span className="text-[9px] bg-swu-green/20 text-swu-green px-1.5 py-0.5 rounded-full font-bold">Online</span>

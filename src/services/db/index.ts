@@ -10,6 +10,8 @@ export interface UserProfile {
   pinSalt?: string           // Salt for PBKDF2
   pinPlain?: string          // Legacy plaintext PIN (migrated on login)
   avatar: string
+  country?: string           // ISO 3166-1 alpha-2 (e.g. "SV")
+  continent?: string         // Continent code (e.g. "CA" for Central America)
   credentialId?: string      // WebAuthn credential ID (base64)
   credentialPublicKey?: string // WebAuthn public key (base64)
   createdAt: number
@@ -147,6 +149,22 @@ export class SWUDatabase extends Dexie {
       collection: 'cardId, profileId',
       wishlist: 'cardId, profileId',
       profiles: 'id, name, email, credentialId',
+      playerStats: 'profileId',
+      cardPrices: 'cardId',
+      matchLogs: 'id, userId, recordedAt, gameMode',
+      meleeTournaments: 'id, userId, date, format, meleeId',
+    })
+
+    // v8: Add country/continent to profiles + community_posts table
+    this.version(8).stores({
+      matches: 'id, mode, isActive, createdAt, profileId',
+      tournaments: 'id, status, createdAt, profileId',
+      decks: 'id, name, format, createdAt, profileId',
+      cards: 'id, name, type, rarity, setCode, *aspects, *keywords, *traits',
+      favoriteCards: 'cardId, profileId',
+      collection: 'cardId, profileId',
+      wishlist: 'cardId, profileId',
+      profiles: 'id, name, email, credentialId, country, continent',
       playerStats: 'profileId',
       cardPrices: 'cardId',
       matchLogs: 'id, userId, recordedAt, gameMode',

@@ -3,7 +3,7 @@ import { Hexagon, Swords } from 'lucide-react'
 import {
   DatapadIcon, MedalIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
   DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
-  ChanceCubeIcon,
+  ChanceCubeIcon, RebelIcon,
 } from '../SWIcons'
 import { NotificationBell } from '../ui/NotificationBell'
 import type { ComponentType } from 'react'
@@ -29,6 +29,7 @@ const secondaryNav: NavItem[] = [
   { id: '/espionaje', label: 'Espionaje', sub: 'Transmisiones', icon: SpyIcon },
   { id: '/misiones', label: 'Misiones', sub: 'Órdenes del Día', icon: DeathStarIcon },
   { id: '/decks', label: 'Mis Decks', sub: 'Constructor', icon: DeckCardsIcon },
+  { id: '/community', label: 'Comunidades', sub: 'Galaxia', icon: RebelIcon },
   { id: '/rank', label: 'Consejo Jedi', sub: 'Leaderboard', icon: BeskarIcon },
   { id: '/cards', label: 'Buscar Cartas', sub: 'Base de datos', icon: HolonetIcon },
   { id: '/utilities', label: 'Utilidades', sub: 'Herramientas', icon: ChanceCubeIcon },

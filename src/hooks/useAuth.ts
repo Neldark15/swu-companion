@@ -50,7 +50,7 @@ interface AuthState {
   clearRecoveryMode: () => void
 
   // Profile management
-  updateProfile: (data: Partial<Pick<UserProfile, 'name' | 'avatar' | 'email'>>) => Promise<void>
+  updateProfile: (data: Partial<Pick<UserProfile, 'name' | 'avatar' | 'email' | 'country' | 'continent'>>) => Promise<void>
   deleteProfile: (profileId: string) => Promise<void>
 }
 
@@ -328,7 +328,13 @@ export const useAuth = create<AuthState>()(
 
         // Sync to cloud
         if (supabaseUser) {
-          syncProfileToCloud(supabaseUser.id, updated.name, updated.avatar).catch(() => {})
+          syncProfileToCloud(
+            supabaseUser.id,
+            updated.name,
+            updated.avatar,
+            updated.country,
+            updated.continent,
+          ).catch(() => {})
         }
       },
 

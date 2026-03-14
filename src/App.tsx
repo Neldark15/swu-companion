@@ -27,6 +27,7 @@ const UtilitiesPage = lazy(() => import('./features/utilities/UtilitiesPage').th
 const ProfilePage = lazy(() => import('./features/profile/ProfilePage').then(m => ({ default: m.ProfilePage })))
 const SettingsPage = lazy(() => import('./features/settings/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const RankingPage = lazy(() => import('./features/rank/RankingPage').then(m => ({ default: m.RankingPage })))
+const CommunityPage = lazy(() => import('./features/community/CommunityPage').then(m => ({ default: m.CommunityPage })))
 const CollectionPage = lazy(() => import('./features/collection/CollectionPage').then(m => ({ default: m.CollectionPage })))
 const PublicProfilePage = lazy(() => import('./features/collection/PublicProfilePage').then(m => ({ default: m.PublicProfilePage })))
 const ExplorePage = lazy(() => import('./features/collection/ExplorePage').then(m => ({ default: m.ExplorePage })))
@@ -96,6 +97,7 @@ export default function App() {
             <Route path="/espionaje/:userId" element={<P><SpyProfilePage /></P>} />
             <Route path="/misiones" element={<P><MissionsPage /></P>} />
             <Route path="/rank" element={<P><RankingPage /></P>} />
+            <Route path="/community" element={<P><CommunityPage /></P>} />
             <Route path="/news/manage" element={<P><ManageNewsPage /></P>} />
           </Route>
         </Routes>

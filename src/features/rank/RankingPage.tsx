@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Trophy, ChevronLeft, ChevronRight, RefreshCw, Swords, Medal } from 'lucide-react'
+import { Trophy, ChevronLeft, ChevronRight, RefreshCw, Swords, Medal, Globe } from 'lucide-react'
 import { getGlobalLeaderboard, getMonthlyLeaderboard, getMyMonthlyXp, type GlobalLeaderboardEntry, type LeaderboardEntry } from '../../services/sync'
 import { getGlobalTournamentRanking, getMonthlyTournamentRanking, type RankingEntry } from '../../services/tournamentPoints'
 import { ACHIEVEMENTS } from '../../services/gamification'
 import { useAuth } from '../../hooks/useAuth'
 import { IconXp } from '../../components/icons/SWUIcons'
+import { ALL_COUNTRIES, getCountryByCode } from '../../data/regions'
+import { getCommunityStats } from '../../services/communityService'
 
 /* ── Avatar helper ── */
 const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
@@ -76,7 +78,7 @@ function DiagonalLines() {
 }
 
 export function RankingPage() {
-  const { supabaseUser } = useAuth()
+  const { supabaseUser, currentProfile } = useAuth()
   const [tab, setTab] = useState<Tab>('global')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -95,13 +97,25 @@ export function RankingPage() {
   const [tournamentGlobalRanking, setTournamentGlobalRanking] = useState<RankingEntry[]>([])
   const [tournamentMonthlyRanking, setTournamentMonthlyRanking] = useState<RankingEntry[]>([])
 
+  // Country filter
+  const [countryFilter, setCountryFilter] = useState('')
+  const [showCountryPicker, setShowCountryPicker] = useState(false)
+  const [activeCountries, setActiveCountries] = useState<string[]>([])
+
   const isCurrentMonth = month === getCurrentMonth()
   const isTournamentCurrentMonth = tournamentMonth === getCurrentMonth()
+
+  // Load active countries on mount
+  useEffect(() => {
+    getCommunityStats().then(stats => {
+      setActiveCountries(stats.map(s => s.countryCode))
+    })
+  }, [])
 
   const loadGlobal = async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true)
     else setLoading(true)
-    const data = await getGlobalLeaderboard()
+    const data = await getGlobalLeaderboard(countryFilter || undefined)
     setGlobalBoard(data)
     setLoading(false)
     setRefreshing(false)
@@ -136,7 +150,7 @@ export function RankingPage() {
     if (tab === 'global') loadGlobal()
     else if (tab === 'monthly') loadMonthly()
     else loadTournamentRanking()
-  }, [tab, month, tournamentSubTab, tournamentMonth])
+  }, [tab, month, tournamentSubTab, tournamentMonth, countryFilter])
 
   /* ── Podium ring colors ── */
   const podiumRing = [
@@ -403,6 +417,75 @@ export function RankingPage() {
             <RefreshCw size={14} className={refreshing ? 'animate-spin text-red-400' : ''} />
           </button>
         </div>
+
+        {/* ═══ COUNTRY FILTER ═══ */}
+        {tab === 'global' && (
+          <div className="relative">
+            <button
+              onClick={() => setShowCountryPicker(!showCountryPicker)}
+              className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold tracking-wider uppercase border transition-all ${
+                countryFilter
+                  ? 'bg-red-500/10 border-red-500/30 text-red-400'
+                  : 'bg-gray-900/80 border-red-900/20 text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              <Globe size={13} />
+              {countryFilter
+                ? `${getCountryByCode(countryFilter)?.flag} ${getCountryByCode(countryFilter)?.name}`
+                : 'Filtrar por país'
+              }
+              {countryFilter && (
+                <span
+                  onClick={(e) => { e.stopPropagation(); setCountryFilter(''); setShowCountryPicker(false) }}
+                  className="text-[9px] text-red-400 ml-1 underline normal-case"
+                >
+                  ✕ Quitar
+                </span>
+              )}
+            </button>
+
+            {showCountryPicker && (
+              <div className="mt-2 bg-gray-900/95 border border-red-900/30 rounded-xl p-3 max-h-48 overflow-y-auto space-y-1">
+                {/* My country shortcut */}
+                {currentProfile?.country && (
+                  <button
+                    onClick={() => { setCountryFilter(currentProfile.country!); setShowCountryPicker(false) }}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold mb-2"
+                  >
+                    {getCountryByCode(currentProfile.country)?.flag} Mi país: {getCountryByCode(currentProfile.country)?.name}
+                  </button>
+                )}
+                {/* Active countries */}
+                {activeCountries.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-1">
+                    {activeCountries.map(code => {
+                      const c = getCountryByCode(code)
+                      if (!c) return null
+                      return (
+                        <button
+                          key={code}
+                          onClick={() => { setCountryFilter(code); setShowCountryPicker(false) }}
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all text-left ${
+                            countryFilter === code
+                              ? 'bg-red-500/15 border border-red-500/30 text-red-400'
+                              : 'text-gray-400 hover:bg-gray-800 border border-transparent'
+                          }`}
+                        >
+                          <span>{c.flag}</span>
+                          <span className="truncate">{c.name}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-gray-500 text-center py-2">
+                    Aún no hay jugadores con país configurado
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ═══ MONTHLY CONTROLS ═══ */}
         {tab === 'monthly' && (

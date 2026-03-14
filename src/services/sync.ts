@@ -114,14 +114,39 @@ export function statsFromSnake(row: Record<string, unknown>, profileId: string):
 
 // ─── PROFILE SYNC ───────────────────────────────────────────────
 
-export async function syncProfileToCloud(userId: string, name: string, avatar: string) {
+export async function syncProfileToCloud(
+  userId: string,
+  name: string,
+  avatar: string,
+  country?: string,
+  continent?: string,
+) {
   if (!isSupabaseReady()) return
   try {
+    // First upsert basic profile
     await supabase.from('profiles').upsert({
       id: userId,
       name,
       avatar,
     })
+
+    // If country/continent provided, store them in the settings JSON
+    if (country || continent) {
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('settings')
+        .eq('id', userId)
+        .single()
+
+      const currentSettings = (existing?.settings as Record<string, unknown>) || {}
+      const updatedSettings = {
+        ...currentSettings,
+        country: country || currentSettings.country || null,
+        continent: continent || currentSettings.continent || null,
+      }
+
+      await supabase.from('profiles').update({ settings: updatedSettings }).eq('id', userId)
+    }
   } catch (e) {
     console.warn('[Sync] Failed to sync profile:', e)
   }
@@ -412,7 +437,7 @@ export interface GlobalLeaderboardEntry {
   unlockedAchievements: string[]
 }
 
-export async function getGlobalLeaderboard(): Promise<GlobalLeaderboardEntry[]> {
+export async function getGlobalLeaderboard(countryFilter?: string): Promise<GlobalLeaderboardEntry[]> {
   if (!isSupabaseReady()) return []
   try {
     const { data, error } = await supabase
@@ -421,6 +446,7 @@ export async function getGlobalLeaderboard(): Promise<GlobalLeaderboardEntry[]> 
         id,
         name,
         avatar,
+        settings,
         player_stats!inner(
           level, xp, wins, losses, matches_played,
           tournaments_finished, tournaments_created,
@@ -431,24 +457,30 @@ export async function getGlobalLeaderboard(): Promise<GlobalLeaderboardEntry[]> 
 
     if (error || !data) return []
 
-    return data.map((row: Record<string, unknown>) => {
-      const stats = row.player_stats as Record<string, unknown>
-      return {
-        userId: row.id as string,
-        name: sanitizeName(row.name as string),
-        avatar: (row.avatar as string) || '🎯',
-        level: (stats?.level as number) || 1,
-        xp: (stats?.xp as number) || 0,
-        wins: (stats?.wins as number) || 0,
-        losses: (stats?.losses as number) || 0,
-        matchesPlayed: (stats?.matches_played as number) || 0,
-        tournamentsFinished: (stats?.tournaments_finished as number) || 0,
-        tournamentsCreated: (stats?.tournaments_created as number) || 0,
-        decksCreated: (stats?.decks_created as number) || 0,
-        bestStreak: (stats?.best_streak as number) || 0,
-        unlockedAchievements: (stats?.unlocked_achievements as string[]) || [],
-      }
-    })
+    return data
+      .filter((row: Record<string, unknown>) => {
+        if (!countryFilter) return true
+        const settings = row.settings as Record<string, unknown> | null
+        return settings?.country === countryFilter
+      })
+      .map((row: Record<string, unknown>) => {
+        const stats = row.player_stats as Record<string, unknown>
+        return {
+          userId: row.id as string,
+          name: sanitizeName(row.name as string),
+          avatar: (row.avatar as string) || '🎯',
+          level: (stats?.level as number) || 1,
+          xp: (stats?.xp as number) || 0,
+          wins: (stats?.wins as number) || 0,
+          losses: (stats?.losses as number) || 0,
+          matchesPlayed: (stats?.matches_played as number) || 0,
+          tournamentsFinished: (stats?.tournaments_finished as number) || 0,
+          tournamentsCreated: (stats?.tournaments_created as number) || 0,
+          decksCreated: (stats?.decks_created as number) || 0,
+          bestStreak: (stats?.best_streak as number) || 0,
+          unlockedAchievements: (stats?.unlocked_achievements as string[]) || [],
+        }
+      })
       // Sort: tournaments finished DESC, then wins DESC, then XP DESC
       .sort((a, b) =>
         b.tournamentsFinished - a.tournamentsFinished ||
@@ -579,10 +611,13 @@ export async function pullAllFromCloud(userId: string, localProfileId: string) {
     if (cloudProfile) {
       const localProfile = await db.profiles.get(localProfileId)
       if (localProfile) {
+        const cloudSettings = (cloudProfile.settings as Record<string, unknown>) || {}
         const updated = {
           ...localProfile,
           name: cloudProfile.name || localProfile.name,
           avatar: cloudProfile.avatar || localProfile.avatar,
+          country: (cloudSettings.country as string) || localProfile.country,
+          continent: (cloudSettings.continent as string) || localProfile.continent,
         }
         await db.profiles.put(updated)
       }
