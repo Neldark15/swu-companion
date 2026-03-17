@@ -67,13 +67,23 @@ function sanitizeName(name: string | null | undefined): string {
   return name
 }
 
+/**
+ * Supabase returns embedded relations as ARRAY (one-to-many) or object (many-to-one).
+ * This helper normalises to always get a single record, handling both cases.
+ */
+function single<T>(val: T | T[] | null | undefined): T | null {
+  if (!val) return null
+  if (Array.isArray(val)) return val[0] ?? null
+  return val
+}
+
 // ─── Main queries ────────────────────────────────────────
 
 /**
- * Fetch all players with stats for the galaxy explorer.
- * Limit is applied server-side; client can search/filter the result.
+ * Fetch players with stats using the same approach as getGlobalLeaderboard.
+ * Uses !inner so only profiles that have stats are returned.
  */
-export async function getGalaxyPlayers(limit = 100): Promise<GalaxyPlayer[]> {
+export async function getGalaxyPlayers(limit = 150): Promise<GalaxyPlayer[]> {
   if (!isSupabaseReady()) return []
 
   try {
@@ -84,7 +94,7 @@ export async function getGalaxyPlayers(limit = 100): Promise<GalaxyPlayer[]> {
         name,
         avatar,
         settings,
-        player_stats(
+        player_stats!inner(
           level, xp, wins, losses, matches_played,
           tournaments_finished, decks_created, best_streak,
           cards_collected, unlocked_achievements,
@@ -93,13 +103,17 @@ export async function getGalaxyPlayers(limit = 100): Promise<GalaxyPlayer[]> {
       `)
       .limit(limit)
 
-    if (error || !data) return []
+    if (error || !data) {
+      console.warn('[Galaxy] getGalaxyPlayers error:', error)
+      return []
+    }
 
     const players: GalaxyPlayer[] = []
     for (const row of data) {
       const r = row as Record<string, unknown>
-      const stats = r.player_stats as Record<string, unknown> | null
-      if (!stats) continue // skip users with no stats
+      // player_stats can be array (one-to-many) or object (if Supabase detects 1:1)
+      const stats = single(r.player_stats as Record<string, unknown> | Record<string, unknown>[] | null)
+      if (!stats) continue
 
       const settings = r.settings as Record<string, unknown> | null
 
@@ -125,13 +139,15 @@ export async function getGalaxyPlayers(limit = 100): Promise<GalaxyPlayer[]> {
     }
 
     return players
-  } catch {
+  } catch (e) {
+    console.warn('[Galaxy] getGalaxyPlayers exception:', e)
     return []
   }
 }
 
 /**
  * Get ranked players by category.
+ * Queries from player_stats side to use ordering by stat column directly.
  */
 export async function getGalaxyRanking(
   category: RankingCategory,
@@ -145,35 +161,32 @@ export async function getGalaxyRanking(
     tournaments: 'tournaments_finished',
     streak: 'best_streak',
     collection: 'cards_collected',
-    achievements: 'xp', // computed client-side from unlocked_achievements length
+    achievements: 'xp', // re-sorted client-side by achievement count
   }
 
   try {
-    let query = supabase
+    const { data, error } = await supabase
       .from('player_stats')
       .select(`
         user_id,
-        xp, level, wins, losses,
+        xp, level, wins,
         tournaments_finished, best_streak, cards_collected,
         unlocked_achievements,
         profiles!inner(name, avatar, settings)
       `)
+      .order(statColumn[category], { ascending: false })
+      .limit(limit * 2)
 
-    if (category !== 'achievements') {
-      query = query.order(statColumn[category], { ascending: false })
-    } else {
-      query = query.order('xp', { ascending: false })
+    if (error || !data) {
+      console.warn('[Galaxy] getGalaxyRanking error:', error)
+      return []
     }
-
-    query = query.limit(limit * 2) // fetch more to allow for achievement-based re-sort
-
-    const { data, error } = await query
-    if (error || !data) return []
 
     let entries: RankingEntry[] = data.map((row) => {
       const r = row as Record<string, unknown>
-      const profile = r.profiles as Record<string, unknown>
-      const settings = profile?.settings as Record<string, unknown> | null
+      // From player_stats side, profiles is many-to-one → single object, but use single() to be safe
+      const profile = single(r.profiles as Record<string, unknown> | Record<string, unknown>[] | null)
+      const settings = (profile?.settings as Record<string, unknown> | null)
       const achievements = (r.unlocked_achievements as string[]) || []
 
       const valueMap: Record<RankingCategory, number> = {
@@ -205,13 +218,14 @@ export async function getGalaxyRanking(
     entries.forEach((e, i) => { e.rank = i + 1 })
 
     return entries
-  } catch {
+  } catch (e) {
+    console.warn('[Galaxy] getGalaxyRanking exception:', e)
     return []
   }
 }
 
 /**
- * Get recent community posts from any country as galaxy activity.
+ * Get recent community posts from any country as the galaxy activity feed.
  */
 export async function getGalaxyActivity(limit = 30): Promise<GalaxyActivity[]> {
   if (!isSupabaseReady()) return []
@@ -219,11 +233,14 @@ export async function getGalaxyActivity(limit = 30): Promise<GalaxyActivity[]> {
   try {
     const { data, error } = await supabase
       .from('community_posts')
-      .select('id, user_id, user_name, user_avatar, country_code, content, type, created_at')
+      .select('id, user_id, user_name, user_avatar, country_code, content, created_at')
       .order('created_at', { ascending: false })
       .limit(limit)
 
-    if (error || !data) return []
+    if (error || !data) {
+      console.warn('[Galaxy] getGalaxyActivity error:', error)
+      return []
+    }
 
     return data.map((row) => ({
       id: row.id as string,
@@ -236,13 +253,14 @@ export async function getGalaxyActivity(limit = 30): Promise<GalaxyActivity[]> {
       detail: undefined,
       createdAt: row.created_at as string,
     }))
-  } catch {
+  } catch (e) {
+    console.warn('[Galaxy] getGalaxyActivity exception:', e)
     return []
   }
 }
 
 /**
- * Get high-level galaxy stats.
+ * Get high-level galaxy stats: total players, countries, top country.
  */
 export async function getGalaxyStats(): Promise<GalaxyStats> {
   if (!isSupabaseReady()) {
@@ -250,14 +268,19 @@ export async function getGalaxyStats(): Promise<GalaxyStats> {
   }
 
   try {
-    const { data, count } = await supabase
+    // Total players: count all profiles that have stats
+    const { count: totalCount } = await supabase
+      .from('player_stats')
+      .select('user_id', { count: 'exact', head: true })
+
+    // Get settings to extract country data (limit to 500 to avoid huge payloads)
+    const { data } = await supabase
       .from('profiles')
-      .select('settings', { count: 'exact' })
+      .select('settings')
       .not('settings', 'is', null)
+      .limit(500)
 
-    const total = count ?? 0
     const countMap = new Map<string, number>()
-
     if (data) {
       for (const row of data) {
         const settings = row.settings as Record<string, unknown> | null
@@ -268,16 +291,17 @@ export async function getGalaxyStats(): Promise<GalaxyStats> {
       }
     }
 
-    const countries = Array.from(countMap.entries())
-    const topEntry = countries.sort((a, b) => b[1] - a[1])[0]
+    const countries = Array.from(countMap.entries()).sort((a, b) => b[1] - a[1])
+    const topEntry = countries[0]
 
     return {
-      totalPlayers: total,
+      totalPlayers: totalCount ?? 0,
       countriesRepresented: countries.length,
       topCountry: topEntry?.[0] || '',
       topCountryCount: topEntry?.[1] || 0,
     }
-  } catch {
+  } catch (e) {
+    console.warn('[Galaxy] getGalaxyStats exception:', e)
     return { totalPlayers: 0, countriesRepresented: 0, topCountry: '', topCountryCount: 0 }
   }
 }
