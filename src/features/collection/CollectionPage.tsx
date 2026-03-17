@@ -5,7 +5,7 @@ import {
   Package, DollarSign, Layers, TrendingUp, RefreshCw, Upload, Download, X, FileUp, Trash2, AlertTriangle,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-import { getCardsByIds } from '../../services/swuApi'
+import { getCardsByIds, loadFullDatabase, getLocalCardCount } from '../../services/swuApi'
 import {
   getMyCollectionWithPrices,
   updateCollectionQuantity,
@@ -75,10 +75,31 @@ export function CollectionPage() {
         if (cancelled) return
         setItems(collItems)
 
-        // Load card details in a single batch query
+        // If local card DB is sparse, trigger background refresh (catches promo sets, new sets)
+        const localCount = await getLocalCardCount()
+        if (localCount < 2000) {
+          loadFullDatabase().catch(() => {})
+        }
+
+        // Load card details in a single batch query (with network fallback for missing)
         const cardIds = collItems.map(i => i.cardId)
         const cardMap = await getCardsByIds(cardIds)
         if (!cancelled) setCards(cardMap)
+
+        // Second pass: if any cards still missing after initial load and DB was sparse, retry
+        if (localCount < 2000 && cardMap.size < cardIds.length) {
+          const missingIds = cardIds.filter(id => !cardMap.has(id))
+          if (missingIds.length > 0) {
+            const extra = await getCardsByIds(missingIds)
+            if (!cancelled) {
+              setCards(prev => {
+                const merged = new Map(prev)
+                extra.forEach((v, k) => merged.set(k, v))
+                return merged
+              })
+            }
+          }
+        }
       } catch (e) {
         console.warn('[Collection] Failed to load:', e)
       } finally {

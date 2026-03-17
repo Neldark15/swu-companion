@@ -42,6 +42,7 @@ const MeleeDetailPage = lazy(() => import('./features/melee/MeleeDetailPage').th
 const EspionajePage = lazy(() => import('./features/espionaje/EspionajePage').then(m => ({ default: m.EspionajePage })))
 const SpyProfilePage = lazy(() => import('./features/espionaje/SpyProfilePage').then(m => ({ default: m.SpyProfilePage })))
 const MissionsPage = lazy(() => import('./features/missions/MissionsPage'))
+const GalaxyPage = lazy(() => import('./features/galaxy/GalaxyPage').then(m => ({ default: m.GalaxyPage })))
 
 function PageLoader() {
   return <HolocronLoader />
@@ -98,6 +99,7 @@ export default function App() {
             <Route path="/misiones" element={<P><MissionsPage /></P>} />
             <Route path="/rank" element={<P><RankingPage /></P>} />
             <Route path="/community" element={<P><CommunityPage /></P>} />
+            <Route path="/galaxy" element={<P><GalaxyPage /></P>} />
             <Route path="/news/manage" element={<P><ManageNewsPage /></P>} />
           </Route>
         </Routes>

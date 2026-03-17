@@ -465,19 +465,36 @@ export async function getCardsByIds(ids: string[]): Promise<Map<string, Card>> {
   if (missing.length === 0) return result
 
   // Single Dexie batch query
+  const notInLocal: string[] = []
   try {
     const cards = await db.cards.where('id').anyOf(missing).toArray()
+    const foundIds = new Set<string>()
     for (const card of cards) {
       _cardMemCache.set(card.id, card)
       result.set(card.id, card)
+      foundIds.add(card.id)
+    }
+    // Collect IDs not found locally — will need network fetch
+    for (const id of missing) {
+      if (!foundIds.has(id)) notInLocal.push(id)
     }
   } catch {
-    // fallback: individual lookups
+    // If Dexie throws, all missing need network fetch
     for (const id of missing) {
-      if (!result.has(id)) {
-        const card = await getCardById(id)
-        if (card) result.set(id, card)
-      }
+      if (!result.has(id)) notInLocal.push(id)
+    }
+  }
+
+  // Network fallback for cards not cached locally (e.g. promo sets like JTLP, new sets)
+  if (notInLocal.length > 0) {
+    const CHUNK = 8 // limit concurrency to avoid flooding the API
+    for (let i = 0; i < notInLocal.length; i += CHUNK) {
+      await Promise.all(
+        notInLocal.slice(i, i + CHUNK).map(async (id) => {
+          const card = await getCardById(id)
+          if (card) result.set(id, card)
+        }),
+      )
     }
   }
 
