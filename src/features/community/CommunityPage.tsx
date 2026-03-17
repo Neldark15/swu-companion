@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Globe, Users, Search, ChevronRight, Crown,
-  MessageCircle, Send, Heart, Trash2, Trophy, ArrowUpRight,
+  MessageCircle, Send, Heart, Trash2, ArrowUpRight,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import {
@@ -20,7 +20,6 @@ import {
   CONTINENTS,
   getCountryByCode,
   getContinentByCountryCode,
-  type Country,
 } from '../../data/regions'
 import { ProfileFrame } from '../profile/components/ProfileFrame'
 import { calculateLevel } from '../../services/gamification'

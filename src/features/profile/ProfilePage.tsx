@@ -16,7 +16,7 @@ import { ProfileFrame } from './components/ProfileFrame'
 import { AspectBars } from './components/AspectBars'
 import { AchievementGrid } from './components/AchievementGrid'
 import { TriviaSection } from './components/TriviaSection'
-import { CONTINENTS, getCountryByCode, getContinentByCountryCode } from '../../data/regions'
+import { CONTINENTS, getCountryByCode } from '../../data/regions'
 
 /* ── Star Wars avatar options (images in /avatars/) ── */
 const swAvatars = [

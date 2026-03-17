@@ -5,7 +5,7 @@ import { getGlobalTournamentRanking, getMonthlyTournamentRanking, type RankingEn
 import { ACHIEVEMENTS } from '../../services/gamification'
 import { useAuth } from '../../hooks/useAuth'
 import { IconXp } from '../../components/icons/SWUIcons'
-import { ALL_COUNTRIES, getCountryByCode } from '../../data/regions'
+import { getCountryByCode } from '../../data/regions'
 import { getCommunityStats } from '../../services/communityService'
 
 /* ── Avatar helper ── */
