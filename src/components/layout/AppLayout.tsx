@@ -5,6 +5,7 @@ import { SideNav } from './SideNav'
 import { useAuth } from '../../hooks/useAuth'
 import { NotificationToast } from '../ui/NotificationToast'
 import { PageTransition, usePrefetchRoutes } from '../PageTransition'
+import { TournamentBroadcastListener } from '../../features/events/TournamentBroadcastListener'
 
 export function AppLayout() {
   const initAuth = useAuth(s => s.initAuth)
@@ -21,6 +22,9 @@ export function AppLayout() {
     <div className="min-h-screen bg-swu-bg">
       {/* Global notification toast */}
       <NotificationToast />
+
+      {/* Global tournament broadcasts → toasts for non-participants */}
+      <TournamentBroadcastListener />
 
       {/* Desktop sidebar — hidden on mobile */}
       <SideNav />

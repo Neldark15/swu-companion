@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+// (navigate to /events/play/:code when status flips to 'active' — see useEffect below)
 import {
   ChevronLeft,
   Users,
@@ -142,6 +143,17 @@ export function EventLobbyPage() {
       p.isSelf ? { ...p, ready: isReady } : p
     ))
   }, [isReady])
+
+  // When event transitions to active and the user is a registered player,
+  // forward to the player view (where they can report/confirm scores).
+  useEffect(() => {
+    if (event?.status === 'active' && code && selfUserId) {
+      const meRegistered = players.some(p => p.isSelf)
+      if (meRegistered) {
+        navigate(`/events/play/${code}`, { replace: true })
+      }
+    }
+  }, [event?.status, code, selfUserId, players, navigate])
 
   const copyCode = () => {
     if (code) {

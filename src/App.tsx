@@ -22,6 +22,7 @@ const EventLobbyPage = lazy(() => import('./features/events/EventLobbyPage').the
 const CreateEventPage = lazy(() => import('./features/events/CreateEventPage').then(m => ({ default: m.CreateEventPage })))
 const TournamentDashboard = lazy(() => import('./features/events/TournamentDashboard'))
 const TournamentPublicView = lazy(() => import('./features/events/TournamentPublicView'))
+const TournamentPlayerView = lazy(() => import('./features/events/TournamentPlayerView').then(m => ({ default: m.TournamentPlayerView })))
 const ManageNewsPage = lazy(() => import('./features/home/ManageNewsPage').then(m => ({ default: m.ManageNewsPage })))
 const UtilitiesPage = lazy(() => import('./features/utilities/UtilitiesPage').then(m => ({ default: m.UtilitiesPage })))
 const ProfilePage = lazy(() => import('./features/profile/ProfilePage').then(m => ({ default: m.ProfilePage })))
@@ -102,6 +103,7 @@ export default function App() {
             <Route path="/events/tournament/new" element={<P><TournamentSetupPage /></P>} />
             <Route path="/events/tournament/:id" element={<P><TournamentLivePage /></P>} />
             <Route path="/events/lobby/:code" element={<P><EventLobbyPage /></P>} />
+            <Route path="/events/play/:code" element={<P><TournamentPlayerView /></P>} />
             <Route path="/events/dashboard/:code" element={<P><TournamentDashboard /></P>} />
             <Route path="/arena" element={<P><ArenaPage /></P>} />
             <Route path="/arena/log" element={<P><ArenaLogPage /></P>} />

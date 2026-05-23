@@ -44,9 +44,33 @@ export interface CloudPairing {
   winner_id: string | null
   score: string | null
   reported_by: string | null
+  reported_at: string | null
+  confirmed_by: string | null
+  confirmed_at: string | null
+  disputed_by: string | null
+  disputed_at: string | null
   // Joined
   player1_name?: string
   player2_name?: string
+}
+
+export type BroadcastType =
+  | 'pairing_set'         // Round pairings published
+  | 'result_submitted'    // Player reported a score, waiting confirmation
+  | 'result_confirmed'    // Score confirmed by opponent → standings updated
+  | 'result_disputed'     // Opponent disputed
+  | 'round_complete'      // All results in
+  | 'tournament_finished' // Final standings
+
+export interface TournamentBroadcast {
+  id: string
+  event_id: string | null
+  event_name: string | null
+  event_code: string | null
+  type: BroadcastType
+  message: string
+  payload: Record<string, unknown>
+  created_at: string
 }
 
 export interface CloudRound {
@@ -240,6 +264,15 @@ export async function generateSwissPairings(
     }
   }
 
+  // Notify globally
+  const ev = await getEventNameAndCode(eventId)
+  await broadcast(
+    eventId, ev.name, ev.code,
+    'pairing_set',
+    `Ronda ${roundNum} publicada — ${pairings.length} mesas`,
+    { round: roundNum, tables: pairings.length }
+  )
+
   return { ok: true }
 }
 
@@ -304,6 +337,15 @@ export async function generateEliminationBracket(
     .update({ current_round: 1, updated_at: new Date().toISOString() })
     .eq('id', eventId)
 
+  // Notify globally
+  const evMeta = await getEventNameAndCode(eventId)
+  await broadcast(
+    eventId, evMeta.name, evMeta.code,
+    'pairing_set',
+    `Bracket de eliminación publicado — ${dbPairings.length} mesas`,
+    { round: 1, tables: dbPairings.length, format: 'elimination' }
+  )
+
   return { ok: true }
 }
 
@@ -351,6 +393,15 @@ export async function advanceEliminationRound(
       .from('official_events')
       .update({ status: 'finished', updated_at: new Date().toISOString() })
       .eq('id', eventId)
+
+    const evMeta = await getEventNameAndCode(eventId)
+    await broadcast(
+      eventId, evMeta.name, evMeta.code,
+      'tournament_finished',
+      `Torneo terminado — campeón coronado`,
+      { winnerId: winnerIds[0] ?? null, format: 'elimination' }
+    )
+
     return { ok: true }
   }
 
@@ -399,17 +450,214 @@ export async function advanceEliminationRound(
   return { ok: true }
 }
 
-// ─── Report Match Result ────────────────────────────────────
+// ─── Broadcast helpers (global tournament feed) ─────────────
 
-export async function reportResult(
+/**
+ * Fire-and-forget broadcast — inserts a row in tournament_broadcasts so any
+ * client subscribed to the channel gets notified. Silent on failure.
+ */
+async function broadcast(
+  eventId: string,
+  eventName: string | null,
+  eventCode: string | null,
+  type: BroadcastType,
+  message: string,
+  payload: Record<string, unknown> = {}
+): Promise<void> {
+  try {
+    await supabase.from('tournament_broadcasts').insert({
+      event_id: eventId,
+      event_name: eventName,
+      event_code: eventCode,
+      type,
+      message,
+      payload,
+    })
+  } catch {
+    // best-effort, swallow
+  }
+}
+
+async function getEventNameAndCode(eventId: string): Promise<{ name: string | null; code: string | null }> {
+  const { data } = await supabase
+    .from('official_events')
+    .select('name, code')
+    .eq('id', eventId)
+    .single()
+  return { name: data?.name ?? null, code: data?.code ?? null }
+}
+
+// ─── Submit / Confirm / Dispute (player-driven flow) ─────────
+
+/**
+ * Player A submits the score. Marks reported_by + reported_at + score + winner_id
+ * but does NOT touch standings yet — waits for opponent confirmation.
+ * If the pairing has no opponent (bye), confirms automatically.
+ */
+export async function submitPairingResult(
   pairingId: string,
   winnerId: string | null,
-  score: string, // e.g. "2-1"
-  reportedBy: string
+  score: string,        // "2-1"
+  reporterId: string
+): Promise<{ ok: boolean; needsConfirmation: boolean; error?: string }> {
+  if (!isSupabaseReady()) return { ok: false, needsConfirmation: false, error: 'Sin conexión' }
+
+  const { data: pairing, error: pErr } = await supabase
+    .from('tournament_pairings')
+    .select('*, tournament_rounds!inner(event_id, round_number)')
+    .eq('id', pairingId)
+    .single()
+
+  if (pErr || !pairing) return { ok: false, needsConfirmation: false, error: 'Emparejamiento no encontrado' }
+
+  // Reporter must be one of the two players
+  if (pairing.player1_id !== reporterId && pairing.player2_id !== reporterId) {
+    return { ok: false, needsConfirmation: false, error: 'No participas en este emparejamiento' }
+  }
+
+  // Bye → auto-resolve, no opponent to confirm
+  if (!pairing.player2_id) {
+    return finalizeResult(pairingId, winnerId, score, reporterId, reporterId)
+      .then(r => ({ ok: r.ok, needsConfirmation: false, error: r.error }))
+  }
+
+  // Already confirmed → re-submission not allowed
+  if (pairing.confirmed_at) {
+    return { ok: false, needsConfirmation: false, error: 'El resultado ya fue confirmado' }
+  }
+
+  // Store the submission (overwrites previous submission from same reporter)
+  const { error: uErr } = await supabase
+    .from('tournament_pairings')
+    .update({
+      winner_id: winnerId,
+      score,
+      reported_by: reporterId,
+      reported_at: new Date().toISOString(),
+      // Clear any previous dispute when a fresh submission comes in
+      disputed_by: null,
+      disputed_at: null,
+    })
+    .eq('id', pairingId)
+
+  if (uErr) return { ok: false, needsConfirmation: false, error: uErr.message }
+
+  // Notify globally
+  const round = pairing.tournament_rounds as unknown as { event_id: string; round_number: number }
+  const { name: evName, code: evCode } = await getEventNameAndCode(round.event_id)
+  await broadcast(
+    round.event_id, evName, evCode,
+    'result_submitted',
+    `Resultado reportado en mesa ${pairing.table_number ?? '?'} — pendiente de confirmación`,
+    {
+      round: round.round_number,
+      table: pairing.table_number,
+      pairingId,
+      score,
+      winnerId,
+      reporterId,
+    }
+  )
+
+  return { ok: true, needsConfirmation: true }
+}
+
+/**
+ * Player B confirms the result reported by player A.
+ * Validates that confirmer is the opponent (not the same as reporter),
+ * then finalizes standings + tiebreakers.
+ */
+export async function confirmPairingResult(
+  pairingId: string,
+  confirmerId: string
 ): Promise<{ ok: boolean; error?: string }> {
   if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
 
-  // Get pairing info
+  const { data: pairing, error: pErr } = await supabase
+    .from('tournament_pairings')
+    .select('*')
+    .eq('id', pairingId)
+    .single()
+
+  if (pErr || !pairing) return { ok: false, error: 'Emparejamiento no encontrado' }
+  if (!pairing.reported_by) return { ok: false, error: 'No hay resultado para confirmar' }
+  if (pairing.confirmed_at) return { ok: false, error: 'Ya está confirmado' }
+
+  // Confirmer must be the OPPONENT of the reporter
+  const isOpponent =
+    (pairing.player1_id === confirmerId && pairing.reported_by === pairing.player2_id) ||
+    (pairing.player2_id === confirmerId && pairing.reported_by === pairing.player1_id)
+  if (!isOpponent) return { ok: false, error: 'Solo el oponente del reportador puede confirmar' }
+
+  return finalizeResult(pairingId, pairing.winner_id, pairing.score ?? '0-0', pairing.reported_by, confirmerId)
+}
+
+/**
+ * Opponent disputes the reported result. Admin needs to resolve manually.
+ * Clears the reported_* fields so they can be re-submitted, marks dispute.
+ */
+export async function disputePairingResult(
+  pairingId: string,
+  disputerId: string,
+  reason?: string
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
+
+  const { data: pairing, error: pErr } = await supabase
+    .from('tournament_pairings')
+    .select('*, tournament_rounds!inner(event_id, round_number)')
+    .eq('id', pairingId)
+    .single()
+
+  if (pErr || !pairing) return { ok: false, error: 'Emparejamiento no encontrado' }
+  if (pairing.confirmed_at) return { ok: false, error: 'Ya está confirmado, no puede disputarse' }
+
+  // Disputer must be the OPPONENT of the reporter
+  const isOpponent =
+    (pairing.player1_id === disputerId && pairing.reported_by === pairing.player2_id) ||
+    (pairing.player2_id === disputerId && pairing.reported_by === pairing.player1_id)
+  if (!isOpponent) return { ok: false, error: 'Solo el oponente puede disputar' }
+
+  const { error: uErr } = await supabase
+    .from('tournament_pairings')
+    .update({
+      disputed_by: disputerId,
+      disputed_at: new Date().toISOString(),
+      // Don't clear reported_* yet — admin sees what was claimed vs disputed
+    })
+    .eq('id', pairingId)
+
+  if (uErr) return { ok: false, error: uErr.message }
+
+  const round = pairing.tournament_rounds as unknown as { event_id: string; round_number: number }
+  const { name: evName, code: evCode } = await getEventNameAndCode(round.event_id)
+  await broadcast(
+    round.event_id, evName, evCode,
+    'result_disputed',
+    `Resultado disputado en mesa ${pairing.table_number ?? '?'} — requiere atención del admin`,
+    {
+      round: round.round_number,
+      table: pairing.table_number,
+      pairingId,
+      disputerId,
+      reason: reason ?? null,
+    }
+  )
+
+  return { ok: true }
+}
+
+/**
+ * Internal: applies the final result to standings + tiebreakers + broadcast.
+ * Called by confirmPairingResult and reportResult (admin override) and bye auto-confirm.
+ */
+async function finalizeResult(
+  pairingId: string,
+  winnerId: string | null,
+  score: string,
+  reporterId: string,
+  confirmerId: string
+): Promise<{ ok: boolean; error?: string }> {
   const { data: pairing, error: pErr } = await supabase
     .from('tournament_pairings')
     .select('*, tournament_rounds!inner(event_id, round_number)')
@@ -421,20 +669,23 @@ export async function reportResult(
   const round = pairing.tournament_rounds as unknown as { event_id: string; round_number: number }
   const eventId = round.event_id
 
-  // Update pairing
+  // Mark confirmed
   const { error: uErr } = await supabase
     .from('tournament_pairings')
-    .update({ winner_id: winnerId, score, reported_by: reportedBy })
+    .update({
+      winner_id: winnerId,
+      score,
+      reported_by: reporterId,
+      reported_at: pairing.reported_at ?? new Date().toISOString(),
+      confirmed_by: confirmerId,
+      confirmed_at: new Date().toISOString(),
+    })
     .eq('id', pairingId)
 
   if (uErr) return { ok: false, error: uErr.message }
 
-  // Parse score
-  const scoreParts = score.split('-').map(Number)
-  const s1 = scoreParts[0] || 0
-  const s2 = scoreParts[1] || 0
-
-  // Update standings for both players
+  // Apply to standings
+  const [s1, s2] = score.split('-').map(Number).map(n => n || 0)
   if (pairing.player1_id) {
     await updatePlayerStanding(eventId, pairing.player1_id, {
       isWinner: winnerId === pairing.player1_id,
@@ -443,7 +694,6 @@ export async function reportResult(
       gameLosses: s2,
     })
   }
-
   if (pairing.player2_id) {
     await updatePlayerStanding(eventId, pairing.player2_id, {
       isWinner: winnerId === pairing.player2_id,
@@ -453,10 +703,112 @@ export async function reportResult(
     })
   }
 
-  // Recalculate tiebreakers for all players
   await recalculateTiebreakers(eventId)
 
+  // Notify globally
+  const { name: evName, code: evCode } = await getEventNameAndCode(eventId)
+  await broadcast(
+    eventId, evName, evCode,
+    'result_confirmed',
+    `Mesa ${pairing.table_number ?? '?'} — Ronda ${round.round_number}: ${score} confirmado`,
+    {
+      round: round.round_number,
+      table: pairing.table_number,
+      pairingId,
+      score,
+      winnerId,
+      player1_id: pairing.player1_id,
+      player2_id: pairing.player2_id,
+    }
+  )
+
   return { ok: true }
+}
+
+// ─── Player view helpers ─────────────────────────────────────
+
+/**
+ * Returns the user's pairing for the given round, or null if not paired
+ * (not registered, eliminated, or no round yet).
+ */
+export async function getMyPairing(eventId: string, userId: string, roundNumber: number): Promise<CloudPairing | null> {
+  if (!isSupabaseReady()) return null
+  const { data: round } = await supabase
+    .from('tournament_rounds')
+    .select('id')
+    .eq('event_id', eventId)
+    .eq('round_number', roundNumber)
+    .single()
+  if (!round) return null
+
+  const { data } = await supabase
+    .from('tournament_pairings')
+    .select('*')
+    .eq('round_id', round.id)
+    .or(`player1_id.eq.${userId},player2_id.eq.${userId}`)
+    .maybeSingle()
+
+  return (data as CloudPairing | null)
+}
+
+/**
+ * Is this user a participant in the event?
+ */
+export async function isEventParticipant(eventId: string, userId: string): Promise<boolean> {
+  if (!isSupabaseReady()) return false
+  const { count } = await supabase
+    .from('event_registrations')
+    .select('*', { count: 'exact', head: true })
+    .eq('event_id', eventId)
+    .eq('user_id', userId)
+  return (count ?? 0) > 0
+}
+
+/**
+ * Recent global broadcasts (any event). Used by non-participants who want a feed.
+ */
+export async function getRecentBroadcasts(limit = 20): Promise<TournamentBroadcast[]> {
+  if (!isSupabaseReady()) return []
+  const { data } = await supabase
+    .from('tournament_broadcasts')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  return (data as TournamentBroadcast[] | null) ?? []
+}
+
+/**
+ * Realtime: subscribe to ANY new global broadcast (used by NotificationHub
+ * to surface toasts for non-participants).
+ */
+export function subscribeToBroadcasts(onNew: (b: TournamentBroadcast) => void): () => void {
+  if (!isSupabaseReady()) return () => undefined
+  const ch = supabase
+    .channel('tournament-broadcasts-global')
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'tournament_broadcasts' },
+      (payload) => onNew(payload.new as TournamentBroadcast)
+    )
+    .subscribe()
+  return () => { supabase.removeChannel(ch) }
+}
+
+// ─── Report Match Result (ADMIN OVERRIDE — bypasses confirmation) ─
+
+/**
+ * Direct write that finalizes immediately without confirmation.
+ * Use for admin overrides (e.g., resolving a dispute, fixing a no-show).
+ * For the normal player flow, use submitPairingResult + confirmPairingResult.
+ */
+export async function reportResult(
+  pairingId: string,
+  winnerId: string | null,
+  score: string,
+  reportedBy: string
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
+  return finalizeResult(pairingId, winnerId, score, reportedBy, reportedBy)
 }
 
 // ─── Advance Swiss Round ────────────────────────────────────
@@ -493,6 +845,15 @@ export async function advanceSwissRound(
     .update({ completed_at: new Date().toISOString() })
     .eq('id', currentRound.id)
 
+  // Broadcast round complete
+  const evMetaRound = await getEventNameAndCode(eventId)
+  await broadcast(
+    eventId, evMetaRound.name, evMetaRound.code,
+    'round_complete',
+    `Ronda ${currentRoundNum} completada`,
+    { round: currentRoundNum }
+  )
+
   // Check if max rounds reached
   const { data: event } = await supabase
     .from('official_events')
@@ -506,6 +867,25 @@ export async function advanceSwissRound(
       .from('official_events')
       .update({ status: 'finished', updated_at: new Date().toISOString() })
       .eq('id', eventId)
+
+    // Get top finisher for broadcast
+    const { data: leaders } = await supabase
+      .from('tournament_standings')
+      .select('player_name, points')
+      .eq('event_id', eventId)
+      .order('points', { ascending: false })
+      .limit(3)
+
+    const podium = (leaders || []).map(l => l.player_name).filter(Boolean)
+    await broadcast(
+      eventId, evMetaRound.name, evMetaRound.code,
+      'tournament_finished',
+      podium.length > 0
+        ? `Torneo terminado — Campeón: ${podium[0]}`
+        : 'Torneo terminado',
+      { format: 'swiss', podium }
+    )
+
     return { ok: true }
   }
 
