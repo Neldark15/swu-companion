@@ -91,11 +91,12 @@ export function PublicProfilePage() {
     }
   }
 
+  // Stage 1: profile + collection IDs — fast, blocks initial render
   useEffect(() => {
     if (!userId) return
     let cancelled = false
 
-    async function load() {
+    async function loadShell() {
       setLoading(true)
       try {
         const prof = await getPublicProfile(userId!)
@@ -106,50 +107,88 @@ export function PublicProfilePage() {
           setLoading(false)
           return
         }
-
         if (!prof.isPublic) {
           setProfile(prof)
           setIsPrivate(true)
           setLoading(false)
           return
         }
-
         setProfile(prof)
 
-        // Load collection
+        // Just the IDs — fast Supabase query
         const collItems = await getPublicCollection(userId!)
         if (cancelled) return
 
-        // Load card details + prices in parallel batch queries
-        const cardIds = collItems.map(i => i.cardId)
-        const [cardMap, prices] = await Promise.all([
-          getCardsByIds(cardIds),
-          getPricesForCards(cardIds),
-        ])
-
-        const displayItems: CollectionDisplayItem[] = collItems.map(item => ({
+        // Render IMMEDIATELY with skeleton cards (null card). Hydration runs
+        // in a separate effect below so the user sees the list right away
+        // instead of waiting for all card details to come back.
+        const skeleton: CollectionDisplayItem[] = collItems.map(item => ({
           cardId: item.cardId,
           quantity: item.quantity,
-          card: cardMap.get(item.cardId) ?? null,
-          price: prices.get(item.cardId) ?? null,
+          card: null,
+          price: null,
         }))
-
-        if (!cancelled) {
-          displayItems.sort((a, b) =>
-            (a.card?.name ?? '').localeCompare(b.card?.name ?? ''),
-          )
-          setItems(displayItems)
-        }
+        setItems(skeleton)
       } catch (e) {
-        console.warn('[PublicProfile] Failed to load:', e)
+        console.warn('[PublicProfile] Failed to load shell:', e)
         if (!cancelled) setNotFound(true)
       } finally {
         if (!cancelled) setLoading(false)
       }
     }
-    load()
+    loadShell()
     return () => { cancelled = true }
   }, [userId])
+
+  // Stage 2: hydrate card details in background once we have IDs
+  useEffect(() => {
+    if (items.length === 0) return
+    // Skip if all already hydrated (re-renders shouldn't trigger another fetch)
+    const needsCards = items.some(i => !i.card)
+    if (!needsCards) return
+
+    let cancelled = false
+    const cardIds = items.map(i => i.cardId)
+
+    getCardsByIds(cardIds).then(cardMap => {
+      if (cancelled) return
+      setItems(prev => {
+        const hydrated = prev.map(item => ({
+          ...item,
+          card: item.card ?? cardMap.get(item.cardId) ?? null,
+        }))
+        // Sort by name now that we have most cards
+        hydrated.sort((a, b) => (a.card?.name ?? a.cardId).localeCompare(b.card?.name ?? b.cardId))
+        return hydrated
+      })
+    }).catch(e => console.warn('[PublicProfile] Card hydration failed:', e))
+
+    return () => { cancelled = true }
+  // We only want to hydrate ONCE per items-set change (not on every prop tweak).
+  // Using items.length as a coarse dependency for that.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.length])
+
+  // Stage 3: deferred prices — non-blocking, runs after cards are showing
+  useEffect(() => {
+    if (items.length === 0) return
+    const needsPrices = items.some(i => !i.price)
+    if (!needsPrices) return
+
+    let cancelled = false
+    const cardIds = items.map(i => i.cardId)
+
+    getPricesForCards(cardIds).then(prices => {
+      if (cancelled) return
+      setItems(prev => prev.map(item => ({
+        ...item,
+        price: item.price ?? prices.get(item.cardId) ?? null,
+      })))
+    }).catch(() => { /* prices are optional */ })
+
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.length])
 
   // Stats
   const stats = useMemo(() => {

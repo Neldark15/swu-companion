@@ -535,14 +535,23 @@ export async function getCardById(id: string): Promise<Card | null> {
 }
 
 /**
- * Batch load multiple cards at once (single Dexie query).
- * Much faster than calling getCardById() in a loop.
+ * Batch load multiple cards at once.
+ *
+ * Strategy (optimized for perf):
+ * 1. Hit memory cache
+ * 2. Single Dexie batch query for what's left
+ * 3. For misses: if many (> BULK_THRESHOLD), download the full DB in one
+ *    request (5 MB / ~12s) instead of N individual HTTP requests. Then
+ *    re-query Dexie for the missing IDs.
+ * 4. For small misses: fall back to per-card HTTP in concurrent chunks.
  */
+const BULK_FALLBACK_THRESHOLD = 30
+
 export async function getCardsByIds(ids: string[]): Promise<Map<string, Card>> {
   const result = new Map<string, Card>()
   if (ids.length === 0) return result
 
-  // Check memory cache first
+  // 1. Memory cache
   const missing: string[] = []
   for (const id of ids) {
     const mem = _cardMemCache.get(id)
@@ -552,11 +561,10 @@ export async function getCardsByIds(ids: string[]): Promise<Map<string, Card>> {
       missing.push(id)
     }
   }
-
   if (missing.length === 0) return result
 
-  // Single Dexie batch query
-  const notInLocal: string[] = []
+  // 2. Dexie batch query
+  let notInLocal: string[] = []
   try {
     const cards = await db.cards.where('id').anyOf(missing).toArray()
     const foundIds = new Set<string>()
@@ -565,28 +573,43 @@ export async function getCardsByIds(ids: string[]): Promise<Map<string, Card>> {
       result.set(card.id, card)
       foundIds.add(card.id)
     }
-    // Collect IDs not found locally — will need network fetch
-    for (const id of missing) {
-      if (!foundIds.has(id)) notInLocal.push(id)
-    }
+    for (const id of missing) if (!foundIds.has(id)) notInLocal.push(id)
   } catch {
-    // If Dexie throws, all missing need network fetch
-    for (const id of missing) {
-      if (!result.has(id)) notInLocal.push(id)
+    for (const id of missing) if (!result.has(id)) notInLocal.push(id)
+  }
+  if (notInLocal.length === 0) return result
+
+  // 3. Bulk fallback: if many cards are missing, download the full DB once
+  //    (~5 MB / ~12s) — much faster than N sequential HTTPs
+  if (notInLocal.length >= BULK_FALLBACK_THRESHOLD) {
+    try {
+      await loadFullDatabase()
+      // Retry from Dexie now that the full DB is loaded
+      const retryCards = await db.cards.where('id').anyOf(notInLocal).toArray()
+      const stillMissing: string[] = []
+      const foundIds = new Set<string>()
+      for (const card of retryCards) {
+        _cardMemCache.set(card.id, card)
+        result.set(card.id, card)
+        foundIds.add(card.id)
+      }
+      for (const id of notInLocal) if (!foundIds.has(id)) stillMissing.push(id)
+      notInLocal = stillMissing
+    } catch {
+      // loadFullDatabase failed — fall through to per-card fetches
     }
+    if (notInLocal.length === 0) return result
   }
 
-  // Network fallback for cards not cached locally (e.g. promo sets like JTLP, new sets)
-  if (notInLocal.length > 0) {
-    const CHUNK = 8 // limit concurrency to avoid flooding the API
-    for (let i = 0; i < notInLocal.length; i += CHUNK) {
-      await Promise.all(
-        notInLocal.slice(i, i + CHUNK).map(async (id) => {
-          const card = await getCardById(id)
-          if (card) result.set(id, card)
-        }),
-      )
-    }
+  // 4. Per-card HTTP fallback for the few remaining
+  const CHUNK = 8
+  for (let i = 0; i < notInLocal.length; i += CHUNK) {
+    await Promise.all(
+      notInLocal.slice(i, i + CHUNK).map(async (id) => {
+        const card = await getCardById(id)
+        if (card) result.set(id, card)
+      }),
+    )
   }
 
   return result
