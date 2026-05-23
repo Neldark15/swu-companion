@@ -16,12 +16,25 @@ import {
   SearchX,
 } from 'lucide-react'
 import { supabase, isSupabaseReady } from '../../services/supabase'
+import { getEventByCode, getEventRegistrations, type EventRegistration } from '../../services/events'
+import { useAuth } from '../../hooks/useAuth'
 
 interface LobbyPlayer {
   id: string
   name: string
   joinedAt: number
   ready: boolean
+  isSelf?: boolean
+}
+
+function registrationsToPlayers(regs: EventRegistration[], selfUserId: string | null): LobbyPlayer[] {
+  return regs.map(r => ({
+    id: r.user_id,
+    name: r.user_id === selfUserId ? 'Tú' : (r.player_name || 'Jugador'),
+    joinedAt: new Date(r.registered_at).getTime(),
+    ready: r.status === 'checked_in',
+    isSelf: r.user_id === selfUserId,
+  }))
 }
 
 interface Announcement {
@@ -42,6 +55,8 @@ interface EventData {
 export function EventLobbyPage() {
   const navigate = useNavigate()
   const { code } = useParams<{ code: string }>()
+  const auth = useAuth()
+  const selfUserId = auth.supabaseUser?.id ?? null
 
   const [event, setEvent] = useState<EventData | null>(null)
   const [players, setPlayers] = useState<LobbyPlayer[]>([])
@@ -51,41 +66,44 @@ export function EventLobbyPage() {
   const [activeTab, setActiveTab] = useState<'players' | 'announcements'>('players')
   const [loading, setLoading] = useState(true)
 
-  // Fetch event data from Supabase
+  // Fetch event + initial registrations, then subscribe to realtime player changes
   useEffect(() => {
     if (!code || !isSupabaseReady()) {
       setLoading(false)
       return
     }
 
-    const fetchEvent = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('tournaments')
-          .select('*')
-          .eq('code', code)
-          .single()
+    let cancelled = false
+    let channel: ReturnType<typeof supabase.channel> | null = null
 
-        if (error || !data) {
+    const refreshPlayers = async (id: string) => {
+      const regs = await getEventRegistrations(id)
+      if (cancelled) return
+      setPlayers(registrationsToPlayers(regs, selfUserId))
+    }
+
+    const init = async () => {
+      try {
+        const officialEvent = await getEventByCode(code)
+        if (cancelled) return
+
+        if (!officialEvent) {
           setLoading(false)
           return
         }
 
         setEvent({
-          name: data.name,
-          format: data.format,
-          organizer: data.organizer_name,
-          maxPlayers: data.max_players,
-          status: data.status || 'waiting',
+          name: officialEvent.name,
+          format: officialEvent.format,
+          organizer: officialEvent.organizer_name || 'Organizador',
+          maxPlayers: officialEvent.max_players,
+          status: (officialEvent.status === 'finished' || officialEvent.status === 'cancelled')
+            ? 'active'
+            : (officialEvent.status === 'active' ? 'active' : 'waiting'),
         })
+        await refreshPlayers(officialEvent.id)
 
-        // Add self as player
-        setPlayers([{
-          id: 'self',
-          name: 'Tú',
-          joinedAt: Date.now(),
-          ready: false,
-        }])
+        if (cancelled) return
 
         setAnnouncements([{
           id: 'a0',
@@ -93,22 +111,35 @@ export function EventLobbyPage() {
           timestamp: Date.now(),
           priority: 'info',
         }])
+
+        // Subscribe to live player join/leave/status changes
+        channel = supabase
+          .channel(`event-lobby-${officialEvent.id}`)
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'event_registrations', filter: `event_id=eq.${officialEvent.id}` },
+            () => { refreshPlayers(officialEvent.id) }
+          )
+          .subscribe()
       } catch {
-        // Error fetching
+        // Silently ignore — UI shows "Evento no encontrado" if event is null
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
 
-    fetchEvent()
+    init()
 
-    // TODO: Subscribe to realtime changes for players joining/leaving
-  }, [code])
+    return () => {
+      cancelled = true
+      if (channel) supabase.removeChannel(channel)
+    }
+  }, [code, selfUserId])
 
-  // Update self ready status
+  // Reflect local "ready" toggle on the rendered self row (purely cosmetic until check-in API exists)
   useEffect(() => {
     setPlayers(prev => prev.map(p =>
-      p.id === 'self' ? { ...p, ready: isReady } : p
+      p.isSelf ? { ...p, ready: isReady } : p
     ))
   }, [isReady])
 
