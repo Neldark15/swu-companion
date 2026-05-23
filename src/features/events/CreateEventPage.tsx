@@ -318,7 +318,7 @@ export function CreateEventPage() {
       </div>
 
       {/* Max Players */}
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <label className="text-xs font-bold text-swu-muted uppercase tracking-wider flex items-center gap-1">
           <Users size={12} /> Máximo de Jugadores
         </label>
@@ -336,6 +336,23 @@ export function CreateEventPage() {
               {n}
             </button>
           ))}
+        </div>
+        <div className="flex items-center gap-2 pt-1">
+          <label className="text-[10px] text-swu-muted uppercase tracking-wider">O exacto:</label>
+          <input
+            type="number"
+            min={2}
+            max={256}
+            value={maxPlayers}
+            onChange={(e) => {
+              const v = parseInt(e.target.value, 10)
+              if (Number.isFinite(v)) setMaxPlayers(Math.max(2, Math.min(256, v)))
+            }}
+            className="w-20 px-2 py-1.5 bg-swu-surface border border-swu-border rounded-lg text-sm text-swu-text font-mono text-center"
+          />
+          {maxPlayers % 2 !== 0 && (
+            <span className="text-[10px] text-swu-amber">⚠ Impar: 1 BYE por ronda</span>
+          )}
         </div>
       </div>
 

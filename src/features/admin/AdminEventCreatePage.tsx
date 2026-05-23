@@ -274,20 +274,58 @@ export function AdminEventCreatePage() {
 
       {/* Max players */}
       <Section title="Cupo de jugadores" icon={Users}>
-        <div className="flex flex-wrap gap-1.5">
-          {PLAYER_LIMITS.map(n => (
-            <button
-              key={n}
-              onClick={() => setMaxPlayers(n)}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold border transition-colors ${
-                maxPlayers === n
-                  ? 'bg-swu-accent/15 border-swu-accent text-swu-accent'
-                  : 'bg-swu-bg border-swu-border text-swu-muted hover:text-swu-text'
-              }`}
-            >
-              {n}
-            </button>
-          ))}
+        <div className="space-y-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-swu-muted mb-1.5">Atajos rápidos</p>
+            <div className="flex flex-wrap gap-1.5">
+              {PLAYER_LIMITS.map(n => (
+                <button
+                  key={n}
+                  onClick={() => setMaxPlayers(n)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold border transition-colors ${
+                    maxPlayers === n
+                      ? 'bg-swu-accent/15 border-swu-accent text-swu-accent'
+                      : 'bg-swu-bg border-swu-border text-swu-muted hover:text-swu-text'
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <label className="text-[10px] uppercase tracking-wider text-swu-muted font-medium">
+                O ingresar número exacto (2–256)
+              </label>
+              <input
+                type="number"
+                min={2}
+                max={256}
+                value={maxPlayers}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10)
+                  if (Number.isFinite(v)) setMaxPlayers(Math.max(2, Math.min(256, v)))
+                }}
+                className="w-full mt-1 px-3 py-2 bg-swu-bg border border-swu-border rounded-lg text-sm text-swu-text font-mono"
+              />
+            </div>
+            <div className="text-right pb-1">
+              <p className="text-3xl font-extrabold font-mono text-swu-accent leading-none">{maxPlayers}</p>
+              <p className="text-[9px] text-swu-muted uppercase tracking-wider mt-0.5">jugadores</p>
+            </div>
+          </div>
+
+          {maxPlayers % 2 !== 0 && (
+            <div className="bg-swu-amber/10 border border-swu-amber/30 rounded-lg p-2 text-[11px] text-swu-amber flex items-start gap-2">
+              <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" />
+              <span>
+                Número impar: en formato Suizo, cada ronda un jugador recibirá BYE automático
+                (gana 2-0 esa ronda). Es completamente válido y soportado.
+              </span>
+            </div>
+          )}
         </div>
       </Section>
 
