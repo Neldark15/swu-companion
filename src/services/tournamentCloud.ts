@@ -476,6 +476,53 @@ async function broadcast(
   } catch {
     // best-effort, swallow
   }
+
+  // Fire-and-forget Web Push (server-side will reject if caller isn't admin
+  // — that's intentional: only admin-driven events broadcast to all
+  // participants via push. Player-driven events rely on in-app realtime toasts).
+  if (type === 'pairing_set' || type === 'round_complete' || type === 'tournament_finished') {
+    void firePushForBroadcast(eventId, eventName, eventCode, type, message, payload)
+  }
+}
+
+async function firePushForBroadcast(
+  eventId: string,
+  eventName: string | null,
+  eventCode: string | null,
+  type: BroadcastType,
+  message: string,
+  payload: Record<string, unknown>
+): Promise<void> {
+  try {
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token
+    if (!token) return
+
+    // Round-complete / tournament-finished → push to all participants of the event
+    // (the server resolves participants via eventId)
+    const targets: { userIds?: string[]; eventId?: string; allSubscribers?: boolean } = {
+      eventId,
+    }
+
+    await fetch('/api/send-push', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        title: eventName || 'HOLOCRON SWU',
+        body: message,
+        link: eventCode ? `/events/play/${eventCode}` : '/',
+        tag: `tournament-${eventId}`,
+        type,
+        targets,
+        meta: payload,
+      }),
+    })
+  } catch {
+    // silent — push is best-effort
+  }
 }
 
 async function getEventNameAndCode(eventId: string): Promise<{ name: string | null; code: string | null }> {

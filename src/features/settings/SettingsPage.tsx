@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useSettings, ACCENT_COLORS, ACCENT_LABELS, SABER_COLORS } from '../../hooks/useSettings'
 import type { AccentColor, SaberColor } from '../../hooks/useSettings'
 import { useAuth } from '../../hooks/useAuth'
+import { PushNotificationToggle } from './components/PushNotificationToggle'
 
 export function SettingsPage() {
   const navigate = useNavigate()
@@ -40,6 +41,12 @@ export function SettingsPage() {
       </button>
 
       <h2 className="text-lg font-bold text-swu-text">Configuración</h2>
+
+      {/* Notifications */}
+      <div>
+        <p className="text-[10px] text-swu-muted uppercase tracking-wider font-bold mb-2 px-1">Notificaciones</p>
+        <PushNotificationToggle />
+      </div>
 
       {/* Appearance */}
       <div>
