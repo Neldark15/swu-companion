@@ -368,3 +368,184 @@ export async function getMyPublicStatus(userId: string): Promise<{ isPublic: boo
     return { isPublic: true, bio: null }
   }
 }
+
+// ─── Marketplace / Mercancía ─────────────────────────────────
+//
+// Cualquier carta de la collection puede marcarse en venta (for_sale=true)
+// con un precio y notas opcionales. La RLS existente (collection_public_read)
+// ya expone collection a quien sea, así que las listings son visibles para
+// todos sin políticas extra.
+
+export interface MarketplaceListing {
+  userId: string
+  cardId: string
+  quantity: number
+  price: number | null
+  notes: string | null
+  listedAt: string
+  // Joined seller info
+  sellerName: string
+  sellerAvatar: string
+}
+
+export interface MyListingSummary {
+  cardId: string
+  quantity: number
+  price: number | null
+  notes: string | null
+  listedAt: string
+}
+
+/**
+ * Marca una carta de la colección como "en venta" con precio + notas opcionales.
+ * Requiere que la carta ya esté en la colección con quantity > 0.
+ */
+export async function markCardForSale(
+  cardId: string,
+  userId: string,
+  opts: { price?: number | null; notes?: string | null } = {}
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión al servidor' }
+
+  // Verify the card is owned with qty > 0
+  const { data: existing } = await supabase
+    .from('collection')
+    .select('quantity')
+    .eq('user_id', userId)
+    .eq('card_id', cardId)
+    .single()
+
+  if (!existing || !existing.quantity || existing.quantity <= 0) {
+    return { ok: false, error: 'No tienes esta carta en tu colección' }
+  }
+
+  const { error } = await supabase
+    .from('collection')
+    .update({
+      for_sale: true,
+      sale_price: opts.price ?? null,
+      sale_notes: opts.notes?.trim() || null,
+      listed_at: new Date().toISOString(),
+    })
+    .eq('user_id', userId)
+    .eq('card_id', cardId)
+
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
+}
+
+export async function unmarkCardForSale(
+  cardId: string,
+  userId: string
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión al servidor' }
+
+  const { error } = await supabase
+    .from('collection')
+    .update({
+      for_sale: false,
+      sale_price: null,
+      sale_notes: null,
+      listed_at: null,
+    })
+    .eq('user_id', userId)
+    .eq('card_id', cardId)
+
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
+}
+
+/**
+ * Returns my listings (cards I have for sale).
+ */
+export async function getMyListings(userId: string): Promise<MyListingSummary[]> {
+  if (!isSupabaseReady()) return []
+  const { data } = await supabase
+    .from('collection')
+    .select('card_id, quantity, sale_price, sale_notes, listed_at')
+    .eq('user_id', userId)
+    .eq('for_sale', true)
+    .order('listed_at', { ascending: false })
+  if (!data) return []
+  return data.map(r => ({
+    cardId: r.card_id,
+    quantity: r.quantity ?? 0,
+    price: r.sale_price !== null ? Number(r.sale_price) : null,
+    notes: r.sale_notes,
+    listedAt: r.listed_at,
+  }))
+}
+
+/**
+ * Global marketplace: cards on sale across all users.
+ * RLS gates by seller's profile being public (existing collection_public_read).
+ */
+export async function getMarketplaceListings(opts?: { limit?: number; cardId?: string }): Promise<MarketplaceListing[]> {
+  if (!isSupabaseReady()) return []
+  const limit = opts?.limit ?? 100
+
+  let query = supabase
+    .from('collection')
+    .select('user_id, card_id, quantity, sale_price, sale_notes, listed_at')
+    .eq('for_sale', true)
+    .order('listed_at', { ascending: false })
+    .limit(limit)
+
+  if (opts?.cardId) query = query.eq('card_id', opts.cardId)
+
+  const { data: rows } = await query
+  if (!rows || rows.length === 0) return []
+
+  // Hydrate sellers in one batch
+  const userIds = Array.from(new Set(rows.map(r => r.user_id)))
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, name, avatar')
+    .in('id', userIds)
+  const sellerMap = new Map((profiles || []).map(p => [p.id, p]))
+
+  return rows.map(r => {
+    const seller = sellerMap.get(r.user_id)
+    return {
+      userId: r.user_id,
+      cardId: r.card_id,
+      quantity: r.quantity ?? 0,
+      price: r.sale_price !== null ? Number(r.sale_price) : null,
+      notes: r.sale_notes,
+      listedAt: r.listed_at,
+      sellerName: seller?.name ?? 'Vendedor',
+      sellerAvatar: seller?.avatar ?? '👤',
+    } as MarketplaceListing
+  })
+}
+
+/**
+ * Listings of a specific user (visible on their public profile).
+ */
+export async function getUserListings(userId: string): Promise<MarketplaceListing[]> {
+  if (!isSupabaseReady()) return []
+  const { data: rows } = await supabase
+    .from('collection')
+    .select('user_id, card_id, quantity, sale_price, sale_notes, listed_at')
+    .eq('user_id', userId)
+    .eq('for_sale', true)
+    .order('listed_at', { ascending: false })
+  if (!rows || rows.length === 0) return []
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('name, avatar')
+    .eq('id', userId)
+    .single()
+
+  return rows.map(r => ({
+    userId: r.user_id,
+    cardId: r.card_id,
+    quantity: r.quantity ?? 0,
+    price: r.sale_price !== null ? Number(r.sale_price) : null,
+    notes: r.sale_notes,
+    listedAt: r.listed_at,
+    sellerName: profile?.name ?? 'Vendedor',
+    sellerAvatar: profile?.avatar ?? '👤',
+  }))
+}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Search, SlidersHorizontal, Eye, EyeOff,
   Package, DollarSign, Layers, TrendingUp, RefreshCw, Upload, Download, X, FileUp, Trash2, AlertTriangle,
+  Tag, ShoppingBag, Loader2,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { getCardsByIds, loadFullDatabase, getLocalCardCount } from '../../services/swuApi'
@@ -12,7 +13,11 @@ import {
   calculateCollectionStats,
   toggleProfilePublic,
   getMyPublicStatus,
+  getMyListings,
+  markCardForSale,
+  unmarkCardForSale,
   type CollectionCardWithPrice,
+  type MyListingSummary,
 } from '../../services/collectionService'
 import { formatPrice, fetchTCGPrices } from '../../services/pricing'
 import { importCollectionFromFile, type ImportResult } from '../../services/collectionImport'
@@ -65,6 +70,12 @@ export function CollectionPage() {
   const [exporting, setExporting] = useState(false)
   const [exportStatus, setExportStatus] = useState('')
 
+  // Marketplace state — which of my cards are listed for sale
+  const [listings, setListings] = useState<Map<string, MyListingSummary>>(new Map())
+  const [saleFilter, setSaleFilter] = useState<'all' | 'for_sale' | 'not_for_sale'>('all')
+  const [saleModal, setSaleModal] = useState<{ cardId: string; current: MyListingSummary | null } | null>(null)
+  const [saleSubmitting, setSaleSubmitting] = useState(false)
+
   // Load collection
   useEffect(() => {
     let cancelled = false
@@ -115,6 +126,32 @@ export function CollectionPage() {
     if (!supabaseUser) return
     getMyPublicStatus(supabaseUser.id).then(s => setIsPublic(s.isPublic))
   }, [supabaseUser])
+
+  // Load my marketplace listings
+  const refreshListings = useCallback(async () => {
+    if (!supabaseUser) { setListings(new Map()); return }
+    const list = await getMyListings(supabaseUser.id)
+    setListings(new Map(list.map(l => [l.cardId, l])))
+  }, [supabaseUser])
+
+  useEffect(() => { refreshListings() }, [refreshListings])
+
+  const handleSaveSale = async (cardId: string, price: number | null, notes: string) => {
+    if (!supabaseUser) return
+    setSaleSubmitting(true)
+    const r = await markCardForSale(cardId, supabaseUser.id, { price, notes })
+    setSaleSubmitting(false)
+    if (!r.ok) { alert(`Error: ${r.error}`); return }
+    setSaleModal(null)
+    await refreshListings()
+  }
+
+  const handleUnlist = async (cardId: string) => {
+    if (!supabaseUser) return
+    if (!confirm('¿Quitar esta carta del mercado?')) return
+    await unmarkCardForSale(cardId, supabaseUser.id)
+    await refreshListings()
+  }
 
   // Stats
   const stats = useMemo(() => calculateCollectionStats(items), [items])
@@ -176,6 +213,13 @@ export function CollectionPage() {
         const card = cards.get(item.cardId)
         return card?.rarity === filterRarity
       })
+    }
+
+    // Filter by sale status
+    if (saleFilter === 'for_sale') {
+      list = list.filter(item => listings.has(item.cardId))
+    } else if (saleFilter === 'not_for_sale') {
+      list = list.filter(item => !listings.has(item.cardId))
     }
 
     // Sort
@@ -819,6 +863,26 @@ export function CollectionPage() {
           </div>
         )}
 
+        {/* Sale filter chips */}
+        {!loading && items.length > 0 && (
+          <div className="flex gap-1.5 items-center px-1">
+            <ShoppingBag size={12} className="text-swu-muted" />
+            {(['all', 'for_sale', 'not_for_sale'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setSaleFilter(f)}
+                className={`text-[11px] px-2.5 py-1 rounded-md transition-colors ${
+                  saleFilter === f
+                    ? 'bg-swu-amber/15 text-swu-amber border border-swu-amber/30'
+                    : 'text-swu-muted hover:text-swu-text'
+                }`}
+              >
+                {f === 'all' ? 'Todas' : f === 'for_sale' ? `En venta (${listings.size})` : 'No en venta'}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Card list */}
         {!loading && displayed.length > 0 && (
           <div>
@@ -828,10 +892,14 @@ export function CollectionPage() {
             <div className="space-y-1.5 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0">
             {displayed.map(item => {
               const card = cards.get(item.cardId)
+              const listing = listings.get(item.cardId)
+              const isListed = !!listing
               return (
                 <div
                   key={item.cardId}
-                  className="bg-swu-surface rounded-xl p-3 border border-swu-border flex items-center gap-3"
+                  className={`bg-swu-surface rounded-xl p-3 border flex items-center gap-3 ${
+                    isListed ? 'border-swu-amber/50' : 'border-swu-border'
+                  }`}
                 >
                   {/* Card image */}
                   <button
@@ -849,7 +917,7 @@ export function CollectionPage() {
                     <div className="text-sm font-medium text-swu-text truncate">
                       {card?.name ?? item.cardId}
                     </div>
-                    <div className="flex items-center gap-2 mt-0.5">
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       {card?.rarity && (
                         <span className={`text-[10px] font-medium ${rarityColor(card.rarity)}`}>
                           {card.rarity}
@@ -857,6 +925,11 @@ export function CollectionPage() {
                       )}
                       {card?.setCode && (
                         <span className="text-[10px] text-swu-muted">{card.setCode}</span>
+                      )}
+                      {isListed && (
+                        <span className="text-[9px] font-bold bg-swu-amber/15 text-swu-amber px-1.5 py-0.5 rounded inline-flex items-center gap-0.5">
+                          <Tag size={8} /> EN VENTA{listing?.price != null && ` · $${listing.price.toFixed(2)}`}
+                        </span>
                       )}
                     </div>
                     <div className={`text-xs mt-0.5 ${item.price?.market ? 'text-swu-green' : 'text-swu-muted/50'}`}>
@@ -867,33 +940,66 @@ export function CollectionPage() {
                         </span>
                       )}
                     </div>
+                    {isListed && listing?.notes && (
+                      <p className="text-[10px] text-swu-muted/80 italic mt-0.5 truncate">"{listing.notes}"</p>
+                    )}
                   </button>
 
-                  {/* Quantity controls */}
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {/* Right side: sale button + qty controls */}
+                  <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                    {/* Sale toggle */}
                     <button
-                      onClick={() => handleQuantityChange(item.cardId, -1)}
-                      className="w-7 h-7 rounded-lg bg-swu-bg text-swu-muted flex items-center justify-center
-                                 text-sm font-bold active:scale-95"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (isListed) handleUnlist(item.cardId)
+                        else setSaleModal({ cardId: item.cardId, current: null })
+                      }}
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                        isListed
+                          ? 'bg-swu-amber/20 text-swu-amber'
+                          : 'bg-swu-bg text-swu-muted hover:text-swu-amber'
+                      }`}
+                      title={isListed ? 'Quitar del mercado' : 'Vender esta carta'}
                     >
-                      −
+                      <Tag size={12} />
                     </button>
-                    <span className="w-8 text-center text-sm font-bold text-swu-text">
-                      {item.quantity}
-                    </span>
-                    <button
-                      onClick={() => handleQuantityChange(item.cardId, 1)}
-                      className="w-7 h-7 rounded-lg bg-swu-accent/15 text-swu-accent flex items-center justify-center
-                                 text-sm font-bold active:scale-95"
-                    >
-                      +
-                    </button>
+                    {/* Quantity controls */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleQuantityChange(item.cardId, -1)}
+                        className="w-6 h-6 rounded bg-swu-bg text-swu-muted flex items-center justify-center
+                                   text-xs font-bold active:scale-95"
+                      >
+                        −
+                      </button>
+                      <span className="w-6 text-center text-xs font-bold text-swu-text">
+                        {item.quantity}
+                      </span>
+                      <button
+                        onClick={() => handleQuantityChange(item.cardId, 1)}
+                        className="w-6 h-6 rounded bg-swu-accent/15 text-swu-accent flex items-center justify-center
+                                   text-xs font-bold active:scale-95"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
                 </div>
               )
             })}
             </div>
           </div>
+        )}
+
+        {/* Sale modal */}
+        {saleModal && (
+          <SaleModal
+            cardName={cards.get(saleModal.cardId)?.name ?? saleModal.cardId}
+            current={saleModal.current}
+            submitting={saleSubmitting}
+            onCancel={() => setSaleModal(null)}
+            onSave={(price, notes) => handleSaveSale(saleModal.cardId, price, notes)}
+          />
         )}
 
         {/* No results */}
@@ -959,6 +1065,96 @@ export function CollectionPage() {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Sale Modal ───────────────────────────────────────────
+
+function SaleModal({
+  cardName, current, submitting, onCancel, onSave,
+}: {
+  cardName: string
+  current: MyListingSummary | null
+  submitting: boolean
+  onCancel: () => void
+  onSave: (price: number | null, notes: string) => void
+}) {
+  const [priceStr, setPriceStr] = useState(current?.price != null ? String(current.price) : '')
+  const [notes, setNotes] = useState(current?.notes ?? '')
+
+  const submit = () => {
+    const p = priceStr.trim() ? Number(priceStr) : null
+    if (p !== null && (Number.isNaN(p) || p < 0)) {
+      alert('Precio inválido')
+      return
+    }
+    onSave(p, notes)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+      <div className="bg-swu-surface rounded-2xl border border-swu-amber/40 p-5 max-w-sm w-full space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-swu-amber/15 flex items-center justify-center flex-shrink-0">
+            <Tag size={20} className="text-swu-amber" />
+          </div>
+          <div>
+            <div className="text-sm font-bold text-swu-text">Poner en venta</div>
+            <div className="text-xs text-swu-muted mt-0.5 truncate">{cardName}</div>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-swu-muted font-medium flex items-center gap-1 mb-1">
+              <DollarSign size={10} /> Precio en USD (opcional)
+            </label>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={priceStr}
+              onChange={(e) => setPriceStr(e.target.value)}
+              placeholder="ej. 12.50 — dejar vacío si es a convenir"
+              className="w-full px-3 py-2 bg-swu-bg border border-swu-border rounded-lg text-sm text-swu-text font-mono"
+            />
+          </div>
+
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-swu-muted font-medium block mb-1">
+              Notas (opcional)
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              maxLength={200}
+              rows={2}
+              placeholder="Condición, idioma, foiled, contacto..."
+              className="w-full px-3 py-2 bg-swu-bg border border-swu-border rounded-lg text-sm text-swu-text resize-none"
+            />
+            <p className="text-[10px] text-swu-muted/60 mt-0.5">{notes.length}/200</p>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={onCancel}
+            disabled={submitting}
+            className="flex-1 py-2.5 rounded-xl bg-swu-bg border border-swu-border text-swu-muted text-sm font-medium active:scale-[0.98]"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={submit}
+            disabled={submitting}
+            className="flex-1 py-2.5 rounded-xl bg-swu-amber text-black text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50"
+          >
+            {submitting ? <Loader2 size={14} className="animate-spin" /> : <Tag size={14} />}
+            {submitting ? 'Guardando...' : 'Publicar venta'}
+          </button>
+        </div>
       </div>
     </div>
   )
