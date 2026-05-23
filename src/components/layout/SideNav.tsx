@@ -1,11 +1,12 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Hexagon, Swords } from 'lucide-react'
+import { Hexagon, Swords, ShieldCheck } from 'lucide-react'
 import {
   DatapadIcon, MedalIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
   DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
   ChanceCubeIcon, RebelIcon, StarfighterIcon,
 } from '../SWIcons'
 import { NotificationBell } from '../ui/NotificationBell'
+import { useAuth } from '../../hooks/useAuth'
 import type { ComponentType } from 'react'
 
 type IconComp = ComponentType<{ size?: number; className?: string; strokeWidth?: number }>
@@ -39,6 +40,7 @@ const secondaryNav: NavItem[] = [
 export function SideNav() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { isAdmin } = useAuth()
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/'
@@ -106,6 +108,32 @@ export function SideNav() {
           <span className="text-[9px] text-swu-muted/60 font-mono tracking-[0.25em] uppercase">Sistemas</span>
         </div>
         {secondaryNav.map(renderItem)}
+
+        {isAdmin && (
+          <>
+            <div className="px-3 mt-5 mb-2">
+              <span className="text-[9px] text-swu-amber/70 font-mono tracking-[0.25em] uppercase">Cuartel General</span>
+            </div>
+            <button
+              onClick={() => navigate('/admin')}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 group ${
+                location.pathname.startsWith('/admin')
+                  ? 'bg-swu-amber/15 text-swu-amber border border-swu-amber/30'
+                  : 'text-swu-muted hover:bg-swu-surface-hover hover:text-swu-text border border-transparent'
+              }`}
+            >
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                location.pathname.startsWith('/admin') ? 'bg-swu-amber/20' : 'bg-swu-surface group-hover:bg-swu-surface-hover'
+              }`}>
+                <ShieldCheck size={18} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className={`text-sm font-semibold truncate ${location.pathname.startsWith('/admin') ? 'text-swu-amber' : ''}`}>Admin</div>
+                <div className="text-[10px] text-swu-muted font-mono tracking-wider truncate">Panel de control</div>
+              </div>
+            </button>
+          </>
+        )}
       </nav>
 
       {/* Footer */}

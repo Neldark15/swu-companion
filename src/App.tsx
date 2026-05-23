@@ -44,6 +44,16 @@ const SpyProfilePage = lazy(() => import('./features/espionaje/SpyProfilePage').
 const MissionsPage = lazy(() => import('./features/missions/MissionsPage'))
 const GalaxyPage = lazy(() => import('./features/galaxy/GalaxyPage').then(m => ({ default: m.GalaxyPage })))
 
+// Admin panel — separate layout, isAdmin guard inside AdminLayout
+const AdminLayout = lazy(() => import('./features/admin/AdminLayout').then(m => ({ default: m.AdminLayout })))
+const AdminDashboard = lazy(() => import('./features/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })))
+const AdminUsersPage = lazy(() => import('./features/admin/AdminUsersPage').then(m => ({ default: m.AdminUsersPage })))
+const AdminNewsPage = lazy(() => import('./features/admin/AdminNewsPage').then(m => ({ default: m.AdminNewsPage })))
+const AdminEventsPage = lazy(() => import('./features/admin/AdminEventsPage').then(m => ({ default: m.AdminEventsPage })))
+const AdminCardsPage = lazy(() => import('./features/admin/AdminCardsPage').then(m => ({ default: m.AdminCardsPage })))
+const AdminPushPage = lazy(() => import('./features/admin/AdminPushPage').then(m => ({ default: m.AdminPushPage })))
+const AdminAuditPage = lazy(() => import('./features/admin/AdminAuditPage').then(m => ({ default: m.AdminAuditPage })))
+
 function PageLoader() {
   return <HolocronLoader />
 }
@@ -58,6 +68,17 @@ export default function App() {
     <BrowserRouter>
       <Suspense fallback={<PageLoader />}>
         <Routes>
+          {/* ── Admin panel — own layout, isAdmin guard inside ── */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="users" element={<AdminUsersPage />} />
+            <Route path="news" element={<AdminNewsPage />} />
+            <Route path="events" element={<AdminEventsPage />} />
+            <Route path="cards" element={<AdminCardsPage />} />
+            <Route path="push" element={<AdminPushPage />} />
+            <Route path="audit" element={<AdminAuditPage />} />
+          </Route>
+
           <Route element={<AppLayout />}>
             {/* ── Public routes ── */}
             <Route path="/" element={<HomePage />} />
