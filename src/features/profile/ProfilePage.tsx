@@ -936,6 +936,25 @@ export function ProfilePage() {
         {playerStats && <LightsaberXpBar xp={playerStats.xp} />}
       </div>
 
+      {/* Country nudge — only if not set; unlocks Comunidades feed */}
+      {!currentProfile?.country && (
+        <button
+          onClick={() => setView('customize')}
+          className="w-full flex items-center gap-3 bg-gradient-to-r from-swu-accent/10 to-swu-accent/5 rounded-2xl p-3 border border-swu-accent/30 active:scale-[0.99] transition-transform text-left"
+        >
+          <div className="w-9 h-9 rounded-lg bg-swu-accent/15 flex items-center justify-center flex-shrink-0">
+            <Globe size={18} className="text-swu-accent" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-swu-text">Configura tu región</p>
+            <p className="text-[11px] text-swu-muted">
+              Únete a la comunidad de tu país y aparece en rankings regionales
+            </p>
+          </div>
+          <ChevronRight size={16} className="text-swu-accent flex-shrink-0" />
+        </button>
+      )}
+
       {/* Quick Stats Row */}
       <div className="grid grid-cols-4 gap-1.5">
         {[
