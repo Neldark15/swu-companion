@@ -15,6 +15,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.99.2",
     "@tailwindcss/vite": "^4.2.1",
+    "@zxing/browser": "^0.2.0",
     "dexie": "^4.3.0",
     "dexie-react-hooks": "^4.2.0",
     "framer-motion": "^12.34.3",

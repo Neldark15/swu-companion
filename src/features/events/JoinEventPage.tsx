@@ -12,12 +12,32 @@ import {
   ArrowRight,
   SearchX,
 } from 'lucide-react'
+import { BrowserQRCodeReader, type IScannerControls } from '@zxing/browser'
 import { isSupabaseReady } from '../../services/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { getEventByCode, joinOfficialEvent } from '../../services/events'
 
 type JoinState = 'idle' | 'validating' | 'found' | 'not_found' | 'joining' | 'joined'
 type ScanState = 'idle' | 'requesting' | 'scanning' | 'found' | 'error'
+
+/** Parse QR content into an event code. Accepts raw codes, URLs with ?code=, or embedded SWUxxxx. */
+function extractEventCode(qrText: string): string | null {
+  try {
+    const url = new URL(qrText)
+    const fromQuery = url.searchParams.get('code')
+    if (fromQuery) {
+      const cleaned = fromQuery.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
+      if (cleaned.length >= 4) return cleaned
+    }
+  } catch {
+    // not a URL — fall through
+  }
+  const match = qrText.match(/SWU[A-Z0-9]{4,5}/i)
+  if (match) return match[0].toUpperCase()
+  const cleaned = qrText.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
+  if (cleaned.length >= 4) return cleaned
+  return null
+}
 
 interface FoundEvent {
   id: string
@@ -36,9 +56,19 @@ export function JoinEventPage() {
   const [scanState, setScanState] = useState<ScanState>('idle')
   const [foundEvent, setFoundEvent] = useState<FoundEvent | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const controlsRef = useRef<IScannerControls | null>(null)
 
   useEffect(() => {
     inputRef.current?.focus()
+  }, [])
+
+  // Stop any active scanner on unmount
+  useEffect(() => {
+    return () => {
+      controlsRef.current?.stop()
+      controlsRef.current = null
+    }
   }, [])
 
   const handleCodeChange = (value: string) => {
@@ -48,8 +78,9 @@ export function JoinEventPage() {
     setFoundEvent(null)
   }
 
-  const validateCode = async () => {
-    if (code.length < 4) return
+  const validateCode = async (overrideCode?: string) => {
+    const codeToCheck = overrideCode ?? code
+    if (codeToCheck.length < 4) return
     setJoinState('validating')
 
     if (!isSupabaseReady()) {
@@ -58,7 +89,7 @@ export function JoinEventPage() {
     }
 
     try {
-      const event = await getEventByCode(code)
+      const event = await getEventByCode(codeToCheck)
 
       if (!event) {
         setJoinState('not_found')
@@ -107,16 +138,46 @@ export function JoinEventPage() {
     setScanState('requesting')
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-      stream.getTracks().forEach(t => t.stop())
+      // Probe permission with a short-lived stream; the actual feed is started by the reader below
+      const probe = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      probe.getTracks().forEach(t => t.stop())
       setScanState('scanning')
-      // TODO: Implement real QR scanning with a library like @zxing/browser
+
+      // Wait one frame so the <video> ref exists, then start the decoder
+      requestAnimationFrame(async () => {
+        if (!videoRef.current) {
+          setScanState('error')
+          return
+        }
+        const reader = new BrowserQRCodeReader()
+        try {
+          const controls = await reader.decodeFromVideoDevice(
+            undefined,
+            videoRef.current,
+            (result) => {
+              if (!result) return
+              const extracted = extractEventCode(result.getText())
+              if (!extracted) return
+              controlsRef.current?.stop()
+              controlsRef.current = null
+              setCode(extracted)
+              setScanState('found')
+              validateCode(extracted)
+            }
+          )
+          controlsRef.current = controls
+        } catch {
+          setScanState('error')
+        }
+      })
     } catch {
       setScanState('error')
     }
   }
 
   const cancelScan = () => {
+    controlsRef.current?.stop()
+    controlsRef.current = null
     setScanState('idle')
   }
 
@@ -226,7 +287,7 @@ export function JoinEventPage() {
           </button>
         ) : (
           <button
-            onClick={validateCode}
+            onClick={() => validateCode()}
             disabled={!codeValid || joinState === 'validating'}
             className={`w-full py-3.5 rounded-xl font-bold text-base transition-all flex items-center justify-center gap-2 ${
               codeValid
@@ -273,7 +334,14 @@ export function JoinEventPage() {
       ) : scanState === 'scanning' ? (
         <div className="bg-swu-bg rounded-2xl border border-swu-accent overflow-hidden">
           <div className="relative aspect-square max-h-64 bg-black/90 flex items-center justify-center">
-            <div className="w-48 h-48 relative">
+            <video
+              ref={videoRef}
+              className="absolute inset-0 w-full h-full object-cover"
+              autoPlay
+              playsInline
+              muted
+            />
+            <div className="w-48 h-48 relative z-10">
               <div className="absolute top-0 left-0 w-8 h-8 border-l-2 border-t-2 border-swu-accent" />
               <div className="absolute top-0 right-0 w-8 h-8 border-r-2 border-t-2 border-swu-accent" />
               <div className="absolute bottom-0 left-0 w-8 h-8 border-l-2 border-b-2 border-swu-accent" />
@@ -282,7 +350,7 @@ export function JoinEventPage() {
                    style={{ top: '50%', boxShadow: '0 0 12px rgba(59, 130, 246, 0.5)' }}
               />
             </div>
-            <Camera size={24} className="absolute top-3 right-3 text-white/30" />
+            <Camera size={24} className="absolute top-3 right-3 text-white/30 z-10" />
           </div>
 
           <div className="p-4 flex items-center justify-between">
