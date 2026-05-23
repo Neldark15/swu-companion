@@ -55,6 +55,7 @@ const AdminEventCreatePage = lazy(() => import('./features/admin/AdminEventCreat
 const AdminCardsPage = lazy(() => import('./features/admin/AdminCardsPage').then(m => ({ default: m.AdminCardsPage })))
 const AdminPushPage = lazy(() => import('./features/admin/AdminPushPage').then(m => ({ default: m.AdminPushPage })))
 const AdminAuditPage = lazy(() => import('./features/admin/AdminAuditPage').then(m => ({ default: m.AdminAuditPage })))
+const AdminAnnouncementsPage = lazy(() => import('./features/admin/AdminAnnouncementsPage').then(m => ({ default: m.AdminAnnouncementsPage })))
 
 function PageLoader() {
   return <HolocronLoader />
@@ -80,6 +81,7 @@ export default function App() {
             <Route path="cards" element={<AdminCardsPage />} />
             <Route path="push" element={<AdminPushPage />} />
             <Route path="audit" element={<AdminAuditPage />} />
+            <Route path="announcements" element={<AdminAnnouncementsPage />} />
           </Route>
 
           <Route element={<AppLayout />}>

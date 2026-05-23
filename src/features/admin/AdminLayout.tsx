@@ -9,6 +9,7 @@ import {
   ScrollText,
   ArrowLeft,
   ShieldCheck,
+  Megaphone,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEffect } from 'react'
@@ -22,11 +23,12 @@ interface NavItemDef {
 
 const NAV_ITEMS: NavItemDef[] = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/admin/announcements', label: 'Anuncios', icon: Megaphone },
   { to: '/admin/users', label: 'Usuarios', icon: Users },
   { to: '/admin/news', label: 'Noticias', icon: Newspaper },
   { to: '/admin/events', label: 'Eventos', icon: Trophy },
   { to: '/admin/cards', label: 'Cartas DB', icon: Library },
-  { to: '/admin/push', label: 'Notificaciones', icon: Bell },
+  { to: '/admin/push', label: 'Push', icon: Bell },
   { to: '/admin/audit', label: 'Auditoría', icon: ScrollText },
 ]
 

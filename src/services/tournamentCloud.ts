@@ -61,6 +61,7 @@ export type BroadcastType =
   | 'result_disputed'     // Opponent disputed
   | 'round_complete'      // All results in
   | 'tournament_finished' // Final standings
+  | 'announcement'        // Admin-issued generic announcement (merch, news, etc.)
 
 export interface TournamentBroadcast {
   id: string

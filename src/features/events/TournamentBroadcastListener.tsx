@@ -22,6 +22,7 @@ const ICON_BY_TYPE: Record<TournamentBroadcast['type'], string> = {
   result_disputed: '⚠️',
   round_complete: '🏁',
   tournament_finished: '🏆',
+  announcement: '📣',
 }
 
 // Which broadcasts surface as global toasts (the rest are silent for non-participants)
@@ -32,6 +33,7 @@ const GLOBAL_NOTIFY: Record<TournamentBroadcast['type'], boolean> = {
   result_disputed: true,        // worth knowing
   round_complete: true,
   tournament_finished: true,
+  announcement: true,           // admin announcements: always notify everyone with app open
 }
 
 export function TournamentBroadcastListener() {
