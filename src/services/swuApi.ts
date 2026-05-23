@@ -507,16 +507,24 @@ export async function getCardById(id: string): Promise<Card | null> {
     return local
   }
 
-  // 3. Network fallback
+  // 3. Network fallback. The API has historically returned different shapes
+  // for this endpoint — sometimes wrapped as { card: {...} } and sometimes the
+  // card object directly at the root. Handle both.
   try {
     const res = await fetch(`${API_BASE}/cards/${id}?format=json`)
     if (res.ok) {
-      const data = await res.json()
-      if (data.card) {
-        const card = mapApiCard(data.card)
-        _cardMemCache.set(id, card)
-        await db.cards.put(card).catch(() => {})
-        return card
+      const data = await res.json() as ApiCard | { card?: ApiCard }
+      const raw: ApiCard | undefined = 'card' in data && data.card
+        ? (data.card as ApiCard)
+        : (data as ApiCard)
+      // A valid raw response must have at least an id/uuid + name
+      if (raw && (raw.id || raw.uuid) && raw.name) {
+        const card = mapApiCard(raw)
+        if (card.id) {
+          _cardMemCache.set(id, card)
+          await db.cards.put(card).catch(() => {})
+          return card
+        }
       }
     }
   } catch {
