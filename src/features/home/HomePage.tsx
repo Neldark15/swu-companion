@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { User, LogIn, ExternalLink } from 'lucide-react'
+import { User, ExternalLink } from 'lucide-react'
 import {
   DatapadIcon, MedalIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
   DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../../hooks/useAuth'
 import { calculateLevel } from '../../services/gamification'
 import { db } from '../../services/db'
+import { WelcomeHome } from './components/WelcomeHome'
 
 /* Avatar helper: detect image-based avatar vs emoji */
 const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
@@ -158,6 +159,11 @@ export function HomePage() {
     }).catch(() => {})
   }, [currentProfile])
 
+  // ── Logged-out: render the welcome/login/install screen ──
+  if (!currentProfile) {
+    return <WelcomeHome />
+  }
+
   return (
     <div className="min-h-screen bg-swu-bg pb-8">
       {/* ── Cockpit Header with Banner ── */}
@@ -207,42 +213,27 @@ export function HomePage() {
             </div>
           </div>
 
-          {/* Profile / Login Button */}
-          {currentProfile ? (
-            <button
-              onClick={() => navigate('/profile')}
-              className="w-full rounded-xl p-3 flex items-center gap-3 active:scale-[0.98] transition-transform bg-swu-surface/60 backdrop-blur border border-swu-border/60"
-            >
-              <div className="w-11 h-11 rounded-lg bg-swu-accent/15 border border-swu-accent/30 flex items-center justify-center overflow-hidden">
-                {currentProfile.avatar?.startsWith('data:image/')
-                  ? <img src={currentProfile.avatar} alt="" className="w-11 h-11 object-cover rounded-lg" />
-                  : swAvatarIds.includes(currentProfile.avatar)
-                    ? <img src={`/avatars/${currentProfile.avatar}.png`} alt="" className="w-9 h-9 object-contain" />
-                    : <span className="text-xl">{currentProfile.avatar || '🎮'}</span>
-                }
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-sm font-bold text-swu-text">{currentProfile.name}</p>
-                <p className={`text-[10px] font-mono tracking-wider ${rankInfo?.color || 'text-swu-muted'}`}>
-                  {rankInfo?.name?.toUpperCase() || 'PILOTO ACTIVO'}
-                </p>
-              </div>
-              <User size={16} className="text-swu-muted" />
-            </button>
-          ) : (
-            <button
-              onClick={() => navigate('/profile')}
-              className="w-full rounded-xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform bg-gradient-to-r from-swu-accent/15 to-swu-amber/15 border border-swu-accent/30"
-            >
-              <div className="w-11 h-11 rounded-lg bg-swu-accent/20 border border-swu-accent/40 flex items-center justify-center">
-                <LogIn size={20} className="text-swu-accent" />
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-sm font-bold text-swu-accent">Iniciar Sesión</p>
-                <p className="text-[10px] text-swu-muted">Ingrese para sincronizar datos</p>
-              </div>
-            </button>
-          )}
+          {/* Profile card (currentProfile is guaranteed non-null here — see early return above) */}
+          <button
+            onClick={() => navigate('/profile')}
+            className="w-full rounded-xl p-3 flex items-center gap-3 active:scale-[0.98] transition-transform bg-swu-surface/60 backdrop-blur border border-swu-border/60"
+          >
+            <div className="w-11 h-11 rounded-lg bg-swu-accent/15 border border-swu-accent/30 flex items-center justify-center overflow-hidden">
+              {currentProfile.avatar?.startsWith('data:image/')
+                ? <img src={currentProfile.avatar} alt="" className="w-11 h-11 object-cover rounded-lg" />
+                : swAvatarIds.includes(currentProfile.avatar)
+                  ? <img src={`/avatars/${currentProfile.avatar}.png`} alt="" className="w-9 h-9 object-contain" />
+                  : <span className="text-xl">{currentProfile.avatar || '🎮'}</span>
+              }
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-sm font-bold text-swu-text">{currentProfile.name}</p>
+              <p className={`text-[10px] font-mono tracking-wider ${rankInfo?.color || 'text-swu-muted'}`}>
+                {rankInfo?.name?.toUpperCase() || 'PILOTO ACTIVO'}
+              </p>
+            </div>
+            <User size={16} className="text-swu-muted" />
+          </button>
         </div>
       </div>
 
