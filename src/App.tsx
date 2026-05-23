@@ -51,6 +51,7 @@ const AdminDashboard = lazy(() => import('./features/admin/AdminDashboard').then
 const AdminUsersPage = lazy(() => import('./features/admin/AdminUsersPage').then(m => ({ default: m.AdminUsersPage })))
 const AdminNewsPage = lazy(() => import('./features/admin/AdminNewsPage').then(m => ({ default: m.AdminNewsPage })))
 const AdminEventsPage = lazy(() => import('./features/admin/AdminEventsPage').then(m => ({ default: m.AdminEventsPage })))
+const AdminEventCreatePage = lazy(() => import('./features/admin/AdminEventCreatePage').then(m => ({ default: m.AdminEventCreatePage })))
 const AdminCardsPage = lazy(() => import('./features/admin/AdminCardsPage').then(m => ({ default: m.AdminCardsPage })))
 const AdminPushPage = lazy(() => import('./features/admin/AdminPushPage').then(m => ({ default: m.AdminPushPage })))
 const AdminAuditPage = lazy(() => import('./features/admin/AdminAuditPage').then(m => ({ default: m.AdminAuditPage })))
@@ -75,6 +76,7 @@ export default function App() {
             <Route path="users" element={<AdminUsersPage />} />
             <Route path="news" element={<AdminNewsPage />} />
             <Route path="events" element={<AdminEventsPage />} />
+            <Route path="events/new" element={<AdminEventCreatePage />} />
             <Route path="cards" element={<AdminCardsPage />} />
             <Route path="push" element={<AdminPushPage />} />
             <Route path="audit" element={<AdminAuditPage />} />

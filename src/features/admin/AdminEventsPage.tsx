@@ -79,7 +79,7 @@ export function AdminEventsPage() {
           <p className="text-sm text-swu-muted mt-1">{filtered.length} de {events.length} eventos</p>
         </div>
         <Link
-          to="/events/create"
+          to="/admin/events/new"
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-swu-accent text-white text-sm font-semibold hover:bg-swu-accent/90 transition-colors"
         >
           <Plus size={14} /> Nuevo evento
