@@ -1,9 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, SlidersHorizontal, X, Loader2, WifiOff, Plus, Minus } from 'lucide-react'
+import {
+  Search, SlidersHorizontal, X, Loader2, WifiOff, Plus, Minus,
+  Download, RefreshCw, AlertTriangle, Database,
+} from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { CardImage } from '../../components/CardImage'
-import { searchCards, getSets, getLocalCardCount, type SearchParams } from '../../services/swuApi'
+import {
+  searchCards, getSets, getLocalCardCount, loadFullDatabase,
+  subscribeDbLoadProgress, type SearchParams, type DbLoadProgress,
+} from '../../services/swuApi'
 import { getPricesForCards, fetchTCGPrices, formatPrice, type PriceInfo } from '../../services/pricing'
 import { getCardQuantity, updateCollectionQuantity } from '../../services/collectionService'
 import { useAuth } from '../../hooks/useAuth'
@@ -56,13 +62,45 @@ export function CardsPage() {
   const [pricesLoading, setPricesLoading] = useState(false)
   const priceFetchRef = useRef(0) // dedup guard
 
+  const [dbProgress, setDbProgress] = useState<DbLoadProgress>({ phase: 'idle', message: '' })
+
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Load sets on mount
+  // Subscribe to DB load progress + auto-bootstrap if cache is empty
+  useEffect(() => {
+    const unsub = subscribeDbLoadProgress(setDbProgress)
+    return () => unsub()
+  }, [])
+
+  // Load sets + count + auto-bootstrap on mount
   useEffect(() => {
     getSets().then(setSets).catch(() => {})
-    getLocalCardCount().then(setLocalCount).catch(() => {})
+    getLocalCardCount().then(count => {
+      setLocalCount(count)
+      // Auto-bootstrap: if cache is very low or empty, download the full DB.
+      // 2000 is the threshold used by the existing fallback logic in swuApi.ts
+      if (count < 2000) {
+        loadFullDatabase().then(finalCount => {
+          setLocalCount(finalCount)
+        })
+      }
+    }).catch(() => {})
   }, [])
+
+  // After DB load completes, refresh local count (in case auto-bootstrap finished)
+  useEffect(() => {
+    if (dbProgress.phase === 'done' && typeof dbProgress.finalCount === 'number') {
+      setLocalCount(dbProgress.finalCount)
+    }
+  }, [dbProgress])
+
+  const refreshDb = useCallback(async () => {
+    const n = await loadFullDatabase({ force: true })
+    setLocalCount(n)
+    // Re-trigger search after refresh
+    if (hasSearched) doSearch(true)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasSearched])
 
   const doSearch = useCallback(
     async (reset = true) => {
@@ -295,6 +333,67 @@ export function CardsPage() {
         </div>
       )}
 
+      {/* ── DB load status banner ── */}
+      {(dbProgress.phase === 'downloading' || dbProgress.phase === 'parsing' || dbProgress.phase === 'saving') && (
+        <div className="bg-swu-accent/5 border border-swu-accent/30 rounded-lg p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <Loader2 size={14} className="text-swu-accent animate-spin" />
+            <p className="text-xs font-semibold text-swu-accent">{dbProgress.message}</p>
+          </div>
+          {dbProgress.phase === 'saving' && dbProgress.saved && dbProgress.totalToSave && (
+            <div className="h-1 bg-swu-bg rounded-full overflow-hidden">
+              <div
+                className="h-full bg-swu-accent transition-all"
+                style={{ width: `${(dbProgress.saved / dbProgress.totalToSave) * 100}%` }}
+              />
+            </div>
+          )}
+          {dbProgress.phase === 'downloading' && (
+            <p className="text-[10px] text-swu-muted">
+              Esto se hace UNA sola vez · ~5 MB · queda guardado para uso offline.
+            </p>
+          )}
+        </div>
+      )}
+
+      {dbProgress.phase === 'error' && (
+        <div className="bg-swu-red/10 border border-swu-red/30 rounded-lg p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={14} className="text-swu-red" />
+            <p className="text-xs font-semibold text-swu-red">{dbProgress.message}</p>
+          </div>
+          {dbProgress.error && (
+            <p className="text-[10px] text-swu-muted font-mono">{dbProgress.error}</p>
+          )}
+          <button
+            onClick={refreshDb}
+            className="text-[11px] text-swu-accent font-semibold flex items-center gap-1"
+          >
+            <RefreshCw size={11} /> Reintentar
+          </button>
+        </div>
+      )}
+
+      {/* ── Cache count + manual refresh ── */}
+      <div className="flex items-center justify-between bg-swu-surface/40 rounded-lg px-3 py-1.5 border border-swu-border/40">
+        <div className="flex items-center gap-2 text-[11px] text-swu-muted">
+          <Database size={11} />
+          <span>
+            {localCount > 0
+              ? <>Caché: <span className="font-mono text-swu-text">{localCount.toLocaleString()}</span> cartas</>
+              : <>Sin cartas locales</>}
+          </span>
+        </div>
+        <button
+          onClick={refreshDb}
+          disabled={dbProgress.phase === 'downloading' || dbProgress.phase === 'saving' || dbProgress.phase === 'parsing'}
+          className="text-[11px] text-swu-accent flex items-center gap-1 disabled:opacity-40"
+          title="Re-descarga la base completa de cartas"
+        >
+          <Download size={11} /> Actualizar
+        </button>
+      </div>
+
       {hasSearched && !loading && (
         <div className="flex items-center gap-2">
           <p className="text-xs text-swu-muted">{total.toLocaleString()} cartas encontradas</p>
@@ -388,7 +487,22 @@ export function CardsPage() {
         <div className="text-center py-12">
           <Search size={36} className="mx-auto text-swu-muted/40 mb-3" />
           <p className="text-sm text-swu-muted">No se encontraron cartas</p>
-          <p className="text-xs text-swu-muted mt-1">Intente con otra búsqueda o filtro</p>
+          {localCount === 0 ? (
+            <>
+              <p className="text-xs text-swu-muted mt-1">
+                Tu caché local está vacía. Descarga la base de cartas:
+              </p>
+              <button
+                onClick={refreshDb}
+                disabled={dbProgress.phase === 'downloading' || dbProgress.phase === 'saving'}
+                className="mt-3 px-4 py-2 rounded-lg bg-swu-accent text-white text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <Download size={12} /> Descargar base de cartas
+              </button>
+            </>
+          ) : (
+            <p className="text-xs text-swu-muted mt-1">Intenta con otra búsqueda o filtro</p>
+          )}
         </div>
       )}
     </div>

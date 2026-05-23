@@ -16,64 +16,52 @@ import type { Card, SetInfo } from '../types'
 
 const API_BASE = 'https://api.swuapi.com'
 
-interface ApiCardSnake {
-  id: string
-  name: string
-  subtitle: string | null
-  set_code: string
-  card_number: string
-  type: string
-  rarity: string
-  cost: number | null
-  power: number | null
-  hp: number | null
-  arena: string | null
-  aspects: string[]
-  traits: string[]
-  keywords: string[]
-  text: string | null
-  epic_action: string | null
-  deploy_box: string | null
-  is_leader: boolean
-  is_base: boolean
-  is_unique: boolean
-  front_image_url: string | null
-  back_image_url: string | null
-  thumbnail_url: string | null
-  artist: string | null
-  variant_type: string | null
+/**
+ * Shape unificado del API. La realidad es que api.swuapi.com tiene dos endpoints:
+ * - /cards (paginado) usa snake_case + a partir de 2026 cambió a 'uuid', 'front_text',
+ *   'back_text', 'unique_flag', 'collector_number' en vez de los nombres viejos.
+ * - /export/all (bulk) usa camelCase y mantiene los nombres viejos: id, text, isUnique.
+ *
+ * En vez de pelearnos con dos types separados, hacemos un type permisivo con TODOS
+ * los campos posibles opcionales, y el mapper toma el primero que exista.
+ */
+type ApiCard = Record<string, unknown> & {
+  // identifiers
+  id?: string
+  uuid?: string
+  // numbers/text
+  set_code?: string
+  setCode?: string
+  card_number?: string | number
+  cardNumber?: string | number
+  collector_number?: string
+  // booleans
+  is_leader?: boolean
+  isLeader?: boolean
+  is_base?: boolean
+  isBase?: boolean
+  is_unique?: boolean
+  isUnique?: boolean
+  unique_flag?: boolean | null
+  // text body
+  text?: string | null
+  front_text?: string | null
+  frontText?: string | null
+  back_text?: string | null
+  backText?: string | null
+  // images
+  front_image_url?: string | null
+  frontImageUrl?: string | null
+  back_image_url?: string | null
+  backImageUrl?: string | null
+  thumbnail_url?: string | null
+  thumbnailUrl?: string | null
+  // misc
+  epic_action?: string | null
+  epicAction?: string | null
+  deploy_box?: string | null
+  deployBox?: string | null
 }
-
-interface ApiCardCamel {
-  id: string
-  cardUid?: string
-  name: string
-  subtitle: string | null
-  setCode: string
-  cardNumber: string
-  type: string
-  rarity: string
-  cost: number | null
-  power: number | null
-  hp: number | null
-  arena: string | null
-  aspects: string[]
-  traits: string[]
-  keywords: string[]
-  text: string | null
-  epicAction: string | null
-  deployBox: string | null
-  isLeader: boolean
-  isBase: boolean
-  isUnique: boolean
-  frontImageUrl: string | null
-  backImageUrl: string | null
-  thumbnailUrl: string | null
-  artist: string | null
-  variantType: string | null
-}
-
-type ApiCard = ApiCardSnake | ApiCardCamel
 
 interface ApiSetResponse {
   sets: {
@@ -84,65 +72,71 @@ interface ApiSetResponse {
   }[]
 }
 
-function mapApiCard(c: ApiCard): Card {
-  // Detect format: camelCase (export/all) vs snake_case (/cards)
-  const isCamel = 'setCode' in c && typeof (c as ApiCardCamel).setCode === 'string'
+/**
+ * Picks the first defined value from a list. Used to handle the API field
+ * variants (snake/camel, old/new). Returns the fallback if none defined.
+ */
+function pick<T>(vals: Array<T | null | undefined>, fallback: T): T {
+  for (const v of vals) if (v !== undefined && v !== null) return v
+  return fallback
+}
 
-  if (isCamel) {
-    const cc = c as ApiCardCamel
-    return {
-      id: cc.id,
-      name: cc.name,
-      subtitle: cc.subtitle,
-      type: cc.type as Card['type'],
-      rarity: cc.rarity as Card['rarity'],
-      cost: cc.cost,
-      power: cc.power,
-      hp: cc.hp,
-      aspects: cc.aspects || [],
-      traits: cc.traits || [],
-      keywords: cc.keywords || [],
-      arena: (cc.arena as Card['arena']) || null,
-      text: cc.text || '',
-      deployBox: cc.deployBox,
-      epicAction: cc.epicAction,
-      setCode: cc.setCode,
-      setNumber: parseInt(cc.cardNumber, 10) || 0,
-      artist: cc.artist || '',
-      imageUrl: cc.frontImageUrl || cc.thumbnailUrl || '',
-      backImageUrl: cc.backImageUrl,
-      isUnique: cc.isUnique,
-      isLeader: cc.isLeader,
-      isBase: cc.isBase,
-    }
-  } else {
-    const sc = c as ApiCardSnake
-    return {
-      id: sc.id,
-      name: sc.name,
-      subtitle: sc.subtitle,
-      type: sc.type as Card['type'],
-      rarity: sc.rarity as Card['rarity'],
-      cost: sc.cost,
-      power: sc.power,
-      hp: sc.hp,
-      aspects: sc.aspects || [],
-      traits: sc.traits || [],
-      keywords: sc.keywords || [],
-      arena: (sc.arena as Card['arena']) || null,
-      text: sc.text || '',
-      deployBox: sc.deploy_box,
-      epicAction: sc.epic_action,
-      setCode: sc.set_code,
-      setNumber: parseInt(sc.card_number, 10) || 0,
-      artist: sc.artist || '',
-      imageUrl: sc.front_image_url || sc.thumbnail_url || '',
-      backImageUrl: sc.back_image_url,
-      isUnique: sc.is_unique,
-      isLeader: sc.is_leader,
-      isBase: sc.is_base,
-    }
+function mapApiCard(c: ApiCard): Card {
+  // ID: prefer 'id' (camel/export), fallback to 'uuid' (new /cards endpoint)
+  const id = (c.id ?? c.uuid ?? '') as string
+
+  // Combine front_text + back_text from new API into one body, fallback to legacy text
+  const bodyText =
+    typeof c.text === 'string'
+      ? c.text
+      : [c.front_text, c.back_text, c.frontText, c.backText]
+          .filter((t): t is string => typeof t === 'string' && t.length > 0)
+          .join(' / ')
+
+  const cardNumberRaw = c.card_number ?? c.cardNumber ?? c.collector_number ?? '0'
+  const cardNumStr = typeof cardNumberRaw === 'number' ? String(cardNumberRaw) : cardNumberRaw
+  // collector_number can be like "C24_001" — extract the trailing digits
+  const numMatch = cardNumStr.match(/(\d+)$/)
+  const setNumber = numMatch ? parseInt(numMatch[1], 10) : 0
+
+  return {
+    id,
+    name: pick([c.name as string], ''),
+    subtitle: (c.subtitle as string | null) ?? null,
+    type: ((c.type as string) || 'Unit') as Card['type'],
+    rarity: ((c.rarity as string) || 'Common') as Card['rarity'],
+    cost: (c.cost as number | null) ?? null,
+    power: (c.power as number | null) ?? null,
+    hp: (c.hp as number | null) ?? null,
+    aspects: Array.isArray(c.aspects) ? (c.aspects as string[]) : [],
+    traits: Array.isArray(c.traits) ? (c.traits as string[]) : [],
+    keywords: Array.isArray(c.keywords) ? (c.keywords as string[]) : [],
+    arena: ((c.arena as string | null) ?? null) as Card['arena'],
+    text: bodyText,
+    deployBox: (c.deploy_box ?? c.deployBox ?? null) as string | null,
+    epicAction: (c.epic_action ?? c.epicAction ?? null) as string | null,
+    setCode: pick([c.set_code as string, c.setCode as string], ''),
+    setNumber,
+    artist: pick([c.artist as string], ''),
+    imageUrl: pick(
+      [
+        c.front_image_url as string,
+        c.frontImageUrl as string,
+        c.thumbnail_url as string,
+        c.thumbnailUrl as string,
+      ],
+      ''
+    ),
+    backImageUrl: (c.back_image_url ?? c.backImageUrl ?? null) as string | null,
+    isUnique: Boolean(c.is_unique ?? c.isUnique ?? c.unique_flag),
+    isLeader: Boolean(c.is_leader ?? c.isLeader),
+    isBase: Boolean(c.is_base ?? c.isBase),
   }
+}
+
+/** Validate that a mapped card has the minimum required fields to be cached. */
+function isValidCard(c: Card): boolean {
+  return Boolean(c.id) && Boolean(c.name) && Boolean(c.setCode)
 }
 
 export interface SearchParams {
@@ -161,11 +155,13 @@ export interface SearchParams {
 
 // ─── Cache helpers ───
 
-/** Cache cards to IndexedDB (non-blocking) */
+/** Cache cards to IndexedDB. Filters out invalid (no id) before writing. */
 async function cacheCards(cards: Card[]): Promise<void> {
   if (cards.length === 0) return
+  const valid = cards.filter(isValidCard)
+  if (valid.length === 0) return
   try {
-    await db.cards.bulkPut(cards).catch(() => {})
+    await db.cards.bulkPut(valid).catch(() => {})
   } catch {
     // silent
   }
@@ -183,43 +179,130 @@ export function isDatabaseReady(): boolean {
   return _dbReady
 }
 
+// ─── Progress subscribers (UI can listen to download status) ─────
+
+export interface DbLoadProgress {
+  phase: 'idle' | 'downloading' | 'parsing' | 'saving' | 'done' | 'error'
+  message: string
+  /** Bytes downloaded so far, only set during download phase */
+  bytesLoaded?: number
+  /** Total bytes if known (server may not send Content-Length on compressed) */
+  bytesTotal?: number
+  /** Card writes done / total during saving */
+  saved?: number
+  totalToSave?: number
+  /** Final cards in DB after success */
+  finalCount?: number
+  error?: string
+}
+
+type ProgressListener = (p: DbLoadProgress) => void
+const _progressListeners = new Set<ProgressListener>()
+
+export function subscribeDbLoadProgress(listener: ProgressListener): () => void {
+  _progressListeners.add(listener)
+  return () => { _progressListeners.delete(listener) }
+}
+
+function emitProgress(p: DbLoadProgress): void {
+  for (const l of _progressListeners) {
+    try { l(p) } catch { /* ignore subscriber errors */ }
+  }
+}
+
 /**
- * Load full database (kept for compatibility but now optional).
- * Other modules can call this to force a full download if needed.
+ * Loads the full card database from /export/all into IndexedDB.
+ * Idempotent: if cache already has > 5000 cards, returns immediately.
+ * Supports progress reporting via subscribeDbLoadProgress.
+ *
+ * Returns the final card count in the DB. Throws nothing — on failure,
+ * emits an 'error' phase and returns whatever count we have.
  */
 let _dbLoadPromise: Promise<number> | null = null
 
-export async function loadFullDatabase(): Promise<number> {
-  if (_dbReady) return db.cards.count()
+export async function loadFullDatabase(opts?: { force?: boolean }): Promise<number> {
+  const force = opts?.force ?? false
+  if (!force && _dbReady) return db.cards.count()
   if (_dbLoadPromise) return _dbLoadPromise
 
   _dbLoadPromise = (async () => {
     try {
       const existing = await db.cards.count()
-      if (existing > 5000) {
+      if (!force && existing > 5000) {
         _dbReady = true
+        emitProgress({ phase: 'done', message: `Cache válida (${existing} cartas)`, finalCount: existing })
         return existing
       }
 
+      // ── Phase 1: download ──
+      emitProgress({ phase: 'downloading', message: 'Descargando base de cartas…' })
       const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 60000)
-      const res = await fetch(`${API_BASE}/export/all`, { signal: controller.signal })
+      const timeout = setTimeout(() => controller.abort(), 90_000) // 90s — export is ~12s but be lenient
+
+      let res: Response
+      try {
+        res = await fetch(`${API_BASE}/export/all`, { signal: controller.signal })
+      } catch (e) {
+        clearTimeout(timeout)
+        const err = e instanceof Error ? e.message : 'Network error'
+        emitProgress({ phase: 'error', message: `Sin conexión al servidor de cartas`, error: err })
+        return existing
+      }
       clearTimeout(timeout)
-      if (!res.ok) throw new Error(`Export API ${res.status}`)
-      const data = await res.json()
+      if (!res.ok) {
+        emitProgress({ phase: 'error', message: `Servidor de cartas devolvió ${res.status}`, error: `HTTP ${res.status}` })
+        return existing
+      }
 
-      const allCards: ApiCard[] = data.cards || data
-      if (!Array.isArray(allCards) || allCards.length === 0) throw new Error('No cards in export')
+      // ── Phase 2: parse ──
+      emitProgress({ phase: 'parsing', message: 'Procesando datos…' })
+      let data: unknown
+      try {
+        data = await res.json()
+      } catch (e) {
+        const err = e instanceof Error ? e.message : 'JSON parse error'
+        emitProgress({ phase: 'error', message: 'Datos del servidor inválidos', error: err })
+        return existing
+      }
 
-      const mapped = allCards.map(mapApiCard)
-      for (let i = 0; i < mapped.length; i += 500) {
-        await db.cards.bulkPut(mapped.slice(i, i + 500)).catch(() => {})
+      const rawCards: ApiCard[] = Array.isArray(data)
+        ? (data as ApiCard[])
+        : ((data as { cards?: ApiCard[] }).cards ?? [])
+      if (!Array.isArray(rawCards) || rawCards.length === 0) {
+        emitProgress({ phase: 'error', message: 'El servidor no devolvió ninguna carta', error: 'Empty response' })
+        return existing
+      }
+
+      const mapped = rawCards.map(mapApiCard).filter(isValidCard)
+      if (mapped.length === 0) {
+        emitProgress({ phase: 'error', message: 'Las cartas recibidas no tienen formato válido', error: 'No valid cards' })
+        return existing
+      }
+
+      // ── Phase 3: save in chunks ──
+      const chunkSize = 500
+      const totalToSave = mapped.length
+      let saved = 0
+      for (let i = 0; i < totalToSave; i += chunkSize) {
+        const chunk = mapped.slice(i, i + chunkSize)
+        await db.cards.bulkPut(chunk).catch(() => { /* skip chunk error, keep going */ })
+        saved += chunk.length
+        emitProgress({
+          phase: 'saving',
+          message: `Guardando cartas (${saved}/${totalToSave})…`,
+          saved,
+          totalToSave,
+        })
       }
 
       _dbReady = true
-      return mapped.length
+      const finalCount = await db.cards.count()
+      emitProgress({ phase: 'done', message: `Listo — ${finalCount} cartas`, finalCount })
+      return finalCount
     } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
       console.error('Failed to load full card database:', err)
+      emitProgress({ phase: 'error', message: 'Error inesperado durante la carga', error: msg })
       const count = await db.cards.count()
       if (count > 0) _dbReady = true
       return count
@@ -286,7 +369,7 @@ async function searchFromApi(params: SearchParams): Promise<{ cards: Card[]; tot
     if (!res.ok) throw new Error(`API ${res.status}`)
 
     const data = await res.json()
-    const apiCards: ApiCardSnake[] = data.cards || []
+    const apiCards: ApiCard[] = data.cards || []
     const total: number = data.pagination?.total ?? apiCards.length
 
     const mapped = apiCards.map(mapApiCard)
@@ -326,7 +409,7 @@ async function fetchAndCacheFromApi(params: SearchParams): Promise<void> {
     const res = await fetch(url)
     if (!res.ok) return
     const data = await res.json()
-    const apiCards: ApiCardSnake[] = data.cards || []
+    const apiCards: ApiCard[] = data.cards || []
     const mapped = apiCards.map(mapApiCard)
     await cacheCards(mapped)
   } catch {
