@@ -6,8 +6,8 @@
  * Manages: precache, runtime cache for the cards API, push notifications.
  */
 
-import { precacheAndRoute } from 'workbox-precaching'
-import { registerRoute } from 'workbox-routing'
+import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching'
+import { registerRoute, NavigationRoute } from 'workbox-routing'
 import { StaleWhileRevalidate } from 'workbox-strategies'
 import { ExpirationPlugin } from 'workbox-expiration'
 
@@ -15,6 +15,26 @@ declare const self: ServiceWorkerGlobalScope
 
 // ─── Precache (manifest injected at build time) ──────────
 precacheAndRoute(self.__WB_MANIFEST)
+
+// ─── SPA navigation fallback ──────────────────────────────
+// Any client-side route (/admin, /events, /profile, etc.) should be served
+// by the cached index.html so React Router can handle it. Without this,
+// refreshing /admin while offline (or before Vercel rewrites kick in) would 404.
+//
+// Excludes:
+// - /api/* → must hit the network (Vercel serverless)
+// - /assets/* → handled by precacheAndRoute
+// - files with extensions (favicon.ico, manifest.webmanifest, etc.) → network
+const navigationHandler = createHandlerBoundToURL('/index.html')
+registerRoute(
+  new NavigationRoute(navigationHandler, {
+    denylist: [
+      /^\/api\//,
+      /^\/assets\//,
+      /\.[a-z0-9]+$/i, // anything with a file extension
+    ],
+  })
+)
 
 // ─── Runtime cache for SWU cards API ─────────────────────
 registerRoute(
