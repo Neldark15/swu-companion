@@ -48,25 +48,73 @@ export function PushNotificationToggle() {
   }
 
   if (!support.supported) {
-    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+    const ua = navigator.userAgent
+    const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    const isAndroid = /Android/.test(ua)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+
     return (
-      <div className="bg-swu-amber/5 border border-swu-amber/30 rounded-2xl p-4 space-y-2">
+      <div className="bg-swu-amber/5 border border-swu-amber/30 rounded-2xl p-4 space-y-3">
         <div className="flex items-center gap-2 text-swu-amber">
           <ShieldAlert size={16} />
           <p className="text-sm font-semibold text-swu-text">Notificaciones Push no disponibles</p>
         </div>
-        <p className="text-[11px] text-swu-muted">{humanReason(support.reason)}</p>
+
+        {/* Specific reason */}
+        <p className="text-[12px] text-swu-text">{humanReason(support.reason)}</p>
+
+        {/* Diagnostic detail */}
+        <div className="bg-black/20 rounded-lg p-2.5 text-[10px] text-swu-muted leading-relaxed space-y-0.5 font-mono">
+          <p>código: <span className="text-swu-amber">{support.reason || 'unknown'}</span></p>
+          <p>secureContext: {String(window.isSecureContext)}</p>
+          <p>serviceWorker: {String('serviceWorker' in navigator)}</p>
+          <p>PushManager: {String('PushManager' in window)}</p>
+          <p>Notification: {String('Notification' in window)}</p>
+          <p>standalone (PWA): {String(isStandalone)}</p>
+          <p>plataforma: {isIOS ? 'iOS' : isAndroid ? 'Android' : 'Desktop/Other'}</p>
+        </div>
+
+        {/* iOS-specific guidance */}
         {isIOS && !isStandalone && (
-          <div className="bg-black/20 rounded-lg p-2.5 text-[11px] text-swu-muted leading-relaxed">
-            <p className="font-semibold text-swu-text mb-1 flex items-center gap-1">
-              <Smartphone size={12} /> iOS Safari
+          <div className="bg-swu-accent/10 border border-swu-accent/20 rounded-lg p-3 text-[11px] text-swu-text leading-relaxed">
+            <p className="font-semibold mb-1 flex items-center gap-1">
+              <Smartphone size={12} className="text-swu-accent" /> Esto es lo que pasa en iOS
             </p>
-            <p>En iOS las notificaciones push solo funcionan si instalas la app:
-            tocá el botón <strong>Compartir</strong> → <strong>Añadir a Inicio</strong>,
-            luego abrí HOLOCRON SWU desde el ícono del Home.</p>
+            <p className="mb-2">
+              Apple solo permite Web Push si la PWA está <strong>instalada desde Safari</strong>
+              (no funciona en pestañas normales del navegador).
+            </p>
+            <p className="font-semibold mb-1">Pasos:</p>
+            <ol className="list-decimal list-inside space-y-0.5 ml-1">
+              <li>En Safari (no Chrome iOS), tocá <strong>Compartir</strong> 􀈂 abajo</li>
+              <li>Bajá y tocá <strong>Añadir a pantalla de inicio</strong></li>
+              <li>Confirmá <strong>Añadir</strong></li>
+              <li>Cerrá Safari y abrí HOLOCRON SWU desde el ícono nuevo</li>
+              <li>Volvé acá y activá Push desde la PWA</li>
+            </ol>
+            <p className="mt-2 text-swu-muted">
+              Requiere iOS 16.4 o más reciente. Si estás en iOS anterior, no hay forma de activar push.
+            </p>
           </div>
         )}
+
+        {/* Android-specific guidance (rare to fail but possible with FF Focus or strict modes) */}
+        {isAndroid && !isStandalone && support.reason === 'no-push' && (
+          <div className="bg-swu-accent/10 border border-swu-accent/20 rounded-lg p-3 text-[11px] text-swu-text leading-relaxed">
+            <p className="font-semibold mb-1">Android sin PushManager</p>
+            <p>Tu navegador podría tener Push deshabilitado. Probá con Chrome o instalá
+            la PWA (3 puntos → "Instalar aplicación") y reabrí desde el ícono.</p>
+          </div>
+        )}
+
+        {/* Reload helper */}
+        <button
+          onClick={() => window.location.reload()}
+          className="w-full py-2 rounded-lg bg-swu-surface border border-swu-border text-[11px] text-swu-muted hover:text-swu-text"
+        >
+          Recargar y reintentar
+        </button>
       </div>
     )
   }
