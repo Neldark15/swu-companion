@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Header } from './Header'
 import { SideNav } from './SideNav'
+import { AmbientBackground } from './AmbientBackground'
 import { useAuth } from '../../hooks/useAuth'
 import { NotificationToast } from '../ui/NotificationToast'
 import { PageTransition, usePrefetchRoutes } from '../PageTransition'
@@ -20,6 +21,9 @@ export function AppLayout() {
 
   return (
     <div className="min-h-screen bg-swu-bg">
+      {/* Global sci-fi ambient layer (subtle holographic grid + scan sweep) */}
+      <AmbientBackground />
+
       {/* Global notification toast */}
       <NotificationToast />
 

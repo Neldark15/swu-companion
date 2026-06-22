@@ -48,7 +48,7 @@ export function Header() {
   const pageTitle = getPageTitle(location.pathname)
 
   return (
-    <header className="sticky top-0 z-50 bg-swu-surface shadow-[0_4px_10px_#111118] px-4 lg:px-6 py-3 flex items-center justify-between">
+    <header className="holo-topline sticky top-0 z-50 bg-swu-surface shadow-[0_4px_10px_#111118] px-4 lg:px-6 py-3 flex items-center justify-between">
       {/* Left side: Base button (on inner pages) or logo (on home) */}
       <div className="flex items-center gap-2">
         {isHome ? (

@@ -111,3 +111,105 @@ input:focus, textarea:focus, select:focus {
 .animate-slide-in-top {
   animation: slide-in-top 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* ════════════════════════════════════════════════
+ *  HOLO AMBIENT — capa atmosférica sci-fi global
+ *  Sutil por diseño: rejilla holográfica + scanlines
+ *  + barrido de escaneo lento + viñeta. Va detrás del
+ *  chrome (z bajo header/sidenav) y no captura clics.
+ *  ════════════════════════════════════════════════ */
+.holo-ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  /* Rejilla cian tenue + scanlines horizontales + viñeta de borde */
+  background-image:
+    linear-gradient(rgba(56, 189, 248, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.022) 1px, transparent 1px),
+    repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(226, 232, 240, 0.012) 3px, rgba(226, 232, 240, 0.012) 4px),
+    radial-gradient(130% 90% at 50% -10%, transparent 55%, rgba(0, 0, 0, 0.22) 100%);
+  background-size: 44px 44px, 44px 44px, 100% 100%, 100% 100%;
+}
+
+/* Línea de barrido que recorre la pantalla lentamente */
+.holo-ambient__sweep {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 160px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(56, 189, 248, 0.05) 45%,
+    rgba(56, 189, 248, 0.05) 55%,
+    transparent
+  );
+  will-change: transform;
+  animation: holo-scan 11s linear infinite;
+}
+
+@keyframes holo-scan {
+  0%   { transform: translateY(-160px); }
+  100% { transform: translateY(calc(100vh + 160px)); }
+}
+
+/* ── Utilidades HUD reutilizables (opt-in, no globales) ── */
+
+/* Corchetes de esquina estilo HUD: aplicar a un contenedor relative */
+.hud-corners { position: relative; }
+.hud-corners::before,
+.hud-corners::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+  border-color: var(--color-swu-accent);
+  opacity: 0.5;
+}
+.hud-corners::before {
+  top: 6px;
+  left: 6px;
+  border-top: 1.5px solid;
+  border-left: 1.5px solid;
+  border-top-left-radius: 4px;
+}
+.hud-corners::after {
+  bottom: 6px;
+  right: 6px;
+  border-bottom: 1.5px solid;
+  border-right: 1.5px solid;
+  border-bottom-right-radius: 4px;
+}
+
+/* Hairline animada en el borde superior (barrido de luz tipo terminal) */
+.holo-topline { position: relative; overflow: hidden; }
+.holo-topline::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 1px;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, var(--color-swu-accent), transparent);
+  opacity: 0.55;
+  animation: holo-trace 6s ease-in-out infinite;
+}
+@keyframes holo-trace {
+  0%   { transform: translateX(-100%); opacity: 0; }
+  20%  { opacity: 0.55; }
+  80%  { opacity: 0.55; }
+  100% { transform: translateX(350%); opacity: 0; }
+}
+
+/* Texto con glow sutil para acentos tecnológicos */
+.text-glow-accent { text-shadow: 0 0 10px color-mix(in srgb, var(--color-swu-accent) 55%, transparent); }
+.text-glow-amber  { text-shadow: 0 0 10px color-mix(in srgb, var(--color-swu-amber) 55%, transparent); }
+
+/* Respeto a usuarios que prefieren menos movimiento */
+@media (prefers-reduced-motion: reduce) {
+  .holo-ambient__sweep { display: none; }
+  .holo-topline::after { animation: none; opacity: 0; }
+}

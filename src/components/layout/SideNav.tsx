@@ -84,10 +84,10 @@ export function SideNav() {
   return (
     <aside className="hidden lg:flex flex-col w-64 xl:w-72 bg-swu-surface shadow-[4px_0_10px_#111118] min-h-screen fixed left-0 top-0 z-40">
       {/* Logo + Notification Bell */}
-      <div className="px-5 py-5 flex items-center gap-3 border-b border-swu-border">
+      <div className="holo-topline px-5 py-5 flex items-center gap-3 border-b border-swu-border">
         <img src="/swu-logo-title.png" alt="SWU" className="w-10 h-12 object-contain" />
         <div className="flex-1">
-          <h1 className="text-base font-extrabold text-swu-amber tracking-tight leading-tight">
+          <h1 className="text-base font-extrabold text-swu-amber tracking-tight leading-tight text-glow-amber">
             HOLOCRON SWU
           </h1>
           <p className="text-[9px] tracking-[0.2em] uppercase text-swu-muted font-mono">
