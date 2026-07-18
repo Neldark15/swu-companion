@@ -159,7 +159,11 @@ export async function sendGift(
     const effectiveXp = Math.max(1, Math.round(giftInfo.xp * multiplier))
     const diminished = multiplier < 1.0
 
-    // Insert gift record with effective XP
+    // Insert gift record with effective XP.
+    // El crédito al RECEPTOR (xp + contadores + reputación) lo aplica el
+    // trigger trg_gift_credit en la base (SECURITY DEFINER) — el cliente no
+    // puede tocar player_stats ajeno por RLS. La validación de límite diario
+    // y no-self-gift también se enforza server-side (trg_gift_validate).
     const { error: insertError } = await supabase.from('gifts').insert({
       sender_id: senderId,
       recipient_id: recipientId,
@@ -168,11 +172,13 @@ export async function sendGift(
     })
     if (insertError) {
       console.warn('[Gift] Insert error:', insertError)
-      return { success: false, error: 'Error al enviar el regalo' }
+      const msg = insertError.message.includes('Límite diario')
+        ? 'Límite diario alcanzado (5/5). Intenta mañana.'
+        : insertError.message.includes('ti mismo')
+          ? 'No puedes enviarte regalos a ti mismo'
+          : 'Error al enviar el regalo'
+      return { success: false, error: msg }
     }
-
-    // Update recipient stats (increment gifts_received + type-specific + xp)
-    await updateRecipientStats(recipientId, giftType, effectiveXp)
 
     // Update sender stats (increment gifts_sent + small xp + reputation)
     await updateSenderStats(senderId)
@@ -187,45 +193,6 @@ export async function sendGift(
   } catch (e) {
     console.warn('[Gift] Failed to send gift:', e)
     return { success: false, error: 'Error inesperado al enviar el regalo' }
-  }
-}
-
-/** Update recipient's player_stats after receiving a gift */
-async function updateRecipientStats(recipientId: string, giftType: GiftType, xpAmount: number) {
-  try {
-    const { data } = await supabase
-      .from('player_stats')
-      .select('xp, gifts_received, lecciones_jedi_received, creditos_imperiales_received, beskar_received, holocron_received, cristal_kyber_received, social_reputation')
-      .eq('user_id', recipientId)
-      .single()
-
-    if (!data) return
-
-    const updates: Record<string, number> = {
-      xp: (data.xp || 0) + xpAmount,
-      gifts_received: (data.gifts_received || 0) + 1,
-      social_reputation: (data.social_reputation || 0) + 1, // +1 rep for receiving
-    }
-
-    // Increment type-specific counter
-    if (giftType === 'leccion_jedi') {
-      updates.lecciones_jedi_received = (data.lecciones_jedi_received || 0) + 1
-    } else if (giftType === 'creditos_imperiales') {
-      updates.creditos_imperiales_received = (data.creditos_imperiales_received || 0) + 1
-    } else if (giftType === 'beskar') {
-      updates.beskar_received = (data.beskar_received || 0) + 1
-    } else if (giftType === 'holocron') {
-      updates.holocron_received = (data.holocron_received || 0) + 1
-    } else if (giftType === 'cristal_kyber') {
-      updates.cristal_kyber_received = (data.cristal_kyber_received || 0) + 1
-    }
-
-    await supabase
-      .from('player_stats')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('user_id', recipientId)
-  } catch (e) {
-    console.warn('[Gift] Failed to update recipient stats:', e)
   }
 }
 
@@ -252,6 +219,45 @@ async function updateSenderStats(senderId: string) {
   } catch (e) {
     console.warn('[Gift] Failed to update sender stats:', e)
   }
+}
+
+/**
+ * Realtime: subscribe to gifts arriving for this user.
+ * Fires the callback with sender name + gift info already resolved.
+ * Returns an unsubscribe function.
+ */
+export function subscribeToIncomingGifts(
+  userId: string,
+  onGift: (info: { senderName: string; giftLabel: string; giftIcon: string; xp: number }) => void
+): () => void {
+  if (!isSupabaseReady()) return () => undefined
+  const ch = supabase
+    .channel(`gifts-inbox-${userId}`)
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'gifts', filter: `recipient_id=eq.${userId}` },
+      async (payload) => {
+        const row = payload.new as { sender_id: string; gift_type: GiftType; xp_amount: number }
+        const info = GIFT_TYPES.find(g => g.type === row.gift_type)
+        let senderName = 'Alguien'
+        try {
+          const { data } = await supabase
+            .from('profiles')
+            .select('name')
+            .eq('id', row.sender_id)
+            .single()
+          if (data?.name) senderName = data.name
+        } catch { /* keep fallback */ }
+        onGift({
+          senderName,
+          giftLabel: info?.label ?? 'un regalo',
+          giftIcon: info?.icon ?? '🎁',
+          xp: row.xp_amount ?? 0,
+        })
+      }
+    )
+    .subscribe()
+  return () => { supabase.removeChannel(ch) }
 }
 
 /** Get gifts received by a user, with sender info */

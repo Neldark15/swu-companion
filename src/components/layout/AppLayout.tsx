@@ -6,6 +6,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { NotificationToast } from '../ui/NotificationToast'
 import { PageTransition, usePrefetchRoutes } from '../PageTransition'
 import { TournamentBroadcastListener } from '../../features/events/TournamentBroadcastListener'
+import { GiftListener } from '../../features/espionaje/GiftListener'
 
 export function AppLayout() {
   const initAuth = useAuth(s => s.initAuth)
@@ -25,6 +26,9 @@ export function AppLayout() {
 
       {/* Global tournament broadcasts → toasts for non-participants */}
       <TournamentBroadcastListener />
+
+      {/* Live gift notifications for the signed-in recipient */}
+      <GiftListener />
 
       {/* Desktop sidebar — hidden on mobile */}
       <SideNav />
