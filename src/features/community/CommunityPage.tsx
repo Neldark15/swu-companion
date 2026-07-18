@@ -1,30 +1,34 @@
-import { useState, useEffect, useCallback } from 'react'
+/**
+ * Comunidad El Salvador — un solo hub.
+ *
+ * Antes esto era continentes → países → feed: 66 cubetas para 14 jugadores
+ * que viven en la misma ciudad, y ninguna llegó a tener un post. Ahora es
+ * una sola página donde están todos, con un feed que se llena solo desde
+ * lo que el grupo ya hace (logros, torneos, cartas en venta) y donde los
+ * usuarios sobre todo REACCIONAN en vez de tener que escribir.
+ */
+
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft, Globe, Users, Search, ChevronRight, Crown,
-  MessageCircle, Send, Heart, Trash2, ArrowUpRight,
+  Users, Send, Heart, Trash2, Trophy, Award, Tag, Sparkles,
+  MessageCircle, Loader2, ChevronRight, Rss,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import {
-  getCommunityStats,
-  getCommunityMembers,
-  getCommunityPosts,
+  getHubMembers,
+  getHubFeed,
   createCommunityPost,
-  likeCommunityPost,
+  togglePostLike,
   deleteCommunityPost,
+  subscribeToHubFeed,
+  HOME_COUNTRY_LABEL,
   type CommunityMember,
-  type CommunityStats,
   type CommunityPost,
+  type PostType,
 } from '../../services/communityService'
-import {
-  CONTINENTS,
-  getCountryByCode,
-  getContinentByCountryCode,
-} from '../../data/regions'
 import { ProfileFrame } from '../profile/components/ProfileFrame'
 import { calculateLevel } from '../../services/gamification'
-
-type View = 'continents' | 'countries' | 'community'
 
 const swAvatarIds = [
   'chewbacca', 'r2d2', 'c3po', 'bb8', 'pilot', 'boba-fett', 'stormtrooper',
@@ -34,9 +38,8 @@ const swAvatarIds = [
 ]
 
 function MemberAvatar({ avatar, level, size = 40 }: { avatar: string; level?: number; size?: number }) {
-  const frameSize = size + 16
   return (
-    <ProfileFrame level={level ?? 1} size={frameSize}>
+    <ProfileFrame level={level ?? 1} size={size + 16}>
       <div className="w-full h-full flex items-center justify-center bg-swu-bg overflow-hidden">
         {avatar.startsWith('data:image/')
           ? <img src={avatar} alt="" className="w-full h-full object-cover rounded-full" />
@@ -59,465 +62,294 @@ function PostAvatar({ avatar }: { avatar: string }) {
   return <span className="text-lg">{avatar}</span>
 }
 
+/** Estilo por tipo de post — el feed se lee de un vistazo por color/icono. */
+const POST_STYLE: Record<PostType, { icon: typeof Trophy; label: string; cls: string }> = {
+  achievement: { icon: Award, label: 'Logro', cls: 'text-swu-amber bg-swu-amber/10 border-swu-amber/25' },
+  tournament: { icon: Trophy, label: 'Torneo', cls: 'text-swu-green bg-swu-green/10 border-swu-green/25' },
+  trade: { icon: Tag, label: 'Venta', cls: 'text-red-400 bg-red-500/10 border-red-500/25' },
+  level_up: { icon: Sparkles, label: 'Rango', cls: 'text-swu-accent bg-swu-accent/10 border-swu-accent/25' },
+  welcome: { icon: Users, label: 'Nuevo', cls: 'text-purple-400 bg-purple-500/10 border-purple-500/25' },
+  message: { icon: MessageCircle, label: '', cls: 'text-swu-muted bg-swu-surface border-swu-border' },
+}
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const min = Math.floor(diff / 60000)
+  if (min < 1) return 'ahora'
+  if (min < 60) return `${min}m`
+  const hr = Math.floor(min / 60)
+  if (hr < 24) return `${hr}h`
+  const d = Math.floor(hr / 24)
+  if (d < 7) return `${d}d`
+  return new Date(iso).toLocaleDateString('es', { day: 'numeric', month: 'short' })
+}
+
 export function CommunityPage() {
   const navigate = useNavigate()
   const { currentProfile, supabaseUser } = useAuth()
 
-  const [view, setView] = useState<View>('continents')
-  const [selectedContinent, setSelectedContinent] = useState('')
-  const [selectedCountry, setSelectedCountry] = useState('')
-  const [search, setSearch] = useState('')
-
-  // Data
-  const [stats, setStats] = useState<CommunityStats[]>([])
   const [members, setMembers] = useState<CommunityMember[]>([])
   const [posts, setPosts] = useState<CommunityPost[]>([])
   const [loading, setLoading] = useState(true)
-
-  // Post creation
-  const [newPostContent, setNewPostContent] = useState('')
+  const [composerOpen, setComposerOpen] = useState(false)
+  const [draft, setDraft] = useState('')
   const [posting, setPosting] = useState(false)
+  const seenIds = useRef(new Set<string>())
 
-  // Load community stats on mount
-  useEffect(() => {
+  const load = useCallback(async () => {
     setLoading(true)
-    getCommunityStats().then(s => {
-      setStats(s)
-      setLoading(false)
+    const [m, p] = await Promise.all([
+      getHubMembers(),
+      getHubFeed(supabaseUser?.id ?? null),
+    ])
+    setMembers(m)
+    setPosts(p)
+    p.forEach(post => seenIds.current.add(post.id))
+    setLoading(false)
+  }, [supabaseUser?.id])
+
+  useEffect(() => { load() }, [load])
+
+  // Realtime: los posts nuevos entran solos, sin recargar
+  useEffect(() => {
+    const unsub = subscribeToHubFeed((post) => {
+      if (seenIds.current.has(post.id)) return
+      seenIds.current.add(post.id)
+      setPosts(prev => [post, ...prev])
     })
+    return unsub
   }, [])
 
-  // Load members when entering a country community
-  useEffect(() => {
-    if (view === 'community' && selectedCountry) {
-      setLoading(true)
-      Promise.all([
-        getCommunityMembers(selectedCountry),
-        getCommunityPosts(selectedCountry),
-      ]).then(([m, p]) => {
-        setMembers(m)
-        setPosts(p)
-        setLoading(false)
-      })
-    }
-  }, [view, selectedCountry])
-
-  const handleSelectContinent = (continentId: string) => {
-    setSelectedContinent(continentId)
-    setView('countries')
-  }
-
-  const handleSelectCountry = (countryCode: string) => {
-    setSelectedCountry(countryCode)
-    setView('community')
-  }
-
-  const handleBack = () => {
-    if (view === 'community') {
-      setView('countries')
-      setMembers([])
-      setPosts([])
-    } else if (view === 'countries') {
-      setView('continents')
-      setSelectedContinent('')
-    } else {
-      navigate(-1)
-    }
-  }
-
-  const handlePost = useCallback(async () => {
-    if (!supabaseUser || !currentProfile || !newPostContent.trim() || posting) return
+  const handlePost = async () => {
+    if (!supabaseUser || !currentProfile || !draft.trim()) return
     setPosting(true)
-    const post = await createCommunityPost(
+    const created = await createCommunityPost(
       supabaseUser.id,
       currentProfile.name,
       currentProfile.avatar,
-      selectedCountry,
-      newPostContent.trim(),
+      draft,
     )
-    if (post) {
-      setPosts(prev => [post, ...prev])
-      setNewPostContent('')
-    }
     setPosting(false)
-  }, [supabaseUser, currentProfile, newPostContent, posting, selectedCountry])
-
-  const handleLike = useCallback(async (postId: string) => {
-    const ok = await likeCommunityPost(postId)
-    if (ok) {
-      setPosts(prev => prev.map(p =>
-        p.id === postId ? { ...p, likes: p.likes + 1, likedByMe: true } : p,
-      ))
+    if (created) {
+      // Realtime también lo entregará; seenIds evita el duplicado
+      if (!seenIds.current.has(created.id)) {
+        seenIds.current.add(created.id)
+        setPosts(prev => [created, ...prev])
+      }
+      setDraft('')
+      setComposerOpen(false)
     }
-  }, [])
+  }
 
-  const handleDeletePost = useCallback(async (postId: string) => {
-    const ok = await deleteCommunityPost(postId)
-    if (ok) {
-      setPosts(prev => prev.filter(p => p.id !== postId))
+  const handleLike = async (postId: string) => {
+    if (!supabaseUser) return
+    // Optimista
+    setPosts(prev => prev.map(p => p.id === postId
+      ? { ...p, likedByMe: !p.likedByMe, likes: p.likes + (p.likedByMe ? -1 : 1) }
+      : p))
+    const res = await togglePostLike(postId)
+    if (res) {
+      setPosts(prev => prev.map(p => p.id === postId
+        ? { ...p, likedByMe: res.liked, likes: res.likes }
+        : p))
     }
-  }, [])
+  }
 
-  const getPlayerCount = (code: string) => stats.find(s => s.countryCode === code)?.playerCount || 0
+  const handleDelete = async (postId: string) => {
+    if (!supabaseUser) return
+    if (!confirm('¿Borrar esta publicación?')) return
+    const ok = await deleteCommunityPost(postId, supabaseUser.id)
+    if (ok) setPosts(prev => prev.filter(p => p.id !== postId))
+  }
 
-  const myCountry = currentProfile?.country
-
-  // Title based on view
-  const title = view === 'community'
-    ? `${getCountryByCode(selectedCountry)?.flag || ''} ${getCountryByCode(selectedCountry)?.name || selectedCountry}`
-    : view === 'countries'
-      ? CONTINENTS.find(c => c.id === selectedContinent)?.name || 'Región'
-      : 'Comunidades Galácticas'
+  const topMembers = members.slice(0, 5)
 
   return (
-    <div className="min-h-screen bg-swu-bg pb-8">
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-swu-bg/95 backdrop-blur border-b border-swu-border">
-        <div className="max-w-lg lg:max-w-5xl mx-auto px-4 lg:px-6 py-3 flex items-center gap-3">
-          <button onClick={handleBack} className="text-swu-muted">
-            <ArrowLeft size={20} />
-          </button>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold text-swu-text truncate">{title}</h1>
-            {view === 'community' && (
-              <p className="text-[10px] text-swu-muted">{members.length} jugadores registrados</p>
-            )}
-          </div>
-          {view === 'continents' && myCountry && (
+    <div className="p-4 lg:p-6 space-y-4 pb-8 max-w-5xl mx-auto">
+      {/* ── Cabecera ── */}
+      <header>
+        <h1 className="text-xl font-extrabold text-swu-text flex items-center gap-2">
+          <Users size={20} className="text-swu-accent" />
+          Comunidad {HOME_COUNTRY_LABEL}
+        </h1>
+        <p className="text-[11px] text-swu-muted mt-0.5">
+          {members.length} jugadores · todo lo que pasa en el grupo, en un solo lugar
+        </p>
+      </header>
+
+      {/* ── Ranking compacto ── */}
+      {topMembers.length > 0 && (
+        <section className="bg-swu-surface rounded-2xl border border-swu-border p-3">
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-[10px] uppercase tracking-wider text-swu-muted font-bold flex items-center gap-1.5">
+              <Trophy size={11} className="text-swu-amber" /> Consejo Jedi
+            </span>
             <button
-              onClick={() => handleSelectCountry(myCountry)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-swu-accent/15 text-swu-accent text-xs font-medium"
+              onClick={() => navigate('/rank')}
+              className="text-[10px] text-swu-accent flex items-center gap-0.5"
             >
-              {getCountryByCode(myCountry)?.flag} Mi comunidad
+              Ranking completo <ChevronRight size={10} />
             </button>
-          )}
-        </div>
-      </div>
+          </div>
+          <div className="space-y-1">
+            {topMembers.map((m, i) => {
+              const lvl = m.level ?? (m.xp ? calculateLevel(m.xp).level : 1)
+              const isMe = m.id === supabaseUser?.id
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => navigate(`/u/${m.id}`)}
+                  className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-left transition-colors ${
+                    isMe ? 'bg-swu-accent/10 border border-swu-accent/25' : 'hover:bg-swu-bg/60'
+                  }`}
+                >
+                  <span className={`w-5 text-center text-xs font-extrabold font-mono ${
+                    i === 0 ? 'text-swu-amber' : i === 1 ? 'text-swu-muted' : i === 2 ? 'text-orange-400' : 'text-swu-muted/50'
+                  }`}>{i + 1}</span>
+                  <MemberAvatar avatar={m.avatar} level={lvl} size={28} />
+                  <span className="flex-1 min-w-0 text-sm text-swu-text truncate">
+                    {m.name}{isMe && <span className="text-[10px] text-swu-accent ml-1">(vos)</span>}
+                  </span>
+                  <span className="text-[10px] text-swu-muted font-mono">Nv{lvl}</span>
+                  <span className="text-xs font-bold text-swu-accent font-mono w-14 text-right">
+                    {(m.xp ?? 0).toLocaleString()}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
-      <div className="max-w-lg lg:max-w-5xl mx-auto px-4 lg:px-6 py-4 space-y-4">
-        {/* Loading */}
+      {/* ── Composer (acción secundaria) ── */}
+      {supabaseUser && currentProfile && (
+        composerOpen ? (
+          <section className="bg-swu-surface rounded-2xl border border-swu-accent/30 p-3 space-y-2">
+            <textarea
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              maxLength={280}
+              rows={3}
+              placeholder="¿Algo que contarle al grupo?"
+              className="w-full px-3 py-2 bg-swu-bg border border-swu-border rounded-lg text-sm text-swu-text resize-none outline-none focus:border-swu-accent"
+            />
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-swu-muted/60 flex-1">{draft.length}/280</span>
+              <button
+                onClick={() => { setComposerOpen(false); setDraft('') }}
+                className="px-3 py-1.5 rounded-lg text-xs text-swu-muted"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handlePost}
+                disabled={posting || !draft.trim()}
+                className="px-3 py-1.5 rounded-lg bg-swu-accent text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {posting ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                Publicar
+              </button>
+            </div>
+          </section>
+        ) : (
+          <button
+            onClick={() => setComposerOpen(true)}
+            className="w-full flex items-center gap-2.5 bg-swu-surface/60 rounded-xl border border-swu-border px-3 py-2.5 text-left"
+          >
+            <PostAvatar avatar={currentProfile.avatar} />
+            <span className="text-xs text-swu-muted flex-1">Escribir al grupo…</span>
+            <Send size={13} className="text-swu-muted" />
+          </button>
+        )
+      )}
+
+      {/* ── Feed ── */}
+      <section className="space-y-2">
+        <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-swu-muted font-bold px-1">
+          <Rss size={11} /> Actividad
+        </div>
+
         {loading && (
-          <div className="text-center py-12 text-swu-muted">
-            <div className="animate-spin w-8 h-8 border-2 border-swu-accent border-t-transparent rounded-full mx-auto mb-3" />
-            Cargando comunidades...
+          <div className="flex items-center justify-center py-10 text-swu-muted gap-2 text-sm">
+            <Loader2 size={16} className="animate-spin" /> Cargando…
           </div>
         )}
 
-        {/* ═══ CONTINENT LIST ═══ */}
-        {!loading && view === 'continents' && (
-          <>
-            {/* Hero banner */}
-            <div className="bg-gradient-to-br from-swu-accent/20 to-purple-500/10 rounded-2xl p-5 border border-swu-accent/20 text-center">
-              <Globe size={36} className="mx-auto text-swu-accent mb-2" />
-              <h2 className="text-base font-extrabold text-swu-text mb-1">Comunidades Galácticas</h2>
-              <p className="text-xs text-swu-muted">
-                Conecte con jugadores de Star Wars Unlimited de todo el mundo.
-                {!myCountry && (
-                  <button
-                    onClick={() => navigate('/profile')}
-                    className="text-swu-accent font-bold ml-1 underline"
-                  >
-                    Configure su región en su perfil
-                  </button>
-                )}
-              </p>
-              {stats.length > 0 && (
-                <p className="text-[10px] text-swu-accent mt-2 font-mono">
-                  {stats.reduce((s, c) => s + c.playerCount, 0)} jugadores en {stats.length} países
-                </p>
-              )}
-            </div>
-
-            {/* Continent cards */}
-            <div className="space-y-2">
-              {CONTINENTS.map(cont => {
-                const countryCount = cont.countries.reduce((s, c) => s + getPlayerCount(c.code), 0)
-                const activeCountries = cont.countries.filter(c => getPlayerCount(c.code) > 0)
-
-                return (
-                  <button
-                    key={cont.id}
-                    onClick={() => handleSelectContinent(cont.id)}
-                    className="w-full bg-swu-surface rounded-xl p-4 border border-swu-border flex items-center gap-3 active:scale-[0.99] transition-all hover:border-swu-accent/30 text-left"
-                  >
-                    <span className="text-3xl">{cont.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-swu-text">{cont.name}</p>
-                      <p className="text-[10px] text-swu-muted">
-                        {cont.countries.length} países
-                        {countryCount > 0 && ` · ${countryCount} jugadores`}
-                        {activeCountries.length > 0 && (
-                          <span className="text-swu-accent ml-1">
-                            ({activeCountries.length} activos)
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                    <ChevronRight size={18} className="text-swu-muted" />
-                  </button>
-                )
-              })}
-            </div>
-          </>
+        {!loading && posts.length === 0 && (
+          <div className="bg-swu-surface rounded-2xl border border-swu-border p-8 text-center space-y-2">
+            <Rss size={32} className="mx-auto text-swu-muted/30" />
+            <p className="text-sm text-swu-text font-semibold">El feed se llena solo</p>
+            <p className="text-[11px] text-swu-muted max-w-xs mx-auto leading-relaxed">
+              Cuando alguien desbloquee un logro, gane un torneo o ponga una carta
+              en venta, aparecerá acá automáticamente.
+            </p>
+          </div>
         )}
 
-        {/* ═══ COUNTRY LIST ═══ */}
-        {!loading && view === 'countries' && (
-          <>
-            {/* Search */}
-            <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-swu-muted" />
-              <input
-                type="text"
-                placeholder="Buscar país..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full bg-swu-surface border border-swu-border rounded-xl pl-9 pr-3 py-2.5
-                           text-sm text-swu-text placeholder:text-swu-muted focus:border-swu-accent outline-none"
-              />
-            </div>
+        {!loading && posts.map(post => {
+          const style = POST_STYLE[post.type] ?? POST_STYLE.message
+          const Icon = style.icon
+          const isAuto = post.type !== 'message'
+          const isMine = post.userId === supabaseUser?.id
+          const icon = (post.metadata?.icon as string) || null
 
-            {/* Country list */}
-            <div className="space-y-1.5">
-              {(CONTINENTS.find(c => c.id === selectedContinent)?.countries || [])
-                .filter(c => {
-                  if (!search.trim()) return true
-                  const q = search.toLowerCase()
-                  return c.name.toLowerCase().includes(q) || c.nameEn.toLowerCase().includes(q)
-                })
-                .sort((a, b) => getPlayerCount(b.code) - getPlayerCount(a.code))
-                .map(country => {
-                  const count = getPlayerCount(country.code)
-                  const isMine = country.code === myCountry
+          return (
+            <article
+              key={post.id}
+              className={`rounded-xl border p-3 ${isAuto ? style.cls : 'bg-swu-surface border-swu-border'}`}
+            >
+              <div className="flex items-start gap-2.5">
+                <button
+                  onClick={() => navigate(`/u/${post.userId}`)}
+                  className="w-8 h-8 rounded-full bg-swu-bg flex items-center justify-center flex-shrink-0 overflow-hidden"
+                >
+                  <PostAvatar avatar={post.userAvatar} />
+                </button>
 
-                  return (
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-sm font-semibold text-swu-text">{post.userName}</span>
+                    {isAuto && style.label && (
+                      <span className="text-[9px] font-bold uppercase tracking-wider inline-flex items-center gap-0.5 opacity-80">
+                        <Icon size={9} /> {style.label}
+                      </span>
+                    )}
+                    <span className="text-[10px] text-swu-muted/60">· {timeAgo(post.createdAt)}</span>
+                  </div>
+
+                  <p className="text-sm text-swu-text/90 mt-0.5 break-words">
+                    {icon && <span className="mr-1">{icon}</span>}
+                    {post.content}
+                  </p>
+
+                  <div className="flex items-center gap-3 mt-1.5">
                     <button
-                      key={country.code}
-                      onClick={() => handleSelectCountry(country.code)}
-                      className={`w-full bg-swu-surface rounded-xl p-3.5 border flex items-center gap-3 active:scale-[0.99] transition-all text-left ${
-                        isMine ? 'border-swu-accent/40 bg-swu-accent/5' : 'border-swu-border hover:border-swu-accent/20'
+                      onClick={() => handleLike(post.id)}
+                      disabled={!supabaseUser}
+                      className={`flex items-center gap-1 text-[11px] transition-colors disabled:opacity-40 ${
+                        post.likedByMe ? 'text-red-400' : 'text-swu-muted hover:text-red-400'
                       }`}
                     >
-                      <span className="text-2xl">{country.flag}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-swu-text">
-                          {country.name}
-                          {isMine && <span className="text-swu-accent text-[10px] ml-2">★ Mi país</span>}
-                        </p>
-                        <p className="text-[10px] text-swu-muted">
-                          {count > 0 ? `${count} jugador${count !== 1 ? 'es' : ''}` : 'Sin jugadores aún'}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {count > 0 && (
-                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-swu-accent/10 text-swu-accent text-[10px] font-bold">
-                            <Users size={10} /> {count}
-                          </span>
-                        )}
-                        <ChevronRight size={16} className="text-swu-muted" />
-                      </div>
+                      <Heart size={12} fill={post.likedByMe ? 'currentColor' : 'none'} />
+                      {post.likes > 0 && post.likes}
                     </button>
-                  )
-                })}
-            </div>
-          </>
-        )}
 
-        {/* ═══ COMMUNITY VIEW ═══ */}
-        {!loading && view === 'community' && (
-          <>
-            {/* Country banner */}
-            <div className="bg-gradient-to-br from-swu-accent/15 to-amber-500/10 rounded-2xl p-4 border border-swu-accent/20 text-center">
-              <span className="text-4xl block mb-1">{getCountryByCode(selectedCountry)?.flag}</span>
-              <h2 className="text-base font-extrabold text-swu-text">
-                {getCountryByCode(selectedCountry)?.name}
-              </h2>
-              <p className="text-[10px] text-swu-muted mt-1">
-                {getContinentByCountryCode(selectedCountry)?.name || ''}
-                {' · '}
-                {members.length} jugador{members.length !== 1 ? 'es' : ''}
-              </p>
-            </div>
-
-            {/* Members ranking */}
-            {members.length > 0 && (
-              <div className="bg-swu-surface rounded-xl border border-swu-border p-4">
-                <h3 className="text-xs font-bold text-swu-muted mb-3 flex items-center gap-2">
-                  <Crown size={14} className="text-swu-amber" /> Jugadores
-                </h3>
-                <div className="space-y-2">
-                  {members.slice(0, 20).map((member, idx) => {
-                    const lvl = member.level || (member.xp ? calculateLevel(member.xp).level : 1)
-                    return (
+                    {isMine && (
                       <button
-                        key={member.id}
-                        onClick={() => navigate(`/espionaje/${member.id}`)}
-                        className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-swu-bg/50 transition-colors text-left"
+                        onClick={() => handleDelete(post.id)}
+                        className="text-[11px] text-swu-muted hover:text-swu-red"
                       >
-                        <span className={`w-5 text-center text-xs font-bold ${
-                          idx === 0 ? 'text-swu-amber' : idx === 1 ? 'text-gray-400' : idx === 2 ? 'text-amber-700' : 'text-swu-muted'
-                        }`}>
-                          {idx + 1}
-                        </span>
-                        <MemberAvatar avatar={member.avatar} level={lvl} size={32} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-swu-text truncate">{member.name}</p>
-                          <p className="text-[10px] text-swu-muted">
-                            Nivel {lvl} · {member.xp?.toLocaleString() || 0} XP
-                          </p>
-                        </div>
-                        <ArrowUpRight size={14} className="text-swu-muted" />
+                        <Trash2 size={12} />
                       </button>
-                    )
-                  })}
+                    )}
+                  </div>
                 </div>
               </div>
-            )}
-
-            {/* Community Feed */}
-            <div className="bg-swu-surface rounded-xl border border-swu-border p-4">
-              <h3 className="text-xs font-bold text-swu-muted mb-3 flex items-center gap-2">
-                <MessageCircle size={14} className="text-swu-accent" /> Transmisiones de la Comunidad
-              </h3>
-
-              {/* New post input */}
-              {supabaseUser && currentProfile?.country === selectedCountry && (
-                <div className="flex gap-2 mb-4">
-                  <input
-                    type="text"
-                    placeholder="Comparta algo con su comunidad..."
-                    value={newPostContent}
-                    onChange={e => setNewPostContent(e.target.value)}
-                    maxLength={280}
-                    onKeyDown={e => e.key === 'Enter' && handlePost()}
-                    className="flex-1 bg-swu-bg border border-swu-border rounded-xl px-3 py-2.5
-                               text-sm text-swu-text placeholder:text-swu-muted focus:border-swu-accent outline-none"
-                  />
-                  <button
-                    onClick={handlePost}
-                    disabled={posting || !newPostContent.trim()}
-                    className="px-3 py-2.5 rounded-xl bg-swu-accent text-white font-medium active:scale-[0.95] disabled:opacity-40"
-                  >
-                    <Send size={16} />
-                  </button>
-                </div>
-              )}
-
-              {/* If not a member of this community */}
-              {supabaseUser && currentProfile?.country !== selectedCountry && (
-                <div className="bg-swu-bg rounded-xl p-3 mb-4 text-center">
-                  <p className="text-[11px] text-swu-muted">
-                    Únase a esta comunidad configurando su país en{' '}
-                    <button onClick={() => navigate('/profile')} className="text-swu-accent underline font-medium">
-                      su perfil
-                    </button>
-                  </p>
-                </div>
-              )}
-
-              {/* Posts list */}
-              {posts.length > 0 ? (
-                <div className="space-y-3">
-                  {posts.map(post => {
-                    const isAuthor = post.userId === supabaseUser?.id
-                    const timeAgo = getTimeAgo(post.createdAt)
-
-                    return (
-                      <div key={post.id} className="bg-swu-bg rounded-xl p-3 border border-swu-border/50">
-                        <div className="flex items-start gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-swu-surface flex items-center justify-center flex-shrink-0 overflow-hidden">
-                            <PostAvatar avatar={post.userAvatar} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs font-bold text-swu-text truncate">{post.userName}</span>
-                              <span className="text-[9px] text-swu-muted">{timeAgo}</span>
-                              {post.type !== 'message' && (
-                                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
-                                  post.type === 'achievement' ? 'bg-swu-amber/15 text-swu-amber'
-                                    : post.type === 'tournament' ? 'bg-purple-500/15 text-purple-400'
-                                      : 'bg-swu-green/15 text-swu-green'
-                                }`}>
-                                  {post.type === 'achievement' ? '🏆 Logro'
-                                    : post.type === 'tournament' ? '⚔️ Torneo'
-                                      : '🔄 Trade'}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-sm text-swu-text leading-relaxed">{post.content}</p>
-                            <div className="flex items-center gap-3 mt-2">
-                              <button
-                                onClick={() => !post.likedByMe && handleLike(post.id)}
-                                className={`flex items-center gap-1 text-[10px] font-medium ${
-                                  post.likedByMe ? 'text-red-400' : 'text-swu-muted hover:text-red-400'
-                                } transition-colors`}
-                              >
-                                <Heart size={12} fill={post.likedByMe ? 'currentColor' : 'none'} />
-                                {post.likes > 0 && post.likes}
-                              </button>
-                              {isAuthor && (
-                                <button
-                                  onClick={() => handleDeletePost(post.id)}
-                                  className="flex items-center gap-1 text-[10px] text-swu-muted hover:text-swu-red transition-colors"
-                                >
-                                  <Trash2 size={11} />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-6">
-                  <MessageCircle size={32} className="mx-auto text-swu-muted/30 mb-2" />
-                  <p className="text-xs text-swu-muted">
-                    Aún no hay transmisiones en esta comunidad.
-                    {currentProfile?.country === selectedCountry && ' ¡Sea el primero en publicar!'}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Empty community */}
-            {members.length === 0 && (
-              <div className="text-center py-8">
-                <Users size={40} className="mx-auto text-swu-muted/30 mb-3" />
-                <p className="text-sm text-swu-muted mb-2">Aún no hay jugadores en esta comunidad</p>
-                <p className="text-xs text-swu-muted">
-                  Sea el primero en unirse configurando su país en{' '}
-                  <button onClick={() => navigate('/profile')} className="text-swu-accent underline">
-                    su perfil
-                  </button>
-                </p>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+            </article>
+          )
+        })}
+      </section>
     </div>
   )
-}
-
-// ─── Helpers ────────────────────────────────────────────────
-
-function getTimeAgo(dateStr: string): string {
-  const now = Date.now()
-  const then = new Date(dateStr).getTime()
-  const diff = now - then
-
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'ahora'
-  if (mins < 60) return `${mins}m`
-
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h`
-
-  const days = Math.floor(hours / 24)
-  if (days < 30) return `${days}d`
-
-  const months = Math.floor(days / 30)
-  return `${months}mes${months !== 1 ? 'es' : ''}`
 }

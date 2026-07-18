@@ -1,10 +1,23 @@
 /**
  * Community Service — HOLOCRON SWU
- * Queries profiles by country/region and manages community feed posts.
- * Country/continent are stored in the profiles.settings JSON column.
+ *
+ * Un solo hub: la comunidad de El Salvador. (Antes esto navegaba
+ * continentes → países → feed: 66 cubetas para 14 jugadores que viven en
+ * la misma ciudad, y ninguna llegó a tener un solo post.)
+ *
+ * Principio del feed: **el sistema publica, los usuarios reaccionan.**
+ * La mayoría de las entradas se generan solas desde lo que el grupo ya
+ * hace (logros, podios de torneo, cartas puestas en venta, jugadores
+ * nuevos). El post manual existe, pero es la acción secundaria.
  */
 
 import { supabase, isSupabaseReady } from './supabase'
+
+// ─── Constantes ──────────────────────────────────────────
+
+/** La comunidad vive en un solo lugar. El país deja de ser navegación. */
+export const HOME_COUNTRY = 'SV'
+export const HOME_COUNTRY_LABEL = 'El Salvador'
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -12,175 +25,156 @@ export interface CommunityMember {
   id: string
   name: string
   avatar: string
-  country: string
-  continent: string
   level?: number
   xp?: number
 }
 
-export interface CommunityStats {
-  countryCode: string
-  playerCount: number
-}
+export type PostType = 'message' | 'achievement' | 'tournament' | 'trade' | 'welcome' | 'level_up'
 
 export interface CommunityPost {
   id: string
   userId: string
   userName: string
   userAvatar: string
-  userCountry: string
   content: string
-  type: 'message' | 'achievement' | 'tournament' | 'trade'
-  countryCode: string
+  type: PostType
   likes: number
   likedByMe: boolean
   createdAt: string
+  metadata: Record<string, unknown>
 }
 
-// ─── Community Queries ─────────────────────────────────────
+// ─── Miembros del hub ────────────────────────────────────
 
 /**
- * Get all profiles with a country set, grouped by country.
- * Returns community stats (player count per country).
+ * Todos los jugadores del hub, ordenados por XP.
+ * Ya no filtra por `settings.country` — con 1 de 15 perfiles con país
+ * configurado, ese filtro dejaba la comunidad vacía. Todos pertenecen
+ * al hub por defecto; el país queda como dato de perfil, no como gate.
  */
-export async function getCommunityStats(): Promise<CommunityStats[]> {
+export async function getHubMembers(limit = 50): Promise<CommunityMember[]> {
   if (!isSupabaseReady()) return []
 
   try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('settings')
-      .not('settings', 'is', null)
-
-    if (error || !data) return []
-
-    // Count players per country
-    const countMap = new Map<string, number>()
-    for (const row of data) {
-      const settings = row.settings as Record<string, unknown> | null
-      const country = settings?.country as string | undefined
-      if (country) {
-        countMap.set(country, (countMap.get(country) || 0) + 1)
-      }
-    }
-
-    return Array.from(countMap.entries())
-      .map(([countryCode, playerCount]) => ({ countryCode, playerCount }))
-      .sort((a, b) => b.playerCount - a.playerCount)
-  } catch {
-    return []
-  }
-}
-
-/**
- * Get members of a specific country community.
- */
-export async function getCommunityMembers(countryCode: string): Promise<CommunityMember[]> {
-  if (!isSupabaseReady()) return []
-
-  try {
-    // Get profiles where settings->country matches
     const { data: profiles, error } = await supabase
       .from('profiles')
-      .select('id, name, avatar, settings')
-      .not('settings', 'is', null)
+      .select('id, name, avatar')
+      .limit(limit)
 
-    if (error || !profiles) return []
+    if (error || !profiles || profiles.length === 0) return []
 
-    // Filter client-side for country match and get stats
-    const members: CommunityMember[] = []
-    const matchingProfiles = profiles.filter(p => {
-      const s = p.settings as Record<string, unknown> | null
-      return s?.country === countryCode
-    })
-
-    // Get stats for all matching users in one query
-    const userIds = matchingProfiles.map(p => p.id)
-    const { data: statsData } = userIds.length > 0
-      ? await supabase
-          .from('player_stats')
-          .select('user_id, xp, level')
-          .in('user_id', userIds)
-      : { data: [] }
+    const { data: statsRows } = await supabase
+      .from('player_stats')
+      .select('user_id, xp, level')
+      .in('user_id', profiles.map(p => p.id))
 
     const statsMap = new Map<string, { xp: number; level: number }>()
-    if (statsData) {
-      for (const s of statsData) {
-        statsMap.set(s.user_id as string, { xp: s.xp as number, level: s.level as number })
-      }
-    }
-
-    for (const p of matchingProfiles) {
-      const settings = p.settings as Record<string, unknown>
-      const stats = statsMap.get(p.id)
-      members.push({
-        id: p.id,
-        name: (p.name as string) || 'Jugador',
-        avatar: (p.avatar as string) || '🎮',
-        country: countryCode,
-        continent: (settings.continent as string) || '',
-        level: stats?.level,
-        xp: stats?.xp,
+    for (const s of statsRows ?? []) {
+      statsMap.set(s.user_id as string, {
+        xp: (s.xp as number) ?? 0,
+        level: (s.level as number) ?? 1,
       })
     }
 
-    // Sort by XP descending
-    members.sort((a, b) => (b.xp || 0) - (a.xp || 0))
-    return members
+    return profiles
+      .map(p => {
+        const stats = statsMap.get(p.id)
+        return {
+          id: p.id,
+          name: (p.name as string) || 'Jugador',
+          avatar: (p.avatar as string) || '🎮',
+          level: stats?.level ?? 1,
+          xp: stats?.xp ?? 0,
+        }
+      })
+      .sort((a, b) => (b.xp ?? 0) - (a.xp ?? 0))
   } catch {
     return []
   }
 }
 
-// ─── Community Feed ─────────────────────────────────────────
-
 /**
- * Get community posts for a country.
- * Posts are stored in community_posts table in Supabase.
+ * Códigos de país presentes entre los perfiles. Lo usa el filtro del
+ * leaderboard. (El hub ya no navega por país, pero el ranking global sí
+ * puede filtrarse si algún día hay jugadores de otros países.)
  */
-export async function getCommunityPosts(countryCode: string, limit = 30): Promise<CommunityPost[]> {
+export async function getActiveCountries(): Promise<string[]> {
+  if (!isSupabaseReady()) return []
+  try {
+    const { data } = await supabase
+      .from('profiles')
+      .select('settings')
+      .not('settings', 'is', null)
+    if (!data) return []
+    const codes = new Set<string>()
+    for (const row of data) {
+      const country = (row.settings as Record<string, unknown> | null)?.country
+      if (typeof country === 'string' && country) codes.add(country)
+    }
+    return Array.from(codes).sort()
+  } catch {
+    return []
+  }
+}
+
+// ─── Feed ────────────────────────────────────────────────
+
+function mapPost(row: Record<string, unknown>, likedIds: Set<string>): CommunityPost {
+  return {
+    id: row.id as string,
+    userId: row.user_id as string,
+    userName: (row.user_name as string) || 'Jugador',
+    userAvatar: (row.user_avatar as string) || '🎮',
+    content: row.content as string,
+    type: ((row.type as PostType) || 'message'),
+    likes: (row.likes as number) || 0,
+    likedByMe: likedIds.has(row.id as string),
+    createdAt: row.created_at as string,
+    metadata: (row.metadata as Record<string, unknown>) ?? {},
+  }
+}
+
+/** Feed del hub, con el estado de "me gusta" del usuario ya resuelto. */
+export async function getHubFeed(viewerId?: string | null, limit = 40): Promise<CommunityPost[]> {
   if (!isSupabaseReady()) return []
 
   try {
     const { data, error } = await supabase
       .from('community_posts')
       .select('*')
-      .eq('country_code', countryCode)
+      .eq('country_code', HOME_COUNTRY)
       .order('created_at', { ascending: false })
       .limit(limit)
 
-    if (error || !data) return []
+    if (error || !data || data.length === 0) return []
 
-    return data.map(row => ({
-      id: row.id as string,
-      userId: row.user_id as string,
-      userName: row.user_name as string,
-      userAvatar: row.user_avatar as string,
-      userCountry: row.country_code as string,
-      content: row.content as string,
-      type: (row.type as CommunityPost['type']) || 'message',
-      countryCode: row.country_code as string,
-      likes: (row.likes as number) || 0,
-      likedByMe: false, // Will be updated client-side
-      createdAt: row.created_at as string,
-    }))
+    // Qué posts de este lote ya likeó el usuario (una sola consulta)
+    const likedIds = new Set<string>()
+    if (viewerId) {
+      const { data: likes } = await supabase
+        .from('post_likes')
+        .select('post_id')
+        .eq('user_id', viewerId)
+        .in('post_id', data.map(r => r.id as string))
+      for (const l of likes ?? []) likedIds.add(l.post_id as string)
+    }
+
+    return data.map(row => mapPost(row, likedIds))
   } catch {
     return []
   }
 }
 
-/**
- * Create a new community post.
- */
+/** Post manual del usuario (acción secundaria del hub). */
 export async function createCommunityPost(
   userId: string,
   userName: string,
   userAvatar: string,
-  countryCode: string,
   content: string,
-  type: CommunityPost['type'] = 'message',
 ): Promise<CommunityPost | null> {
   if (!isSupabaseReady()) return null
+  const trimmed = content.trim()
+  if (!trimmed) return null
 
   try {
     const { data, error } = await supabase
@@ -189,9 +183,9 @@ export async function createCommunityPost(
         user_id: userId,
         user_name: userName,
         user_avatar: userAvatar,
-        country_code: countryCode,
-        content: content.trim(),
-        type,
+        country_code: HOME_COUNTRY,
+        content: trimmed.slice(0, 280),
+        type: 'message',
         likes: 0,
       })
       .select()
@@ -201,67 +195,98 @@ export async function createCommunityPost(
       console.warn('[Community] Failed to create post:', error?.message)
       return null
     }
-
-    return {
-      id: data.id as string,
-      userId: data.user_id as string,
-      userName: data.user_name as string,
-      userAvatar: data.user_avatar as string,
-      userCountry: data.country_code as string,
-      content: data.content as string,
-      type: (data.type as CommunityPost['type']) || 'message',
-      countryCode: data.country_code as string,
-      likes: 0,
-      likedByMe: false,
-      createdAt: data.created_at as string,
-    }
+    return mapPost(data, new Set())
   } catch {
     return null
   }
 }
 
 /**
- * Like a community post (increment likes).
+ * Publica una entrada AUTO-GENERADA en el feed.
+ *
+ * Best-effort y silencioso: si falla, el usuario nunca lo nota — el hito
+ * en sí (logro, torneo, venta) ya ocurrió y no debe bloquearse por esto.
+ * `dedupKey` evita duplicados cuando el productor corre varias veces
+ * (p. ej. el perfil recalcula logros en cada carga).
  */
-export async function likeCommunityPost(postId: string): Promise<boolean> {
-  if (!isSupabaseReady()) return false
+export async function publishAutoPost(opts: {
+  userId: string
+  userName: string
+  userAvatar: string
+  type: Exclude<PostType, 'message'>
+  content: string
+  metadata?: Record<string, unknown>
+  dedupKey?: string
+}): Promise<void> {
+  if (!isSupabaseReady()) return
 
   try {
-    // Use RPC to atomically increment if available, fallback to select+update
-    const { data } = await supabase
-      .from('community_posts')
-      .select('likes')
-      .eq('id', postId)
-      .single()
+    if (opts.dedupKey) {
+      const { data: existing } = await supabase
+        .from('community_posts')
+        .select('id')
+        .eq('user_id', opts.userId)
+        .eq('type', opts.type)
+        .contains('metadata', { dedupKey: opts.dedupKey })
+        .limit(1)
+      if (existing && existing.length > 0) return
+    }
 
-    if (!data) return false
+    await supabase.from('community_posts').insert({
+      user_id: opts.userId,
+      user_name: opts.userName,
+      user_avatar: opts.userAvatar,
+      country_code: HOME_COUNTRY,
+      content: opts.content.slice(0, 280),
+      type: opts.type,
+      likes: 0,
+      metadata: { ...(opts.metadata ?? {}), ...(opts.dedupKey ? { dedupKey: opts.dedupKey } : {}) },
+    })
+  } catch {
+    // silencioso a propósito
+  }
+}
 
-    const newLikes = ((data.likes as number) || 0) + 1
+/** Alterna el "me gusta" del usuario actual. Atómico, sin duplicados. */
+export async function togglePostLike(
+  postId: string,
+): Promise<{ liked: boolean; likes: number } | null> {
+  if (!isSupabaseReady()) return null
+  try {
+    const { data, error } = await supabase.rpc('toggle_post_like', { p_post_id: postId })
+    if (error || !data) return null
+    const row = Array.isArray(data) ? data[0] : data
+    return { liked: Boolean(row.liked), likes: Number(row.like_count) || 0 }
+  } catch {
+    return null
+  }
+}
+
+/** Borra un post. La RLS ya garantiza que solo el autor puede. */
+export async function deleteCommunityPost(postId: string, userId: string): Promise<boolean> {
+  if (!isSupabaseReady()) return false
+  try {
     const { error } = await supabase
       .from('community_posts')
-      .update({ likes: newLikes })
+      .delete()
       .eq('id', postId)
-
+      .eq('user_id', userId)
     return !error
   } catch {
     return false
   }
 }
 
-/**
- * Delete a community post (only the author can delete).
- */
-export async function deleteCommunityPost(postId: string): Promise<boolean> {
-  if (!isSupabaseReady()) return false
-
-  try {
-    const { error } = await supabase
-      .from('community_posts')
-      .delete()
-      .eq('id', postId)
-
-    return !error
-  } catch {
-    return false
-  }
+/** Realtime: avisa cuando entra un post nuevo al hub. */
+export function subscribeToHubFeed(onNewPost: (post: CommunityPost) => void): () => void {
+  if (!isSupabaseReady()) return () => undefined
+  const ch = supabase
+    .channel('community-hub-feed')
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'community_posts', filter: `country_code=eq.${HOME_COUNTRY}` },
+      (payload) => onNewPost(mapPost(payload.new as Record<string, unknown>, new Set())),
+    )
+    .subscribe()
+  return () => { supabase.removeChannel(ch) }
 }

@@ -134,7 +134,11 @@ export function CollectionPage() {
   const handleSaveSale = async (cardId: string, price: number | null, notes: string) => {
     if (!supabaseUser) return
     setSaleSubmitting(true)
-    const r = await markCardForSale(cardId, supabaseUser.id, { price, notes })
+    const r = await markCardForSale(cardId, supabaseUser.id, {
+      price,
+      notes,
+      cardName: cards.get(cardId)?.name,
+    })
     setSaleSubmitting(false)
     if (!r.ok) { alert(`Error: ${r.error}`); return }
     setSaleModal(null)

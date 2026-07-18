@@ -403,7 +403,7 @@ export interface MyListingSummary {
 export async function markCardForSale(
   cardId: string,
   userId: string,
-  opts: { price?: number | null; notes?: string | null } = {}
+  opts: { price?: number | null; notes?: string | null; cardName?: string } = {}
 ): Promise<{ ok: boolean; error?: string }> {
   if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión al servidor' }
 
@@ -431,7 +431,45 @@ export async function markCardForSale(
     .eq('card_id', cardId)
 
   if (error) return { ok: false, error: error.message }
+
+  // Anunciar en el feed del hub — así el grupo se entera de que hay algo
+  // nuevo en venta sin tener que entrar a Contrabando a revisar.
+  void announceSaleToFeed(userId, cardId, opts.cardName, opts.price ?? null)
+
   return { ok: true }
+}
+
+/** Publica en el feed que una carta salió a la venta. Best-effort. */
+async function announceSaleToFeed(
+  userId: string,
+  cardId: string,
+  cardName: string | undefined,
+  price: number | null,
+): Promise<void> {
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('name, avatar')
+      .eq('id', userId)
+      .single()
+    if (!profile) return
+
+    const label = cardName || 'una carta'
+    const priceLabel = price != null ? ` por $${price.toFixed(2)}` : ' (precio a convenir)'
+
+    const { publishAutoPost } = await import('./communityService')
+    await publishAutoPost({
+      userId,
+      userName: (profile.name as string) || 'Jugador',
+      userAvatar: (profile.avatar as string) || '🎮',
+      type: 'trade',
+      content: `puso ${label} en venta${priceLabel}`,
+      metadata: { cardId, cardName: label, price },
+      dedupKey: `sale:${cardId}:${Date.now()}`,
+    })
+  } catch {
+    // silencioso
+  }
 }
 
 export async function unmarkCardForSale(

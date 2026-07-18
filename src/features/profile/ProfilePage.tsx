@@ -239,8 +239,13 @@ export function ProfilePage() {
 
         // Announce every milestone crossed (achievements, level, aspect tiers,
         // titles) and persist newly earned titles — they were computed but
-        // never stored before.
-        const { newTitleIds } = announceProgression(before, ps)
+        // never stored before. With a cloud session, the milestone also
+        // publishes itself to the community feed.
+        const { supabaseUser: feedUser } = useAuth.getState()
+        const feedAuthor = feedUser
+          ? { userId: feedUser.id, userName: currentProfile.name, userAvatar: currentProfile.avatar }
+          : null
+        const { newTitleIds } = announceProgression(before, ps, feedAuthor)
         if (newTitleIds.length > 0) {
           ps.unlockedTitles = Array.from(new Set([...(ps.unlockedTitles || []), ...newTitleIds]))
         }

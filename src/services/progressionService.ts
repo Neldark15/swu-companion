@@ -23,6 +23,14 @@ import {
   notifyTierUp,
   notifyTitleUnlocked,
 } from './notificationService'
+import { publishAutoPost } from './communityService'
+
+/** Identidad del jugador para publicar en el feed del hub. */
+export interface FeedAuthor {
+  userId: string
+  userName: string
+  userAvatar: string
+}
 
 /** Minimal snapshot needed to detect what changed. */
 export interface ProgressionSnapshot {
@@ -51,13 +59,26 @@ export function takeProgressionSnapshot(stats: PlayerStats): ProgressionSnapshot
 export function announceProgression(
   before: ProgressionSnapshot | null,
   stats: PlayerStats,
+  author?: FeedAuthor | null,
 ): { newTitleIds: string[] } {
   // ── Achievements ──
   const knownBefore = new Set(before?.unlockedAchievements ?? [])
   for (const id of stats.unlockedAchievements) {
     if (knownBefore.has(id)) continue
     const ach = ACHIEVEMENTS.find(a => a.id === id)
-    if (ach) notifyAchievement(ach.name, ach.icon, ach.id)
+    if (!ach) continue
+    notifyAchievement(ach.name, ach.icon, ach.id)
+    // El sistema publica: el logro aparece en el feed del hub sin que
+    // nadie tenga que escribir un post.
+    if (author && !ach.isHidden) {
+      void publishAutoPost({
+        ...author,
+        type: 'achievement',
+        content: `desbloqueó "${ach.name}" — ${ach.description}`,
+        metadata: { icon: ach.icon, achievementId: ach.id, aspect: ach.aspect },
+        dedupKey: `ach:${ach.id}`,
+      })
+    }
   }
 
   // ── Level ──
@@ -65,6 +86,17 @@ export function announceProgression(
   const levelBefore = before ? calculateLevel(before.xp).level : levelNow.level
   if (levelNow.level > levelBefore) {
     notifyLevelUp(levelNow.level, levelNow.rank.name)
+    // Solo publicamos saltos de rango: un post por cada nivel sería ruido.
+    const rankChanged = calculateLevel(before?.xp ?? 0).rank.name !== levelNow.rank.name
+    if (author && rankChanged) {
+      void publishAutoPost({
+        ...author,
+        type: 'level_up',
+        content: `alcanzó el rango ${levelNow.rank.name} (nivel ${levelNow.level})`,
+        metadata: { level: levelNow.level, rank: levelNow.rank.name },
+        dedupKey: `rank:${levelNow.rank.name}`,
+      })
+    }
   }
 
   // ── Aspect tiers ──

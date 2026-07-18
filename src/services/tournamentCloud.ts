@@ -484,6 +484,49 @@ async function broadcast(
   if (type === 'pairing_set' || type === 'round_complete' || type === 'tournament_finished') {
     void firePushForBroadcast(eventId, eventName, eventCode, type, message, payload)
   }
+
+  // El podio queda en el feed del hub como memoria permanente del grupo.
+  // (Los broadcasts son efímeros; esto es lo que se ve al día siguiente.)
+  if (type === 'tournament_finished') {
+    void publishTournamentResultToFeed(eventId, eventName, payload)
+  }
+}
+
+async function publishTournamentResultToFeed(
+  eventId: string,
+  eventName: string | null,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  try {
+    const { data: sessionData } = await supabase.auth.getSession()
+    const uid = sessionData.session?.user?.id
+    if (!uid) return
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('name, avatar')
+      .eq('id', uid)
+      .single()
+
+    const podium = Array.isArray(payload.podium) ? (payload.podium as string[]) : []
+    const champion = podium[0]
+    const content = champion
+      ? `Torneo "${eventName ?? 'SWU'}" terminado — campeón: ${champion}${podium.length > 1 ? ` · podio: ${podium.slice(0, 3).join(', ')}` : ''}`
+      : `Torneo "${eventName ?? 'SWU'}" terminado`
+
+    const { publishAutoPost } = await import('./communityService')
+    await publishAutoPost({
+      userId: uid,
+      userName: (profile?.name as string) || 'Organizador',
+      userAvatar: (profile?.avatar as string) || '🏆',
+      type: 'tournament',
+      content,
+      metadata: { eventId, eventName, podium },
+      dedupKey: `tournament:${eventId}`,
+    })
+  } catch {
+    // silencioso
+  }
 }
 
 async function firePushForBroadcast(

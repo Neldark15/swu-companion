@@ -6,7 +6,7 @@ import { ACHIEVEMENTS } from '../../services/gamification'
 import { useAuth } from '../../hooks/useAuth'
 import { IconXp } from '../../components/icons/SWUIcons'
 import { getCountryByCode } from '../../data/regions'
-import { getCommunityStats } from '../../services/communityService'
+import { getActiveCountries } from '../../services/communityService'
 
 /* ── Avatar helper ── */
 const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
@@ -107,9 +107,7 @@ export function RankingPage() {
 
   // Load active countries on mount
   useEffect(() => {
-    getCommunityStats().then(stats => {
-      setActiveCountries(stats.map(s => s.countryCode))
-    })
+    getActiveCountries().then(setActiveCountries)
   }, [])
 
   const loadGlobal = async (showRefresh = false) => {
