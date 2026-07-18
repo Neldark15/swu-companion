@@ -228,7 +228,14 @@ async function updateSenderStats(senderId: string) {
  */
 export function subscribeToIncomingGifts(
   userId: string,
-  onGift: (info: { senderName: string; giftLabel: string; giftIcon: string; xp: number }) => void
+  onGift: (info: {
+    id: string
+    senderName: string
+    giftLabel: string
+    giftIcon: string
+    xp: number
+    createdAt: number
+  }) => void
 ): () => void {
   if (!isSupabaseReady()) return () => undefined
   const ch = supabase
@@ -237,7 +244,13 @@ export function subscribeToIncomingGifts(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'gifts', filter: `recipient_id=eq.${userId}` },
       async (payload) => {
-        const row = payload.new as { sender_id: string; gift_type: GiftType; xp_amount: number }
+        const row = payload.new as {
+          id: string
+          sender_id: string
+          gift_type: GiftType
+          xp_amount: number
+          created_at: string
+        }
         const info = GIFT_TYPES.find(g => g.type === row.gift_type)
         let senderName = 'Alguien'
         try {
@@ -249,10 +262,12 @@ export function subscribeToIncomingGifts(
           if (data?.name) senderName = data.name
         } catch { /* keep fallback */ }
         onGift({
+          id: row.id,
           senderName,
           giftLabel: info?.label ?? 'un regalo',
           giftIcon: info?.icon ?? '🎁',
           xp: row.xp_amount ?? 0,
+          createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
         })
       }
     )

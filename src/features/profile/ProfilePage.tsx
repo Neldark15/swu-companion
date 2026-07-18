@@ -11,6 +11,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { syncStatsToCloud } from '../../services/sync'
 import { isPasskeyReady } from '../../services/crypto'
 import { createDefaultStats, getAspectBars, checkAchievements, calculateLevel, type PlayerStats } from '../../services/gamification'
+import { announceProgression, takeProgressionSnapshot } from '../../services/progressionService'
 import { LightsaberXpBar } from './components/LightsaberXpBar'
 import { ProfileFrame } from './components/ProfileFrame'
 import { AspectBars } from './components/AspectBars'
@@ -183,10 +184,15 @@ export function ProfilePage() {
       // Load or create player stats for gamification
       const loadPlayerStats = async () => {
         let ps = await db.playerStats.get(currentProfile.id)
+        const isFirstRun = !ps
         if (!ps) {
           ps = createDefaultStats(currentProfile.id)
           await db.playerStats.put(ps)
         }
+
+        // Snapshot BEFORE recomputation so we can announce what changed.
+        // Skipped on a brand-new profile — nothing to celebrate yet.
+        const before = isFirstRun ? null : takeProgressionSnapshot(ps)
 
         // Sync real counts from DB
         const [matchCount, tournamentCount, finishedTournaments, deckCount, validDecks, collectionCount, favCount] = await Promise.all([
@@ -230,6 +236,14 @@ export function ProfilePage() {
           deckCount * 15 + validDecks * 30 + favCount * 2 + collectionCount * 1
         if (baseXp > ps.xp) ps.xp = baseXp
         ps.level = calculateLevel(ps.xp).level
+
+        // Announce every milestone crossed (achievements, level, aspect tiers,
+        // titles) and persist newly earned titles — they were computed but
+        // never stored before.
+        const { newTitleIds } = announceProgression(before, ps)
+        if (newTitleIds.length > 0) {
+          ps.unlockedTitles = Array.from(new Set([...(ps.unlockedTitles || []), ...newTitleIds]))
+        }
 
         await db.playerStats.put(ps)
         setPlayerStats(ps)
