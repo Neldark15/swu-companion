@@ -293,15 +293,15 @@ export function HomePage() {
               </span>
             </div>
 
-            <h3 className="text-lg font-extrabold text-swu-text">A Lawless Time</h3>
-            <p className="text-xs text-swu-muted mt-0.5 font-mono">260+ cartas · 13 MAR 2026</p>
+            <h3 className="text-lg font-extrabold text-swu-text">Ashes of the Empire</h3>
+            <p className="text-xs text-swu-muted mt-0.5 font-mono">Nueva expansión · Set 8 · Ya en la base de datos</p>
 
             <div className="flex gap-1.5 mt-2">
               <span className="text-[9px] bg-swu-amber/15 text-swu-amber px-2 py-0.5 rounded font-bold border border-swu-amber/20">
-                Crédito
+                ASH
               </span>
               <span className="text-[9px] bg-swu-accent/15 text-swu-accent px-2 py-0.5 rounded font-bold border border-swu-accent/20">
-                Multi-Aspecto
+                900+ cartas
               </span>
             </div>
 
@@ -313,7 +313,7 @@ export function HomePage() {
                 Ver Cartas
               </button>
               <a
-                href="https://starwarsunlimited.com/articles/a-lawless-time"
+                href="https://starwarsunlimited.com/news"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-swu-surface text-swu-muted text-xs font-bold px-4 py-2 rounded-lg border border-swu-border flex items-center gap-1.5 active:scale-95 transition-transform"

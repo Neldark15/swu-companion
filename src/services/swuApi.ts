@@ -67,10 +67,31 @@ interface ApiSetResponse {
   sets: {
     code: string
     name: string
-    card_count: number
+    // The API renamed this field at some point — accept both spellings
+    card_count?: number
+    total_cards?: number
     release_date: string | null
   }[]
 }
+
+/**
+ * Human-readable labels for the MAIN expansions (used by set filters across
+ * the app). Promos/weekly-play/judge sets are excluded on purpose — they're
+ * identified dynamically by cardCount < MAIN_SET_MIN_CARDS.
+ */
+export const MAIN_SET_LABELS: Record<string, string> = {
+  SOR: 'Spark of Rebellion',
+  SHD: 'Shadows of the Galaxy',
+  TWI: 'Twilight of the Republic',
+  JTL: 'Jump to Lightspeed',
+  LOF: 'Legends of the Force',
+  SEC: 'Secrets of Power',
+  LAW: 'A Lawless Time',
+  ASH: 'Ashes of the Empire',
+}
+
+/** Threshold that separates main expansions (~900-1200 cards incl. variants) from promos. */
+export const MAIN_SET_MIN_CARDS = 500
 
 /**
  * Picks the first defined value from a list. Used to handle the API field
@@ -297,6 +318,7 @@ export async function loadFullDatabase(opts?: { force?: boolean }): Promise<numb
 
       _dbReady = true
       const finalCount = await db.cards.count()
+      try { localStorage.setItem('swu_db_last_sync', String(Date.now())) } catch { /* private mode */ }
       emitProgress({ phase: 'done', message: `Listo — ${finalCount} cartas`, finalCount })
       return finalCount
     } catch (err) {
@@ -314,6 +336,33 @@ export async function loadFullDatabase(opts?: { force?: boolean }): Promise<numb
   return _dbLoadPromise
 }
 
+// ─── Freshness ───────────────────────────────────────────────
+
+const DB_SYNC_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000 // 1 semana
+
+/**
+ * Garantiza que la base local exista y no esté vieja.
+ * - Cache vacía/escasa (< 2000) → descarga completa (bloquea hasta terminar
+ *   si `await`eás; los llamadores UI suelen hacerlo void + banner de progreso).
+ * - Cache poblada pero sin sync hace > 7 días → re-descarga en background
+ *   (así las expansiones nuevas — p.ej. Ashes of the Empire — aparecen solas).
+ *
+ * Llamar al montar las pantallas que dependen de la base (Cartas, DeckBuilder).
+ */
+export async function ensureFreshDatabase(): Promise<number> {
+  const count = await db.cards.count()
+  if (count < 2000) {
+    return loadFullDatabase()
+  }
+  let last = 0
+  try { last = Number(localStorage.getItem('swu_db_last_sync') || 0) } catch { /* private mode */ }
+  if (Date.now() - last > DB_SYNC_MAX_AGE_MS) {
+    // Refresh en background — el usuario sigue trabajando con la cache actual
+    void loadFullDatabase({ force: true })
+  }
+  return count
+}
+
 // ─── Hybrid Search ───
 
 /**
@@ -328,18 +377,20 @@ export async function searchCards(params: SearchParams): Promise<{ cards: Card[]
 
   // Text search → must search locally (API doesn't support it)
   if (hasTextQuery) {
+    // If a full-DB download is already in flight, wait for it — the caller's
+    // progress banner explains the wait, and the search then hits a full cache
+    // instead of returning a bogus empty result.
+    if (_dbLoadPromise) await _dbLoadPromise
+
     // If we have local data, search it
     const localCount = await db.cards.count()
     if (localCount > 0) {
       return searchLocalCards(params)
     }
-    // No local data and text query → can't do much, try loading from API with filters first
-    if (hasApiFilters) {
-      await fetchAndCacheFromApi(params)
-      return searchLocalCards(params)
-    }
-    // No data at all — return empty
-    return { cards: [], total: 0 }
+    // No local data at all → download the full DB once, then search it.
+    // (Sin esto, el DeckBuilder devolvía vacío para siempre con cache vacía.)
+    await loadFullDatabase()
+    return searchLocalCards(params)
   }
 
   // Filter-only or no-filter → use API
@@ -390,30 +441,6 @@ async function searchFromApi(params: SearchParams): Promise<{ cards: Card[]; tot
   } catch {
     // Fallback to local search if offline
     return searchLocalCards(params)
-  }
-}
-
-/**
- * Fetch cards from API and cache them, without returning results.
- * Used to pre-populate cache before a local text search.
- */
-async function fetchAndCacheFromApi(params: SearchParams): Promise<void> {
-  try {
-    const queryParts: string[] = ['format=json']
-    if (params.set) queryParts.push(`set=${params.set}`)
-    if (params.type) queryParts.push(`type=${params.type}`)
-    if (params.rarity) queryParts.push(`rarity=${params.rarity}`)
-    queryParts.push('limit=300') // Fetch a big page to populate cache
-
-    const url = `${API_BASE}/cards?${queryParts.join('&')}`
-    const res = await fetch(url)
-    if (!res.ok) return
-    const data = await res.json()
-    const apiCards: ApiCard[] = data.cards || []
-    const mapped = apiCards.map(mapApiCard)
-    await cacheCards(mapped)
-  } catch {
-    // silent
   }
 }
 
@@ -617,28 +644,50 @@ export async function getCardsByIds(ids: string[]): Promise<Map<string, Card>> {
 
 // ─── Sets ───
 
+let _setsCache: SetInfo[] | null = null
+
 export async function getSets(): Promise<SetInfo[]> {
+  if (_setsCache) return _setsCache
   try {
     const res = await fetch(`${API_BASE}/sets?format=json`)
     if (!res.ok) throw new Error(`API ${res.status}`)
     const data: ApiSetResponse = await res.json()
-    return data.sets.map((s) => ({
-      code: s.code,
-      name: s.name,
-      cardCount: s.card_count,
-      releaseDate: s.release_date || '',
-    }))
+    const sets = data.sets
+      .map((s) => ({
+        code: s.code,
+        name: s.name,
+        // API renamed card_count → total_cards; accept both
+        cardCount: s.total_cards ?? s.card_count ?? 0,
+        releaseDate: s.release_date || '',
+      }))
+      // Main sets first (newest-by-created last in API, so keep stable order:
+      // big sets by our known chronology, then the rest alphabetically)
+      .sort((a, b) => {
+        const mainOrder = Object.keys(MAIN_SET_LABELS)
+        const ia = mainOrder.indexOf(a.code)
+        const ib = mainOrder.indexOf(b.code)
+        if (ia !== -1 && ib !== -1) return ia - ib
+        if (ia !== -1) return -1
+        if (ib !== -1) return 1
+        return a.code.localeCompare(b.code)
+      })
+    _setsCache = sets
+    return sets
   } catch {
-    return [
-      { code: 'SOR', name: 'Spark of Rebellion', cardCount: 252, releaseDate: '2024-03-08' },
-      { code: 'SHD', name: 'Shadows of the Galaxy', cardCount: 262, releaseDate: '2024-07-12' },
-      { code: 'TWI', name: 'Twilight of the Republic', cardCount: 264, releaseDate: '2024-11-08' },
-      { code: 'JTL', name: 'Jump to Lightspeed', cardCount: 262, releaseDate: '2025-03-14' },
-      { code: 'LOF', name: 'Legends of the Force', cardCount: 260, releaseDate: '2025-07-11' },
-      { code: 'SEC', name: 'Secrets of Power', cardCount: 260, releaseDate: '2025-11-07' },
-      { code: 'LAW', name: 'A Lawless Time', cardCount: 260, releaseDate: '2026-03-13' },
-    ]
+    // Offline fallback: the 8 main expansions with correct codes
+    return Object.entries(MAIN_SET_LABELS).map(([code, name]) => ({
+      code,
+      name,
+      cardCount: 1000,
+      releaseDate: '',
+    }))
   }
+}
+
+/** Only the main expansions (excludes promos/weekly-play/judge sets). */
+export async function getMainSets(): Promise<SetInfo[]> {
+  const sets = await getSets()
+  return sets.filter(s => s.cardCount >= MAIN_SET_MIN_CARDS)
 }
 
 // ─── Preload (optional — user can trigger manually) ───

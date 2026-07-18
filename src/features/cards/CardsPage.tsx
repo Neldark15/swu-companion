@@ -7,8 +7,8 @@ import {
 import { Badge } from '../../components/ui/Badge'
 import { CardImage } from '../../components/CardImage'
 import {
-  searchCards, getSets, getLocalCardCount, loadFullDatabase,
-  subscribeDbLoadProgress, type SearchParams, type DbLoadProgress,
+  searchCards, getSets, getLocalCardCount, loadFullDatabase, ensureFreshDatabase,
+  subscribeDbLoadProgress, MAIN_SET_MIN_CARDS, type SearchParams, type DbLoadProgress,
 } from '../../services/swuApi'
 import { getPricesForCards, fetchTCGPrices, formatPrice, type PriceInfo } from '../../services/pricing'
 import { getCardQuantity, updateCollectionQuantity } from '../../services/collectionService'
@@ -72,19 +72,12 @@ export function CardsPage() {
     return () => unsub()
   }, [])
 
-  // Load sets + count + auto-bootstrap on mount
+  // Load sets + count + auto-bootstrap on mount.
+  // ensureFreshDatabase also re-syncs weekly so new expansions appear alone.
   useEffect(() => {
     getSets().then(setSets).catch(() => {})
-    getLocalCardCount().then(count => {
-      setLocalCount(count)
-      // Auto-bootstrap: if cache is very low or empty, download the full DB.
-      // 2000 is the threshold used by the existing fallback logic in swuApi.ts
-      if (count < 2000) {
-        loadFullDatabase().then(finalCount => {
-          setLocalCount(finalCount)
-        })
-      }
-    }).catch(() => {})
+    getLocalCardCount().then(setLocalCount).catch(() => {})
+    ensureFreshDatabase().then(setLocalCount).catch(() => {})
   }, [])
 
   // After DB load completes, refresh local count (in case auto-bootstrap finished)
@@ -235,7 +228,9 @@ export function CardsPage() {
     setSelectedRarity(null)
   }
 
-  const mainSets = sets.filter((s) => !['C24', 'C25', 'P25', 'P26', 'GG', 'J24', 'J25', 'G25', 'TS26', 'IBH'].includes(s.code))
+  // Main expansions only — dynamic by card count so new sets (ASH, next ones)
+  // appear automatically without touching this list ever again
+  const mainSets = sets.filter((s) => s.cardCount >= MAIN_SET_MIN_CARDS)
 
   return (
     <div className="p-4 lg:p-6 space-y-3 pb-8 lg:pb-8 max-w-5xl mx-auto">

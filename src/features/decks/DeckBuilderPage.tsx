@@ -5,7 +5,10 @@ import {
   AlertTriangle, CheckCircle2, Loader2, BookOpen, Layers, Package, RotateCw,
 } from 'lucide-react'
 import { db } from '../../services/db'
-import { searchCards, getCardById, getCardsByIds } from '../../services/swuApi'
+import {
+  searchCards, getCardById, getCardsByIds, ensureFreshDatabase,
+  subscribeDbLoadProgress, type DbLoadProgress,
+} from '../../services/swuApi'
 import { validateDeck, canAddCard, getEffectiveMinDeckSize, getFormatRules } from '../../services/deckValidator'
 import { syncDeckToCloud } from '../../services/sync'
 import { useAuth } from '../../hooks/useAuth'
@@ -68,6 +71,18 @@ export function DeckBuilderPage() {
 
   // Base card text for deck-size modifiers (e.g. Data Vault +10)
   const [baseText, setBaseText] = useState('')
+
+  // Card DB download progress (shown while the full card database bootstraps)
+  const [dbProgress, setDbProgress] = useState<DbLoadProgress>({ phase: 'idle', message: '' })
+
+  // Bootstrap: make sure the card DB exists and is fresh (auto-downloads
+  // new expansions weekly). Without this, search returned empty forever
+  // on a cold cache.
+  useEffect(() => {
+    const unsub = subscribeDbLoadProgress(setDbProgress)
+    void ensureFreshDatabase()
+    return unsub
+  }, [])
 
   // Card images state
   const [cardImages, setCardImages] = useState<Map<string, string>>(new Map(imgCache))
@@ -538,6 +553,28 @@ export function DeckBuilderPage() {
               className="w-full bg-swu-surface border border-swu-border rounded-xl py-3 pl-10 pr-3 text-sm text-swu-text outline-none focus:border-swu-accent" />
             {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-swu-muted"><X size={16} /></button>}
           </div>
+
+          {/* DB bootstrap progress — visible while the card database downloads */}
+          {(dbProgress.phase === 'downloading' || dbProgress.phase === 'parsing' || dbProgress.phase === 'saving') && (
+            <div className="bg-swu-accent/5 border border-swu-accent/30 rounded-lg p-3 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Loader2 size={13} className="text-swu-accent animate-spin" />
+                <p className="text-xs font-semibold text-swu-accent">{dbProgress.message}</p>
+              </div>
+              {dbProgress.phase === 'saving' && dbProgress.saved && dbProgress.totalToSave && (
+                <div className="h-1 bg-swu-bg rounded-full overflow-hidden">
+                  <div className="h-full bg-swu-accent transition-all" style={{ width: `${(dbProgress.saved / dbProgress.totalToSave) * 100}%` }} />
+                </div>
+              )}
+              <p className="text-[10px] text-swu-muted">Preparando la base de cartas — la búsqueda se habilita al terminar.</p>
+            </div>
+          )}
+          {dbProgress.phase === 'error' && (
+            <div className="bg-swu-red/10 border border-swu-red/30 rounded-lg p-2.5 flex items-center gap-2">
+              <AlertTriangle size={13} className="text-swu-red" />
+              <p className="text-[11px] text-swu-red">{dbProgress.message}</p>
+            </div>
+          )}
           {searching && <div className="flex items-center justify-center py-8"><Loader2 size={24} className="text-swu-accent animate-spin" /></div>}
           {!searching && searchResults.length > 0 && (
             <>

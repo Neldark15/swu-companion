@@ -7,7 +7,7 @@ import {
   type PublicProfile,
 } from '../../services/collectionService'
 import { getPricesForCards, fetchTCGPrices, formatPrice, type PriceInfo } from '../../services/pricing'
-import { getCardsByIds } from '../../services/swuApi'
+import { getCardsByIds, MAIN_SET_LABELS } from '../../services/swuApi'
 import type { Card } from '../../types'
 
 const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
@@ -15,13 +15,8 @@ const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormt
 type SortKey = 'name' | 'price' | 'quantity' | 'rarity' | 'set'
 type FilterType = '' | 'Unit' | 'Event' | 'Upgrade' | 'Leader' | 'Base'
 
-const SET_LABELS: Record<string, string> = {
-  SOR: 'Spark of Rebellion',
-  SHD: 'Shadows of the Galaxy',
-  TWI: 'Twilight of the Republic',
-  JTL: 'Jump to Lightspeed',
-  ALT: 'A Lawless Time',
-}
+// Centralized in swuApi — all 8 main expansions (incl. LOF, SEC, LAW, ASH)
+const SET_LABELS = MAIN_SET_LABELS
 
 const RARITY_ORDER: Record<string, number> = {
   Legendary: 0, Special: 1, Rare: 2, Uncommon: 3, Common: 4,

@@ -6,7 +6,7 @@ import {
   Tag, ShoppingBag, Loader2,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-import { getCardsByIds, loadFullDatabase, getLocalCardCount } from '../../services/swuApi'
+import { getCardsByIds, loadFullDatabase, getLocalCardCount, MAIN_SET_LABELS } from '../../services/swuApi'
 import {
   getMyCollectionWithPrices,
   updateCollectionQuantity,
@@ -30,13 +30,8 @@ import type { Card } from '../../types'
 type SortKey = 'name' | 'price' | 'quantity' | 'rarity' | 'set'
 type FilterType = '' | 'Unit' | 'Event' | 'Upgrade' | 'Leader' | 'Base'
 
-const SET_LABELS: Record<string, string> = {
-  SOR: 'Spark of Rebellion',
-  SHD: 'Shadows of the Galaxy',
-  TWI: 'Twilight of the Republic',
-  JTL: 'Jump to Lightspeed',
-  ALT: 'A Lawless Time',
-}
+// Centralized in swuApi — includes all 8 main expansions (LOF, SEC, LAW, ASH…)
+const SET_LABELS = MAIN_SET_LABELS
 
 const RARITY_ORDER: Record<string, number> = {
   Legendary: 0, Special: 1, Rare: 2, Uncommon: 3, Common: 4,
