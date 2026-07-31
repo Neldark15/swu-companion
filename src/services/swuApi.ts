@@ -12,6 +12,7 @@
  */
 
 import { db } from './db'
+import { compareCardsCanonical } from './cardSort'
 import type { Card, SetInfo } from '../types'
 
 const API_BASE = 'https://api.swuapi.com'
@@ -179,6 +180,7 @@ function mapApiCard(c: ApiCard): Card {
     isUnique: Boolean(c.is_unique ?? c.isUnique ?? c.unique_flag),
     isLeader: Boolean(c.is_leader ?? c.isLeader),
     isBase: Boolean(c.is_base ?? c.isBase),
+    variantType: (c.variant_type ?? c.variantType ?? undefined) as string | undefined,
   }
 }
 
@@ -482,6 +484,10 @@ async function searchFromApi(params: SearchParams): Promise<{ cards: Card[]; tot
       filtered = filtered.filter(c => c.arena === params.arena)
     }
 
+    // El API devuelve las cartas en su propio orden; se reordenan al
+    // canónico para que coincida con el resto de la app.
+    filtered.sort(compareCardsCanonical)
+
     return { cards: filtered, total }
   } catch {
     // Fallback to local search if offline
@@ -544,14 +550,9 @@ async function searchLocalCards(params: SearchParams): Promise<{ cards: Card[]; 
   }
 
   // Sort: Leaders first → Bases second → then by setCode + setNumber
-  results.sort((a, b) => {
-    const typeOrder = (c: Card) => c.type === 'Leader' || c.isLeader ? 0 : c.type === 'Base' || c.isBase ? 1 : 2
-    const ta = typeOrder(a)
-    const tb = typeOrder(b)
-    if (ta !== tb) return ta - tb
-    if (a.setCode !== b.setCode) return a.setCode.localeCompare(b.setCode)
-    return a.setNumber - b.setNumber
-  })
+  // Orden de binder: Líderes → Bases → Unidades → Mejoras → Eventos,
+  // por aspecto, set de lanzamiento y número de carta.
+  results.sort(compareCardsCanonical)
 
   const total = results.length
   const offset = params.offset ?? 0

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { getCardsByIds, loadFullDatabase, getLocalCardCount, MAIN_SET_LABELS } from '../../services/swuApi'
+import { byCanonicalCard, compareCardsBySetNumber } from '../../services/cardSort'
 import {
   getMyCollectionWithPrices,
   updateCollectionQuantity,
@@ -27,7 +28,7 @@ import { supabase, isSupabaseReady } from '../../services/supabase'
 import { CardImage } from '../../components/CardImage'
 import type { Card } from '../../types'
 
-type SortKey = 'name' | 'price' | 'quantity' | 'rarity' | 'set'
+type SortKey = 'canonical' | 'name' | 'price' | 'quantity' | 'rarity' | 'set'
 type FilterType = '' | 'Unit' | 'Event' | 'Upgrade' | 'Leader' | 'Base'
 
 // Centralized in swuApi — includes all 8 main expansions (LOF, SEC, LAW, ASH…)
@@ -45,7 +46,9 @@ export function CollectionPage() {
   const [cards, setCards] = useState<Map<string, Card>>(new Map())
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [sortBy, setSortBy] = useState<SortKey>('name')
+  // Por defecto el orden del juego (líderes → bases → unidades → eventos),
+  // que es como uno hojea un binder.
+  const [sortBy, setSortBy] = useState<SortKey>('canonical')
   const [filterType, setFilterType] = useState<FilterType>('')
   const [showFilters, setShowFilters] = useState(false)
   const [filterSet, setFilterSet] = useState('')
@@ -222,10 +225,13 @@ export function CollectionPage() {
     }
 
     // Sort
+    const canonical = byCanonicalCard<typeof list[number]>(i => cards.get(i.cardId))
     list.sort((a, b) => {
       const ca = cards.get(a.cardId)
       const cb = cards.get(b.cardId)
       switch (sortBy) {
+        case 'canonical':
+          return canonical(a, b)
         case 'name':
           return (ca?.name ?? '').localeCompare(cb?.name ?? '')
         case 'price': {
@@ -240,10 +246,14 @@ export function CollectionPage() {
           const rb = RARITY_ORDER[cb?.rarity ?? 'Common'] ?? 5
           return ra - rb
         }
-        case 'set':
-          return (ca?.setCode ?? '').localeCompare(cb?.setCode ?? '')
+        case 'set': {
+          // Vista de binder: set por set, cada uno en su numeración oficial
+          // (que ya es líderes → bases → unidades → eventos).
+          if (!ca || !cb) return ca ? -1 : cb ? 1 : 0
+          return compareCardsBySetNumber(ca, cb)
+        }
         default:
-          return 0
+          return canonical(a, b)
       }
     })
 
@@ -788,11 +798,12 @@ export function CollectionPage() {
               <div className="text-xs text-swu-muted mb-2">Ordenar por</div>
               <div className="flex flex-wrap gap-1.5">
                 {([
+                  ['canonical', 'Orden del juego'],
+                  ['set', 'Por expansión'],
                   ['name', 'Nombre'],
                   ['price', 'Precio'],
                   ['quantity', 'Cantidad'],
                   ['rarity', 'Rareza'],
-                  ['set', 'Set'],
                 ] as [SortKey, string][]).map(([key, label]) => (
                   <button
                     key={key}

@@ -193,6 +193,27 @@ export class SWUDatabase extends Dexie {
       // que ensureFreshDatabase la reconstruya con uuids.
       await tx.table('cards').clear()
     })
+
+    // v10: las cartas ahora guardan `variantType`. Hace falta para ordenar:
+    // cada serie de variantes (promo, weekly play, foil) numera desde 1, así
+    // que varias cartas comparten número dentro de un set y la impresión
+    // normal debe ir primero. Se vacía la cache para traerlo.
+    this.version(10).stores({
+      matches: 'id, mode, isActive, createdAt, profileId',
+      tournaments: 'id, status, createdAt, profileId',
+      decks: 'id, name, format, createdAt, profileId',
+      cards: 'id, legacyId, name, type, rarity, setCode, *aspects, *keywords, *traits',
+      favoriteCards: 'cardId, profileId',
+      collection: 'cardId, profileId',
+      wishlist: 'cardId, profileId',
+      profiles: 'id, name, email, credentialId, country, continent',
+      playerStats: 'profileId',
+      cardPrices: 'cardId',
+      matchLogs: 'id, userId, recordedAt, gameMode',
+      meleeTournaments: 'id, userId, date, format, meleeId',
+    }).upgrade(async (tx) => {
+      await tx.table('cards').clear()
+    })
   }
 }
 

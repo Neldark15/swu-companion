@@ -8,11 +8,12 @@ import {
 } from '../../services/collectionService'
 import { getPricesForCards, fetchTCGPrices, formatPrice, type PriceInfo } from '../../services/pricing'
 import { getCardsByIds, MAIN_SET_LABELS } from '../../services/swuApi'
+import { byCanonicalCard, compareCardsBySetNumber } from '../../services/cardSort'
 import type { Card } from '../../types'
 
 const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
 
-type SortKey = 'name' | 'price' | 'quantity' | 'rarity' | 'set'
+type SortKey = 'canonical' | 'name' | 'price' | 'quantity' | 'rarity' | 'set'
 type FilterType = '' | 'Unit' | 'Event' | 'Upgrade' | 'Leader' | 'Base'
 
 // Centralized in swuApi — all 8 main expansions (incl. LOF, SEC, LAW, ASH)
@@ -39,7 +40,7 @@ export function PublicProfilePage() {
   const [notFound, setNotFound] = useState(false)
   const [isPrivate, setIsPrivate] = useState(false)
   const [search, setSearch] = useState('')
-  const [sortBy, setSortBy] = useState<SortKey>('name')
+  const [sortBy, setSortBy] = useState<SortKey>('canonical')
   const [filterType, setFilterType] = useState<FilterType>('')
   const [filterSet, setFilterSet] = useState('')
   const [filterRarity, setFilterRarity] = useState('')
@@ -152,8 +153,8 @@ export function PublicProfilePage() {
           ...item,
           card: item.card ?? cardMap.get(item.cardId) ?? null,
         }))
-        // Sort by name now that we have most cards
-        hydrated.sort((a, b) => (a.card?.name ?? a.cardId).localeCompare(b.card?.name ?? b.cardId))
+        // Orden del juego ahora que tenemos los detalles
+        hydrated.sort(byCanonicalCard(i => i.card))
         return hydrated
       })
     }).catch(e => console.warn('[PublicProfile] Card hydration failed:', e))
@@ -244,8 +245,11 @@ export function PublicProfilePage() {
     }
 
     // Sort
+    const canonical = byCanonicalCard<typeof list[number]>(i => i.card)
     list.sort((a, b) => {
       switch (sortBy) {
+        case 'canonical':
+          return canonical(a, b)
         case 'name':
           return (a.card?.name ?? '').localeCompare(b.card?.name ?? '')
         case 'price': {
@@ -260,10 +264,12 @@ export function PublicProfilePage() {
           const rb = RARITY_ORDER[b.card?.rarity ?? 'Common'] ?? 5
           return ra - rb
         }
-        case 'set':
-          return (a.card?.setCode ?? '').localeCompare(b.card?.setCode ?? '')
+        case 'set': {
+          if (!a.card || !b.card) return a.card ? -1 : b.card ? 1 : 0
+          return compareCardsBySetNumber(a.card, b.card)
+        }
         default:
-          return 0
+          return canonical(a, b)
       }
     })
 
@@ -494,11 +500,12 @@ export function PublicProfilePage() {
                       <div className="text-xs text-swu-muted mb-2">Ordenar por</div>
                       <div className="flex flex-wrap gap-1.5">
                         {([
+                          ['canonical', 'Orden del juego'],
+                          ['set', 'Por expansión'],
                           ['name', 'Nombre'],
                           ['price', 'Precio'],
                           ['quantity', 'Cantidad'],
                           ['rarity', 'Rareza'],
-                          ['set', 'Set'],
                         ] as [SortKey, string][]).map(([key, label]) => (
                           <button
                             key={key}

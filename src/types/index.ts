@@ -119,6 +119,13 @@ export interface Card {
   isUnique: boolean
   isLeader: boolean
   isBase: boolean
+  /**
+   * Impresión de la carta: 'Standard', 'Hyperspace', 'Standard Foil',
+   * 'Weekly Play', promos de torneo, etc. Importa para ordenar: cada serie
+   * de variantes tiene su PROPIA numeración, así que varias cartas distintas
+   * comparten número dentro de un mismo set. La Standard va primero.
+   */
+  variantType?: string
 }
 
 export interface SetInfo {
