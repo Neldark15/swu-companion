@@ -87,7 +87,16 @@ export type CardType = 'Leader' | 'Base' | 'Unit' | 'Event' | 'Upgrade'
 export type CardRarity = 'Common' | 'Uncommon' | 'Rare' | 'Legendary' | 'Special'
 
 export interface Card {
+  /** UUID del API — único y estable. Clave primaria en Dexie. */
   id: string
+  /**
+   * Id heredado con formato `SET_NNN` (ej. `SOR_001`). NO es único: el API
+   * lo reutiliza entre variantes e incluso entre cartas distintas. Solo lo
+   * lleva la impresión canónica de cada grupo, para poder resolver
+   * referencias viejas (colecciones y mazos guardados antes del cambio a
+   * uuid). Las demás variantes lo dejan vacío.
+   */
+  legacyId?: string
   name: string
   subtitle: string | null
   type: CardType

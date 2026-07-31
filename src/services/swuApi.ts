@@ -102,9 +102,35 @@ function pick<T>(vals: Array<T | null | undefined>, fallback: T): T {
   return fallback
 }
 
+/**
+ * Orden de preferencia entre impresiones de una misma carta. Cuando varias
+ * comparten el id heredado `SET_NNN`, la primera de esta lista es la que se
+ * queda con ese id — es la impresión "de juego", la que un jugador
+ * realmente tiene y la que las colecciones viejas querían referenciar.
+ */
+const VARIANT_PRIORITY = [
+  'Standard', 'Standard Foil', 'Hyperspace', 'Hyperspace Foil',
+  'Standard Prestige', 'Foil Prestige', 'Serialized Prestige',
+  'Weekly Play', 'Weekly Play Foil',
+]
+
+function variantRank(c: ApiCard): number {
+  const v = (c.variant_type ?? c.variantType ?? 'Standard') as string
+  const i = VARIANT_PRIORITY.indexOf(v)
+  return i === -1 ? VARIANT_PRIORITY.length : i
+}
+
 function mapApiCard(c: ApiCard): Card {
-  // ID: prefer 'id' (camel/export), fallback to 'uuid' (new /cards endpoint)
-  const id = (c.id ?? c.uuid ?? '') as string
+  // El UUID es la identidad real: único y estable entre endpoints.
+  //
+  // El campo `id` del API (`SOR_001`) NO es único — el mismo valor apunta a
+  // varias impresiones e incluso a cartas distintas (SOR_001 son SEIS cartas:
+  // Director Krennic, Darth Vader promo, Takedown…). Usarlo como clave hacía
+  // que Dexie sobrescribiera 1,465 de las 9,057 cartas. Se conserva como
+  // `legacyId` para resolver referencias guardadas antes de este cambio.
+  const uuid = (c.uuid ?? c.id ?? '') as string
+  const id = uuid
+  const legacyId = typeof c.id === 'string' && c.id !== uuid ? c.id : undefined
 
   // Combine front_text + back_text from new API into one body, fallback to legacy text
   const bodyText =
@@ -122,6 +148,7 @@ function mapApiCard(c: ApiCard): Card {
 
   return {
     id,
+    legacyId,
     name: pick([c.name as string], ''),
     subtitle: (c.subtitle as string | null) ?? null,
     type: ((c.type as string) || 'Unit') as Card['type'],
@@ -294,7 +321,25 @@ export async function loadFullDatabase(opts?: { force?: boolean }): Promise<numb
         return existing
       }
 
-      const mapped = rawCards.map(mapApiCard).filter(isValidCard)
+      // Ordenar por prioridad de variante ANTES de mapear: así, cuando
+      // varias impresiones comparten el mismo `legacyId`, la canónica
+      // (Standard) es la primera y se queda con él.
+      const ordered = [...rawCards].sort((a, b) => variantRank(a) - variantRank(b))
+      const seenLegacy = new Set<string>()
+      const mapped = ordered
+        .map(mapApiCard)
+        .filter(isValidCard)
+        .map(card => {
+          if (!card.legacyId) return card
+          if (seenLegacy.has(card.legacyId)) {
+            // Otra impresión ya reclamó este id heredado — esta lo suelta
+            // para que el índice `legacyId` resuelva a una sola carta.
+            return { ...card, legacyId: undefined }
+          }
+          seenLegacy.add(card.legacyId)
+          return card
+        })
+
       if (mapped.length === 0) {
         emitProgress({ phase: 'error', message: 'Las cartas recibidas no tienen formato válido', error: 'No valid cards' })
         return existing
@@ -522,6 +567,11 @@ const _cardMemCache = new Map<string, Card>()
 
 // ─── Single card ───
 
+/** ¿Es un id heredado con formato `SET_NNN` (y no un uuid)? */
+function isLegacyId(id: string): boolean {
+  return /^[A-Z0-9]{2,5}_\d+$/.test(id)
+}
+
 export async function getCardById(id: string): Promise<Card | null> {
   // 1. Memory cache (instant)
   const mem = _cardMemCache.get(id)
@@ -532,6 +582,16 @@ export async function getCardById(id: string): Promise<Card | null> {
   if (local) {
     _cardMemCache.set(id, local)
     return local
+  }
+
+  // 2b. Referencia vieja (`SOR_001`) guardada en una colección o mazo de
+  // antes del cambio a uuid: se resuelve por el índice legacyId.
+  if (isLegacyId(id)) {
+    const byLegacy = await db.cards.where('legacyId').equals(id).first()
+    if (byLegacy) {
+      _cardMemCache.set(id, byLegacy)
+      return byLegacy
+    }
   }
 
   // 3. Network fallback. The API has historically returned different shapes
@@ -604,6 +664,28 @@ export async function getCardsByIds(ids: string[]): Promise<Map<string, Card>> {
   } catch {
     for (const id of missing) if (!result.has(id)) notInLocal.push(id)
   }
+
+  // 2b. Los que quedan y tienen formato viejo (`SOR_001`) se resuelven por
+  // el índice legacyId — colecciones y mazos guardados antes del uuid.
+  const legacyPending = notInLocal.filter(isLegacyId)
+  if (legacyPending.length > 0) {
+    try {
+      const byLegacy = await db.cards.where('legacyId').anyOf(legacyPending).toArray()
+      const resolved = new Set<string>()
+      for (const card of byLegacy) {
+        if (!card.legacyId) continue
+        // Se indexa bajo el id con el que preguntaron, para que el llamador
+        // encuentre lo que pidió.
+        _cardMemCache.set(card.legacyId, card)
+        result.set(card.legacyId, card)
+        resolved.add(card.legacyId)
+      }
+      if (resolved.size > 0) notInLocal = notInLocal.filter(id => !resolved.has(id))
+    } catch {
+      // sigue al fallback de red
+    }
+  }
+
   if (notInLocal.length === 0) return result
 
   // 3. Bulk fallback: if many cards are missing, download the full DB once
@@ -611,17 +693,25 @@ export async function getCardsByIds(ids: string[]): Promise<Map<string, Card>> {
   if (notInLocal.length >= BULK_FALLBACK_THRESHOLD) {
     try {
       await loadFullDatabase()
-      // Retry from Dexie now that the full DB is loaded
-      const retryCards = await db.cards.where('id').anyOf(notInLocal).toArray()
-      const stillMissing: string[] = []
+      // Retry from Dexie now that the full DB is loaded — por uuid y por
+      // legacyId, que es como vienen las referencias de colecciones viejas.
+      const [retryCards, retryLegacy] = await Promise.all([
+        db.cards.where('id').anyOf(notInLocal).toArray(),
+        db.cards.where('legacyId').anyOf(notInLocal.filter(isLegacyId)).toArray(),
+      ])
       const foundIds = new Set<string>()
       for (const card of retryCards) {
         _cardMemCache.set(card.id, card)
         result.set(card.id, card)
         foundIds.add(card.id)
       }
-      for (const id of notInLocal) if (!foundIds.has(id)) stillMissing.push(id)
-      notInLocal = stillMissing
+      for (const card of retryLegacy) {
+        if (!card.legacyId) continue
+        _cardMemCache.set(card.legacyId, card)
+        result.set(card.legacyId, card)
+        foundIds.add(card.legacyId)
+      }
+      notInLocal = notInLocal.filter(id => !foundIds.has(id))
     } catch {
       // loadFullDatabase failed — fall through to per-card fetches
     }

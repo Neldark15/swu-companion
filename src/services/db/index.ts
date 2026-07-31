@@ -170,6 +170,29 @@ export class SWUDatabase extends Dexie {
       matchLogs: 'id, userId, recordedAt, gameMode',
       meleeTournaments: 'id, userId, date, format, meleeId',
     })
+
+    // v9: cards pasan a estar indexadas por UUID (antes usaban el id
+    // `SET_NNN` del API, que NO es único — colisionaba y hacía perder
+    // 1,465 cartas de 9,057). Se agrega `legacyId` indexado para poder
+    // resolver referencias viejas de colecciones y mazos.
+    this.version(9).stores({
+      matches: 'id, mode, isActive, createdAt, profileId',
+      tournaments: 'id, status, createdAt, profileId',
+      decks: 'id, name, format, createdAt, profileId',
+      cards: 'id, legacyId, name, type, rarity, setCode, *aspects, *keywords, *traits',
+      favoriteCards: 'cardId, profileId',
+      collection: 'cardId, profileId',
+      wishlist: 'cardId, profileId',
+      profiles: 'id, name, email, credentialId, country, continent',
+      playerStats: 'profileId',
+      cardPrices: 'cardId',
+      matchLogs: 'id, userId, recordedAt, gameMode',
+      meleeTournaments: 'id, userId, date, format, meleeId',
+    }).upgrade(async (tx) => {
+      // La cache vieja está indexada por el id equivocado: se vacía para
+      // que ensureFreshDatabase la reconstruya con uuids.
+      await tx.table('cards').clear()
+    })
   }
 }
 

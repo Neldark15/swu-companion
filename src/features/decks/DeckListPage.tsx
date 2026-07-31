@@ -43,6 +43,8 @@ export function DeckListPage() {
   const navigate = useNavigate()
   const { supabaseUser } = useAuth()
   const [decks, setDecks] = useState<Deck[]>([])
+  const [deckToDelete, setDeckToDelete] = useState<Deck | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [cardImages, setCardImages] = useState<Map<string, string>>(new Map())
   const [baseTexts, setBaseTexts] = useState<Map<string, string>>(new Map())
@@ -128,11 +130,15 @@ export function DeckListPage() {
     return () => window.removeEventListener('focus', handleFocus)
   }, [loadDecks])
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    await db.decks.delete(id)
-    if (supabaseUser) deleteDeckFromCloud(id).catch(() => {})
-    setDecks((prev) => prev.filter((d) => d.id !== id))
+  const confirmDelete = async () => {
+    const deck = deckToDelete
+    if (!deck) return
+    setDeleting(true)
+    await db.decks.delete(deck.id)
+    if (supabaseUser) deleteDeckFromCloud(deck.id).catch(() => {})
+    setDecks((prev) => prev.filter((d) => d.id !== deck.id))
+    setDeleting(false)
+    setDeckToDelete(null)
   }
 
   const handleTogglePublic = async (deckId: string, e: React.MouseEvent) => {
@@ -326,8 +332,9 @@ export function DeckListPage() {
                         {(deck.isPublic ?? true) ? <Eye size={13} /> : <EyeOff size={13} />}
                       </button>
                       <button
-                        onClick={(e) => handleDelete(deck.id, e)}
+                        onClick={(e) => { e.stopPropagation(); setDeckToDelete(deck) }}
                         className="p-1.5 rounded-lg bg-swu-red/10 text-swu-red active:scale-95 transition-transform"
+                        title="Borrar deck"
                       >
                         <Trash2 size={13} />
                       </button>
@@ -347,6 +354,47 @@ export function DeckListPage() {
       {/* Import/Export Modals */}
       <ImportDeckModal open={showImport} onClose={() => setShowImport(false)} onImport={handleImportResult} />
       <ExportDeckModal open={!!exportDeck} deck={exportDeck} onClose={() => setExportDeck(null)} />
+
+      {/* Confirmación de borrado — un deck puede ser horas de trabajo */}
+      {deckToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="bg-swu-surface rounded-2xl border border-swu-red/30 p-5 max-w-sm w-full space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-swu-red/15 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle size={20} className="text-swu-red" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-bold text-swu-text">¿Borrar este deck?</div>
+                <div className="text-xs text-swu-muted mt-0.5 truncate">{deckToDelete.name}</div>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-swu-muted leading-relaxed">
+              Se elimina de este dispositivo y de la nube. Esta acción no se puede deshacer.
+            </p>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeckToDelete(null)}
+                disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl bg-swu-bg border border-swu-border text-swu-muted text-sm font-medium active:scale-[0.98]"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl bg-swu-red text-white text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50"
+              >
+                {deleting
+                  ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  : <Trash2 size={14} />}
+                {deleting ? 'Borrando…' : 'Sí, borrar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
