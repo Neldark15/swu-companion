@@ -596,6 +596,31 @@ export async function pullSettingsFromCloud(userId: string): Promise<Record<stri
 
 // ─── FULL PULL (on login) ───────────────────────────────────────
 
+/**
+ * Trae la colección completa paginando de a 1000.
+ *
+ * PostgREST corta cualquier SELECT en 1000 filas por defecto. Una colección
+ * completa (playset de todas las expansiones) son ~2100 filas, así que sin
+ * paginar el usuario perdía silenciosamente todo lo que pasara del corte.
+ */
+async function fetchAllCollection(
+  userId: string,
+): Promise<Array<{ card_id: string; quantity: number }>> {
+  const PAGE = 1000
+  const all: Array<{ card_id: string; quantity: number }> = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('collection')
+      .select('card_id, quantity')
+      .eq('user_id', userId)
+      .range(from, from + PAGE - 1)
+    if (error || !data || data.length === 0) break
+    all.push(...(data as Array<{ card_id: string; quantity: number }>))
+    if (data.length < PAGE) break
+  }
+  return all
+}
+
 export async function pullAllFromCloud(userId: string, localProfileId: string) {
   if (!isSupabaseReady()) return
 
@@ -704,11 +729,13 @@ export async function pullAllFromCloud(userId: string, localProfileId: string) {
         return db.decks.bulkPut(items).then(() => console.log(`[Sync] Pulled ${data.length} decks`))
       }
     }),
-    // Collection
-    supabase.from('collection').select('*').eq('user_id', userId).then(({ data }) => {
-      if (data && data.length > 0) {
-        const items = data.map(c => ({ cardId: c.card_id, quantity: c.quantity, profileId: localProfileId }))
-        return db.collection.bulkPut(items).then(() => console.log(`[Sync] Pulled ${data.length} collection items`))
+    // Collection — paginado: Supabase corta los SELECT en 1000 filas y una
+    // colección completa pasa de 2000, así que sin esto se truncaba en
+    // silencio (el usuario perdía cartas al sincronizar).
+    fetchAllCollection(userId).then(rows => {
+      if (rows.length > 0) {
+        const items = rows.map(c => ({ cardId: c.card_id, quantity: c.quantity, profileId: localProfileId }))
+        return db.collection.bulkPut(items).then(() => console.log(`[Sync] Pulled ${rows.length} collection items`))
       }
     }),
     // Favorites
