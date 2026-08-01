@@ -73,7 +73,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Vercel la corte, gastando el presupuesto de ejecución.
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 20_000)
-    const upstream = await fetch(url, { signal: controller.signal })
+    // tcgcsv rechaza con 401 cualquier petición sin `User-Agent`, y el fetch
+    // de Node no manda uno (curl sí, por eso a mano funcionaba y desde Vercel
+    // no). Identificarse es además lo correcto con un servicio gratuito.
+    const upstream = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'swu-companion/1.0 (+https://www.swusv.com)',
+        Accept: 'application/json',
+      },
+    })
     clearTimeout(timeout)
 
     if (!upstream.ok) {
