@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Heart, Loader2, AlertCircle, BookOpen, Star, Package, Plus, Minus, Maximize2 } from 'lucide-react'
+import { ChevronLeft, Heart, Loader2, AlertCircle, BookOpen, Star, Package, Plus, Minus, Maximize2, Search } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { CardZoom } from '../../components/CardZoom'
 import { isLandscapeFace } from '../../services/cardArt'
 import { getCardById } from '../../services/swuApi'
+import { getMyWishlist, addToWishlist, removeFromWishlist } from '../../services/tradeService'
 import { db } from '../../services/db'
 import { syncFavoriteToCloud } from '../../services/sync'
 import { useAuth } from '../../hooks/useAuth'
@@ -51,6 +52,10 @@ export function CardDetailPage() {
   const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null)
   const [priceLoading, setPriceLoading] = useState(false)
   const [zoomOpen, setZoomOpen] = useState(false)
+  /** "La busco" — alimenta el cruce de intercambios. Distinto del corazón,
+   *  que es estética: me gusta ≠ la quiero. */
+  const [wanted, setWanted] = useState(false)
+  const [wantBusy, setWantBusy] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -87,6 +92,28 @@ export function CardDetailPage() {
     const newQty = Math.max(0, collectionQty + delta)
     setCollectionQty(newQty)
     await updateCollectionQuantity(id, newQty, currentProfileId ?? undefined, supabaseUser?.id)
+  }
+
+  // ¿Ya la tengo en la lista de buscadas?
+  useEffect(() => {
+    if (!id || !supabaseUser) { setWanted(false); return }
+    let cancelled = false
+    getMyWishlist(supabaseUser.id)
+      .then(list => { if (!cancelled) setWanted(list.some(w => w.cardId === id)) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [id, supabaseUser])
+
+  const toggleWanted = async () => {
+    if (!id || !supabaseUser || wantBusy) return
+    setWantBusy(true)
+    const next = !wanted
+    setWanted(next) // optimista
+    const ok = next
+      ? (await addToWishlist(supabaseUser.id, id)).ok
+      : await removeFromWishlist(supabaseUser.id, id)
+    if (!ok) setWanted(!next) // revertir si el servidor rechazó
+    setWantBusy(false)
   }
 
   const toggleFavorite = async () => {
@@ -147,14 +174,36 @@ export function CardDetailPage() {
         <button onClick={goBack} className="flex items-center gap-1 text-sm text-swu-muted">
           <ChevronLeft size={18} /> Atrás
         </button>
-        <button
-          onClick={toggleFavorite}
-          className={`p-2 rounded-lg border transition-colors ${
-            isFavorite ? 'bg-swu-red/20 border-swu-red/40 text-swu-red' : 'bg-swu-surface border-swu-border text-swu-muted'
-          }`}
-        >
-          <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* "La busco" — es lo que alimenta el cruce de intercambios. Va
+              separado del corazón a propósito: "me gusta" no es "la quiero",
+              y mezclarlos ensuciaría la señal de demanda. */}
+          {supabaseUser && (
+            <button
+              onClick={toggleWanted}
+              disabled={wantBusy}
+              aria-pressed={wanted}
+              className={`px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50 ${
+                wanted
+                  ? 'bg-swu-coral/15 border-swu-coral/50 text-swu-coral'
+                  : 'bg-swu-surface border-swu-border text-swu-muted'
+              }`}
+            >
+              <Search size={14} aria-hidden />
+              {wanted ? 'La busco' : 'Buscar'}
+            </button>
+          )}
+          <button
+            onClick={toggleFavorite}
+            aria-pressed={isFavorite}
+            aria-label={isFavorite ? 'Quitar de favoritas' : 'Marcar como favorita'}
+            className={`p-2 rounded-lg border transition-colors ${
+              isFavorite ? 'bg-swu-red/20 border-swu-red/40 text-swu-red' : 'bg-swu-surface border-swu-border text-swu-muted'
+            }`}
+          >
+            <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} aria-hidden />
+          </button>
+        </div>
       </div>
 
       {/* Card Image — proporción declarada para que la página no salte al cargar */}

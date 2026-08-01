@@ -20,9 +20,68 @@ import {
   type MarketplaceListing,
 } from '../../services/collectionService'
 import { getCardsByIds } from '../../services/swuApi'
+import { getTradeMatches, type TradeMatch } from '../../services/tradeService'
 import { CardImage } from '../../components/CardImage'
 import { listFaceUrl, listFaceFit } from '../../services/cardArt'
+import { TradeMatches } from './TradeMatches'
+import { useAuth } from '../../hooks/useAuth'
+import { db } from '../../services/db'
 import type { Card } from '../../types'
+
+/**
+ * Sección de coincidencias de intercambio, arriba del catálogo.
+ *
+ * Solo aparece con sesión iniciada: sin usuario no hay wishlist ni colección
+ * propia contra la que cruzar.
+ */
+function MatchesSection() {
+  const { supabaseUser } = useAuth()
+  const [matches, setMatches] = useState<TradeMatch[]>([])
+  const [cards, setCards] = useState<Map<string, Card>>(new Map())
+  const [loading, setLoading] = useState(true)
+  const [myName, setMyName] = useState('un jugador')
+
+  useEffect(() => {
+    let cancelled = false
+    if (!supabaseUser) { setLoading(false); return }
+
+    getTradeMatches(supabaseUser.id)
+      .then(async (ms) => {
+        if (cancelled) return
+        setMatches(ms)
+        // Un solo lote para todas las cartas de todas las coincidencias.
+        const ids = Array.from(new Set(
+          ms.flatMap(m => [...m.theyOffer, ...m.iOffer].map(x => x.cardId)),
+        ))
+        if (ids.length > 0) {
+          const map = await getCardsByIds(ids)
+          if (!cancelled) setCards(map)
+        }
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false) })
+
+    return () => { cancelled = true }
+  }, [supabaseUser])
+
+  useEffect(() => {
+    if (!supabaseUser) return
+    db.profiles.get(supabaseUser.id)
+      .then(p => { if (p?.name) setMyName(p.name) })
+      .catch(() => {})
+  }, [supabaseUser])
+
+  if (!supabaseUser) return null
+
+  return (
+    <section>
+      <h2 className="text-[10px] font-mono tracking-[0.2em] uppercase text-swu-muted/60 mb-2 px-1">
+        Para vos
+      </h2>
+      <TradeMatches matches={matches} cards={cards} myName={myName} loading={loading} />
+    </section>
+  )
+}
 
 /* Avatar helper */
 const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
@@ -47,6 +106,10 @@ export function ExplorePage() {
       </div>
 
       <div className="max-w-lg lg:max-w-5xl mx-auto px-4 lg:px-6 py-4 space-y-4">
+        {/* Las coincidencias van ANTES del catálogo: un listado de todo lo
+            publicado es un catálogo; esto es una lista de tratos posibles. */}
+        <MatchesSection />
+
         {/* Tabs */}
         <div className="flex bg-swu-surface rounded-lg p-0.5 border border-swu-border">
           <TabBtn
