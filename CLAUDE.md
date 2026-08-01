@@ -124,6 +124,11 @@
 
 ## Navegación (SideNav.tsx)
 
+### Móvil: 5 destinos ([TabBar.tsx](src/components/layout/TabBar.tsx))
+`Inicio · Explorar · Binder · Mercado · Perfil`. Las otras 11 rutas viven en [MoreNav.tsx](src/components/layout/MoreNav.tsx), agrupadas por intención (Jugar / Construir / Comunidad) dentro de Perfil. **En escritorio el sidebar sigue mostrando las 16** — no colapsarlo.
+
+### Escritorio: sidebar completo (SideNav.tsx)
+
 **Principal:**
 - `/` Base (Hexagon) — centro de mando
 - `/play` Duelo (Swords) — tracker en vivo
@@ -201,6 +206,23 @@ Si el progreso usara `isCanonical`, TWI daría 258 y un playset completo se qued
 
 ### 2e. `total_cards` de `/sets` está MAL — no usarlo como denominador
 Verificado contra el export: SOR/SHD/TWI vienen +10 de más, LAW -6, y TWIP/SHDP/SORP llegan en `null`. Por eso el denominador del progreso se cuenta local.
+
+### 2g. La PWA se quedaba con la versión vieja — no volver a romperlo
+`vite.config.ts` declara `registerType: 'autoUpdate'`, pero con **injectManifest** eso no alcanza: el service worker tiene que llamar a `skipWaiting()` y `clientsClaim()` **en el arranque** (no dentro de un listener de mensajes). Sin eso, el SW seguía sirviendo el `index.html` precacheado viejo y **cada deploy quedaba invisible** para quien ya tuviera la PWA instalada. Medido: el navegador cargaba `index-BSkwW_Gc.css` con el servidor sirviendo `index-1H8UJgmK.css`.
+
+Está arreglado en [src/sw.ts](src/sw.ts). Al desplegar, la primera carga puede mostrar el build anterior y la **segunda** ya trae el nuevo: es normal, el SW se activa y reclama la pestaña en esa primera visita.
+
+### 2h. `isCanonical` ≠ `isCollectible` ≠ oferta de intercambio
+Tres preguntas parecidas con respuestas distintas:
+- **`isCanonical`** — ¿es la fila que representa a esta carta en el buscador? → 2,316
+- **`isCollectible`** ([collectionProgress.ts](src/services/collectionProgress.ts)) — ¿cuenta para el progreso del set? Exige `variantType === 'Standard'` → **2,089**
+- **oferta** ([tradeService.ts](src/services/tradeService.ts)) — ¿se puede cambiar? Exige `for_sale` **o** `quantity > 3`. Tener una carta NO es ofrecerla: la colección más grande son 2,089 filas con `quantity=3` de una importación, y si "tener" contara, el cruce diría "Nelson tiene todo" para siempre.
+
+### 2i. Intercambios sin mensajería y sin teléfonos
+No hay tablas de mensajes ni números guardados. La app arma el mensaje con las cartas de las dos patas y usa `navigator.share` (o el portapapeles); el contacto lo elige la persona en su propio WhatsApp. Eso **elimina** la decisión de privacidad en vez de resolverla. No agregar un campo de teléfono sin volver a discutirlo.
+
+### 2j. Grants a nivel de tabla vencen a los revokes por columna
+Para tapar `profiles.email` a `anon` NO sirve `revoke select (email)`: un grant de SELECT a nivel de tabla cubre todas las columnas, presentes y futuras. Hay que `revoke select on <tabla>` y después `grant select (col1, col2, …)` con la lista explícita. Ver [privacy-close-email-and-honor-is-public.sql](supabase/migrations/privacy-close-email-and-honor-is-public.sql).
 
 ### 2f. supabase-js NO lanza excepción ante error de PostgREST
 `const { data } = await supabase...` sin mirar `error` deja `data` en `null`, el `try/catch` nunca se activa y el fallo se ve igual que "no hay datos". Así estuvo **100% muerta** la caché de precios en la nube (0 filas de por vida): la tabla tenía 6 columnas y el código leía 9. Siempre desestructurar `error`.

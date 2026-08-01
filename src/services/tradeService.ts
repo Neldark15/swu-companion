@@ -166,15 +166,25 @@ export async function getTradeMatches(userId: string): Promise<TradeMatch[]> {
   if (wErr) console.warn('[Trade] wishlists ajenas:', wErr.message)
 
   // 3. De la colección ajena solo hacen falta las cartas que YO busco.
-  let othersColl: CollectionRow[] = []
-  if (myWants.size > 0) {
+  //
+  //    En lotes: PostgREST manda el `in(...)` en la URL y cada uuid ocupa 37
+  //    caracteres. Con una wishlist de 500 cartas serían ~18 KB de URL y el
+  //    servidor la rechazaría — el cruce fallaría en silencio justo para
+  //    quien más lo usa.
+  const othersColl: CollectionRow[] = []
+  const wants = Array.from(myWants)
+  const CHUNK = 100
+  for (let i = 0; i < wants.length; i += CHUNK) {
     const { data, error } = await supabase
       .from('collection')
       .select('user_id, card_id, quantity, for_sale, sale_price')
       .neq('user_id', userId)
-      .in('card_id', Array.from(myWants))
-    if (error) console.warn('[Trade] colecciones ajenas:', error.message)
-    othersColl = (data ?? []) as CollectionRow[]
+      .in('card_id', wants.slice(i, i + CHUNK))
+    if (error) {
+      console.warn('[Trade] colecciones ajenas:', error.message)
+      break
+    }
+    othersColl.push(...((data ?? []) as CollectionRow[]))
   }
 
   // 4. Agrupar por persona.
