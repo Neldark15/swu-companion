@@ -29,8 +29,10 @@ export default defineConfig({
         name: 'HOLOCRON SWU',
         short_name: 'HOLOCRON',
         description: 'Star Wars: Unlimited Companion App — Trackers, Events, Cards & Decks',
-        theme_color: '#0F172A',
-        background_color: '#0F172A',
+        // Tiene que coincidir con --color-swu-bg del CSS: con #0F172A la barra
+        // de estado de la PWA instalada quedaba de otro color que el fondo.
+        theme_color: '#181825',
+        background_color: '#181825',
         display: 'standalone',
         orientation: 'any',
         start_url: '/',

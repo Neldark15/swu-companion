@@ -5,6 +5,9 @@ import {
   Download, RefreshCw, AlertTriangle, Database, Layers, Heart,
 } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
+import { Button } from '../../components/ui/Button'
+import { Chip, type ChipTone } from '../../components/ui/Chip'
+import { SegmentedControl } from '../../components/ui/SegmentedControl'
 import { CardImage } from '../../components/CardImage'
 import { listFaceUrl, listFaceFit } from '../../services/cardArt'
 import {
@@ -378,20 +381,28 @@ export function CardsPage() {
    * dentro del panel: no se veía qué estaba aplicado sin abrirlo.
    */
   const activeChips = useMemo(() => {
-    const chips: { key: string; label: string; clear: () => void }[] = []
-    if (selectedType) chips.push({ key: 'type', label: translateType(selectedType), clear: () => setChip(setSelectedType, null) })
-    if (selectedAspect) chips.push({ key: 'aspect', label: translateAspect(selectedAspect), clear: () => setChip(setSelectedAspect, null) })
+    // El `tone` sigue la semántica del sistema: ámbar = progreso/pertenencia,
+    // coral = buscadas, cian = exploración.
+    const chips: { key: string; label: string; tone: ChipTone; clear: () => void }[] = []
+    if (selectedType) chips.push({ key: 'type', label: translateType(selectedType), tone: 'neutral', clear: () => setChip(setSelectedType, null) })
+    if (selectedAspect) chips.push({ key: 'aspect', label: translateAspect(selectedAspect), tone: 'neutral', clear: () => setChip(setSelectedAspect, null) })
     if (selectedCost !== null) chips.push({
       key: 'cost',
       label: selectedCost >= COST_MAX_BUCKET ? `Coste ${COST_MAX_BUCKET}+` : `Coste ${selectedCost}`,
+      tone: 'neutral',
       clear: () => setChip(setSelectedCost, null),
     })
-    if (selectedSet) chips.push({ key: 'set', label: selectedSet, clear: () => setChip(setSelectedSet, null) })
-    if (selectedArena) chips.push({ key: 'arena', label: translateArena(selectedArena), clear: () => setChip(setSelectedArena, null) })
-    if (selectedRarity) chips.push({ key: 'rarity', label: translateRarity(selectedRarity), clear: () => setChip(setSelectedRarity, null) })
-    if (owned !== 'all') chips.push({ key: 'owned', label: OWNED_LABELS[owned], clear: () => setChip(setOwned, 'all' as OwnedFilter) })
-    if (favoritesOnly) chips.push({ key: 'fav', label: 'Favoritas', clear: () => setChip(setFavoritesOnly, false) })
-    if (allPrintings) chips.push({ key: 'printings', label: 'Todas las impresiones', clear: () => setChip(setAllPrintings, false) })
+    if (selectedSet) chips.push({ key: 'set', label: selectedSet, tone: 'amber', clear: () => setChip(setSelectedSet, null) })
+    if (selectedArena) chips.push({ key: 'arena', label: translateArena(selectedArena), tone: 'neutral', clear: () => setChip(setSelectedArena, null) })
+    if (selectedRarity) chips.push({ key: 'rarity', label: translateRarity(selectedRarity), tone: 'neutral', clear: () => setChip(setSelectedRarity, null) })
+    if (owned !== 'all') chips.push({
+      key: 'owned',
+      label: OWNED_LABELS[owned],
+      tone: owned === 'missing' ? 'coral' : 'amber',
+      clear: () => setChip(setOwned, 'all' as OwnedFilter),
+    })
+    if (favoritesOnly) chips.push({ key: 'fav', label: 'Favoritas', tone: 'coral', clear: () => setChip(setFavoritesOnly, false) })
+    if (allPrintings) chips.push({ key: 'printings', label: 'Todas las impresiones', tone: 'cyan', clear: () => setChip(setAllPrintings, false) })
     return chips
   }, [selectedType, selectedAspect, selectedCost, selectedSet, selectedArena,
       selectedRarity, owned, favoritesOnly, allPrintings])
@@ -477,18 +488,19 @@ export function CardsPage() {
       {activeChips.length > 0 && (
         <div className="flex flex-wrap gap-1.5 items-center">
           {activeChips.map(c => (
-            <button
+            <Chip
               key={c.key}
-              onClick={c.clear}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-swu-accent/15 border border-swu-accent/40
-                         text-swu-accent text-[11px] font-semibold active:scale-95 transition-transform"
+              tone={c.tone}
+              active
+              onRemove={c.clear}
+              removeLabel={`Quitar filtro ${c.label}`}
             >
-              {c.label} <X size={11} />
-            </button>
+              {c.label}
+            </Chip>
           ))}
-          <button onClick={clearFilters} className="text-[11px] text-swu-red font-medium px-1">
+          <Button variant="ghost" size="xs" onClick={clearFilters} className="text-swu-red">
             Limpiar
-          </button>
+          </Button>
         </div>
       )}
 
@@ -510,21 +522,13 @@ export function CardsPage() {
 
       {/* ── Cruce con la colección ── */}
       {collectionQtys.size > 0 && (
-        <div className="flex gap-1">
-          {(['all', 'owned', 'missing', 'duplicates'] as OwnedFilter[]).map(f => (
-            <button
-              key={f}
-              onClick={() => setChip(setOwned, f)}
-              className={`flex-1 py-1.5 rounded-lg text-[11px] font-semibold border transition-colors ${
-                owned === f
-                  ? 'bg-swu-amber/15 border-swu-amber/50 text-swu-amber'
-                  : 'bg-swu-surface border-swu-border text-swu-muted'
-              }`}
-            >
-              {OWNED_LABELS[f]}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          label="Filtrar por lo que tengo"
+          value={owned}
+          onChange={(v) => setChip(setOwned, v)}
+          options={(['all', 'owned', 'missing', 'duplicates'] as OwnedFilter[])
+            .map(f => ({ value: f, label: OWNED_LABELS[f] }))}
+        />
       )}
 
       {/* Filters */}

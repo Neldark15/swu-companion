@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+/* ── Tipografías ──────────────────────────────────────────────────────
+ * Inter y JetBrains Mono estaban DECLARADAS en @theme desde siempre pero
+ * nunca se cargaban: no había <link>, ni @font-face, ni archivos. La app
+ * venía cayendo a la fuente del sistema, así que todo el look de
+ * `font-mono tracking-widest` del SideNav y los loaders nunca existió.
+ *
+ * Se auto-hospedan (no Google Fonts) para que la PWA siga funcionando
+ * offline, que es media razón de ser de esta app.
+ */
+@import "@fontsource-variable/inter";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/700.css";
+
 /* ── iOS Safari viewport height fix ── */
 :root {
   --app-vh: 100vh;
@@ -11,19 +24,29 @@
 }
 
 @theme {
-  /* ── Neumorphic Dark Palette ── */
+  /* ── Azul noche y grafito ── */
   --color-swu-bg: #181825;
   --color-swu-surface: #1e1e2e;
   --color-swu-surface-hover: #2a2a3c;
+  /* Elegible por el usuario en Ajustes; se sobreescribe en tiempo de
+     ejecución desde useSettings. Por defecto coincide con swu-red. */
   --color-swu-accent: #EF4444;
-  --color-swu-amber: #F59E0B;
-  --color-swu-red: #EF4444;
-  --color-swu-green: #22C55E;
   --color-swu-text: #E2E8F0;
   --color-swu-muted: #7C8BA1;
   --color-swu-border: #2a2a3c;
 
-  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  /* ── Semántica de estado ──────────────────────────────────────────
+   * Cada color significa UNA cosa y siempre la misma. Van siempre
+   * acompañados de texto o ícono: el color nunca es el único portador
+   * de significado.
+   */
+  --color-swu-amber: #F59E0B;   /* progreso: completitud, barras, XP    */
+  --color-swu-cyan: #22D3EE;    /* exploración: descubrir, buscar       */
+  --color-swu-coral: #FB7185;   /* buscadas: me falta, la quiero        */
+  --color-swu-green: #22C55E;   /* ofertas: en venta, disponible        */
+  --color-swu-red: #EF4444;     /* destructivo: borrar, error           */
+
+  --font-sans: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 
