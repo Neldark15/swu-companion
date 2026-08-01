@@ -13,7 +13,11 @@ import {
   Save,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-import { getNews, createNews, updateNews, deleteNews, type NewsItem } from '../../services/news'
+import {
+  getNews, createNews, updateNews, deleteNews,
+  EVENT_TYPE_LABELS, EVENT_TYPE_ORDER,
+  type NewsItem, type NewsKind, type EventType,
+} from '../../services/news'
 
 const TAG_OPTIONS = [
   { label: 'Set Nuevo', color: 'amber' },
@@ -45,6 +49,14 @@ export function ManageNewsPage() {
   const [url, setUrl] = useState('')
   const [imageUrl, setImageUrl] = useState('')
   const [pinned, setPinned] = useState(false)
+  // ── Estructura de evento oficial ──
+  const [kind, setKind] = useState<NewsKind>('news')
+  const [eventType, setEventType] = useState<EventType>('galactic')
+  const [eventDate, setEventDate] = useState('')
+  const [eventLocation, setEventLocation] = useState('')
+  const [eventFormat, setEventFormat] = useState('')
+  const [registrationUrl, setRegistrationUrl] = useState('')
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const loadNews = async () => {
     setLoading(true)
@@ -66,6 +78,13 @@ export function ManageNewsPage() {
     setImageUrl('')
     setPinned(false)
     setEditId(null)
+    setKind('news')
+    setEventType('galactic')
+    setEventDate('')
+    setEventLocation('')
+    setEventFormat('')
+    setRegistrationUrl('')
+    setSaveError(null)
   }
 
   const openCreate = () => {
@@ -82,12 +101,29 @@ export function ManageNewsPage() {
     setUrl(item.url || '')
     setImageUrl(item.image_url || '')
     setPinned(item.pinned)
+    setKind(item.kind ?? 'news')
+    setEventType((item.event_type ?? 'galactic') as EventType)
+    // El <input type="datetime-local"> quiere 'YYYY-MM-DDTHH:mm' sin zona.
+    setEventDate(item.event_date ? item.event_date.slice(0, 16) : '')
+    setEventLocation(item.event_location ?? '')
+    setEventFormat(item.event_format ?? '')
+    setRegistrationUrl(item.registration_url ?? '')
+    setSaveError(null)
     setViewState('edit')
   }
 
   const handleSave = async () => {
     if (!title.trim() || !summary.trim() || !supabaseUser) return
+    if (kind === 'event' && !eventDate) {
+      setSaveError('Un evento necesita fecha')
+      return
+    }
     setSaving(true)
+    setSaveError(null)
+
+    // datetime-local no lleva zona: se interpreta como hora local y se manda
+    // en ISO, que es lo que espera la columna timestamptz.
+    const isoDate = eventDate ? new Date(eventDate).toISOString() : null
 
     if (viewState === 'create') {
       const result = await createNews({
@@ -99,7 +135,14 @@ export function ManageNewsPage() {
         imageUrl: imageUrl.trim() || undefined,
         pinned,
         authorId: supabaseUser.id,
+        kind,
+        eventType: kind === 'event' ? eventType : null,
+        eventDate: isoDate,
+        eventLocation: eventLocation.trim() || null,
+        eventFormat: eventFormat.trim() || null,
+        registrationUrl: registrationUrl.trim() || null,
       })
+      if (!result.ok) setSaveError(result.error ?? 'No se pudo guardar')
       if (result.ok) {
         resetForm()
         setViewState('list')
@@ -114,7 +157,14 @@ export function ManageNewsPage() {
         url: url.trim() || null,
         image_url: imageUrl.trim() || null,
         pinned,
+        kind,
+        event_type: kind === 'event' ? eventType : null,
+        event_date: isoDate,
+        event_location: eventLocation.trim() || null,
+        event_format: eventFormat.trim() || null,
+        registration_url: registrationUrl.trim() || null,
       })
+      if (!result.ok) setSaveError(result.error ?? 'No se pudo guardar')
       if (result.ok) {
         resetForm()
         setViewState('list')
@@ -247,6 +297,107 @@ export function ManageNewsPage() {
               </div>
             )}
           </div>
+
+          {/* ── Tipo de ítem ── */}
+          <div>
+            <label className="text-xs text-swu-muted mb-1.5 block">Tipo</label>
+            <div className="flex gap-1.5 flex-wrap">
+              {([
+                ['news', 'Anuncio'],
+                ['event', 'Evento oficial'],
+                ['release', 'Lanzamiento'],
+              ] as [NewsKind, string][]).map(([k, label]) => (
+                <button
+                  key={k}
+                  onClick={() => setKind(k)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                    kind === k
+                      ? 'bg-swu-accent/20 border-swu-accent text-swu-accent'
+                      : 'bg-swu-surface border-swu-border text-swu-muted'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Datos del evento: solo cuando hace falta ── */}
+          {kind === 'event' && (
+            <div className="bg-swu-bg rounded-xl border border-swu-border p-3 space-y-3">
+              <p className="text-[10px] font-mono tracking-[0.2em] uppercase text-swu-muted/60">
+                Datos del evento
+              </p>
+
+              <div>
+                <label className="text-xs text-swu-muted mb-1.5 block">Nivel</label>
+                <div className="flex gap-1.5 flex-wrap">
+                  {EVENT_TYPE_ORDER.map(t => (
+                    <button
+                      key={t}
+                      onClick={() => setEventType(t)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${
+                        eventType === t
+                          ? 'bg-swu-amber/20 border-swu-amber text-swu-amber'
+                          : 'bg-swu-surface border-swu-border text-swu-muted'
+                      }`}
+                    >
+                      {EVENT_TYPE_LABELS[t]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-swu-muted mb-1.5 block">
+                  Fecha y hora <span className="text-swu-red">*</span>
+                </label>
+                <input
+                  type="datetime-local"
+                  value={eventDate}
+                  onChange={(e) => setEventDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-swu-bg border border-swu-border rounded-lg text-sm text-swu-text"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-swu-muted mb-1.5 block">Lugar</label>
+                  <input
+                    value={eventLocation}
+                    onChange={(e) => setEventLocation(e.target.value)}
+                    placeholder="San Salvador"
+                    className="w-full px-3 py-2 bg-swu-bg border border-swu-border rounded-lg text-sm text-swu-text"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-swu-muted mb-1.5 block">Formato</label>
+                  <input
+                    value={eventFormat}
+                    onChange={(e) => setEventFormat(e.target.value)}
+                    placeholder="Premier"
+                    className="w-full px-3 py-2 bg-swu-bg border border-swu-border rounded-lg text-sm text-swu-text"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-swu-muted mb-1.5 block">Enlace de inscripción</label>
+                <input
+                  value={registrationUrl}
+                  onChange={(e) => setRegistrationUrl(e.target.value)}
+                  placeholder="https://…"
+                  className="w-full px-3 py-2 bg-swu-bg border border-swu-border rounded-lg text-sm text-swu-text"
+                />
+              </div>
+            </div>
+          )}
+
+          {saveError && (
+            <p className="text-xs text-swu-red bg-swu-red/10 border border-swu-red/30 rounded-lg px-3 py-2">
+              {saveError}
+            </p>
+          )}
 
           {/* Pinned toggle */}
           <button

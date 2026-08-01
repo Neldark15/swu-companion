@@ -2,6 +2,30 @@ import { supabase, isSupabaseReady } from './supabase'
 
 // ─── Types ───────────────────────────────────────────────────
 
+/** Qué clase de ítem es. `news` es el suelto de siempre. */
+export type NewsKind = 'news' | 'event' | 'release'
+
+/** Nomenclatura real del programa de juego organizado de SWU. */
+export type EventType =
+  | 'galactic' | 'planetary' | 'sector' | 'regional'
+  | 'showdown' | 'prerelease' | 'weekly' | 'other'
+
+export const EVENT_TYPE_LABELS: Record<EventType, string> = {
+  galactic: 'Galactic Championship',
+  planetary: 'Planetary Qualifier',
+  sector: 'Sector Qualifier',
+  regional: 'Regional Qualifier',
+  showdown: 'Store Showdown',
+  prerelease: 'Prerelease',
+  weekly: 'Weekly Play',
+  other: 'Evento',
+}
+
+/** De mayor a menor jerarquía, que es como el jugador los ordena mentalmente. */
+export const EVENT_TYPE_ORDER: EventType[] = [
+  'galactic', 'planetary', 'sector', 'regional', 'showdown', 'prerelease', 'weekly', 'other',
+]
+
 export interface NewsItem {
   id: string
   author_id: string
@@ -15,6 +39,13 @@ export interface NewsItem {
   published: boolean
   created_at: string
   updated_at: string
+  // ── Estructura de evento (opcional; solo con kind='event') ──
+  kind: NewsKind
+  event_type: EventType | null
+  event_date: string | null
+  event_location: string | null
+  event_format: string | null
+  registration_url: string | null
   // Joined
   author_name?: string
 }
@@ -79,8 +110,22 @@ export async function createNews(item: {
   imageUrl?: string
   pinned?: boolean
   authorId: string
+  // ── Estructura de evento ──
+  kind?: NewsKind
+  eventType?: EventType | null
+  eventDate?: string | null
+  eventLocation?: string | null
+  eventFormat?: string | null
+  registrationUrl?: string | null
 }): Promise<{ ok: boolean; news?: NewsItem; error?: string }> {
   if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión al servidor' }
+
+  const kind = item.kind ?? 'news'
+  // La base lo exige con un CHECK; se avisa acá para no mostrar un error de
+  // Postgres crudo en la pantalla del editor.
+  if (kind === 'event' && !item.eventDate) {
+    return { ok: false, error: 'Un evento necesita fecha' }
+  }
 
   const { data, error } = await supabase
     .from('news')
@@ -94,6 +139,12 @@ export async function createNews(item: {
       image_url: item.imageUrl || null,
       pinned: item.pinned || false,
       published: true,
+      kind,
+      event_type: kind === 'event' ? (item.eventType ?? 'other') : null,
+      event_date: item.eventDate || null,
+      event_location: item.eventLocation || null,
+      event_format: item.eventFormat || null,
+      registration_url: item.registrationUrl || null,
     })
     .select()
     .single()
@@ -121,8 +172,17 @@ export async function updateNews(
     image_url: string | null
     pinned: boolean
     published: boolean
+    kind: NewsKind
+    event_type: EventType | null
+    event_date: string | null
+    event_location: string | null
+    event_format: string | null
+    registration_url: string | null
   }>
 ): Promise<{ ok: boolean; error?: string }> {
+  if (updates.kind === 'event' && updates.event_date === null) {
+    return { ok: false, error: 'Un evento necesita fecha' }
+  }
   if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
 
   const { error } = await supabase
@@ -146,4 +206,66 @@ export async function deleteNews(id: string): Promise<{ ok: boolean; error?: str
 
   if (error) return { ok: false, error: error.message }
   return { ok: true }
+}
+
+// ─── Agenda de eventos oficiales ─────────────────────────────
+
+/**
+ * Los eventos oficiales, separados en los que vienen y los que ya pasaron.
+ *
+ * Se piden a la base ordenados por `event_date` (hay un índice parcial para
+ * eso) en vez de traer todo y ordenar en el cliente: la agenda crece sola con
+ * cada temporada y no tiene sentido bajarla entera para mostrar los próximos
+ * cinco.
+ *
+ * "Ya pasó" se decide contra el DÍA, no contra la hora: un torneo que empezó
+ * esta mañana sigue siendo el evento de hoy hasta que termine el día.
+ */
+export async function getOfficialEvents(opts?: { limit?: number }): Promise<{
+  upcoming: NewsItem[]
+  past: NewsItem[]
+}> {
+  if (!isSupabaseReady()) return { upcoming: [], past: [] }
+
+  const limit = opts?.limit ?? 20
+  const startOfToday = new Date()
+  startOfToday.setHours(0, 0, 0, 0)
+  const cutoff = startOfToday.toISOString()
+
+  const [up, old] = await Promise.all([
+    supabase.from('news').select('*')
+      .eq('published', true).eq('kind', 'event')
+      .gte('event_date', cutoff)
+      .order('event_date', { ascending: true })
+      .limit(limit),
+    supabase.from('news').select('*')
+      .eq('published', true).eq('kind', 'event')
+      .lt('event_date', cutoff)
+      .order('event_date', { ascending: false })
+      .limit(limit),
+  ])
+
+  if (up.error) console.warn('[News] próximos eventos:', up.error.message)
+  if (old.error) console.warn('[News] eventos pasados:', old.error.message)
+
+  return {
+    upcoming: (up.data ?? []) as NewsItem[],
+    past: (old.data ?? []) as NewsItem[],
+  }
+}
+
+/** Solo los anuncios sueltos: la agenda tiene su propia consulta. */
+export async function getAnnouncements(limit = 20): Promise<NewsItem[]> {
+  if (!isSupabaseReady()) return []
+  const { data, error } = await supabase
+    .from('news').select('*')
+    .eq('published', true).neq('kind', 'event')
+    .order('pinned', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) {
+    console.warn('[News] anuncios:', error.message)
+    return []
+  }
+  return (data ?? []) as NewsItem[]
 }
