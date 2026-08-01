@@ -6,12 +6,32 @@
  * Manages: precache, runtime cache for the cards API, push notifications.
  */
 
-import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching'
+import { precacheAndRoute, createHandlerBoundToURL, cleanupOutdatedCaches } from 'workbox-precaching'
 import { registerRoute, NavigationRoute } from 'workbox-routing'
 import { StaleWhileRevalidate } from 'workbox-strategies'
 import { ExpirationPlugin } from 'workbox-expiration'
+import { clientsClaim } from 'workbox-core'
 
 declare const self: ServiceWorkerGlobalScope
+
+// ─── Ciclo de vida: que una versión nueva REEMPLACE a la vieja ────────
+//
+// `registerType: 'autoUpdate'` está puesto en vite.config.ts, pero con la
+// estrategia injectManifest el service worker tiene que hacer su parte y no
+// la hacía: solo llamaba a `skipWaiting()` si recibía un mensaje que nadie
+// enviaba, y nunca reclamaba las pestañas abiertas.
+//
+// Resultado medido en producción: el navegador seguía cargando
+// `index-BSkwW_Gc.css` mientras el servidor ya servía `index-1H8UJgmK.css`.
+// O sea que cada deploy quedaba invisible para quien ya tuviera la PWA.
+//
+// `skipWaiting` activa la versión nueva sin esperar a que cierren todas las
+// pestañas; `clientsClaim` le da el control de las que ya están abiertas.
+self.skipWaiting()
+clientsClaim()
+
+// Borra los precaches de versiones anteriores; si no, se acumulan.
+cleanupOutdatedCaches()
 
 // ─── Precache (manifest injected at build time) ──────────
 precacheAndRoute(self.__WB_MANIFEST)
