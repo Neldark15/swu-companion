@@ -166,69 +166,116 @@ async function importSwudbJson(text: string): Promise<DeckImportResult> {
 
 // ─── Melee Text Import ───────────────────────────────────
 
-/** Build in-memory lookup maps from local DB for fast name matching */
-async function buildNameLookup(): Promise<{
-  byExact: Map<string, Card>  // "name|subtitle" → Card
-  byName: Map<string, Card>   // "name" → Card (first match)
-}> {
+/** Sin acentos y en minúsculas, para comparar "Caídos" con "caidos". */
+function norm(s: string): string {
+  return s
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/['’]/g, '')
+    .toLowerCase().trim()
+}
+
+interface NameLookup {
+  /** "nombre|subtítulo" → carta */
+  byExact: Map<string, Card>
+  /** nombre → TODAS las cartas con ese nombre. */
+  byName: Map<string, Card[]>
+}
+
+/**
+ * Índices para resolver nombres contra la base local.
+ *
+ * `byName` guarda TODAS las cartas de cada nombre, no la primera.
+ * 549 de las 2,089 cartas jugables (26%) comparten nombre con otra —
+ * Luke Skywalker tiene 8 versiones, Pre Vizsla 3— así que quedarse con la
+ * primera en el orden de Dexie metía silenciosamente una carta al azar
+ * entre las que comparten nombre.
+ */
+async function buildNameLookup(): Promise<NameLookup> {
   const allCards = await db.cards.toArray()
   const byExact = new Map<string, Card>()
-  const byName = new Map<string, Card>()
+  const byName = new Map<string, Card[]>()
 
   for (const c of allCards) {
-    const key = c.subtitle
-      ? `${c.name.toLowerCase()}|${c.subtitle.toLowerCase()}`
-      : c.name.toLowerCase()
-    byExact.set(key, c)
-    // byName: only store first occurrence
-    const nameKey = c.name.toLowerCase()
-    if (!byName.has(nameKey)) byName.set(nameKey, c)
+    // Solo la impresión normal: las variantes duplican cada nombre y no
+    // aportan nada a un mazo.
+    if (c.isCanonical === false) continue
+
+    const n = norm(c.name)
+    if (c.subtitle) byExact.set(`${n}|${norm(c.subtitle)}`, c)
+    else byExact.set(n, c)
+
+    const list = byName.get(n)
+    if (list) list.push(c)
+    else byName.set(n, [c])
   }
 
   return { byExact, byName }
 }
 
-/** Fast local lookup by name, falls back to API search */
+type MatchResult =
+  | { card: Card }
+  /** El nombre existe pero hay varias cartas y el subtítulo no desempató. */
+  | { ambiguous: Card[] }
+  | { none: true }
+
+/**
+ * Resuelve una línea de lista contra la base local.
+ *
+ * Reglas, en orden:
+ *  1. nombre + subtítulo exactos → esa carta.
+ *  2. el nombre existe y es ÚNICO → esa carta, aunque el subtítulo no haya
+ *     casado. Esto es lo que rescata las listas en español con nombres
+ *     propios: "BT-1 | droide blastomecánico" encuentra a BT-1 porque BT-1
+ *     es único, aunque su subtítulo en la base sea "Blastomech".
+ *  3. el nombre existe pero hay VARIAS → ambiguo. NO se elige ninguna.
+ *     Antes se tomaba la primera en el orden de Dexie, así que un
+ *     "Luke Skywalker" sin subtítulo válido podía traer cualquiera de las 8.
+ *
+ * Nunca se hace un match aproximado por parecido: meter una carta que no es
+ * en el mazo de alguien es peor que no importarla.
+ */
 async function findCardFast(
   name: string,
   subtitle: string | undefined,
-  lookup: { byExact: Map<string, Card>; byName: Map<string, Card> },
-): Promise<Card | null> {
-  const nameLower = name.toLowerCase().trim()
-  const subtitleLower = subtitle?.toLowerCase().trim() || ''
+  lookup: NameLookup,
+): Promise<MatchResult> {
+  const n = norm(name)
+  const sub = subtitle ? norm(subtitle) : ''
 
-  // 1) Exact match with subtitle in local map
-  if (subtitleLower) {
-    const exactKey = `${nameLower}|${subtitleLower}`
-    const exact = lookup.byExact.get(exactKey)
-    if (exact) return exact
+  if (sub) {
+    const exact = lookup.byExact.get(`${n}|${sub}`)
+    if (exact) return { card: exact }
   }
 
-  // 2) Name-only match in local map
-  const byName = lookup.byName.get(nameLower)
-  if (byName) return byName
+  const sameName = lookup.byName.get(n)
+  if (sameName && sameName.length === 1) return { card: sameName[0] }
+  if (sameName && sameName.length > 1) {
+    // Compartir nombre no siempre significa ser cartas distintas. De los 196
+    // nombres repetidos, 45 son REIMPRESIONES: la misma carta en dos sets, con
+    // el mismo subtítulo (Vanquish está en SOR y en TWI). Ahí da igual cuál se
+    // elija y tratarlo como ambiguo rompería la importación de eventos comunes.
+    const subs = new Set(sameName.map(c => norm(c.subtitle ?? '')))
+    if (subs.size === 1) return { card: sameName[0] }
 
-  // 3) Fallback: API search
+    // Subtítulos distintos = cartas distintas de verdad (Luke Skywalker tiene
+    // 8). Sin un subtítulo que desempate no se elige ninguna.
+    return { ambiguous: sameName }
+  }
+
+  // Red de seguridad por si la base local está incompleta.
   try {
-    const fullQuery = subtitle ? `${name} ${subtitle}` : name
-    const { cards } = await searchCards({ query: fullQuery, limit: 10 })
-    if (cards.length > 0) {
-      // Prefer exact match
-      const exact = cards.find(c => {
-        if (c.name.toLowerCase() !== nameLower) return false
-        if (subtitleLower && c.subtitle) return c.subtitle.toLowerCase() === subtitleLower
-        return true
-      })
-      if (exact) return exact
-      const nameOnly = cards.find(c => c.name.toLowerCase() === nameLower)
-      if (nameOnly) return nameOnly
-      return cards[0]
-    }
+    const { cards } = await searchCards({ query: subtitle ? `${name} ${subtitle}` : name, limit: 10 })
+    const exact = cards.find(c =>
+      norm(c.name) === n && (!sub || (c.subtitle ? norm(c.subtitle) === sub : false)))
+    if (exact) return { card: exact }
+    const sameNameRemote = cards.filter(c => norm(c.name) === n)
+    if (sameNameRemote.length === 1) return { card: sameNameRemote[0] }
+    if (sameNameRemote.length > 1) return { ambiguous: sameNameRemote }
   } catch {
-    // API failed
+    // sin red: se reporta como no encontrada
   }
 
-  return null
+  return { none: true }
 }
 
 async function importMeleeText(text: string): Promise<DeckImportResult> {
@@ -242,6 +289,8 @@ async function importMeleeText(text: string): Promise<DeckImportResult> {
 
   const lines = text.trim().split(/\r?\n/)
   let section: 'none' | 'leader' | 'base' | 'maindeck' | 'sideboard' = 'none'
+  /** Para poder explicar DESPUÉS por qué falló, en vez de 26 líneas opacas. */
+  const unmatchedNames: string[] = []
 
   const deck: Partial<Deck> = {
     name: 'Deck Importado',
@@ -262,38 +311,52 @@ async function importMeleeText(text: string): Promise<DeckImportResult> {
     if (lower === 'maindeck' || lower === 'main deck' || lower === 'deck') { section = 'maindeck'; continue }
     if (lower === 'sideboard' || lower === 'side board' || lower === 'side') { section = 'sideboard'; continue }
 
-    // Parse card line: "3 | Card Name | Subtitle" or "3x Card Name" or "3 Card Name"
+    // ── Parseo de la línea ────────────────────────────────────────────
+    //
+    // Se separa en dos pasos —primero la cantidad, después las barras— en vez
+    // de intentarlo con una sola expresión.
+    //
+    // El bug que esto arregla: la rama genérica se quedaba con TODA la línea
+    // como nombre, barra incluida. Melee exporta "3 BT-1 | Blastomech" (la
+    // barra va después del nombre, no después del número), así que el
+    // buscador terminaba preguntando por la carta llamada literalmente
+    // "BT-1 | Blastomech" y no encontraba NADA. Fallaba igual en inglés.
     let quantity = 1
-    let cardName = ''
-    let subtitle = ''
+    let rest = line
 
-    // Melee format: "3 | Name | Subtitle"
-    const pipeMatch = line.match(/^(\d+)\s*\|\s*(.+?)(?:\s*\|\s*(.+))?$/)
-    if (pipeMatch) {
-      quantity = parseInt(pipeMatch[1], 10) || 1
-      cardName = pipeMatch[2].trim()
-      subtitle = (pipeMatch[3] || '').trim()
-    } else {
-      // Generic: "3x Card Name" or "3 Card Name"
-      const genericMatch = line.match(/^(\d+)\s*x?\s+(.+)$/)
-      if (genericMatch) {
-        quantity = parseInt(genericMatch[1], 10) || 1
-        cardName = genericMatch[2].trim()
-      } else {
-        // Just a card name
-        cardName = line
-      }
+    const qtyMatch = line.match(/^(\d+)\s*[x×]?\s*[|.]?\s+(.+)$/i)
+    if (qtyMatch) {
+      quantity = parseInt(qtyMatch[1], 10) || 1
+      rest = qtyMatch[2].trim()
     }
+
+    // Lo que quede se parte por barras: "Nombre | Subtítulo".
+    const parts = rest.split('|').map(p => p.trim()).filter(Boolean)
+    const cardName = parts[0] ?? ''
+    const subtitle = parts.slice(1).join(' | ')
 
     if (!cardName) continue
 
     result.totalCards++
-    const card = await findCardFast(cardName, subtitle || undefined, lookup)
+    const match = await findCardFast(cardName, subtitle || undefined, lookup)
 
-    if (!card) {
+    if ('none' in match) {
       result.warnings.push(`No encontrada: ${cardName}${subtitle ? ` | ${subtitle}` : ''}`)
+      unmatchedNames.push(cardName)
       continue
     }
+    if ('ambiguous' in match) {
+      // NO se elige una al azar: hay hasta 8 cartas con el mismo nombre.
+      const opciones = match.ambiguous
+        .map(c => c.subtitle ?? c.setCode)
+        .slice(0, 4).join(', ')
+      result.warnings.push(
+        `Ambigua: "${cardName}" existe en ${match.ambiguous.length} versiones (${opciones}). Falta el subtítulo correcto.`,
+      )
+      unmatchedNames.push(cardName)
+      continue
+    }
+    const card = match.card
 
     result.matchedCards++
     const dc = toDeckCard(card, quantity)
@@ -317,9 +380,42 @@ async function importMeleeText(text: string): Promise<DeckImportResult> {
     }
   }
 
+  // ── Explicar el fallo, no solo listarlo ──────────────────────────────
+  //
+  // Ver 26 líneas de "No encontrada" no dice NADA sobre qué hacer. Si la
+  // lista está en otro idioma, eso es una sola causa con una sola solución,
+  // y hay que decirla una vez arriba en vez de repetir el síntoma.
+  if (result.totalCards > 0 && result.matchedCards < result.totalCards) {
+    if (looksTranslated(unmatchedNames)) {
+      result.errors.push(
+        'La lista parece estar en español y la base de cartas está en inglés. ' +
+        'Exportala de nuevo con el idioma en inglés (en swudb.com o Melee, ' +
+        'cambiá el idioma antes de copiar) y volvé a intentar.',
+      )
+    }
+  }
+
   result.success = result.matchedCards > 0
   result.deck = deck
   return result
+}
+
+/**
+ * ¿Los nombres que no casaron parecen estar en otro idioma?
+ *
+ * El API de cartas solo publica nombres en inglés — probado con `lang`,
+ * `language` y `locale`, los tres se ignoran. Así que una lista en español no
+ * se puede resolver, y adivinar la traducción sería peor: meteríamos una
+ * carta parecida pero DISTINTA en el mazo de alguien.
+ *
+ * Se pide más de un indicio y una proporción alta antes de afirmarlo: un solo
+ * nombre raro no alcanza para culpar al idioma.
+ */
+function looksTranslated(names: string[]): boolean {
+  if (names.length < 3) return false
+  const SPANISH = /[áéíóúñ¿¡]|\b(de|del|la|los|las|el|en|con|por|para|un|una)\b/i
+  const hits = names.filter(n => SPANISH.test(n)).length
+  return hits / names.length >= 0.5
 }
 
 // ─── SWUDB CSV Import ────────────────────────────────────

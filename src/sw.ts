@@ -14,20 +14,21 @@ import { clientsClaim } from 'workbox-core'
 
 declare const self: ServiceWorkerGlobalScope
 
-// ─── Ciclo de vida: que una versión nueva REEMPLACE a la vieja ────────
+// ─── Ciclo de vida ────────────────────────────────────────────────────
 //
-// `registerType: 'autoUpdate'` está puesto en vite.config.ts, pero con la
-// estrategia injectManifest el service worker tiene que hacer su parte y no
-// la hacía: solo llamaba a `skipWaiting()` si recibía un mensaje que nadie
-// enviaba, y nunca reclamaba las pestañas abiertas.
+// NO se llama a `skipWaiting()` en el arranque a propósito. La app usa
+// `registerType: 'prompt'`: cuando hay una versión nueva, esta se queda EN
+// ESPERA y la app muestra el aviso "hay una actualización". Recién cuando el
+// usuario toca Actualizar llega el mensaje SKIP_WAITING de más abajo.
 //
-// Resultado medido en producción: el navegador seguía cargando
-// `index-BSkwW_Gc.css` mientras el servidor ya servía `index-1H8UJgmK.css`.
-// O sea que cada deploy quedaba invisible para quien ya tuviera la PWA.
+// Si se hiciera skipWaiting acá, nunca existiría una versión en espera y el
+// aviso no aparecería jamás.
 //
-// `skipWaiting` activa la versión nueva sin esperar a que cierren todas las
-// pestañas; `clientsClaim` le da el control de las que ya están abiertas.
-self.skipWaiting()
+// `clientsClaim` sí va: una vez activada, toma el control de las pestañas
+// abiertas en el acto. Sin esto, la versión nueva quedaba activa pero sin
+// controlar nada, y el navegador seguía sirviendo el index.html viejo —
+// medido en producción: cargaba `index-BSkwW_Gc.css` con el servidor ya
+// sirviendo `index-1H8UJgmK.css`.
 clientsClaim()
 
 // Borra los precaches de versiones anteriores; si no, se acumulan.

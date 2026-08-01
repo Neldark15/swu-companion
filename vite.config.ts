@@ -19,11 +19,15 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt' y no 'autoUpdate': la app AVISA que hay versión nueva y el
+      // usuario decide cuándo recargar. Con autoUpdate el cambio entraba solo
+      // y en silencio — y peor, podía recargar en medio de un torneo.
+      registerType: 'prompt',
       strategies: 'injectManifest',
       srcDir: 'src',
-      filename: 'sw.ts',
-      injectRegister: 'auto',
+      // Se registra a mano desde UpdatePrompt para poder engancharse a los
+      // callbacks de "hay una versión esperando".
+      injectRegister: null,
       includeAssets: ['favicon.svg', 'robots.txt', 'apple-touch-icon.png'],
       manifest: {
         name: 'HOLOCRON SWU',
