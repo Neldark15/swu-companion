@@ -27,6 +27,32 @@ import type { Card } from '../types'
 /** Fichas de juego: no se coleccionan, vienen en cada sobre. */
 const TOKEN_TYPES = new Set(['Token Upgrade', 'Token Unit', 'Credit Token', 'Force Token'])
 
+/**
+ * Las cartas coleccionables en memoria, leyendo la tabla UNA sola vez por
+ * versión de la base. La comparten el progreso por set y el progreso por
+ * rareza: si cada una hiciera su propio `toArray()`, cada toque de +/- en Mi
+ * Botín costaría dos lecturas completas de 9,057 filas.
+ */
+async function getCollectibles(): Promise<{
+  total: number
+  bySet: Map<string, number>
+  collectibles: Collectible[]
+}> {
+  const cardCount = await db.cards.count()
+  if (!_denomCache || _denomCache.cardCount !== cardCount) {
+    const bySet = new Map<string, number>()
+    const collectibles: Collectible[] = []
+    const all = await db.cards.toArray()
+    for (const c of all) {
+      if (!isCollectible(c)) continue
+      bySet.set(c.setCode, (bySet.get(c.setCode) ?? 0) + 1)
+      collectibles.push({ id: c.id, legacyId: c.legacyId, setCode: c.setCode, rarity: c.rarity })
+    }
+    _denomCache = { cardCount, total: collectibles.length, bySet, collectibles }
+  }
+  return _denomCache
+}
+
 export interface SetProgress {
   code: string
   label: string
@@ -80,7 +106,7 @@ export function isCollectible(c: Card): boolean {
  * para que no trabe. Con la caché, la tabla se lee UNA vez por sesión y los
  * toques siguientes solo recorren ~2,089 objetos en memoria.
  */
-type Collectible = { id: string; legacyId?: string; setCode: string }
+type Collectible = { id: string; legacyId?: string; setCode: string; rarity: string }
 let _denomCache: {
   cardCount: number
   total: number
@@ -102,20 +128,7 @@ export async function getSetProgress(
   // porcentaje inflado que se "corrige" solo unos segundos después.
   await ensureFreshDatabase().catch(() => {})
 
-  const cardCount = await db.cards.count()
-  if (!_denomCache || _denomCache.cardCount !== cardCount) {
-    const bySet = new Map<string, number>()
-    const collectibles: Collectible[] = []
-    // ÚNICA lectura de la tabla completa.
-    const all = await db.cards.toArray()
-    for (const c of all) {
-      if (!isCollectible(c)) continue
-      bySet.set(c.setCode, (bySet.get(c.setCode) ?? 0) + 1)
-      collectibles.push({ id: c.id, legacyId: c.legacyId, setCode: c.setCode })
-    }
-    _denomCache = { cardCount, total: collectibles.length, bySet, collectibles }
-  }
-  const { total: grandTotal, bySet, collectibles } = _denomCache
+  const { total: grandTotal, bySet, collectibles } = await getCollectibles()
 
   const ownedBySet = new Map<string, number>()
   let ownedTotal = 0
@@ -197,15 +210,20 @@ export async function getRarityProgress(
   quantities: Map<string, number>,
   setCode?: string,
 ): Promise<RarityProgress[]> {
-  const cards = setCode
-    ? await db.cards.where('setCode').equals(setCode).toArray()
-    : await db.cards.toArray()
+  // Sobre la MISMA caché que el progreso por set.
+  //
+  // Antes hacía su propio `db.cards.toArray()`, así que cada toque de +/- en
+  // Mi Botín releía las 9,057 filas completas de IndexedDB —con texto, blob de
+  // búsqueda y arrays— en el hilo principal. Es exactamente la lectura que la
+  // caché se agregó para eliminar de `getSetProgress`, reintroducida sin
+  // querer al escribir esta función.
+  const { collectibles } = await getCollectibles()
+  const scope = setCode ? collectibles.filter(c => c.setCode === setCode) : collectibles
 
   const totals = new Map<string, number>()
   const owned = new Map<string, number>()
 
-  for (const c of cards) {
-    if (!isCollectible(c)) continue
+  for (const c of scope) {
     totals.set(c.rarity, (totals.get(c.rarity) ?? 0) + 1)
     const qty = quantities.get(c.id) ?? (c.legacyId ? quantities.get(c.legacyId) ?? 0 : 0)
     if (qty > 0) owned.set(c.rarity, (owned.get(c.rarity) ?? 0) + 1)
