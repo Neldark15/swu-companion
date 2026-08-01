@@ -224,6 +224,11 @@ No hay tablas de mensajes ni números guardados. La app arma el mensaje con las 
 ### 2j. Grants a nivel de tabla vencen a los revokes por columna
 Para tapar `profiles.email` a `anon` NO sirve `revoke select (email)`: un grant de SELECT a nivel de tabla cubre todas las columnas, presentes y futuras. Hay que `revoke select on <tabla>` y después `grant select (col1, col2, …)` con la lista explícita. Ver [privacy-close-email-and-honor-is-public.sql](supabase/migrations/privacy-close-email-and-honor-is-public.sql).
 
+### 2k. tcgcsv.com NO manda CORS — los precios van por `/api/tcg-prices`
+`tcgcsv.com` responde 200 por curl pero **sin `Access-Control-Allow-Origin`**, así que desde el navegador da `Failed to fetch`. Por eso la función de precios **nunca funcionó para ningún set** y `card_prices` estuvo en 0 filas desde su creación — el mapa de sets equivocado (`SOP`/`ALT`) era un segundo problema apilado encima, no la causa.
+
+Toda petición a tcgcsv va por el proxy serverless [api/tcg-prices.ts](api/tcg-prices.ts). Es un proxy **cerrado**: solo categoría 79, un `groupId` de una lista fija y los recursos `products`/`prices`. **Si se agrega una expansión a `SET_GROUP_MAP` en [pricing.ts](src/services/pricing.ts), hay que agregar su groupId también a `ALLOWED_GROUPS` del proxy** o esa expansión devolverá 400.
+
 ### 2f. supabase-js NO lanza excepción ante error de PostgREST
 `const { data } = await supabase...` sin mirar `error` deja `data` en `null`, el `try/catch` nunca se activa y el fallo se ve igual que "no hay datos". Así estuvo **100% muerta** la caché de precios en la nube (0 filas de por vida): la tabla tenía 6 columnas y el código leía 9. Siempre desestructurar `error`.
 

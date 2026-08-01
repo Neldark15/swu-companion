@@ -317,7 +317,8 @@ export async function pullAllPricesFromCloud(): Promise<number> {
 
 // ─── TCGPlayer Price Fetching (via tcgcsv.com) ──────────
 
-const SWU_CATEGORY_ID = 79
+// La categoría (79 = SWU) ahora la fija el proxy en api/tcg-prices.ts, que es
+// donde se arma la URL real. Acá ya no hace falta.
 
 /**
  * Nuestros códigos de set → group IDs de tcgcsv.com.
@@ -406,17 +407,17 @@ async function fetchSetPrices(
 
   try {
     // 1. Fetch products for this set group
-    const prodResp = await fetch(
-      `https://tcgcsv.com/tcgplayer/${SWU_CATEGORY_ID}/${groupId}/products`,
-    )
+    // Vía /api/tcg-prices y NO directo a tcgcsv.com: ese origen responde 200
+    // pero no manda cabecera CORS, así que desde el navegador daba
+    // "Failed to fetch". Por eso los precios nunca funcionaron para ningún
+    // set y card_prices quedó en 0 filas desde su creación.
+    const prodResp = await fetch(`/api/tcg-prices?group=${groupId}&resource=products`)
     if (!prodResp.ok) return results
     const prodData = await prodResp.json()
     const products: TCGProduct[] = prodData.results || prodData || []
 
     // 2. Fetch prices for this set group
-    const priceResp = await fetch(
-      `https://tcgcsv.com/tcgplayer/${SWU_CATEGORY_ID}/${groupId}/prices`,
-    )
+    const priceResp = await fetch(`/api/tcg-prices?group=${groupId}&resource=prices`)
     if (!priceResp.ok) return results
     const priceData = await priceResp.json()
     const prices: TCGPrice[] = priceData.results || priceData || []
