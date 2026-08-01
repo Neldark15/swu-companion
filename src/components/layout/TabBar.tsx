@@ -44,8 +44,13 @@ export function TabBar() {
     return location.pathname.startsWith(path)
   }
 
-  // El tracker en vivo y la vista pública de torneo ocupan la pantalla entera.
-  if (location.pathname.includes('/play/tracker/')) return null
+  // Pantallas que YA tienen su propia barra de acciones fija abajo. La TabBar
+  // es `z-50` con fondo opaco, así que se les montaba encima y se comía los
+  // clics: en el lobby de evento, "Abandonar Evento" quedaba intocable.
+  // Verificado con grep: el lobby es la única pantalla con `fixed bottom-0`
+  // propia (EventLobbyPage.tsx:365). El tracker se oculta por pantalla completa.
+  const OWN_BOTTOM_BAR = ['/play/tracker/', '/events/lobby/']
+  if (OWN_BOTTOM_BAR.some(p => location.pathname.includes(p))) return null
   if (hideTabBar) return null
 
   return (

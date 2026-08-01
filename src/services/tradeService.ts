@@ -22,7 +22,51 @@
  */
 
 import { supabase, isSupabaseReady } from './supabase'
-import { PLAYSET_SIZE } from './swuApi'
+import { PLAYSET_SIZE, getCardsByIds } from './swuApi'
+
+/**
+ * PostgREST corta cualquier SELECT en 1000 filas. `collection` ya tiene 4,049,
+ * así que sin paginar el cruce miraría una cuarta parte de los datos y
+ * devolvería menos coincidencias sin ninguna señal.
+ */
+async function fetchAll<T>(
+  build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  label: string,
+): Promise<{ rows: T[]; ok: boolean }> {
+  const PAGE = 1000
+  const rows: T[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await build(from, from + PAGE - 1)
+    if (error) {
+      console.warn(`[Trade] ${label}:`, error.message)
+      return { rows, ok: false }
+    }
+    const batch = data ?? []
+    rows.push(...batch)
+    if (batch.length < PAGE) break
+  }
+  return { rows, ok: true }
+}
+
+/**
+ * La colección vive en DOS espacios de ids: 2,089 filas con uuid y 1,960 con
+ * el id heredado (`LOF_205`), de antes de la migración. Y las 291 filas con
+ * sobrantes son TODAS heredadas.
+ *
+ * O sea que comparar los ids tal cual da cero garantizado: la wishlist guarda
+ * uuids y la oferta está del otro lado. Todo se pasa al uuid canónico antes de
+ * cruzar; `getCardsByIds` ya resuelve las dos formas contra la base local.
+ */
+async function canonicalIds(ids: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  if (ids.length === 0) return out
+  try {
+    const cards = await getCardsByIds(ids)
+    for (const [raw, card] of cards) out.set(raw, card.id)
+  } catch { /* sin base local, se cae al id crudo */ }
+  for (const id of ids) if (!out.has(id)) out.set(id, id)
+  return out
+}
 
 // ─── Wishlist ─────────────────────────────────────────────────────────
 
@@ -138,56 +182,81 @@ export async function getTradeMatches(userId: string): Promise<TradeMatch[]> {
   if (!isSupabaseReady()) return []
 
   // 1. Lo que YO busco y lo que YO ofrezco.
-  const [myWishRes, myCollRes] = await Promise.all([
-    supabase.from('wishlist').select('card_id').eq('user_id', userId),
-    supabase.from('collection')
-      .select('user_id, card_id, quantity, for_sale, sale_price')
-      .eq('user_id', userId),
+  const [myWish, myColl] = await Promise.all([
+    fetchAll<{ card_id: string }>(
+      (a, b) => supabase.from('wishlist').select('card_id').eq('user_id', userId).range(a, b),
+      'wishlist propia',
+    ),
+    fetchAll<CollectionRow>(
+      (a, b) => supabase.from('collection')
+        .select('user_id, card_id, quantity, for_sale, sale_price')
+        .eq('user_id', userId).range(a, b),
+      'colección propia',
+    ),
   ])
 
-  if (myWishRes.error) console.warn('[Trade] wishlist propia:', myWishRes.error.message)
-  if (myCollRes.error) console.warn('[Trade] colección propia:', myCollRes.error.message)
+  const myOfferRows = myColl.rows.filter(isOffered)
+  if (myWish.rows.length === 0 && myOfferRows.length === 0) return []
 
-  const myWants = new Set((myWishRes.data ?? []).map(r => r.card_id))
+  // 2. Todo al uuid canónico antes de cruzar. Sin esto, la wishlist (uuids)
+  //    nunca casaría con las filas de colección heredadas — y las 291 filas
+  //    con sobrantes que hay hoy son TODAS heredadas.
+  const myIds = [...myWish.rows.map(r => r.card_id), ...myOfferRows.map(r => r.card_id)]
+  const myCanon = await canonicalIds(myIds)
+
+  const myWants = new Set(myWish.rows.map(r => myCanon.get(r.card_id) ?? r.card_id))
   const myOffers = new Map<string, CollectionRow>()
-  for (const row of (myCollRes.data ?? []) as CollectionRow[]) {
-    if (isOffered(row)) myOffers.set(row.card_id, row)
+  for (const row of myOfferRows) {
+    myOffers.set(myCanon.get(row.card_id) ?? row.card_id, row)
   }
 
-  if (myWants.size === 0 && myOffers.size === 0) return []
-
-  // 2. Las wishlists ajenas se traen ENTERAS y se cruzan en memoria: son
+  // 3. Las wishlists ajenas se traen ENTERAS y se cruzan en memoria: son
   //    listas curadas a mano (chicas), y así se evita un `in(...)` con miles
   //    de ids que reventaría el largo de la URL de PostgREST.
-  const { data: othersWish, error: wErr } = await supabase
-    .from('wishlist')
-    .select('user_id, card_id')
-    .neq('user_id', userId)
-  if (wErr) console.warn('[Trade] wishlists ajenas:', wErr.message)
+  const othersWish = await fetchAll<{ user_id: string; card_id: string }>(
+    (a, b) => supabase.from('wishlist').select('user_id, card_id').neq('user_id', userId).range(a, b),
+    'wishlists ajenas',
+  )
 
-  // 3. De la colección ajena solo hacen falta las cartas que YO busco.
-  //
-  //    En lotes: PostgREST manda el `in(...)` en la URL y cada uuid ocupa 37
-  //    caracteres. Con una wishlist de 500 cartas serían ~18 KB de URL y el
-  //    servidor la rechazaría — el cruce fallaría en silencio justo para
-  //    quien más lo usa.
-  const othersColl: CollectionRow[] = []
-  const wants = Array.from(myWants)
-  const CHUNK = 100
-  for (let i = 0; i < wants.length; i += CHUNK) {
-    const { data, error } = await supabase
-      .from('collection')
-      .select('user_id, card_id, quantity, for_sale, sale_price')
-      .neq('user_id', userId)
-      .in('card_id', wants.slice(i, i + CHUNK))
-    if (error) {
-      console.warn('[Trade] colecciones ajenas:', error.message)
-      break
-    }
-    othersColl.push(...((data ?? []) as CollectionRow[]))
+  // 4. De la colección ajena solo hacen falta las cartas que yo busco — pero
+  //    hay que pedirlas en LOS DOS espacios de id, porque la fila del otro
+  //    puede estar guardada con el id heredado.
+  const wantVariants = new Set<string>()
+  for (const raw of myWish.rows.map(r => r.card_id)) {
+    wantVariants.add(raw)
+    const canon = myCanon.get(raw)
+    if (canon) wantVariants.add(canon)
+  }
+  if (wantVariants.size > 0) {
+    try {
+      const cards = await getCardsByIds(Array.from(wantVariants))
+      for (const card of cards.values()) if (card.legacyId) wantVariants.add(card.legacyId)
+    } catch { /* sin base local se busca solo con lo que hay */ }
   }
 
-  // 4. Agrupar por persona.
+  // En lotes: PostgREST manda el `in(...)` en la URL y cada uuid ocupa 37
+  // caracteres; con una wishlist grande el servidor rechazaría la petición.
+  const othersColl: CollectionRow[] = []
+  let othersCollOk = true
+  const wants = Array.from(wantVariants)
+  const CHUNK = 100
+  for (let i = 0; i < wants.length; i += CHUNK) {
+    const page = await fetchAll<CollectionRow>(
+      (a, b) => supabase.from('collection')
+        .select('user_id, card_id, quantity, for_sale, sale_price')
+        .neq('user_id', userId)
+        .in('card_id', wants.slice(i, i + CHUNK))
+        .range(a, b),
+      'colecciones ajenas',
+    )
+    othersColl.push(...page.rows)
+    if (!page.ok) { othersCollOk = false; break }
+  }
+
+  // 5. Agrupar por persona, siempre con ids canónicos.
+  const otherIds = [...othersColl.map(r => r.card_id), ...othersWish.rows.map(r => r.card_id)]
+  const otherCanon = await canonicalIds(otherIds)
+
   const byUser = new Map<string, { theyOffer: CardMatch[]; iOffer: CardMatch[] }>()
   const bucket = (uid: string) => {
     let b = byUser.get(uid)
@@ -195,25 +264,40 @@ export async function getTradeMatches(userId: string): Promise<TradeMatch[]> {
     return b
   }
 
+  const seenOffer = new Set<string>()
   for (const row of othersColl) {
     if (!isOffered(row)) continue
+    const canon = otherCanon.get(row.card_id) ?? row.card_id
+    if (!myWants.has(canon)) continue
+    // Una misma carta puede venir dos veces (uuid y heredado) por la búsqueda
+    // en ambos espacios: se cuenta una sola.
+    const key = `${row.user_id}|${canon}`
+    if (seenOffer.has(key)) continue
+    seenOffer.add(key)
     bucket(row.user_id).theyOffer.push({
-      cardId: row.card_id,
+      cardId: canon,
       spare: spareOf(row),
       listed: row.for_sale,
       price: row.sale_price,
     })
   }
 
-  for (const row of (othersWish ?? []) as { user_id: string; card_id: string }[]) {
-    const mine = myOffers.get(row.card_id)
+  for (const row of othersWish.rows) {
+    const canon = otherCanon.get(row.card_id) ?? row.card_id
+    const mine = myOffers.get(canon)
     if (!mine) continue
     bucket(row.user_id).iOffer.push({
-      cardId: row.card_id,
+      cardId: canon,
       spare: spareOf(mine),
       listed: mine.for_sale,
       price: mine.sale_price,
     })
+  }
+
+  // Un fallo de red no puede verse igual que "no hay cruces": si algo se cayó
+  // y no quedó NADA, se avisa en vez de mentir con una lista vacía.
+  if (byUser.size === 0 && (!myWish.ok || !myColl.ok || !othersWish.ok || !othersCollOk)) {
+    throw new Error('No se pudo consultar el cruce de intercambios')
   }
 
   if (byUser.size === 0) return []

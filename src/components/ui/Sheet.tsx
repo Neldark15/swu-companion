@@ -28,6 +28,14 @@ const FOCUSABLE =
 export function Sheet({ open, onClose, title, children, bare = false }: SheetProps) {
   const panelRef = useRef<HTMLDivElement>(null)
 
+  // `onClose` suele venir como flecha en línea, o sea identidad nueva en cada
+  // render del padre. Si estuviera en las dependencias del efecto, TODO el
+  // efecto (listener, bloqueo de scroll, captura y devolución de foco) se
+  // desmontaría y rearmaría con cada '+' que tocás dentro del panel — y la
+  // devolución de foco te sacaría del botón que acabás de usar.
+  const onCloseRef = useRef(onClose)
+  useEffect(() => { onCloseRef.current = onClose })
+
   useEffect(() => {
     if (!open) return
     const previouslyFocused = document.activeElement as HTMLElement | null
@@ -41,7 +49,7 @@ export function Sheet({ open, onClose, title, children, bare = false }: SheetPro
     })
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { onClose(); return }
+      if (e.key === 'Escape') { onCloseRef.current(); return }
       if (e.key !== 'Tab') return
       const nodes = panelRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE)
       if (!nodes || nodes.length === 0) return
@@ -57,7 +65,7 @@ export function Sheet({ open, onClose, title, children, bare = false }: SheetPro
       document.body.style.overflow = prevOverflow
       previouslyFocused?.focus?.()
     }
-  }, [open, onClose])
+  }, [open])
 
   if (!open) return null
 

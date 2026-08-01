@@ -51,10 +51,16 @@ export function Chip({
     return (
       <span className={base} title={title}>
         {children}
+        {/* El área táctil es 24x24 (mínimo de WCAG 2.5.8) aunque el aspa se vea
+            de 11px: con `p-0.5` medía 15x15 reales y es el ÚNICO modo de
+            quitar un filtro individual. El margen negativo evita que el chip
+            crezca por fuera. */}
         <button
           onClick={onRemove}
           aria-label={removeLabel}
-          className="-mr-0.5 rounded-full p-0.5 hover:bg-white/10 active:scale-90 transition-transform"
+          className="-my-1 -mr-1.5 w-6 h-6 rounded-full flex items-center justify-center
+                     hover:bg-white/10 active:scale-90 transition-transform
+                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent"
         >
           <X size={11} aria-hidden />
         </button>

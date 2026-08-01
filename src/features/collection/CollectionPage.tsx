@@ -17,6 +17,7 @@ import { BinderGrid } from './BinderGrid'
 import { CardQuickView } from './CardQuickView'
 import { Sheet } from '../../components/ui/Sheet'
 import { SegmentedControl } from '../../components/ui/SegmentedControl'
+import { ProgressRing } from '../../components/ui/ProgressRing'
 import { LayoutGrid, List } from 'lucide-react'
 import {
   getMyCollectionWithPrices,
@@ -211,8 +212,15 @@ export function CollectionPage() {
   }, [items])
 
   // ── Binder ────────────────────────────────────────────────────────
-  /** 'binder' = cuadrícula de arte con huecos. 'list' = gestión rápida. */
-  const [viewMode, setViewMode] = useState<'binder' | 'list'>('binder')
+  /**
+   * 'list' es el valor por defecto A PROPÓSITO.
+   *
+   * El binder necesita una expansión elegida para tener sentido (los huecos
+   * son del SET, no de la colección). Arrancando en 'binder' sin set, la
+   * pantalla abría mostrando el cartel "Elegí una expansión" y CERO cartas:
+   * una colección de 2,089 cartas se veía vacía al entrar.
+   */
+  const [viewMode, setViewMode] = useState<'binder' | 'list'>('list')
   const [binderSlots, setBinderSlots] = useState<BinderSlot[]>([])
   const [rarity, setRarity] = useState<RarityProgress[]>([])
   const [quickSlot, setQuickSlot] = useState<BinderSlot | null>(null)
@@ -221,6 +229,12 @@ export function CollectionPage() {
     () => new Map(items.map(i => [i.cardId, i.quantity])),
     [items],
   )
+
+  /** Últimos precios vistos por carta, para no perderlos al bajar a 0. */
+  const priceMemo = useRef(new Map<string, CollectionCardWithPrice['price']>())
+  useEffect(() => {
+    for (const i of items) if (i.price) priceMemo.current.set(i.cardId, i.price)
+  }, [items])
 
   // Las casillas del binder salen de la EXPANSIÓN, no de la colección: por eso
   // aparecen las que faltan. Sin set elegido no hay binder que dibujar — serían
@@ -233,6 +247,30 @@ export function CollectionPage() {
       .catch(() => {})
     return () => { cancelled = true }
   }, [viewMode, filterSet, qtyMap])
+
+  /**
+   * El binder respeta los mismos filtros que la lista.
+   *
+   * Antes solo miraba el set: el buscador y el panel de filtros seguían a la
+   * vista y marcados, pero no hacían nada sobre la cuadrícula — la pantalla
+   * decía que estaba filtrando y no filtraba. Se aplica en memoria porque son
+   * como mucho 264 casillas.
+   */
+  const visibleSlots = useMemo(() => {
+    let list = binderSlots
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      list = list.filter(s =>
+        s.card.name.toLowerCase().includes(q) ||
+        (s.card.subtitle?.toLowerCase().includes(q) ?? false))
+    }
+    if (filterType) list = list.filter(s => s.card.type === filterType)
+    if (filterRarity) list = list.filter(s => s.card.rarity === filterRarity)
+    // Los chips de venta y "sin dueño" solo tienen sentido sobre lo que tengo.
+    if (saleFilter === 'for_sale') list = list.filter(s => listings.has(s.card.id))
+    else if (saleFilter === 'not_for_sale') list = list.filter(s => s.qty > 0 && !listings.has(s.card.id))
+    return list
+  }, [binderSlots, search, filterType, filterRarity, saleFilter, listings])
 
   useEffect(() => {
     let cancelled = false
@@ -368,13 +406,29 @@ export function CollectionPage() {
    * Si la carta no estaba en la colección se agrega la fila: en el binder se
    * tocan casillas vacías todo el tiempo, y `items.map` sola nunca las crearía.
    */
-  const handleSetQuantity = useCallback(async (cardId: string, newQty: number) => {
+  const handleSetQuantity = useCallback(async (
+    cardId: string,
+    newQty: number,
+    /** La carta, cuando el llamador la tiene (el binder siempre la tiene). */
+    card?: Card,
+  ) => {
     const qty = Math.max(0, newQty)
+
+    // El mapa `cards` solo se llenaba en la carga inicial, así que una carta
+    // agregada desde una casilla VACÍA del binder no estaba ahí: la fila nueva
+    // aparecía en la lista mostrando el uuid en vez del nombre.
+    if (card) setCards(prev => (prev.has(card.id) ? prev : new Map(prev).set(card.id, card)))
 
     setItems(prev => {
       if (qty <= 0) return prev.filter(i => i.cardId !== cardId)
-      const exists = prev.some(i => i.cardId === cardId)
-      if (!exists) return [...prev, { cardId, quantity: qty, price: null }]
+      const existing = prev.find(i => i.cardId === cardId)
+      // Se conserva el precio ya conocido: bajar a 0 y volver a subir es el
+      // gesto normal en el binder (la casilla no desaparece), y sin esto la
+      // carta perdía su precio y el valor total de la colección bajaba solo.
+      if (!existing) {
+        const known = priceMemo.current.get(cardId) ?? null
+        return [...prev, { cardId, quantity: qty, price: known }]
+      }
       return prev.map(i => (i.cardId === cardId ? { ...i, quantity: qty } : i))
     })
 
@@ -589,11 +643,19 @@ export function CollectionPage() {
         {/* Progreso por expansión — tocar una barra filtra la lista a ese set */}
         {progress && progress.grandTotal > 0 && (
           <div className="bg-swu-surface rounded-xl border border-swu-border p-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-swu-text">Progreso de colección</span>
-              <span className="text-[11px] font-mono text-swu-muted">
-                {progress.ownedTotal.toLocaleString()}/{progress.grandTotal.toLocaleString()}
-              </span>
+            <div className="flex items-center gap-3">
+              <ProgressRing
+                pct={progress.grandTotal > 0 ? (progress.ownedTotal / progress.grandTotal) * 100 : 0}
+                sub={`${progress.ownedTotal.toLocaleString()}/${progress.grandTotal.toLocaleString()}`}
+                size={72}
+                stroke={7}
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-swu-text">Progreso de colección</p>
+                <p className="text-[11px] text-swu-muted leading-snug mt-0.5">
+                  Impresión normal de las 8 expansiones principales, sin fichas.
+                </p>
+              </div>
             </div>
 
             <div className="space-y-1">
@@ -630,14 +692,6 @@ export function CollectionPage() {
               })}
             </div>
 
-            {/* Se dice explícitamente para que el número no parezca un error:
-                el total de arriba cuenta impresión normal de los 8 sets
-                principales, así que no cuadra con "Únicas", que además
-                incluye promos y variantes. */}
-            <p className="text-[10px] text-swu-muted/60 leading-snug">
-              Cuenta la impresión normal de las 8 expansiones principales, sin fichas.
-              No incluye promos ni variantes.
-            </p>
           </div>
         )}
 
@@ -1108,13 +1162,13 @@ export function CollectionPage() {
         {/* ── Binder: cuadrícula de arte con huecos ── */}
         {!loading && viewMode === 'binder' && (
           filterSet ? (
-            binderSlots.length > 0 && (
+            visibleSlots.length > 0 && (
               <div>
                 <div className="text-xs text-swu-muted px-1 mb-1.5">
                   {SET_LABELS[filterSet] ?? filterSet} ·{' '}
-                  {binderSlots.filter(s => s.qty > 0).length}/{binderSlots.length} cartas
+{visibleSlots.filter(s => s.qty > 0).length}/{visibleSlots.length} cartas
                 </div>
-                <BinderGrid slots={binderSlots} onSelect={setQuickSlot} />
+                <BinderGrid slots={visibleSlots} onSelect={setQuickSlot} />
               </div>
             )
           ) : (
@@ -1270,7 +1324,7 @@ export function CollectionPage() {
               slot={quickSlot}
               price={items.find(i => i.cardId === quickSlot.card.id)?.price?.market ?? null}
               listed={listings.has(quickSlot.card.id)}
-              onChangeQty={(n) => handleSetQuantity(quickSlot.card.id, n)}
+              onChangeQty={(n) => handleSetQuantity(quickSlot.card.id, n, quickSlot.card)}
               onSell={supabaseUser
                 ? () => {
                     const cardId = quickSlot.card.id

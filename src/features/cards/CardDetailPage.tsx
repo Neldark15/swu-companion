@@ -94,24 +94,29 @@ export function CardDetailPage() {
     await updateCollectionQuantity(id, newQty, currentProfileId ?? undefined, supabaseUser?.id)
   }
 
-  // ¿Ya la tengo en la lista de buscadas?
+  // La wishlist se guarda SIEMPRE con el uuid canónico (`card.id`), no con el
+  // id de la URL: a /cards/:id se llega con uuid desde el buscador y con id
+  // heredado (`LOF_205`) desde Mi Botín o un perfil público. Usando el crudo,
+  // la misma carta se podía marcar dos veces y el cruce no casaría.
+  const wishKey = card?.id ?? null
+
   useEffect(() => {
-    if (!id || !supabaseUser) { setWanted(false); return }
+    if (!wishKey || !supabaseUser) { setWanted(false); return }
     let cancelled = false
     getMyWishlist(supabaseUser.id)
-      .then(list => { if (!cancelled) setWanted(list.some(w => w.cardId === id)) })
+      .then(list => { if (!cancelled) setWanted(list.some(w => w.cardId === wishKey)) })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [id, supabaseUser])
+  }, [wishKey, supabaseUser])
 
   const toggleWanted = async () => {
-    if (!id || !supabaseUser || wantBusy) return
+    if (!wishKey || !supabaseUser || wantBusy) return
     setWantBusy(true)
     const next = !wanted
     setWanted(next) // optimista
     const ok = next
-      ? (await addToWishlist(supabaseUser.id, id)).ok
-      : await removeFromWishlist(supabaseUser.id, id)
+      ? (await addToWishlist(supabaseUser.id, wishKey)).ok
+      : await removeFromWishlist(supabaseUser.id, wishKey)
     if (!ok) setWanted(!next) // revertir si el servidor rechazó
     setWantBusy(false)
   }

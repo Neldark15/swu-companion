@@ -1,3 +1,5 @@
+import { useRef } from 'react'
+
 /**
  * SegmentedControl — elegir UNA opción entre pocas, siempre todas a la vista.
  *
@@ -29,14 +31,25 @@ export interface SegmentedControlProps<T extends string> {
 export function SegmentedControl<T extends string>({
   options, value, onChange, label, className = '',
 }: SegmentedControlProps<T>) {
+  const groupRef = useRef<HTMLDivElement>(null)
+
   const move = (dir: 1 | -1) => {
     const i = options.findIndex(o => o.value === value)
-    const next = options[(i + dir + options.length) % options.length]
-    if (next) onChange(next.value)
+    const nextIndex = (i + dir + options.length) % options.length
+    const next = options[nextIndex]
+    if (!next) return
+    onChange(next.value)
+    // El foco tiene que seguir a la selección: con roving tabindex, el botón
+    // que lo tenía pasa a tabIndex=-1 al redibujar y el foco se caía al body,
+    // así que la flecha siguiente ya no hacía nada.
+    requestAnimationFrame(() => {
+      groupRef.current?.querySelectorAll<HTMLElement>('[role="radio"]')[nextIndex]?.focus()
+    })
   }
 
   return (
     <div
+      ref={groupRef}
       role="radiogroup"
       aria-label={label}
       className={`flex gap-1 p-1 rounded-xl bg-swu-bg border border-swu-border ${className}`}

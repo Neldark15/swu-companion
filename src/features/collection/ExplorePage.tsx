@@ -39,12 +39,14 @@ function MatchesSection() {
   const [matches, setMatches] = useState<TradeMatch[]>([])
   const [cards, setCards] = useState<Map<string, Card>>(new Map())
   const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
   const [myName, setMyName] = useState('un jugador')
 
   useEffect(() => {
     let cancelled = false
     if (!supabaseUser) { setLoading(false); return }
 
+    setFailed(false)
     getTradeMatches(supabaseUser.id)
       .then(async (ms) => {
         if (cancelled) return
@@ -54,11 +56,18 @@ function MatchesSection() {
           ms.flatMap(m => [...m.theyOffer, ...m.iOffer].map(x => x.cardId)),
         ))
         if (ids.length > 0) {
-          const map = await getCardsByIds(ids)
-          if (!cancelled) setCards(map)
+          // Si esto falla, el mensaje de WhatsApp saldría con "Carta" en vez
+          // de nombres — y ese mensaje ya se fue. Mejor marcarlo como fallo.
+          try {
+            const map = await getCardsByIds(ids)
+            if (!cancelled) setCards(map)
+          } catch {
+            if (!cancelled) setFailed(true)
+          }
         }
       })
-      .catch(() => {})
+      // Un fallo de red no puede verse igual que "no hay cruces".
+      .catch(() => { if (!cancelled) setFailed(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
 
     return () => { cancelled = true }
@@ -78,7 +87,18 @@ function MatchesSection() {
       <h2 className="text-[10px] font-mono tracking-[0.2em] uppercase text-swu-muted/60 mb-2 px-1">
         Para vos
       </h2>
-      <TradeMatches matches={matches} cards={cards} myName={myName} loading={loading} />
+      {failed ? (
+        <div className="bg-swu-amber/10 border border-swu-amber/30 rounded-xl p-3">
+          <p className="text-xs text-swu-amber font-semibold">
+            No se pudo consultar el cruce
+          </p>
+          <p className="text-[11px] text-swu-muted mt-0.5">
+            Puede que no haya conexión. No es que no tengas coincidencias.
+          </p>
+        </div>
+      ) : (
+        <TradeMatches matches={matches} cards={cards} myName={myName} loading={loading} />
+      )}
     </section>
   )
 }

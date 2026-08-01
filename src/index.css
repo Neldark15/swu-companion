@@ -70,9 +70,22 @@ html, body, #root {
 
 * { box-sizing: border-box; }
 
-/* ── Auto-neumorphism for surfaces ── */
-.bg-swu-surface {
-  box-shadow: var(--neu-shadow-raised);
+/* ── Auto-neumorphism for surfaces ──
+ *
+ * Va dentro de `@layer base` A PROPÓSITO. Tailwind v4 emite sus utilidades en
+ * `@layer utilities`, y una regla SIN capa gana siempre contra cualquier capa,
+ * sin importar el orden ni la especificidad.
+ *
+ * Como `focus-visible:ring-2` se implementa con `box-shadow`, estas dos reglas
+ * sin capa pisaban el anillo de foco de TODOS los botones y campos apoyados en
+ * .bg-swu-surface o .bg-swu-accent: el foco de teclado quedaba invisible en
+ * media app. Metiéndolas en `base`, la utilidad vuelve a ganar cuando hace
+ * falta y la neumorfia se mantiene el resto del tiempo.
+ */
+@layer base {
+  .bg-swu-surface {
+    box-shadow: var(--neu-shadow-raised);
+  }
 }
 
 /* ── Inset shadow for form elements ── */
@@ -88,11 +101,10 @@ input:focus, textarea:focus, select:focus {
   box-shadow: var(--neu-shadow-inset), 0 0 0 2px var(--color-swu-accent) !important;
 }
 
-/* ── Accent glow on accent-bg elements (Safari < 16.2 fallback) ── */
-.bg-swu-accent {
-  box-shadow: 0 0 18px rgba(239, 68, 68, 0.35);
-}
-@supports (color: color-mix(in srgb, red 50%, blue)) {
+/* ── Accent glow on accent-bg elements (Safari < 16.2 fallback) ──
+ * En `base` por el mismo motivo que la neumorfia: si no, se come el anillo
+ * de foco de todo botón primario. */
+@layer base {
   .bg-swu-accent {
     box-shadow: 0 0 18px color-mix(in srgb, var(--color-swu-accent) 35%, transparent);
   }
