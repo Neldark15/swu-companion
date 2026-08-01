@@ -21,6 +21,7 @@
 
 import { db } from './db'
 import { MAIN_SET_LABELS, ensureFreshDatabase } from './swuApi'
+import { compareCardsCanonical } from './cardSort'
 import type { Card } from '../types'
 
 /** Fichas de juego: no se coleccionan, vienen en cada sobre. */
@@ -142,4 +143,79 @@ export async function getSetProgress(
   })
 
   return { sets, ownedTotal, grandTotal }
+}
+
+// ─── Binder ───────────────────────────────────────────────────────────
+
+/** Una casilla del binder: la carta y cuántas copias tiene el usuario. */
+export interface BinderSlot {
+  card: Card
+  qty: number
+}
+
+/**
+ * Todas las cartas coleccionables de una expansión, en orden de juego, con la
+ * cantidad que tiene el usuario — incluidas las que NO tiene.
+ *
+ * Ese es el punto del binder: los huecos son la información. Mi Botín solo
+ * mostraba lo que ya tenías, así que un set del que te faltan 80 cartas se
+ * veía igual de "lleno" que uno completo.
+ */
+export async function getSetBinder(
+  setCode: string,
+  quantities: Map<string, number>,
+): Promise<BinderSlot[]> {
+  const cards = await db.cards.where('setCode').equals(setCode).toArray()
+  return cards
+    .filter(isCollectible)
+    .sort(compareCardsCanonical)
+    .map(card => ({
+      card,
+      qty: quantities.get(card.id) ?? (card.legacyId ? quantities.get(card.legacyId) ?? 0 : 0),
+    }))
+}
+
+// ─── Progreso por rareza ──────────────────────────────────────────────
+
+export interface RarityProgress {
+  rarity: string
+  owned: number
+  total: number
+  pct: number
+}
+
+/** De más rara a más común, que es como se lee una colección. */
+const RARITY_ORDER = ['Legendary', 'Special', 'Rare', 'Uncommon', 'Common']
+
+/**
+ * Cuánto llevás de cada rareza, en un set o en toda la colección.
+ *
+ * El desglose por rareza estaba declarado en el código de stats desde hace
+ * tiempo y devolvía siempre vacío: nunca llegó a la pantalla.
+ */
+export async function getRarityProgress(
+  quantities: Map<string, number>,
+  setCode?: string,
+): Promise<RarityProgress[]> {
+  const cards = setCode
+    ? await db.cards.where('setCode').equals(setCode).toArray()
+    : await db.cards.toArray()
+
+  const totals = new Map<string, number>()
+  const owned = new Map<string, number>()
+
+  for (const c of cards) {
+    if (!isCollectible(c)) continue
+    totals.set(c.rarity, (totals.get(c.rarity) ?? 0) + 1)
+    const qty = quantities.get(c.id) ?? (c.legacyId ? quantities.get(c.legacyId) ?? 0 : 0)
+    if (qty > 0) owned.set(c.rarity, (owned.get(c.rarity) ?? 0) + 1)
+  }
+
+  return RARITY_ORDER
+    .filter(r => (totals.get(r) ?? 0) > 0)
+    .map(rarity => {
+      const total = totals.get(rarity) ?? 0
+      const own = owned.get(rarity) ?? 0
+      return { rarity, owned: own, total, pct: total > 0 ? Math.round((own / total) * 100) : 0 }
+    })
 }

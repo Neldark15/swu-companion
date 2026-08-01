@@ -9,7 +9,15 @@ import { useAuth } from '../../hooks/useAuth'
 import { getCardsByIds, loadFullDatabase, getLocalCardCount, isDatabaseComplete, MAIN_SET_LABELS } from '../../services/swuApi'
 import { byCanonicalCard, compareCardsBySetNumber } from '../../services/cardSort'
 import { listFaceUrl, listFaceFit } from '../../services/cardArt'
-import { getSetProgress, type SetProgress } from '../../services/collectionProgress'
+import {
+  getSetProgress, getSetBinder, getRarityProgress,
+  type SetProgress, type BinderSlot, type RarityProgress,
+} from '../../services/collectionProgress'
+import { BinderGrid } from './BinderGrid'
+import { CardQuickView } from './CardQuickView'
+import { Sheet } from '../../components/ui/Sheet'
+import { SegmentedControl } from '../../components/ui/SegmentedControl'
+import { LayoutGrid, List } from 'lucide-react'
 import {
   getMyCollectionWithPrices,
   updateCollectionQuantity,
@@ -202,6 +210,39 @@ export function CollectionPage() {
     return () => { cancelled = true }
   }, [items])
 
+  // ── Binder ────────────────────────────────────────────────────────
+  /** 'binder' = cuadrícula de arte con huecos. 'list' = gestión rápida. */
+  const [viewMode, setViewMode] = useState<'binder' | 'list'>('binder')
+  const [binderSlots, setBinderSlots] = useState<BinderSlot[]>([])
+  const [rarity, setRarity] = useState<RarityProgress[]>([])
+  const [quickSlot, setQuickSlot] = useState<BinderSlot | null>(null)
+
+  const qtyMap = useMemo(
+    () => new Map(items.map(i => [i.cardId, i.quantity])),
+    [items],
+  )
+
+  // Las casillas del binder salen de la EXPANSIÓN, no de la colección: por eso
+  // aparecen las que faltan. Sin set elegido no hay binder que dibujar — serían
+  // 2,089 casillas sin contexto — así que se cae a la lista.
+  useEffect(() => {
+    let cancelled = false
+    if (viewMode !== 'binder' || !filterSet) { setBinderSlots([]); return }
+    getSetBinder(filterSet, qtyMap)
+      .then(s => { if (!cancelled) setBinderSlots(s) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [viewMode, filterSet, qtyMap])
+
+  useEffect(() => {
+    let cancelled = false
+    if (items.length === 0) { setRarity([]); return }
+    getRarityProgress(qtyMap, filterSet || undefined)
+      .then(r => { if (!cancelled) setRarity(r) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [qtyMap, filterSet, items.length])
+
   // Available sets in collection
   const availableSets = useMemo(() => {
     const sets = new Set<string>()
@@ -320,25 +361,36 @@ export function CollectionPage() {
     await toggleProfilePublic(supabaseUser.id, newVal)
   }, [supabaseUser, isPublic])
 
-  const handleQuantityChange = useCallback(async (cardId: string, delta: number) => {
-    const item = items.find(i => i.cardId === cardId)
-    const current = item?.quantity ?? 0
-    const newQty = Math.max(0, current + delta)
+  /**
+   * Fija la cantidad EXACTA. La vista rápida del binder trabaja con valores
+   * absolutos (incluido el ×3), no con incrementos.
+   *
+   * Si la carta no estaba en la colección se agrega la fila: en el binder se
+   * tocan casillas vacías todo el tiempo, y `items.map` sola nunca las crearía.
+   */
+  const handleSetQuantity = useCallback(async (cardId: string, newQty: number) => {
+    const qty = Math.max(0, newQty)
 
     setItems(prev => {
-      if (newQty <= 0) return prev.filter(i => i.cardId !== cardId)
-      return prev.map(i =>
-        i.cardId === cardId ? { ...i, quantity: newQty } : i,
-      )
+      if (qty <= 0) return prev.filter(i => i.cardId !== cardId)
+      const exists = prev.some(i => i.cardId === cardId)
+      if (!exists) return [...prev, { cardId, quantity: qty, price: null }]
+      return prev.map(i => (i.cardId === cardId ? { ...i, quantity: qty } : i))
     })
 
     await updateCollectionQuantity(
       cardId,
-      newQty,
+      qty,
       currentProfileId ?? undefined,
       supabaseUser?.id,
     )
-  }, [items, currentProfileId, supabaseUser])
+  }, [currentProfileId, supabaseUser])
+
+  const handleQuantityChange = useCallback(async (cardId: string, delta: number) => {
+    const item = items.find(i => i.cardId === cardId)
+    const current = item?.quantity ?? 0
+    await handleSetQuantity(cardId, current + delta)
+  }, [items, handleSetQuantity])
 
   const handleFetchPrices = useCallback(async () => {
     if (fetchingPrices || items.length === 0) return
@@ -1012,8 +1064,72 @@ export function CollectionPage() {
           </div>
         )}
 
+        {/* ── Binder vs Lista ── */}
+        {!loading && items.length > 0 && (
+          <SegmentedControl
+            label="Cómo ver la colección"
+            value={viewMode}
+            onChange={setViewMode}
+            options={[
+              { value: 'binder', label: 'Binder', icon: <LayoutGrid size={13} aria-hidden /> },
+              { value: 'list', label: 'Lista', icon: <List size={13} aria-hidden /> },
+            ]}
+          />
+        )}
+
+        {/* Progreso por rareza — estaba declarado en el código de stats desde
+            hace tiempo y devolvía siempre vacío; nunca llegó a la pantalla. */}
+        {!loading && rarity.length > 0 && (
+          <div className="bg-swu-surface rounded-xl border border-swu-border p-3">
+            <p className="text-[10px] font-mono tracking-[0.2em] uppercase text-swu-muted/60 mb-2">
+              Por rareza{filterSet ? ` · ${filterSet}` : ''}
+            </p>
+            <div className="space-y-1">
+              {rarity.map(r => (
+                <div key={r.rarity} className="flex items-center gap-2">
+                  <span className={`text-[10px] font-semibold w-20 ${rarityColor(r.rarity)}`}>
+                    {r.rarity}
+                  </span>
+                  <div className="flex-1 h-1.5 rounded-full bg-swu-bg overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${r.pct === 100 ? 'bg-swu-green' : 'bg-swu-amber'}`}
+                      style={{ width: `${r.pct}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] font-mono text-swu-muted w-14 text-right">
+                    {r.owned}/{r.total}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Binder: cuadrícula de arte con huecos ── */}
+        {!loading && viewMode === 'binder' && (
+          filterSet ? (
+            binderSlots.length > 0 && (
+              <div>
+                <div className="text-xs text-swu-muted px-1 mb-1.5">
+                  {SET_LABELS[filterSet] ?? filterSet} ·{' '}
+                  {binderSlots.filter(s => s.qty > 0).length}/{binderSlots.length} cartas
+                </div>
+                <BinderGrid slots={binderSlots} onSelect={setQuickSlot} />
+              </div>
+            )
+          ) : (
+            <div className="bg-swu-surface rounded-xl border border-swu-border p-4 text-center">
+              <p className="text-xs text-swu-text font-semibold">Elegí una expansión</p>
+              <p className="text-[11px] text-swu-muted mt-1 leading-relaxed">
+                El binder muestra las casillas del set completo, con los huecos de lo
+                que te falta. Tocá una barra de progreso de arriba.
+              </p>
+            </div>
+          )
+        )}
+
         {/* Card list */}
-        {!loading && displayed.length > 0 && (
+        {!loading && viewMode === 'list' && displayed.length > 0 && (
           <div>
             <div className="text-xs text-swu-muted px-1 mb-1.5">
               {displayed.length} carta{displayed.length !== 1 ? 's' : ''}
@@ -1142,6 +1258,29 @@ export function CollectionPage() {
             )}
           </div>
         )}
+
+        {/* Vista rápida del binder — no saca del lugar en la cuadrícula */}
+        <Sheet
+          open={!!quickSlot}
+          onClose={() => setQuickSlot(null)}
+          title={quickSlot?.card.name ?? ''}
+        >
+          {quickSlot && (
+            <CardQuickView
+              slot={quickSlot}
+              price={items.find(i => i.cardId === quickSlot.card.id)?.price?.market ?? null}
+              listed={listings.has(quickSlot.card.id)}
+              onChangeQty={(n) => handleSetQuantity(quickSlot.card.id, n)}
+              onSell={supabaseUser
+                ? () => {
+                    const cardId = quickSlot.card.id
+                    setQuickSlot(null)
+                    setSaleModal({ cardId, current: listings.get(cardId) ?? null })
+                  }
+                : undefined}
+            />
+          )}
+        </Sheet>
 
         {/* Sale modal */}
         {saleModal && (
