@@ -49,9 +49,19 @@ create policy "wishlist_delete_own" on public.wishlist
 -- y no solo a medias.
 create policy "wishlist_read_own" on public.wishlist
   for select using (auth.uid() = user_id);
+
+-- La de otros exige SESIÓN además del perfil público. Sin el
+-- `auth.uid() is not null`, `anon` podía volcar la lista de deseos de todos
+-- con la anon key que va en el bundle; para el cruce no hace falta, porque el
+-- Mercado ya requiere cuenta.
+--
+-- `collection` se deja como está a propósito: su política equivalente es
+-- anterior y la vista de perfil público depende de ella. Cambiarla es una
+-- decisión aparte, no un efecto colateral de esto.
 create policy "wishlist_read_public" on public.wishlist
   for select using (
-    exists (
+    auth.uid() is not null
+    and exists (
       select 1 from public.profiles p
       where p.id = wishlist.user_id and p.is_public = true
     )
