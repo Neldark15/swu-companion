@@ -229,6 +229,10 @@ Para tapar `profiles.email` a `anon` NO sirve `revoke select (email)`: un grant 
 
 Toda petición a tcgcsv va por el proxy serverless [api/tcg-prices.ts](api/tcg-prices.ts). Es un proxy **cerrado**: solo categoría 79, un `groupId` de una lista fija y los recursos `products`/`prices`. **Si se agrega una expansión a `SET_GROUP_MAP` en [pricing.ts](src/services/pricing.ts), hay que agregar su groupId también a `ALLOWED_GROUPS` del proxy** o esa expansión devolverá 400.
 
+Segunda trampa, dentro del mismo proxy: **tcgcsv responde 401 a toda petición sin `User-Agent`**, y el `fetch` de Node no manda uno (curl sí). Por eso el proxy recién desplegado daba 502 mientras el mismo URL a mano daba 200. El header va explícito en el `fetch` — no quitarlo.
+
+La escritura a `card_prices` exige sesión (`auth.uid() IS NOT NULL`): un visitante anónimo ve precios igual —se guardan en Dexie— pero no llena la caché compartida, y en consola deja `saveCloudPrices: new row violates row-level security policy`. Es lo esperado, no un bug.
+
 ### 2f. supabase-js NO lanza excepción ante error de PostgREST
 `const { data } = await supabase...` sin mirar `error` deja `data` en `null`, el `try/catch` nunca se activa y el fallo se ve igual que "no hay datos". Así estuvo **100% muerta** la caché de precios en la nube (0 filas de por vida): la tabla tenía 6 columnas y el código leía 9. Siempre desestructurar `error`.
 
