@@ -1,19 +1,22 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Search, SlidersHorizontal, X, Loader2, WifiOff, Plus, Minus,
-  Download, RefreshCw, AlertTriangle, Database,
+  Search, SlidersHorizontal, X, Loader2, Plus, Minus,
+  Download, RefreshCw, AlertTriangle, Database, Layers, Heart,
 } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { CardImage } from '../../components/CardImage'
+import { listFaceUrl, listFaceFit } from '../../services/cardArt'
 import {
-  searchCards, getSets, getLocalCardCount, loadFullDatabase, ensureFreshDatabase,
-  subscribeDbLoadProgress, MAIN_SET_MIN_CARDS, type SearchParams, type DbLoadProgress,
+  searchCards, getSets, getLocalCardCount, loadFullDatabase, ensureFreshDatabase, collectionEntry,
+  subscribeDbLoadProgress, MAIN_SET_MIN_CARDS, COST_MAX_BUCKET, PLAYSET_SIZE,
+  type SearchParams, type DbLoadProgress, type OwnedFilter,
 } from '../../services/swuApi'
 import { getPricesForCards, fetchTCGPrices, formatPrice, type PriceInfo } from '../../services/pricing'
-import { getCardQuantity, updateCollectionQuantity } from '../../services/collectionService'
+import { getMyCollection, updateCollectionQuantity } from '../../services/collectionService'
+import { db } from '../../services/db'
 import { useAuth } from '../../hooks/useAuth'
-import { translateType, translateRarity, translateArena } from '../../services/translations'
+import { translateType, translateRarity, translateArena, translateAspect } from '../../services/translations'
 import type { Card, SetInfo } from '../../types'
 
 const typeVariant: Record<string, 'amber' | 'accent' | 'green' | 'purple' | 'default'> = {
@@ -35,65 +38,156 @@ const filterTypes = ['Leader', 'Base', 'Unit', 'Event', 'Upgrade']
 const filterAspects = ['Vigilance', 'Command', 'Aggression', 'Cunning', 'Heroism', 'Villainy']
 const filterArenas = ['Ground', 'Space']
 const filterRarities = ['Common', 'Uncommon', 'Rare', 'Legendary', 'Special']
+const filterCosts = [0, 1, 2, 3, 4, 5, 6, COST_MAX_BUCKET]
 
 const PAGE_SIZE = 30
+
+const OWNED_LABELS: Record<OwnedFilter, string> = {
+  all: 'Todas',
+  owned: 'Tengo',
+  missing: 'Me falta',
+  duplicates: 'Repetidas',
+}
+
+/**
+ * Instantánea del buscador, fuera del componente para que sobreviva a la
+ * navegación. Volver del detalle borraba el texto, los filtros y el scroll:
+ * revisar 5 cartas seguidas eran 5 búsquedas desde cero.
+ */
+interface SearchSnapshot {
+  query: string
+  selectedType: string | null
+  selectedAspect: string | null
+  selectedSet: string | null
+  selectedArena: string | null
+  selectedRarity: string | null
+  selectedCost: number | null
+  owned: OwnedFilter
+  favoritesOnly: boolean
+  allPrintings: boolean
+  cards: Card[]
+  total: number
+  scrollY: number
+  /** Cantidad de cartas en la base al guardar; si cambió, los resultados se descartan. */
+  dbCount: number
+  /**
+   * De quién es esta instantánea. Vive a nivel de módulo, así que sobrevive a
+   * un cambio de cuenta: sin este dueño, al entrar otro perfil se le mostraría
+   * por un instante el resultado del filtro "Me falta" del perfil anterior.
+   */
+  profileId: string | null
+}
+let _snapshot: SearchSnapshot | null = null
+
+/** Se llama antes de leer la instantánea: no es de este perfil, no sirve. */
+function snapshotFor(profileId: string | null): SearchSnapshot | null {
+  if (_snapshot && _snapshot.profileId !== profileId) _snapshot = null
+  return _snapshot
+}
 
 export function CardsPage() {
   const navigate = useNavigate()
   const { supabaseUser, currentProfileId } = useAuth()
-  const [collectionQtys, setCollectionQtys] = useState<Map<string, number>>(new Map())
-  const [query, setQuery] = useState('')
-  const [showFilters, setShowFilters] = useState(false)
-  const [selectedType, setSelectedType] = useState<string | null>(null)
-  const [selectedAspect, setSelectedAspect] = useState<string | null>(null)
-  const [selectedSet, setSelectedSet] = useState<string | null>(null)
-  const [selectedArena, setSelectedArena] = useState<string | null>(null)
-  const [selectedRarity, setSelectedRarity] = useState<string | null>(null)
 
-  const [cards, setCards] = useState<Card[]>([])
-  const [total, setTotal] = useState(0)
+  // Se resuelve UNA vez, antes de sembrar el estado: descarta la instantánea
+  // si es de otro perfil.
+  const restored = useRef(snapshotFor(currentProfileId ?? null)).current
+
+  const [query, setQuery] = useState(restored?.query ?? '')
+  const [showFilters, setShowFilters] = useState(false)
+  const [selectedType, setSelectedType] = useState<string | null>(restored?.selectedType ?? null)
+  const [selectedAspect, setSelectedAspect] = useState<string | null>(restored?.selectedAspect ?? null)
+  const [selectedSet, setSelectedSet] = useState<string | null>(restored?.selectedSet ?? null)
+  const [selectedArena, setSelectedArena] = useState<string | null>(restored?.selectedArena ?? null)
+  const [selectedRarity, setSelectedRarity] = useState<string | null>(restored?.selectedRarity ?? null)
+  const [selectedCost, setSelectedCost] = useState<number | null>(restored?.selectedCost ?? null)
+  const [owned, setOwned] = useState<OwnedFilter>(restored?.owned ?? 'all')
+  const [favoritesOnly, setFavoritesOnly] = useState(restored?.favoritesOnly ?? false)
+  /** Apagado de fábrica: el 74% de las filas son variantes de la misma carta. */
+  const [allPrintings, setAllPrintings] = useState(restored?.allPrintings ?? false)
+
+  const [cards, setCards] = useState<Card[]>(restored?.cards ?? [])
+  const [total, setTotal] = useState(restored?.total ?? 0)
   const [loading, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [offline, setOffline] = useState(false)
   const [sets, setSets] = useState<SetInfo[]>([])
-  const [hasSearched, setHasSearched] = useState(false)
+  const [hasSearched, setHasSearched] = useState(!!restored)
   const [localCount, setLocalCount] = useState(0)
   const [prices, setPrices] = useState<Map<string, PriceInfo>>(new Map())
   const [pricesLoading, setPricesLoading] = useState(false)
-  const priceFetchRef = useRef(0) // dedup guard
+  const priceFetchRef = useRef(0)
+
+  /** Toda la colección en memoria: el cruce "me falta" necesita el set completo. */
+  const [collectionQtys, setCollectionQtys] = useState<Map<string, number>>(new Map())
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
 
   const [dbProgress, setDbProgress] = useState<DbLoadProgress>({ phase: 'idle', message: '' })
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** Solo el texto tecleado espera 300ms; tocar un chip responde al instante. */
+  const skipDebounceRef = useRef(false)
+  /**
+   * Se consume UNA sola vez, dentro del propio efecto de búsqueda. Tenerlo en
+   * un ref aparte del scroll es necesario: los efectos corren en orden de
+   * declaración, así que si el de scroll lo apagara, el de búsqueda ya lo
+   * vería en falso y re-buscaría, tirando abajo lo que acabábamos de restaurar.
+   */
+  const skipFirstSearchRef = useRef(!!restored)
+  const pendingScrollRef = useRef<number | null>(restored?.scrollY ?? null)
 
-  // Subscribe to DB load progress + auto-bootstrap if cache is empty
   useEffect(() => {
     const unsub = subscribeDbLoadProgress(setDbProgress)
     return () => unsub()
   }, [])
 
-  // Load sets + count + auto-bootstrap on mount.
-  // ensureFreshDatabase also re-syncs weekly so new expansions appear alone.
   useEffect(() => {
     getSets().then(setSets).catch(() => {})
     getLocalCardCount().then(setLocalCount).catch(() => {})
     ensureFreshDatabase().then(setLocalCount).catch(() => {})
   }, [])
 
-  // After DB load completes, refresh local count (in case auto-bootstrap finished)
   useEffect(() => {
     if (dbProgress.phase === 'done' && typeof dbProgress.finalCount === 'number') {
       setLocalCount(dbProgress.finalCount)
     }
   }, [dbProgress])
 
-  const refreshDb = useCallback(async () => {
-    const n = await loadFullDatabase({ force: true })
-    setLocalCount(n)
-    // Re-trigger search after refresh
-    if (hasSearched) doSearch(true)
+  // Colección completa + favoritos. Antes se pedía la cantidad carta por carta
+  // (30 consultas a Dexie por búsqueda); una sola lectura alcanza.
+  const reloadCollection = useCallback(async () => {
+    try {
+      const items = await getMyCollection(currentProfileId ?? undefined)
+      setCollectionQtys(new Map(items.map(i => [i.cardId, i.quantity])))
+    } catch { /* colección vacía */ }
+    try {
+      const favs = await db.favoriteCards.toArray()
+      setFavoriteIds(new Set(favs.map(f => f.cardId)))
+    } catch { /* sin favoritos */ }
+  }, [currentProfileId])
+
+  useEffect(() => { reloadCollection() }, [reloadCollection])
+
+  // Restaurar el scroll una vez que las filas recuperadas están pintadas.
+  useEffect(() => {
+    const y = pendingScrollRef.current
+    if (y === null) return
+    pendingScrollRef.current = null
+    requestAnimationFrame(() => window.scrollTo(0, y))
+  }, [])
+
+  // Si la base de cartas cambió desde que se guardó la instantánea, los
+  // resultados guardados ya no son de fiar: se descartan y se busca de nuevo.
+  // Los filtros SÍ se conservan — eso es lo que costaba volver a tipear.
+  useEffect(() => {
+    if (!_snapshot || localCount === 0) return
+    if (_snapshot.dbCount !== localCount) {
+      _snapshot = null
+      skipFirstSearchRef.current = false
+      pendingScrollRef.current = null
+      doSearch(true)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasSearched])
+  }, [localCount])
 
   const doSearch = useCallback(
     async (reset = true) => {
@@ -104,44 +198,55 @@ export function CardsPage() {
         set: selectedSet || undefined,
         arena: selectedArena || undefined,
         rarity: selectedRarity || undefined,
+        cost: selectedCost,
+        canonicalOnly: !allPrintings,
+        owned,
+        ownedQuantities: collectionQtys,
+        // Va al servicio, NO se recorta acá: filtrando después de paginar,
+        // "Mis favoritas" solo miraba las 30 filas de la primera página.
+        favoriteIds: favoritesOnly ? favoriteIds : undefined,
         offset: reset ? 0 : cards.length,
         limit: PAGE_SIZE,
       }
 
-      if (reset) {
-        setLoading(true)
-        setOffline(false)
-      } else {
-        setLoadingMore(true)
-      }
+      if (reset) setLoading(true)
+      else setLoadingMore(true)
 
       try {
         const result = await searchCards(params)
-        if (reset) {
-          setCards(result.cards)
-        } else {
-          setCards((prev) => [...prev, ...result.cards])
-        }
+        if (reset) setCards(result.cards)
+        else setCards(prev => [...prev, ...result.cards])
         setTotal(result.total)
         setHasSearched(true)
-      } catch {
-        setOffline(true)
       } finally {
         setLoading(false)
         setLoadingMore(false)
       }
     },
-    [query, selectedType, selectedAspect, selectedSet, selectedArena, selectedRarity, cards.length],
+    [query, selectedType, selectedAspect, selectedSet, selectedArena, selectedRarity,
+     selectedCost, allPrintings, owned, collectionQtys, favoritesOnly, favoriteIds, cards.length],
   )
 
-  // Auto-load prices when cards change
+  // `refreshDb` tiene que ser estable (lo usan botones que no deben recrearse),
+  // pero con deps [] capturaba el `doSearch` del PRIMER render: al reintentar
+  // una descarga fallida se re-buscaba con los filtros iniciales en vez de con
+  // los que el usuario tiene puestos. El ref siempre apunta al último.
+  const doSearchRef = useRef(doSearch)
+  useEffect(() => { doSearchRef.current = doSearch })
+
+  const refreshDb = useCallback(async () => {
+    const n = await loadFullDatabase({ force: true })
+    setLocalCount(n)
+    doSearchRef.current(true)
+  }, [])
+
+  // Precios de las cartas visibles
   useEffect(() => {
     if (cards.length === 0) return
     const fetchId = ++priceFetchRef.current
 
     const loadPrices = async () => {
       const cardIds = cards.map(c => c.id)
-      // 1. Get cached prices first (instant)
       const cached = await getPricesForCards(cardIds)
       if (fetchId !== priceFetchRef.current) return
       setPrices(prev => {
@@ -150,7 +255,6 @@ export function CardsPage() {
         return next
       })
 
-      // 2. Find cards without prices and fetch from TCGPlayer
       const missing = cards.filter(c => !cached.has(c.id))
       if (missing.length > 0) {
         setPricesLoading(true)
@@ -159,7 +263,6 @@ export function CardsPage() {
             missing.map(c => ({ id: c.id, name: c.name, subtitle: c.subtitle || null, setCode: c.setCode, setNumber: c.setNumber }))
           )
           if (fetchId !== priceFetchRef.current) return
-          // Re-read from cache after fetch
           const updated = await getPricesForCards(cardIds)
           if (fetchId !== priceFetchRef.current) return
           setPrices(prev => {
@@ -167,9 +270,7 @@ export function CardsPage() {
             updated.forEach((v, k) => next.set(k, v))
             return next
           })
-        } catch {
-          // Silent fail — prices are optional
-        }
+        } catch { /* los precios son opcionales */ }
         if (fetchId === priceFetchRef.current) setPricesLoading(false)
       }
     }
@@ -177,60 +278,167 @@ export function CardsPage() {
     loadPrices()
   }, [cards])
 
-  // Load collection quantities for displayed cards
-  useEffect(() => {
-    if (cards.length === 0) return
-    Promise.all(cards.map(c => getCardQuantity(c.id).then(qty => [c.id, qty] as const)))
-      .then(pairs => {
-        const map = new Map<string, number>()
-        for (const [id, qty] of pairs) if (qty > 0) map.set(id, qty)
-        setCollectionQtys(map)
-      })
-      .catch(() => {})
-  }, [cards])
-
-  const handleCollectionChange = async (cardId: string, delta: number, e: React.MouseEvent) => {
+  /**
+   * Suma o resta copias. Escribe SOBRE LA CLAVE que ya existe en la colección
+   * (uuid o id heredado): usando siempre el uuid, una carta guardada como
+   * `SOR_001` terminaba duplicada bajo dos claves distintas.
+   */
+  const handleCollectionChange = async (card: Card, delta: number, e: React.MouseEvent) => {
     e.stopPropagation()
-    const current = collectionQtys.get(cardId) || 0
-    const newQty = Math.max(0, current + delta)
+    const { qty, key } = collectionEntry(card, collectionQtys)
+    const newQty = Math.max(0, qty + delta)
     setCollectionQtys(prev => {
       const next = new Map(prev)
-      if (newQty > 0) next.set(cardId, newQty)
-      else next.delete(cardId)
+      if (newQty > 0) next.set(key, newQty)
+      else next.delete(key)
       return next
     })
-    await updateCollectionQuantity(cardId, newQty, currentProfileId ?? undefined, supabaseUser?.id)
+    await updateCollectionQuantity(key, newQty, currentProfileId ?? undefined, supabaseUser?.id)
   }
 
-  // Debounced search on query/filter change
+  /** Botón ×3: completar el playset de una carta en un solo toque. */
+  const handleSetPlayset = async (card: Card, e: React.MouseEvent) => {
+    e.stopPropagation()
+    const { key } = collectionEntry(card, collectionQtys)
+    setCollectionQtys(prev => new Map(prev).set(key, PLAYSET_SIZE))
+    await updateCollectionQuantity(key, PLAYSET_SIZE, currentProfileId ?? undefined, supabaseUser?.id)
+  }
+
+  /**
+   * La colección solo tiene que disparar una búsqueda nueva si hay un filtro
+   * de pertenencia activo. Sin esto, terminar de cargar la colección al montar
+   * re-buscaba y borraba los resultados y el scroll recién restaurados.
+   */
+  const ownedDepKey = owned === 'all' ? '' : `${owned}:${collectionQtys.size}`
+
+  // Búsqueda con retardo SOLO para lo que se teclea.
   useEffect(() => {
+    if (skipFirstSearchRef.current) {
+      skipFirstSearchRef.current = false
+      return // los resultados vienen de la instantánea
+    }
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => {
-      doSearch(true)
-    }, 300)
+    const delay = skipDebounceRef.current ? 0 : 300
+    skipDebounceRef.current = false
+    debounceRef.current = setTimeout(() => doSearch(true), delay)
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, selectedType, selectedAspect, selectedSet, selectedArena, selectedRarity])
+  }, [query, selectedType, selectedAspect, selectedSet, selectedArena, selectedRarity,
+      selectedCost, allPrintings, favoritesOnly, ownedDepKey])
 
-  const toggleFilter = (current: string | null, value: string, setter: (v: string | null) => void) => {
-    setter(current === value ? null : value)
+  // Valores vivos para la instantánea. Este efecto corre en cada render pero
+  // SOLO escribe un ref — no toca `_snapshot`.
+  //
+  // Antes el cleanup de un efecto sin array de deps escribía la instantánea
+  // en CADA commit, no solo al desmontar. Como el primer commit ocurre antes
+  // de que `localCount` se cargue, la instantánea nacía con `dbCount: 0`, el
+  // efecto de invalidación la veía distinta del conteo real y la anulaba —
+  // así que restaurar al volver no funcionaba nunca.
+  const liveRef = useRef<SearchSnapshot | null>(null)
+  liveRef.current = {
+    query, selectedType, selectedAspect, selectedSet, selectedArena,
+    selectedRarity, selectedCost, owned, favoritesOnly, allPrintings,
+    cards, total, scrollY: 0, dbCount: localCount,
+    profileId: currentProfileId ?? null,
   }
 
-  const activeFilterCount = [selectedType, selectedAspect, selectedSet, selectedArena, selectedRarity].filter(Boolean).length
+  // Guardar UNA sola vez, al desmontar de verdad.
+  useEffect(() => {
+    return () => {
+      if (liveRef.current) {
+        _snapshot = { ...liveRef.current, scrollY: window.scrollY }
+      }
+    }
+  }, [])
+
+  const setChip = <T,>(setter: (v: T) => void, value: T) => {
+    skipDebounceRef.current = true
+    setter(value)
+  }
+  const toggleFilter = (current: string | null, value: string, setter: (v: string | null) => void) => {
+    setChip(setter, current === value ? null : value)
+  }
 
   const clearFilters = () => {
+    skipDebounceRef.current = true
     setSelectedType(null)
     setSelectedAspect(null)
     setSelectedSet(null)
     setSelectedArena(null)
     setSelectedRarity(null)
+    setSelectedCost(null)
+    setOwned('all')
+    setFavoritesOnly(false)
   }
 
-  // Main expansions only — dynamic by card count so new sets (ASH, next ones)
-  // appear automatically without touching this list ever again
+  /**
+   * Chips activos, en español y con X. Antes los filtros vivían escondidos
+   * dentro del panel: no se veía qué estaba aplicado sin abrirlo.
+   */
+  const activeChips = useMemo(() => {
+    const chips: { key: string; label: string; clear: () => void }[] = []
+    if (selectedType) chips.push({ key: 'type', label: translateType(selectedType), clear: () => setChip(setSelectedType, null) })
+    if (selectedAspect) chips.push({ key: 'aspect', label: translateAspect(selectedAspect), clear: () => setChip(setSelectedAspect, null) })
+    if (selectedCost !== null) chips.push({
+      key: 'cost',
+      label: selectedCost >= COST_MAX_BUCKET ? `Coste ${COST_MAX_BUCKET}+` : `Coste ${selectedCost}`,
+      clear: () => setChip(setSelectedCost, null),
+    })
+    if (selectedSet) chips.push({ key: 'set', label: selectedSet, clear: () => setChip(setSelectedSet, null) })
+    if (selectedArena) chips.push({ key: 'arena', label: translateArena(selectedArena), clear: () => setChip(setSelectedArena, null) })
+    if (selectedRarity) chips.push({ key: 'rarity', label: translateRarity(selectedRarity), clear: () => setChip(setSelectedRarity, null) })
+    if (owned !== 'all') chips.push({ key: 'owned', label: OWNED_LABELS[owned], clear: () => setChip(setOwned, 'all' as OwnedFilter) })
+    if (favoritesOnly) chips.push({ key: 'fav', label: 'Favoritas', clear: () => setChip(setFavoritesOnly, false) })
+    if (allPrintings) chips.push({ key: 'printings', label: 'Todas las impresiones', clear: () => setChip(setAllPrintings, false) })
+    return chips
+  }, [selectedType, selectedAspect, selectedCost, selectedSet, selectedArena,
+      selectedRarity, owned, favoritesOnly, allPrintings])
+
   const mainSets = sets.filter((s) => s.cardCount >= MAIN_SET_MIN_CARDS)
+  /** La expansión más nueva, para las lanzaderas. Sin lista fija que mantener. */
+  const newestSet = mainSets.length > 0 ? mainSets[mainSets.length - 1].code : null
+
+  /** Atajos que además ENSEÑAN el sistema de filtros: dejan los chips a la vista. */
+  const launchers = useMemo(() => {
+    const l: { label: string; run: () => void }[] = []
+    if (newestSet) {
+      l.push({
+        label: `Líderes de ${newestSet}`,
+        run: () => { skipDebounceRef.current = true; clearFilters(); setSelectedSet(newestSet); setSelectedType('Leader') },
+      })
+      l.push({
+        label: `${newestSet} completo`,
+        run: () => { skipDebounceRef.current = true; clearFilters(); setSelectedSet(newestSet) },
+      })
+    }
+    if (favoriteIds.size > 0) {
+      l.push({
+        label: `Mis favoritas (${favoriteIds.size})`,
+        run: () => { skipDebounceRef.current = true; clearFilters(); setFavoritesOnly(true) },
+      })
+    }
+    if (collectionQtys.size > 0 && newestSet) {
+      l.push({
+        label: `Me falta de ${newestSet}`,
+        run: () => { skipDebounceRef.current = true; clearFilters(); setSelectedSet(newestSet); setOwned('missing') },
+      })
+    }
+    return l
+  }, [newestSet, favoriteIds.size, collectionQtys.size])
+
+  const chipClass = (active: boolean, tone: 'accent' | 'amber' | 'green' | 'purple' = 'accent') => {
+    const tones = {
+      accent: 'bg-swu-accent/20 border-swu-accent text-swu-accent',
+      amber: 'bg-swu-amber/20 border-swu-amber text-swu-amber',
+      green: 'bg-swu-green/20 border-swu-green text-swu-green',
+      purple: 'bg-purple-400/20 border-purple-400 text-purple-400',
+    }
+    return `rounded-lg px-3 py-1 text-xs font-semibold border transition-colors ${
+      active ? tones[tone] : 'bg-swu-bg border-swu-border text-swu-muted'
+    }`
+  }
 
   return (
     <div className="p-4 lg:p-6 space-y-3 pb-8 lg:pb-8 max-w-5xl mx-auto">
@@ -241,7 +449,7 @@ export function CardsPage() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={localCount > 0 ? `Buscar en ${localCount.toLocaleString()} cartas en caché...` : "Usa filtros para explorar o escribe un nombre..."}
+            placeholder={localCount > 0 ? `Buscar en ${localCount.toLocaleString()} cartas...` : 'Descargando cartas...'}
             className="w-full bg-swu-surface border border-swu-border rounded-xl py-3 pl-10 pr-9 text-sm text-swu-text outline-none focus:border-swu-accent transition-colors"
           />
           {query && (
@@ -257,28 +465,78 @@ export function CardsPage() {
           }`}
         >
           <SlidersHorizontal size={18} />
-          {activeFilterCount > 0 && (
+          {activeChips.length > 0 && (
             <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-swu-accent text-white text-[10px] font-bold flex items-center justify-center">
-              {activeFilterCount}
+              {activeChips.length}
             </span>
           )}
         </button>
       </div>
 
+      {/* ── Chips activos: siempre a la vista, con X, sin abrir el panel ── */}
+      {activeChips.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 items-center">
+          {activeChips.map(c => (
+            <button
+              key={c.key}
+              onClick={c.clear}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-swu-accent/15 border border-swu-accent/40
+                         text-swu-accent text-[11px] font-semibold active:scale-95 transition-transform"
+            >
+              {c.label} <X size={11} />
+            </button>
+          ))}
+          <button onClick={clearFilters} className="text-[11px] text-swu-red font-medium px-1">
+            Limpiar
+          </button>
+        </div>
+      )}
+
+      {/* ── Lanzaderas: solo cuando no hay nada aplicado ── */}
+      {activeChips.length === 0 && !query && launchers.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {launchers.map(l => (
+            <button
+              key={l.label}
+              onClick={l.run}
+              className="px-3 py-1.5 rounded-full bg-swu-surface border border-swu-border text-swu-muted
+                         text-[11px] font-semibold active:scale-95 transition-transform hover:text-swu-accent hover:border-swu-accent/40"
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ── Cruce con la colección ── */}
+      {collectionQtys.size > 0 && (
+        <div className="flex gap-1">
+          {(['all', 'owned', 'missing', 'duplicates'] as OwnedFilter[]).map(f => (
+            <button
+              key={f}
+              onClick={() => setChip(setOwned, f)}
+              className={`flex-1 py-1.5 rounded-lg text-[11px] font-semibold border transition-colors ${
+                owned === f
+                  ? 'bg-swu-amber/15 border-swu-amber/50 text-swu-amber'
+                  : 'bg-swu-surface border-swu-border text-swu-muted'
+              }`}
+            >
+              {OWNED_LABELS[f]}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Filters */}
       {showFilters && (
         <div className="bg-swu-surface rounded-xl p-3 border border-swu-border space-y-3">
-          {activeFilterCount > 0 && (
-            <button onClick={clearFilters} className="text-[10px] text-swu-red flex items-center gap-1">
-              <X size={12} /> Limpiar filtros
-            </button>
-          )}
-
           <div>
             <p className="text-xs text-swu-muted mb-1.5">Tipo</p>
             <div className="flex flex-wrap gap-1.5">
               {filterTypes.map((t) => (
-                <button key={t} onClick={() => toggleFilter(selectedType, t, setSelectedType)} className={`rounded-lg px-3 py-1 text-xs font-semibold border transition-colors ${selectedType === t ? 'bg-swu-accent/20 border-swu-accent text-swu-accent' : 'bg-swu-bg border-swu-border text-swu-muted'}`}>{t}</button>
+                <button key={t} onClick={() => toggleFilter(selectedType, t, setSelectedType)} className={chipClass(selectedType === t)}>
+                  {translateType(t)}
+                </button>
               ))}
             </div>
           </div>
@@ -287,7 +545,25 @@ export function CardsPage() {
             <p className="text-xs text-swu-muted mb-1.5">Aspecto</p>
             <div className="flex flex-wrap gap-1.5">
               {filterAspects.map((a) => (
-                <button key={a} onClick={() => toggleFilter(selectedAspect, a, setSelectedAspect)} className={`rounded-lg px-3 py-1 text-xs font-semibold border transition-colors ${selectedAspect === a ? 'bg-swu-accent/20 border-swu-accent text-swu-accent' : 'bg-swu-bg border-swu-border text-swu-muted'}`}>{a}</button>
+                <button key={a} onClick={() => toggleFilter(selectedAspect, a, setSelectedAspect)} className={chipClass(selectedAspect === a)}>
+                  {translateAspect(a)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Coste — el motor local siempre lo resolvió; el API lo ignoraba */}
+          <div>
+            <p className="text-xs text-swu-muted mb-1.5">Coste</p>
+            <div className="flex flex-wrap gap-1.5">
+              {filterCosts.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setChip(setSelectedCost, selectedCost === c ? null : c)}
+                  className={chipClass(selectedCost === c, 'green')}
+                >
+                  {c >= COST_MAX_BUCKET ? `${COST_MAX_BUCKET}+` : c}
+                </button>
               ))}
             </div>
           </div>
@@ -296,7 +572,9 @@ export function CardsPage() {
             <p className="text-xs text-swu-muted mb-1.5">Set</p>
             <div className="flex flex-wrap gap-1.5">
               {mainSets.map((s) => (
-                <button key={s.code} onClick={() => toggleFilter(selectedSet, s.code, setSelectedSet)} className={`rounded-lg px-3 py-1 text-xs font-semibold border transition-colors ${selectedSet === s.code ? 'bg-swu-amber/20 border-swu-amber text-swu-amber' : 'bg-swu-bg border-swu-border text-swu-muted'}`}>{s.code}</button>
+                <button key={s.code} onClick={() => toggleFilter(selectedSet, s.code, setSelectedSet)} title={s.name} className={chipClass(selectedSet === s.code, 'amber')}>
+                  {s.code}
+                </button>
               ))}
             </div>
           </div>
@@ -305,7 +583,9 @@ export function CardsPage() {
             <p className="text-xs text-swu-muted mb-1.5">Arena</p>
             <div className="flex flex-wrap gap-1.5">
               {filterArenas.map((a) => (
-                <button key={a} onClick={() => toggleFilter(selectedArena, a, setSelectedArena)} className={`rounded-lg px-3 py-1 text-xs font-semibold border transition-colors ${selectedArena === a ? 'bg-swu-green/20 border-swu-green text-swu-green' : 'bg-swu-bg border-swu-border text-swu-muted'}`}>{a}</button>
+                <button key={a} onClick={() => toggleFilter(selectedArena, a, setSelectedArena)} className={chipClass(selectedArena === a, 'green')}>
+                  {translateArena(a)}
+                </button>
               ))}
             </div>
           </div>
@@ -314,17 +594,33 @@ export function CardsPage() {
             <p className="text-xs text-swu-muted mb-1.5">Rareza</p>
             <div className="flex flex-wrap gap-1.5">
               {filterRarities.map((r) => (
-                <button key={r} onClick={() => toggleFilter(selectedRarity, r, setSelectedRarity)} className={`rounded-lg px-3 py-1 text-xs font-semibold border transition-colors ${selectedRarity === r ? 'bg-purple-400/20 border-purple-400 text-purple-400' : 'bg-swu-bg border-swu-border text-swu-muted'}`}>{r}</button>
+                <button key={r} onClick={() => toggleFilter(selectedRarity, r, setSelectedRarity)} className={chipClass(selectedRarity === r, 'purple')}>
+                  {translateRarity(r)}
+                </button>
               ))}
             </div>
           </div>
-        </div>
-      )}
 
-      {offline && (
-        <div className="flex items-center gap-2 bg-swu-amber/10 border border-swu-amber/30 rounded-lg px-3 py-2">
-          <WifiOff size={14} className="text-swu-amber" />
-          <span className="text-xs text-swu-amber">Modo offline — mostrando cartas en caché</span>
+          {/* Impresiones alternativas */}
+          <div className="pt-2 border-t border-swu-border/50">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={allPrintings}
+                onChange={(e) => setChip(setAllPrintings, e.target.checked)}
+                className="mt-0.5 accent-swu-accent"
+              />
+              <span className="flex-1">
+                <span className="text-xs text-swu-text font-medium flex items-center gap-1">
+                  <Layers size={12} /> Mostrar todas las impresiones
+                </span>
+                <span className="text-[10px] text-swu-muted block leading-snug">
+                  Hyperspace, foils, showcase y promos. Son la misma carta con otro arte
+                  y muchas traen el texto de reglas recortado.
+                </span>
+              </span>
+            </label>
+          </div>
         </div>
       )}
 
@@ -360,10 +656,7 @@ export function CardsPage() {
           {dbProgress.error && (
             <p className="text-[10px] text-swu-muted font-mono">{dbProgress.error}</p>
           )}
-          <button
-            onClick={refreshDb}
-            className="text-[11px] text-swu-accent font-semibold flex items-center gap-1"
-          >
+          <button onClick={refreshDb} className="text-[11px] text-swu-accent font-semibold flex items-center gap-1">
             <RefreshCw size={11} /> Reintentar
           </button>
         </div>
@@ -389,9 +682,12 @@ export function CardsPage() {
         </button>
       </div>
 
-      {hasSearched && !loading && (
+      {hasSearched && (
         <div className="flex items-center gap-2">
-          <p className="text-xs text-swu-muted">{total.toLocaleString()} cartas encontradas</p>
+          <p className="text-xs text-swu-muted">
+            {total.toLocaleString()} carta{total === 1 ? '' : 's'}
+            {!allPrintings && total > 0 && <span className="text-swu-muted/60"> · impresión normal</span>}
+          </p>
           {pricesLoading && (
             <span className="text-[10px] text-swu-green flex items-center gap-1">
               <Loader2 size={10} className="animate-spin" /> precios...
@@ -400,75 +696,108 @@ export function CardsPage() {
         </div>
       )}
 
-      {loading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 size={28} className="text-swu-accent animate-spin" />
-        </div>
-      )}
+      {/* La lista NO se desmonta al buscar: se atenúa. Vaciarla hacía saltar
+          la pantalla en cada tecla. */}
+      <div className={loading ? 'opacity-40 pointer-events-none transition-opacity' : 'transition-opacity'}>
+        {loading && cards.length === 0 && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 size={28} className="text-swu-accent animate-spin" />
+          </div>
+        )}
 
-      {!loading && (
         <div className="space-y-1.5 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0">
-          {cards.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => navigate(`/cards/${c.id}`)}
-              className="w-full bg-swu-surface rounded-xl p-3 border border-swu-border flex items-center gap-3 text-left active:scale-[0.99] transition-transform"
-            >
-              <CardImage src={(c.isLeader && c.backImageUrl) ? c.backImageUrl : c.imageUrl} alt={c.name} className="w-12 h-16" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm text-swu-text truncate">{c.name}</span>
-                  {c.subtitle && <span className="text-xs text-swu-muted truncate">{c.subtitle}</span>}
+          {cards.map((c) => {
+            const { qty } = collectionEntry(c, collectionQtys)
+            return (
+              // Contenedor con rol de botón y no un <button>: adentro van los
+              // controles +/- y ×3, y un <button> dentro de otro es HTML
+              // inválido (la consola lo venía reportando en cada fila).
+              <div
+                key={c.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate(`/cards/${c.id}`)}
+                // Solo cuando la tecla ocurre sobre la fila misma: los +/-/×3
+                // anidados son <button> nativos y sus eventos burbujean hasta
+                // acá, así que sin esta guarda Enter sobre "+" navegaba al
+                // detalle en vez de sumar la carta.
+                onKeyDown={(e) => {
+                  if (e.target !== e.currentTarget) return
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    navigate(`/cards/${c.id}`)
+                  }
+                }}
+                className="w-full bg-swu-surface rounded-xl p-3 border border-swu-border flex items-center gap-3 text-left cursor-pointer active:scale-[0.99] transition-transform"
+              >
+                <CardImage src={listFaceUrl(c)} fit={listFaceFit(c)} alt={c.name} className="w-14 h-20" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-sm text-swu-text truncate">{c.name}</span>
+                    {c.subtitle && <span className="text-xs text-swu-muted truncate">{c.subtitle}</span>}
+                  </div>
+                  <div className="flex gap-1.5 mt-1.5 flex-wrap items-center">
+                    <Badge variant={typeVariant[c.type] || 'default'}>{translateType(c.type)}</Badge>
+                    <Badge variant={rarityVariant[c.rarity] || 'default'}>{translateRarity(c.rarity)}</Badge>
+                    {c.arena && <Badge>{translateArena(c.arena)}</Badge>}
+                    <span className="text-[9px] text-swu-muted">{c.setCode} #{c.setNumber}</span>
+                    {/* Se dice qué impresión es cuando NO es la normal, para
+                        saber qué estás tocando. Antes nunca se dibujaba. */}
+                    {c.variantType && c.variantType !== 'Standard' && (
+                      <span className="text-[9px] font-bold text-purple-400 bg-purple-400/10 px-1.5 py-0.5 rounded">
+                        {c.variantType}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                  <Badge variant={typeVariant[c.type] || 'default'}>{translateType(c.type)}</Badge>
-                  <Badge variant={rarityVariant[c.rarity] || 'default'}>{translateRarity(c.rarity)}</Badge>
-                  {c.arena && <Badge>{translateArena(c.arena)}</Badge>}
-                  <span className="text-[9px] text-swu-muted">{c.setCode} #{c.setNumber}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <div className="text-right">
-                  {c.cost !== null && <p className="text-xl font-extrabold text-swu-amber font-mono">{c.cost}</p>}
-                  {c.power !== null && c.hp !== null && (
-                    <p className="text-xs text-swu-muted">{c.power}/{c.hp}</p>
-                  )}
-                  {prices.get(c.id)?.market != null && prices.get(c.id)!.market! > 0 && (
-                    <div className="mt-0.5">
-                      <p className="text-[11px] font-bold text-swu-green">{formatPrice(prices.get(c.id)!.market)}</p>
-                      {prices.get(c.id)!.variants && Object.keys(prices.get(c.id)!.variants!).length > 1 && (
-                        <p className="text-[8px] text-swu-amber">{Object.keys(prices.get(c.id)!.variants!).filter(k => k !== 'Normal').join(' · ')}</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-                {/* Collection +/- */}
-                <div className="flex flex-col items-center gap-0.5" onClick={e => e.stopPropagation()}>
-                  <button
-                    onClick={(e) => handleCollectionChange(c.id, 1, e)}
-                    className="w-7 h-7 rounded-lg bg-swu-accent/15 border border-swu-accent/30 text-swu-accent flex items-center justify-center active:scale-90 transition-transform"
-                  >
-                    <Plus size={12} />
-                  </button>
-                  <span className={`text-[10px] font-bold font-mono ${(collectionQtys.get(c.id) || 0) > 0 ? 'text-swu-accent' : 'text-swu-muted/40'}`}>
-                    {collectionQtys.get(c.id) || 0}
-                  </span>
-                  {(collectionQtys.get(c.id) || 0) > 0 && (
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="text-right">
+                    {c.cost !== null && <p className="text-xl font-extrabold text-swu-amber font-mono">{c.cost}</p>}
+                    {c.power !== null && c.hp !== null && (
+                      <p className="text-xs text-swu-muted">{c.power}/{c.hp}</p>
+                    )}
+                    {prices.get(c.id)?.market != null && prices.get(c.id)!.market! > 0 && (
+                      <p className="text-[11px] font-bold text-swu-green mt-0.5">{formatPrice(prices.get(c.id)!.market)}</p>
+                    )}
+                  </div>
+                  {/* Collection +/- */}
+                  <div className="flex flex-col items-center gap-0.5" onClick={e => e.stopPropagation()}>
                     <button
-                      onClick={(e) => handleCollectionChange(c.id, -1, e)}
-                      className="w-7 h-7 rounded-lg bg-swu-red/15 border border-swu-red/30 text-swu-red flex items-center justify-center active:scale-90 transition-transform"
+                      onClick={(e) => handleCollectionChange(c, 1, e)}
+                      className="w-7 h-7 rounded-lg bg-swu-accent/15 border border-swu-accent/30 text-swu-accent flex items-center justify-center active:scale-90 transition-transform"
                     >
-                      <Minus size={12} />
+                      <Plus size={12} />
                     </button>
-                  )}
+                    <span className={`text-[10px] font-bold font-mono ${qty > 0 ? 'text-swu-accent' : 'text-swu-muted/40'}`}>
+                      {qty}
+                    </span>
+                    {qty > 0 ? (
+                      <button
+                        onClick={(e) => handleCollectionChange(c, -1, e)}
+                        className="w-7 h-7 rounded-lg bg-swu-red/15 border border-swu-red/30 text-swu-red flex items-center justify-center active:scale-90 transition-transform"
+                      >
+                        <Minus size={12} />
+                      </button>
+                    ) : (
+                      // Completar el playset en un toque: cargar 3 copias eran
+                      // 3 toques y 3 viajes al servidor.
+                      <button
+                        onClick={(e) => handleSetPlayset(c, e)}
+                        title="Agregar 3 copias"
+                        className="w-7 h-7 rounded-lg bg-swu-bg border border-swu-border text-swu-muted text-[10px] font-bold flex items-center justify-center active:scale-90 transition-transform"
+                      >
+                        ×3
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
-            </button>
-          ))}
+            )
+          })}
         </div>
-      )}
+      </div>
 
-      {!loading && cards.length < total && (
+      {!loading && cards.length > 0 && cards.length < total && (
         <button
           onClick={() => doSearch(false)}
           disabled={loadingMore}
@@ -495,9 +824,25 @@ export function CardsPage() {
                 <Download size={12} /> Descargar base de cartas
               </button>
             </>
+          ) : activeChips.length > 0 ? (
+            <>
+              <p className="text-xs text-swu-muted mt-1">Ningún resultado con estos filtros</p>
+              <button onClick={clearFilters} className="mt-3 text-xs text-swu-accent font-semibold">
+                Limpiar filtros
+              </button>
+            </>
           ) : (
-            <p className="text-xs text-swu-muted mt-1">Intenta con otra búsqueda o filtro</p>
+            <p className="text-xs text-swu-muted mt-1">Probá con otro nombre</p>
           )}
+        </div>
+      )}
+
+      {favoritesOnly && favoriteIds.size === 0 && (
+        <div className="text-center py-6">
+          <Heart size={28} className="mx-auto text-swu-muted/40 mb-2" />
+          <p className="text-xs text-swu-muted">
+            Todavía no marcaste ninguna favorita. Tocá el corazón en cualquier carta.
+          </p>
         </div>
       )}
     </div>

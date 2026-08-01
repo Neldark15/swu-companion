@@ -7,14 +7,18 @@ import {
 import { db } from '../../services/db'
 import {
   searchCards, getCardById, getCardsByIds, ensureFreshDatabase,
-  subscribeDbLoadProgress, type DbLoadProgress,
+  subscribeDbLoadProgress, COST_MAX_BUCKET, type DbLoadProgress,
 } from '../../services/swuApi'
 import { validateDeck, canAddCard, getEffectiveMinDeckSize, getFormatRules } from '../../services/deckValidator'
 import { syncDeckToCloud } from '../../services/sync'
 import { useAuth } from '../../hooks/useAuth'
 import { CardImage } from '../../components/CardImage'
-import { translateType } from '../../services/translations'
+import { listFaceUrl, listFaceFit } from '../../services/cardArt'
+import { translateType, translateAspect } from '../../services/translations'
 import type { Deck, DeckCard, Card, TournamentFormat } from '../../types'
+
+const BUILDER_ASPECTS = ['Vigilance', 'Command', 'Aggression', 'Cunning', 'Heroism', 'Villainy']
+const BUILDER_COSTS = [0, 1, 2, 3, 4, 5, 6, COST_MAX_BUCKET]
 
 function generateId() {
   return `d_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
@@ -62,6 +66,8 @@ export function DeckBuilderPage() {
   const [loading, setLoading] = useState(!isNew)
   const [tab, setTab] = useState<Tab>('deck')
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchAspect, setSearchAspect] = useState<string | null>(null)
+  const [searchCost, setSearchCost] = useState<number | null>(null)
   const [searchResults, setSearchResults] = useState<Card[]>([])
   const [searching, setSearching] = useState(false)
   const [searchTotal, setSearchTotal] = useState(0)
@@ -187,11 +193,21 @@ export function DeckBuilderPage() {
     if (supabaseUser) syncDeckToCloud(supabaseUser.id, toSave).catch(() => {})
   }, [supabaseUser])
 
-  const doSearch = useCallback(async (query: string) => {
-    if (!query.trim()) { setSearchResults([]); setSearchTotal(0); return }
+  const doSearch = useCallback(async (query: string, aspect: string | null, cost: number | null) => {
+    // Antes solo se buscaba con texto escrito. Acá es justamente donde uno
+    // piensa "necesito una unidad Vigilance de coste 3", así que con un
+    // aspecto o un coste elegido ya alcanza para buscar.
+    if (!query.trim() && !aspect && cost === null) {
+      setSearchResults([]); setSearchTotal(0); return
+    }
     setSearching(true)
     try {
-      const { cards, total } = await searchCards({ query, limit: 30 })
+      const { cards, total } = await searchCards({
+        query: query.trim() || undefined,
+        aspect: aspect || undefined,
+        cost,
+        limit: 30,
+      })
       setSearchResults(cards)
       setSearchTotal(total)
     } catch { setSearchResults([]) }
@@ -199,9 +215,9 @@ export function DeckBuilderPage() {
   }, [])
 
   useEffect(() => {
-    const timer = setTimeout(() => doSearch(searchQuery), 300)
+    const timer = setTimeout(() => doSearch(searchQuery, searchAspect, searchCost), 300)
     return () => clearTimeout(timer)
-  }, [searchQuery, doSearch])
+  }, [searchQuery, searchAspect, searchCost, doSearch])
 
   const addCardToDeck = (card: Card) => {
     // Cache image immediately
@@ -554,6 +570,50 @@ export function DeckBuilderPage() {
             {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-swu-muted"><X size={16} /></button>}
           </div>
 
+          {/* Aspecto y coste: los dos ejes por los que uno busca una carta al
+              armar un mazo. Esta pantalla no tenía NINGÚN filtro. */}
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap gap-1">
+              {BUILDER_ASPECTS.map(a => (
+                <button
+                  key={a}
+                  onClick={() => setSearchAspect(searchAspect === a ? null : a)}
+                  className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold border transition-colors ${
+                    searchAspect === a
+                      ? 'bg-swu-accent/20 border-swu-accent text-swu-accent'
+                      : 'bg-swu-surface border-swu-border text-swu-muted'
+                  }`}
+                >
+                  {translateAspect(a)}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-1 items-center">
+              <span className="text-[10px] text-swu-muted mr-0.5">Coste</span>
+              {BUILDER_COSTS.map(c => (
+                <button
+                  key={c}
+                  onClick={() => setSearchCost(searchCost === c ? null : c)}
+                  className={`rounded-lg w-7 py-1 text-[11px] font-semibold border transition-colors ${
+                    searchCost === c
+                      ? 'bg-swu-green/20 border-swu-green text-swu-green'
+                      : 'bg-swu-surface border-swu-border text-swu-muted'
+                  }`}
+                >
+                  {c >= COST_MAX_BUCKET ? `${COST_MAX_BUCKET}+` : c}
+                </button>
+              ))}
+              {(searchAspect || searchCost !== null) && (
+                <button
+                  onClick={() => { setSearchAspect(null); setSearchCost(null) }}
+                  className="text-[10px] text-swu-red font-medium ml-1"
+                >
+                  Limpiar
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* DB bootstrap progress — visible while the card database downloads */}
           {(dbProgress.phase === 'downloading' || dbProgress.phase === 'parsing' || dbProgress.phase === 'saving') && (
             <div className="bg-swu-accent/5 border border-swu-accent/30 rounded-lg p-3 space-y-1.5">
@@ -587,7 +647,7 @@ export function DeckBuilderPage() {
                 return (
                   <button key={card.id} onClick={() => addCardToDeck(card)} disabled={isLeaderInDeck || isBaseInDeck}
                     className="w-full bg-swu-surface rounded-lg p-2.5 border border-swu-border flex items-center gap-2 text-left active:scale-[0.99] transition-transform disabled:opacity-40">
-                    <CardImage src={(card.isLeader && card.backImageUrl) ? card.backImageUrl : card.imageUrl} alt={card.name} className="w-10 h-14" />
+                    <CardImage src={listFaceUrl(card)} fit={listFaceFit(card)} alt={card.name} className="w-10 h-14" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-swu-text truncate">{card.name}</p>
                       <div className="flex gap-1 mt-0.5">

@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Heart, Loader2, AlertCircle, BookOpen, Star, Package, Plus, Minus } from 'lucide-react'
+import { ChevronLeft, Heart, Loader2, AlertCircle, BookOpen, Star, Package, Plus, Minus, Maximize2 } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
+import { CardZoom } from '../../components/CardZoom'
+import { isLandscapeFace } from '../../services/cardArt'
 import { getCardById } from '../../services/swuApi'
 import { db } from '../../services/db'
 import { syncFavoriteToCloud } from '../../services/sync'
@@ -48,6 +50,7 @@ export function CardDetailPage() {
   const [collectionQty, setCollectionQty] = useState(0)
   const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null)
   const [priceLoading, setPriceLoading] = useState(false)
+  const [zoomOpen, setZoomOpen] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -123,12 +126,25 @@ export function CardDetailPage() {
   }
 
   const imageUrl = showBack && card.backImageUrl ? card.backImageUrl : card.imageUrl
+  const landscape = isLandscapeFace(card, showBack)
+
+  // El frente de un líder ya trae su bloque de unidad dentro del texto de la
+  // carta ("LEADER: … UNIT: …"), y `deployBox` es exactamente ese mismo bloque.
+  // Pintar los dos mostraba el párrafo repetido en los 453 líderes del juego.
+  const deployBoxIsDuplicate =
+    !!card.deployBox && !!card.text && card.text.includes(card.deployBox.trim())
+
+  // Entrando por link directo no hay historial al que volver.
+  const goBack = () => {
+    if (window.history.length > 1) navigate(-1)
+    else navigate('/cards')
+  }
 
   return (
     <div className="p-4 lg:p-6 space-y-4 pb-8 lg:pb-8 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-swu-muted">
+        <button onClick={goBack} className="flex items-center gap-1 text-sm text-swu-muted">
           <ChevronLeft size={18} /> Atrás
         </button>
         <button
@@ -141,15 +157,35 @@ export function CardDetailPage() {
         </button>
       </div>
 
-      {/* Card Image */}
+      {/* Card Image — proporción declarada para que la página no salte al cargar */}
       {imageUrl && (
         <div className="flex justify-center">
-          <img
-            src={imageUrl}
-            alt={card.name}
-            className="w-64 rounded-2xl shadow-xl shadow-black/30 border-2 border-swu-border"
-          />
+          <button
+            onClick={() => setZoomOpen(true)}
+            aria-label={`Ampliar ${card.name}`}
+            className="relative w-full max-w-sm active:scale-[0.99] transition-transform"
+          >
+            <img
+              src={imageUrl}
+              alt={card.name}
+              style={{ aspectRatio: landscape ? '400 / 287' : '400 / 559' }}
+              className="w-full h-auto rounded-2xl shadow-xl shadow-black/30 border-2 border-swu-border bg-swu-surface"
+            />
+            <span className="absolute bottom-2 right-2 px-2 py-1 rounded-lg bg-black/60 backdrop-blur
+                             text-white text-[10px] font-semibold flex items-center gap-1 pointer-events-none">
+              <Maximize2 size={11} /> Ampliar
+            </span>
+          </button>
         </div>
+      )}
+
+      {zoomOpen && imageUrl && (
+        <CardZoom
+          src={imageUrl}
+          alt={card.name}
+          landscape={landscape}
+          onClose={() => setZoomOpen(false)}
+        />
       )}
 
       {/* Flip button (if double-sided) */}
@@ -248,8 +284,8 @@ export function CardDetailPage() {
         </div>
       )}
 
-      {/* Deploy Box */}
-      {card.deployBox && (
+      {/* Deploy Box — solo si no viene ya repetido dentro del texto de la carta */}
+      {card.deployBox && !deployBoxIsDuplicate && (
         <div className="bg-swu-amber/10 rounded-xl p-4 border border-swu-amber/30">
           <p className="text-xs font-bold text-swu-amber mb-1">Despliegue</p>
           <p className="text-sm text-swu-text">{translateCardText(card.deployBox)}</p>

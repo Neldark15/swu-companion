@@ -18,6 +18,14 @@ interface CardImageProps {
   className?: string
   /** Preload margin in px (default 300) */
   rootMargin?: number
+  /**
+   * Cómo encaja la imagen en la caja.
+   * - 'cover' (default): recorta para llenar. Correcto para cartas verticales.
+   * - 'contain': entra completa con bandas. Necesario para líderes y bases,
+   *   que son apaisadas (400x287) y con 'cover' salen como un fragmento
+   *   irreconocible dentro de una caja vertical.
+   */
+  fit?: 'cover' | 'contain'
 }
 
 export const CardImage = memo(function CardImage({
@@ -25,6 +33,7 @@ export const CardImage = memo(function CardImage({
   alt = '',
   className = 'w-12 h-16',
   rootMargin = 300,
+  fit = 'cover',
 }: CardImageProps) {
   const [state, setState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
   const [isVisible, setIsVisible] = useState(false)
@@ -57,20 +66,24 @@ export const CardImage = memo(function CardImage({
 
   // Load image when visible
   useEffect(() => {
-    if (!isVisible || !src || state === 'loaded') return
+    if (!isVisible || !src) return
 
-    setState('loading')
-
+    let cancelled = false
     const img = new Image()
+    // Los manejadores van ANTES de asignar `src`. Al revés, una imagen que ya
+    // está en caché podía terminar de cargar antes de que existiera el
+    // manejador: `load` no volvía a dispararse, el estado quedaba en 'loading'
+    // y la carta se veía como un rectángulo vacío para siempre.
+    img.onload = () => { if (!cancelled) setState('loaded') }
+    img.onerror = () => { if (!cancelled) setState('error') }
     img.src = src
 
-    img.onload = () => setState('loaded')
-    img.onerror = () => setState('error')
+    // Red de seguridad para el mismo caso: si ya está resuelta, no hay ningún
+    // evento que esperar.
+    if (img.complete && img.naturalWidth > 0) setState('loaded')
+    else setState('loading')
 
-    return () => {
-      img.onload = null
-      img.onerror = null
-    }
+    return () => { cancelled = true }
   }, [isVisible, src])
 
   // No src at all
@@ -96,7 +109,7 @@ export const CardImage = memo(function CardImage({
         <img
           src={src}
           alt={alt}
-          className={`w-full h-full object-cover rounded-lg transition-opacity duration-300 ${
+          className={`w-full h-full ${fit === 'contain' ? 'object-contain' : 'object-cover'} rounded-lg transition-opacity duration-300 ${
             state === 'loaded' ? 'opacity-100' : 'opacity-0'
           }`}
         />

@@ -123,10 +123,19 @@ export async function getCloudPrices(cardIds: string[]): Promise<Map<string, Pri
     // Supabase IN filter has a limit, batch in chunks of 100
     for (let i = 0; i < cardIds.length; i += 100) {
       const chunk = cardIds.slice(i, i + 100)
-      const { data } = await supabase
+      // `error` se tiene que mirar a mano: supabase-js NO lanza excepción ante
+      // un error de PostgREST, así que el try/catch de abajo nunca se activaba
+      // y un fallo se veía igual que "no hay precios en la nube". Así estuvo
+      // rota la caché compartida sin que nadie lo notara.
+      const { data, error } = await supabase
         .from('card_prices')
         .select('card_id, market_price, mid_price, low_price, high_price, direct_low_price, source, last_updated, variants')
         .in('card_id', chunk)
+
+      if (error) {
+        console.warn('[Pricing] getCloudPrices:', error.message)
+        break
+      }
 
       if (data) {
         for (const row of data) {
@@ -167,7 +176,8 @@ export async function saveCloudPrices(prices: PriceInfo[]): Promise<void> {
       last_updated: new Date(p.updatedAt).toISOString(),
       variants: p.variants ? JSON.stringify(p.variants) : null,
     }))
-    await supabase.from('card_prices').upsert(rows)
+    const { error } = await supabase.from('card_prices').upsert(rows)
+    if (error) console.warn('[Pricing] saveCloudPrices:', error.message)
   } catch (e) {
     console.warn('[Pricing] Failed to save cloud prices:', e)
   }
@@ -219,6 +229,9 @@ export async function getPricesForCards(cardIds: string[]): Promise<Map<string, 
         directLowPrice: cloudPrice.directLow,
         source: cloudPrice.source,
         lastUpdated: cloudPrice.updatedAt,
+        // Sin esto, el desglose por subtipo (Normal/Foil/Hyperspace) se perdía
+        // al bajar un precio de la nube a la caché local.
+        variants: cloudPrice.variants ? JSON.stringify(cloudPrice.variants) : undefined,
       })
     }
   }
@@ -273,10 +286,14 @@ export async function pullAllPricesFromCloud(): Promise<number> {
   if (!isSupabaseReady()) return 0
 
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('card_prices')
       .select('card_id, market_price, mid_price, low_price, high_price, direct_low_price, source, last_updated')
 
+    if (error) {
+      console.warn('[Pricing] pullAllPricesFromCloud:', error.message)
+      return 0
+    }
     if (!data || data.length === 0) return 0
 
     const localPrices: CardPrice[] = data.map(row => ({
@@ -302,15 +319,33 @@ export async function pullAllPricesFromCloud(): Promise<number> {
 
 const SWU_CATEGORY_ID = 79
 
-/** Map our set codes to tcgcsv.com group IDs */
+/**
+ * Nuestros códigos de set → group IDs de tcgcsv.com.
+ *
+ * OJO: las claves tienen que ser el `setCode` que devuelve api.swuapi.com,
+ * porque es con eso que se busca acá (`SET_GROUP_MAP[setCode]`). Estaban
+ * escritas 'SOP' y 'ALT' — siglas inventadas de "Secrets Of Power" y
+ * "A Lawless Time" que no existen ni en swuapi ni en TCGplayer. Como un set
+ * que no está en el mapa se salta en SILENCIO (`if (!groupId) continue`, sin
+ * warn ni error), SEC y LAW nunca recibieron precio y nadie lo notó. ASH
+ * directamente faltaba.
+ *
+ * Los groupId ya eran correctos; solo estaban bajo la clave equivocada.
+ * Verificado contra https://tcgcsv.com/tcgplayer/79/groups, cuyas
+ * abreviaturas oficiales son justamente SEC (24387), LAW (24572) y ASH (24660).
+ *
+ * Impacto: 3,041 cartas (SEC 1,197 + ASH 931 + LAW 913) pasan de no tener
+ * precio a tenerlo — el 33.6% de la base, y los sets que se están comprando hoy.
+ */
 const SET_GROUP_MAP: Record<string, number> = {
   SOR: 23405,  // Spark of Rebellion
   SHD: 23488,  // Shadows of the Galaxy
   TWI: 23597,  // Twilight of the Republic
   JTL: 23956,  // Jump to Lightspeed
   LOF: 24279,  // Legends of the Force
-  SOP: 24387,  // Secrets of Power
-  ALT: 24572,  // A Lawless Time
+  SEC: 24387,  // Secrets of Power
+  LAW: 24572,  // A Lawless Time
+  ASH: 24660,  // Ashes of the Empire
   TS26: 24622, // Twin Suns
 }
 
@@ -516,12 +551,13 @@ export async function fetchTCGPrices(
 
   let totalFetched = 0
   const totalSets = bySet.size
-  let setsProcessed = 0
 
   for (const [setCode, setCards] of bySet) {
     const groupId = SET_GROUP_MAP[setCode]
     if (!groupId) {
-      setsProcessed++
+      // Antes esto era silencio absoluto: por eso SEC/LAW/ASH quedaron sin
+      // precio durante meses sin que apareciera ninguna señal.
+      console.warn(`[Pricing] Sin grupo de TCGPlayer para el set "${setCode}" (${setCards.length} cartas sin precio)`)
       continue
     }
 
@@ -552,7 +588,6 @@ export async function fetchTCGPrices(
       saveCloudPrices(prices).catch(() => {})
     }
 
-    setsProcessed++
     onProgress?.(setCode, totalFetched, totalSets)
   }
 

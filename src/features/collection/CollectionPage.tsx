@@ -6,8 +6,10 @@ import {
   Tag, ShoppingBag, Loader2,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-import { getCardsByIds, loadFullDatabase, getLocalCardCount, MAIN_SET_LABELS } from '../../services/swuApi'
+import { getCardsByIds, loadFullDatabase, getLocalCardCount, isDatabaseComplete, MAIN_SET_LABELS } from '../../services/swuApi'
 import { byCanonicalCard, compareCardsBySetNumber } from '../../services/cardSort'
+import { listFaceUrl, listFaceFit } from '../../services/cardArt'
+import { getSetProgress, type SetProgress } from '../../services/collectionProgress'
 import {
   getMyCollectionWithPrices,
   updateCollectionQuantity,
@@ -38,6 +40,9 @@ const RARITY_ORDER: Record<string, number> = {
   Legendary: 0, Special: 1, Rare: 2, Uncommon: 3, Common: 4,
 }
 
+/** Filas dibujadas por tanda — mismo patrón de paginado que usa el buscador. */
+const PAGE_SIZE = 200
+
 export function CollectionPage() {
   const navigate = useNavigate()
   const { currentProfileId, supabaseUser } = useAuth()
@@ -45,12 +50,20 @@ export function CollectionPage() {
   const [items, setItems] = useState<CollectionCardWithPrice[]>([])
   const [cards, setCards] = useState<Map<string, Card>>(new Map())
   const [loading, setLoading] = useState(true)
+  // `searchInput` es lo que se teclea; `search` es el valor con retardo que
+  // dispara el filtrado. Sin esta separación, cada tecla volvía a filtrar y
+  // ordenar las 2,089 filas y el teléfono se trababa mientras escribías.
+  const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   // Por defecto el orden del juego (líderes → bases → unidades → eventos),
   // que es como uno hojea un binder.
   const [sortBy, setSortBy] = useState<SortKey>('canonical')
   const [filterType, setFilterType] = useState<FilterType>('')
-  const [showFilters, setShowFilters] = useState(false)
+  // Abiertos de entrada: son el único mapa que existe para una lista larga,
+  // y detrás de un ícono sin etiqueta nadie los encontraba.
+  const [showFilters, setShowFilters] = useState(true)
+  /** Cuántas filas se dibujan. La lista completa reconciliaba ~35 mil nodos. */
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [filterSet, setFilterSet] = useState('')
   const [filterRarity, setFilterRarity] = useState('')
   const [isPublic, setIsPublic] = useState(true)
@@ -84,10 +97,11 @@ export function CollectionPage() {
         if (cancelled) return
         setItems(collItems)
 
-        // If local card DB is sparse, trigger background refresh (catches promo sets, new sets)
+        // Mismo centinela que el buscador. El control viejo (`< 2000`) daba
+        // por buena una descarga cortada a la mitad.
         const localCount = await getLocalCardCount()
-        if (localCount < 2000) {
-          loadFullDatabase().catch(() => {})
+        if (!(await isDatabaseComplete())) {
+          loadFullDatabase({ force: true }).catch(() => {})
         }
 
         // Load card details in a single batch query (with network fallback for missing)
@@ -152,11 +166,41 @@ export function CollectionPage() {
     if (!supabaseUser) return
     if (!confirm('¿Quitar esta carta del mercado?')) return
     await unmarkCardForSale(cardId, supabaseUser.id)
+    setSaleModal(null)
     await refreshListings()
   }
 
+  // Retardo de la búsqueda — mismo valor que el buscador global (300ms).
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput), 300)
+    return () => clearTimeout(t)
+  }, [searchInput])
+
   // Stats
   const stats = useMemo(() => calculateCollectionStats(items), [items])
+
+  // Se recalculaba sobre las 2,089 filas en CADA redibujado, fuera de memo,
+  // justo en la pantalla que queremos que no trabe.
+  const withPriceCount = useMemo(
+    () => items.filter(i => i.price?.market).length,
+    [items],
+  )
+
+  // Progreso por expansión — la única métrica de esta pantalla que se mueve
+  // solo cuando comprás cartas de verdad.
+  const [progress, setProgress] = useState<
+    { sets: SetProgress[]; ownedTotal: number; grandTotal: number } | null
+  >(null)
+
+  useEffect(() => {
+    let cancelled = false
+    if (items.length === 0) { setProgress(null); return }
+    const qtys = new Map(items.map(i => [i.cardId, i.quantity]))
+    getSetProgress(qtys)
+      .then(p => { if (!cancelled) setProgress(p) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [items])
 
   // Available sets in collection
   const availableSets = useMemo(() => {
@@ -258,7 +302,15 @@ export function CollectionPage() {
     })
 
     return list
-  }, [items, cards, search, filterType, filterSet, filterRarity, sortBy])
+    // `saleFilter` y `listings` FALTABAN acá: por eso los chips "En venta /
+    // No en venta" no filtraban nada. El linter ya lo venía advirtiendo.
+  }, [items, cards, search, filterType, filterSet, filterRarity, sortBy, saleFilter, listings])
+
+  // Volver al principio de la lista cuando cambia lo que se está mirando:
+  // si no, después de filtrar quedarían 200 filas de un resultado de 3.
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE)
+  }, [search, filterType, filterSet, filterRarity, sortBy, saleFilter])
 
   // Handlers
   const handleTogglePublic = useCallback(async () => {
@@ -299,9 +351,11 @@ export function CollectionPage() {
         .map(item => {
           const card = cards.get(item.cardId)
           if (!card) return null
-          return { id: card.id, name: card.name, subtitle: card.subtitle, setCode: card.setCode }
+          // `setNumber` faltaba: sin él se desactiva la estrategia de emparejado
+          // por número de carta, que es la más confiable de las cuatro.
+          return { id: card.id, name: card.name, subtitle: card.subtitle, setCode: card.setCode, setNumber: card.setNumber }
         })
-        .filter(Boolean) as { id: string; name: string; subtitle: string | null; setCode: string }[]
+        .filter(Boolean) as { id: string; name: string; subtitle: string | null; setCode: string; setNumber: number }[]
 
       const count = await fetchTCGPrices(cardInfos, (setCode, fetched) => {
         setPriceStatus(`${setCode}... ${fetched} precios`)
@@ -471,11 +525,69 @@ export function CollectionPage() {
           <div className="bg-swu-surface rounded-xl p-3 text-center border border-swu-border">
             <TrendingUp size={16} className="mx-auto text-purple-400 mb-1" />
             <div className="text-lg font-bold text-swu-text">
-              {items.filter(i => i.price?.market).length}
+              {withPriceCount}
+              <span className="text-xs text-swu-muted font-normal">/{stats.uniqueCards}</span>
             </div>
+            {/* Con el denominador a la vista se entiende que el Valor de al
+                lado está subestimado: solo suma las cartas que tienen precio. */}
             <div className="text-[10px] text-swu-muted">Con precio</div>
           </div>
         </div>
+
+        {/* Progreso por expansión — tocar una barra filtra la lista a ese set */}
+        {progress && progress.grandTotal > 0 && (
+          <div className="bg-swu-surface rounded-xl border border-swu-border p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-swu-text">Progreso de colección</span>
+              <span className="text-[11px] font-mono text-swu-muted">
+                {progress.ownedTotal.toLocaleString()}/{progress.grandTotal.toLocaleString()}
+              </span>
+            </div>
+
+            <div className="space-y-1">
+              {progress.sets.map(s => {
+                const active = filterSet === s.code
+                return (
+                  <button
+                    key={s.code}
+                    onClick={() => setFilterSet(active ? '' : s.code)}
+                    title={s.label}
+                    className="w-full flex items-center gap-2 py-0.5 active:scale-[0.99] transition-transform"
+                  >
+                    <span className={`text-[10px] font-bold font-mono w-9 text-left ${active ? 'text-swu-amber' : 'text-swu-muted'}`}>
+                      {s.code}
+                    </span>
+                    <div className="flex-1 h-2 rounded-full bg-swu-bg overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          s.pct === 100 ? 'bg-swu-green' : active ? 'bg-swu-amber' : 'bg-swu-accent'
+                        }`}
+                        style={{ width: `${s.pct}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-mono text-swu-muted w-16 text-right">
+                      {s.owned}/{s.total}
+                    </span>
+                    <span className={`text-[10px] font-bold font-mono w-9 text-right ${
+                      s.pct === 100 ? 'text-swu-green' : s.pct === 0 ? 'text-swu-muted/50' : 'text-swu-text'
+                    }`}>
+                      {s.pct}%
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Se dice explícitamente para que el número no parezca un error:
+                el total de arriba cuenta impresión normal de los 8 sets
+                principales, así que no cuadra con "Únicas", que además
+                incluye promos y variantes. */}
+            <p className="text-[10px] text-swu-muted/60 leading-snug">
+              Cuenta la impresión normal de las 8 expansiones principales, sin fichas.
+              No incluye promos ni variantes.
+            </p>
+          </div>
+        )}
 
         {/* Fetch Prices button */}
         <button
@@ -495,16 +607,35 @@ export function CollectionPage() {
           <div className="text-center text-[10px] text-swu-green font-mono">{priceStatus}</div>
         )}
 
-        {/* Import from SWUDB */}
-        <button
-          onClick={() => { setShowImport(!showImport); setImportResult(null) }}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium
-                     border transition-colors bg-swu-surface border-swu-border text-swu-muted
-                     hover:text-swu-amber hover:border-swu-amber/30"
-        >
-          <Upload size={14} />
-          Importar Colección (swudb.com)
-        </button>
+        {/* Importar / Exportar — se hacen una vez en la vida, así que dejan de
+            ocupar dos barras de ancho completo. "Actualizar Precios" y el
+            estado de la base SÍ se quedan a la vista: son el único productor
+            de precios y la única salida ante una descarga fallida. */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => { setShowImport(!showImport); setShowExport(false); setImportResult(null) }}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-medium
+                       border transition-colors ${
+              showImport
+                ? 'bg-swu-amber/10 border-swu-amber/40 text-swu-amber'
+                : 'bg-swu-surface border-swu-border text-swu-muted'
+            }`}
+          >
+            <Upload size={12} /> Importar
+          </button>
+          <button
+            onClick={() => { setShowExport(!showExport); setShowImport(false); setExportStatus('') }}
+            disabled={items.length === 0}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-medium
+                       border transition-colors disabled:opacity-40 ${
+              showExport
+                ? 'bg-swu-green/10 border-swu-green/40 text-swu-green'
+                : 'bg-swu-surface border-swu-border text-swu-muted'
+            }`}
+          >
+            <Download size={12} /> Exportar
+          </button>
+        </div>
 
         {showImport && (
           <div className="bg-swu-surface rounded-xl border border-swu-amber/20 p-4 space-y-3">
@@ -614,18 +745,6 @@ export function CollectionPage() {
           </div>
         )}
 
-        {/* Export collection */}
-        <button
-          onClick={() => { setShowExport(!showExport); setExportStatus('') }}
-          disabled={items.length === 0}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium
-                     border transition-colors bg-swu-surface border-swu-border text-swu-muted
-                     hover:text-swu-green hover:border-swu-green/30 disabled:opacity-40 disabled:hover:text-swu-muted disabled:hover:border-swu-border"
-        >
-          <Download size={14} />
-          Exportar Colección
-        </button>
-
         {showExport && (
           <div className="bg-swu-surface rounded-xl border border-swu-green/20 p-4 space-y-3">
             <div className="flex items-center justify-between">
@@ -683,8 +802,8 @@ export function CollectionPage() {
             <input
               type="text"
               placeholder="Buscar en colección..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
               className="w-full bg-swu-surface border border-swu-border rounded-xl pl-9 pr-3 py-2.5
                          text-sm text-swu-text placeholder:text-swu-muted focus:border-swu-accent outline-none"
             />
@@ -900,7 +1019,7 @@ export function CollectionPage() {
               {displayed.length} carta{displayed.length !== 1 ? 's' : ''}
             </div>
             <div className="space-y-1.5 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0">
-            {displayed.map(item => {
+            {displayed.slice(0, visibleCount).map(item => {
               const card = cards.get(item.cardId)
               const listing = listings.get(item.cardId)
               const isListed = !!listing
@@ -916,7 +1035,14 @@ export function CollectionPage() {
                     onClick={() => navigate(`/cards/${item.cardId}`)}
                     className="flex-shrink-0"
                   >
-                    <CardImage src={card?.imageUrl} alt={card?.name} className="w-12 h-16" />
+                    {/* Los líderes se muestran por su cara vertical y las bases
+                        completas: apaisadas y recortadas eran irreconocibles. */}
+                    <CardImage
+                      src={listFaceUrl(card)}
+                      fit={listFaceFit(card)}
+                      alt={card?.name}
+                      className="w-14 h-20"
+                    />
                   </button>
 
                   {/* Card info */}
@@ -956,22 +1082,26 @@ export function CollectionPage() {
                   </button>
 
                   {/* Right side: sale button + qty controls */}
-                  <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                    {/* Sale toggle */}
+                  <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                    {/* Vender — con TEXTO. Antes era un cuadrito de 28x28 cuya
+                        única explicación era un tooltip, que en móvil no existe:
+                        el marketplace no tuvo un solo anuncio en toda su vida.
+                        Estando publicada, abre el modal EN MODO EDICIÓN — antes
+                        había que despublicar y republicar para cambiar el precio. */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        if (isListed) handleUnlist(item.cardId)
-                        else setSaleModal({ cardId: item.cardId, current: null })
+                        setSaleModal({ cardId: item.cardId, current: listing ?? null })
                       }}
-                      className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                      className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1
+                                  border active:scale-95 transition-transform ${
                         isListed
-                          ? 'bg-swu-amber/20 text-swu-amber'
-                          : 'bg-swu-bg text-swu-muted hover:text-swu-amber'
+                          ? 'bg-swu-green/15 border-swu-green/40 text-swu-green'
+                          : 'bg-swu-bg border-swu-border text-swu-muted hover:text-swu-amber hover:border-swu-amber/40'
                       }`}
-                      title={isListed ? 'Quitar del mercado' : 'Vender esta carta'}
                     >
-                      <Tag size={12} />
+                      <Tag size={10} />
+                      {isListed ? 'Editar' : 'Vender'}
                     </button>
                     {/* Quantity controls */}
                     <div className="flex items-center gap-1">
@@ -998,17 +1128,31 @@ export function CollectionPage() {
               )
             })}
             </div>
+
+            {/* Dibujar las 2,089 filas de golpe reconciliaba ~35 mil nodos.
+                Mismo patrón de "cargar más" que ya usa el buscador. */}
+            {displayed.length > visibleCount && (
+              <button
+                onClick={() => setVisibleCount(v => v + PAGE_SIZE)}
+                className="w-full mt-2 py-3 rounded-xl bg-swu-surface border border-swu-border
+                           text-swu-accent font-bold text-sm active:scale-[0.99] transition-transform"
+              >
+                Mostrar más ({visibleCount.toLocaleString()}/{displayed.length.toLocaleString()})
+              </button>
+            )}
           </div>
         )}
 
         {/* Sale modal */}
         {saleModal && (
           <SaleModal
+            key={saleModal.cardId}
             cardName={cards.get(saleModal.cardId)?.name ?? saleModal.cardId}
             current={saleModal.current}
             submitting={saleSubmitting}
             onCancel={() => setSaleModal(null)}
             onSave={(price, notes) => handleSaveSale(saleModal.cardId, price, notes)}
+            onUnlist={saleModal.current ? () => handleUnlist(saleModal.cardId) : undefined}
           />
         )}
 
@@ -1083,14 +1227,17 @@ export function CollectionPage() {
 // ─── Sale Modal ───────────────────────────────────────────
 
 function SaleModal({
-  cardName, current, submitting, onCancel, onSave,
+  cardName, current, submitting, onCancel, onSave, onUnlist,
 }: {
   cardName: string
   current: MyListingSummary | null
   submitting: boolean
   onCancel: () => void
   onSave: (price: number | null, notes: string) => void
+  /** Solo se pasa cuando la carta YA está publicada (modo edición). */
+  onUnlist?: () => void
 }) {
+  const editing = !!current
   const [priceStr, setPriceStr] = useState(current?.price != null ? String(current.price) : '')
   const [notes, setNotes] = useState(current?.notes ?? '')
 
@@ -1111,7 +1258,9 @@ function SaleModal({
             <Tag size={20} className="text-swu-amber" />
           </div>
           <div>
-            <div className="text-sm font-bold text-swu-text">Poner en venta</div>
+            <div className="text-sm font-bold text-swu-text">
+              {editing ? 'Editar publicación' : 'Poner en venta'}
+            </div>
             <div className="text-xs text-swu-muted mt-0.5 truncate">{cardName}</div>
           </div>
         </div>
@@ -1162,9 +1311,22 @@ function SaleModal({
             className="flex-1 py-2.5 rounded-xl bg-swu-amber text-black text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50"
           >
             {submitting ? <Loader2 size={14} className="animate-spin" /> : <Tag size={14} />}
-            {submitting ? 'Guardando...' : 'Publicar venta'}
+            {submitting ? 'Guardando...' : editing ? 'Guardar cambios' : 'Publicar venta'}
           </button>
         </div>
+
+        {/* Quitar del mercado vive acá dentro: en la fila ocupaba el mismo
+            botón que publicar, así que no se podía editar sin despublicar. */}
+        {onUnlist && (
+          <button
+            onClick={onUnlist}
+            disabled={submitting}
+            className="w-full py-2 rounded-xl border border-swu-red/30 text-swu-red text-xs font-semibold
+                       active:scale-[0.98] disabled:opacity-50"
+          >
+            Quitar del mercado
+          </button>
+        )}
       </div>
     </div>
   )

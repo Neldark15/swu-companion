@@ -174,9 +174,36 @@ Patrón de referencia ya probado: `getGlobalLeaderboard()` en [src/services/sync
 
 ### 2. Cartas promo no están en Dexie local
 Sets como JTLP no estaban en la DB local de Dexie y aparecían placeholders. Fix ya shippeado en [src/services/swuApi.ts](src/services/swuApi.ts):
-- Cache memoria → Dexie → fallback de red en chunks de 8 → `loadFullDatabase()` si conteo local < 2000.
+- Cache memoria → Dexie → fallback de red en chunks de 8 → `loadFullDatabase()` si la base está incompleta.
 
 Si reaparecen los placeholders, verificar que `loadFullDatabase()` se está disparando.
+
+### 2b. El buscador es LOCAL-FIRST. El API ignora casi todos los filtros.
+`searchCards()` **nunca** va al API. Verificado empíricamente: `/cards?aspect=Vigilance` devuelve una respuesta **byte a byte idéntica** a `/cards` sin filtro, y acepta valores inventados sin error. El API solo respeta `set`, `type` y `rarity`.
+
+Antes existía una ruta al API para el modo "explorar" y producía dos bugs: el contador mostraba el total del API (9,057) con 3 filas debajo, y "Cargar más" mandaba como offset la cantidad ya filtrada, repitiendo cartas.
+
+**No reintroducir la ruta al API.** Todo se resuelve sobre las 9,057 cartas en Dexie.
+
+### 2c. Centinela de completitud (`isDatabaseComplete`)
+La base local es la única fuente de verdad, así que **no alcanza con "hay algo"**. El control viejo era `count < 2000`: una descarga cortada en 4,500 lo pasaba. Ahora se guardan en localStorage:
+
+- `swu_db_data_version` — `DB_DATA_VERSION` en swuApi.ts. **Súbela** cuando la ingesta empiece a calcular un campo nuevo; las cachés viejas se reconstruyen solas sin tocar el esquema de Dexie.
+- `swu_db_expected_total` — cuántas cartas dijo haber guardado la última carga exitosa.
+
+### 2d. `isCanonical` vs `isCollectible` — parecidos, NO intercambiables
+El 74% de las 9,057 filas son impresiones alternativas de la misma carta.
+
+- **`Card.isCanonical`** (buscador, calculado en `markCanonical`): "¿es la fila que representa a esta carta?" → 2,316. Rescata las 2 cartas que no tienen ninguna impresión Standard (Zam Wesell "Not What She Seems", R2-D2 "Full Of Solutions") para que ninguna desaparezca de la búsqueda.
+- **`isCollectible`** ([collectionProgress.ts](src/services/collectionProgress.ts)): "¿es parte del set oficial que se completa?" → exige `variantType === 'Standard'` → **2,089**.
+
+Si el progreso usara `isCanonical`, TWI daría 258 y un playset completo se quedaría en 99% para siempre.
+
+### 2e. `total_cards` de `/sets` está MAL — no usarlo como denominador
+Verificado contra el export: SOR/SHD/TWI vienen +10 de más, LAW -6, y TWIP/SHDP/SORP llegan en `null`. Por eso el denominador del progreso se cuenta local.
+
+### 2f. supabase-js NO lanza excepción ante error de PostgREST
+`const { data } = await supabase...` sin mirar `error` deja `data` en `null`, el `try/catch` nunca se activa y el fallo se ve igual que "no hay datos". Así estuvo **100% muerta** la caché de precios en la nube (0 filas de por vida): la tabla tenía 6 columnas y el código leía 9. Siempre desestructurar `error`.
 
 ### 3. Named exports en rutas lazy
 Algunas features exportan con nombre (`export const GalaxyPage`). Importar lazy requiere:

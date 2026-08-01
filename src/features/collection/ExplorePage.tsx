@@ -21,6 +21,7 @@ import {
 } from '../../services/collectionService'
 import { getCardsByIds } from '../../services/swuApi'
 import { CardImage } from '../../components/CardImage'
+import { listFaceUrl, listFaceFit } from '../../services/cardArt'
 import type { Card } from '../../types'
 
 /* Avatar helper */
@@ -286,7 +287,12 @@ function MarketTab() {
                 className="bg-swu-surface rounded-xl p-3 border border-swu-amber/30 flex items-center gap-3"
               >
                 <button onClick={() => navigate(`/cards/${l.cardId}`)} className="flex-shrink-0">
-                  <CardImage src={card?.imageUrl} alt={card?.name} className="w-12 h-16" />
+                  <CardImage
+                    src={listFaceUrl(card)}
+                    fit={listFaceFit(card)}
+                    alt={card?.name}
+                    className="w-14 h-20"
+                  />
                 </button>
 
                 <div className="flex-1 min-w-0">

@@ -126,6 +126,22 @@ export interface Card {
    * comparten número dentro de un mismo set. La Standard va primero.
    */
   variantType?: string
+  /**
+   * ¿Es LA impresión que representa a esta carta?
+   *
+   * El 74% de las 9,057 filas del API son impresiones alternativas de la misma
+   * carta (Hyperspace, Foil, Showcase, promos de torneo), así que buscar
+   * "vader" devolvía 57 filas para 12 cartas reales — y muchas de esas
+   * impresiones traen el texto de reglas recortado.
+   *
+   * Regla: la impresión 'Standard' es la canónica. Las cartas que no tienen
+   * NINGUNA impresión Standard en todo el juego (exactamente 2: Zam Wesell
+   * "Not What She Seems" y R2-D2 "Full Of Solutions") rescatan su mejor
+   * impresión, para que ninguna carta desaparezca del buscador.
+   */
+  isCanonical?: boolean
+  /** Texto normalizado (minúsculas, sin acentos) para buscar sin recalcular. */
+  searchBlob?: string
 }
 
 export interface SetInfo {
