@@ -19,6 +19,7 @@ import { AchievementGrid } from './components/AchievementGrid'
 import { TriviaSection } from './components/TriviaSection'
 import { CONTINENTS, getCountryByCode } from '../../data/regions'
 import { MoreNav } from '../../components/layout/MoreNav'
+import { WhatsappSetting } from './WhatsappSetting'
 
 /* ── Star Wars avatar options (images in /avatars/) ── */
 const swAvatars = [
@@ -1053,6 +1054,9 @@ export function ProfilePage() {
           )
         })}
       </div>
+
+      {/* Compartir el WhatsApp es opcional y reversible. */}
+      {auth.supabaseUser && <WhatsappSetting userId={auth.supabaseUser.id} />}
 
       {/* Todo lo que no entra en las 5 pestañas de móvil. En escritorio no se
           dibuja: el sidebar sigue mostrando las 16 entradas. */}

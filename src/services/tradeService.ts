@@ -123,12 +123,68 @@ export async function removeFromWishlist(userId: string, cardId: string): Promis
   return true
 }
 
+// ─── WhatsApp (opcional) ──────────────────────────────────────────────
+
+/** Código de país de El Salvador, que es de donde es toda la comunidad. */
+const DEFAULT_COUNTRY_CODE = '503'
+
+/**
+ * Deja el número como lo quiere wa.me: solo dígitos, con código de país.
+ *
+ * La gente escribe "7123-4567", "+503 7123 4567" o "50371234567" y las tres
+ * tienen que terminar igual. Un número local de 8 dígitos se asume salvadoreño.
+ * Devuelve null si no parece un teléfono.
+ */
+export function normalizeWhatsapp(raw: string): string | null {
+  const digits = raw.replace(/[^0-9]/g, '')
+  if (digits.length === 0) return null
+  const withCode = digits.length === 8 ? `${DEFAULT_COUNTRY_CODE}${digits}` : digits
+  if (withCode.length < 8 || withCode.length > 15) return null
+  return withCode
+}
+
+/** Cómo se ve en el campo de edición — nunca se muestra en otro lado. */
+export function formatWhatsappForInput(value: string | null): string {
+  return value ? `+${value}` : ''
+}
+
+export async function getMyWhatsapp(userId: string): Promise<string | null> {
+  if (!isSupabaseReady()) return null
+  const { data, error } = await supabase
+    .from('profiles').select('whatsapp').eq('id', userId).single()
+  if (error) {
+    console.warn('[Trade] getMyWhatsapp:', error.message)
+    return null
+  }
+  return data?.whatsapp ?? null
+}
+
+/** Guardar `null` (o vacío) lo borra: es la forma de retirar el consentimiento. */
+export async function setMyWhatsapp(
+  userId: string,
+  raw: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
+  const value = raw.trim() === '' ? null : normalizeWhatsapp(raw)
+  if (raw.trim() !== '' && value === null) {
+    return { ok: false, error: 'Ese número no parece válido' }
+  }
+  const { error } = await supabase.from('profiles').update({ whatsapp: value }).eq('id', userId)
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
+}
+
 // ─── Cruce ────────────────────────────────────────────────────────────
 
 export interface TraderSummary {
   userId: string
   name: string
   avatar: string
+  /**
+   * Solo si esa persona lo compartió. La app NUNCA lo dibuja como texto: se
+   * usa para armar el enlace wa.me y nada más.
+   */
+  whatsapp?: string | null
 }
 
 export interface CardMatch {
@@ -305,16 +361,19 @@ export async function getTradeMatches(userId: string): Promise<TradeMatch[]> {
   // 5. Hidratar los perfiles en UNA consulta.
   const { data: profiles, error: pErr } = await supabase
     .from('profiles')
-    .select('id, name, avatar')
+    .select('id, name, avatar, whatsapp')
     .in('id', Array.from(byUser.keys()))
   if (pErr) console.warn('[Trade] perfiles:', pErr.message)
 
-  const profileOf = new Map(
-    (profiles ?? []).map(p => [p.id, { userId: p.id, name: p.name, avatar: p.avatar }]),
+  const profileOf = new Map<string, TraderSummary>(
+    (profiles ?? []).map(p => [
+      p.id,
+      { userId: p.id, name: p.name, avatar: p.avatar, whatsapp: p.whatsapp ?? null },
+    ]),
   )
 
   return Array.from(byUser.entries())
-    .map(([uid, m]) => {
+    .map(([uid, m]): TradeMatch | null => {
       const trader = profileOf.get(uid)
       if (!trader) return null
       return { trader, theyOffer: m.theyOffer, iOffer: m.iOffer }

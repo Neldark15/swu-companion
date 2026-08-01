@@ -76,9 +76,23 @@ export function TradeMatches({ matches, cards, myName, loading }: TradeMatchesPr
 
   const propose = async (match: TradeMatch) => {
     const text = buildMessage(match, cards, myName)
+
+    // Si esa persona compartió su WhatsApp, se abre el chat con ella
+    // directamente y con el mensaje ya escrito. El número NUNCA se dibuja en
+    // pantalla: solo se usa acá para armar el enlace.
+    if (match.trader.whatsapp) {
+      window.open(
+        `https://wa.me/${match.trader.whatsapp}?text=${encodeURIComponent(text)}`,
+        '_blank',
+        'noopener,noreferrer',
+      )
+      setSent(match.trader.userId)
+      setTimeout(() => setSent(null), 2500)
+      return
+    }
+
+    // Si no lo compartió, se cae al modo compartir: vos elegís el contacto.
     try {
-      // Compartir nativo: la persona elige WhatsApp y el contacto en su propio
-      // teléfono. La app nunca ve ni guarda un número.
       if (canShare) {
         await navigator.share({ text })
       } else {
@@ -179,10 +193,10 @@ export function TradeMatches({ matches, cards, myName, loading }: TradeMatchesPr
 
             <Button size="sm" variant={both ? 'primary' : 'secondary'} block onClick={() => propose(match)}>
               {justSent
-                ? <><Check size={13} aria-hidden /> {canShare ? 'Compartido' : 'Copiado'}</>
-                : <><Send size={13} aria-hidden /> Proponer cambio</>}
+                ? <><Check size={13} aria-hidden /> {match.trader.whatsapp ? 'Abriendo WhatsApp' : canShare ? 'Compartido' : 'Copiado'}</>
+                : <><Send size={13} aria-hidden /> {match.trader.whatsapp ? 'Escribir por WhatsApp' : 'Proponer cambio'}</>}
             </Button>
-            {justSent && !canShare && (
+            {justSent && !match.trader.whatsapp && !canShare && (
               <p className="text-[10px] text-swu-muted text-center">
                 Mensaje copiado — pegalo en WhatsApp
               </p>
