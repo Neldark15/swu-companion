@@ -25,6 +25,7 @@ const TournamentPublicView = lazy(() => import('./features/events/TournamentPubl
 const TournamentPlayerView = lazy(() => import('./features/events/TournamentPlayerView').then(m => ({ default: m.TournamentPlayerView })))
 const ManageNewsPage = lazy(() => import('./features/home/ManageNewsPage').then(m => ({ default: m.ManageNewsPage })))
 const NewsPage = lazy(() => import('./features/home/NewsPage').then(m => ({ default: m.NewsPage })))
+const MetaPage = lazy(() => import('./features/meta/MetaPage').then(m => ({ default: m.MetaPage })))
 const UtilitiesPage = lazy(() => import('./features/utilities/UtilitiesPage').then(m => ({ default: m.UtilitiesPage })))
 const ProfilePage = lazy(() => import('./features/profile/ProfilePage').then(m => ({ default: m.ProfilePage })))
 const SettingsPage = lazy(() => import('./features/settings/SettingsPage').then(m => ({ default: m.SettingsPage })))
@@ -131,6 +132,8 @@ export default function App() {
             {/* La agenda es pública: sirve para que alguien sin cuenta vea
                 cuándo es el próximo torneo oficial. */}
             <Route path="/news" element={<NewsPage />} />
+            {/* El meta es público: sirve para prepararse antes de un torneo. */}
+            <Route path="/meta" element={<MetaPage />} />
             <Route path="/news/manage" element={<P><ManageNewsPage /></P>} />
           </Route>
         </Routes>

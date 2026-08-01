@@ -1,0 +1,2952 @@
+{
+ "tournament": {
+  "name": "2026 Galactic Championship Main Event (Fantasy Flight Games)",
+  "venue": "The Venetian, Las Vegas, NV, EE.UU. (fin de semana 24–26 jul; +3,300 asistentes de 36 países)",
+  "dates": "25–26 de julio de 2026",
+  "meleeId": "403893",
+  "players": 543,
+  "format": "HÍBRIDO: 13 rondas suizas = 6 de draft (3+3) + 7 de Premier construido (5+2); Top 8 en Premier",
+  "legalSets": "JTL, LOF, SEC, LAW y ASH (Ashes of the Empire, recién lanzado; rotación de SOR/SHD/TWI en mar-2026)",
+  "champion": "James Rimas (Canadá, \"JamesUgly\") — Cad Bane, Still Faster than You / Nevarro City, Restored (= CB-Blue)",
+  "runnerUp": "Cody Hill (EE.UU.) — Boba Fett, Any Methods Necessary / Lake Country (= Boba-LC)",
+  "top8": "3× Cad Bane Blue · 3× Vader Yellow · 1× Boba Fett Lake Country · 1× Lando Blue",
+  "capturedAt": "2026-07-30",
+  "verifiedAt": "2026-07-31",
+  "archetypeCount": 25,
+  "pairsWithData": 219,
+  "coverage": 0.73,
+  "otherDecks": 101,
+  "otherShare": 0.18363636363636363
+ },
+ "findings": [
+  "· Verificación: la matriz reproduce la imagen 1:1 (450 celdas, anti-simetría perfecta) y el torneo es real: 543 jugadores, campeón James Rimas con Cad Bane Blue (CB-Blue).",
+  "· Cad Bane Blue dominó por masa y consistencia, no por matchups polarizados: 18.9% del campo (104 decks), 3 del Top 8 y el título, con matriz apenas positiva (52%).",
+  "· Vader Yellow fue el overperformer del Top 8: 3 asientos con solo 7.1% de share (conversión 7.7%), pese a un win rate global mediocre en el fin de semana (48%).",
+  "· Krennic Blue fue el \"sleeper\": mejor WR del fin de semana (56.3%, Tier 1 Kyber) con poco share — y en esta matriz su gemelo Krennic Splash también promedia alto con N pequeño.",
+  "· Clasificación corregida (jul-31): Boba-LC y Mando-Col son AGRESIVOS, Lando/Aurra/Greef-DV son MIDRANGE y Krennic-Blue CONTROL. El \"Ramp\" real casi no existió (solo Piett); la vieja lectura \"Ramp castiga Aggro\" salía de decks mal etiquetados.",
+  "· La matriz solo cubre las rondas Premier (~1,369 matches); las celdas 0%/100% son muestras de 1-3 matches. Antes de decidir sideboard o counter, valida el N en \"Matriz líderes\".",
+  "· Nadie counterea claramente a Cad Bane con muestra grande: Ahsoka 51.6% (93 matches) y Greef 52.9% (34) son lo más cercano; el resto de \"counters\" de la matriz tiene N mínimo."
+ ],
+ "notes": [
+  "La matriz fue transcrita de la imagen (9ECD8DAE-88F4-4DB2-AD60-F02E7365722C.jpeg) y VERIFICADA: 450 celdas, anti-simetría perfecta (M[a,b]+M[b,a]=100 en los 219 pares) y todas las columnas derivadas recalculan exacto.",
+  "Una celda vacía significa que no había valor visible; nunca se rellenó con 50%.",
+  "La matriz cubre casi con certeza SOLO las rondas de Premier construido (~1,369 matches). Las 6 rondas de draft del formato híbrido no son atribuibles a arquetipos de construido.",
+  "ADVERTENCIA de fuente: el endpoint de matchups de swumetastats a nivel líder+base es NO determinista (dos llamadas idénticas devuelven las mismas estadísticas con las bases reasignadas). Los agregados a NIVEL LÍDER sí son estables (verificado en 3 llamadas). Por eso la hoja \"Matriz líderes\" es la referencia con muestras; las celdas líder+base (imagen y hoja Matriz) heredan ese riesgo de ruido.",
+  "La métrica de la imagen es win rate a nivel MATCH (Bo3). Los 0% y 100% suelen ser muestras de 1-3 matches: pistas, no certezas.",
+  "La agregación por estrategia es promedio simple de matchups, no ponderado por muestra.",
+  "Clasificación estratégica corregida el 2026-07-31 con etiquetas comunitarias: Boba-LC y Mando-Col → Aggro/Tempo; Lando-Blue, Aurra-DV y Greef-DV → Midrange; Krennic-Blue → Control. La premisa \"Data Vault = ramp\" era errónea (la base solo sube el mazo mínimo a 60). Familias Ramp y Engine quedan con 1 solo arquetipo: leer sus filas agregadas como direccionales.",
+  "swumetastats atribuye 9 puestos de top 8 (asigna 1 a Greef Karga Blue); el top 8 oficial de FFG tiene 8: 3 Cad Bane Blue, 3 Vader Yellow, 1 Boba LC, 1 Lando Blue. Prevalece FFG.",
+  "Snapshot del meta al 30-31 de julio de 2026; nuevos torneos (y el set Homeworlds anunciado) pueden cambiar las conclusiones."
+ ],
+ "sources": [
+  {
+   "name": "Melee.gg",
+   "url": "https://melee.gg/Tournament/View/403893",
+   "use": "Evento original (fuente autoritativa)"
+  },
+  {
+   "name": "SWU Meta Stats — torneo",
+   "url": "https://swumetastats.com/tournaments/40117",
+   "use": "Stats estructuradas del torneo"
+  },
+  {
+   "name": "SWU Meta Stats — API matchups",
+   "url": "https://swumetastats.com/api/matchups?tournamentId=40117",
+   "use": "Datos crudos de matchups (base de \"Matriz líderes\")"
+  },
+  {
+   "name": "SWU Meta Stats — API docs",
+   "url": "https://swumetastats.com/api-docs",
+   "use": "Documentación de la API pública"
+  },
+  {
+   "name": "Recap oficial FFG",
+   "url": "https://starwarsunlimited.com/articles/galactic-recap-season-one",
+   "use": "Resultados, formato y anuncios"
+  },
+  {
+   "name": "Fantha Tracks",
+   "url": "https://www.fanthatracks.com/news/gaming/2026-star-wars-unlimited-galactic-championship-winner-and-a-new-venue-for-2027/",
+   "use": "Cobertura del ganador"
+  },
+  {
+   "name": "SWU Competitive Hub",
+   "url": "https://swu-competitivehub.com/event/galactic-championship-2026-07-25-ffg-las-vegas/",
+   "use": "Top 8 con decks"
+  },
+  {
+   "name": "TCG Contender",
+   "url": "https://tcgcontender.com/swu/meta",
+   "use": "Etiquetas de estilo de juego por arquetipo"
+  }
+ ],
+ "archetypes": [
+  {
+   "id": "CB-Blue",
+   "name": "Cad Bane | Still Faster Than You | Blue 30hp",
+   "strategy": "Midrange",
+   "decks": 104,
+   "metaShare": 0.1890909090909091,
+   "top8": 3,
+   "titles": 1,
+   "top8Conversion": 0.028846153846153848,
+   "set": "ASH",
+   "kyberTier": "T1",
+   "kyberWR": 0.55788876276958,
+   "kyberGames": 1762,
+   "leader": "Cad Bane | Still Faster Than You",
+   "base": "Blue 30hp",
+   "substrategy": "Desgaste y presión incremental",
+   "speed": 3,
+   "confidence": "Media",
+   "gameplan": "Ganar intercambios pequeños con el ping del líder, curvar amenazas eficientes y cerrar con unidades de alto impacto.",
+   "communityTag": "Tempo (\"Scum Droid Tempo\" — el deck campeón)",
+   "rank": 1,
+   "wrVsTop10": 0.5222222222222223,
+   "wrGeneral": 0.5229166666666666,
+   "sampleN": 24,
+   "favorable": 10,
+   "unfavorable": 7
+  },
+  {
+   "id": "Ahsoka-Blue",
+   "name": "Ahsoka Tano | Trust in the Force | Blue 30hp",
+   "strategy": "Aggro/Tempo",
+   "decks": 59,
+   "metaShare": 0.10727272727272727,
+   "top8": 0,
+   "titles": 0,
+   "top8Conversion": 0.0,
+   "set": "ASH",
+   "kyberTier": "T2",
+   "kyberWR": 0.5366169799092677,
+   "kyberGames": 1543,
+   "leader": "Ahsoka Tano | Trust in the Force",
+   "base": "Blue 30hp",
+   "substrategy": "Curva baja de unidades",
+   "speed": 4,
+   "confidence": "Media",
+   "gameplan": "Tomar la mesa pronto, proteger el tempo con unidades eficientes y terminar antes de que el rival estabilice.",
+   "communityTag": "Midrange (TCG Contender)",
+   "rank": 2,
+   "wrVsTop10": 0.508888888888889,
+   "wrGeneral": 0.5631818181818182,
+   "sampleN": 22,
+   "favorable": 10,
+   "unfavorable": 7
+  },
+  {
+   "id": "Vader-Yellow",
+   "name": "Darth Vader | Victor Squadron Leader | Yellow 30hp",
+   "strategy": "Aggro/Tempo",
+   "decks": 39,
+   "metaShare": 0.07090909090909091,
+   "top8": 3,
+   "titles": 0,
+   "top8Conversion": 0.07692307692307693,
+   "set": "JTL",
+   "kyberTier": "T2",
+   "kyberWR": 0.4805194805194805,
+   "kyberGames": 1463,
+   "leader": "Darth Vader | Victor Squadron Leader",
+   "base": "Yellow 30hp",
+   "substrategy": "Enjambre espacial",
+   "speed": 5,
+   "confidence": "Alta",
+   "gameplan": "Inundar el espacio con naves baratas, conservar la iniciativa y convertir la ventaja de mesa en una carrera corta.",
+   "communityTag": "Aggro/Tempo (enjambre) ✓",
+   "rank": 3,
+   "wrVsTop10": 0.51,
+   "wrGeneral": 0.5134782608695653,
+   "sampleN": 23,
+   "favorable": 9,
+   "unfavorable": 7
+  },
+  {
+   "id": "Luke-DV",
+   "name": "Luke Skywalker | Hero of Yavin | Data Vault",
+   "strategy": "Aggro/Tempo",
+   "decks": 35,
+   "metaShare": 0.06363636363636363,
+   "top8": 0,
+   "titles": 0,
+   "top8Conversion": 0.0,
+   "set": "JTL",
+   "kyberTier": "T1",
+   "kyberWR": 0.5515202702702703,
+   "kyberGames": 1184,
+   "leader": "Luke Skywalker | Hero of Yavin",
+   "base": "Data Vault",
+   "substrategy": "Tempo espacial con aceleración",
+   "speed": 4,
+   "confidence": "Alta",
+   "gameplan": "Presionar en espacio, usar trucos de combate y aprovechar Data Vault para saltar a amenazas que sostienen la carrera.",
+   "communityTag": "Tempo espacial ✓",
+   "rank": 4,
+   "wrVsTop10": 0.4511111111111112,
+   "wrGeneral": 0.4691304347826088,
+   "sampleN": 23,
+   "favorable": 7,
+   "unfavorable": 11
+  },
+  {
+   "id": "Boba-LC",
+   "name": "Boba Fett | Any Methods Necessary | Lake Country",
+   "strategy": "Aggro/Tempo",
+   "decks": 28,
+   "metaShare": 0.05090909090909091,
+   "top8": 1,
+   "titles": 0,
+   "top8Conversion": 0.03571428571428571,
+   "set": "JTL",
+   "kyberTier": "T2",
+   "kyberWR": 0.5146198830409356,
+   "kyberGames": 1539,
+   "leader": "Boba Fett | Any Methods Necessary",
+   "base": "Lake Country",
+   "substrategy": "Agresión espacial de cazas",
+   "speed": 4,
+   "confidence": "Alta",
+   "gameplan": "Presionar el espacio con cazas y vehículos eficientes, mantener la iniciativa y cerrar la carrera antes de que estabilicen. (Comunidad: \"space-focused aggression\", Tier 1.)",
+   "communityTag": "Aggro (Tier 1) ✓",
+   "rank": 5,
+   "wrVsTop10": 0.48000000000000004,
+   "wrGeneral": 0.3965217391304348,
+   "sampleN": 23,
+   "favorable": 6,
+   "unfavorable": 12
+  },
+  {
+   "id": "Krennic-Blue",
+   "name": "Director Krennic | Amidst My Achievement | Blue 30hp",
+   "strategy": "Control",
+   "decks": 24,
+   "metaShare": 0.04363636363636364,
+   "top8": 0,
+   "titles": 0,
+   "top8Conversion": 0.0,
+   "set": "LAW",
+   "kyberTier": "T1",
+   "kyberWR": 0.5633187772925764,
+   "kyberGames": 687,
+   "leader": "Director Krennic | Amidst My Achievement",
+   "base": "Blue 30hp",
+   "substrategy": "Control imperial de valor",
+   "speed": 2,
+   "confidence": "Media",
+   "gameplan": "Absorber el juego temprano, generar Credit tokens con el líder, responder amenazas y dominar el tramo de 6 a 8 recursos. (Comunidad: \"Imperial Vigilance Control\"; coherente con Krennic-Spl.)",
+   "communityTag": "Control ✓",
+   "rank": 6,
+   "wrVsTop10": 0.5855555555555556,
+   "wrGeneral": 0.47850000000000004,
+   "sampleN": 20,
+   "favorable": 9,
+   "unfavorable": 8
+  },
+  {
+   "id": "Aurra-DV",
+   "name": "Aurra Sing | Assassin | Data Vault",
+   "strategy": "Midrange",
+   "decks": 23,
+   "metaShare": 0.04181818181818182,
+   "top8": 0,
+   "titles": 0,
+   "top8Conversion": 0.0,
+   "set": "LAW",
+   "kyberTier": "T2",
+   "kyberWR": 0.5263157894736842,
+   "kyberGames": 456,
+   "leader": "Aurra Sing | Assassin",
+   "base": "Data Vault",
+   "substrategy": "Midrange de remoción",
+   "speed": 3,
+   "confidence": "Alta",
+   "gameplan": "Usar la acción del líder para rematar unidades dañadas, acumular ventaja con remoción eficiente (No Glory Only Results, Condemn) y ganar con valor. Data Vault solo sube el mazo a 60: no hay ramp.",
+   "communityTag": "Removal Midrange ✓",
+   "rank": 7,
+   "wrVsTop10": 0.39444444444444443,
+   "wrGeneral": 0.4247368421052632,
+   "sampleN": 19,
+   "favorable": 5,
+   "unfavorable": 13
+  },
+  {
+   "id": "Mando-Col",
+   "name": "The Mandalorian | We Can't Keep Running | Colossus",
+   "strategy": "Aggro/Tempo",
+   "decks": 17,
+   "metaShare": 0.03090909090909091,
+   "top8": 0,
+   "titles": 0,
+   "top8Conversion": 0.0,
+   "set": "ASH",
+   "kyberTier": "T2",
+   "kyberWR": 0.4679802955665024,
+   "kyberGames": 406,
+   "leader": "The Mandalorian | We Can't Keep Running",
+   "base": "Colossus",
+   "substrategy": "Tempo de cazarrecompensas",
+   "speed": 4,
+   "confidence": "Alta",
+   "gameplan": "Presión agresiva de cazarrecompensas; el líder ASH recompensa tomar la iniciativa y convertir el tempo en daño directo. (Comunidad: Aggro-Tempo.)",
+   "communityTag": "Aggro-Tempo ✓",
+   "rank": 8,
+   "wrVsTop10": 0.4288888888888889,
+   "wrGeneral": 0.39666666666666667,
+   "sampleN": 18,
+   "favorable": 5,
+   "unfavorable": 11
+  },
+  {
+   "id": "Maul-BlueF",
+   "name": "Darth Maul | Sith Revealed | Blue 28hp Force",
+   "strategy": "Midrange",
+   "decks": 14,
+   "metaShare": 0.025454545454545455,
+   "top8": 0,
+   "titles": 0,
+   "top8Conversion": 0.0,
+   "set": "LOF",
+   "kyberTier": "T2",
+   "kyberWR": 0.4566326530612245,
+   "kyberGames": 392,
+   "leader": "Darth Maul | Sith Revealed",
+   "base": "Blue 28hp Force",
+   "substrategy": "Force de desgaste",
+   "speed": 3,
+   "confidence": "Alta",
+   "gameplan": "Construir una mesa de unidades Force, forzar intercambios favorables y sostener la presión con mejoras y top-end.",
+   "communityTag": "Midrange ✓",
+   "rank": 9,
+   "wrVsTop10": 0.5377777777777778,
+   "wrGeneral": 0.5542857142857143,
+   "sampleN": 21,
+   "favorable": 11,
+   "unfavorable": 9
+  },
+  {
+   "id": "Lando-Blue",
+   "name": "Lando Calrissian | Full Sabacc | Blue 30hp",
+   "strategy": "Midrange",
+   "decks": 13,
+   "metaShare": 0.023636363636363636,
+   "top8": 1,
+   "titles": 0,
+   "top8Conversion": 0.07692307692307693,
+   "set": "LAW",
+   "kyberTier": "T3",
+   "kyberWR": 0.4390243902439024,
+   "kyberGames": 82,
+   "leader": "Lando Calrissian | Full Sabacc",
+   "base": "Blue 30hp",
+   "substrategy": "Midrange de vehículos",
+   "speed": 3,
+   "confidence": "Alta",
+   "gameplan": "Curvar vehículos baratos y eficientes, intercambiar con valor y cerrar con top-end moderado. (Comunidad: \"slick midrange shell\".)",
+   "communityTag": "Midrange ✓",
+   "rank": 10,
+   "wrVsTop10": 0.581111111111111,
+   "wrGeneral": 0.48578947368421055,
+   "sampleN": 19,
+   "favorable": 11,
+   "unfavorable": 6
+  },
+  {
+   "id": "Dedra-Col",
+   "name": "Dedra Meero | Not Wasting Time | Colossus",
+   "strategy": "Control",
+   "decks": 12,
+   "metaShare": 0.02181818181818182,
+   "top8": 0,
+   "titles": 0,
+   "top8Conversion": 0.0,
+   "set": "SEC",
+   "kyberTier": "T3",
+   "kyberWR": 0.4662162162162162,
+   "kyberGames": 148,
+   "leader": "Dedra Meero | Not Wasting Time",
+   "base": "Colossus",
+   "substrategy": "Control de eventos",
+   "speed": 1,
+   "confidence": "Alta",
+   "gameplan": "Jugar una densidad alta de interacción, castigar extensiones de mesa y rematar con amenazas de coste alto.",
+   "communityTag": "Removal-Control ✓",
+   "rank": 11,
+   "wrVsTop10": 0.5233333333333333,
+   "wrGeneral": 0.4744444444444445,
+   "sampleN": 18,
+   "favorable": 7,
+   "unfavorable": 10
+  },
+  {
+   "id": "Greef-Red",
+   "name": "Greef Karga | Gracious Magistrate | Red 30hp",
+   "strategy": "Aggro/Tempo",
+   "decks": 13,
+   "metaShare": 0.023636363636363636,
+   "top8": 0,
+   "titles": 0,
+   "top8Conversion": 0.0,
+   "set": "ASH",
+   "kyberTier": "T3",
+   "kyberWR": 0.4409448818897638,
+   "kyberGames": 508,
+   "leader": "Greef Karga | Gracious Magistrate",
+   "base": "Red 30hp",
+   "substrategy": "Agresión con Advantage tokens",
+   "speed": 4,
+   "confidence": "Baja",
+   "gameplan": "Desplegar amenazas rápidas, aprovechar trucos de combate y mantener al rival respondiendo en vez de desarrollar.",
+   "communityTag": "sin etiqueta publicada",
+   "rank": 12,
+   "wrVsTop10": 0.44299999999999995,
+   "wrGeneral": 0.5205263157894737,
+   "sampleN": 19,
+   "favorable": 7,
+   "unfavorable": 9
+  },
+  {
+   "id": "Greef-DV",
+   "name": "Greef Karga | Gracious Magistrate | Data Vault",
+   "strategy": "Midrange",
+   "decks": 11,
+   "metaShare": 0.02,
+   "top8": 0,
+   "titles": 0,
+   "top8Conversion": 0.0,
+   "set": "ASH",
+   "kyberTier": "T1",
+   "kyberWR": 0.547085201793722,
+   "kyberGames": 223,
+   "leader": "Greef Karga | Gracious Magistrate",
+   "base": "Data Vault",
+   "substrategy": "Midrange de valor (Advantage)",
+   "speed": 3,
+   "confidence": "Alta",
+   "gameplan": "Encadenar unidades para generar Advantage tokens y convertir esa ventaja incremental en una mesa imposible de igualar. Data Vault solo sube el mazo a 60: no hay ramp.",
+   "communityTag": "Value Midrange ✓",
+   "rank": 13,
+   "wrVsTop10": 0.554,
+   "wrGeneral": 0.6449999999999999,
+   "sampleN": 20,
+   "favorable": 12,
+   "unfavorable": 7
+  },
+  {
+   "id": "CB-Yellow",
+   "name": "Cad Bane | Still Faster Than You | Yellow 30hp",
+   "strategy": "Aggro/Tempo",
+   "decks": 8,
+   "metaShare": 0.014545454545454545,
+   "top8": 0,
+   "titles": 0,
+   "top8Conversion": 0.0,
+   "set": "ASH",
+   "kyberTier": "T2",
+   "kyberWR": 0.5102040816326531,
+   "kyberGames": 245,
+   "leader": "Cad Bane | Still Faster Than You",
+   "base": "Yellow 30hp",
+   "substrategy": "Tempo disruptivo",
+   "speed": 4,
+   "confidence": "Alta",
+   "gameplan": "Combinar daño incremental con disrupción de Cunning para abrir ventanas de ataque y cerrar antes del top-end rival.",
+   "communityTag": "Tempo (por analogía) ✓",
+   "rank": 14,
+   "wrVsTop10": 0.549,
+   "wrGeneral": 0.5842105263157894,
+   "sampleN": 19,
+   "favorable": 10,
+   "unfavorable": 4
+  },
+  {
+   "id": "Armorer-Yel",
+   "name": "The Armorer | Steel Shapes Us | Yellow 30hp",
+   "strategy": "Engine/Combo",
+   "decks": 9,
+   "metaShare": 0.016363636363636365,
+   "top8": 0,
+   "titles": 0,
+   "top8Conversion": 0.0,
+   "set": "ASH",
+   "kyberTier": "T4",
+   "kyberWR": 0.4303797468354431,
+   "kyberGames": 79,
+   "leader": "The Armorer | Steel Shapes Us",
+   "base": "Yellow 30hp",
+   "substrategy": "Motor de mejoras (no combo)",
+   "speed": 3,
+   "confidence": "Alta",
+   "gameplan": "Ensamblar sinergias de mejoras, proteger la pieza que acumula valor y convertir el motor en una amenaza desproporcionada.",
+   "communityTag": "Motor de mejoras ✓",
+   "rank": 15,
+   "wrVsTop10": 0.42444444444444446,
+   "wrGeneral": 0.43411764705882355,
+   "sampleN": 17,
+   "favorable": 4,
+   "unfavorable": 12
+  },
+  {
+   "id": "Talzin-RedF",
+   "name": "Mother Talzin | Power Through Magick | Red 28hp Force",
+   "strategy": "Midrange",
+   "decks": 8,
+   "metaShare": 0.014545454545454545,
+   "top8": 0,
+   "titles": 0,
+   "top8Conversion": 0.0,
+   "set": "LOF",
+   "kyberTier": "T3",
+   "kyberWR": 0.445,
+   "kyberGames": 200,
+   "leader": "Mother Talzin | Power Through Magick",
+   "base": "Red 28hp Force",
+   "substrategy": "Force midrange de desgaste",
+   "speed": 3,
+   "confidence": "Media",
+   "gameplan": "Encadenar unidades Force y mejoras, reciclar valor en combate y reservar interacción para los puntos de quiebre.",
+   "communityTag": "Midrange ✓",
+   "rank": 16,
+   "wrVsTop10": 0.5544444444444445,
+   "wrGeneral": 0.44684210526315793,
+   "sampleN": 19,
+   "favorable": 7,
+   "unfavorable": 10
+  },
+  {
+   "id": "Thrawn-Yel",
+   "name": "Grand Admiral Thrawn | ...How Unfortunate | Yellow 30hp",
+   "strategy": "Midrange",
+   "decks": 7,
+   "metaShare": 0.012727272727272728,
+   "top8": 0,
+   "titles": 0,
+   "top8Conversion": 0.0,
+   "set": "JTL",
+   "kyberTier": "T3",
+   "kyberWR": 0.4384236453201971,
+   "kyberGames": 203,
+   "leader": "Grand Admiral Thrawn | ...How Unfortunate",
+   "base": "Yellow 30hp",
+   "substrategy": "Midrange táctico",
+   "speed": 3,
+   "confidence": "Media",
+   "gameplan": "Adaptar la secuencia al rival, usar información y disrupción para ganar tempo y rematar con naves pesadas.",
+   "communityTag": "Control (TCG Contender)",
+   "rank": 17,
+   "wrVsTop10": 0.51,
+   "wrGeneral": 0.4946153846153847,
+   "sampleN": 13,
+   "favorable": 5,
+   "unfavorable": 4
+  },
+  {
+   "id": "Krennic-Spl",
+   "name": "Director Krennic | Amidst My Achievement | Blue 27hp Splash",
+   "strategy": "Control",
+   "decks": 5,
+   "metaShare": 0.00909090909090909,
+   "top8": 0,
+   "titles": 0,
+   "top8Conversion": 0.0,
+   "set": "LAW",
+   "kyberTier": "T3",
+   "kyberWR": 0.546448087431694,
+   "kyberGames": 183,
+   "leader": "Director Krennic | Amidst My Achievement",
+   "base": "Blue 27hp Splash",
+   "substrategy": "Control multiaspect",
+   "speed": 1,
+   "confidence": "Alta",
+   "gameplan": "Cambiar vida inicial por un abanico de respuestas más amplio y dominar el juego tardío con barridos y capital ships.",
+   "communityTag": "sin etiqueta propia; Control plausible",
+   "rank": 18,
+   "wrVsTop10": 0.5970000000000001,
+   "wrGeneral": 0.6505555555555556,
+   "sampleN": 18,
+   "favorable": 11,
+   "unfavorable": 3
+  },
+  {
+   "id": "Leia-DV",
+   "name": "Leia Organa | Of A Secret Bloodline | Data Vault",
+   "strategy": "Midrange",
+   "decks": 5,
+   "metaShare": 0.00909090909090909,
+   "top8": 0,
+   "titles": 0,
+   "top8Conversion": 0.0,
+   "set": "SEC",
+   "kyberTier": "T3",
+   "kyberWR": 0.4579439252336449,
+   "kyberGames": 107,
+   "leader": "Leia Organa | Of A Secret Bloodline",
+   "base": "Data Vault",
+   "substrategy": "Midrange de mejoras",
+   "speed": 3,
+   "confidence": "Media",
+   "gameplan": "Curvar amenazas de calidad, protegerlas con mejoras y usar Data Vault para encadenar turnos de presión.",
+   "communityTag": "Control / value grind (TCG Contender)",
+   "rank": 19,
+   "wrVsTop10": 0.59625,
+   "wrGeneral": 0.5499999999999999,
+   "sampleN": 14,
+   "favorable": 8,
+   "unfavorable": 5
+  },
+  {
+   "id": "Piett-Red",
+   "name": "Admiral Piett | Commanding the Armada | Red 30hp",
+   "strategy": "Ramp",
+   "decks": 4,
+   "metaShare": 0.007272727272727273,
+   "top8": 0,
+   "titles": 0,
+   "top8Conversion": 0.0,
+   "set": "JTL",
+   "kyberTier": "T2",
+   "kyberWR": 0.4769230769230769,
+   "kyberGames": 195,
+   "leader": "Admiral Piett | Commanding the Armada",
+   "base": "Red 30hp",
+   "substrategy": "Naves capitales",
+   "speed": 2,
+   "confidence": "Media",
+   "gameplan": "Sobrevivir el inicio, acelerar con transportes y convertir los recursos extra en una sucesión de naves capitales.",
+   "communityTag": "dividida: Ramp/Control/Midrange (capitales unánime)",
+   "rank": 20,
+   "wrVsTop10": 0.4488888888888889,
+   "wrGeneral": 0.49294117647058816,
+   "sampleN": 17,
+   "favorable": 8,
+   "unfavorable": 7
+  },
+  {
+   "id": "Dedra-Blue",
+   "name": "Dedra Meero | Not Wasting Time | Blue 30hp",
+   "strategy": "Control",
+   "decks": 4,
+   "metaShare": 0.007272727272727273,
+   "top8": 0,
+   "titles": 0,
+   "top8Conversion": 0.0,
+   "set": "SEC",
+   "kyberTier": "T4",
+   "kyberWR": 0.6363636363636364,
+   "kyberGames": 44,
+   "leader": "Dedra Meero | Not Wasting Time",
+   "base": "Blue 30hp",
+   "substrategy": "Control de desgaste",
+   "speed": 2,
+   "confidence": "Baja",
+   "gameplan": "Reducir el valor de cada turno rival, intercambiar uno por uno y cerrar cuando la mesa y la mano estén controladas.",
+   "communityTag": "sin datos (7 decks)",
+   "rank": 21,
+   "wrVsTop10": 0.4714285714285714,
+   "wrGeneral": 0.4338461538461538,
+   "sampleN": 13,
+   "favorable": 6,
+   "unfavorable": 4
+  },
+  {
+   "id": "Kazuda-DV",
+   "name": "Kazuda Xiono | Best Pilot in the Galaxy | Data Vault",
+   "strategy": "Aggro/Tempo",
+   "decks": 3,
+   "metaShare": 0.005454545454545455,
+   "top8": 0,
+   "titles": 0,
+   "top8Conversion": 0.0,
+   "set": "JTL",
+   "kyberTier": "T4",
+   "kyberWR": 0.55,
+   "kyberGames": 40,
+   "leader": "Kazuda Xiono | Best Pilot in the Galaxy",
+   "base": "Data Vault",
+   "substrategy": "Tempo de vehículos y ambush",
+   "speed": 4,
+   "confidence": "Alta",
+   "gameplan": "Presionar principalmente en espacio, encadenar sinergias de pilotos y usar Data Vault para no perder ritmo.",
+   "communityTag": "Vehicle Tempo ✓",
+   "rank": 22,
+   "wrVsTop10": 0.5528571428571428,
+   "wrGeneral": 0.5036363636363637,
+   "sampleN": 11,
+   "favorable": 4,
+   "unfavorable": 6
+  },
+  {
+   "id": "ObiWan-BlueF",
+   "name": "Obi-Wan Kenobi | Courage Makes Heroes | Blue 28hp Force",
+   "strategy": "Midrange",
+   "decks": 2,
+   "metaShare": 0.0036363636363636364,
+   "top8": 0,
+   "titles": 0,
+   "top8Conversion": 0.0,
+   "set": "LOF",
+   "kyberTier": "T4",
+   "kyberWR": 0.4186046511627907,
+   "kyberGames": 86,
+   "leader": "Obi-Wan Kenobi | Courage Makes Heroes",
+   "base": "Blue 28hp Force",
+   "substrategy": "Force con mejoras",
+   "speed": 3,
+   "confidence": "Media",
+   "gameplan": "Crear amenazas difíciles de remover con sables y unidades Force, controlando la mesa mediante combate eficiente.",
+   "communityTag": "Midrange ✓",
+   "rank": 23,
+   "wrVsTop10": 0.5940000000000001,
+   "wrGeneral": 0.5191666666666667,
+   "sampleN": 12,
+   "favorable": 6,
+   "unfavorable": 6
+  },
+  {
+   "id": "Tobias-Red",
+   "name": "Tobias Beckett | People are Predictable | Red 30hp",
+   "strategy": "Aggro/Tempo",
+   "decks": 1,
+   "metaShare": 0.0018181818181818182,
+   "top8": 0,
+   "titles": 0,
+   "top8Conversion": 0.0,
+   "set": "LAW",
+   "kyberTier": "T3",
+   "kyberWR": 0.4883720930232558,
+   "kyberGames": 43,
+   "leader": "Tobias Beckett | People are Predictable",
+   "base": "Red 30hp",
+   "substrategy": "Tempo disruptivo",
+   "speed": 4,
+   "confidence": "Baja",
+   "gameplan": "Forzar secuencias incómodas, explotar ventanas de iniciativa y convertir la disrupción en daño rápido.",
+   "communityTag": "sin etiqueta (lista sugiere aggro)",
+   "rank": 24,
+   "wrVsTop10": 0.505,
+   "wrGeneral": 0.38625,
+   "sampleN": 8,
+   "favorable": 4,
+   "unfavorable": 4
+  },
+  {
+   "id": "Mando-Blue",
+   "name": "The Mandalorian | We Can't Keep Running | Blue 30hp",
+   "strategy": "Control",
+   "decks": 1,
+   "metaShare": 0.0018181818181818182,
+   "top8": 0,
+   "titles": 0,
+   "top8Conversion": 0.0,
+   "set": "ASH",
+   "kyberTier": "T4",
+   "kyberWR": 0.5333333333333333,
+   "kyberGames": 15,
+   "leader": "The Mandalorian | We Can't Keep Running",
+   "base": "Blue 30hp",
+   "substrategy": "Control de eventos",
+   "speed": 2,
+   "confidence": "Baja",
+   "gameplan": "Intercambiar recursos con eventos, estabilizar la mesa y cerrar con amenazas tardías protegidas.",
+   "communityTag": "sin datos (3 decks); Colossus es Aggro",
+   "rank": 25,
+   "wrVsTop10": 0.734,
+   "wrGeneral": 0.45875,
+   "sampleN": 8,
+   "favorable": 3,
+   "unfavorable": 3
+  }
+ ],
+ "matchups": [
+  {
+   "source": "CB-Blue",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.55
+  },
+  {
+   "source": "CB-Blue",
+   "target": "Vader-Yellow",
+   "winRate": 0.45
+  },
+  {
+   "source": "CB-Blue",
+   "target": "Luke-DV",
+   "winRate": 0.55
+  },
+  {
+   "source": "CB-Blue",
+   "target": "Boba-LC",
+   "winRate": 0.54
+  },
+  {
+   "source": "CB-Blue",
+   "target": "Krennic-Blue",
+   "winRate": 0.59
+  },
+  {
+   "source": "CB-Blue",
+   "target": "Aurra-DV",
+   "winRate": 0.58
+  },
+  {
+   "source": "CB-Blue",
+   "target": "Mando-Col",
+   "winRate": 0.52
+  },
+  {
+   "source": "CB-Blue",
+   "target": "Maul-BlueF",
+   "winRate": 0.55
+  },
+  {
+   "source": "CB-Blue",
+   "target": "Lando-Blue",
+   "winRate": 0.37
+  },
+  {
+   "source": "CB-Blue",
+   "target": "Dedra-Col",
+   "winRate": 0.53
+  },
+  {
+   "source": "CB-Blue",
+   "target": "Greef-Red",
+   "winRate": 0.52
+  },
+  {
+   "source": "CB-Blue",
+   "target": "Greef-DV",
+   "winRate": 0.48
+  },
+  {
+   "source": "CB-Blue",
+   "target": "CB-Yellow",
+   "winRate": 0.43
+  },
+  {
+   "source": "CB-Blue",
+   "target": "Armorer-Yel",
+   "winRate": 0.58
+  },
+  {
+   "source": "CB-Blue",
+   "target": "Talzin-RedF",
+   "winRate": 0.56
+  },
+  {
+   "source": "CB-Blue",
+   "target": "Thrawn-Yel",
+   "winRate": 0.48
+  },
+  {
+   "source": "CB-Blue",
+   "target": "Krennic-Spl",
+   "winRate": 0.75
+  },
+  {
+   "source": "CB-Blue",
+   "target": "Leia-DV",
+   "winRate": 0.45
+  },
+  {
+   "source": "CB-Blue",
+   "target": "Piett-Red",
+   "winRate": 0.29
+  },
+  {
+   "source": "CB-Blue",
+   "target": "Dedra-Blue",
+   "winRate": 0.45
+  },
+  {
+   "source": "CB-Blue",
+   "target": "Kazuda-DV",
+   "winRate": 0.73
+  },
+  {
+   "source": "CB-Blue",
+   "target": "ObiWan-BlueF",
+   "winRate": 0.7
+  },
+  {
+   "source": "CB-Blue",
+   "target": "Tobias-Red",
+   "winRate": 0.4
+  },
+  {
+   "source": "CB-Blue",
+   "target": "Mando-Blue",
+   "winRate": 0.5
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "CB-Blue",
+   "winRate": 0.45
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "Vader-Yellow",
+   "winRate": 0.43
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "Luke-DV",
+   "winRate": 0.62
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "Boba-LC",
+   "winRate": 0.56
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "Krennic-Blue",
+   "winRate": 0.4
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "Aurra-DV",
+   "winRate": 0.56
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "Mando-Col",
+   "winRate": 0.77
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "Maul-BlueF",
+   "winRate": 0.35
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "Lando-Blue",
+   "winRate": 0.44
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "Dedra-Col",
+   "winRate": 0.3
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "Greef-Red",
+   "winRate": 0.53
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "Greef-DV",
+   "winRate": 0.62
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "CB-Yellow",
+   "winRate": 0.57
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "Armorer-Yel",
+   "winRate": 0.8
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "Talzin-RedF",
+   "winRate": 0.48
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "Thrawn-Yel",
+   "winRate": 0.5
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "Krennic-Spl",
+   "winRate": 0.56
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "Leia-DV",
+   "winRate": 1.0
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "Piett-Red",
+   "winRate": 0.5
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "Dedra-Blue",
+   "winRate": 0.45
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "Kazuda-DV",
+   "winRate": 0.5
+  },
+  {
+   "source": "Ahsoka-Blue",
+   "target": "Tobias-Red",
+   "winRate": 1.0
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "CB-Blue",
+   "winRate": 0.55
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.57
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "Luke-DV",
+   "winRate": 0.44
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "Boba-LC",
+   "winRate": 0.54
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "Krennic-Blue",
+   "winRate": 0.48
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "Aurra-DV",
+   "winRate": 0.63
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "Mando-Col",
+   "winRate": 0.41
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "Maul-BlueF",
+   "winRate": 0.56
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "Lando-Blue",
+   "winRate": 0.41
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "Dedra-Col",
+   "winRate": 0.73
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "Greef-Red",
+   "winRate": 0.7
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "Greef-DV",
+   "winRate": 0.65
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "CB-Yellow",
+   "winRate": 0.52
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "Armorer-Yel",
+   "winRate": 0.62
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "Talzin-RedF",
+   "winRate": 0.38
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "Thrawn-Yel",
+   "winRate": 0.36
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "Krennic-Spl",
+   "winRate": 0.5
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "Leia-DV",
+   "winRate": 0.54
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "Piett-Red",
+   "winRate": 1.0
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "Dedra-Blue",
+   "winRate": 0.47
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "ObiWan-BlueF",
+   "winRate": 0.0
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "Tobias-Red",
+   "winRate": 0.25
+  },
+  {
+   "source": "Vader-Yellow",
+   "target": "Mando-Blue",
+   "winRate": 0.5
+  },
+  {
+   "source": "Luke-DV",
+   "target": "CB-Blue",
+   "winRate": 0.45
+  },
+  {
+   "source": "Luke-DV",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.38
+  },
+  {
+   "source": "Luke-DV",
+   "target": "Vader-Yellow",
+   "winRate": 0.56
+  },
+  {
+   "source": "Luke-DV",
+   "target": "Boba-LC",
+   "winRate": 0.52
+  },
+  {
+   "source": "Luke-DV",
+   "target": "Krennic-Blue",
+   "winRate": 0.45
+  },
+  {
+   "source": "Luke-DV",
+   "target": "Aurra-DV",
+   "winRate": 0.64
+  },
+  {
+   "source": "Luke-DV",
+   "target": "Mando-Col",
+   "winRate": 0.53
+  },
+  {
+   "source": "Luke-DV",
+   "target": "Maul-BlueF",
+   "winRate": 0.28
+  },
+  {
+   "source": "Luke-DV",
+   "target": "Lando-Blue",
+   "winRate": 0.25
+  },
+  {
+   "source": "Luke-DV",
+   "target": "Dedra-Col",
+   "winRate": 0.58
+  },
+  {
+   "source": "Luke-DV",
+   "target": "Greef-Red",
+   "winRate": 0.56
+  },
+  {
+   "source": "Luke-DV",
+   "target": "Greef-DV",
+   "winRate": 0.36
+  },
+  {
+   "source": "Luke-DV",
+   "target": "CB-Yellow",
+   "winRate": 0.33
+  },
+  {
+   "source": "Luke-DV",
+   "target": "Armorer-Yel",
+   "winRate": 0.77
+  },
+  {
+   "source": "Luke-DV",
+   "target": "Talzin-RedF",
+   "winRate": 0.59
+  },
+  {
+   "source": "Luke-DV",
+   "target": "Thrawn-Yel",
+   "winRate": 0.4
+  },
+  {
+   "source": "Luke-DV",
+   "target": "Krennic-Spl",
+   "winRate": 0.5
+  },
+  {
+   "source": "Luke-DV",
+   "target": "Leia-DV",
+   "winRate": 0.31
+  },
+  {
+   "source": "Luke-DV",
+   "target": "Piett-Red",
+   "winRate": 0.5
+  },
+  {
+   "source": "Luke-DV",
+   "target": "Dedra-Blue",
+   "winRate": 0.5
+  },
+  {
+   "source": "Luke-DV",
+   "target": "Kazuda-DV",
+   "winRate": 0.67
+  },
+  {
+   "source": "Luke-DV",
+   "target": "ObiWan-BlueF",
+   "winRate": 0.33
+  },
+  {
+   "source": "Luke-DV",
+   "target": "Tobias-Red",
+   "winRate": 0.33
+  },
+  {
+   "source": "Boba-LC",
+   "target": "CB-Blue",
+   "winRate": 0.46
+  },
+  {
+   "source": "Boba-LC",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.44
+  },
+  {
+   "source": "Boba-LC",
+   "target": "Vader-Yellow",
+   "winRate": 0.46
+  },
+  {
+   "source": "Boba-LC",
+   "target": "Luke-DV",
+   "winRate": 0.48
+  },
+  {
+   "source": "Boba-LC",
+   "target": "Krennic-Blue",
+   "winRate": 0.55
+  },
+  {
+   "source": "Boba-LC",
+   "target": "Aurra-DV",
+   "winRate": 0.18
+  },
+  {
+   "source": "Boba-LC",
+   "target": "Mando-Col",
+   "winRate": 0.89
+  },
+  {
+   "source": "Boba-LC",
+   "target": "Maul-BlueF",
+   "winRate": 0.46
+  },
+  {
+   "source": "Boba-LC",
+   "target": "Lando-Blue",
+   "winRate": 0.4
+  },
+  {
+   "source": "Boba-LC",
+   "target": "Dedra-Col",
+   "winRate": 0.57
+  },
+  {
+   "source": "Boba-LC",
+   "target": "Greef-Red",
+   "winRate": 0.59
+  },
+  {
+   "source": "Boba-LC",
+   "target": "Greef-DV",
+   "winRate": 0.39
+  },
+  {
+   "source": "Boba-LC",
+   "target": "CB-Yellow",
+   "winRate": 0.5
+  },
+  {
+   "source": "Boba-LC",
+   "target": "Armorer-Yel",
+   "winRate": 0.0
+  },
+  {
+   "source": "Boba-LC",
+   "target": "Talzin-RedF",
+   "winRate": 0.0
+  },
+  {
+   "source": "Boba-LC",
+   "target": "Thrawn-Yel",
+   "winRate": 0.2
+  },
+  {
+   "source": "Boba-LC",
+   "target": "Krennic-Spl",
+   "winRate": 0.33
+  },
+  {
+   "source": "Boba-LC",
+   "target": "Leia-DV",
+   "winRate": 0.33
+  },
+  {
+   "source": "Boba-LC",
+   "target": "Piett-Red",
+   "winRate": 0.67
+  },
+  {
+   "source": "Boba-LC",
+   "target": "Dedra-Blue",
+   "winRate": 0.33
+  },
+  {
+   "source": "Boba-LC",
+   "target": "Kazuda-DV",
+   "winRate": 0.56
+  },
+  {
+   "source": "Boba-LC",
+   "target": "ObiWan-BlueF",
+   "winRate": 0.0
+  },
+  {
+   "source": "Boba-LC",
+   "target": "Mando-Blue",
+   "winRate": 0.33
+  },
+  {
+   "source": "Krennic-Blue",
+   "target": "CB-Blue",
+   "winRate": 0.41
+  },
+  {
+   "source": "Krennic-Blue",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.6
+  },
+  {
+   "source": "Krennic-Blue",
+   "target": "Vader-Yellow",
+   "winRate": 0.52
+  },
+  {
+   "source": "Krennic-Blue",
+   "target": "Luke-DV",
+   "winRate": 0.55
+  },
+  {
+   "source": "Krennic-Blue",
+   "target": "Boba-LC",
+   "winRate": 0.45
+  },
+  {
+   "source": "Krennic-Blue",
+   "target": "Aurra-DV",
+   "winRate": 0.65
+  },
+  {
+   "source": "Krennic-Blue",
+   "target": "Mando-Col",
+   "winRate": 0.8
+  },
+  {
+   "source": "Krennic-Blue",
+   "target": "Maul-BlueF",
+   "winRate": 0.44
+  },
+  {
+   "source": "Krennic-Blue",
+   "target": "Lando-Blue",
+   "winRate": 0.85
+  },
+  {
+   "source": "Krennic-Blue",
+   "target": "Dedra-Col",
+   "winRate": 0.67
+  },
+  {
+   "source": "Krennic-Blue",
+   "target": "Greef-Red",
+   "winRate": 0.58
+  },
+  {
+   "source": "Krennic-Blue",
+   "target": "Greef-DV",
+   "winRate": 0.62
+  },
+  {
+   "source": "Krennic-Blue",
+   "target": "CB-Yellow",
+   "winRate": 0.0
+  },
+  {
+   "source": "Krennic-Blue",
+   "target": "Armorer-Yel",
+   "winRate": 0.23
+  },
+  {
+   "source": "Krennic-Blue",
+   "target": "Talzin-RedF",
+   "winRate": 1.0
+  },
+  {
+   "source": "Krennic-Blue",
+   "target": "Thrawn-Yel",
+   "winRate": 0.5
+  },
+  {
+   "source": "Krennic-Blue",
+   "target": "Krennic-Spl",
+   "winRate": 0.2
+  },
+  {
+   "source": "Krennic-Blue",
+   "target": "Leia-DV",
+   "winRate": 0.0
+  },
+  {
+   "source": "Krennic-Blue",
+   "target": "Piett-Red",
+   "winRate": 0.0
+  },
+  {
+   "source": "Krennic-Blue",
+   "target": "Dedra-Blue",
+   "winRate": 0.5
+  },
+  {
+   "source": "Aurra-DV",
+   "target": "CB-Blue",
+   "winRate": 0.42
+  },
+  {
+   "source": "Aurra-DV",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.44
+  },
+  {
+   "source": "Aurra-DV",
+   "target": "Vader-Yellow",
+   "winRate": 0.37
+  },
+  {
+   "source": "Aurra-DV",
+   "target": "Luke-DV",
+   "winRate": 0.36
+  },
+  {
+   "source": "Aurra-DV",
+   "target": "Boba-LC",
+   "winRate": 0.82
+  },
+  {
+   "source": "Aurra-DV",
+   "target": "Krennic-Blue",
+   "winRate": 0.35
+  },
+  {
+   "source": "Aurra-DV",
+   "target": "Mando-Col",
+   "winRate": 0.23
+  },
+  {
+   "source": "Aurra-DV",
+   "target": "Maul-BlueF",
+   "winRate": 0.11
+  },
+  {
+   "source": "Aurra-DV",
+   "target": "Lando-Blue",
+   "winRate": 0.45
+  },
+  {
+   "source": "Aurra-DV",
+   "target": "Dedra-Col",
+   "winRate": 0.26
+  },
+  {
+   "source": "Aurra-DV",
+   "target": "Greef-Red",
+   "winRate": 0.86
+  },
+  {
+   "source": "Aurra-DV",
+   "target": "Greef-DV",
+   "winRate": 0.58
+  },
+  {
+   "source": "Aurra-DV",
+   "target": "CB-Yellow",
+   "winRate": 0.5
+  },
+  {
+   "source": "Aurra-DV",
+   "target": "Armorer-Yel",
+   "winRate": 0.8
+  },
+  {
+   "source": "Aurra-DV",
+   "target": "Talzin-RedF",
+   "winRate": 0.2
+  },
+  {
+   "source": "Aurra-DV",
+   "target": "Thrawn-Yel",
+   "winRate": 0.29
+  },
+  {
+   "source": "Aurra-DV",
+   "target": "Krennic-Spl",
+   "winRate": 0.43
+  },
+  {
+   "source": "Aurra-DV",
+   "target": "Leia-DV",
+   "winRate": 0.6
+  },
+  {
+   "source": "Aurra-DV",
+   "target": "Kazuda-DV",
+   "winRate": 0.0
+  },
+  {
+   "source": "Mando-Col",
+   "target": "CB-Blue",
+   "winRate": 0.48
+  },
+  {
+   "source": "Mando-Col",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.23
+  },
+  {
+   "source": "Mando-Col",
+   "target": "Vader-Yellow",
+   "winRate": 0.59
+  },
+  {
+   "source": "Mando-Col",
+   "target": "Luke-DV",
+   "winRate": 0.47
+  },
+  {
+   "source": "Mando-Col",
+   "target": "Boba-LC",
+   "winRate": 0.11
+  },
+  {
+   "source": "Mando-Col",
+   "target": "Krennic-Blue",
+   "winRate": 0.2
+  },
+  {
+   "source": "Mando-Col",
+   "target": "Aurra-DV",
+   "winRate": 0.77
+  },
+  {
+   "source": "Mando-Col",
+   "target": "Maul-BlueF",
+   "winRate": 0.61
+  },
+  {
+   "source": "Mando-Col",
+   "target": "Lando-Blue",
+   "winRate": 0.4
+  },
+  {
+   "source": "Mando-Col",
+   "target": "Dedra-Col",
+   "winRate": 0.25
+  },
+  {
+   "source": "Mando-Col",
+   "target": "Greef-Red",
+   "winRate": 0.33
+  },
+  {
+   "source": "Mando-Col",
+   "target": "Greef-DV",
+   "winRate": 0.0
+  },
+  {
+   "source": "Mando-Col",
+   "target": "CB-Yellow",
+   "winRate": 0.33
+  },
+  {
+   "source": "Mando-Col",
+   "target": "Armorer-Yel",
+   "winRate": 0.71
+  },
+  {
+   "source": "Mando-Col",
+   "target": "Thrawn-Yel",
+   "winRate": 1.0
+  },
+  {
+   "source": "Mando-Col",
+   "target": "Krennic-Spl",
+   "winRate": 0.33
+  },
+  {
+   "source": "Mando-Col",
+   "target": "Piett-Red",
+   "winRate": 0.33
+  },
+  {
+   "source": "Mando-Col",
+   "target": "Kazuda-DV",
+   "winRate": 0.0
+  },
+  {
+   "source": "Maul-BlueF",
+   "target": "CB-Blue",
+   "winRate": 0.45
+  },
+  {
+   "source": "Maul-BlueF",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.65
+  },
+  {
+   "source": "Maul-BlueF",
+   "target": "Vader-Yellow",
+   "winRate": 0.44
+  },
+  {
+   "source": "Maul-BlueF",
+   "target": "Luke-DV",
+   "winRate": 0.72
+  },
+  {
+   "source": "Maul-BlueF",
+   "target": "Boba-LC",
+   "winRate": 0.54
+  },
+  {
+   "source": "Maul-BlueF",
+   "target": "Krennic-Blue",
+   "winRate": 0.56
+  },
+  {
+   "source": "Maul-BlueF",
+   "target": "Aurra-DV",
+   "winRate": 0.89
+  },
+  {
+   "source": "Maul-BlueF",
+   "target": "Mando-Col",
+   "winRate": 0.39
+  },
+  {
+   "source": "Maul-BlueF",
+   "target": "Lando-Blue",
+   "winRate": 0.2
+  },
+  {
+   "source": "Maul-BlueF",
+   "target": "Dedra-Col",
+   "winRate": 0.4
+  },
+  {
+   "source": "Maul-BlueF",
+   "target": "Greef-Red",
+   "winRate": 0.4
+  },
+  {
+   "source": "Maul-BlueF",
+   "target": "Greef-DV",
+   "winRate": 0.56
+  },
+  {
+   "source": "Maul-BlueF",
+   "target": "CB-Yellow",
+   "winRate": 1.0
+  },
+  {
+   "source": "Maul-BlueF",
+   "target": "Armorer-Yel",
+   "winRate": 0.67
+  },
+  {
+   "source": "Maul-BlueF",
+   "target": "Talzin-RedF",
+   "winRate": 0.0
+  },
+  {
+   "source": "Maul-BlueF",
+   "target": "Thrawn-Yel",
+   "winRate": 0.67
+  },
+  {
+   "source": "Maul-BlueF",
+   "target": "Krennic-Spl",
+   "winRate": 0.43
+  },
+  {
+   "source": "Maul-BlueF",
+   "target": "Piett-Red",
+   "winRate": 1.0
+  },
+  {
+   "source": "Maul-BlueF",
+   "target": "Dedra-Blue",
+   "winRate": 1.0
+  },
+  {
+   "source": "Maul-BlueF",
+   "target": "Kazuda-DV",
+   "winRate": 0.67
+  },
+  {
+   "source": "Maul-BlueF",
+   "target": "Mando-Blue",
+   "winRate": 0.0
+  },
+  {
+   "source": "Lando-Blue",
+   "target": "CB-Blue",
+   "winRate": 0.63
+  },
+  {
+   "source": "Lando-Blue",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.56
+  },
+  {
+   "source": "Lando-Blue",
+   "target": "Vader-Yellow",
+   "winRate": 0.59
+  },
+  {
+   "source": "Lando-Blue",
+   "target": "Luke-DV",
+   "winRate": 0.75
+  },
+  {
+   "source": "Lando-Blue",
+   "target": "Boba-LC",
+   "winRate": 0.6
+  },
+  {
+   "source": "Lando-Blue",
+   "target": "Krennic-Blue",
+   "winRate": 0.15
+  },
+  {
+   "source": "Lando-Blue",
+   "target": "Aurra-DV",
+   "winRate": 0.55
+  },
+  {
+   "source": "Lando-Blue",
+   "target": "Mando-Col",
+   "winRate": 0.6
+  },
+  {
+   "source": "Lando-Blue",
+   "target": "Maul-BlueF",
+   "winRate": 0.8
+  },
+  {
+   "source": "Lando-Blue",
+   "target": "Greef-Red",
+   "winRate": 0.5
+  },
+  {
+   "source": "Lando-Blue",
+   "target": "Greef-DV",
+   "winRate": 0.2
+  },
+  {
+   "source": "Lando-Blue",
+   "target": "CB-Yellow",
+   "winRate": 0.33
+  },
+  {
+   "source": "Lando-Blue",
+   "target": "Talzin-RedF",
+   "winRate": 0.8
+  },
+  {
+   "source": "Lando-Blue",
+   "target": "Thrawn-Yel",
+   "winRate": 0.5
+  },
+  {
+   "source": "Lando-Blue",
+   "target": "Krennic-Spl",
+   "winRate": 0.0
+  },
+  {
+   "source": "Lando-Blue",
+   "target": "Leia-DV",
+   "winRate": 0.0
+  },
+  {
+   "source": "Lando-Blue",
+   "target": "Piett-Red",
+   "winRate": 0.67
+  },
+  {
+   "source": "Lando-Blue",
+   "target": "ObiWan-BlueF",
+   "winRate": 1.0
+  },
+  {
+   "source": "Lando-Blue",
+   "target": "Mando-Blue",
+   "winRate": 0.0
+  },
+  {
+   "source": "Dedra-Col",
+   "target": "CB-Blue",
+   "winRate": 0.47
+  },
+  {
+   "source": "Dedra-Col",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.7
+  },
+  {
+   "source": "Dedra-Col",
+   "target": "Vader-Yellow",
+   "winRate": 0.27
+  },
+  {
+   "source": "Dedra-Col",
+   "target": "Luke-DV",
+   "winRate": 0.42
+  },
+  {
+   "source": "Dedra-Col",
+   "target": "Boba-LC",
+   "winRate": 0.43
+  },
+  {
+   "source": "Dedra-Col",
+   "target": "Krennic-Blue",
+   "winRate": 0.33
+  },
+  {
+   "source": "Dedra-Col",
+   "target": "Aurra-DV",
+   "winRate": 0.74
+  },
+  {
+   "source": "Dedra-Col",
+   "target": "Mando-Col",
+   "winRate": 0.75
+  },
+  {
+   "source": "Dedra-Col",
+   "target": "Maul-BlueF",
+   "winRate": 0.6
+  },
+  {
+   "source": "Dedra-Col",
+   "target": "Greef-Red",
+   "winRate": 0.4
+  },
+  {
+   "source": "Dedra-Col",
+   "target": "Greef-DV",
+   "winRate": 0.36
+  },
+  {
+   "source": "Dedra-Col",
+   "target": "Armorer-Yel",
+   "winRate": 0.67
+  },
+  {
+   "source": "Dedra-Col",
+   "target": "Talzin-RedF",
+   "winRate": 0.67
+  },
+  {
+   "source": "Dedra-Col",
+   "target": "Krennic-Spl",
+   "winRate": 0.33
+  },
+  {
+   "source": "Dedra-Col",
+   "target": "Piett-Red",
+   "winRate": 0.67
+  },
+  {
+   "source": "Dedra-Col",
+   "target": "Dedra-Blue",
+   "winRate": 0.33
+  },
+  {
+   "source": "Dedra-Col",
+   "target": "Kazuda-DV",
+   "winRate": 0.0
+  },
+  {
+   "source": "Dedra-Col",
+   "target": "ObiWan-BlueF",
+   "winRate": 0.4
+  },
+  {
+   "source": "Greef-Red",
+   "target": "CB-Blue",
+   "winRate": 0.48
+  },
+  {
+   "source": "Greef-Red",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.47
+  },
+  {
+   "source": "Greef-Red",
+   "target": "Vader-Yellow",
+   "winRate": 0.3
+  },
+  {
+   "source": "Greef-Red",
+   "target": "Luke-DV",
+   "winRate": 0.44
+  },
+  {
+   "source": "Greef-Red",
+   "target": "Boba-LC",
+   "winRate": 0.41
+  },
+  {
+   "source": "Greef-Red",
+   "target": "Krennic-Blue",
+   "winRate": 0.42
+  },
+  {
+   "source": "Greef-Red",
+   "target": "Aurra-DV",
+   "winRate": 0.14
+  },
+  {
+   "source": "Greef-Red",
+   "target": "Mando-Col",
+   "winRate": 0.67
+  },
+  {
+   "source": "Greef-Red",
+   "target": "Maul-BlueF",
+   "winRate": 0.6
+  },
+  {
+   "source": "Greef-Red",
+   "target": "Lando-Blue",
+   "winRate": 0.5
+  },
+  {
+   "source": "Greef-Red",
+   "target": "Dedra-Col",
+   "winRate": 0.6
+  },
+  {
+   "source": "Greef-Red",
+   "target": "Greef-DV",
+   "winRate": 0.0
+  },
+  {
+   "source": "Greef-Red",
+   "target": "CB-Yellow",
+   "winRate": 0.2
+  },
+  {
+   "source": "Greef-Red",
+   "target": "Armorer-Yel",
+   "winRate": 1.0
+  },
+  {
+   "source": "Greef-Red",
+   "target": "Talzin-RedF",
+   "winRate": 1.0
+  },
+  {
+   "source": "Greef-Red",
+   "target": "Thrawn-Yel",
+   "winRate": 1.0
+  },
+  {
+   "source": "Greef-Red",
+   "target": "Krennic-Spl",
+   "winRate": 0.33
+  },
+  {
+   "source": "Greef-Red",
+   "target": "Piett-Red",
+   "winRate": 0.33
+  },
+  {
+   "source": "Greef-Red",
+   "target": "Tobias-Red",
+   "winRate": 1.0
+  },
+  {
+   "source": "Greef-DV",
+   "target": "CB-Blue",
+   "winRate": 0.52
+  },
+  {
+   "source": "Greef-DV",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.38
+  },
+  {
+   "source": "Greef-DV",
+   "target": "Vader-Yellow",
+   "winRate": 0.35
+  },
+  {
+   "source": "Greef-DV",
+   "target": "Luke-DV",
+   "winRate": 0.64
+  },
+  {
+   "source": "Greef-DV",
+   "target": "Boba-LC",
+   "winRate": 0.61
+  },
+  {
+   "source": "Greef-DV",
+   "target": "Krennic-Blue",
+   "winRate": 0.38
+  },
+  {
+   "source": "Greef-DV",
+   "target": "Aurra-DV",
+   "winRate": 0.42
+  },
+  {
+   "source": "Greef-DV",
+   "target": "Mando-Col",
+   "winRate": 1.0
+  },
+  {
+   "source": "Greef-DV",
+   "target": "Maul-BlueF",
+   "winRate": 0.44
+  },
+  {
+   "source": "Greef-DV",
+   "target": "Lando-Blue",
+   "winRate": 0.8
+  },
+  {
+   "source": "Greef-DV",
+   "target": "Dedra-Col",
+   "winRate": 0.64
+  },
+  {
+   "source": "Greef-DV",
+   "target": "Greef-Red",
+   "winRate": 1.0
+  },
+  {
+   "source": "Greef-DV",
+   "target": "CB-Yellow",
+   "winRate": 0.86
+  },
+  {
+   "source": "Greef-DV",
+   "target": "Armorer-Yel",
+   "winRate": 0.6
+  },
+  {
+   "source": "Greef-DV",
+   "target": "Talzin-RedF",
+   "winRate": 1.0
+  },
+  {
+   "source": "Greef-DV",
+   "target": "Krennic-Spl",
+   "winRate": 0.6
+  },
+  {
+   "source": "Greef-DV",
+   "target": "Piett-Red",
+   "winRate": 0.33
+  },
+  {
+   "source": "Greef-DV",
+   "target": "Dedra-Blue",
+   "winRate": 0.33
+  },
+  {
+   "source": "Greef-DV",
+   "target": "Kazuda-DV",
+   "winRate": 1.0
+  },
+  {
+   "source": "Greef-DV",
+   "target": "ObiWan-BlueF",
+   "winRate": 1.0
+  },
+  {
+   "source": "CB-Yellow",
+   "target": "CB-Blue",
+   "winRate": 0.57
+  },
+  {
+   "source": "CB-Yellow",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.43
+  },
+  {
+   "source": "CB-Yellow",
+   "target": "Vader-Yellow",
+   "winRate": 0.48
+  },
+  {
+   "source": "CB-Yellow",
+   "target": "Luke-DV",
+   "winRate": 0.67
+  },
+  {
+   "source": "CB-Yellow",
+   "target": "Boba-LC",
+   "winRate": 0.5
+  },
+  {
+   "source": "CB-Yellow",
+   "target": "Krennic-Blue",
+   "winRate": 1.0
+  },
+  {
+   "source": "CB-Yellow",
+   "target": "Aurra-DV",
+   "winRate": 0.5
+  },
+  {
+   "source": "CB-Yellow",
+   "target": "Mando-Col",
+   "winRate": 0.67
+  },
+  {
+   "source": "CB-Yellow",
+   "target": "Maul-BlueF",
+   "winRate": 0.0
+  },
+  {
+   "source": "CB-Yellow",
+   "target": "Lando-Blue",
+   "winRate": 0.67
+  },
+  {
+   "source": "CB-Yellow",
+   "target": "Greef-Red",
+   "winRate": 0.8
+  },
+  {
+   "source": "CB-Yellow",
+   "target": "Greef-DV",
+   "winRate": 0.14
+  },
+  {
+   "source": "CB-Yellow",
+   "target": "Talzin-RedF",
+   "winRate": 0.5
+  },
+  {
+   "source": "CB-Yellow",
+   "target": "Krennic-Spl",
+   "winRate": 0.5
+  },
+  {
+   "source": "CB-Yellow",
+   "target": "Leia-DV",
+   "winRate": 1.0
+  },
+  {
+   "source": "CB-Yellow",
+   "target": "Piett-Red",
+   "winRate": 0.0
+  },
+  {
+   "source": "CB-Yellow",
+   "target": "ObiWan-BlueF",
+   "winRate": 0.67
+  },
+  {
+   "source": "CB-Yellow",
+   "target": "Tobias-Red",
+   "winRate": 1.0
+  },
+  {
+   "source": "CB-Yellow",
+   "target": "Mando-Blue",
+   "winRate": 1.0
+  },
+  {
+   "source": "Armorer-Yel",
+   "target": "CB-Blue",
+   "winRate": 0.42
+  },
+  {
+   "source": "Armorer-Yel",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.2
+  },
+  {
+   "source": "Armorer-Yel",
+   "target": "Vader-Yellow",
+   "winRate": 0.38
+  },
+  {
+   "source": "Armorer-Yel",
+   "target": "Luke-DV",
+   "winRate": 0.23
+  },
+  {
+   "source": "Armorer-Yel",
+   "target": "Boba-LC",
+   "winRate": 1.0
+  },
+  {
+   "source": "Armorer-Yel",
+   "target": "Krennic-Blue",
+   "winRate": 0.77
+  },
+  {
+   "source": "Armorer-Yel",
+   "target": "Aurra-DV",
+   "winRate": 0.2
+  },
+  {
+   "source": "Armorer-Yel",
+   "target": "Mando-Col",
+   "winRate": 0.29
+  },
+  {
+   "source": "Armorer-Yel",
+   "target": "Maul-BlueF",
+   "winRate": 0.33
+  },
+  {
+   "source": "Armorer-Yel",
+   "target": "Dedra-Col",
+   "winRate": 0.33
+  },
+  {
+   "source": "Armorer-Yel",
+   "target": "Greef-Red",
+   "winRate": 0.0
+  },
+  {
+   "source": "Armorer-Yel",
+   "target": "Greef-DV",
+   "winRate": 0.4
+  },
+  {
+   "source": "Armorer-Yel",
+   "target": "Talzin-RedF",
+   "winRate": 1.0
+  },
+  {
+   "source": "Armorer-Yel",
+   "target": "Krennic-Spl",
+   "winRate": 0.5
+  },
+  {
+   "source": "Armorer-Yel",
+   "target": "Dedra-Blue",
+   "winRate": 1.0
+  },
+  {
+   "source": "Armorer-Yel",
+   "target": "ObiWan-BlueF",
+   "winRate": 0.0
+  },
+  {
+   "source": "Armorer-Yel",
+   "target": "Tobias-Red",
+   "winRate": 0.33
+  },
+  {
+   "source": "Talzin-RedF",
+   "target": "CB-Blue",
+   "winRate": 0.44
+  },
+  {
+   "source": "Talzin-RedF",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.52
+  },
+  {
+   "source": "Talzin-RedF",
+   "target": "Vader-Yellow",
+   "winRate": 0.62
+  },
+  {
+   "source": "Talzin-RedF",
+   "target": "Luke-DV",
+   "winRate": 0.41
+  },
+  {
+   "source": "Talzin-RedF",
+   "target": "Boba-LC",
+   "winRate": 1.0
+  },
+  {
+   "source": "Talzin-RedF",
+   "target": "Krennic-Blue",
+   "winRate": 0.0
+  },
+  {
+   "source": "Talzin-RedF",
+   "target": "Aurra-DV",
+   "winRate": 0.8
+  },
+  {
+   "source": "Talzin-RedF",
+   "target": "Maul-BlueF",
+   "winRate": 1.0
+  },
+  {
+   "source": "Talzin-RedF",
+   "target": "Lando-Blue",
+   "winRate": 0.2
+  },
+  {
+   "source": "Talzin-RedF",
+   "target": "Dedra-Col",
+   "winRate": 0.33
+  },
+  {
+   "source": "Talzin-RedF",
+   "target": "Greef-Red",
+   "winRate": 0.0
+  },
+  {
+   "source": "Talzin-RedF",
+   "target": "Greef-DV",
+   "winRate": 0.0
+  },
+  {
+   "source": "Talzin-RedF",
+   "target": "CB-Yellow",
+   "winRate": 0.5
+  },
+  {
+   "source": "Talzin-RedF",
+   "target": "Armorer-Yel",
+   "winRate": 0.0
+  },
+  {
+   "source": "Talzin-RedF",
+   "target": "Thrawn-Yel",
+   "winRate": 0.67
+  },
+  {
+   "source": "Talzin-RedF",
+   "target": "Krennic-Spl",
+   "winRate": 0.0
+  },
+  {
+   "source": "Talzin-RedF",
+   "target": "Leia-DV",
+   "winRate": 0.33
+  },
+  {
+   "source": "Talzin-RedF",
+   "target": "Piett-Red",
+   "winRate": 1.0
+  },
+  {
+   "source": "Talzin-RedF",
+   "target": "Dedra-Blue",
+   "winRate": 0.67
+  },
+  {
+   "source": "Thrawn-Yel",
+   "target": "CB-Blue",
+   "winRate": 0.52
+  },
+  {
+   "source": "Thrawn-Yel",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.5
+  },
+  {
+   "source": "Thrawn-Yel",
+   "target": "Vader-Yellow",
+   "winRate": 0.64
+  },
+  {
+   "source": "Thrawn-Yel",
+   "target": "Luke-DV",
+   "winRate": 0.6
+  },
+  {
+   "source": "Thrawn-Yel",
+   "target": "Boba-LC",
+   "winRate": 0.8
+  },
+  {
+   "source": "Thrawn-Yel",
+   "target": "Krennic-Blue",
+   "winRate": 0.5
+  },
+  {
+   "source": "Thrawn-Yel",
+   "target": "Aurra-DV",
+   "winRate": 0.71
+  },
+  {
+   "source": "Thrawn-Yel",
+   "target": "Mando-Col",
+   "winRate": 0.0
+  },
+  {
+   "source": "Thrawn-Yel",
+   "target": "Maul-BlueF",
+   "winRate": 0.33
+  },
+  {
+   "source": "Thrawn-Yel",
+   "target": "Lando-Blue",
+   "winRate": 0.5
+  },
+  {
+   "source": "Thrawn-Yel",
+   "target": "Greef-Red",
+   "winRate": 0.0
+  },
+  {
+   "source": "Thrawn-Yel",
+   "target": "Talzin-RedF",
+   "winRate": 0.33
+  },
+  {
+   "source": "Thrawn-Yel",
+   "target": "Piett-Red",
+   "winRate": 1.0
+  },
+  {
+   "source": "Krennic-Spl",
+   "target": "CB-Blue",
+   "winRate": 0.25
+  },
+  {
+   "source": "Krennic-Spl",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.44
+  },
+  {
+   "source": "Krennic-Spl",
+   "target": "Vader-Yellow",
+   "winRate": 0.5
+  },
+  {
+   "source": "Krennic-Spl",
+   "target": "Luke-DV",
+   "winRate": 0.5
+  },
+  {
+   "source": "Krennic-Spl",
+   "target": "Boba-LC",
+   "winRate": 0.67
+  },
+  {
+   "source": "Krennic-Spl",
+   "target": "Krennic-Blue",
+   "winRate": 0.8
+  },
+  {
+   "source": "Krennic-Spl",
+   "target": "Aurra-DV",
+   "winRate": 0.57
+  },
+  {
+   "source": "Krennic-Spl",
+   "target": "Mando-Col",
+   "winRate": 0.67
+  },
+  {
+   "source": "Krennic-Spl",
+   "target": "Maul-BlueF",
+   "winRate": 0.57
+  },
+  {
+   "source": "Krennic-Spl",
+   "target": "Lando-Blue",
+   "winRate": 1.0
+  },
+  {
+   "source": "Krennic-Spl",
+   "target": "Dedra-Col",
+   "winRate": 0.67
+  },
+  {
+   "source": "Krennic-Spl",
+   "target": "Greef-Red",
+   "winRate": 0.67
+  },
+  {
+   "source": "Krennic-Spl",
+   "target": "Greef-DV",
+   "winRate": 0.4
+  },
+  {
+   "source": "Krennic-Spl",
+   "target": "CB-Yellow",
+   "winRate": 0.5
+  },
+  {
+   "source": "Krennic-Spl",
+   "target": "Armorer-Yel",
+   "winRate": 0.5
+  },
+  {
+   "source": "Krennic-Spl",
+   "target": "Talzin-RedF",
+   "winRate": 1.0
+  },
+  {
+   "source": "Krennic-Spl",
+   "target": "Dedra-Blue",
+   "winRate": 1.0
+  },
+  {
+   "source": "Krennic-Spl",
+   "target": "Kazuda-DV",
+   "winRate": 1.0
+  },
+  {
+   "source": "Leia-DV",
+   "target": "CB-Blue",
+   "winRate": 0.55
+  },
+  {
+   "source": "Leia-DV",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.0
+  },
+  {
+   "source": "Leia-DV",
+   "target": "Vader-Yellow",
+   "winRate": 0.46
+  },
+  {
+   "source": "Leia-DV",
+   "target": "Luke-DV",
+   "winRate": 0.69
+  },
+  {
+   "source": "Leia-DV",
+   "target": "Boba-LC",
+   "winRate": 0.67
+  },
+  {
+   "source": "Leia-DV",
+   "target": "Krennic-Blue",
+   "winRate": 1.0
+  },
+  {
+   "source": "Leia-DV",
+   "target": "Aurra-DV",
+   "winRate": 0.4
+  },
+  {
+   "source": "Leia-DV",
+   "target": "Lando-Blue",
+   "winRate": 1.0
+  },
+  {
+   "source": "Leia-DV",
+   "target": "CB-Yellow",
+   "winRate": 0.0
+  },
+  {
+   "source": "Leia-DV",
+   "target": "Talzin-RedF",
+   "winRate": 0.67
+  },
+  {
+   "source": "Leia-DV",
+   "target": "Piett-Red",
+   "winRate": 0.33
+  },
+  {
+   "source": "Leia-DV",
+   "target": "Dedra-Blue",
+   "winRate": 0.33
+  },
+  {
+   "source": "Leia-DV",
+   "target": "Tobias-Red",
+   "winRate": 0.6
+  },
+  {
+   "source": "Leia-DV",
+   "target": "Mando-Blue",
+   "winRate": 1.0
+  },
+  {
+   "source": "Piett-Red",
+   "target": "CB-Blue",
+   "winRate": 0.71
+  },
+  {
+   "source": "Piett-Red",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.5
+  },
+  {
+   "source": "Piett-Red",
+   "target": "Vader-Yellow",
+   "winRate": 0.0
+  },
+  {
+   "source": "Piett-Red",
+   "target": "Luke-DV",
+   "winRate": 0.5
+  },
+  {
+   "source": "Piett-Red",
+   "target": "Boba-LC",
+   "winRate": 0.33
+  },
+  {
+   "source": "Piett-Red",
+   "target": "Krennic-Blue",
+   "winRate": 1.0
+  },
+  {
+   "source": "Piett-Red",
+   "target": "Mando-Col",
+   "winRate": 0.67
+  },
+  {
+   "source": "Piett-Red",
+   "target": "Maul-BlueF",
+   "winRate": 0.0
+  },
+  {
+   "source": "Piett-Red",
+   "target": "Lando-Blue",
+   "winRate": 0.33
+  },
+  {
+   "source": "Piett-Red",
+   "target": "Dedra-Col",
+   "winRate": 0.33
+  },
+  {
+   "source": "Piett-Red",
+   "target": "Greef-Red",
+   "winRate": 0.67
+  },
+  {
+   "source": "Piett-Red",
+   "target": "Greef-DV",
+   "winRate": 0.67
+  },
+  {
+   "source": "Piett-Red",
+   "target": "CB-Yellow",
+   "winRate": 1.0
+  },
+  {
+   "source": "Piett-Red",
+   "target": "Talzin-RedF",
+   "winRate": 0.0
+  },
+  {
+   "source": "Piett-Red",
+   "target": "Thrawn-Yel",
+   "winRate": 0.0
+  },
+  {
+   "source": "Piett-Red",
+   "target": "Leia-DV",
+   "winRate": 0.67
+  },
+  {
+   "source": "Piett-Red",
+   "target": "ObiWan-BlueF",
+   "winRate": 1.0
+  },
+  {
+   "source": "Dedra-Blue",
+   "target": "CB-Blue",
+   "winRate": 0.55
+  },
+  {
+   "source": "Dedra-Blue",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.55
+  },
+  {
+   "source": "Dedra-Blue",
+   "target": "Vader-Yellow",
+   "winRate": 0.53
+  },
+  {
+   "source": "Dedra-Blue",
+   "target": "Luke-DV",
+   "winRate": 0.5
+  },
+  {
+   "source": "Dedra-Blue",
+   "target": "Boba-LC",
+   "winRate": 0.67
+  },
+  {
+   "source": "Dedra-Blue",
+   "target": "Krennic-Blue",
+   "winRate": 0.5
+  },
+  {
+   "source": "Dedra-Blue",
+   "target": "Maul-BlueF",
+   "winRate": 0.0
+  },
+  {
+   "source": "Dedra-Blue",
+   "target": "Dedra-Col",
+   "winRate": 0.67
+  },
+  {
+   "source": "Dedra-Blue",
+   "target": "Greef-DV",
+   "winRate": 0.67
+  },
+  {
+   "source": "Dedra-Blue",
+   "target": "Armorer-Yel",
+   "winRate": 0.0
+  },
+  {
+   "source": "Dedra-Blue",
+   "target": "Talzin-RedF",
+   "winRate": 0.33
+  },
+  {
+   "source": "Dedra-Blue",
+   "target": "Krennic-Spl",
+   "winRate": 0.0
+  },
+  {
+   "source": "Dedra-Blue",
+   "target": "Leia-DV",
+   "winRate": 0.67
+  },
+  {
+   "source": "Kazuda-DV",
+   "target": "CB-Blue",
+   "winRate": 0.27
+  },
+  {
+   "source": "Kazuda-DV",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.5
+  },
+  {
+   "source": "Kazuda-DV",
+   "target": "Luke-DV",
+   "winRate": 0.33
+  },
+  {
+   "source": "Kazuda-DV",
+   "target": "Boba-LC",
+   "winRate": 0.44
+  },
+  {
+   "source": "Kazuda-DV",
+   "target": "Aurra-DV",
+   "winRate": 1.0
+  },
+  {
+   "source": "Kazuda-DV",
+   "target": "Mando-Col",
+   "winRate": 1.0
+  },
+  {
+   "source": "Kazuda-DV",
+   "target": "Maul-BlueF",
+   "winRate": 0.33
+  },
+  {
+   "source": "Kazuda-DV",
+   "target": "Dedra-Col",
+   "winRate": 1.0
+  },
+  {
+   "source": "Kazuda-DV",
+   "target": "Greef-DV",
+   "winRate": 0.0
+  },
+  {
+   "source": "Kazuda-DV",
+   "target": "Krennic-Spl",
+   "winRate": 0.0
+  },
+  {
+   "source": "Kazuda-DV",
+   "target": "ObiWan-BlueF",
+   "winRate": 0.67
+  },
+  {
+   "source": "ObiWan-BlueF",
+   "target": "CB-Blue",
+   "winRate": 0.3
+  },
+  {
+   "source": "ObiWan-BlueF",
+   "target": "Vader-Yellow",
+   "winRate": 1.0
+  },
+  {
+   "source": "ObiWan-BlueF",
+   "target": "Luke-DV",
+   "winRate": 0.67
+  },
+  {
+   "source": "ObiWan-BlueF",
+   "target": "Boba-LC",
+   "winRate": 1.0
+  },
+  {
+   "source": "ObiWan-BlueF",
+   "target": "Lando-Blue",
+   "winRate": 0.0
+  },
+  {
+   "source": "ObiWan-BlueF",
+   "target": "Dedra-Col",
+   "winRate": 0.6
+  },
+  {
+   "source": "ObiWan-BlueF",
+   "target": "Greef-DV",
+   "winRate": 0.0
+  },
+  {
+   "source": "ObiWan-BlueF",
+   "target": "CB-Yellow",
+   "winRate": 0.33
+  },
+  {
+   "source": "ObiWan-BlueF",
+   "target": "Armorer-Yel",
+   "winRate": 1.0
+  },
+  {
+   "source": "ObiWan-BlueF",
+   "target": "Piett-Red",
+   "winRate": 0.0
+  },
+  {
+   "source": "ObiWan-BlueF",
+   "target": "Kazuda-DV",
+   "winRate": 0.33
+  },
+  {
+   "source": "ObiWan-BlueF",
+   "target": "Mando-Blue",
+   "winRate": 1.0
+  },
+  {
+   "source": "Tobias-Red",
+   "target": "CB-Blue",
+   "winRate": 0.6
+  },
+  {
+   "source": "Tobias-Red",
+   "target": "Ahsoka-Blue",
+   "winRate": 0.0
+  },
+  {
+   "source": "Tobias-Red",
+   "target": "Vader-Yellow",
+   "winRate": 0.75
+  },
+  {
+   "source": "Tobias-Red",
+   "target": "Luke-DV",
+   "winRate": 0.67
+  },
+  {
+   "source": "Tobias-Red",
+   "target": "Greef-Red",
+   "winRate": 0.0
+  },
+  {
+   "source": "Tobias-Red",
+   "target": "CB-Yellow",
+   "winRate": 0.0
+  },
+  {
+   "source": "Tobias-Red",
+   "target": "Armorer-Yel",
+   "winRate": 0.67
+  },
+  {
+   "source": "Tobias-Red",
+   "target": "Leia-DV",
+   "winRate": 0.4
+  },
+  {
+   "source": "Mando-Blue",
+   "target": "CB-Blue",
+   "winRate": 0.5
+  },
+  {
+   "source": "Mando-Blue",
+   "target": "Vader-Yellow",
+   "winRate": 0.5
+  },
+  {
+   "source": "Mando-Blue",
+   "target": "Boba-LC",
+   "winRate": 0.67
+  },
+  {
+   "source": "Mando-Blue",
+   "target": "Maul-BlueF",
+   "winRate": 1.0
+  },
+  {
+   "source": "Mando-Blue",
+   "target": "Lando-Blue",
+   "winRate": 1.0
+  },
+  {
+   "source": "Mando-Blue",
+   "target": "CB-Yellow",
+   "winRate": 0.0
+  },
+  {
+   "source": "Mando-Blue",
+   "target": "Leia-DV",
+   "winRate": 0.0
+  },
+  {
+   "source": "Mando-Blue",
+   "target": "ObiWan-BlueF",
+   "winRate": 0.0
+  }
+ ]
+}

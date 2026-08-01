@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Swords, ShieldCheck, Megaphone, Newspaper } from 'lucide-react'
+import { Swords, ShieldCheck, Megaphone, Newspaper, BarChart3 } from 'lucide-react'
 import {
   DatapadIcon, MedalIcon, MandoTrophyIcon, DeckCardsIcon, SpyIcon,
   DeathStarIcon, BeskarIcon, ChanceCubeIcon, RebelIcon, StarfighterIcon,
@@ -44,6 +44,7 @@ const GROUPS: MoreGroup[] = [
     title: 'Comunidad',
     items: [
       { to: '/news', label: 'Noticias', sub: 'Agenda oficial', icon: Newspaper },
+      { to: '/meta', label: 'Meta', sub: 'Matchups del torneo', icon: BarChart3 },
       { to: '/community', label: 'Comunidades', sub: 'El Salvador', icon: RebelIcon },
       { to: '/rank', label: 'Consejo Jedi', sub: 'Clasificación', icon: BeskarIcon },
       { to: '/galaxy', label: 'La Galaxia', sub: 'Explorador global', icon: StarfighterIcon },
