@@ -1,0 +1,98 @@
+import { useNavigate } from 'react-router-dom'
+import { Swords, ShieldCheck, Megaphone } from 'lucide-react'
+import {
+  DatapadIcon, MedalIcon, MandoTrophyIcon, DeckCardsIcon, SpyIcon,
+  DeathStarIcon, BeskarIcon, ChanceCubeIcon, RebelIcon, StarfighterIcon,
+} from '../SWIcons'
+import { useAuth } from '../../hooks/useAuth'
+import type { ComponentType } from 'react'
+
+/**
+ * MoreNav — todo lo que no entra en las cinco pestañas de móvil.
+ *
+ * La barra inferior lleva los cinco destinos de colección (Inicio, Explorar,
+ * Binder, Mercado, Perfil). Las otras once rutas viven acá, agrupadas por lo
+ * que uno viene a hacer, y no perdidas en una lista de once.
+ *
+ * En escritorio esto no aparece: el sidebar sigue mostrando las dieciséis.
+ */
+
+type IconComp = ComponentType<{ size?: number; className?: string; strokeWidth?: number }>
+
+interface MoreItem { to: string; label: string; sub: string; icon: IconComp }
+interface MoreGroup { title: string; items: MoreItem[] }
+
+const GROUPS: MoreGroup[] = [
+  {
+    title: 'Jugar',
+    items: [
+      { to: '/play', label: 'Duelo', sub: 'Tracker en vivo', icon: Swords },
+      { to: '/events', label: 'Torneo', sub: 'Eventos organizados', icon: MandoTrophyIcon },
+      { to: '/arena', label: 'Holocrón', sub: 'Registro de duelos', icon: DatapadIcon },
+      { to: '/melee', label: 'Circuito', sub: 'Melee.gg', icon: MedalIcon },
+    ],
+  },
+  {
+    title: 'Construir',
+    items: [
+      { to: '/decks', label: 'Mis Decks', sub: 'Constructor', icon: DeckCardsIcon },
+      { to: '/misiones', label: 'Misiones', sub: 'Órdenes del día', icon: DeathStarIcon },
+      { to: '/utilities', label: 'Utilidades', sub: 'Herramientas', icon: ChanceCubeIcon },
+    ],
+  },
+  {
+    title: 'Comunidad',
+    items: [
+      { to: '/community', label: 'Comunidades', sub: 'El Salvador', icon: RebelIcon },
+      { to: '/rank', label: 'Consejo Jedi', sub: 'Clasificación', icon: BeskarIcon },
+      { to: '/galaxy', label: 'La Galaxia', sub: 'Explorador global', icon: StarfighterIcon },
+      { to: '/espionaje', label: 'Espionaje', sub: 'Transmisiones', icon: SpyIcon },
+    ],
+  },
+]
+
+export function MoreNav() {
+  const navigate = useNavigate()
+  const { isAdmin } = useAuth()
+
+  const tile = (item: MoreItem) => (
+    <button
+      key={item.to}
+      onClick={() => navigate(item.to)}
+      className="flex flex-col items-start gap-1.5 p-3 rounded-xl bg-swu-bg border border-swu-border
+                 text-left min-h-20 active:scale-[0.98] transition-transform
+                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent"
+    >
+      <item.icon size={20} className="text-swu-muted" />
+      <span className="text-xs font-semibold text-swu-text leading-tight">{item.label}</span>
+      <span className="text-[10px] text-swu-muted leading-tight">{item.sub}</span>
+    </button>
+  )
+
+  return (
+    <div className="lg:hidden space-y-4">
+      {GROUPS.map(group => (
+        <section key={group.title}>
+          <h3 className="text-[10px] font-mono tracking-[0.2em] uppercase text-swu-muted/60 mb-2 px-1">
+            {group.title}
+          </h3>
+          <div className="grid grid-cols-3 gap-2">
+            {group.items.map(tile)}
+          </div>
+        </section>
+      ))}
+
+      {isAdmin && (
+        <section>
+          <h3 className="text-[10px] font-mono tracking-[0.2em] uppercase text-swu-amber/70 mb-2 px-1">
+            Cuartel General
+          </h3>
+          <div className="grid grid-cols-3 gap-2">
+            {tile({ to: '/admin', label: 'Admin', sub: 'Panel de control', icon: ShieldCheck })}
+            {tile({ to: '/admin/announcements', label: 'Anuncios', sub: 'Comunicaciones', icon: Megaphone })}
+          </div>
+        </section>
+      )}
+    </div>
+  )
+}

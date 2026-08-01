@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Header } from './Header'
 import { SideNav } from './SideNav'
+import { TabBar } from './TabBar'
 import { useAuth } from '../../hooks/useAuth'
 import { NotificationToast } from '../ui/NotificationToast'
 import { PageTransition, usePrefetchRoutes } from '../PageTransition'
@@ -38,13 +39,18 @@ export function AppLayout() {
         {/* Mobile: constrained width. Desktop: full width with max */}
         <div className="max-w-lg lg:max-w-full mx-auto min-h-screen relative">
           <Header />
-          <main className="pb-6 overflow-y-auto">
+          {/* `pb-24` deja libre el alto de la barra inferior para que el último
+              elemento de cada pantalla no quede tapado en móvil. */}
+          <main className="pb-24 lg:pb-6 overflow-y-auto">
             <PageTransition>
               <Outlet />
             </PageTransition>
           </main>
         </div>
       </div>
+
+      {/* Navegación principal en móvil — el sidebar la cubre en escritorio */}
+      <TabBar />
     </div>
   )
 }

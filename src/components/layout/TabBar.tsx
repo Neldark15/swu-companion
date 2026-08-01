@@ -1,51 +1,83 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Hexagon, type LucideIcon } from 'lucide-react'
+import { CargoIcon, BountyIcon, HolonetIcon } from '../SWIcons'
 import { useUIStore } from '../../hooks/useUIStore'
+import type { ComponentType } from 'react'
+
+/**
+ * TabBar — navegación principal en móvil.
+ *
+ * Dos cosas que arregla:
+ *
+ * 1. Este componente existía pero NUNCA se montaba: en móvil no había
+ *    navegación principal de ningún tipo. Se llegaba a todo desde los mosaicos
+ *    de la Base o por el menú de ajustes.
+ *
+ * 2. Los cinco destinos son los de la colección, no los del juego:
+ *    Inicio · Explorar · Binder · Mercado · Perfil. Lo demás (Duelo, Torneo,
+ *    Holocrón, Circuito, Mazos, Misiones, Comunidad, Consejo, Galaxia,
+ *    Espionaje, Utilidades) vive agrupado dentro de Perfil, y en escritorio
+ *    sigue entero en el sidebar.
+ */
+
+type IconComp = ComponentType<{ size?: number; className?: string; strokeWidth?: number }>
 
 type TabDef =
-  | { id: string; label: string; icon: LucideIcon; img?: undefined }
+  | { id: string; label: string; icon: LucideIcon | IconComp; img?: undefined }
   | { id: string; label: string; img: string; icon?: undefined }
 
 const tabs: TabDef[] = [
-  { id: '/', label: 'Base', icon: Hexagon },
-  { id: '/play', label: 'Duelo', img: '/jugar-icon.png' },
-  { id: '/events', label: 'Eventos', img: '/eventos-icon.png' },
-  { id: '/rank', label: 'Consejo', img: '/consejo-icon.png' },
-  { id: '/profile', label: 'Holocrón', img: '/holocron-icon.png' },
+  { id: '/', label: 'Inicio', icon: Hexagon },
+  { id: '/cards', label: 'Explorar', icon: HolonetIcon },
+  { id: '/collection', label: 'Binder', icon: CargoIcon },
+  { id: '/explore', label: 'Mercado', icon: BountyIcon },
+  { id: '/profile', label: 'Perfil', img: '/holocron-icon.png' },
 ]
 
 export function TabBar() {
   const location = useLocation()
   const navigate = useNavigate()
+  const hideTabBar = useUIStore((s) => s.hideTabBar)
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/'
     return location.pathname.startsWith(path)
   }
 
-  const hideTabBar = useUIStore((s) => s.hideTabBar)
-
-  // Hide tab bar on tracker page or when game is fullscreen
+  // El tracker en vivo y la vista pública de torneo ocupan la pantalla entera.
   if (location.pathname.includes('/play/tracker/')) return null
   if (hideTabBar) return null
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-swu-surface shadow-[0_-4px_10px_#111118] pb-safe lg:hidden">
-      <div className="max-w-lg mx-auto flex justify-around items-center py-1.5">
+    <nav
+      aria-label="Navegación principal"
+      className="fixed bottom-0 left-0 right-0 z-50 bg-swu-surface/95 backdrop-blur
+                 border-t border-swu-border shadow-[0_-4px_10px_#111118] pb-safe lg:hidden"
+    >
+      <div className="max-w-lg mx-auto flex justify-around items-stretch">
         {tabs.map((tab) => {
           const active = isActive(tab.id)
           return (
             <button
               key={tab.id}
               onClick={() => navigate(tab.id)}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1 transition-colors ${
-                active ? 'text-swu-accent' : 'text-swu-muted'
-              }`}
+              aria-current={active ? 'page' : undefined}
+              className={`
+                flex-1 flex flex-col items-center justify-center gap-0.5 min-h-14 px-1 py-1.5
+                transition-colors relative
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-swu-accent
+                ${active ? 'text-swu-accent' : 'text-swu-muted'}
+              `}
             >
+              {/* Indicador arriba: no depende solo del color para marcar el activo */}
+              {active && (
+                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-swu-accent" aria-hidden />
+              )}
               {tab.img ? (
                 <img
                   src={tab.img}
-                  alt={tab.label}
+                  alt=""
+                  aria-hidden
                   className={`w-[22px] h-[22px] object-contain transition-opacity ${
                     active ? 'opacity-100 brightness-125' : 'opacity-50'
                   }`}
@@ -53,8 +85,9 @@ export function TabBar() {
               ) : tab.icon ? (
                 <tab.icon size={22} strokeWidth={active ? 2.5 : 2} />
               ) : null}
-              <span className={`text-[10px] ${active ? 'font-bold' : 'font-medium'}`}>{tab.label}</span>
-              {active && <div className="w-5 h-0.5 bg-swu-accent rounded-full mt-0.5" />}
+              <span className={`text-[10px] leading-none ${active ? 'font-bold' : 'font-medium'}`}>
+                {tab.label}
+              </span>
             </button>
           )
         })}

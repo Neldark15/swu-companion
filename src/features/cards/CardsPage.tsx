@@ -736,9 +736,14 @@ export function CardsPage() {
               >
                 <CardImage src={listFaceUrl(c)} fit={listFaceFit(c)} alt={c.name} className="w-14 h-20" />
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-sm text-swu-text truncate">{c.name}</span>
-                    {c.subtitle && <span className="text-xs text-swu-muted truncate">{c.subtitle}</span>}
+                  {/* Nombre y subtítulo apilados: en una sola línea, con la
+                      miniatura más grande, el nombre se cortaba a la mitad
+                      ("The Armo…") en cualquier teléfono. */}
+                  <div className="min-w-0">
+                    <div className="font-semibold text-sm text-swu-text truncate leading-tight">{c.name}</div>
+                    {c.subtitle && (
+                      <div className="text-[11px] text-swu-muted truncate leading-tight">{c.subtitle}</div>
+                    )}
                   </div>
                   <div className="flex gap-1.5 mt-1.5 flex-wrap items-center">
                     <Badge variant={typeVariant[c.type] || 'default'}>{translateType(c.type)}</Badge>
