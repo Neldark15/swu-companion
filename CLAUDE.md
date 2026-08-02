@@ -239,7 +239,9 @@ La pestaña «Torneos» de `/meta` sale de [swu-competitivehub.com](https://www.
 Reglas que NO se pueden relajar sin volver a pensarlas:
 - **Atribución visible con enlace** en toda vista que use esos datos. El campo `source` viaja en cada respuesta para eso.
 - **No se expone `range=0` ni `12`.** El sitio los acepta, pero `range=0` es un único documento de ~1.5 MB sin paginar con todo el histórico: bajárselo es extracción de una parte sustancial de una base ajena. Solo 3 y 6 meses.
-- **Rechazar, no degradar.** La CDN cachea por URL completa, así que `?range=3&range=0` o `?x=1` serían claves nuevas y cada una un viaje al sitio ajeno. Cualquier parámetro inesperado, repetido o vacío es 400.
+- **Rechazar, no degradar, y POR MODO.** La CDN cachea por URL completa, así que `?range=3&range=0` o `?x=1` serían claves nuevas y cada una un viaje al sitio ajeno. Cualquier parámetro inesperado, repetido o vacío es 400. Y la lista de permitidos es **por modo**: `slug` solo existe en `mode=evento`, `range`/`category` solo en `mode=lista`. Una lista global parece equivalente y no lo es — `?mode=lista&slug=loquesea` pasaba el filtro, nunca se validaba (el slug solo se mira en la rama de evento) y daba claves de CDN ilimitadas. Verificado en producción con `x-vercel-cache: MISS` por cada valor nuevo.
+- **Toda descarga paga token, incluida la interna.** `knownSlugs()` se colaba gratis y ANTES del cubo, así que el 429 que veía el cliente ya había costado la petición; y sin promesa compartida, N invocaciones simultáneas eran N descargas de la lista entera.
+- **Un parseo vacío con filas presentes es 502, no un 200.** Si la fuente cambia de formato y devolviéramos «no hay torneos», la CDN congelaría la sección vacía 6 h.
 - **El slug se valida con una gramática de lista blanca** sobre el valor decodificado, y se re-codifica con hex en minúscula al pedirlo (hay 2 eventos con CJK en el slug). Sin esto, `slug=..%2f..%2fwp-admin` alcanza el WordPress ajeno desde nuestro dominio.
 - Se contrasta el slug contra la lista publicada antes de tocar el origen: el regex solo no frena la amplificación, porque un slug inventado válido igual provoca un GET.
 
