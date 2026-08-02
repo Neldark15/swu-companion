@@ -44,7 +44,7 @@ const GROUPS: MoreGroup[] = [
     title: 'Comunidad',
     items: [
       { to: '/news', label: 'Noticias', sub: 'Agenda oficial', icon: Newspaper },
-      { to: '/meta', label: 'Meta', sub: 'Matchups del torneo', icon: BarChart3 },
+      { to: '/meta', label: 'Meta', sub: 'Torneos y matchups', icon: BarChart3 },
       { to: '/community', label: 'Comunidades', sub: 'El Salvador', icon: RebelIcon },
       { to: '/rank', label: 'Consejo Jedi', sub: 'Clasificación', icon: BeskarIcon },
       { to: '/galaxy', label: 'La Galaxia', sub: 'Explorador global', icon: StarfighterIcon },

@@ -233,6 +233,20 @@ Segunda trampa, dentro del mismo proxy: **tcgcsv responde 401 a toda petición s
 
 La escritura a `card_prices` exige sesión (`auth.uid() IS NOT NULL`): un visitante anónimo ve precios igual —se guardan en Dexie— pero no llena la caché compartida, y en consola deja `saveCloudPrices: new row violates row-level security policy`. Es lo esperado, no un bug.
 
+### 2l. Los torneos del meta son datos DE OTRA GENTE
+La pestaña «Torneos» de `/meta` sale de [swu-competitivehub.com](https://www.swu-competitivehub.com) vía el proxy [api/swu-events.ts](api/swu-events.ts), que parsea su HTML (no tienen API: el `/wp-json/` está cerrado con 401).
+
+Reglas que NO se pueden relajar sin volver a pensarlas:
+- **Atribución visible con enlace** en toda vista que use esos datos. El campo `source` viaja en cada respuesta para eso.
+- **No se expone `range=0` ni `12`.** El sitio los acepta, pero `range=0` es un único documento de ~1.5 MB sin paginar con todo el histórico: bajárselo es extracción de una parte sustancial de una base ajena. Solo 3 y 6 meses.
+- **Rechazar, no degradar.** La CDN cachea por URL completa, así que `?range=3&range=0` o `?x=1` serían claves nuevas y cada una un viaje al sitio ajeno. Cualquier parámetro inesperado, repetido o vacío es 400.
+- **El slug se valida con una gramática de lista blanca** sobre el valor decodificado, y se re-codifica con hex en minúscula al pedirlo (hay 2 eventos con CJK en el slug). Sin esto, `slug=..%2f..%2fwp-admin` alcanza el WordPress ajeno desde nuestro dominio.
+- Se contrasta el slug contra la lista publicada antes de tocar el origen: el regex solo no frena la amplificación, porque un slug inventado válido igual provoca un GET.
+
+Trampas del HTML, todas medidas: 5 de 165 filas son `<tr class="highlight-event">` (un `/<tr>/` pelado las pierde); en las páginas de evento el rank viene **de peor a mejor**, así que la primera fila es el último puesto; el sitio escribe **«Unknow»** (sin n) cuando no hay mazo publicado, y la frase cambia entre la lista y el evento. Los `alt` de las dos imágenes son la fuente fiable, no el texto visible.
+
+Y una que afecta a la UI: la mitad de las «bases» que publica la fuente no son cartas sino **clases** (`Blue`, `Red Force`, `Blue 27hp Multiaspect`) que agrupan bases equivalentes. Se muestra un representante y se rotula como clase — afirmar el nombre de una carta sería inventar cuál se jugó.
+
 ### 2f. supabase-js NO lanza excepción ante error de PostgREST
 `const { data } = await supabase...` sin mirar `error` deja `data` en `null`, el `try/catch` nunca se activa y el fallo se ve igual que "no hay datos". Así estuvo **100% muerta** la caché de precios en la nube (0 filas de por vida): la tabla tenía 6 columnas y el código leía 9. Siempre desestructurar `error`.
 

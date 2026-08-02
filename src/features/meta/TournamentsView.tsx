@@ -1,0 +1,428 @@
+/**
+ * TournamentsView — qué se ganó últimamente, y con qué.
+ *
+ * Es la capa VIVA del meta. La matriz de matchups que vive al lado es una foto
+ * de un torneo concreto; esto son los últimos torneos oficiales del mundo, con
+ * su top y el enlace a cada lista.
+ *
+ * ── Cómo leer los números ─────────────────────────────────────────────
+ *
+ * La columna es TÍTULOS: torneos ganados. No es cuota de meta — la fuente no
+ * publica cuánta gente jugó cada mazo, así que no se estima. Un mazo con 2
+ * títulos en 2 torneos chicos no es mejor que uno con 2 en dos Galactic; por
+ * eso al lado va la suma de jugadores de esos torneos.
+ *
+ * Los torneos que no publicaron el mazo ganador se cuentan aparte y se dicen,
+ * en vez de repartirse o mostrarse como cero.
+ */
+
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import {
+  Trophy, ExternalLink, RefreshCw, AlertTriangle, Users, ChevronRight, Info,
+} from 'lucide-react'
+import { Button } from '../../components/ui/Button'
+import { Chip } from '../../components/ui/Chip'
+import { SegmentedControl } from '../../components/ui/SegmentedControl'
+import { Sheet } from '../../components/ui/Sheet'
+import { EmptyState } from '../../components/ui/EmptyState'
+import { CardImage } from '../../components/CardImage'
+import {
+  getTournaments, getStandings, resolveDecks, countTitles, countUnpublished,
+  archetypeKey, SOURCE,
+  type HubTournament, type HubStanding, type HubRange, type HubCategory,
+  type ResolvedDeck,
+} from '../../services/tournamentsService'
+
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+
+/** `2026-08-02` → `2 ago`. Se parte el string a mano: `new Date('2026-08-02')`
+ *  se interpreta en UTC y en El Salvador (UTC-6) mostraría el día anterior. */
+function fecha(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  if (!y || !m || !d) return iso
+  const hoy = new Date()
+  const esteAno = hoy.getFullYear() === y
+  return `${d} ${MESES[m - 1]}${esteAno ? '' : ` ${String(y).slice(2)}`}`
+}
+
+/** Los niveles grandes se destacan: no es lo mismo ganar un Galactic que un local. */
+const esGrande = (nivel: string) => /galactic|regional|sector/i.test(nivel)
+
+function Identidad({ deck, size = 'sm' }: { deck: ResolvedDeck | undefined; size?: 'sm' | 'md' }) {
+  if (!deck || deck.unpublished) {
+    return <span className="text-[11px] text-swu-muted italic">Mazo no publicado</span>
+  }
+  const box = size === 'md' ? 'w-14 h-10' : 'w-11 h-8'
+  return (
+    <div className="flex items-center gap-2 min-w-0">
+      <div className={`${box} flex-shrink-0 rounded overflow-hidden bg-swu-bg border border-swu-border`}>
+        <CardImage
+          src={deck.leaderCard?.imageUrl}
+          alt={deck.leaderRaw ?? ''}
+          fit="contain"
+          className="w-full h-full"
+        />
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs font-semibold text-swu-text truncate leading-tight">
+          {deck.leaderCard?.name ?? deck.leaderRaw}
+        </p>
+        {deck.base && (
+          <p className="text-[10px] text-swu-muted truncate">
+            {deck.base.label}
+            {/* Cuando la fuente da una clase y no una carta, se dice. Poner el
+                nombre de una base concreta sería inventar cuál se jugó. */}
+            {deck.base.isClass && <span className="text-swu-muted/60"> · clase</span>}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export function TournamentsView() {
+  const [range, setRange] = useState<HubRange>('3')
+  const [category, setCategory] = useState<HubCategory>('todas')
+  const [nivel, setNivel] = useState<string>('')
+
+  const [tournaments, setTournaments] = useState<HubTournament[]>([])
+  const [decks, setDecks] = useState<Map<string, ResolvedDeck>>(new Map())
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const [abierto, setAbierto] = useState<HubTournament | null>(null)
+  const [top, setTop] = useState<HubStanding[] | null>(null)
+  const [topDecks, setTopDecks] = useState<ResolvedDeck[]>([])
+  const [topError, setTopError] = useState<string | null>(null)
+  const [showInfo, setShowInfo] = useState(false)
+
+  const cargar = useCallback(async (force = false) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const list = await getTournaments(range, category, force)
+      setTournaments(list)
+      // Se resuelve una sola vez y se indexa por arquetipo: la lista y el
+      // ranking de títulos comparten las mismas identidades.
+      const resolved = await resolveDecks(list.map(t => ({ leader: t.leader, base: t.base })))
+      const map = new Map<string, ResolvedDeck>()
+      list.forEach((t, i) => {
+        const k = archetypeKey(t.leader, t.base)
+        if (k && !map.has(k)) map.set(k, resolved[i])
+      })
+      setDecks(map)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'no se pudo consultar')
+    } finally {
+      setLoading(false)
+    }
+  }, [range, category])
+
+  useEffect(() => { void cargar() }, [cargar])
+
+  const niveles = useMemo(
+    () => [...new Set(tournaments.map(t => t.level))].sort(),
+    [tournaments],
+  )
+
+  const visibles = useMemo(
+    () => (nivel ? tournaments.filter(t => t.level === nivel) : tournaments),
+    [tournaments, nivel],
+  )
+
+  const titulos = useMemo(() => countTitles(visibles), [visibles])
+  const sinPublicar = useMemo(() => countUnpublished(visibles), [visibles])
+  const maxTitulos = titulos[0]?.titles ?? 1
+
+  // El top se pide solo al abrir un torneo: una petición por consulta, no 165.
+  useEffect(() => {
+    if (!abierto) return
+    let vivo = true
+    setTop(null)
+    setTopDecks([])
+    setTopError(null)
+    void (async () => {
+      try {
+        const s = await getStandings(abierto.slug)
+        if (!vivo) return
+        setTop(s)
+        const r = await resolveDecks(s.map(x => ({ leader: x.leader, base: x.base })))
+        if (vivo) setTopDecks(r)
+      } catch (e) {
+        if (vivo) setTopError(e instanceof Error ? e.message : 'no se pudo cargar el top')
+      }
+    })()
+    return () => { vivo = false }
+  }, [abierto])
+
+  return (
+    <>
+      {/* Atribución. Los datos son de otra gente y se dice arriba, no al pie. */}
+      <div className="flex items-center gap-2 text-[11px] text-swu-muted bg-swu-surface border border-swu-border rounded-xl px-3 py-2">
+        <Trophy size={13} className="text-swu-amber flex-shrink-0" aria-hidden />
+        <span className="flex-1 leading-snug">
+          Resultados de{' '}
+          <a
+            href={SOURCE.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-swu-cyan underline underline-offset-2"
+          >
+            {SOURCE.name}
+          </a>
+        </span>
+        <button
+          onClick={() => setShowInfo(true)}
+          aria-label="Cómo leer estos datos"
+          className="text-swu-muted hover:text-swu-text rounded p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent"
+        >
+          <Info size={13} aria-hidden />
+        </button>
+        <button
+          onClick={() => void cargar(true)}
+          disabled={loading}
+          aria-label="Actualizar"
+          className="text-swu-muted hover:text-swu-text rounded p-1 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent"
+        >
+          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} aria-hidden />
+        </button>
+      </div>
+
+      <SegmentedControl
+        label="Formato"
+        value={category}
+        onChange={setCategory}
+        options={[
+          { value: 'todas', label: 'Todos' },
+          { value: 'premier', label: 'Premier' },
+          { value: 'limited', label: 'Limitado' },
+          { value: 'eternal', label: 'Eternal' },
+        ]}
+      />
+
+      <div className="flex flex-wrap items-center gap-1">
+        <Chip tone="amber" active={range === '3'} onClick={() => setRange('3')}>3 meses</Chip>
+        <Chip tone="amber" active={range === '6'} onClick={() => setRange('6')}>6 meses</Chip>
+        {niveles.length > 1 && (
+          <select
+            value={nivel}
+            onChange={e => setNivel(e.target.value)}
+            aria-label="Filtrar por nivel de evento"
+            className="ml-auto bg-swu-surface border border-swu-border rounded-lg px-2 py-1.5 text-[11px] text-swu-text max-w-[55%]"
+          >
+            <option value="">Todos los niveles</option>
+            {niveles.map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        )}
+      </div>
+
+      {error && (
+        <div className="flex items-start gap-2 text-[11px] text-swu-red bg-swu-red/10 border border-swu-red/30 rounded-lg px-3 py-2">
+          <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" aria-hidden />
+          <span>No se pudieron traer los torneos: {error}</span>
+        </div>
+      )}
+
+      {loading && tournaments.length === 0 && (
+        <p className="text-center text-xs text-swu-muted py-8">Consultando torneos…</p>
+      )}
+
+      {!loading && !error && visibles.length === 0 && (
+        <EmptyState
+          icon={<Trophy size={28} aria-hidden />}
+          title="Sin torneos en este filtro"
+          hint="Probá con otro formato, otro nivel o un rango más amplio."
+          action={
+            <Button size="sm" variant="secondary" onClick={() => { setNivel(''); setCategory('todas') }}>
+              Quitar filtros
+            </Button>
+          }
+        />
+      )}
+
+      {visibles.length > 0 && (
+        <>
+          {/* ── Qué está ganando ── */}
+          <section>
+            <h2 className="text-[10px] font-mono tracking-wider uppercase text-swu-muted/60 mb-2">
+              Qué está ganando · {visibles.length} torneos
+            </h2>
+            <div className="space-y-1">
+              {titulos.slice(0, 8).map(t => (
+                <div
+                  key={t.key}
+                  className="flex items-center gap-2 bg-swu-surface rounded-lg border border-swu-border px-2.5 py-2"
+                >
+                  <div className="flex-1 min-w-0">
+                    <Identidad deck={decks.get(t.key)} />
+                  </div>
+                  <div className="w-16 h-1.5 rounded-full bg-swu-bg overflow-hidden flex-shrink-0" aria-hidden>
+                    <div
+                      className="h-full rounded-full bg-swu-amber/70"
+                      style={{ width: `${(t.titles / maxTitulos) * 100}%` }}
+                    />
+                  </div>
+                  <div className="text-right w-14 flex-shrink-0">
+                    <p className="text-xs font-mono font-bold text-swu-text">{t.titles}</p>
+                    <p className="text-[9px] text-swu-muted font-mono">{t.players} jug.</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-swu-muted mt-1.5 leading-relaxed">
+              Títulos = torneos ganados. No es cuota de meta: la fuente no publica
+              cuánta gente jugó cada mazo.
+              {sinPublicar > 0 && ` ${sinPublicar} de ${visibles.length} no publicaron el mazo ganador.`}
+            </p>
+          </section>
+
+          {/* ── Últimos torneos ── */}
+          <section>
+            <h2 className="text-[10px] font-mono tracking-wider uppercase text-swu-muted/60 mb-2">
+              Últimos torneos
+            </h2>
+            <div className="space-y-1">
+              {visibles.map(t => (
+                <button
+                  key={t.slug}
+                  onClick={() => setAbierto(t)}
+                  className="w-full flex items-center gap-2.5 bg-swu-surface rounded-lg border border-swu-border px-2.5 py-2 text-left active:scale-[0.99] transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-swu-text truncate leading-tight">{t.name}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-swu-muted font-mono">
+                      <span>{fecha(t.date)}</span>
+                      <span className="truncate">{t.country}</span>
+                      <span className="flex items-center gap-0.5">
+                        <Users size={9} aria-hidden />{t.players}
+                      </span>
+                      {esGrande(t.level) && <span className="text-swu-amber truncate">{t.level}</span>}
+                    </div>
+                    <div className="mt-1"><Identidad deck={decks.get(archetypeKey(t.leader, t.base) ?? '')} /></div>
+                  </div>
+                  <ChevronRight size={14} className="text-swu-muted flex-shrink-0" aria-hidden />
+                </button>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
+
+      {/* ── Top de un torneo ── */}
+      <Sheet open={!!abierto} onClose={() => setAbierto(null)} title={abierto?.name ?? ''}>
+        {abierto && (
+          <div className="p-4 space-y-3">
+            <div className="flex flex-wrap gap-1">
+              <Chip tone="neutral">{fecha(abierto.date)}</Chip>
+              <Chip tone="cyan">{abierto.country}</Chip>
+              <Chip tone="amber">{abierto.level}</Chip>
+              <Chip tone="neutral">{abierto.players} jugadores</Chip>
+            </div>
+
+            {topError && (
+              <p className="text-[11px] text-swu-red flex items-start gap-1.5">
+                <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" aria-hidden />
+                {topError}
+              </p>
+            )}
+
+            {!top && !topError && (
+              <p className="text-center text-xs text-swu-muted py-6">Cargando el top…</p>
+            )}
+
+            {top && top.length === 0 && (
+              <p className="text-center text-xs text-swu-muted py-6">
+                Este torneo todavía no publicó su top.
+              </p>
+            )}
+
+            {top && top.length > 0 && (
+              <div className="space-y-1">
+                {top.map((s, i) => (
+                  <div
+                    key={`${s.place}-${s.player}`}
+                    className="flex items-center gap-2 bg-swu-bg rounded-lg border border-swu-border px-2.5 py-2"
+                  >
+                    <span
+                      className={`w-6 text-center text-xs font-mono font-bold flex-shrink-0 ${
+                        s.place === 1 ? 'text-swu-amber' : 'text-swu-muted'
+                      }`}
+                    >
+                      {s.place}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <Identidad deck={topDecks[i]} />
+                      <p className="text-[10px] text-swu-muted truncate mt-0.5">{s.player}</p>
+                    </div>
+                    {s.decklistUrl && (
+                      <a
+                        href={s.decklistUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`Ver la lista de ${s.player} en melee.gg`}
+                        className="text-swu-cyan p-1.5 flex-shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent"
+                      >
+                        <ExternalLink size={14} aria-hidden />
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <a
+              href={`${SOURCE.url}/event/${abierto.slug}/`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 text-[11px] text-swu-cyan py-2"
+            >
+              Ver en {SOURCE.name} <ExternalLink size={11} aria-hidden />
+            </a>
+          </div>
+        )}
+      </Sheet>
+
+      {/* ── Cómo leer esto ── */}
+      <Sheet open={showInfo} onClose={() => setShowInfo(false)} title="De dónde salen estos datos">
+        <div className="p-4 space-y-3 text-xs text-swu-text leading-relaxed">
+          <p>
+            Los resultados los recopila{' '}
+            <a href={SOURCE.url} target="_blank" rel="noopener noreferrer" className="text-swu-cyan underline underline-offset-2">
+              {SOURCE.name}
+            </a>
+            , un proyecto comunitario. HOLOCRON los consulta y los guarda unas horas
+            para no molestar al sitio en cada visita.
+          </p>
+          <div>
+            <p className="text-[10px] font-mono tracking-wider uppercase text-swu-muted/60 mb-1">
+              Qué significa cada cosa
+            </p>
+            <ul className="space-y-1.5 text-[11px] text-swu-muted">
+              <li>
+                <span className="text-swu-text font-semibold">Títulos</span> · torneos
+                ganados con ese líder y esa base. No es cuota de meta.
+              </li>
+              <li>
+                <span className="text-swu-text font-semibold">Jug.</span> · jugadores
+                sumados de esos torneos, para pesar cuánto valen los títulos.
+              </li>
+              <li>
+                <span className="text-swu-text font-semibold">clase</span> · la fuente a
+                veces publica un grupo de bases equivalentes («azul 30 PV») en vez de la
+                carta exacta. Mostramos una de ejemplo y lo avisamos, porque no se sabe
+                cuál se jugó.
+              </li>
+              <li>
+                <span className="text-swu-text font-semibold">Mazo no publicado</span> ·
+                el torneo no informó con qué se ganó. No se rellena.
+              </li>
+            </ul>
+          </div>
+          <p className="text-[11px] text-swu-muted">
+            Las listas completas abren en melee.gg, que es donde viven.
+          </p>
+        </div>
+      </Sheet>
+    </>
+  )
+}

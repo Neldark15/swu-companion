@@ -1,12 +1,19 @@
 /**
- * MetaPage — el meta del torneo, con tabla interactiva.
+ * MetaPage — el meta competitivo, con tabla interactiva.
  *
- * Dos vistas, porque son dos preguntas distintas:
+ * Tres vistas, porque son tres preguntas distintas:
  *
+ * - **Torneos**: "¿qué está ganando ahora?" Últimos torneos oficiales del
+ *   mundo con su top y el enlace a cada lista. Dato VIVO, de
+ *   swu-competitivehub.com vía `/api/swu-events`.
  * - **Meta**: "¿qué se jugó y qué funcionó?" Tabla ordenable por cualquier
  *   columna, con filtros por estrategia, set y tier.
  * - **Matchups**: "¿cómo le va a MI deck contra el resto?" Se elige un
  *   arquetipo y se ven sus enfrentamientos, del mejor al peor.
+ *
+ * Las dos últimas salen de un snapshot empaquetado de UN torneo (Galactic,
+ * 543 jugadores). Por eso "Torneos" abre primero: es lo que está pasando hoy,
+ * mientras que la matriz es una foto de abril que envejece sola.
  *
  * ── Lo que esta pantalla NO hace, a propósito ─────────────────────────
  *
@@ -21,8 +28,9 @@ import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, ArrowUpDown, Swords, BarChart3, Info,
-  ExternalLink, AlertTriangle, ChevronRight,
+  ExternalLink, AlertTriangle, ChevronRight, Trophy,
 } from 'lucide-react'
+import { TournamentsView } from './TournamentsView'
 import { Button } from '../../components/ui/Button'
 import { Chip } from '../../components/ui/Chip'
 import { SegmentedControl } from '../../components/ui/SegmentedControl'
@@ -61,7 +69,7 @@ function WinRate({ value }: { value: number | null | undefined }) {
 
 export function MetaPage() {
   const navigate = useNavigate()
-  const [view, setView] = useState<'meta' | 'matchups'>('meta')
+  const [view, setView] = useState<'torneos' | 'meta' | 'matchups'>('torneos')
   const [sortBy, setSortBy] = useState<SortKey>('rank')
   const [desc, setDesc] = useState(false)
   const [fStrategy, setFStrategy] = useState<string | null>(null)
@@ -114,7 +122,10 @@ export function MetaPage() {
       </div>
 
       <div className="max-w-lg lg:max-w-5xl mx-auto px-4 lg:px-6 py-4 space-y-4">
-        {/* Cabecera del torneo */}
+        {/* Cabecera del torneo. Solo en las vistas que hablan de ESE torneo: en
+            «Torneos» hay muchos, y afirmar arriba «543 jugadores · 25
+            arquetipos» contradiría la lista de abajo. */}
+        {view !== 'torneos' && (
         <div className="bg-swu-surface rounded-xl border border-swu-border p-3 space-y-2">
           <p className="text-sm font-bold text-swu-text leading-tight">{tournament.name}</p>
           <div className="flex flex-wrap gap-3 text-[11px] text-swu-muted font-mono">
@@ -135,12 +146,14 @@ export function MetaPage() {
             </div>
           )}
         </div>
+        )}
 
         <SegmentedControl
           label="Qué mirar"
           value={view}
           onChange={setView}
           options={[
+            { value: 'torneos', label: 'Torneos', icon: <Trophy size={13} aria-hidden /> },
             { value: 'meta', label: 'Meta', icon: <BarChart3 size={13} aria-hidden /> },
             { value: 'matchups', label: 'Matchups', icon: <Swords size={13} aria-hidden /> },
           ]}
@@ -338,6 +351,8 @@ export function MetaPage() {
             </div>
           </>
         )}
+
+        {view === 'torneos' && <TournamentsView />}
       </div>
 
       {/* Detalle del arquetipo */}
