@@ -32,8 +32,20 @@ const UA = 'swu-companion/1.0 (+https://www.swusv.com; PWA comunitaria de El Sal
 
 // ── Lista blanca de entrada ──────────────────────────────────────────
 
-const ALLOWED_PARAMS = new Set(['mode', 'range', 'category', 'slug'])
+/**
+ * Parámetros válidos POR MODO, no en general.
+ *
+ * Una lista global no alcanza: `?slug=basura` en modo lista pasaba el filtro,
+ * nunca se validaba (el slug solo se mira dentro de la rama de evento) y, como
+ * la CDN cachea por URL completa, cada valor inventado era una clave nueva y
+ * por lo tanto una descarga real contra el WordPress ajeno. Lo mismo al revés
+ * con `range`/`category` en modo evento.
+ */
 const MODES = new Set(['lista', 'evento'])
+const PARAMS_POR_MODO: Record<string, Set<string>> = {
+  lista: new Set(['mode', 'range', 'category']),
+  evento: new Set(['mode', 'slug']),
+}
 
 /**
  * Meses hacia atrás. El sitio también acepta 12 y 0 (= histórico completo),
@@ -102,19 +114,42 @@ function takeToken(): boolean {
  * no volver un incidente de red en una caída total de la sección.
  */
 const SLUG_TTL = 10 * 60 * 1000
+/** Tras un fallo se espera antes de reintentar: si la fuente está caída, insistir la hunde. */
+const SLUG_FAIL_TTL = 60 * 1000
+
 let slugCache: { set: Set<string>; at: number } | null = null
+let slugFailAt = 0
+/** Petición en vuelo compartida: sin esto, N invocaciones simultáneas eran N descargas. */
+let slugInflight: Promise<Set<string> | null> | null = null
 
 async function knownSlugs(): Promise<Set<string> | null> {
-  if (slugCache && Date.now() - slugCache.at < SLUG_TTL) return slugCache.set
-  try {
-    const html = await fetchHub(listUrl('6', 'todas'), MAX_BYTES_LIST)
-    const set = new Set(parseList(html).map(t => t.slug))
-    if (set.size === 0) return null
-    slugCache = { set, at: Date.now() }
-    return set
-  } catch {
-    return null
-  }
+  const now = Date.now()
+  if (slugCache && now - slugCache.at < SLUG_TTL) return slugCache.set
+  if (now - slugFailAt < SLUG_FAIL_TTL) return null
+  if (slugInflight) return slugInflight
+
+  // Esta descarga es tan cara como cualquier otra y también va contra el sitio
+  // ajeno: tiene que pagar token. Antes se colaba gratis y ANTES del cubo, así
+  // que el 429 que veía el cliente ya había costado la petición.
+  if (!takeToken()) return null
+
+  slugInflight = (async () => {
+    try {
+      const { tournaments } = parseList(await fetchHub(listUrl('6', 'todas'), MAX_BYTES_LIST))
+      if (tournaments.length === 0) {
+        slugFailAt = Date.now()
+        return null
+      }
+      slugCache = { set: new Set(tournaments.map(t => t.slug)), at: Date.now() }
+      return slugCache.set
+    } catch {
+      slugFailAt = Date.now()
+      return null
+    } finally {
+      slugInflight = null
+    }
+  })()
+  return slugInflight
 }
 
 // ── Construcción de URLs ─────────────────────────────────────────────
@@ -241,9 +276,16 @@ export interface HubTournament {
   base: string | null
 }
 
-export function parseList(html: string): HubTournament[] {
+/**
+ * `filas` es cuántos `<tr>` traía la tabla. Sirve para distinguir «la fuente
+ * no tiene torneos» de «la fuente cambió de formato y descartamos todo»: sin
+ * ese dato, un rediseño del sitio se serviría como un 200 con lista vacía y se
+ * quedaría 6 h en la CDN.
+ */
+export function parseList(html: string): { tournaments: HubTournament[]; filas: number } {
   const out: HubTournament[] = []
-  for (const row of rowsOf(tbody(html, 'tableTournaments'))) {
+  const filas = rowsOf(tbody(html, 'tableTournaments'))
+  for (const row of filas) {
     const c = cellsOf(row)
     if (c.length !== 8) continue // fila con forma inesperada: se descarta entera
 
@@ -270,14 +312,16 @@ export function parseList(html: string): HubTournament[] {
       name: text(c[1]),
       date: text(c[0]),
       level: text(c[4]),
-      country: alts(c[3])[0] ?? text(c[3]),
+      // `||` y no `??`: un alt presente pero VACÍO tiene que caer al texto de
+      // la celda, y `??` solo cubre undefined.
+      country: alts(c[3])[0] || text(c[3]),
       players: Number.isFinite(players) ? players : 0,
       set: text(c[6]),
       leader: win[0] && !isUnknown(win[0]) ? win[0] : null,
       base: win[1] && !isUnknown(win[1]) ? win[1] : null,
     })
   }
-  return out
+  return { tournaments: out, filas: filas.length }
 }
 
 export interface HubStanding {
@@ -288,9 +332,10 @@ export interface HubStanding {
   decklistUrl: string | null
 }
 
-export function parseEvent(html: string): HubStanding[] {
+export function parseEvent(html: string): { standings: HubStanding[]; filas: number } {
   const out: HubStanding[] = []
-  for (const row of rowsOf(tbody(html, 'tableResults'))) {
+  const filas = rowsOf(tbody(html, 'tableResults'))
+  for (const row of filas) {
     const c = cellsOf(row)
     if (c.length !== 4) continue
 
@@ -310,7 +355,7 @@ export function parseEvent(html: string): HubStanding[] {
   }
   // La fuente los emite de peor a mejor: la primera fila es el último puesto y
   // la última es el campeón. Ordenar acá evita que la UI corone al equivocado.
-  return out.sort((a, b) => a.place - b.place)
+  return { standings: out.sort((a, b) => a.place - b.place), filas: filas.length }
 }
 
 // ── Handler ──────────────────────────────────────────────────────────
@@ -323,12 +368,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Solo GET' })
   }
 
+  // El modo se resuelve primero, porque de él depende qué parámetros son
+  // legítimos.
+  const rawMode = req.query.mode
+  if (rawMode !== undefined && (typeof rawMode !== 'string' || rawMode === '')) {
+    return bad(res, 'valor inválido para mode')
+  }
+  const mode = rawMode ?? 'lista'
+  if (!MODES.has(mode)) return bad(res, 'mode debe ser lista o evento')
+
   // La CDN cachea por URL COMPLETA, así que toda forma que no rechacemos es
   // una clave de caché más y, por lo tanto, otro viaje al sitio ajeno.
   // Rechazar —en vez de ignorar o degradar a un valor por defecto— es lo que
-  // deja el universo de la lista en 8 URLs y no en infinitas.
+  // mantiene acotado el universo de URLs.
+  const permitidos = PARAMS_POR_MODO[mode]
   for (const [k, v] of Object.entries(req.query)) {
-    if (!ALLOWED_PARAMS.has(k)) return bad(res, `parámetro no permitido: ${k}`)
+    if (!permitidos.has(k)) return bad(res, `parámetro no permitido en modo ${mode}: ${k}`)
     // `?range=3&range=6` llega como array; `?range=` llega vacío. Ninguna de
     // las dos es una petición legítima del cliente, y ambas serían URLs
     // distintas que devuelven exactamente el mismo contenido.
@@ -336,9 +391,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   // Tras el bucle, todo parámetro presente es un string no vacío.
   const q = req.query as Record<string, string | undefined>
-
-  const mode = q.mode ?? 'lista'
-  if (!MODES.has(mode)) return bad(res, 'mode debe ser lista o evento')
 
   try {
     if (mode === 'lista') {
@@ -352,13 +404,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!CATEGORIES.has(category)) return bad(res, 'category no permitida')
 
       if (!takeToken()) return busy(res)
-      const tournaments = parseList(await fetchHub(listUrl(range, category), MAX_BYTES_LIST))
+      const { tournaments, filas } = parseList(await fetchHub(listUrl(range, category), MAX_BYTES_LIST))
 
-      // 6 h fresco + 24 h sirviendo lo viejo mientras revalida. Con los
-      // parámetros cerrados eso son 8 URLs → como mucho 32 visitas diarias al
-      // sitio ajeno, pase lo que pase con nuestro tráfico.
-      res.setHeader('Cache-Control', 'public, max-age=300')
-      res.setHeader('Vercel-CDN-Cache-Control', 'public, s-maxage=21600, stale-while-revalidate=86400')
+      // Había filas y no entendimos NINGUNA: la fuente cambió de formato. Es un
+      // error nuestro que hay que ver, no «no hay torneos» — y sobre todo no
+      // se puede cachear 6 h, porque congelaría la sección vacía.
+      if (filas > 0 && tournaments.length === 0) {
+        throw new HubError(502, 'la fuente cambió de formato')
+      }
+
+      // 6 h fresco + 24 h sirviendo lo viejo mientras revalida. Una lista
+      // legítimamente vacía (una categoría sin eventos) se cachea poco, para
+      // que se llene sola en cuanto haya alguno.
+      const vacia = tournaments.length === 0
+      res.setHeader('Cache-Control', `public, max-age=${vacia ? 60 : 300}`)
+      res.setHeader(
+        'Vercel-CDN-Cache-Control',
+        vacia
+          ? 'public, s-maxage=600, stale-while-revalidate=3600'
+          : 'public, s-maxage=21600, stale-while-revalidate=86400',
+      )
       return res.status(200).json({ source: SOURCE, range, category, tournaments })
     }
 
@@ -376,7 +441,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (!takeToken()) return busy(res)
-    const standings = parseEvent(await fetchHub(eventUrl(slug), MAX_BYTES_EVENT))
+    const ev = parseEvent(await fetchHub(eventUrl(slug), MAX_BYTES_EVENT))
+    if (ev.filas > 0 && ev.standings.length === 0) {
+      throw new HubError(502, 'la fuente cambió de formato')
+    }
+    const standings = ev.standings
 
     // Un torneo que ya pasó no cambia; solo el del día se puede corregir.
     const day = /20\d{2}-\d{2}-\d{2}/.exec(slug)?.[0] ?? ''

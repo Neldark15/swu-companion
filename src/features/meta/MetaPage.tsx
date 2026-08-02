@@ -115,9 +115,14 @@ export function MetaPage() {
             <ArrowLeft size={20} aria-hidden />
           </button>
           <h1 className="text-lg font-bold text-swu-text flex-1">Meta</h1>
-          <Button size="xs" variant="ghost" onClick={() => setShowInfo(true)}>
-            <Info size={13} aria-hidden /> Fuentes
-          </Button>
+          {/* «Fuentes» describe el snapshot del torneo único. En «Torneos» los
+              datos son otros y tienen su propio botón de contexto, así que acá
+              solo confundiría. */}
+          {view !== 'torneos' && (
+            <Button size="xs" variant="ghost" onClick={() => setShowInfo(true)}>
+              <Info size={13} aria-hidden /> Fuentes
+            </Button>
+          )}
         </div>
       </div>
 
@@ -352,7 +357,15 @@ export function MetaPage() {
           </>
         )}
 
-        {view === 'torneos' && <TournamentsView />}
+        {/* Se OCULTA en vez de desmontarse: con `{view === 'torneos' && …}`,
+            pasar a Matchups y volver borraba el formato, el rango y el nivel
+            que la persona acababa de elegir, y repetía la consulta. */}
+        {/* `space-y-4` propio y no `contents`: con display:contents el div no
+            genera caja, así que el espaciado del contenedor padre no llegaría
+            a las secciones de adentro y quedarían todas pegadas. */}
+        <div className={view === 'torneos' ? 'space-y-4' : 'hidden'}>
+          <TournamentsView />
+        </div>
       </div>
 
       {/* Detalle del arquetipo */}

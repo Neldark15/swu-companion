@@ -12,13 +12,17 @@
  * títulos en 2 torneos chicos no es mejor que uno con 2 en dos Galactic; por
  * eso al lado va la suma de jugadores de esos torneos.
  *
- * Los torneos que no publicaron el mazo ganador se cuentan aparte y se dicen,
- * en vez de repartirse o mostrarse como cero.
+ * ── Por qué el nombre se pinta antes que la carta ─────────────────────
+ *
+ * El mazo se dibuja con lo que dice la FUENTE (texto), y la carta nuestra solo
+ * lo enriquece cuando el índice de Dexie está listo. Al revés —esperar a la
+ * carta— la pantalla decía «Mazo no publicado» de los 165 torneos durante la
+ * carga, que es una afirmación falsa sobre datos que sí existen.
  */
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
-  Trophy, ExternalLink, RefreshCw, AlertTriangle, Users, ChevronRight, Info,
+  Trophy, ExternalLink, RefreshCw, AlertTriangle, Users, ChevronRight, Info, WifiOff,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Chip } from '../../components/ui/Chip'
@@ -28,7 +32,7 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { CardImage } from '../../components/CardImage'
 import {
   getTournaments, getStandings, resolveDecks, countTitles, countUnpublished,
-  archetypeKey, SOURCE,
+  archetypeKey, ensureCards, SOURCE,
   type HubTournament, type HubStanding, type HubRange, type HubCategory,
   type ResolvedDeck,
 } from '../../services/tournamentsService'
@@ -40,39 +44,46 @@ const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'o
 function fecha(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number)
   if (!y || !m || !d) return iso
-  const hoy = new Date()
-  const esteAno = hoy.getFullYear() === y
-  return `${d} ${MESES[m - 1]}${esteAno ? '' : ` ${String(y).slice(2)}`}`
+  return `${d} ${MESES[m - 1]}${new Date().getFullYear() === y ? '' : ` ${String(y).slice(2)}`}`
 }
+
+/** «Boba Fett (JTL)» → «Boba Fett». El set ya se ve en la carta. */
+const sinSet = (s: string) => s.replace(/\s*\([A-Za-z0-9]{2,6}\)\s*$/, '').trim()
 
 /** Los niveles grandes se destacan: no es lo mismo ganar un Galactic que un local. */
 const esGrande = (nivel: string) => /galactic|regional|sector/i.test(nivel)
 
-function Identidad({ deck, size = 'sm' }: { deck: ResolvedDeck | undefined; size?: 'sm' | 'md' }) {
-  if (!deck || deck.unpublished) {
+function Identidad({
+  leader, base, deck, size = 'sm',
+}: {
+  leader: string | null
+  base: string | null
+  deck?: ResolvedDeck
+  size?: 'sm' | 'md'
+}) {
+  if (!leader) {
     return <span className="text-[11px] text-swu-muted italic">Mazo no publicado</span>
   }
   const box = size === 'md' ? 'w-14 h-10' : 'w-11 h-8'
+  const card = deck?.leaderCard
+  const rotulo = deck?.base?.label ?? base
+  const esClase = deck?.base?.isClass ?? false
+
   return (
     <div className="flex items-center gap-2 min-w-0">
       <div className={`${box} flex-shrink-0 rounded overflow-hidden bg-swu-bg border border-swu-border`}>
-        <CardImage
-          src={deck.leaderCard?.imageUrl}
-          alt={deck.leaderRaw ?? ''}
-          fit="contain"
-          className="w-full h-full"
-        />
+        <CardImage src={card?.imageUrl} alt={leader} fit="contain" className="w-full h-full" />
       </div>
       <div className="min-w-0">
         <p className="text-xs font-semibold text-swu-text truncate leading-tight">
-          {deck.leaderCard?.name ?? deck.leaderRaw}
+          {card?.name ?? sinSet(leader)}
         </p>
-        {deck.base && (
+        {rotulo && (
           <p className="text-[10px] text-swu-muted truncate">
-            {deck.base.label}
+            {rotulo}
             {/* Cuando la fuente da una clase y no una carta, se dice. Poner el
                 nombre de una base concreta sería inventar cuál se jugó. */}
-            {deck.base.isClass && <span className="text-swu-muted/60"> · clase</span>}
+            {esClase && <span className="text-swu-muted/60"> · clase</span>}
           </p>
         )}
       </div>
@@ -89,6 +100,8 @@ export function TournamentsView() {
   const [decks, setDecks] = useState<Map<string, ResolvedDeck>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  /** Fecha del dato cuando se está sirviendo lo guardado por falta de red. */
+  const [viejo, setViejo] = useState<number | null>(null)
 
   const [abierto, setAbierto] = useState<HubTournament | null>(null)
   const [top, setTop] = useState<HubStanding[] | null>(null)
@@ -96,29 +109,64 @@ export function TournamentsView() {
   const [topError, setTopError] = useState<string | null>(null)
   const [showInfo, setShowInfo] = useState(false)
 
-  const cargar = useCallback(async (force = false) => {
-    setLoading(true)
-    setError(null)
+  /** Descarta respuestas de un filtro ya abandonado. Sin esto, una respuesta
+   *  lenta del filtro viejo pisaba la lista del nuevo y la pantalla quedaba
+   *  rotulada con un formato que no era el de sus datos. */
+  const peticion = useRef(0)
+
+  /** Mapa arquetipo → carta. Se separa del fetch porque un fallo de IndexedDB
+   *  no es culpa de la fuente y no debe reportarse como tal. */
+  const enriquecer = useCallback(async (list: HubTournament[], id: number) => {
     try {
-      const list = await getTournaments(range, category, force)
-      setTournaments(list)
-      // Se resuelve una sola vez y se indexa por arquetipo: la lista y el
-      // ranking de títulos comparten las mismas identidades.
       const resolved = await resolveDecks(list.map(t => ({ leader: t.leader, base: t.base })))
+      if (id !== peticion.current) return
       const map = new Map<string, ResolvedDeck>()
       list.forEach((t, i) => {
         const k = archetypeKey(t.leader, t.base)
         if (k && !map.has(k)) map.set(k, resolved[i])
       })
       setDecks(map)
+    } catch {
+      // Sin imágenes se sigue viendo todo: nombres, títulos y tops.
+    }
+  }, [])
+
+  const cargar = useCallback(async (force = false) => {
+    const id = ++peticion.current
+    setLoading(true)
+    setError(null)
+    try {
+      const { tournaments: list, cachedAt } = await getTournaments(range, category, force)
+      if (id !== peticion.current) return
+      setTournaments(list)
+      setViejo(cachedAt)
+      void enriquecer(list, id)
     } catch (e) {
+      if (id !== peticion.current) return
+      // Se limpia todo: dejar los torneos del filtro anterior bajo el rótulo
+      // del nuevo es peor que no mostrar nada.
+      setTournaments([])
+      setDecks(new Map())
+      setViejo(null)
       setError(e instanceof Error ? e.message : 'no se pudo consultar')
     } finally {
-      setLoading(false)
+      if (id === peticion.current) setLoading(false)
     }
-  }, [range, category])
+  }, [range, category, enriquecer])
 
   useEffect(() => { void cargar() }, [cargar])
+
+  // La base de cartas se baja sola si falta: /meta es pública y ninguna otra
+  // pantalla de esta ruta la carga, así que sin esto un visitante nuevo no
+  // vería ni una imagen. Va en segundo plano — la pantalla ya es útil sin ella.
+  useEffect(() => {
+    if (tournaments.length === 0) return
+    let vivo = true
+    void ensureCards().then(cargadas => {
+      if (vivo && cargadas) void enriquecer(tournaments, peticion.current)
+    })
+    return () => { vivo = false }
+  }, [tournaments, enriquecer])
 
   const niveles = useMemo(
     () => [...new Set(tournaments.map(t => t.level))].sort(),
@@ -154,6 +202,8 @@ export function TournamentsView() {
     })()
     return () => { vivo = false }
   }, [abierto])
+
+  const limpiarFiltros = () => { setNivel(''); setCategory('todas') }
 
   return (
     <>
@@ -216,97 +266,133 @@ export function TournamentsView() {
         )}
       </div>
 
-      {error && (
-        <div className="flex items-start gap-2 text-[11px] text-swu-red bg-swu-red/10 border border-swu-red/30 rounded-lg px-3 py-2">
-          <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" aria-hidden />
-          <span>No se pudieron traer los torneos: {error}</span>
-        </div>
-      )}
+      {/* Toda esta región cambia sola tras una consulta; sin `aria-live` un
+          lector de pantalla no anuncia ni la carga ni el resultado. */}
+      <div aria-live="polite" aria-busy={loading} className="space-y-4">
+        {viejo !== null && (
+          <div className="flex items-start gap-2 text-[11px] text-swu-amber bg-swu-amber/10 border border-swu-amber/30 rounded-lg px-3 py-2">
+            <WifiOff size={13} className="flex-shrink-0 mt-0.5" aria-hidden />
+            <span>
+              Sin conexión con la fuente. Estás viendo lo guardado del{' '}
+              {new Date(viejo).toLocaleDateString('es-SV', { day: 'numeric', month: 'short' })}.
+            </span>
+          </div>
+        )}
 
-      {loading && tournaments.length === 0 && (
-        <p className="text-center text-xs text-swu-muted py-8">Consultando torneos…</p>
-      )}
+        {loading && tournaments.length === 0 && (
+          <p className="text-center text-xs text-swu-muted py-8">Consultando torneos…</p>
+        )}
 
-      {!loading && !error && visibles.length === 0 && (
-        <EmptyState
-          icon={<Trophy size={28} aria-hidden />}
-          title="Sin torneos en este filtro"
-          hint="Probá con otro formato, otro nivel o un rango más amplio."
-          action={
-            <Button size="sm" variant="secondary" onClick={() => { setNivel(''); setCategory('todas') }}>
-              Quitar filtros
-            </Button>
-          }
-        />
-      )}
+        {/* Sin datos y con error: se ofrece reintentar, que es lo único que
+            puede destrabar. Un mensaje de red suelto dejaba encerrado. */}
+        {!loading && error && tournaments.length === 0 && (
+          <EmptyState
+            icon={<WifiOff size={28} aria-hidden />}
+            title="No se pudieron traer los torneos"
+            hint={`${error}. Revisá tu conexión: esta sección necesita internet la primera vez.`}
+            action={
+              <Button size="sm" variant="secondary" onClick={() => void cargar(true)}>
+                Reintentar
+              </Button>
+            }
+          />
+        )}
 
-      {visibles.length > 0 && (
-        <>
-          {/* ── Qué está ganando ── */}
-          <section>
-            <h2 className="text-[10px] font-mono tracking-wider uppercase text-swu-muted/60 mb-2">
-              Qué está ganando · {visibles.length} torneos
-            </h2>
-            <div className="space-y-1">
-              {titulos.slice(0, 8).map(t => (
-                <div
-                  key={t.key}
-                  className="flex items-center gap-2 bg-swu-surface rounded-lg border border-swu-border px-2.5 py-2"
-                >
-                  <div className="flex-1 min-w-0">
-                    <Identidad deck={decks.get(t.key)} />
-                  </div>
-                  <div className="w-16 h-1.5 rounded-full bg-swu-bg overflow-hidden flex-shrink-0" aria-hidden>
-                    <div
-                      className="h-full rounded-full bg-swu-amber/70"
-                      style={{ width: `${(t.titles / maxTitulos) * 100}%` }}
-                    />
-                  </div>
-                  <div className="text-right w-14 flex-shrink-0">
-                    <p className="text-xs font-mono font-bold text-swu-text">{t.titles}</p>
-                    <p className="text-[9px] text-swu-muted font-mono">{t.players} jug.</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="text-[10px] text-swu-muted mt-1.5 leading-relaxed">
-              Títulos = torneos ganados. No es cuota de meta: la fuente no publica
-              cuánta gente jugó cada mazo.
-              {sinPublicar > 0 && ` ${sinPublicar} de ${visibles.length} no publicaron el mazo ganador.`}
-            </p>
-          </section>
+        {/* Con datos viejos en pantalla el error va como aviso, no como vacío. */}
+        {error && tournaments.length > 0 && (
+          <div className="flex items-start gap-2 text-[11px] text-swu-red bg-swu-red/10 border border-swu-red/30 rounded-lg px-3 py-2">
+            <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" aria-hidden />
+            <span>No se pudo actualizar: {error}</span>
+          </div>
+        )}
 
-          {/* ── Últimos torneos ── */}
-          <section>
-            <h2 className="text-[10px] font-mono tracking-wider uppercase text-swu-muted/60 mb-2">
-              Últimos torneos
-            </h2>
-            <div className="space-y-1">
-              {visibles.map(t => (
-                <button
-                  key={t.slug}
-                  onClick={() => setAbierto(t)}
-                  className="w-full flex items-center gap-2.5 bg-swu-surface rounded-lg border border-swu-border px-2.5 py-2 text-left active:scale-[0.99] transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-swu-text truncate leading-tight">{t.name}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-swu-muted font-mono">
-                      <span>{fecha(t.date)}</span>
-                      <span className="truncate">{t.country}</span>
-                      <span className="flex items-center gap-0.5">
-                        <Users size={9} aria-hidden />{t.players}
-                      </span>
-                      {esGrande(t.level) && <span className="text-swu-amber truncate">{t.level}</span>}
+        {!loading && !error && visibles.length === 0 && (
+          <EmptyState
+            icon={<Trophy size={28} aria-hidden />}
+            title="Sin torneos en este filtro"
+            hint="Probá con otro formato, otro nivel o un rango más amplio."
+            action={
+              <Button size="sm" variant="secondary" onClick={limpiarFiltros}>
+                Quitar filtros
+              </Button>
+            }
+          />
+        )}
+
+        {visibles.length > 0 && (
+          <>
+            {/* ── Qué está ganando ── */}
+            <section>
+              <h2 className="text-[10px] font-mono tracking-wider uppercase text-swu-muted/60 mb-2">
+                Qué está ganando · {visibles.length} torneos
+              </h2>
+              <div className="space-y-1">
+                {titulos.slice(0, 8).map(t => (
+                  <div
+                    key={t.key}
+                    className="flex items-center gap-2 bg-swu-surface rounded-lg border border-swu-border px-2.5 py-2"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <Identidad leader={t.leader} base={t.base} deck={decks.get(t.key)} size="md" />
                     </div>
-                    <div className="mt-1"><Identidad deck={decks.get(archetypeKey(t.leader, t.base) ?? '')} /></div>
+                    <div className="w-16 h-1.5 rounded-full bg-swu-bg overflow-hidden flex-shrink-0" aria-hidden>
+                      <div
+                        className="h-full rounded-full bg-swu-amber/70"
+                        style={{ width: `${(t.titles / maxTitulos) * 100}%` }}
+                      />
+                    </div>
+                    <div className="text-right w-14 flex-shrink-0">
+                      <p className="text-xs font-mono font-bold text-swu-text">{t.titles}</p>
+                      <p className="text-[9px] text-swu-muted font-mono">{t.players} jug.</p>
+                    </div>
                   </div>
-                  <ChevronRight size={14} className="text-swu-muted flex-shrink-0" aria-hidden />
-                </button>
-              ))}
-            </div>
-          </section>
-        </>
-      )}
+                ))}
+              </div>
+              <p className="text-[10px] text-swu-muted mt-1.5 leading-relaxed">
+                Títulos = torneos ganados. No es cuota de meta: la fuente no publica
+                cuánta gente jugó cada mazo.
+                {sinPublicar > 0 && ` ${sinPublicar} de ${visibles.length} no publicaron el mazo ganador.`}
+              </p>
+            </section>
+
+            {/* ── Últimos torneos ── */}
+            <section>
+              <h2 className="text-[10px] font-mono tracking-wider uppercase text-swu-muted/60 mb-2">
+                Últimos torneos
+              </h2>
+              <div className="space-y-1">
+                {visibles.map(t => (
+                  <button
+                    key={t.slug}
+                    onClick={() => setAbierto(t)}
+                    className="w-full flex items-center gap-2.5 bg-swu-surface rounded-lg border border-swu-border px-2.5 py-2 text-left active:scale-[0.99] transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-swu-text truncate leading-tight">{t.name}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-swu-muted font-mono">
+                        <span>{fecha(t.date)}</span>
+                        <span className="truncate">{t.country}</span>
+                        <span className="flex items-center gap-0.5">
+                          <Users size={9} aria-hidden />{t.players}
+                        </span>
+                        {esGrande(t.level) && <span className="text-swu-amber truncate">{t.level}</span>}
+                      </div>
+                      <div className="mt-1">
+                        <Identidad
+                          leader={t.leader}
+                          base={t.base}
+                          deck={decks.get(archetypeKey(t.leader, t.base) ?? '')}
+                        />
+                      </div>
+                    </div>
+                    <ChevronRight size={14} className="text-swu-muted flex-shrink-0" aria-hidden />
+                  </button>
+                ))}
+              </div>
+            </section>
+          </>
+        )}
+      </div>
 
       {/* ── Top de un torneo ── */}
       <Sheet open={!!abierto} onClose={() => setAbierto(null)} title={abierto?.name ?? ''}>
@@ -319,56 +405,58 @@ export function TournamentsView() {
               <Chip tone="neutral">{abierto.players} jugadores</Chip>
             </div>
 
-            {topError && (
-              <p className="text-[11px] text-swu-red flex items-start gap-1.5">
-                <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" aria-hidden />
-                {topError}
-              </p>
-            )}
+            <div aria-live="polite">
+              {topError && (
+                <p className="text-[11px] text-swu-red flex items-start gap-1.5">
+                  <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" aria-hidden />
+                  {topError}
+                </p>
+              )}
 
-            {!top && !topError && (
-              <p className="text-center text-xs text-swu-muted py-6">Cargando el top…</p>
-            )}
+              {!top && !topError && (
+                <p className="text-center text-xs text-swu-muted py-6">Cargando el top…</p>
+              )}
 
-            {top && top.length === 0 && (
-              <p className="text-center text-xs text-swu-muted py-6">
-                Este torneo todavía no publicó su top.
-              </p>
-            )}
+              {top && top.length === 0 && (
+                <p className="text-center text-xs text-swu-muted py-6">
+                  Este torneo todavía no publicó su top.
+                </p>
+              )}
 
-            {top && top.length > 0 && (
-              <div className="space-y-1">
-                {top.map((s, i) => (
-                  <div
-                    key={`${s.place}-${s.player}`}
-                    className="flex items-center gap-2 bg-swu-bg rounded-lg border border-swu-border px-2.5 py-2"
-                  >
-                    <span
-                      className={`w-6 text-center text-xs font-mono font-bold flex-shrink-0 ${
-                        s.place === 1 ? 'text-swu-amber' : 'text-swu-muted'
-                      }`}
+              {top && top.length > 0 && (
+                <div className="space-y-1">
+                  {top.map((s, i) => (
+                    <div
+                      key={`${s.place}-${s.player}`}
+                      className="flex items-center gap-2 bg-swu-bg rounded-lg border border-swu-border px-2.5 py-2"
                     >
-                      {s.place}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <Identidad deck={topDecks[i]} />
-                      <p className="text-[10px] text-swu-muted truncate mt-0.5">{s.player}</p>
-                    </div>
-                    {s.decklistUrl && (
-                      <a
-                        href={s.decklistUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={`Ver la lista de ${s.player} en melee.gg`}
-                        className="text-swu-cyan p-1.5 flex-shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent"
+                      <span
+                        className={`w-6 text-center text-xs font-mono font-bold flex-shrink-0 ${
+                          s.place === 1 ? 'text-swu-amber' : 'text-swu-muted'
+                        }`}
                       >
-                        <ExternalLink size={14} aria-hidden />
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+                        {s.place}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <Identidad leader={s.leader} base={s.base} deck={topDecks[i]} />
+                        <p className="text-[10px] text-swu-muted truncate mt-0.5">{s.player}</p>
+                      </div>
+                      {s.decklistUrl && (
+                        <a
+                          href={s.decklistUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={`Ver la lista de ${s.player} en melee.gg`}
+                          className="text-swu-cyan p-1.5 flex-shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent"
+                        >
+                          <ExternalLink size={14} aria-hidden />
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <a
               href={`${SOURCE.url}/event/${abierto.slug}/`}
@@ -409,8 +497,8 @@ export function TournamentsView() {
               <li>
                 <span className="text-swu-text font-semibold">clase</span> · la fuente a
                 veces publica un grupo de bases equivalentes («azul 30 PV») en vez de la
-                carta exacta. Mostramos una de ejemplo y lo avisamos, porque no se sabe
-                cuál se jugó.
+                carta exacta. Se muestra el grupo, no una carta, porque no se sabe cuál
+                de ellas se jugó.
               </li>
               <li>
                 <span className="text-swu-text font-semibold">Mazo no publicado</span> ·
