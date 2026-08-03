@@ -23,6 +23,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   Trophy, ExternalLink, RefreshCw, AlertTriangle, Users, ChevronRight, Info, WifiOff,
+  CalendarDays,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Chip } from '../../components/ui/Chip'
@@ -31,10 +32,10 @@ import { Sheet } from '../../components/ui/Sheet'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { CardImage } from '../../components/CardImage'
 import {
-  getTournaments, getStandings, resolveDecks, countTitles, countUnpublished,
+  getTournaments, getStandings, getUpcoming, resolveDecks, countTitles, countUnpublished,
   archetypeKey, ensureCards, SOURCE,
   type HubTournament, type HubStanding, type HubRange, type HubCategory,
-  type ResolvedDeck,
+  type HubUpcoming, type ResolvedDeck,
 } from '../../services/tournamentsService'
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
@@ -91,7 +92,41 @@ function Identidad({
   )
 }
 
+const MESES_LARGO = [
+  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+]
+
+/** `2026-08-08` → `agosto 2026`, para agrupar la agenda. */
+function mesDe(iso: string): string {
+  const [y, m] = iso.split('-').map(Number)
+  return y && m ? `${MESES_LARGO[m - 1]} ${y}` : iso
+}
+
+/** Días que faltan. Se calcula sobre fechas sueltas, sin husos horarios. */
+function faltan(iso: string): number {
+  const [y, m, d] = iso.split('-').map(Number)
+  const hoy = new Date()
+  const a = Date.UTC(y, m - 1, d)
+  const b = Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())
+  return Math.round((a - b) / 86_400_000)
+}
+
+function cuenta(dias: number): string {
+  if (dias <= 0) return 'hoy'
+  if (dias === 1) return 'mañana'
+  if (dias < 7) return `en ${dias} días`
+  if (dias < 30) return `en ${Math.round(dias / 7)} sem`
+  return `en ${Math.round(dias / 30)} meses`
+}
+
+/** Los formatos que publica la agenda, con el tono que ya usa la app. */
+const TONO_FORMATO: Record<string, 'cyan' | 'amber' | 'green'> = {
+  Premier: 'cyan', Limited: 'amber', Eternal: 'green',
+}
+
 export function TournamentsView() {
+  const [vista, setVista] = useState<'resultados' | 'agenda'>('resultados')
   const [range, setRange] = useState<HubRange>('3')
   const [category, setCategory] = useState<HubCategory>('todas')
   const [nivel, setNivel] = useState<string>('')
@@ -108,6 +143,12 @@ export function TournamentsView() {
   const [topDecks, setTopDecks] = useState<ResolvedDeck[]>([])
   const [topError, setTopError] = useState<string | null>(null)
   const [showInfo, setShowInfo] = useState(false)
+
+  const [agenda, setAgenda] = useState<HubUpcoming[]>([])
+  const [agendaCargando, setAgendaCargando] = useState(false)
+  const [agendaError, setAgendaError] = useState<string | null>(null)
+  const [agendaVieja, setAgendaVieja] = useState<number | null>(null)
+  const [pais, setPais] = useState<string>('')
 
   /** Descarta respuestas de un filtro ya abandonado. Sin esto, una respuesta
    *  lenta del filtro viejo pisaba la lista del nuevo y la pantalla quedaba
@@ -203,6 +244,44 @@ export function TournamentsView() {
     return () => { vivo = false }
   }, [abierto])
 
+  // La agenda se pide solo cuando alguien la mira, y una sola vez.
+  const cargarAgenda = useCallback(async (force = false) => {
+    setAgendaCargando(true)
+    setAgendaError(null)
+    try {
+      const { events, cachedAt } = await getUpcoming(force)
+      setAgenda(events)
+      setAgendaVieja(cachedAt)
+    } catch (e) {
+      setAgenda([])
+      setAgendaError(e instanceof Error ? e.message : 'no se pudo consultar')
+    } finally {
+      setAgendaCargando(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (vista === 'agenda' && agenda.length === 0 && !agendaError) void cargarAgenda()
+  }, [vista, agenda.length, agendaError, cargarAgenda])
+
+  const paises = useMemo(
+    () => [...new Set(agenda.map(e => e.country).filter(Boolean))].sort(),
+    [agenda],
+  )
+
+  /** Agrupada por mes: una lista plana de 218 fechas no se lee. */
+  const agendaPorMes = useMemo(() => {
+    const lista = pais ? agenda.filter(e => e.country === pais) : agenda
+    const grupos = new Map<string, HubUpcoming[]>()
+    for (const e of lista) {
+      const k = mesDe(e.date)
+      const g = grupos.get(k)
+      if (g) g.push(e)
+      else grupos.set(k, [e])
+    }
+    return [...grupos.entries()]
+  }, [agenda, pais])
+
   const limpiarFiltros = () => { setNivel(''); setCategory('todas') }
 
   return (
@@ -238,6 +317,122 @@ export function TournamentsView() {
         </button>
       </div>
 
+      <SegmentedControl
+        label="Qué torneos"
+        value={vista}
+        onChange={setVista}
+        options={[
+          { value: 'resultados', label: 'Resultados', icon: <Trophy size={13} aria-hidden /> },
+          { value: 'agenda', label: 'Próximos', icon: <CalendarDays size={13} aria-hidden /> },
+        ]}
+      />
+
+      {vista === 'agenda' && (
+        <div aria-live="polite" aria-busy={agendaCargando} className="space-y-3">
+          {paises.length > 1 && (
+            <select
+              value={pais}
+              onChange={e => setPais(e.target.value)}
+              aria-label="Filtrar la agenda por país"
+              className="w-full bg-swu-surface border border-swu-border rounded-lg px-2 py-2 text-xs text-swu-text"
+            >
+              <option value="">Todos los países ({agenda.length})</option>
+              {paises.map(p => (
+                <option key={p} value={p}>{p} ({agenda.filter(e => e.country === p).length})</option>
+              ))}
+            </select>
+          )}
+
+          {agendaVieja !== null && (
+            <div className="flex items-start gap-2 text-[11px] text-swu-amber bg-swu-amber/10 border border-swu-amber/30 rounded-lg px-3 py-2">
+              <WifiOff size={13} className="flex-shrink-0 mt-0.5" aria-hidden />
+              <span>
+                Sin conexión con la fuente. Agenda guardada del{' '}
+                {new Date(agendaVieja).toLocaleDateString('es-SV', { day: 'numeric', month: 'short' })}.
+              </span>
+            </div>
+          )}
+
+          {agendaCargando && agenda.length === 0 && (
+            <p className="text-center text-xs text-swu-muted py-8">Consultando la agenda…</p>
+          )}
+
+          {!agendaCargando && agendaError && agenda.length === 0 && (
+            <EmptyState
+              icon={<WifiOff size={28} aria-hidden />}
+              title="No se pudo traer la agenda"
+              hint={`${agendaError}. Necesita internet la primera vez.`}
+              action={
+                <Button size="sm" variant="secondary" onClick={() => void cargarAgenda(true)}>
+                  Reintentar
+                </Button>
+              }
+            />
+          )}
+
+          {agendaPorMes.map(([mes, eventos]) => (
+            <section key={mes}>
+              <h2 className="text-[10px] font-mono tracking-wider uppercase text-swu-muted/60 mb-2">
+                {mes} · {eventos.length}
+              </h2>
+              <div className="space-y-1">
+                {eventos.map(e => {
+                  const dias = faltan(e.date)
+                  return (
+                    <div
+                      key={`${e.date}-${e.name}-${e.city}`}
+                      className="flex items-center gap-2.5 bg-swu-surface rounded-lg border border-swu-border px-2.5 py-2"
+                    >
+                      <div className="w-11 flex-shrink-0 text-center">
+                        <p className="text-sm font-mono font-bold text-swu-text leading-none">
+                          {Number(e.date.slice(8, 10))}
+                        </p>
+                        <p className="text-[9px] text-swu-muted font-mono uppercase mt-0.5">
+                          {MESES[Number(e.date.slice(5, 7)) - 1]}
+                        </p>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-swu-text truncate leading-tight">{e.name}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-swu-muted font-mono">
+                          <span className="truncate">{[e.city, e.country].filter(Boolean).join(' · ')}</span>
+                          {/* Solo si la fuente lo publica: un 0 no significa
+                              «nadie inscrito», significa «no lo dicen». */}
+                          {e.players > 0 && (
+                            <span className="flex items-center gap-0.5 flex-shrink-0">
+                              <Users size={9} aria-hidden />{e.players}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <Chip tone={TONO_FORMATO[e.format] ?? 'neutral'}>{e.format}</Chip>
+                        <span className={`text-[9px] font-mono ${dias <= 7 ? 'text-swu-amber' : 'text-swu-muted'}`}>
+                          {cuenta(dias)}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          ))}
+
+          {!agendaCargando && !agendaError && agendaPorMes.length === 0 && (
+            <EmptyState
+              icon={<CalendarDays size={28} aria-hidden />}
+              title={pais ? `Sin torneos anunciados en ${pais}` : 'Sin torneos anunciados'}
+              hint="La agenda la publica la fuente; cuando anuncien nuevos aparecen acá."
+              action={pais ? (
+                <Button size="sm" variant="secondary" onClick={() => setPais('')}>
+                  Ver todos los países
+                </Button>
+              ) : undefined}
+            />
+          )}
+        </div>
+      )}
+
+      {vista === 'resultados' && (<>
       <SegmentedControl
         label="Formato"
         value={category}
@@ -393,6 +588,7 @@ export function TournamentsView() {
           </>
         )}
       </div>
+      </>)}
 
       {/* ── Top de un torneo ── */}
       <Sheet open={!!abierto} onClose={() => setAbierto(null)} title={abierto?.name ?? ''}>

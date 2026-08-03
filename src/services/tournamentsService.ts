@@ -48,6 +48,16 @@ export interface HubStanding {
   decklistUrl: string | null
 }
 
+export interface HubUpcoming {
+  date: string
+  name: string
+  format: string
+  city: string
+  country: string
+  /** Inscritos según la fuente. 0 = todavía no lo publica. */
+  players: number
+}
+
 export interface HubSource {
   name: string
   url: string
@@ -134,6 +144,37 @@ export async function getTournaments(
   } catch (e) {
     // Sin red pero con algo guardado, se muestra lo viejo diciendo que es viejo.
     if (hit) return { tournaments: hit.data, cachedAt: hit.at }
+    throw e
+  }
+}
+
+export interface UpcomingResult {
+  events: HubUpcoming[]
+  cachedAt: number | null
+}
+
+/**
+ * Agenda oficial: los torneos que VIENEN.
+ *
+ * Es la respuesta a «cuándo es el próximo». Se filtra por fecha del lado del
+ * cliente para que un evento que ya pasó no siga apareciendo aunque la caché
+ * sea de ayer.
+ */
+export async function getUpcoming(force = false): Promise<UpcomingResult> {
+  const key = 'swu_hub_agenda'
+  const hit = readCache<HubUpcoming[]>(key)
+  const hoy = new Date().toISOString().slice(0, 10)
+  const futuros = (list: HubUpcoming[]) => list.filter(e => e.date >= hoy)
+
+  if (!force && hit?.fresh) return { events: futuros(hit.data), cachedAt: null }
+
+  try {
+    const data = (await getJson('/api/swu-events?mode=agenda')) as { events?: HubUpcoming[] }
+    const list = data.events ?? []
+    writeCache(key, list)
+    return { events: futuros(list), cachedAt: null }
+  } catch (e) {
+    if (hit) return { events: futuros(hit.data), cachedAt: hit.at }
     throw e
   }
 }

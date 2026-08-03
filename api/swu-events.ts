@@ -41,10 +41,12 @@ const UA = 'swu-companion/1.0 (+https://www.swusv.com; PWA comunitaria de El Sal
  * por lo tanto una descarga real contra el WordPress ajeno. Lo mismo al revés
  * con `range`/`category` en modo evento.
  */
-const MODES = new Set(['lista', 'evento'])
+const MODES = new Set(['lista', 'evento', 'agenda'])
 const PARAMS_POR_MODO: Record<string, Set<string>> = {
   lista: new Set(['mode', 'range', 'category']),
   evento: new Set(['mode', 'slug']),
+  // La agenda no se filtra: es una sola página y una sola clave de caché.
+  agenda: new Set(['mode']),
 }
 
 /**
@@ -324,6 +326,42 @@ export function parseList(html: string): { tournaments: HubTournament[]; filas: 
   return { tournaments: out, filas: filas.length }
 }
 
+export interface HubUpcoming {
+  date: string
+  name: string
+  format: string
+  city: string
+  country: string
+  /** Inscritos según la fuente. 0 = no lo publica todavía. */
+  players: number
+}
+
+/**
+ * Próximos torneos oficiales. Es la agenda del sitio, no una lista nuestra:
+ * por eso no se inventa nada y lo que no publican queda vacío.
+ */
+export function parseUpcoming(html: string): { events: HubUpcoming[]; filas: number } {
+  const out: HubUpcoming[] = []
+  const filas = rowsOf(tbody(html, 'tableUpcoming'))
+  for (const row of filas) {
+    const c = cellsOf(row)
+    if (c.length !== 8) continue
+    const date = text(c[0])
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue
+    const players = parseInt(text(c[5]), 10)
+    out.push({
+      date,
+      name: text(c[1]),
+      format: text(c[2]),
+      city: text(c[3]),
+      country: alts(c[4])[0] || text(c[4]),
+      players: Number.isFinite(players) ? players : 0,
+    })
+  }
+  // Del más próximo al más lejano: la fuente los emite al revés.
+  return { events: out.sort((a, b) => a.date.localeCompare(b.date)), filas: filas.length }
+}
+
 export interface HubStanding {
   place: number
   player: string
@@ -425,6 +463,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           : 'public, s-maxage=21600, stale-while-revalidate=86400',
       )
       return res.status(200).json({ source: SOURCE, range, category, tournaments })
+    }
+
+    if (mode === 'agenda') {
+      if (!takeToken()) return busy(res)
+      const { events, filas } = parseUpcoming(
+        await fetchHub(`${SITE}/upcoming-events/`, MAX_BYTES_LIST),
+      )
+      if (filas > 0 && events.length === 0) throw new HubError(502, 'la fuente cambió de formato')
+
+      // La agenda se mueve poco: se agregan eventos con semanas de aviso.
+      res.setHeader('Cache-Control', 'public, max-age=600')
+      res.setHeader('Vercel-CDN-Cache-Control', 'public, s-maxage=43200, stale-while-revalidate=172800')
+      return res.status(200).json({ source: SOURCE, events })
     }
 
     const slug = q.slug ?? ''
