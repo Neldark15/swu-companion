@@ -25,11 +25,11 @@ import { Button } from '../../components/ui/Button'
 import { CardImage } from '../../components/CardImage'
 import { EmptyState } from '../../components/ui/EmptyState'
 import {
-  leerCodigo, buscarPorCodigo, parseCodigo, detenerOCR,
+  leerCodigo, buscarPorCodigo, parseCodigo, detenerOCR, iniciarOCR, BANDA,
   type Coincidencia,
 } from '../../services/cardScanner'
 import { updateCollectionQuantity, getCardQuantity } from '../../services/collectionService'
-import { getMainSets } from '../../services/swuApi'
+import { getMainSets, ensureCards } from '../../services/swuApi'
 import { useAuth } from '../../hooks/useAuth'
 import type { Card } from '../../types'
 
@@ -55,6 +55,16 @@ export function ScanPage() {
   const [yaTenia, setYaTenia] = useState(0)
   const [agregadas, setAgregadas] = useState<{ card: Card; qty: number }[]>([])
   const [ultimoCrudo, setUltimoCrudo] = useState<string>('')
+  const [motor, setMotor] = useState<'cargando' | 'listo' | 'error'>('cargando')
+  /** Cartas locales. Sin esto el escáner leía el código bien y no encontraba
+   *  NADA contra qué compararlo, con lo que parecía que el OCR fallaba. */
+  const [baseCartas, setBaseCartas] = useState<'cargando' | 'lista' | 'vacia'>('cargando')
+  /** Proporción real del vídeo. La caja se adapta a ella para que el recuadro
+   *  de la guía caiga exactamente sobre las mismas fracciones del fotograma:
+   *  con una proporción fija, `object-contain` deja bandas y la guía vuelve a
+   *  señalar un pedazo distinto del que se lee. */
+  const [proporcion, setProporcion] = useState(4 / 3)
+  const [motorError, setMotorError] = useState<string | null>(null)
 
   // Entrada manual
   const [sets, setSets] = useState<{ code: string; name: string }[]>([])
@@ -112,6 +122,7 @@ export function ScanPage() {
     try {
       const codigo = await leerCodigo(v, v.videoWidth, v.videoHeight)
       setUltimoCrudo(codigo.crudo)
+      setMotor('listo')
       const m = await buscarPorCodigo(codigo)
       if (m && vivo.current) {
         setHallazgo(m)
@@ -119,21 +130,58 @@ export function ScanPage() {
         setYaTenia(await getCardQuantity(m.card.id))
         navigator.vibrate?.(60)
       }
-    } catch {
-      // Un fotograma ilegible no es un error que valga la pena mostrar:
-      // el siguiente intento llega en un segundo.
+    } catch (e) {
+      // Un fotograma ilegible se ignora, pero un motor que no carga NO: eso
+      // deja el escáner muerto y hay que decirlo, no seguir «leyendo» de
+      // adorno para siempre.
+      if (vivo.current) {
+        setMotor('error')
+        setMotorError(e instanceof Error ? e.message : 'no se pudo leer')
+      }
     } finally {
       ocupado.current = false
       setLeyendo(false)
     }
   }, [])
 
+  // El motor se carga apenas se abre la cámara, para que su descarga —varios
+  // MB de CDN— sea visible como «Preparando lector» y no como un escáner que
+  // no engancha nada.
+  useEffect(() => {
+    if (estado !== 'escaneando') return
+    let vive = true
+    setMotor('cargando')
+    iniciarOCR()
+      .then(() => { if (vive) { setMotor('listo'); setMotorError(null) } })
+      .catch((e: unknown) => {
+        if (!vive) return
+        setMotor('error')
+        setMotorError(e instanceof Error ? e.message : 'no se pudo cargar el lector')
+      })
+    return () => { vive = false }
+  }, [estado])
+
   // ── Bucle de lectura ──
   useEffect(() => {
-    if (estado !== 'escaneando' || pausado) return
+    if (estado !== 'escaneando' || pausado || motor !== 'listo' || baseCartas !== 'lista') return
     const id = setInterval(() => { void intentarLeer() }, INTERVALO_MS)
     return () => clearInterval(id)
-  }, [estado, pausado, intentarLeer])
+  }, [estado, pausado, motor, baseCartas, intentarLeer])
+
+  // La base de cartas es la mitad del escáner: leer «ASH 1» no sirve de nada
+  // si no hay contra qué resolverlo. /scan se abre directo desde Inicio, así
+  // que nadie garantiza que esté cargada.
+  useEffect(() => {
+    let vive = true
+    void (async () => {
+      const { db } = await import('../../services/db')
+      if ((await db.cards.count()) > 0) { if (vive) setBaseCartas('lista'); return }
+      await ensureCards()
+      if (!vive) return
+      setBaseCartas((await db.cards.count()) > 0 ? 'lista' : 'vacia')
+    })()
+    return () => { vive = false }
+  }, [])
 
   // Sets para el desplegable manual
   useEffect(() => {
@@ -190,34 +238,90 @@ export function ScanPage() {
       <div className="max-w-lg lg:max-w-3xl mx-auto px-4 py-4 space-y-4">
         {/* ── Visor ── */}
         {estado !== 'manual' && (
-          <div className="relative rounded-xl overflow-hidden bg-black border border-swu-border aspect-[4/3]">
+          <div
+            className="relative rounded-xl overflow-hidden bg-black border border-swu-border w-full"
+            style={{ aspectRatio: String(proporcion) }}
+          >
             <video
               ref={videoRef}
               playsInline
               muted
-              className="w-full h-full object-cover"
+              onLoadedMetadata={e => {
+                const v = e.currentTarget
+                if (v.videoWidth && v.videoHeight) setProporcion(v.videoWidth / v.videoHeight)
+              }}
+              className="w-full h-full object-contain"
               aria-label="Vista de la cámara"
             />
 
             {/* Guía: la franja del código va abajo, que es donde se lee. */}
+            {/* La guía se dibuja con BANDA, la MISMA constante que recorta el
+                OCR. Antes cada lado tenía su número y se leía otro pedazo. */}
             <div className="pointer-events-none absolute inset-0" aria-hidden>
-              <div className="absolute inset-x-[8%] top-[10%] bottom-[10%] border-2 border-swu-cyan/60 rounded-lg" />
-              <div className="absolute inset-x-[8%] bottom-[10%] h-[16%] bg-swu-cyan/10 border-2 border-swu-cyan rounded-b-lg" />
+              <div className="absolute inset-0 bg-black/45" />
+              <div
+                className="absolute border-2 border-swu-cyan rounded"
+                style={{
+                  left: `${BANDA.x * 100}%`, top: `${BANDA.y * 100}%`,
+                  width: `${BANDA.w * 100}%`, height: `${BANDA.h * 100}%`,
+                  boxShadow: '0 0 0 9999px rgba(0,0,0,0.45)',
+                  background: 'transparent',
+                }}
+              />
             </div>
 
-            <div className="absolute inset-x-0 bottom-0 p-2 flex items-center justify-center gap-2 bg-gradient-to-t from-black/80 to-transparent">
-              {leyendo
-                ? <><Loader2 size={13} className="animate-spin text-swu-cyan" aria-hidden />
-                    <span className="text-[11px] text-swu-cyan font-mono">Leyendo…</span></>
-                : <span className="text-[11px] text-white/80 font-mono text-center">
-                    Encuadrá el pie de la carta en la banda
-                  </span>}
+            {/* Estado siempre visible: sin esto, «el motor no cargó» y «la
+                carta no engancha» se veían exactamente igual. */}
+            <div className="absolute inset-x-0 bottom-0 p-2 flex items-center justify-center gap-2 bg-gradient-to-t from-black/85 to-transparent">
+              {baseCartas === 'cargando' ? (
+                <><Loader2 size={13} className="animate-spin text-swu-amber" aria-hidden />
+                  <span className="text-[11px] text-swu-amber font-mono">Descargando la base de cartas…</span></>
+              ) : baseCartas === 'vacia' ? (
+                <span className="text-[11px] text-swu-red font-mono text-center px-2">
+                  No se pudo descargar la base de cartas. Sin ella no hay con qué comparar.
+                </span>
+              ) : motor === 'cargando' ? (
+                <><Loader2 size={13} className="animate-spin text-swu-amber" aria-hidden />
+                  <span className="text-[11px] text-swu-amber font-mono">Preparando lector…</span></>
+              ) : motor === 'error' ? (
+                <span className="text-[11px] text-swu-red font-mono text-center px-2">
+                  {motorError ?? 'El lector no cargó'}
+                </span>
+              ) : leyendo ? (
+                <><Loader2 size={13} className="animate-spin text-swu-cyan" aria-hidden />
+                  <span className="text-[11px] text-swu-cyan font-mono">Leyendo…</span></>
+              ) : (
+                <span className="text-[11px] text-white/85 font-mono text-center px-2">
+                  Poné el código <span className="text-swu-cyan">ASH·EN 1/264</span> dentro del recuadro
+                </span>
+              )}
             </div>
 
             {estado === 'pidiendo' && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/70">
                 <p className="text-xs text-swu-muted">Pidiendo permiso de cámara…</p>
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Disparo manual. El bucle automático es cómodo pero deja a la persona
+            sin nada que hacer cuando no engancha; esto le devuelve el control. */}
+        {estado === 'escaneando' && (
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              block
+              loading={leyendo}
+              disabled={motor !== 'listo' || baseCartas !== 'lista'}
+              onClick={() => void intentarLeer()}
+            >
+              <Camera size={14} aria-hidden /> Leer ahora
+            </Button>
+            {motor === 'error' && (
+              <Button size="sm" variant="secondary" onClick={() => { setMotor('cargando'); setEstado('pidiendo') }}>
+                Reintentar
+              </Button>
             )}
           </div>
         )}
@@ -286,10 +390,10 @@ export function ScanPage() {
           </section>
         )}
 
-        {/* Ayuda para diagnosticar cuando no engancha nada. */}
-        {estado === 'escaneando' && !hallazgo && ultimoCrudo && agregadas.length === 0 && (
-          <p className="text-[10px] text-swu-muted/70 font-mono text-center">
-            Última lectura: «{ultimoCrudo.slice(0, 40)}»
+        {/* Diagnóstico: si no engancha, esto dice si el OCR ve algo o nada. */}
+        {estado === 'escaneando' && !hallazgo && ultimoCrudo && (
+          <p className="text-[10px] text-swu-muted/70 font-mono text-center break-all">
+            Última lectura: «{ultimoCrudo.slice(0, 60) || '(vacío)'}»
           </p>
         )}
       </div>

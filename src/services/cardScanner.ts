@@ -24,8 +24,19 @@
 import { db } from './db'
 import type { Card } from '../types'
 
-/** Alto de la franja inferior donde va el código, como fracción de la imagen. */
-const FRANJA = 0.16
+/**
+ * La banda que se lee, en fracciones del fotograma.
+ *
+ * ES LA MISMA que dibuja la guía en pantalla, y por eso vive acá y se exporta:
+ * cuando cada lado tenía su propio número, la persona alineaba el código con
+ * un rectángulo y el OCR leía otro pedazo del fotograma. Si se toca esto, se
+ * mueve la guía sola.
+ *
+ * OJO: para que la cuenta cierre, el <video> tiene que ir con `object-contain`.
+ * Con `object-cover` el navegador recorta el vídeo para llenar la caja y lo que
+ * se ve deja de corresponder con las coordenadas del fotograma.
+ */
+export const BANDA = { x: 0.05, y: 0.60, w: 0.90, h: 0.22 } as const
 
 /** Solo lo que puede aparecer en el código: mayúsculas, dígitos y separadores. */
 const LISTA_BLANCA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/·.- '
@@ -133,18 +144,32 @@ export function iniciarOCR(): Promise<Worker> {
   if (worker) return Promise.resolve(worker)
   if (cargando) return cargando
   cargando = (async () => {
-    const { createWorker } = await import('tesseract.js')
-    const w = await createWorker('eng')
-    await w.setParameters({
-      tessedit_char_whitelist: LISTA_BLANCA,
-      // Una sola línea de texto: es lo que hay en la franja.
-      tessedit_pageseg_mode: '7' as unknown as never,
-    })
-    worker = w as unknown as Worker
-    return worker
+    try {
+      const { createWorker } = await import('tesseract.js')
+      const w = await createWorker('eng')
+      await w.setParameters({
+        tessedit_char_whitelist: LISTA_BLANCA,
+        // Una sola línea de texto: es lo que hay en la banda.
+        tessedit_pageseg_mode: '7' as unknown as never,
+      })
+      worker = w as unknown as Worker
+      return worker
+    } catch (e) {
+      // Que un fallo de descarga se pueda REINTENTAR y, sobre todo, que se
+      // pueda MOSTRAR: mientras esto se tragaba en silencio, quedarse sin
+      // motor se veía igual que una carta que no engancha, y no había forma
+      // de distinguir «no hay internet» de «acercá más la carta».
+      cargando = null
+      throw new Error(
+        `No se pudo cargar el lector de texto: ${e instanceof Error ? e.message : 'error de red'}`,
+      )
+    }
   })()
   return cargando
 }
+
+/** ¿El motor ya está cargado y listo para leer? */
+export const ocrListo = () => worker !== null
 
 export async function detenerOCR(): Promise<void> {
   const w = worker
@@ -159,16 +184,18 @@ const ALTO_OBJETIVO = 200
 /**
  * Recorta la franja del código y la prepara para el OCR.
  *
- * Tres decisiones, las tres medidas contra un pie de carta simulado a la
- * resolución que da una cámara:
+ * Decisiones, todas medidas y no supuestas:
  *
- * - **Se toma la franja ENTERA, no solo la derecha.** Recortar donde está el
+ * - **Se lee la BANDA de la guía, no «el fondo del fotograma».** Al principio
+ *   recortaba el 16% inferior del vídeo dando por hecho que la carta llenaba
+ *   la pantalla. No la llena: la carta está en el medio, así que se leía el
+ *   escritorio. Ahora el recorte y la guía comparten la constante `BANDA`.
+ * - **Se toma la banda ANCHA, no solo la derecha.** Recortar donde está el
  *   código parecía lo obvio, pero a 800 px se perdía la barra de «1/264» y el
- *   número salía como 1264. Con la franja completa lee
- *   `RENO OLFL E FFG ASH-EN 1/264` y acierta.
+ *   número salía como 1264.
  * - **Se escala a un alto fijo**, no ×3: así una cámara de 720p y una de 4K
  *   llegan al OCR con el mismo tamaño de letra.
- * - **El umbral es la media de la franja**, no 128: el pie es una barra oscura
+ * - **El umbral es la media del recorte**, no 128: el pie es una barra oscura
  *   con texto claro, y un umbral fijo se comía el texto en las cartas de fondo
  *   más oscuro. Invertir resultó indiferente —Tesseract lee bien claro sobre
  *   oscuro— así que no se invierte.
@@ -177,17 +204,22 @@ export function recortarFranja(
   fuente: HTMLVideoElement | HTMLCanvasElement,
   ancho: number,
   alto: number,
+  /** Rectángulo a leer, en fracciones. Por defecto, la banda de la guía. */
+  banda: { x: number; y: number; w: number; h: number } = BANDA,
 ): HTMLCanvasElement {
-  const hFranja = Math.max(20, Math.round(alto * FRANJA))
-  const escala = Math.max(2, ALTO_OBJETIVO / hFranja)
+  const sx = Math.round(ancho * banda.x)
+  const sy = Math.round(alto * banda.y)
+  const sw = Math.max(1, Math.round(ancho * banda.w))
+  const sh = Math.max(20, Math.round(alto * banda.h))
+  const escala = Math.max(2, ALTO_OBJETIVO / sh)
 
   const canvas = document.createElement('canvas')
-  canvas.width = Math.round(ancho * escala)
-  canvas.height = Math.round(hFranja * escala)
+  canvas.width = Math.round(sw * escala)
+  canvas.height = Math.round(sh * escala)
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
-  ctx.drawImage(fuente, 0, alto - hFranja, ancho, hFranja, 0, 0, canvas.width, canvas.height)
+  ctx.drawImage(fuente, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
 
   const img = ctx.getImageData(0, 0, canvas.width, canvas.height)
   const px = img.data

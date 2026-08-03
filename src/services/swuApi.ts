@@ -949,3 +949,35 @@ export async function getMainSets(): Promise<SetInfo[]> {
 export async function preloadSet(_setCode: string): Promise<number> {
   return loadFullDatabase()
 }
+
+
+// ─── Garantizar la base local ─────────────────────────────────────────
+
+let cardsPromise: Promise<boolean> | null = null
+
+/**
+ * Descarga la base de cartas si falta.
+ *
+ * Hace falta en toda pantalla a la que se pueda entrar DIRECTO sin pasar por
+ * el buscador o la colección: `/meta` y `/scan` son públicas o de acceso
+ * directo, y sin esto `db.cards` queda vacía. El escáner lo sufrió de la peor
+ * forma —leía el código de la carta perfecto y no encontraba nada contra qué
+ * compararlo, así que parecía que el OCR no funcionaba.
+ *
+ * Devuelve `true` solo si hubo que cargarla, para que quien llame sepa si
+ * tiene que rehacer su mapeo. Nunca lanza.
+ */
+export function ensureCards(): Promise<boolean> {
+  if (cardsPromise) return cardsPromise
+  cardsPromise = (async () => {
+    try {
+      if ((await db.cards.count()) > 0) return false
+      await loadFullDatabase()
+      return (await db.cards.count()) > 0
+    } catch {
+      cardsPromise = null // que un fallo de red no lo deje descartado para siempre
+      return false
+    }
+  })()
+  return cardsPromise
+}

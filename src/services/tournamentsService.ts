@@ -25,7 +25,7 @@
  */
 
 import { db } from './db'
-import { normalizeSearch, loadFullDatabase } from './swuApi'
+import { normalizeSearch, ensureCards } from './swuApi'
 import type { Card } from '../types'
 
 export interface HubTournament {
@@ -454,30 +454,6 @@ export function countTitles(tournaments: HubTournament[]): TitleCount[] {
 export const countUnpublished = (tournaments: HubTournament[]) =>
   tournaments.filter(t => !t.leader).length
 
-// ─── Base de cartas ───────────────────────────────────────────────────
 
-let cardsPromise: Promise<boolean> | null = null
-
-/**
- * Baja la base de cartas si falta, para poder mostrar los líderes con NUESTRAS
- * imágenes en vez de hotlinkear las del sitio ajeno.
- *
- * Hace falta porque `/meta` es pública y ninguna otra pantalla de esa ruta la
- * carga: quien entra directo no vería ni una carta. Devuelve `true` solo si
- * hizo falta cargarla —así quien llama sabe si tiene que volver a mapear— y
- * nunca lanza: sin imágenes la pantalla sigue siendo útil.
- */
-export function ensureCards(): Promise<boolean> {
-  if (cardsPromise) return cardsPromise
-  cardsPromise = (async () => {
-    try {
-      if ((await db.cards.count()) > 0) return false
-      await loadFullDatabase()
-      return (await db.cards.count()) > 0
-    } catch {
-      cardsPromise = null // que un fallo de red no lo deje descartado para siempre
-      return false
-    }
-  })()
-  return cardsPromise
-}
+/** Reexport por comodidad: la implementación vive en swuApi. */
+export { ensureCards }
