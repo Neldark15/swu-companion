@@ -24,34 +24,23 @@
  * chicas van marcadas.
  */
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft, ArrowUpDown, Swords, BarChart3, Info,
+  ArrowLeft, Swords, BarChart3, Info,
   ExternalLink, AlertTriangle, ChevronRight, Trophy,
 } from 'lucide-react'
 import { TournamentsView } from './TournamentsView'
+import { MetaLiveView } from './MetaLiveView'
 import { Button } from '../../components/ui/Button'
 import { Chip } from '../../components/ui/Chip'
 import { SegmentedControl } from '../../components/ui/SegmentedControl'
 import { Sheet } from '../../components/ui/Sheet'
 import {
   tournament, archetypes, findings, notes, sources,
-  strategies, sets, tiers,
   getArchetype, getMatchupsOf, formatPct, winRateTone, sampleWarning,
   type MetaArchetype,
 } from '../../services/metaService'
-
-type SortKey = 'rank' | 'decks' | 'metaShare' | 'top8' | 'wrVsTop10' | 'kyberWR'
-
-const SORT_LABELS: Record<SortKey, string> = {
-  rank: 'Ranking',
-  decks: 'Decks',
-  metaShare: 'Meta',
-  top8: 'Top 8',
-  wrVsTop10: 'WR vs Top 10',
-  kyberWR: 'WR Kyber',
-}
 
 const TONE_CLASS = {
   green: 'text-swu-green',
@@ -70,39 +59,9 @@ function WinRate({ value }: { value: number | null | undefined }) {
 export function MetaPage() {
   const navigate = useNavigate()
   const [view, setView] = useState<'torneos' | 'meta' | 'matchups'>('torneos')
-  const [sortBy, setSortBy] = useState<SortKey>('rank')
-  const [desc, setDesc] = useState(false)
-  const [fStrategy, setFStrategy] = useState<string | null>(null)
-  const [fSet, setFSet] = useState<string | null>(null)
-  const [fTier, setFTier] = useState<string | null>(null)
-  const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<string | null>(archetypes[0]?.id ?? null)
   const [detail, setDetail] = useState<MetaArchetype | null>(null)
   const [showInfo, setShowInfo] = useState(false)
-
-  const rows = useMemo(() => {
-    let list = archetypes.filter(a => {
-      if (fStrategy && a.strategy !== fStrategy) return false
-      if (fSet && a.set !== fSet) return false
-      if (fTier && a.kyberTier !== fTier) return false
-      if (search.trim()) {
-        const q = search.toLowerCase()
-        if (!(a.name ?? a.id).toLowerCase().includes(q) && !a.id.toLowerCase().includes(q)) return false
-      }
-      return true
-    })
-    list = [...list].sort((a, b) => {
-      const av = a[sortBy] ?? -Infinity
-      const bv = b[sortBy] ?? -Infinity
-      // El ranking es "mejor = más chico"; el resto, "mejor = más grande".
-      const cmp = sortBy === 'rank' ? (av as number) - (bv as number) : (bv as number) - (av as number)
-      return desc ? -cmp : cmp
-    })
-    return list
-  }, [sortBy, desc, fStrategy, fSet, fTier, search])
-
-  const activeFilters = [fStrategy, fSet, fTier].filter(Boolean).length + (search.trim() ? 1 : 0)
-  const clearFilters = () => { setFStrategy(null); setFSet(null); setFTier(null); setSearch('') }
 
   const selectedArch = selected ? getArchetype(selected) : undefined
   const selectedMatchups = selected ? getMatchupsOf(selected) : []
@@ -118,7 +77,7 @@ export function MetaPage() {
           {/* «Fuentes» describe el snapshot del torneo único. En «Torneos» los
               datos son otros y tienen su propio botón de contexto, así que acá
               solo confundiría. */}
-          {view !== 'torneos' && (
+          {view === 'matchups' && (
             <Button size="xs" variant="ghost" onClick={() => setShowInfo(true)}>
               <Info size={13} aria-hidden /> Fuentes
             </Button>
@@ -127,10 +86,10 @@ export function MetaPage() {
       </div>
 
       <div className="max-w-lg lg:max-w-5xl mx-auto px-4 lg:px-6 py-4 space-y-4">
-        {/* Cabecera del torneo. Solo en las vistas que hablan de ESE torneo: en
-            «Torneos» hay muchos, y afirmar arriba «543 jugadores · 25
-            arquetipos» contradiría la lista de abajo. */}
-        {view !== 'torneos' && (
+        {/* Cabecera del snapshot. Solo en «Matchups», que es lo único que
+            sigue saliendo de ese torneo: sobre los datos vivos del Meta,
+            afirmar «543 jugadores» contradiría lo de abajo. */}
+        {view === 'matchups' && (
         <div className="bg-swu-surface rounded-xl border border-swu-border p-3 space-y-2">
           <p className="text-sm font-bold text-swu-text leading-tight">{tournament.name}</p>
           <div className="flex flex-wrap gap-3 text-[11px] text-swu-muted font-mono">
@@ -164,123 +123,11 @@ export function MetaPage() {
           ]}
         />
 
-        {view === 'meta' && (
-          <>
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar arquetipo o líder…"
-              aria-label="Buscar arquetipo"
-              className="w-full bg-swu-surface border border-swu-border rounded-xl px-3 py-2.5 text-sm text-swu-text outline-none focus:border-swu-accent"
-            />
-
-            {/* Filtros */}
-            <div className="space-y-1.5">
-              <div className="flex flex-wrap gap-1">
-                {strategies.map(s => (
-                  <Chip key={s} tone="cyan" active={fStrategy === s}
-                    onClick={() => setFStrategy(fStrategy === s ? null : s)}>{s}</Chip>
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {sets.map(s => (
-                  <Chip key={s} tone="amber" active={fSet === s}
-                    onClick={() => setFSet(fSet === s ? null : s)}>{s}</Chip>
-                ))}
-                {tiers.map(t => (
-                  <Chip key={t} tone="green" active={fTier === t}
-                    onClick={() => setFTier(fTier === t ? null : t)}>{t}</Chip>
-                ))}
-                {activeFilters > 0 && (
-                  <Button size="xs" variant="ghost" onClick={clearFilters} className="text-swu-red">
-                    Limpiar
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {/* Ordenar */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <ArrowUpDown size={12} className="text-swu-muted" aria-hidden />
-              {(Object.keys(SORT_LABELS) as SortKey[]).map(k => (
-                <Chip
-                  key={k}
-                  tone="neutral"
-                  active={sortBy === k}
-                  onClick={() => { if (sortBy === k) setDesc(d => !d); else { setSortBy(k); setDesc(false) } }}
-                >
-                  {SORT_LABELS[k]}{sortBy === k ? (desc ? ' ↓' : ' ↑') : ''}
-                </Chip>
-              ))}
-            </div>
-
-            <p className="text-xs text-swu-muted">
-              {rows.length} de {archetypes.length} arquetipos
-            </p>
-
-            {/* Tabla. Scroll horizontal PROPIO: el cuerpo de la página nunca
-                debe scrollear de lado en móvil. */}
-            <div className="overflow-x-auto -mx-4 px-4 lg:mx-0 lg:px-0">
-              <table className="w-full min-w-[640px] text-left border-collapse">
-                <thead>
-                  <tr className="text-[10px] font-mono tracking-wider uppercase text-swu-muted/60">
-                    <th className="py-2 pr-2 font-medium">#</th>
-                    <th className="py-2 pr-2 font-medium">Arquetipo</th>
-                    <th className="py-2 px-2 font-medium text-right">Decks</th>
-                    <th className="py-2 px-2 font-medium text-right">Meta</th>
-                    <th className="py-2 px-2 font-medium text-right">Top 8</th>
-                    <th className="py-2 px-2 font-medium text-right">vs Top 10</th>
-                    <th className="py-2 pl-2 font-medium text-right">Kyber</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map(a => {
-                    const warn = sampleWarning(a)
-                    return (
-                      <tr
-                        key={a.id}
-                        onClick={() => setDetail(a)}
-                        className="border-t border-swu-border/50 cursor-pointer hover:bg-swu-surface/60 transition-colors"
-                      >
-                        <td className="py-2 pr-2 text-[11px] font-mono text-swu-muted">{a.rank ?? '—'}</td>
-                        <td className="py-2 pr-2">
-                          <div className="text-xs font-semibold text-swu-text leading-tight">
-                            {a.leader ?? a.id}
-                          </div>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <span className="text-[10px] text-swu-muted">{a.strategy}</span>
-                            {a.set && <span className="text-[10px] text-swu-amber font-mono">{a.set}</span>}
-                            {warn && (
-                              <span className="text-[9px] text-swu-amber" title={warn}>
-                                <AlertTriangle size={9} aria-hidden />
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-2 px-2 text-right text-xs font-mono text-swu-text">{a.decks}</td>
-                        <td className="py-2 px-2 text-right text-xs font-mono text-swu-muted">{formatPct(a.metaShare, 1)}</td>
-                        <td className="py-2 px-2 text-right text-xs font-mono text-swu-text">
-                          {a.top8 > 0 ? a.top8 : '—'}
-                        </td>
-                        <td className="py-2 px-2 text-right text-xs"><WinRate value={a.wrVsTop10} /></td>
-                        <td className="py-2 pl-2 text-right text-xs">
-                          <span className="font-mono text-swu-muted">{a.kyberTier ?? '—'}</span>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {rows.length === 0 && (
-              <p className="text-center text-xs text-swu-muted py-6">
-                Ningún arquetipo con esos filtros
-              </p>
-            )}
-          </>
-        )}
-
+        {/* Datos VIVOS. Reemplaza en números a la tabla del snapshot: aquel
+            torneo describe un pool de cartas que el juego cerró el 16 de
+            julio, y 53 de los 177 arquetipos de hoy tienen líderes que
+            entonces no existían. La prosa curada sigue en «Matchups». */}
+        {view === 'meta' && <MetaLiveView />}
         {view === 'matchups' && (
           <>
             <div>

@@ -179,7 +179,27 @@ export async function detenerOCR(): Promise<void> {
 }
 
 /** Alto al que se lleva la franja antes de leerla, en píxeles. */
-const ALTO_OBJETIVO = 200
+const ALTO_OBJETIVO = 140
+
+/**
+ * Techo de ancho del recorte.
+ *
+ * Existe por RENDIMIENTO, no por calidad. Sin él, una banda de 1280×158
+ * escalada ×2 daba un lienzo de 2560×316: 800.000 píxeles que el umbral
+ * recorría entero en el hilo principal, cada segundo y medio. Eso es lo que
+ * trababa la vista previa y hacía imposible encuadrar. A 900 px de ancho el
+ * OCR sigue leyendo igual —el texto ya entra de sobra— con casi 10 veces
+ * menos trabajo.
+ */
+const ANCHO_MAX = 900
+
+/**
+ * Lienzo reutilizado.
+ *
+ * Crear un canvas nuevo por fotograma obliga al recolector de basura a liberar
+ * varios MB por segundo, y esos tirones también se ven en la cámara.
+ */
+let lienzo: HTMLCanvasElement | null = null
 
 /**
  * Recorta la franja del código y la prepara para el OCR.
@@ -211,23 +231,37 @@ export function recortarFranja(
   const sy = Math.round(alto * banda.y)
   const sw = Math.max(1, Math.round(ancho * banda.w))
   const sh = Math.max(20, Math.round(alto * banda.h))
-  const escala = Math.max(2, ALTO_OBJETIVO / sh)
 
-  const canvas = document.createElement('canvas')
-  canvas.width = Math.round(sw * escala)
-  canvas.height = Math.round(sh * escala)
+  // La escala sube hasta el alto objetivo, pero el ancho manda: pasado
+  // ANCHO_MAX el coste crece sin que el OCR lea mejor.
+  const escala = Math.min(ALTO_OBJETIVO / sh, ANCHO_MAX / sw)
+  const cw = Math.max(60, Math.round(sw * escala))
+  const ch = Math.max(20, Math.round(sh * escala))
+
+  const canvas = lienzo ?? (lienzo = document.createElement('canvas'))
+  if (canvas.width !== cw || canvas.height !== ch) {
+    canvas.width = cw
+    canvas.height = ch
+  }
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!
   ctx.imageSmoothingEnabled = true
-  ctx.imageSmoothingQuality = 'high'
-  ctx.drawImage(fuente, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
+  ctx.imageSmoothingQuality = 'medium'
+  ctx.drawImage(fuente, sx, sy, sw, sh, 0, 0, cw, ch)
 
-  const img = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  const img = ctx.getImageData(0, 0, cw, ch)
   const px = img.data
+
+  // El umbral se estima MUESTREANDO 1 de cada 16 píxeles. Recorrerlos todos
+  // dos veces era el grueso del trabajo, y para una media no aporta nada:
+  // sobre 100.000 píxeles, 6.000 muestras dan el mismo número.
   let suma = 0
-  for (let i = 0; i < px.length; i += 4) {
+  let n = 0
+  for (let i = 0; i < px.length; i += 64) {
     suma += px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114
+    n++
   }
-  const umbral = suma / (px.length / 4)
+  const umbral = n > 0 ? suma / n : 128
+
   for (let i = 0; i < px.length; i += 4) {
     const gris = px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114
     const v = gris > umbral ? 255 : 0

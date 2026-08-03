@@ -35,8 +35,15 @@ import type { Card } from '../../types'
 
 type Estado = 'pidiendo' | 'escaneando' | 'sin-camara' | 'manual'
 
-/** Cada cuánto se intenta leer. Menos que esto satura el móvil sin ganar nada. */
-const INTERVALO_MS = 1400
+/**
+ * Cada cuánto se intenta leer.
+ *
+ * Subido de 1.4 s a 2.2 s a propósito: entre lectura y lectura la persona
+ * necesita PODER MOVER la carta para encuadrar, y con el ciclo muy pegado la
+ * vista previa se sentía trabada. El disparo manual «Leer ahora» cubre el caso
+ * de «ya la tengo puesta, leela ahora».
+ */
+const INTERVALO_MS = 2200
 
 export function ScanPage() {
   const navigate = useNavigate()
@@ -117,6 +124,9 @@ export function ScanPage() {
   const intentarLeer = useCallback(async () => {
     const v = videoRef.current
     if (!v || ocupado.current || v.videoWidth === 0) return
+    // Con la app en segundo plano el vídeo se congela: releer el mismo
+    // fotograma una y otra vez solo gasta batería.
+    if (document.hidden) return
     ocupado.current = true
     setLeyendo(true)
     try {
