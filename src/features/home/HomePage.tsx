@@ -7,10 +7,7 @@
  *
  * ── Dos reglas que esta pantalla no rompe ─────────────────────────────
  *
- * 1. Ningún botón decorativo. Cada acción va a una ruta que existe. La maqueta
- *    de referencia traía «Escanear carta»; la app NO tiene lector de cartas
- *    —el único escáner es el de QR para entrar a un evento (JoinEventPage)—
- *    así que ese lugar lo ocupa esa acción, que sí funciona.
+ * 1. Ningún botón decorativo. Cada acción va a una ruta que existe.
  * 2. Ningún número inventado. Victorias, derrotas y racha salen de
  *    `playerStats` (gamification.ts). Si todavía no hay partidas registradas,
  *    la tira no se dibuja en vez de mostrar tres ceros.
@@ -187,13 +184,13 @@ export function HomePage() {
           </HudPanel>
         </button>
 
-        <button onClick={() => navigate('/events/join')} className="w-[30%] flex-shrink-0 active:scale-[0.98] transition-transform">
+        <button onClick={() => navigate('/scan')} className="w-[30%] flex-shrink-0 active:scale-[0.98] transition-transform">
           <HudPanel tone="neutral">
             <div className="relative flex flex-col items-center justify-center gap-1.5 px-2 py-3.5 h-full">
               <HudCorners tone="neutral" />
               <ScanLine size={20} className="text-swu-muted" aria-hidden />
               <span className="text-[9px] font-mono font-bold tracking-[0.15em] uppercase text-swu-muted text-center leading-tight">
-                Unirse<br />a evento
+                Escanear<br />carta
               </span>
             </div>
           </HudPanel>

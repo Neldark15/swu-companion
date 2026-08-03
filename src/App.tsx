@@ -26,6 +26,7 @@ const TournamentPublicView = lazy(() => import('./features/events/TournamentPubl
 const TournamentPlayerView = lazy(() => import('./features/events/TournamentPlayerView').then(m => ({ default: m.TournamentPlayerView })))
 const ManageNewsPage = lazy(() => import('./features/home/ManageNewsPage').then(m => ({ default: m.ManageNewsPage })))
 const NewsPage = lazy(() => import('./features/home/NewsPage').then(m => ({ default: m.NewsPage })))
+const ScanPage = lazy(() => import('./features/scan/ScanPage').then(m => ({ default: m.ScanPage })))
 const MetaPage = lazy(() => import('./features/meta/MetaPage').then(m => ({ default: m.MetaPage })))
 const UtilitiesPage = lazy(() => import('./features/utilities/UtilitiesPage').then(m => ({ default: m.UtilitiesPage })))
 const ProfilePage = lazy(() => import('./features/profile/ProfilePage').then(m => ({ default: m.ProfilePage })))
@@ -126,6 +127,7 @@ export default function App() {
             <Route path="/melee/:id" element={<P><MeleeDetailPage /></P>} />
             <Route path="/decks" element={<P><DeckListPage /></P>} />
             <Route path="/decks/:id" element={<P><DeckBuilderPage /></P>} />
+            <Route path="/scan" element={<P><ScanPage /></P>} />
             <Route path="/collection" element={<P><CollectionPage /></P>} />
             <Route path="/explore" element={<P><ExplorePage /></P>} />
             <Route path="/espionaje" element={<P><EspionajePage /></P>} />
