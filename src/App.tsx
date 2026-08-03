@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AppLayout } from './components/layout/AppLayout'
 import { AuthGate } from './components/AuthGate'
@@ -71,6 +72,10 @@ function P({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <BrowserRouter>
+      {/* Sin esto, cualquier error de render deja la pantalla en blanco, sin
+          mensaje ni salida — y en la PWA instalada no hay ni barra de
+          direcciones para escapar. */}
+      <ErrorBoundary>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* ── Admin panel — own layout, isAdmin guard inside ── */}
@@ -138,6 +143,7 @@ export default function App() {
           </Route>
         </Routes>
       </Suspense>
+      </ErrorBoundary>
     </BrowserRouter>
   )
 }
