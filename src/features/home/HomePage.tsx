@@ -4,7 +4,7 @@ import { User, ExternalLink } from 'lucide-react'
 import {
   DatapadIcon, MedalIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
   DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
-  ChanceCubeIcon,
+  ChanceCubeIcon, KyberIcon,
 } from '../../components/SWIcons'
 import { useAuth } from '../../hooks/useAuth'
 import { calculateLevel } from '../../services/gamification'
@@ -52,6 +52,18 @@ const mainSystems = [
     glow: 'shadow-[0_0_18px_rgba(251,191,36,0.15)]',
     to: '/events',
     auth: true,
+  },
+  {
+    icon: KyberIcon,
+    label: 'Meta',
+    sub: 'Qué está ganando',
+    textClass: 'text-swu-cyan',
+    iconBg: 'bg-swu-cyan/10 border-swu-cyan/20',
+    notchBg: 'bg-swu-cyan/40',
+    glow: 'shadow-[0_0_18px_rgba(34,211,238,0.15)]',
+    to: '/meta',
+    // Sin `auth`: /meta es pública (App.tsx no la envuelve en AuthGate) porque
+    // sirve para prepararse antes de un torneo.
   },
   {
     icon: CargoIcon,
