@@ -1,11 +1,31 @@
+/**
+ * BASE — el Centro de Mando.
+ *
+ * Consola de nave: paneles de esquinas cortadas, íconos en octágono y el
+ * acento cian del HUD. Las formas viven en components/Hud.tsx y las utilidades
+ * de recorte en index.css.
+ *
+ * ── Dos reglas que esta pantalla no rompe ─────────────────────────────
+ *
+ * 1. Ningún botón decorativo. Cada acción va a una ruta que existe. La maqueta
+ *    de referencia traía «Escanear carta»; la app NO tiene lector de cartas
+ *    —el único escáner es el de QR para entrar a un evento (JoinEventPage)—
+ *    así que ese lugar lo ocupa esa acción, que sí funciona.
+ * 2. Ningún número inventado. Victorias, derrotas y racha salen de
+ *    `playerStats` (gamification.ts). Si todavía no hay partidas registradas,
+ *    la tira no se dibuja en vez de mostrar tres ceros.
+ */
+
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { User, ExternalLink } from 'lucide-react'
+import { ChevronRight, ScanLine, Swords } from 'lucide-react'
 import {
   DatapadIcon, MedalIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
   DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
   ChanceCubeIcon, KyberIcon,
 } from '../../components/SWIcons'
+import { HudPanel, HudCorners, HexIcon } from '../../components/Hud'
+import { HUD_TEXTO, type HudTone } from '../../components/hudTones'
 import { useAuth } from '../../hooks/useAuth'
 import { calculateLevel } from '../../services/gamification'
 import { db } from '../../services/db'
@@ -14,334 +34,236 @@ import { WelcomeHome } from './components/WelcomeHome'
 /* Avatar helper: detect image-based avatar vs emoji */
 const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
 
-/*  ────────────────────────────────────────────
- *  BASE — Main cockpit / galactic command panel
- *  Star Wars ship console aesthetic
- *  ──────────────────────────────────────────── */
+interface Sistema {
+  icon: typeof DatapadIcon
+  label: string
+  tone: HudTone
+  to: string
+  auth?: boolean
+}
 
-const mainSystems = [
-  {
-    icon: DatapadIcon,
-    label: 'Holocrón de Duelos',
-    sub: 'Registro de combate',
-    textClass: 'text-swu-green',
-    iconBg: 'bg-swu-green/10 border-swu-green/20',
-    notchBg: 'bg-swu-green/40',
-    glow: 'shadow-[0_0_18px_rgba(74,222,128,0.15)]',
-    to: '/arena',
-    auth: true,
-  },
-  {
-    icon: MedalIcon,
-    label: 'Circuito Melee',
-    sub: 'Historial competitivo',
-    textClass: 'text-swu-amber',
-    iconBg: 'bg-swu-amber/10 border-swu-amber/20',
-    notchBg: 'bg-swu-amber/40',
-    glow: 'shadow-[0_0_18px_rgba(251,191,36,0.15)]',
-    to: '/melee',
-    auth: true,
-  },
-  {
-    icon: MandoTrophyIcon,
-    label: 'Eventos',
-    sub: 'Torneos y más',
-    textClass: 'text-swu-amber',
-    iconBg: 'bg-swu-amber/10 border-swu-amber/20',
-    notchBg: 'bg-swu-amber/40',
-    glow: 'shadow-[0_0_18px_rgba(251,191,36,0.15)]',
-    to: '/events',
-    auth: true,
-  },
-  {
-    icon: KyberIcon,
-    label: 'Meta',
-    sub: 'Qué está ganando',
-    textClass: 'text-swu-cyan',
-    iconBg: 'bg-swu-cyan/10 border-swu-cyan/20',
-    notchBg: 'bg-swu-cyan/40',
-    glow: 'shadow-[0_0_18px_rgba(34,211,238,0.15)]',
-    to: '/meta',
-    // Sin `auth`: /meta es pública (App.tsx no la envuelve en AuthGate) porque
-    // sirve para prepararse antes de un torneo.
-  },
-  {
-    icon: CargoIcon,
-    label: 'Mi Botín',
-    sub: 'Colección de cartas',
-    textClass: 'text-swu-green',
-    iconBg: 'bg-swu-green/10 border-swu-green/20',
-    notchBg: 'bg-swu-green/40',
-    glow: 'shadow-[0_0_18px_rgba(74,222,128,0.15)]',
-    to: '/collection',
-    auth: true,
-  },
-  {
-    icon: BountyIcon,
-    label: 'Contrabando',
-    sub: 'Explorar colecciones',
-    textClass: 'text-red-400',
-    iconBg: 'bg-red-500/10 border-red-400/20',
-    notchBg: 'bg-red-400/40',
-    glow: 'shadow-[0_0_18px_rgba(248,113,113,0.15)]',
-    to: '/explore',
-    auth: true,
-  },
-  {
-    icon: DeckCardsIcon,
-    label: 'Mis Decks',
-    sub: 'Constructor',
-    textClass: 'text-swu-accent',
-    iconBg: 'bg-swu-accent/10 border-swu-accent/20',
-    notchBg: 'bg-swu-accent/40',
-    glow: 'shadow-[0_0_18px_rgba(56,189,248,0.15)]',
-    to: '/decks',
-    auth: true,
-  },
-  {
-    icon: SpyIcon,
-    label: 'Espionaje',
-    sub: 'Transmisiones sociales',
-    textClass: 'text-indigo-400',
-    iconBg: 'bg-indigo-500/10 border-indigo-400/20',
-    notchBg: 'bg-indigo-400/40',
-    glow: 'shadow-[0_0_18px_rgba(129,140,248,0.15)]',
-    to: '/espionaje',
-    auth: true,
-  },
-  {
-    icon: DeathStarIcon,
-    label: 'Misiones',
-    sub: 'Órdenes del día',
-    textClass: 'text-orange-400',
-    iconBg: 'bg-orange-500/10 border-orange-400/20',
-    notchBg: 'bg-orange-400/40',
-    glow: 'shadow-[0_0_18px_rgba(251,146,60,0.15)]',
-    to: '/misiones',
-    auth: true,
-  },
-  {
-    icon: BeskarIcon,
-    label: 'Consejo Jedi',
-    sub: 'Leaderboard mensual',
-    textClass: 'text-swu-amber',
-    iconBg: 'bg-swu-amber/10 border-swu-amber/20',
-    notchBg: 'bg-swu-amber/40',
-    glow: 'shadow-[0_0_18px_rgba(251,191,36,0.15)]',
-    to: '/rank',
-    auth: true,
-  },
-  {
-    icon: HolonetIcon,
-    label: 'Buscar Cartas',
-    sub: 'Base de datos',
-    textClass: 'text-swu-accent',
-    iconBg: 'bg-swu-accent/10 border-swu-accent/20',
-    notchBg: 'bg-swu-accent/40',
-    glow: 'shadow-[0_0_18px_rgba(56,189,248,0.15)]',
-    to: '/cards',
-    auth: true,
-  },
-  {
-    icon: ChanceCubeIcon,
-    label: 'Utilidades',
-    sub: 'Herramientas',
-    textClass: 'text-purple-400',
-    iconBg: 'bg-purple-500/10 border-purple-400/20',
-    notchBg: 'bg-purple-400/40',
-    glow: 'shadow-[0_0_18px_rgba(192,132,252,0.15)]',
-    to: '/utilities',
-  },
+const mainSystems: Sistema[] = [
+  { icon: DatapadIcon,     label: 'Holocrón',    tone: 'green',  to: '/arena',      auth: true },
+  { icon: MedalIcon,       label: 'Circuito Melee', tone: 'amber',  to: '/melee',      auth: true },
+  { icon: MandoTrophyIcon, label: 'Eventos',   tone: 'amber',  to: '/events',     auth: true },
+  { icon: KyberIcon,       label: 'Meta',      tone: 'cyan',   to: '/meta' },
+  { icon: CargoIcon,       label: 'Mi Botín',   tone: 'green',  to: '/collection', auth: true },
+  { icon: DeckCardsIcon,   label: 'Mis Decks',           tone: 'green',  to: '/decks',      auth: true },
+  { icon: BountyIcon,      label: 'Contrabando',  tone: 'red',    to: '/explore',    auth: true },
+  { icon: SpyIcon,         label: 'Espionaje',         tone: 'purple', to: '/espionaje',  auth: true },
+  { icon: DeathStarIcon,   label: 'Misiones',       tone: 'amber',  to: '/misiones',   auth: true },
+  { icon: BeskarIcon,      label: 'Consejo Jedi',   tone: 'amber',  to: '/rank',       auth: true },
+  { icon: HolonetIcon,     label: 'Buscar Cartas',         tone: 'cyan',   to: '/cards',      auth: true },
+  { icon: ChanceCubeIcon,  label: 'Utilidades',          tone: 'purple', to: '/utilities' },
 ]
+
+interface Marcador {
+  label: string
+  value: number | string
+  tone: HudTone
+  icon: typeof DatapadIcon
+}
 
 export function HomePage() {
   const navigate = useNavigate()
   const { currentProfile } = useAuth()
 
-  // Load player rank from gamification stats
-  const [rankInfo, setRankInfo] = useState<{ name: string; color: string } | null>(null)
+  /** Rango y marcador viajan juntos: salen de la misma fila y se pintan a la
+   *  vez, así que un solo estado evita un render intermedio a medio llenar. */
+  const [panel, setPanel] = useState<{
+    rank: { name: string; color: string } | null
+    marcadores: Marcador[] | null
+  }>({ rank: null, marcadores: null })
 
   useEffect(() => {
-    if (!currentProfile) { setRankInfo(null); return }
+    if (!currentProfile) return
+    let vivo = true
     db.playerStats.get(currentProfile.id).then(stats => {
-      if (stats) {
-        const lvl = calculateLevel(stats.xp)
-        setRankInfo({ name: lvl.rank.name, color: lvl.rank.color })
-      }
+      if (!vivo || !stats) return
+      const lvl = calculateLevel(stats.xp)
+      const r = stats.currentStreak
+      setPanel({
+        rank: { name: lvl.rank.name, color: lvl.rank.color },
+        // Sin partidas no hay marcador: tres ceros dicen «perdiste todo»
+        // cuando en realidad todavía no jugaste nada.
+        marcadores: stats.matchesPlayed > 0 ? [
+          { label: 'Victorias', value: stats.wins,   tone: 'green', icon: BeskarIcon },
+          { label: 'Derrotas',  value: stats.losses, tone: 'red',   icon: BountyIcon },
+          // La racha viene con signo: positiva son victorias seguidas y
+          // negativa derrotas seguidas. Mostrarla pelada diría «racha -4».
+          {
+            label: r < 0 ? 'Racha mala' : 'Racha',
+            value: Math.abs(r),
+            tone: r < 0 ? 'red' : 'amber',
+            icon: MandoTrophyIcon,
+          },
+        ] : null,
+      })
     }).catch(() => {})
+    return () => { vivo = false }
   }, [currentProfile])
 
-  // ── Logged-out: render the welcome/login/install screen ──
-  if (!currentProfile) {
-    return <WelcomeHome />
-  }
+  const { rank: rankInfo, marcadores } = panel
+
+  if (!currentProfile) return <WelcomeHome />
+
+  const avatar = currentProfile.avatar
 
   return (
     <div className="min-h-screen bg-swu-bg pb-8">
-      {/* ── Cockpit Header with Banner ── */}
-      <div className="relative overflow-hidden">
-        {/* Banner background image */}
-        <div className="absolute inset-0 z-0">
-          <img
-            src="/banner-base.png"
-            alt=""
-            className="w-full h-full object-cover object-center"
-          />
-          {/* Gradient fade over banner */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-swu-bg" />
-        </div>
-
-        {/* Scan-line overlay */}
-        <div
-          className="absolute inset-0 z-10 pointer-events-none opacity-[0.03]"
-          style={{
-            backgroundImage:
-              'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.08) 2px, rgba(255,255,255,0.08) 4px)',
-          }}
-        />
-
-        {/* Content over banner */}
-        <div className="relative z-20 px-5 pt-8 pb-4">
-          {/* Top status bar with logo */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <img src="/swu-logo-title.png" alt="SWU" className="w-16 h-20 object-contain drop-shadow-lg" />
-              <div>
-                <h1 className="text-lg font-extrabold text-white tracking-tight leading-tight drop-shadow-md">
-                  HOLOCRON SWU
-                </h1>
-                <p className="text-[9px] tracking-[0.3em] uppercase text-swu-amber font-bold drop-shadow-sm">
-                  Centro de Mando
-                </p>
-              </div>
+      {/* ── Panel del comandante ── */}
+      <div className="px-4 pt-4">
+        <HudPanel tone="cyan" glow className="relative">
+          <div className="relative overflow-hidden">
+            {/* Arte de fondo, ya existente en la app. Se desvanece hacia la
+                izquierda para que el texto siempre tenga contraste. */}
+            <div className="absolute inset-0" aria-hidden>
+              <img src="/banner-base.png" alt="" className="w-full h-full object-cover object-right" />
+              <div className="absolute inset-0 bg-gradient-to-r from-swu-bg via-swu-bg/85 to-swu-bg/20" />
+              <div
+                className="absolute inset-0 opacity-[0.05]"
+                style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.10) 2px, rgba(255,255,255,0.10) 4px)' }}
+              />
             </div>
+            <HudCorners tone="cyan" />
 
-            {/* Status indicator */}
-            <div className="flex items-center gap-2 bg-black/30 rounded-full px-2.5 py-1 backdrop-blur-sm">
-              <div className="w-2 h-2 rounded-full bg-swu-green animate-pulse" />
-              <span className="text-[10px] text-swu-green font-mono font-bold tracking-wider uppercase">
-                Online
-              </span>
+            <div className="relative p-4">
+              <div className="flex items-start gap-3">
+                <div className="clip-hud-sm bg-swu-cyan/40 p-px flex-shrink-0">
+                  <div className="clip-hud-sm bg-black/60 p-1.5">
+                    <img src="/swu-logo-title.png" alt="Star Wars: Unlimited" className="w-9 h-11 object-contain" />
+                  </div>
+                </div>
+                <div className="min-w-0 pt-0.5">
+                  <h1 className="text-xl font-extrabold text-white tracking-tight leading-none">
+                    CENTRO DE MANDO
+                  </h1>
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-swu-green animate-pulse" aria-hidden />
+                    <span className="text-[10px] text-swu-green font-mono font-bold tracking-[0.25em] uppercase">
+                      Online
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => navigate('/profile')}
+                className="mt-4 flex items-center gap-3 text-left w-full active:scale-[0.99] transition-transform rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-cyan"
+              >
+                <div className="w-14 h-14 rounded-full p-px bg-gradient-to-br from-swu-green to-swu-cyan flex-shrink-0">
+                  <div className="w-full h-full rounded-full bg-swu-bg overflow-hidden flex items-center justify-center">
+                    {avatar?.startsWith('data:image/')
+                      ? <img src={avatar} alt="" className="w-full h-full object-cover" />
+                      : swAvatarIds.includes(avatar)
+                        ? <img src={`/avatars/${avatar}.png`} alt="" className="w-10 h-10 object-contain" />
+                        : <span className="text-2xl">{avatar || '🎮'}</span>}
+                  </div>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xl font-extrabold text-white leading-tight truncate">{currentProfile.name}</p>
+                  <p className={`text-[10px] font-mono tracking-[0.2em] uppercase ${rankInfo?.color || 'text-swu-muted'}`}>
+                    {rankInfo?.name || 'Piloto activo'}
+                  </p>
+                </div>
+              </button>
             </div>
           </div>
+        </HudPanel>
+      </div>
 
-          {/* Profile card (currentProfile is guaranteed non-null here — see early return above) */}
-          <button
-            onClick={() => navigate('/profile')}
-            className="w-full rounded-xl p-3 flex items-center gap-3 active:scale-[0.98] transition-transform bg-swu-surface/60 backdrop-blur border border-swu-border/60"
-          >
-            <div className="w-11 h-11 rounded-lg bg-swu-accent/15 border border-swu-accent/30 flex items-center justify-center overflow-hidden">
-              {currentProfile.avatar?.startsWith('data:image/')
-                ? <img src={currentProfile.avatar} alt="" className="w-11 h-11 object-cover rounded-lg" />
-                : swAvatarIds.includes(currentProfile.avatar)
-                  ? <img src={`/avatars/${currentProfile.avatar}.png`} alt="" className="w-9 h-9 object-contain" />
-                  : <span className="text-xl">{currentProfile.avatar || '🎮'}</span>
-              }
+      {/* ── Acción principal ── */}
+      <div className="px-4 pt-3 flex gap-3">
+        <button onClick={() => navigate('/arena/log')} className="flex-1 min-w-0 active:scale-[0.98] transition-transform">
+          <HudPanel tone="cyan" glow fill="bg-swu-cyan/[0.08]">
+            <div className="relative flex items-center gap-3 px-3 py-3.5">
+              <HudCorners tone="cyan" />
+              <HexIcon tone="cyan" size={38}><Swords size={17} aria-hidden /></HexIcon>
+              <span className="flex-1 text-left text-[13px] font-extrabold text-white tracking-wide whitespace-nowrap">
+                REGISTRAR DUELO
+              </span>
+              <ChevronRight size={16} className="text-swu-cyan flex-shrink-0" aria-hidden />
             </div>
-            <div className="flex-1 text-left">
-              <p className="text-sm font-bold text-swu-text">{currentProfile.name}</p>
-              <p className={`text-[10px] font-mono tracking-wider ${rankInfo?.color || 'text-swu-muted'}`}>
-                {rankInfo?.name?.toUpperCase() || 'PILOTO ACTIVO'}
-              </p>
+          </HudPanel>
+        </button>
+
+        <button onClick={() => navigate('/events/join')} className="w-[30%] flex-shrink-0 active:scale-[0.98] transition-transform">
+          <HudPanel tone="neutral">
+            <div className="relative flex flex-col items-center justify-center gap-1.5 px-2 py-3.5 h-full">
+              <HudCorners tone="neutral" />
+              <ScanLine size={20} className="text-swu-muted" aria-hidden />
+              <span className="text-[9px] font-mono font-bold tracking-[0.15em] uppercase text-swu-muted text-center leading-tight">
+                Unirse<br />a evento
+              </span>
             </div>
-            <User size={16} className="text-swu-muted" />
-          </button>
+          </HudPanel>
+        </button>
+      </div>
+
+      {/* ── Marcador ── */}
+      {marcadores && (
+        <div className="px-4 pt-3">
+          <HudPanel tone="neutral">
+            <div className="flex items-stretch">
+              {marcadores.map((m, i) => {
+                const Icon = m.icon
+                return (
+                  <div
+                    key={m.label}
+                    className={`flex-1 flex items-center gap-2.5 px-3 py-3 ${i > 0 ? 'border-l border-swu-border' : ''}`}
+                  >
+                    <HexIcon tone={m.tone} size={34}><Icon size={15} /></HexIcon>
+                    <div className="min-w-0">
+                      <p className="text-[9px] font-mono tracking-wider uppercase text-swu-muted truncate">
+                        {m.label}
+                      </p>
+                      <p className={`text-xl font-extrabold font-mono leading-none ${HUD_TEXTO[m.tone]}`}>
+                        {m.value}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </HudPanel>
+        </div>
+      )}
+
+      {/* ── Separador ── */}
+      <div className="px-4 pt-5 pb-1">
+        <div className="flex items-center gap-2.5">
+          <div className="h-px flex-1 bg-gradient-to-r from-transparent to-swu-cyan/40" />
+          <span className="text-[9px] text-swu-cyan/70 font-mono tracking-[0.35em]">SISTEMAS</span>
+          <div className="h-px flex-1 bg-gradient-to-l from-transparent to-swu-cyan/40" />
         </div>
       </div>
 
-      {/* ── Decorative separator ── */}
-      <div className="px-5 py-1">
-        <div className="flex items-center gap-2">
-          <div className="h-px flex-1 bg-gradient-to-r from-swu-amber/40 to-transparent" />
-          <span className="text-[9px] text-swu-amber/60 font-mono tracking-[0.3em]">SISTEMAS</span>
-          <div className="h-px flex-1 bg-gradient-to-l from-swu-amber/40 to-transparent" />
-        </div>
-      </div>
-
-      {/* ── Main Systems Grid (ship console buttons) ── */}
-      <div className="px-5 pt-2 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4">
-        {mainSystems.filter(s => !s.auth || currentProfile).map((sys) => {
+      {/* ── Módulos ── */}
+      <div className="px-4 pt-2 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        {mainSystems.filter(s => !s.auth || currentProfile).map(sys => {
           const Icon = sys.icon
           return (
             <button
               key={sys.label}
               onClick={() => navigate(sys.to)}
-              className={`relative overflow-hidden rounded-xl border border-swu-border bg-swu-surface p-4 flex flex-col gap-2.5 text-left active:scale-[0.96] transition-all duration-150 ${sys.glow}`}
+              className="active:scale-[0.97] transition-transform text-left"
             >
-              {/* Corner notch decoration (ship panel style) */}
-              <div className={`absolute top-0 left-0 w-5 h-0.5 ${sys.notchBg} rounded-br`} />
-              <div className={`absolute top-0 left-0 w-0.5 h-5 ${sys.notchBg} rounded-br`} />
-
-              <div className={`w-10 h-10 rounded-lg border flex items-center justify-center ${sys.iconBg}`}>
-                <Icon size={20} className={sys.textClass} />
-              </div>
-              <div>
-                <p className={`text-sm font-bold ${sys.textClass}`}>{sys.label}</p>
-                <p className="text-[10px] text-swu-muted font-mono tracking-wider uppercase">{sys.sub}</p>
-              </div>
+              <HudPanel tone={sys.tone} glow className="h-full">
+                <div className="relative h-full flex items-center gap-2 p-2.5">
+                  <HudCorners tone={sys.tone} />
+                  <HexIcon tone={sys.tone} size={38}><Icon size={18} /></HexIcon>
+                  {/* Solo el rótulo, en blanco: el color lo lleva el ícono. Con
+                      subtítulo debajo, nombres como «Circuito Melee» no entran
+                      en media pantalla de 375 px y se cortaban con puntos. */}
+                  <span className="min-w-0 flex-1 text-[13px] font-bold text-white leading-tight">
+                    {sys.label}
+                  </span>
+                  <ChevronRight size={14} className="text-swu-muted flex-shrink-0" aria-hidden />
+                </div>
+              </HudPanel>
             </button>
           )
         })}
-      </div>
-
-      {/* ── Next Set Banner (compact ship-terminal style) ── */}
-      <div className="px-5 pt-5">
-        <div className="relative rounded-xl overflow-hidden border border-swu-amber/20 bg-swu-surface">
-          {/* Scan line overlay */}
-          <div
-            className="absolute inset-0 pointer-events-none opacity-[0.03] z-10"
-            style={{
-              backgroundImage:
-                'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.06) 2px, rgba(255,255,255,0.06) 4px)',
-            }}
-          />
-
-          <div className="relative z-0 p-4">
-            {/* Terminal header */}
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-1.5 h-1.5 rounded-full bg-swu-amber animate-pulse" />
-              <span className="text-[9px] text-swu-amber font-mono tracking-[0.3em] uppercase font-bold">
-                Transmisión entrante
-              </span>
-            </div>
-
-            <h3 className="text-lg font-extrabold text-swu-text">Ashes of the Empire</h3>
-            <p className="text-xs text-swu-muted mt-0.5 font-mono">Nueva expansión · Set 8 · Ya en la base de datos</p>
-
-            <div className="flex gap-1.5 mt-2">
-              <span className="text-[9px] bg-swu-amber/15 text-swu-amber px-2 py-0.5 rounded font-bold border border-swu-amber/20">
-                ASH
-              </span>
-              <span className="text-[9px] bg-swu-accent/15 text-swu-accent px-2 py-0.5 rounded font-bold border border-swu-accent/20">
-                900+ cartas
-              </span>
-            </div>
-
-            <div className="flex gap-2 mt-3">
-              <button
-                onClick={() => navigate('/cards')}
-                className="bg-swu-accent/15 text-swu-accent text-xs font-bold px-4 py-2 rounded-lg border border-swu-accent/30 active:scale-95 transition-transform"
-              >
-                Ver Cartas
-              </button>
-              <a
-                href="https://starwarsunlimited.com/news"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-swu-surface text-swu-muted text-xs font-bold px-4 py-2 rounded-lg border border-swu-border flex items-center gap-1.5 active:scale-95 transition-transform"
-              >
-                Info <ExternalLink size={10} />
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Footer version indicator ── */}
-      <div className="px-5 pt-5 pb-2 text-center">
-        <p className="text-[9px] text-swu-muted/40 font-mono tracking-widest">
-          SWU COMPANION v1.0 — EL SALVADOR
-        </p>
       </div>
     </div>
   )

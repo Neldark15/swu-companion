@@ -146,3 +146,34 @@ input:focus, textarea:focus, select:focus {
 .animate-slide-in-top {
   animation: slide-in-top 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* ─────────────────────────────────────────────────────────────
+ * Formas HUD del Centro de Mando
+ *
+ * Las esquinas cortadas se hacen con `clip-path`, que recorta TAMBIÉN el
+ * borde: por eso un panel con contorno se arma anidando dos capas recortadas
+ * —la de afuera pinta la línea, la de adentro el relleno— en vez de con
+ * `border`. Ver HudPanel en components/Hud.tsx.
+ * ───────────────────────────────────────────────────────────── */
+
+@utility clip-hud {
+  clip-path: polygon(
+    16px 0, 100% 0, 100% calc(100% - 16px),
+    calc(100% - 16px) 100%, 0 100%, 0 16px
+  );
+}
+
+@utility clip-hud-sm {
+  clip-path: polygon(
+    10px 0, 100% 0, 100% calc(100% - 10px),
+    calc(100% - 10px) 100%, 0 100%, 0 10px
+  );
+}
+
+/* Octágono para los íconos de módulo. */
+@utility clip-oct {
+  clip-path: polygon(
+    30% 0, 70% 0, 100% 30%, 100% 70%,
+    70% 100%, 30% 100%, 0 70%, 0 30%
+  );
+}
