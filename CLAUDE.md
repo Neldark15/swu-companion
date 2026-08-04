@@ -249,6 +249,28 @@ Trampas del HTML, todas medidas: 5 de 165 filas son `<tr class="highlight-event"
 
 Y una que afecta a la UI: la mitad de las «bases» que publica la fuente no son cartas sino **clases** (`Blue`, `Red Force`, `Blue 27hp Multiaspect`) que agrupan bases equivalentes. Se muestra un representante y se rotula como clase — afirmar el nombre de una carta sería inventar cuál se jugó.
 
+### 2m. El escáner reconoce por ARTE, no por el código impreso
+
+`/scan` compara la **ilustración** contra `public/card-hashes.bin` (2.903 cartas, 249 KB, viaja con la app). El OCR del código quedó de respaldo. Medido: 0,4 ms contra 1-5 s, sin descargar nada de un CDN y sin conexión. Es lo que hacen los escáneres que funcionan — ManaBox lo declara explícitamente.
+
+**Los dos redimensionadores TIENEN que dar el mismo resultado.** El índice se construye en Python ([scripts/build-card-hashes.py](scripts/build-card-hashes.py)) y se consulta en TypeScript ([src/services/cardHash.ts](src/services/cardHash.ts)). Los dos implementan a mano una DCT-II y un promedio por áreas. **No cambiarlos por `Image.resize` ni por `drawImage`**: el filtro de `drawImage` ni siquiera está especificado —cada navegador usa el suyo— y medido contra LANCZOS la MISMA imagen hasheaba con 58-92 bits de diferencia, casi todo el margen que separa una carta de otra. Con el promedio por áreas la diferencia es de **0 bits**. Si se toca uno, hay que tocar el otro y volver a medir la paridad.
+
+**Rechazar es una función, no un fallo.** `MAX_DISTANCIA = 220` y `MARGEN_MINIMO = 28` salen de medir 25 cartas reales × 5 degradaciones: 110/125 aciertos, **1 equivocación**, y una mesa vacía se rechaza. Bajar los umbrales para «acertar más» convierte los silencios en respuestas inventadas, que es peor: la carta entra mal a la colección de alguien.
+
+**Hyperspace comparte arte con Standard** (12-28 bits). Por eso el índice solo lleva `Standard`, `Showcase` y las Prestige — meter las demás solo añade colisiones que la imagen no puede resolver. Al reconocer se ofrecen las otras impresiones como alternativas para elegir; no se decide por la persona.
+
+**El pie de la carta tiene tres formatos, no uno.** Verificado sobre las imágenes oficiales:
+
+| Impresión | Pie impreso |
+|---|---|
+| Standard | `ASH·EN 10/264` |
+| Hyperspace | `ASH·EN 265` — **sin denominador** |
+| Token | `ASH·EN T01` |
+
+Exigir `N/M` dejaba fuera las 2.095 Hyperspace y sus Foil. `parseCodigo` acepta el número suelto, pero **solo después del código del set**: suelto en cualquier parte del pie sería el año o la mitad de un logo.
+
+**El bucle NO espera al OCR.** Estuvo gateado en `motor === 'listo'`, así que el escáner quedaba inerte durante toda la descarga de tesseract sin razón: el arte no lo usa. Son dos ritmos, 450 ms el arte y 2,5 s mínimo entre OCR.
+
 ### 2f. supabase-js NO lanza excepción ante error de PostgREST
 `const { data } = await supabase...` sin mirar `error` deja `data` en `null`, el `try/catch` nunca se activa y el fallo se ve igual que "no hay datos". Así estuvo **100% muerta** la caché de precios en la nube (0 filas de por vida): la tabla tenía 6 columnas y el código leía 9. Siempre desestructurar `error`.
 

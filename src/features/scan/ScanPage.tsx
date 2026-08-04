@@ -27,9 +27,11 @@ import { CardImage } from '../../components/CardImage'
 import { EmptyState } from '../../components/ui/EmptyState'
 import {
   leerCodigo, leerCodigoDeImagen, buscarPorCodigo, parseCodigo, detenerOCR,
-  iniciarOCR, abrirCamara, linterna, BANDA,
+  iniciarOCR, abrirCamara, linterna, reconocerPorArte,
+  BANDA, MARCO_VERTICAL, MARCO_APAISADO,
   type Coincidencia,
 } from '../../services/cardScanner'
+import { cargarIndice } from '../../services/cardHash'
 import { updateCollectionQuantity, getCardQuantity } from '../../services/collectionService'
 import { getMainSets, ensureCards } from '../../services/swuApi'
 import { useAuth } from '../../hooks/useAuth'
@@ -38,14 +40,19 @@ import type { Card } from '../../types'
 type Estado = 'pidiendo' | 'escaneando' | 'sin-camara' | 'manual'
 
 /**
- * Cada cuánto se intenta leer.
+ * Cada cuánto se mira el fotograma.
  *
- * Subido de 1.4 s a 2.2 s a propósito: entre lectura y lectura la persona
- * necesita PODER MOVER la carta para encuadrar, y con el ciclo muy pegado la
- * vista previa se sentía trabada. El disparo manual «Leer ahora» cubre el caso
- * de «ya la tengo puesta, leela ahora».
+ * Son DOS ritmos distintos porque son dos costos distintos:
+ *
+ * - **Arte (450 ms).** Hashear y buscar entre 2.903 cartas cuesta 0,4 ms
+ *   medidos. Se puede mirar casi continuo sin trabar la vista previa, y así
+ *   la carta se reconoce apenas queda encuadrada.
+ * - **Código impreso (2,5 s).** El OCR tarda de 1 a 5 s y bloquea. Solo entra
+ *   cuando el arte NO resolvió, que es el caso de las cartas que comparten
+ *   ilustración.
  */
-const INTERVALO_MS = 2200
+const INTERVALO_MS = 450
+const MINIMO_ENTRE_OCR_MS = 2500
 
 export function ScanPage() {
   const navigate = useNavigate()
@@ -55,6 +62,8 @@ export function ScanPage() {
   const streamRef = useRef<MediaStream | null>(null)
   const ocupado = useRef(false)
   const vivo = useRef(true)
+  /** Cuándo se corrió el OCR por última vez, para no encadenarlo. */
+  const ultimoOCR = useRef(0)
 
   const [estado, setEstado] = useState<Estado>('pidiendo')
   const [error, setError] = useState<string | null>(null)
@@ -119,10 +128,15 @@ export function ScanPage() {
     }
   }, [estado === 'manual']) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // El índice de arte pesa ~250 KB y viaja con la app: se carga apenas se
+  // abre la pantalla y a partir de ahí el reconocimiento es instantáneo y
+  // funciona sin conexión.
+  useEffect(() => { void cargarIndice().catch(() => {}) }, [])
+
   // El motor de OCR pesa varios MB: se suelta al salir de la pantalla.
   useEffect(() => () => { void detenerOCR() }, [])
 
-  const intentarLeer = useCallback(async () => {
+  const intentarLeer = useCallback(async (forzado = false) => {
     const v = videoRef.current
     if (!v || ocupado.current || v.videoWidth === 0) return
     // Con la app en segundo plano el vídeo se congela: releer el mismo
@@ -131,6 +145,25 @@ export function ScanPage() {
     ocupado.current = true
     setLeyendo(true)
     try {
+      // Primero por ARTE: tarda menos de un milisegundo y no necesita el
+      // motor de OCR ni conexión. El código impreso queda de respaldo.
+      const porArte = await reconocerPorArte(v, v.videoWidth, v.videoHeight).catch(() => null)
+      if (porArte && vivo.current) {
+        setHallazgo({ card: porArte.card, alternativas: porArte.gemelas })
+        setCantidad(1)
+        setYaTenia(await getCardQuantity(porArte.card.id))
+        navigator.vibrate?.(60)
+        return
+      }
+      // El arte no dio. Recién ahí se paga el OCR, y espaciado: si se
+      // encadenara a 450 ms la vista previa se trabaría, que es justo lo que
+      // se arregló antes.
+      if (motor !== 'listo' || !forzado) {
+        const ahora = performance.now()
+        if (ahora - ultimoOCR.current < MINIMO_ENTRE_OCR_MS) return
+        if (motor !== 'listo') return
+      }
+      ultimoOCR.current = performance.now()
       const codigo = await leerCodigo(v, v.videoWidth, v.videoHeight)
       setUltimoCrudo(codigo.crudo)
       setMotor('listo')
@@ -153,7 +186,7 @@ export function ScanPage() {
       ocupado.current = false
       setLeyendo(false)
     }
-  }, [])
+  }, [motor])
 
   // El motor se carga apenas se abre la cámara, para que su descarga —varios
   // MB de CDN— sea visible como «Preparando lector» y no como un escáner que
@@ -174,10 +207,13 @@ export function ScanPage() {
 
   // ── Bucle de lectura ──
   useEffect(() => {
-    if (estado !== 'escaneando' || pausado || motor !== 'listo' || baseCartas !== 'lista') return
+    // Ojo: NO se espera a `motor === 'listo'`. El reconocimiento por arte no
+    // usa el OCR, y bloquear el bucle hasta que terminara de bajar varios MB
+    // dejaba el escáner inerte durante toda esa descarga sin ninguna razón.
+    if (estado !== 'escaneando' || pausado || baseCartas !== 'lista') return
     const id = setInterval(() => { void intentarLeer() }, INTERVALO_MS)
     return () => clearInterval(id)
-  }, [estado, pausado, motor, baseCartas, intentarLeer])
+  }, [estado, pausado, baseCartas, intentarLeer])
 
   // La base de cartas es la mitad del escáner: leer «ASH 1» no sirve de nada
   // si no hay contra qué resolverlo. /scan se abre directo desde Inicio, así
@@ -216,6 +252,24 @@ export function ScanPage() {
     setLeyendoFoto(true)
     setMotorError(null)
     try {
+      // Igual que en vivo: primero el arte, que es rápido y no falla con la
+      // letra chica.
+      const img = await createImageBitmap(archivo).catch(() => null)
+      if (img) {
+        const lienzo = document.createElement('canvas')
+        lienzo.width = img.width
+        lienzo.height = img.height
+        lienzo.getContext('2d')!.drawImage(img, 0, 0)
+        const porArte = await reconocerPorArte(lienzo, img.width, img.height).catch(() => null)
+        img.close?.()
+        if (porArte) {
+          setHallazgo({ card: porArte.card, alternativas: porArte.gemelas })
+          setCantidad(1)
+          setYaTenia(await getCardQuantity(porArte.card.id))
+          navigator.vibrate?.(60)
+          return
+        }
+      }
       const codigo = await leerCodigoDeImagen(archivo)
       setUltimoCrudo(codigo.crudo)
       const m = await buscarPorCodigo(codigo)
@@ -294,44 +348,63 @@ export function ScanPage() {
             />
 
             {/* Guía: la franja del código va abajo, que es donde se lee. */}
-            {/* La guía se dibuja con BANDA, la MISMA constante que recorta el
-                OCR. Antes cada lado tenía su número y se leía otro pedazo. */}
+            {/* Los marcos se dibujan con las MISMAS constantes que recorta el
+                reconocedor. Se muestran los dos porque las unidades son
+                verticales y los líderes y bases apaisados, y el escáner prueba
+                ambas orientaciones en cada intento. */}
             <div className="pointer-events-none absolute inset-0" aria-hidden>
-              <div className="absolute inset-0 bg-black/45" />
+              {[MARCO_VERTICAL, MARCO_APAISADO].map((mk, i) => (
+                <div
+                  key={i}
+                  className={`absolute rounded-lg border-2 ${i === 0 ? 'border-swu-cyan' : 'border-swu-cyan/45 border-dashed'}`}
+                  style={{
+                    left: `${mk.x * 100}%`, top: `${mk.y * 100}%`,
+                    width: `${mk.w * 100}%`, height: `${mk.h * 100}%`,
+                  }}
+                />
+              ))}
+              {/* La banda del código sigue marcada, tenue: es el respaldo
+                  cuando dos cartas comparten ilustración. */}
               <div
-                className="absolute border-2 border-swu-cyan rounded"
+                className="absolute border border-swu-amber/40 rounded"
                 style={{
                   left: `${BANDA.x * 100}%`, top: `${BANDA.y * 100}%`,
                   width: `${BANDA.w * 100}%`, height: `${BANDA.h * 100}%`,
-                  boxShadow: '0 0 0 9999px rgba(0,0,0,0.45)',
-                  background: 'transparent',
                 }}
               />
             </div>
 
             {/* Estado siempre visible: sin esto, «el motor no cargó» y «la
-                carta no engancha» se veían exactamente igual. */}
-            <div className="absolute inset-x-0 bottom-0 p-2 flex items-center justify-center gap-2 bg-gradient-to-t from-black/85 to-transparent">
-              {baseCartas === 'cargando' ? (
-                <><Loader2 size={13} className="animate-spin text-swu-amber" aria-hidden />
-                  <span className="text-[11px] text-swu-amber font-mono">Descargando la base de cartas…</span></>
-              ) : baseCartas === 'vacia' ? (
-                <span className="text-[11px] text-swu-red font-mono text-center px-2">
-                  No se pudo descargar la base de cartas. Sin ella no hay con qué comparar.
-                </span>
-              ) : motor === 'cargando' ? (
-                <><Loader2 size={13} className="animate-spin text-swu-amber" aria-hidden />
-                  <span className="text-[11px] text-swu-amber font-mono">Preparando lector…</span></>
-              ) : motor === 'error' ? (
-                <span className="text-[11px] text-swu-red font-mono text-center px-2">
-                  {motorError ?? 'El lector no cargó'}
-                </span>
-              ) : leyendo ? (
-                <><Loader2 size={13} className="animate-spin text-swu-cyan" aria-hidden />
-                  <span className="text-[11px] text-swu-cyan font-mono">Leyendo…</span></>
-              ) : (
-                <span className="text-[11px] text-white/85 font-mono text-center px-2">
-                  Poné el código <span className="text-swu-cyan">ASH·EN 1/264</span> dentro del recuadro
+                carta no engancha» se veían exactamente igual.
+
+                El orden importa. Antes el estado del OCR iba ARRIBA, así que
+                mientras bajaba —varios MB— se leía «Preparando lector…» y si
+                fallaba salía un error rojo, cuando en realidad el escaneo por
+                arte ya estaba andando y reconociendo cartas. Ahora el OCR es
+                una nota al pie: es el respaldo, no el escáner. */}
+            <div className="absolute inset-x-0 bottom-0 p-2 flex flex-col items-center gap-0.5 bg-gradient-to-t from-black/85 to-transparent">
+              <div className="flex items-center justify-center gap-2">
+                {baseCartas === 'cargando' ? (
+                  <><Loader2 size={13} className="animate-spin text-swu-amber" aria-hidden />
+                    <span className="text-[11px] text-swu-amber font-mono">Descargando la base de cartas…</span></>
+                ) : baseCartas === 'vacia' ? (
+                  <span className="text-[11px] text-swu-red font-mono text-center px-2">
+                    No se pudo descargar la base de cartas. Sin ella no hay con qué comparar.
+                  </span>
+                ) : leyendo ? (
+                  <><Loader2 size={13} className="animate-spin text-swu-cyan" aria-hidden />
+                    <span className="text-[11px] text-swu-cyan font-mono">Leyendo…</span></>
+                ) : (
+                  <span className="text-[11px] text-white/85 font-mono text-center px-2">
+                    Encuadrá la <span className="text-swu-cyan">carta entera</span> en el marco
+                  </span>
+                )}
+              </div>
+              {baseCartas === 'lista' && motor !== 'listo' && (
+                <span className="text-[10px] text-white/40 font-mono text-center px-2">
+                  {motor === 'cargando'
+                    ? 'Preparando además el lector del código…'
+                    : `Sin lector de código (${motorError ?? 'no cargó'}): se reconoce por la ilustración`}
                 </span>
               )}
             </div>
@@ -365,8 +438,8 @@ export function ScanPage() {
               size="sm"
               block
               loading={leyendo}
-              disabled={motor !== 'listo' || baseCartas !== 'lista'}
-              onClick={() => void intentarLeer()}
+              disabled={baseCartas !== 'lista'}
+              onClick={() => void intentarLeer(true)}
             >
               <Camera size={14} aria-hidden /> Leer ahora
             </Button>

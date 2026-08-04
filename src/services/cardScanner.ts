@@ -1,27 +1,36 @@
 /**
  * cardScanner — identificar una carta física con la cámara.
  *
- * ── Qué se lee, y por qué eso y no el arte ────────────────────────────
+ * ── Dos métodos, y por qué en ese orden ───────────────────────────────
  *
- * Reconocer la ilustración exigiría comparar contra 9,057 imágenes y sigue
- * fallando con reflejos, fundas y ángulos. Pero toda carta de SWU imprime su
- * identidad en la franja de abajo:
+ * 1. **Por el ARTE** (services/cardHash.ts). Es el principal. Se compara la
+ *    ilustración contra un índice de hashes que viaja con la app. Tarda menos
+ *    de un milisegundo, funciona sin conexión desde el primer escaneo y
+ *    aguanta reflejos, fundas y ángulo. Es lo que usan los escáneres que
+ *    funcionan: ManaBox dice explícitamente que «detecta las cartas usando el
+ *    arte».
  *
- *     RENO        © LFL & FFG        ASH·EN        1/264
+ * 2. **Por el CÓDIGO impreso al pie**, con OCR:
  *
- * Set y número. Ese par es ÚNICO y ya está en nuestra base (`setCode` +
- * `setNumber`), así que leerlo con OCR da una respuesta determinista en vez de
- * un parecido. Se lee solo esa franja: menos píxeles, más rápido y sin que el
- * texto de reglas ensucie el resultado.
+ *        RENO        © LFL & FFG        ASH·EN        1/264
+ *
+ *    Set y número. Queda como DESEMPATE y plan B, no como método principal:
+ *    tarda de 1 a 5 segundos, baja varios megas de un CDN la primera vez y con
+ *    letra tan chica falla seguido. Pero sigue haciendo falta, porque hay 53
+ *    cartas del set IBH que comparten arte EXACTO y solo el número las separa.
+ *
+ * Y siempre queda escribir el número a mano, que es una consulta a la base
+ * local y funciona sin conexión y sin cámara.
  *
  * ── Lo que este módulo NO hace ────────────────────────────────────────
  *
- * No adivina. Si el OCR no deja un set y un número claros, devuelve «no se
- * pudo leer» y la pantalla ofrece escribir el número a mano. Meter una carta
- * equivocada en la colección de alguien es peor que pedirle que la teclee.
+ * No adivina. Si ni el arte ni el código dejan una respuesta con margen
+ * suficiente, dice que no pudo. Meter una carta equivocada en la colección de
+ * alguien es peor que pedirle que la teclee.
  */
 
 import { db } from './db'
+import { hashDeImagen, cargarIndice, buscarPorArte } from './cardHash'
 import type { Card } from '../types'
 
 /**
@@ -37,6 +46,17 @@ import type { Card } from '../types'
  * se ve deja de corresponder con las coordenadas del fotograma.
  */
 export const BANDA = { x: 0.05, y: 0.60, w: 0.90, h: 0.22 } as const
+
+/**
+ * Marcos donde va la CARTA ENTERA para reconocerla por su arte.
+ *
+ * Son dos porque las cartas de SWU vienen en dos orientaciones: las unidades y
+ * eventos son verticales, y los líderes y bases, apaisados. Se prueban las dos
+ * en cada intento —comparar un hash cuesta menos de un milisegundo— así que la
+ * cámara acierta aunque la persona no toque el selector.
+ */
+export const MARCO_VERTICAL = { x: 0.22, y: 0.10, w: 0.56, h: 0.80 } as const
+export const MARCO_APAISADO = { x: 0.08, y: 0.26, w: 0.84, h: 0.48 } as const
 
 /** Solo lo que puede aparecer en el código: mayúsculas, dígitos y separadores. */
 const LISTA_BLANCA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/·.- '
@@ -64,22 +84,52 @@ export function parseCodigo(texto: string): CodigoLeido {
 
   // «1/264», «001 / 264». Se toma el numerador.
   //
+  // Hasta CUATRO dígitos: 494 cartas llevan número de 1.000 o más —Showcase,
+  // Prestige y Serializadas— y con un tope de tres eran inalcanzables por el
+  // escáner, sin ningún aviso.
+  //
   // Ojo con la clase de caracteres: tiene que EXCLUIR el espacio y exigir que
   // antes venga algo que no sea letra ni dígito. Si no, en «ASH·ES 7/264» el
   // numerador se comía la «S» de «ES» —porque S es una confusión válida de 5—
   // y la carta 7 se leía como la 57.
-  const mNum = /(?:^|[^A-Z0-9])([0-9OQDILSB]{1,3})\s*\/\s*([0-9OQDILSB]{2,4})/.exec(t)
+  const mNum = /(?:^|[^A-Z0-9])([0-9OQDILSB]{1,4})\s*\/\s*([0-9OQDILSB]{2,4})/.exec(t)
   let numero: number | null = null
   if (mNum) {
     const n = parseInt(arreglaDigitos(mNum[1].replace(/\s/g, '')), 10)
-    if (Number.isFinite(n) && n > 0 && n < 1000) numero = n
+    if (Number.isFinite(n) && n > 0 && n < 10000) numero = n
   }
 
   // «ASH·EN», «ASH EN», «ASHEN». El idioma varía (EN, ES, FR…), así que se
   // acepta cualquier par de letras después del set.
+  //
+  // El código del set puede llevar DÍGITOS —TS26 entre otros: 10 de los 28
+  // que existen—. Con `[A-Z]{2,4}` esos sets no se leían nunca.
   let setCode: string | null = null
-  const mSet = /\b([A-Z]{2,4})\s*[·•.-]?\s*(EN|ES|FR|DE|IT|PT|JP|ZH)\b/.exec(t)
+  const mSet = /\b([A-Z][A-Z0-9]{1,3})\s*[·•.-]?\s*(EN|ES|FR|DE|IT|PT|JP|ZH)\b/.exec(t)
   if (mSet) setCode = mSet[1]
+
+  // Sin barra: la impresión **Hyperspace no lleva denominador**. Comprobado
+  // mirando el pie de las imágenes oficiales:
+  //
+  //     Standard    ASH·EN  10/264
+  //     Hyperspace  ASH·EN  265
+  //
+  // Exigir `N/M` dejaba fuera las 2.095 Hyperspace y sus Foil, y es justo el
+  // caso donde el arte NO puede decidir: la Hyperspace usa la MISMA
+  // ilustración que la Standard, así que el número es lo único que las
+  // separa.
+  //
+  // Se busca solo DESPUÉS del código del set, que es donde está impreso, y
+  // solo si el set se leyó. Un número suelto en cualquier parte del pie sería
+  // el coste de la funda, el año o la mitad de un logo.
+  if (numero === null && mSet) {
+    const resto = t.slice(mSet.index + mSet[0].length)
+    const mSuelto = /(?:^|[^A-Z0-9])([0-9OQDILSB]{1,4})(?![0-9OQDILSB/])/.exec(resto)
+    if (mSuelto) {
+      const n = parseInt(arreglaDigitos(mSuelto[1]), 10)
+      if (Number.isFinite(n) && n > 0 && n < 10000) numero = n
+    }
+  }
 
   return { setCode, numero, crudo: texto.trim() }
 }
@@ -108,8 +158,29 @@ export async function buscarPorCodigo(codigo: CodigoLeido): Promise<Coincidencia
   const iguales = candidatas.filter(c => c.setNumber === codigo.numero)
   if (iguales.length === 0) return null
 
-  // La impresión Standard manda; el resto quedan como alternativas.
+  /**
+   * Orden de preferencia, sacado de mirar los datos y no de suponer.
+   *
+   * De los 7.541 pares (set, número) de la base, 1.392 tienen más de una
+   * carta, y se reparten en tres casos MUY distintos:
+   *
+   * - **50 son un líder contra un TOKEN.** Los tokens llevan su propia
+   *   numeración, que se solapa con la de los líderes: en ASH, el 1 es
+   *   «The Armorer» y también el token «Mandalorian». Antes el desempate era
+   *   el código de set —el mismo en ambos—, así que quedaba al azar y el
+   *   escáner podía meter un token en la colección. Los tokens van últimos:
+   *   nadie escanea un token creyendo que registra una carta.
+   * - **1.338 son foil contra no foil.** Ahí el número NO distingue, porque
+   *   el foil es la misma impresión con acabado brillante. Esa sí es una
+   *   elección real y se ofrece; gana la no-foil, que es la común.
+   * - El resto son rarezas de la propia fuente.
+   */
+  const esToken = (c: Card) => /token/i.test(c.type)
+  const esFoil = (c: Card) => /foil/i.test(c.variantType ?? '')
+
   const orden = [...iguales].sort((a, b) => {
+    if (esToken(a) !== esToken(b)) return esToken(a) ? 1 : -1
+    if (esFoil(a) !== esFoil(b)) return esFoil(a) ? 1 : -1
     const rank = (c: Card) => (c.variantType === 'Standard' ? 0 : c.isCanonical ? 1 : 2)
     return rank(a) - rank(b) || a.setCode.localeCompare(b.setCode)
   })
@@ -118,7 +189,9 @@ export async function buscarPorCodigo(codigo: CodigoLeido): Promise<Coincidencia
   // se devuelve la lista entera para que elija la persona.
   const distintosSets = new Set(orden.map(c => c.setCode)).size
   if (!codigo.setCode && distintosSets > 1) {
-    return { card: orden[0], alternativas: orden }
+    // `alternativas` son las OTRAS, no todas: incluir también la principal la
+    // mostraba dos veces en la lista de opciones, con la misma clave de React.
+    return { card: orden[0], alternativas: orden.slice(1) }
   }
 
   return { card: orden[0], alternativas: orden.slice(1) }
@@ -429,3 +502,87 @@ export async function linterna(stream: MediaStream | null, encendida: boolean): 
     // No todos la soportan; que falle no debe romper el escaneo.
   }
 }
+
+
+// ─── Reconocimiento por arte ──────────────────────────────────────────
+
+export interface PorArte {
+  card: Card
+  /** Distancia al hash guardado: cuanto menor, más seguro. */
+  distancia: number
+  /** Cuánto más lejos quedó la segunda opción. */
+  margen: number
+  /** Otras cartas con arte idéntico, cuando las hay (pasa en el set IBH). */
+  gemelas: Card[]
+}
+
+/**
+ * Reconoce la carta por su ILUSTRACIÓN.
+ *
+ * Es el método principal, y sustituye al OCR como primera opción por tres
+ * razones medidas: tarda menos de un milisegundo en vez de 1 a 5 segundos, no
+ * baja nada de ningún CDN —el índice viaja con la app y son ~200 KB, menos que
+ * UNA imagen de carta— y aguanta el reflejo, la funda y el ángulo, que es
+ * justo donde el texto diminuto del pie se rendía.
+ *
+ * Se prueban las dos orientaciones porque los líderes y bases son apaisados.
+ */
+export async function reconocerPorArte(
+  fuente: CanvasImageSource,
+  ancho: number,
+  alto: number,
+): Promise<PorArte | null> {
+  const idx = await cargarIndice()
+  if (!idx) return null
+
+  let mejor: { id: string; distancia: number; margen: number } | null = null
+  for (const marco of [MARCO_VERTICAL, MARCO_APAISADO]) {
+    const rect = {
+      x: ancho * marco.x, y: alto * marco.y,
+      w: ancho * marco.w, h: alto * marco.h,
+    }
+    const r = buscarPorArte(hashDeImagen(fuente, rect), idx)
+    if (!r || !r.confiable) continue
+    const margen = r.segundo ? r.segundo.distancia - r.mejor.distancia : Infinity
+    if (!mejor || r.mejor.distancia < mejor.distancia) {
+      mejor = { id: r.mejor.id, distancia: r.mejor.distancia, margen }
+    }
+  }
+  if (!mejor) return null
+
+  const card = await db.cards.get(mejor.id)
+  if (!card) return null
+
+  // Todo lo que el ARTE no puede distinguir se ofrece para elegir, en vez de
+  // decidirlo nosotros. Son dos casos distintos y los dos son reales:
+  //
+  //  1. 53 cartas del set IBH comparten ilustración EXACTA entre sí, con
+  //     números distintos.
+  //  2. La **Hyperspace usa la misma ilustración que la Standard** (medido:
+  //     quedan a 12-28 bits). Por eso el índice solo lleva la Standard; sin
+  //     esta lista, escanear una Hyperspace la guardaría como Standard
+  //     siempre y en silencio. Es el mismo límite que documenta ManaBox.
+  //
+  // El código impreso sí las separa, pero el OCR tarda segundos y falla
+  // seguido: preguntar es más barato y más honesto que adivinar.
+  const orden = ['Standard', 'Hyperspace', 'Showcase', 'Standard Prestige', 'Serialized Prestige']
+  const gemelas = (await db.cards
+    .where('name').equals(card.name)
+    .toArray())
+    .filter(c => c.id !== card.id && c.setCode === card.setCode
+      && !String(c.type ?? '').toLowerCase().startsWith('token'))
+    .sort((a, b) => {
+      // Las foil al final: son las menos frecuentes de tener en la mano.
+      const fa = /foil/i.test(a.variantType ?? '') ? 1 : 0
+      const fb = /foil/i.test(b.variantType ?? '') ? 1 : 0
+      if (fa !== fb) return fa - fb
+      const ia = orden.indexOf(a.variantType ?? '')
+      const ib = orden.indexOf(b.variantType ?? '')
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
+    })
+
+  return { card, distancia: mejor.distancia, margen: mejor.margen, gemelas }
+}
+
+/** ¿El índice de arte ya está en memoria? */
+export { indiceListo } from './cardHash'
