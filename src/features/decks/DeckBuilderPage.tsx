@@ -13,6 +13,7 @@ import { validateDeck, canAddCard, getEffectiveMinDeckSize, getFormatRules } fro
 import { syncDeckToCloud } from '../../services/sync'
 import { useAuth } from '../../hooks/useAuth'
 import { CardImage } from '../../components/CardImage'
+import { CardPreviewSheet } from '../../components/CardPreviewSheet'
 import { listFaceUrl, listFaceFit } from '../../services/cardArt'
 import { translateType, translateAspect } from '../../services/translations'
 import type { Deck, DeckCard, Card, TournamentFormat } from '../../types'
@@ -92,6 +93,8 @@ export function DeckBuilderPage() {
 
   // Card images state
   const [cardImages, setCardImages] = useState<Map<string, string>>(new Map(imgCache))
+  /** Carta que se está mirando en grande. Null = cerrado. */
+  const [verCarta, setVerCarta] = useState<string | null>(null)
   const [backImages, setBackImages] = useState<Map<string, string>>(new Map(backImgCache))
   const loadedRef = useRef(new Set<string>())
 
@@ -423,8 +426,14 @@ export function DeckBuilderPage() {
                       <X size={12} />
                     </button>
 
-                    <p className="text-[10px] font-bold text-swu-text mt-1 truncate text-center">{c.name}</p>
-                    {c.subtitle && <p className="text-[8px] text-swu-muted truncate text-center">{c.subtitle}</p>}
+                    <button
+                      onClick={() => setVerCarta(c.cardId)}
+                      className="w-full mt-1"
+                      aria-label={`Ver ${c.name} en grande`}
+                    >
+                      <p className="text-[10px] font-bold text-swu-text truncate text-center">{c.name}</p>
+                      {c.subtitle && <p className="text-[8px] text-swu-muted truncate text-center">{c.subtitle}</p>}
+                    </button>
                   </div>
                 )
               })}
@@ -457,8 +466,14 @@ export function DeckBuilderPage() {
                     >
                       <X size={12} />
                     </button>
-                    <p className="text-[10px] font-bold text-swu-text mt-1 truncate text-center">{deck.base!.name}</p>
-                    {deck.base!.subtitle && <p className="text-[8px] text-swu-muted truncate text-center">{deck.base!.subtitle}</p>}
+                    <button
+                      onClick={() => setVerCarta(deck.base!.cardId)}
+                      className="w-full mt-1"
+                      aria-label={`Ver ${deck.base!.name} en grande`}
+                    >
+                      <p className="text-[10px] font-bold text-swu-text truncate text-center">{deck.base!.name}</p>
+                      {deck.base!.subtitle && <p className="text-[8px] text-swu-muted truncate text-center">{deck.base!.subtitle}</p>}
+                    </button>
                   </div>
                 )
               })()}
@@ -487,8 +502,14 @@ export function DeckBuilderPage() {
                 const img = cardImages.get(c.cardId)
                 return (
                   <div key={c.cardId} className="bg-swu-surface rounded-lg px-2 py-1.5 border border-swu-border flex items-center gap-2">
-                    {/* Thumbnail */}
-                    <div className="w-8 h-11 rounded bg-swu-bg flex-shrink-0 overflow-hidden">
+                    {/* Miniatura: toca para leer la carta. Antes solo había
+                        + y −, o sea que se podía cambiar la cantidad pero no
+                        revisar el efecto de lo que estabas metiendo. */}
+                    <button
+                      onClick={() => setVerCarta(c.cardId)}
+                      aria-label={`Ver ${c.name} en grande`}
+                      className="w-8 h-11 rounded bg-swu-bg flex-shrink-0 overflow-hidden active:scale-95 transition-transform"
+                    >
                       {img ? (
                         <img src={img} alt="" className="w-full h-full object-cover" loading="lazy" />
                       ) : (
@@ -496,14 +517,17 @@ export function DeckBuilderPage() {
                           <BookOpen size={10} className="text-swu-muted/30" />
                         </div>
                       )}
-                    </div>
+                    </button>
                     {/* Quantity badge */}
                     <span className="w-6 h-6 rounded bg-swu-accent/20 text-swu-accent text-xs font-bold flex items-center justify-center font-mono flex-shrink-0">{c.quantity}</span>
                     {/* Name + set */}
-                    <div className="flex-1 min-w-0">
+                    <button
+                      onClick={() => setVerCarta(c.cardId)}
+                      className="flex-1 min-w-0 text-left"
+                    >
                       <span className="text-sm text-swu-text truncate block">{c.name}</span>
                       <span className="text-[9px] text-swu-muted font-mono">{c.setCode}</span>
-                    </div>
+                    </button>
                     {/* Controls */}
                     <div className="flex gap-1 flex-shrink-0">
                       <button onClick={() => removeCard('mainDeck', c.cardId)} className="w-6 h-6 rounded bg-swu-red/10 text-swu-red flex items-center justify-center"><Minus size={12} /></button>
@@ -525,8 +549,14 @@ export function DeckBuilderPage() {
                 const img = cardImages.get(c.cardId)
                 return (
                   <div key={c.cardId} className="bg-swu-surface rounded-lg px-2 py-1.5 border border-swu-border flex items-center gap-2">
-                    {/* Thumbnail */}
-                    <div className="w-8 h-11 rounded bg-swu-bg flex-shrink-0 overflow-hidden">
+                    {/* Miniatura: toca para leer la carta. Antes solo había
+                        + y −, o sea que se podía cambiar la cantidad pero no
+                        revisar el efecto de lo que estabas metiendo. */}
+                    <button
+                      onClick={() => setVerCarta(c.cardId)}
+                      aria-label={`Ver ${c.name} en grande`}
+                      className="w-8 h-11 rounded bg-swu-bg flex-shrink-0 overflow-hidden active:scale-95 transition-transform"
+                    >
                       {img ? (
                         <img src={img} alt="" className="w-full h-full object-cover" loading="lazy" />
                       ) : (
@@ -534,14 +564,17 @@ export function DeckBuilderPage() {
                           <BookOpen size={10} className="text-swu-muted/30" />
                         </div>
                       )}
-                    </div>
+                    </button>
                     {/* Quantity badge */}
                     <span className="w-6 h-6 rounded bg-purple-400/20 text-purple-400 text-xs font-bold flex items-center justify-center font-mono flex-shrink-0">{c.quantity}</span>
                     {/* Name + set */}
-                    <div className="flex-1 min-w-0">
+                    <button
+                      onClick={() => setVerCarta(c.cardId)}
+                      className="flex-1 min-w-0 text-left"
+                    >
                       <span className="text-sm text-swu-text truncate block">{c.name}</span>
                       <span className="text-[9px] text-swu-muted font-mono">{c.setCode}</span>
-                    </div>
+                    </button>
                     {/* Controls */}
                     <div className="flex gap-1 flex-shrink-0">
                       <button onClick={() => removeCard('sideboard', c.cardId)} className="w-6 h-6 rounded bg-swu-red/10 text-swu-red flex items-center justify-center"><Minus size={12} /></button>
@@ -675,6 +708,9 @@ export function DeckBuilderPage() {
           )}
         </div>
       )}
+
+      {/* Ver la carta en grande sin salir del mazo. */}
+      <CardPreviewSheet cardId={verCarta} onClose={() => setVerCarta(null)} />
     </div>
   )
 }
