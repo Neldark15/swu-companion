@@ -226,6 +226,16 @@ export function recortarFranja(
   alto: number,
   /** Rectángulo a leer, en fracciones. Por defecto, la banda de la guía. */
   banda: { x: number; y: number; w: number; h: number } = BANDA,
+  /**
+   * ¿Se puede REDUCIR el recorte?
+   *
+   * En vivo sí: hay una guía, el encuadre es predecible y bajar de tamaño es
+   * lo que mantiene fluida la vista previa. En una FOTO no: la carta puede
+   * ocupar poco y la franja salir muy alta, con lo que reducirla encoge el
+   * texto y el OCR se queda sin nada que leer. Una foto se lee una vez, así
+   * que ahí conviene gastar píxeles.
+   */
+  permitirReducir = true,
 ): HTMLCanvasElement {
   const sx = Math.round(ancho * banda.x)
   const sy = Math.round(alto * banda.y)
@@ -234,7 +244,8 @@ export function recortarFranja(
 
   // La escala sube hasta el alto objetivo, pero el ancho manda: pasado
   // ANCHO_MAX el coste crece sin que el OCR lea mejor.
-  const escala = Math.min(ALTO_OBJETIVO / sh, ANCHO_MAX / sw)
+  const bruta = Math.min(ALTO_OBJETIVO / sh, ANCHO_MAX / sw)
+  const escala = permitirReducir ? bruta : Math.max(1, bruta)
   const cw = Math.max(60, Math.round(sw * escala))
   const ch = Math.max(20, Math.round(sh * escala))
 
@@ -281,4 +292,140 @@ export async function leerCodigo(
   const franja = recortarFranja(fuente, ancho, alto)
   const { data } = await w.recognize(franja)
   return parseCodigo(data.text ?? '')
+}
+
+/**
+ * Bandas que se prueban en una FOTO, en orden.
+ *
+ * Con la cámara en vivo hay una guía y la persona pone el código donde se le
+ * pide. En una foto no: cada quien encuadra como puede —la carta entera, solo
+ * el pie, torcida—, así que se prueban varias zonas y gana la primera que deje
+ * un número. Es más trabajo, pero una foto se lee UNA vez, no cada dos
+ * segundos.
+ */
+const BANDAS_FOTO = (() => {
+  // Franjas FINAS que barren la mitad inferior, solapadas para que el código
+  // no caiga justo en una costura.
+  //
+  // Antes había dos bandas grandes («mitad inferior», «foto entera») y no
+  // funcionaban: el recorte se escala a un alto fijo, así que una banda muy
+  // alta ENCOGE el texto en vez de agrandarlo y el OCR se queda sin nada que
+  // leer. Con una foto vertical de 900×1600 fallaba justo por eso.
+  const franjas: { x: number; y: number; w: number; h: number }[] = []
+  const alto = 0.13
+  for (let y = 0.86; y >= 0.40; y -= 0.065) {
+    franjas.push({ x: 0, y: Math.max(0, y), w: 1, h: alto })
+  }
+  return franjas
+})()
+
+/**
+ * Lee el código de una imagen ya tomada.
+ *
+ * Es la vía de compatibilidad: funciona en cualquier dispositivo —incluso sin
+ * permiso de cámara en el navegador— porque la foto la saca la app de cámara
+ * del teléfono, que enfoca, hace zoom y tiene flash mucho mejor que nosotros.
+ */
+export async function leerCodigoDeImagen(archivo: File | Blob): Promise<CodigoLeido> {
+  const w = await iniciarOCR()
+  const url = URL.createObjectURL(archivo)
+  try {
+    const img = await new Promise<HTMLImageElement>((res, rej) => {
+      const i = new Image()
+      i.onload = () => res(i)
+      i.onerror = () => rej(new Error('No se pudo abrir la imagen.'))
+      i.src = url
+    })
+
+    // La foto se lleva a un ancho de trabajo acotado. Una de 4K sin reducir
+    // hacía que cada franja fuera enorme y leerla entera se pasaba de treinta
+    // segundos; a 1800 px el código sigue nítido y el barrido termina rápido.
+    const MAX_ANCHO_FOTO = 1800
+    const escalaFoto = Math.min(1, MAX_ANCHO_FOTO / img.naturalWidth)
+    const lienzoFoto = document.createElement('canvas')
+    lienzoFoto.width = Math.round(img.naturalWidth * escalaFoto)
+    lienzoFoto.height = Math.round(img.naturalHeight * escalaFoto)
+    const ctxFoto = lienzoFoto.getContext('2d')!
+    ctxFoto.imageSmoothingQuality = 'high'
+    ctxFoto.drawImage(img, 0, 0, lienzoFoto.width, lienzoFoto.height)
+
+    let ultimo: CodigoLeido = { setCode: null, numero: null, crudo: '' }
+    for (const banda of BANDAS_FOTO) {
+      const recorte = recortarFranja(lienzoFoto, lienzoFoto.width, lienzoFoto.height, banda, false)
+      const { data } = await w.recognize(recorte)
+      const leido = parseCodigo(data.text ?? '')
+      if (leido.numero != null) return leido
+      if (leido.crudo.length > ultimo.crudo.length) ultimo = leido
+    }
+    return ultimo
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
+// ─── Compatibilidad de la cámara ──────────────────────────────────────
+
+export interface Camara {
+  stream: MediaStream
+  /** La linterna ayuda MUCHO con letra tan chica; no todos la exponen. */
+  tieneLinterna: boolean
+}
+
+/**
+ * Abre la cámara probando de la mejor opción a la más básica.
+ *
+ * Pedir `facingMode: environment` con resolución ideal falla en varios
+ * navegadores de escritorio y en algunos Android viejos: si se pide todo junto
+ * y no se puede, no se abre NADA. Bajando de a poco, siempre queda algo.
+ */
+export async function abrirCamara(): Promise<Camara> {
+  if (!window.isSecureContext) {
+    throw new Error('La cámara solo funciona con conexión segura (https).')
+  }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error('Este navegador no permite usar la cámara. Podés subir una foto.')
+  }
+
+  const intentos: MediaStreamConstraints[] = [
+    { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 } } },
+    { video: { facingMode: { ideal: 'environment' } } },
+    { video: { facingMode: 'environment' } },
+    { video: true },
+  ]
+
+  let ultimo: unknown = null
+  for (const c of intentos) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(c)
+      const track = stream.getVideoTracks()[0]
+      const caps = (track?.getCapabilities?.() ?? {}) as { torch?: boolean }
+      return { stream, tieneLinterna: caps.torch === true }
+    } catch (e) {
+      ultimo = e
+      // Si negaron el permiso, insistir con otras restricciones no sirve.
+      if (e instanceof Error && e.name === 'NotAllowedError') break
+    }
+  }
+
+  const nombre = ultimo instanceof Error ? ultimo.name : ''
+  if (nombre === 'NotAllowedError') {
+    throw new Error('No diste permiso de cámara. Podés subir una foto en su lugar.')
+  }
+  if (nombre === 'NotFoundError' || nombre === 'OverconstrainedError') {
+    throw new Error('No se encontró una cámara utilizable. Podés subir una foto.')
+  }
+  throw new Error('No se pudo abrir la cámara. Podés subir una foto.')
+}
+
+/** Enciende o apaga la linterna, si el dispositivo la expone. */
+export async function linterna(stream: MediaStream | null, encendida: boolean): Promise<void> {
+  const track = stream?.getVideoTracks()[0]
+  if (!track) return
+  try {
+    // `torch` no está en los tipos estándar todavía, pero es lo que
+    // usan Chrome y Edge en Android para la linterna.
+    await track.applyConstraints({ advanced: [{ torch: encendida }] } as unknown as MediaTrackConstraints)
+  } catch {
+    // No todos la soportan; que falle no debe romper el escaneo.
+  }
 }

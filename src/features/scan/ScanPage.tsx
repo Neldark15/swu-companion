@@ -20,12 +20,14 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Camera, CameraOff, Check, Keyboard, Loader2, Plus, Minus, X,
+  Zap, ZapOff, ImageUp,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { CardImage } from '../../components/CardImage'
 import { EmptyState } from '../../components/ui/EmptyState'
 import {
-  leerCodigo, buscarPorCodigo, parseCodigo, detenerOCR, iniciarOCR, BANDA,
+  leerCodigo, leerCodigoDeImagen, buscarPorCodigo, parseCodigo, detenerOCR,
+  iniciarOCR, abrirCamara, linterna, BANDA,
   type Coincidencia,
 } from '../../services/cardScanner'
 import { updateCollectionQuantity, getCardQuantity } from '../../services/collectionService'
@@ -71,6 +73,10 @@ export function ScanPage() {
    *  con una proporción fija, `object-contain` deja bandas y la guía vuelve a
    *  señalar un pedazo distinto del que se lee. */
   const [proporcion, setProporcion] = useState(4 / 3)
+  const [tieneLinterna, setTieneLinterna] = useState(false)
+  const [luz, setLuz] = useState(false)
+  const [leyendoFoto, setLeyendoFoto] = useState(false)
+  const fotoRef = useRef<HTMLInputElement>(null)
   const [motorError, setMotorError] = useState<string | null>(null)
 
   // Entrada manual
@@ -86,12 +92,14 @@ export function ScanPage() {
     vivo.current = true
     if (estado === 'manual') return
 
-    navigator.mediaDevices?.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } },
-    })
-      .then(stream => {
+    // `abrirCamara` prueba de la mejor opción a la más básica: pedir todo
+    // junto y fallar dejaba al usuario sin cámara en navegadores que solo
+    // aceptan restricciones simples.
+    abrirCamara()
+      .then(({ stream, tieneLinterna: luzOk }) => {
         if (!vivo.current) { stream.getTracks().forEach(t => t.stop()); return }
         streamRef.current = stream
+        setTieneLinterna(luzOk)
         if (videoRef.current) {
           videoRef.current.srcObject = stream
           void videoRef.current.play().catch(() => {})
@@ -100,14 +108,7 @@ export function ScanPage() {
       })
       .catch((e: unknown) => {
         if (!vivo.current) return
-        const nombre = e instanceof Error ? e.name : ''
-        setError(
-          nombre === 'NotAllowedError'
-            ? 'No diste permiso de cámara. Podés escribir el número a mano.'
-            : nombre === 'NotFoundError'
-              ? 'Este dispositivo no tiene cámara disponible.'
-              : 'No se pudo abrir la cámara.',
-        )
+        setError(e instanceof Error ? e.message : 'No se pudo abrir la cámara.')
         setEstado('sin-camara')
       })
 
@@ -209,6 +210,34 @@ export function ScanPage() {
     navigator.vibrate?.(30)
   }
 
+  /** Vía de compatibilidad: la foto la saca la app de cámara del teléfono,
+   *  que enfoca, hace zoom y tiene flash mucho mejor que nosotros. */
+  const leerFoto = async (archivo: File) => {
+    setLeyendoFoto(true)
+    setMotorError(null)
+    try {
+      const codigo = await leerCodigoDeImagen(archivo)
+      setUltimoCrudo(codigo.crudo)
+      const m = await buscarPorCodigo(codigo)
+      if (!m) {
+        setMotorError(
+          codigo.numero != null
+            ? `Leí la carta ${codigo.numero}${codigo.setCode ? ' de ' + codigo.setCode : ''} pero no está en la base.`
+            : 'No se pudo leer el código en esa foto. Probá más cerca del pie de la carta.',
+        )
+        return
+      }
+      setHallazgo(m)
+      setCantidad(1)
+      setYaTenia(await getCardQuantity(m.card.id))
+      navigator.vibrate?.(60)
+    } catch (e) {
+      setMotorError(e instanceof Error ? e.message : 'No se pudo leer la foto.')
+    } finally {
+      setLeyendoFoto(false)
+    }
+  }
+
   const buscarManual = async () => {
     setMError(null)
     const n = parseInt(mNum, 10)
@@ -307,6 +336,19 @@ export function ScanPage() {
               )}
             </div>
 
+            {tieneLinterna && estado === 'escaneando' && (
+              <button
+                onClick={() => { const n = !luz; setLuz(n); void linterna(streamRef.current, n) }}
+                aria-pressed={luz}
+                aria-label={luz ? 'Apagar linterna' : 'Encender linterna'}
+                className={`absolute top-2 right-2 w-9 h-9 rounded-full flex items-center justify-center border ${
+                  luz ? 'bg-swu-amber text-swu-bg border-swu-amber' : 'bg-black/60 text-white border-white/30'
+                }`}
+              >
+                {luz ? <Zap size={16} aria-hidden /> : <ZapOff size={16} aria-hidden />}
+              </button>
+            )}
+
             {estado === 'pidiendo' && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/70">
                 <p className="text-xs text-swu-muted">Pidiendo permiso de cámara…</p>
@@ -334,6 +376,36 @@ export function ScanPage() {
               </Button>
             )}
           </div>
+        )}
+
+        {/* Subir una foto. Va SIEMPRE, incluso sin cámara: la app de cámara del
+            teléfono enfoca, hace zoom y tiene flash mucho mejor que nosotros, y
+            esto funciona hasta donde el navegador no da acceso al vídeo. */}
+        {estado !== 'manual' && (
+          <>
+            <input
+              ref={fotoRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={e => {
+                const f = e.target.files?.[0]
+                if (f) void leerFoto(f)
+                e.target.value = ''
+              }}
+            />
+            <Button
+              size="sm"
+              block
+              variant="secondary"
+              loading={leyendoFoto}
+              disabled={baseCartas !== 'lista'}
+              onClick={() => fotoRef.current?.click()}
+            >
+              <ImageUp size={14} aria-hidden /> Tomar o subir una foto
+            </Button>
+          </>
         )}
 
         {estado === 'sin-camara' && (
