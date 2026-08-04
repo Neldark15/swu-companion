@@ -6,7 +6,7 @@
  * en /admin/events (o muestra el código de éxito si querés copiarlo antes).
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Calendar, MapPin, Users, Swords, Trophy, Zap,
@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { createOfficialEvent, type OfficialEvent } from '../../services/events'
+import { miSede, type Sede } from '../../services/venuesService'
 import { logAdminAction } from '../../services/adminService'
 
 type ViewState = 'form' | 'creating' | 'created'
@@ -54,6 +55,18 @@ export function AdminEventCreatePage() {
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
   const [location, setLocation] = useState('')
+  /** La sede del organizador, si la tiene. Ligar el torneo a ella es lo que
+   *  lo hace aparecer en su página pública. */
+  const [sede, setSede] = useState<Sede | null>(null)
+  const [usarSede, setUsarSede] = useState(true)
+
+  useEffect(() => {
+    const uid = supabaseUser?.id
+    if (!uid) return
+    let vivo = true
+    void miSede(uid).then(s => { if (vivo) setSede(s) })
+    return () => { vivo = false }
+  }, [supabaseUser?.id])
 
   const handleCreate = async () => {
     setError('')
@@ -71,7 +84,8 @@ export function AdminEventCreatePage() {
       tournamentType,
       maxPlayers,
       date: dateStr,
-      location: location.trim() || undefined,
+      location: usarSede && sede ? `${sede.name} · ${sede.address}` : location.trim() || undefined,
+      venueId: usarSede && sede ? sede.id : null,
       organizerId: supabaseUser.id,
     })
 
@@ -349,6 +363,26 @@ export function AdminEventCreatePage() {
             />
           </Field>
         </div>
+        {sede && (
+          <label className="flex items-start gap-2 bg-swu-bg border border-swu-border rounded-lg p-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={usarSede}
+              onChange={e => setUsarSede(e.target.checked)}
+              className="mt-0.5 accent-swu-cyan"
+            />
+            <span className="min-w-0">
+              <span className="block text-[12px] font-semibold text-swu-text">
+                En mi sede: {sede.name}
+              </span>
+              <span className="block text-[11px] text-swu-muted">
+                {sede.address}. El torneo va a aparecer en la página pública de tu sede.
+              </span>
+            </span>
+          </label>
+        )}
+
+        {!(sede && usarSede) && (
         <Field label="Ubicación" icon={MapPin}>
           <input
             type="text"
@@ -359,6 +393,7 @@ export function AdminEventCreatePage() {
             className="w-full px-3 py-2 bg-swu-bg border border-swu-border rounded-lg text-sm text-swu-text"
           />
         </Field>
+        )}
       </Section>
 
       {error && (

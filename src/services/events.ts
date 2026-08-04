@@ -75,6 +75,8 @@ export async function createOfficialEvent(data: {
   maxPlayers: number
   date?: string
   location?: string
+  /** Sede donde se juega. Liga el torneo a su página pública. */
+  venueId?: string | null
   organizerId: string
 }): Promise<{ ok: boolean; event?: OfficialEvent; error?: string }> {
   if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión al servidor' }
@@ -106,6 +108,7 @@ export async function createOfficialEvent(data: {
       max_players: data.maxPlayers,
       date: data.date || null,
       location: data.location || null,
+      venue_id: data.venueId || null,
     })
     .select()
     .single()

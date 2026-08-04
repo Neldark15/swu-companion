@@ -10,6 +10,7 @@ import {
   ArrowLeft,
   ShieldCheck,
   Megaphone,
+  Store,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEffect } from 'react'
@@ -27,6 +28,7 @@ const NAV_ITEMS: NavItemDef[] = [
   { to: '/admin/users', label: 'Usuarios', icon: Users },
   { to: '/admin/news', label: 'Noticias', icon: Newspaper },
   { to: '/admin/events', label: 'Eventos', icon: Trophy },
+  { to: '/admin/sede', label: 'Mi sede', icon: Store },
   { to: '/admin/cards', label: 'Cartas DB', icon: Library },
   { to: '/admin/push', label: 'Push', icon: Bell },
   { to: '/admin/audit', label: 'Auditoría', icon: ScrollText },

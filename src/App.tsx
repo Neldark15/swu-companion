@@ -26,6 +26,9 @@ const TournamentPublicView = lazy(() => import('./features/events/TournamentPubl
 const TournamentPlayerView = lazy(() => import('./features/events/TournamentPlayerView').then(m => ({ default: m.TournamentPlayerView })))
 const ManageNewsPage = lazy(() => import('./features/home/ManageNewsPage').then(m => ({ default: m.ManageNewsPage })))
 const NewsPage = lazy(() => import('./features/home/NewsPage').then(m => ({ default: m.NewsPage })))
+const SedesPage = lazy(() => import('./features/venues/SedesPage').then(m => ({ default: m.SedesPage })))
+const SedePage = lazy(() => import('./features/venues/SedePage').then(m => ({ default: m.SedePage })))
+const AdminVenuePage = lazy(() => import('./features/admin/AdminVenuePage').then(m => ({ default: m.AdminVenuePage })))
 const ScanPage = lazy(() => import('./features/scan/ScanPage').then(m => ({ default: m.ScanPage })))
 const MetaPage = lazy(() => import('./features/meta/MetaPage').then(m => ({ default: m.MetaPage })))
 const UtilitiesPage = lazy(() => import('./features/utilities/UtilitiesPage').then(m => ({ default: m.UtilitiesPage })))
@@ -83,6 +86,7 @@ export default function App() {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="users" element={<AdminUsersPage />} />
+            <Route path="sede" element={<AdminVenuePage />} />
             <Route path="news" element={<AdminNewsPage />} />
             <Route path="events" element={<AdminEventsPage />} />
             <Route path="events/new" element={<AdminEventCreatePage />} />
@@ -98,6 +102,8 @@ export default function App() {
             <Route path="/cards" element={<CardsPage />} />
             <Route path="/cards/:id" element={<CardDetailPage />} />
             <Route path="/utilities" element={<UtilitiesPage />} />
+            <Route path="/sedes" element={<SedesPage />} />
+            <Route path="/sede/:id" element={<SedePage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/settings/*" element={<SettingsPage />} />
