@@ -7,6 +7,8 @@ import {
   type PublicProfile,
 } from '../../services/collectionService'
 import { getPricesForCards, fetchTCGPrices, formatPrice, type PriceInfo } from '../../services/pricing'
+import { getPersonalizacion, VACIA, type Personalizacion } from '../../services/profileCustomService'
+import { PerfilPersonalizado } from '../profile/PerfilVitrina'
 import { getCardsByIds, MAIN_SET_LABELS } from '../../services/swuApi'
 import { byCanonicalCard, compareCardsBySetNumber } from '../../services/cardSort'
 import type { Card } from '../../types'
@@ -35,6 +37,7 @@ export function PublicProfilePage() {
   const navigate = useNavigate()
 
   const [profile, setProfile] = useState<PublicProfile | null>(null)
+  const [custom, setCustom] = useState<Personalizacion>(VACIA)
   const [items, setItems] = useState<CollectionDisplayItem[]>([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -96,6 +99,8 @@ export function PublicProfilePage() {
       setLoading(true)
       try {
         const prof = await getPublicProfile(userId!)
+        // La personalización es opcional: si falla, el perfil se ve igual.
+        void getPersonalizacion(userId!).then(setCustom).catch(() => {})
         if (cancelled) return
 
         if (!prof) {
@@ -343,7 +348,14 @@ export function PublicProfilePage() {
               {profile.bio && (
                 <div className="text-sm text-swu-muted mt-1">{profile.bio}</div>
               )}
+              <div className="mt-2 flex justify-center">
+                <PerfilPersonalizado p={{ ...custom, showcase_cards: [] }} />
+              </div>
             </div>
+
+            {/* Las cartas van fuera del bloque centrado: necesitan el ancho
+                completo para su scroll horizontal propio. */}
+            <PerfilPersonalizado p={{ ...custom, favorite_aspects: [] }} />
 
             {/* Stats */}
             <div className="grid grid-cols-3 gap-2">

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { db } from '../../services/db'
 import { useAuth } from '../../hooks/useAuth'
+import { PersonalizarPerfil } from './PersonalizarPerfil'
 import { syncStatsToCloud } from '../../services/sync'
 import { isPasskeyReady } from '../../services/crypto'
 import { createDefaultStats, getAspectBars, checkAchievements, calculateLevel, type PlayerStats } from '../../services/gamification'
@@ -766,6 +767,13 @@ export function ProfilePage() {
             <p className="text-xs text-swu-muted mb-1.5">Nombre</p>
             <input value={customName} onChange={(e) => setCustomName(e.target.value)} maxLength={30}
               className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 text-sm text-swu-text outline-none focus:border-swu-accent" />
+          </div>
+
+          {/* Lo que ve la comunidad en /u/:id. Guarda por su cuenta porque va
+              a otras columnas y no depende del resto del formulario. */}
+          <div className="pt-1 border-t border-swu-border">
+            <p className="text-xs text-swu-muted mb-2 mt-3">Mi perfil público</p>
+            <PersonalizarPerfil />
           </div>
 
           {/* Region selector: Continent → Country */}
