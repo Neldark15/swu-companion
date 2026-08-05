@@ -21,7 +21,7 @@ import { CardImage } from '../../components/CardImage'
 import { Carta3D } from '../../components/Carta3D'
 import { CardPreviewSheet } from '../../components/CardPreviewSheet'
 import { EmptyState } from '../../components/ui/EmptyState'
-import { listFaceIsLandscape } from '../../services/cardArt'
+import { isLandscapeFace } from '../../services/cardArt'
 import { ensureCards } from '../../services/swuApi'
 import { compareCardsBySetNumber } from '../../services/cardSort'
 import type { Card } from '../../types'
@@ -148,7 +148,12 @@ export function VitrinaShowcase() {
               no se aprecia, que es justo para lo que existe esta pantalla. */}
           <div className="grid grid-cols-2 gap-3">
             {visibles.map(c => {
-              const apaisada = listFaceIsLandscape(c)
+              // La vitrina muestra el FRENTE (`c.imageUrl`), y el frente de un
+              // líder es APAISADO. Con `listFaceIsLandscape` —que responde por
+              // la cara que se usa en las listas, o sea el reverso vertical—
+              // los líderes Showcase entraban en una caja vertical y salían
+              // recortados por los lados, con el texto cortado a la mitad.
+              const apaisada = isLandscapeFace(c, false)
               return (
                 <button
                   key={c.id}
