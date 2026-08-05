@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Search, SlidersHorizontal, Eye, EyeOff,
   Package, DollarSign, Layers, TrendingUp, RefreshCw, Upload, Download, X, FileUp, Trash2, AlertTriangle,
-  Tag, ShoppingBag, Loader2,
-} from 'lucide-react'
+  Tag, ShoppingBag, Loader2, Minus} from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { getCardsByIds, loadFullDatabase, getLocalCardCount, isDatabaseComplete, MAIN_SET_LABELS } from '../../services/swuApi'
 import { byCanonicalCard, compareCardsBySetNumber } from '../../services/cardSort'
@@ -31,7 +30,7 @@ import {
   type CollectionCardWithPrice,
   type MyListingSummary,
 } from '../../services/collectionService'
-import { formatPrice, fetchTCGPrices } from '../../services/pricing'
+import { formatPrice, fetchTCGPrices , getPricesForCards } from '../../services/pricing'
 import { importCollectionFromFile, type ImportResult } from '../../services/collectionImport'
 import { exportCollection, downloadFile, EXPORT_FORMATS, type ExportFormat } from '../../services/collectionExport'
 import { db } from '../../services/db'
@@ -157,12 +156,15 @@ export function CollectionPage() {
 
   useEffect(() => { refreshListings() }, [refreshListings])
 
-  const handleSaveSale = async (cardId: string, price: number | null, notes: string) => {
+  const handleSaveSale = async (
+    cardId: string, price: number | null, notes: string, cantidad: number,
+  ) => {
     if (!supabaseUser) return
     setSaleSubmitting(true)
     const r = await markCardForSale(cardId, supabaseUser.id, {
       price,
       notes,
+      saleQuantity: cantidad,
       cardName: cards.get(cardId)?.name,
     })
     setSaleSubmitting(false)
@@ -1341,11 +1343,13 @@ export function CollectionPage() {
         {saleModal && (
           <SaleModal
             key={saleModal.cardId}
+            cardId={saleModal.cardId}
             cardName={cards.get(saleModal.cardId)?.name ?? saleModal.cardId}
+            owned={items.find(i => i.cardId === saleModal.cardId)?.quantity ?? 1}
             current={saleModal.current}
             submitting={saleSubmitting}
             onCancel={() => setSaleModal(null)}
-            onSave={(price, notes) => handleSaveSale(saleModal.cardId, price, notes)}
+            onSave={(price, notes, cantidad) => handleSaveSale(saleModal.cardId, price, notes, cantidad)}
             onUnlist={saleModal.current ? () => handleUnlist(saleModal.cardId) : undefined}
           />
         )}
@@ -1421,19 +1425,50 @@ export function CollectionPage() {
 // ─── Sale Modal ───────────────────────────────────────────
 
 function SaleModal({
-  cardName, current, submitting, onCancel, onSave, onUnlist,
+  cardId, cardName, owned, current, submitting, onCancel, onSave, onUnlist,
 }: {
+  cardId: string
   cardName: string
+  /** Cuántas copias tiene: es el tope de lo que puede ofrecer. */
+  owned: number
   current: MyListingSummary | null
   submitting: boolean
   onCancel: () => void
-  onSave: (price: number | null, notes: string) => void
+  onSave: (price: number | null, notes: string, cantidad: number) => void
   /** Solo se pasa cuando la carta YA está publicada (modo edición). */
   onUnlist?: () => void
 }) {
   const editing = !!current
   const [priceStr, setPriceStr] = useState(current?.price != null ? String(current.price) : '')
   const [notes, setNotes] = useState(current?.notes ?? '')
+  const [cantidad, setCantidad] = useState(
+    Math.min(current?.quantity ?? owned, Math.max(1, owned)),
+  )
+  /** Precio de mercado de TCGplayer, para no tener que ir a buscarlo. */
+  const [sugerido, setSugerido] = useState<number | null | 'buscando'>('buscando')
+
+  useEffect(() => {
+    let vivo = true
+    void getPricesForCards([cardId]).then(m => {
+      if (!vivo) return
+      const p = m.get(cardId)
+      // `market` es el precio al que se está vendiendo de verdad; `mid` es el
+      // punto medio de las ofertas. Se prefiere el primero y se cae al
+      // segundo, que es lo que hace la propia TCGplayer.
+      const ref = p?.market ?? p?.mid ?? null
+      setSugerido(ref)
+      // El relleno va acá dentro y no en otro efecto: encadenar efectos por
+      // estado provoca renders en cascada. Y solo si no había precio puesto —
+      // editando una publicación, pisarle el precio que la persona eligió
+      // sería una sorpresa desagradable.
+      if (ref !== null && !editing) {
+        setPriceStr(actual => (actual.trim() ? actual : ref.toFixed(2)))
+      }
+    }).catch(() => { if (vivo) setSugerido(null) })
+    return () => { vivo = false }
+    // `editing` sale de `current`, que no cambia mientras el modal está abierto.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardId])
 
   const submit = () => {
     const p = priceStr.trim() ? Number(priceStr) : null
@@ -1441,7 +1476,11 @@ function SaleModal({
       alert('Precio inválido')
       return
     }
-    onSave(p, notes)
+    if (cantidad < 1 || cantidad > owned) {
+      alert(`Solo tenés ${owned} ${owned === 1 ? 'copia' : 'copias'}.`)
+      return
+    }
+    onSave(p, notes, cantidad)
   }
 
   return (
@@ -1460,6 +1499,39 @@ function SaleModal({
         </div>
 
         <div className="space-y-3">
+          {/* Cuántas se ofrecen. Antes se publicaba la carta y el mercado
+              mostraba cuántas TENÍAS: quien tenía 3 y vendía 1 aparecía
+              ofreciendo las tres, y el comprador llegaba esperando tres. */}
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-swu-muted font-medium block mb-1">
+              Cuántas vendés
+            </label>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCantidad(c => Math.max(1, c - 1))}
+                disabled={cantidad <= 1}
+                aria-label="Una menos"
+                className="w-9 h-9 rounded-lg bg-swu-bg border border-swu-border text-swu-text
+                           flex items-center justify-center disabled:opacity-30"
+              >
+                <Minus size={14} aria-hidden />
+              </button>
+              <div className="flex-1 text-center">
+                <span className="text-xl font-extrabold font-mono text-swu-text">{cantidad}</span>
+                <span className="text-[11px] text-swu-muted"> de {owned}</span>
+              </div>
+              <button
+                onClick={() => setCantidad(c => Math.min(owned, c + 1))}
+                disabled={cantidad >= owned}
+                aria-label="Una más"
+                className="w-9 h-9 rounded-lg bg-swu-bg border border-swu-border text-swu-text
+                           flex items-center justify-center disabled:opacity-30"
+              >
+                <Plus size={14} aria-hidden />
+              </button>
+            </div>
+          </div>
+
           <div>
             <label className="text-[10px] uppercase tracking-wider text-swu-muted font-medium flex items-center gap-1 mb-1">
               <DollarSign size={10} /> Precio en USD (opcional)
@@ -1470,9 +1542,34 @@ function SaleModal({
               step="0.01"
               value={priceStr}
               onChange={(e) => setPriceStr(e.target.value)}
-              placeholder="ej. 12.50 — dejar vacío si es a convenir"
+              placeholder="dejar vacío si es a convenir"
               className="w-full px-3 py-2 bg-swu-bg border border-swu-border rounded-lg text-sm text-swu-text font-mono"
             />
+            {/* El sugerido es una referencia, no una imposición: se muestra
+                siempre y se aplica con un toque. El precio de una carta acá no
+                es el de TCGplayer, pero saber ese número ayuda a poner uno. */}
+            <div className="mt-1.5 min-h-[18px]">
+              {sugerido === 'buscando' ? (
+                <p className="text-[10px] text-swu-muted/60">buscando precio de referencia…</p>
+              ) : sugerido === null ? (
+                <p className="text-[10px] text-swu-muted/60">Sin precio de referencia para esta carta.</p>
+              ) : (
+                <button
+                  onClick={() => setPriceStr(sugerido.toFixed(2))}
+                  className="text-[10px] text-swu-cyan hover:underline"
+                >
+                  TCGplayer: ${sugerido.toFixed(2)} — usar este precio
+                </button>
+              )}
+            </div>
+            {cantidad > 1 && priceStr.trim() && Number(priceStr) > 0 && (
+              <p className="text-[10px] text-swu-muted mt-1">
+                Es el precio por carta. Las {cantidad} juntas:{' '}
+                <span className="font-mono text-swu-amber">
+                  ${(Number(priceStr) * cantidad).toFixed(2)}
+                </span>
+              </p>
+            )}
           </div>
 
           <div>

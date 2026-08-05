@@ -10,7 +10,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Search, Users, Skull, Package, Eye, EyeOff, Tag,
-  ShoppingBag, Loader2, RefreshCw, Sparkles, MessageCircle} from 'lucide-react'
+  ShoppingBag, Loader2, RefreshCw, Sparkles, MessageCircle, Pencil} from 'lucide-react'
 import {
   searchPublicProfiles,
   getExploreProfiles,
@@ -108,6 +108,31 @@ function MatchesSection() {
 const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
 
 type Tab = 'collections' | 'market' | 'vitrina'
+
+/**
+ * El mensaje que se le manda al vendedor.
+ *
+ * Antes decía solo el nombre de la carta, y eso no alcanza: **el nombre no
+ * identifica una impresión**. Hay cinco cartas llamadas «Cad Bane» y cuatro
+ * «Pre Vizsla», con precios muy distintos. Si el vendedor tiene varias, no
+ * sabe cuál le están pidiendo y hay que preguntar de nuevo.
+ *
+ * Así que va todo lo que hace falta para que el trato se cierre en un solo
+ * mensaje: qué carta exactamente, de qué set, cuántas, a qué precio publicado
+ * y el enlace para verla.
+ */
+function mensajeVendedor(l: MarketplaceListing, card: Card | undefined): string {
+  const nombre = card?.name ?? 'una carta'
+  const sub = card?.subtitle ? ` (${card.subtitle})` : ''
+  const impresion = card ? ` · ${card.setCode} ${card.setNumber}` : ''
+  const precio = l.price != null ? ` · $${l.price.toFixed(2)} c/u` : ' · precio a convenir'
+  const cuantas = l.quantity > 1 ? `\nTenés ${l.quantity} publicadas.` : ''
+  const enlace = card ? `\n${window.location.origin}/cards/${card.id}` : ''
+  return (
+    `Hola ${l.sellerName}, te escribo por HOLOCRÓN SWU.\n\n`
+    + `Me interesa: ${nombre}${sub}${impresion}${precio}${cuantas}${enlace}`
+  )
+}
 
 export function ExplorePage() {
   const navigate = useNavigate()
@@ -278,6 +303,9 @@ function CollectionsTab() {
 
 function MarketTab() {
   const navigate = useNavigate()
+  // Para distinguir lo propio de lo ajeno: sobre lo propio se edita, no se
+  // escribe uno mismo por WhatsApp.
+  const { supabaseUser } = useAuth()
   const [listings, setListings] = useState<MarketplaceListing[]>([])
   const [cards, setCards] = useState<Map<string, Card>>(new Map())
   const [loading, setLoading] = useState(true)
@@ -377,6 +405,7 @@ function MarketTab() {
           {filtered.map(l => {
             const card = cards.get(l.cardId)
             const apaisada = listFaceIsLandscape(card)
+            const esMia = !!supabaseUser && l.userId === supabaseUser.id
             return (
               <div
                 key={`${l.userId}-${l.cardId}`}
@@ -434,17 +463,26 @@ function MarketTab() {
                     className="text-[10px] text-swu-muted hover:text-swu-text inline-flex items-center gap-1 mt-1.5 self-start"
                   >
                     <Tag size={9} className="text-swu-amber flex-shrink-0" aria-hidden />
-                    <span className="truncate max-w-[110px]">{l.sellerName}</span>
+                    <span className="truncate max-w-[110px]">
+                      {esMia ? 'Tu publicación' : l.sellerName}
+                    </span>
                   </button>
 
-                  {/* El contacto, que es de lo que se trata Contrabando: sin
-                      esto se veía qué hay y de quién, y no había forma de
-                      escribirle. Solo aparece si esa persona eligió compartir
-                      su número — es opcional y reversible desde su perfil. */}
-                  {l.sellerWhatsapp ? (
+                  {/* Sobre lo propio no se escribe: se edita. Antes había que
+                      salir a Mi Botín, encontrar la carta y abrir su venta
+                      desde ahí para corregir un precio. */}
+                  {esMia ? (
+                    <button
+                      onClick={() => navigate('/collection?venta=1')}
+                      className="mt-2 flex items-center justify-center gap-1.5 bg-swu-amber/15 border border-swu-amber/40
+                                 text-swu-amber text-[11px] font-semibold rounded-lg py-1.5 active:scale-[0.98] transition-transform"
+                    >
+                      <Pencil size={12} aria-hidden /> Editar publicación
+                    </button>
+                  ) : l.sellerWhatsapp ? (
                     <a
                       href={`https://wa.me/${l.sellerWhatsapp}?text=${encodeURIComponent(
-                        `Hola ${l.sellerName}, te escribo por HOLOCRÓN SWU: vi que tenés ${card?.name ?? 'una carta'} en venta.`,
+                        mensajeVendedor(l, card),
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"

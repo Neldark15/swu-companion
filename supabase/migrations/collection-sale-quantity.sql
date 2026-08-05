@@ -1,0 +1,9 @@
+-- Cuántas copias se ponen en venta.
+-- (Aplicada en la base; este archivo queda como registro.)
+--
+-- Hasta ahora publicar una carta publicaba el HECHO de tenerla, no una
+-- cantidad: quien tenía 3 y quería vender 1 aparecía ofreciendo las tres, y
+-- el comprador llegaba esperando tres.
+--
+-- NULL = todas las que tenga, que es el comportamiento anterior: las
+-- publicaciones que ya existían no cambian de significado.
