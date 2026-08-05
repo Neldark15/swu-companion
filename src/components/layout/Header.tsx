@@ -17,7 +17,7 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith('/events')) return 'Torneos'
   if (pathname.startsWith('/rank')) return 'Consejo Jedi'
   if (pathname.startsWith('/arena')) return 'Holocrón'
-  if (pathname.startsWith('/melee')) return 'Circuito Melee'
+  if (pathname.startsWith('/events/melee')) return 'Torneos de Melee'
   if (pathname.startsWith('/profile')) return 'Mi Perfil'
   if (pathname.startsWith('/cards')) return 'Buscar Cartas'
   if (pathname.startsWith('/decks')) return 'Mis Decks'

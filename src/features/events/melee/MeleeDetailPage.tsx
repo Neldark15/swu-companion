@@ -9,8 +9,8 @@ import {
   deleteMeleeTournament,
   buildMeleeUrl,
   FORMAT_LABELS,
-} from '../../services/meleeService'
-import type { MeleeTournament } from '../../types'
+} from '../../../services/meleeService'
+import type { MeleeTournament } from '../../../types'
 
 export function MeleeDetailPage() {
   const navigate = useNavigate()
@@ -30,7 +30,7 @@ export function MeleeDetailPage() {
   const handleDelete = useCallback(async () => {
     if (!id) return
     await deleteMeleeTournament(id)
-    navigate('/melee', { replace: true })
+    navigate('/events/melee', { replace: true })
   }, [id, navigate])
 
   const standingLabel = (s?: number) => {
@@ -67,7 +67,7 @@ export function MeleeDetailPage() {
       {/* Header */}
       <div className="sticky top-0 z-40 bg-swu-bg/95 backdrop-blur border-b border-swu-border">
         <div className="max-w-lg lg:max-w-3xl mx-auto px-4 lg:px-6 py-3 flex items-center gap-3">
-          <button onClick={() => navigate('/melee')} className="text-swu-muted">
+          <button onClick={() => navigate('/events/melee')} className="text-swu-muted">
             <ArrowLeft size={20} />
           </button>
           <h1 className="text-lg font-bold text-swu-text flex-1 truncate">{t.name}</h1>
@@ -218,7 +218,7 @@ export function MeleeDetailPage() {
         {/* Actions */}
         <div className="flex gap-2">
           <button
-            onClick={() => navigate(`/melee/edit/${t.id}`)}
+            onClick={() => navigate(`/events/melee/edit/${t.id}`)}
             className="flex-1 py-2.5 rounded-xl text-xs font-medium border border-swu-border
                        bg-swu-surface text-swu-muted flex items-center justify-center gap-1.5"
           >

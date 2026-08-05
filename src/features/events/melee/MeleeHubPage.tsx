@@ -4,13 +4,13 @@ import {
   ArrowLeft, Plus, Trophy, Target, TrendingUp, Award,
   ExternalLink, Calendar, Search, ChevronRight,
 } from 'lucide-react'
-import { useAuth } from '../../hooks/useAuth'
+import { useAuth } from '../../../hooks/useAuth'
 import {
   getMyMeleeTournaments,
   calculateMeleeStats,
   FORMAT_LABELS,
-} from '../../services/meleeService'
-import type { MeleeTournament, MeleeTournamentStats } from '../../types'
+} from '../../../services/meleeService'
+import type { MeleeTournament, MeleeTournamentStats } from '../../../types'
 
 export function MeleeHubPage() {
   const navigate = useNavigate()
@@ -73,7 +73,7 @@ export function MeleeHubPage() {
             <p className="text-[10px] text-swu-muted font-mono tracking-wider">HISTORIAL COMPETITIVO</p>
           </div>
           <button
-            onClick={() => navigate('/melee/add')}
+            onClick={() => navigate('/events/melee/add')}
             className="bg-swu-accent/15 text-swu-accent p-2 rounded-lg"
           >
             <Plus size={18} />
@@ -135,7 +135,7 @@ export function MeleeHubPage() {
 
         {/* Add Button (prominent) */}
         <button
-          onClick={() => navigate('/melee/add')}
+          onClick={() => navigate('/events/melee/add')}
           className="w-full bg-gradient-to-r from-swu-accent/15 to-swu-amber/15 border border-swu-accent/30
                      rounded-xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform"
         >
@@ -180,7 +180,7 @@ export function MeleeHubPage() {
               Registre sus resultados de torneos de Melee.gg aquí
             </p>
             <button
-              onClick={() => navigate('/melee/add')}
+              onClick={() => navigate('/events/melee/add')}
               className="bg-swu-accent text-white px-4 py-2 rounded-xl text-sm font-medium"
             >
               Agregar Primer Torneo
@@ -198,7 +198,7 @@ export function MeleeHubPage() {
               {filtered.map(t => (
                 <button
                   key={t.id}
-                  onClick={() => navigate(`/melee/${t.id}`)}
+                  onClick={() => navigate(`/events/melee/${t.id}`)}
                   className="w-full bg-swu-surface rounded-xl border border-swu-border p-3 text-left
                              active:scale-[0.98] transition-transform flex items-center gap-3"
                 >

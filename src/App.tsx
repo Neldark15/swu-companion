@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { AppLayout } from './components/layout/AppLayout'
 import { AuthGate } from './components/AuthGate'
 import { HolocronLoader } from './components/PageTransition'
@@ -44,9 +44,9 @@ const ArenaLogPage = lazy(() => import('./features/arena/ArenaLogPage').then(m =
 const ArenaHistoryPage = lazy(() => import('./features/arena/ArenaHistoryPage').then(m => ({ default: m.ArenaHistoryPage })))
 const ArenaStatsPage = lazy(() => import('./features/arena/ArenaStatsPage').then(m => ({ default: m.ArenaStatsPage })))
 const ArenaFeedPage = lazy(() => import('./features/arena/ArenaFeedPage').then(m => ({ default: m.ArenaFeedPage })))
-const MeleeHubPage = lazy(() => import('./features/melee/MeleeHubPage').then(m => ({ default: m.MeleeHubPage })))
-const MeleeAddPage = lazy(() => import('./features/melee/MeleeAddPage').then(m => ({ default: m.MeleeAddPage })))
-const MeleeDetailPage = lazy(() => import('./features/melee/MeleeDetailPage').then(m => ({ default: m.MeleeDetailPage })))
+const MeleeHubPage = lazy(() => import('./features/events/melee/MeleeHubPage').then(m => ({ default: m.MeleeHubPage })))
+const MeleeAddPage = lazy(() => import('./features/events/melee/MeleeAddPage').then(m => ({ default: m.MeleeAddPage })))
+const MeleeDetailPage = lazy(() => import('./features/events/melee/MeleeDetailPage').then(m => ({ default: m.MeleeDetailPage })))
 const EspionajePage = lazy(() => import('./features/espionaje/EspionajePage').then(m => ({ default: m.EspionajePage })))
 const SpyProfilePage = lazy(() => import('./features/espionaje/SpyProfilePage').then(m => ({ default: m.SpyProfilePage })))
 const MissionsPage = lazy(() => import('./features/missions/MissionsPage'))
@@ -71,6 +71,12 @@ function PageLoader() {
 /** Wrap protected pages */
 function P({ children }: { children: React.ReactNode }) {
   return <AuthGate>{children}</AuthGate>
+}
+
+/** Conserva el id del torneo al mandar /melee/:id a su ruta nueva. */
+function RedirigirMelee() {
+  const { id } = useParams<{ id: string }>()
+  return <Navigate to={`/events/melee/${id ?? ''}`} replace />
 }
 
 export default function App() {
@@ -128,9 +134,17 @@ export default function App() {
             <Route path="/arena/history" element={<P><ArenaHistoryPage /></P>} />
             <Route path="/arena/stats" element={<P><ArenaStatsPage /></P>} />
             <Route path="/arena/feed" element={<P><ArenaFeedPage /></P>} />
-            <Route path="/melee" element={<P><MeleeHubPage /></P>} />
-            <Route path="/melee/add" element={<P><MeleeAddPage /></P>} />
-            <Route path="/melee/:id" element={<P><MeleeDetailPage /></P>} />
+            {/* Registro manual de torneos de melee. Vive DENTRO de Eventos:
+                es una forma más de anotar un torneo, y las estadísticas del
+                circuito ya salen solas en el perfil desde la cuenta enlazada. */}
+            <Route path="/events/melee" element={<P><MeleeHubPage /></P>} />
+            <Route path="/events/melee/add" element={<P><MeleeAddPage /></P>} />
+            <Route path="/events/melee/:id" element={<P><MeleeDetailPage /></P>} />
+            {/* Las rutas viejas siguen funcionando: hay enlaces compartidos y
+                pestañas abiertas por ahí, y un 404 no explica nada. */}
+            <Route path="/melee" element={<Navigate to="/events/melee" replace />} />
+            <Route path="/melee/add" element={<Navigate to="/events/melee/add" replace />} />
+            <Route path="/melee/:id" element={<RedirigirMelee />} />
             <Route path="/decks" element={<P><DeckListPage /></P>} />
             <Route path="/decks/:id" element={<P><DeckBuilderPage /></P>} />
             <Route path="/scan" element={<P><ScanPage /></P>} />

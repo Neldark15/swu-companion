@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Link2, Save, Trophy, ExternalLink, Info } from 'lucide-react'
-import { useAuth } from '../../hooks/useAuth'
+import { useAuth } from '../../../hooks/useAuth'
 import {
   saveMeleeTournament,
   parseMeleeUrl,
   buildMeleeUrl,
   TOURNAMENT_TAGS,
   FORMAT_LABELS,
-} from '../../services/meleeService'
-import type { TournamentFormat } from '../../types'
-import { db } from '../../services/db'
+} from '../../../services/meleeService'
+import type { TournamentFormat } from '../../../types'
+import { db } from '../../../services/db'
 
 export function MeleeAddPage() {
   const navigate = useNavigate()
@@ -82,7 +82,7 @@ export function MeleeAddPage() {
         recordedAt: Date.now(),
       })
 
-      navigate('/melee', { replace: true })
+      navigate('/events/melee', { replace: true })
     } catch (e) {
       console.error('[Melee] Save failed:', e)
     } finally {

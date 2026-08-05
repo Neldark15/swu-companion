@@ -185,6 +185,29 @@ export function EventsPage() {
         </button>
       </div>
 
+      {/* Registro manual de torneos de melee.
+          Vive acá y no en su propio módulo del menú: es una forma más de
+          anotar un torneo. Las ESTADÍSTICAS del circuito ya no se escriben a
+          mano —salen solas en el perfil desde la cuenta de melee enlazada—,
+          así que esto queda para lo que aquello no da: tu mazo, la sede, el
+          organizador y tus notas. */}
+      <button
+        onClick={() => navigate('/events/melee')}
+        className="w-full bg-swu-surface border border-swu-border rounded-2xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform"
+      >
+        <div className="w-12 h-12 rounded-full bg-swu-cyan/15 flex items-center justify-center flex-shrink-0">
+          <Swords size={22} className="text-swu-cyan" />
+        </div>
+        <div className="text-left flex-1 min-w-0">
+          <p className="font-bold text-swu-text">Registrar torneo de Melee</p>
+          <p className="text-[11px] text-swu-muted">
+            Con tu mazo, la sede y tus notas. Tus resultados de melee.gg ya salen
+            solos en el perfil.
+          </p>
+        </div>
+        <ChevronRight size={18} className="text-swu-muted" />
+      </button>
+
       {/* Admin: Create Event button */}
       {auth.isAdmin && (
         <button

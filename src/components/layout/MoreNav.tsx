@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { Swords, ShieldCheck, Megaphone, Newspaper, BarChart3 } from 'lucide-react'
 import {
-  DatapadIcon, MedalIcon, MandoTrophyIcon, DeckCardsIcon, SpyIcon,
+  DatapadIcon, MandoTrophyIcon, DeckCardsIcon, SpyIcon,
   DeathStarIcon, BeskarIcon, ChanceCubeIcon, RebelIcon, StarfighterIcon,
 } from '../SWIcons'
 import { useAuth } from '../../hooks/useAuth'
@@ -29,7 +29,6 @@ const GROUPS: MoreGroup[] = [
       { to: '/play', label: 'Duelo', sub: 'Tracker en vivo', icon: Swords },
       { to: '/events', label: 'Torneo', sub: 'Eventos organizados', icon: MandoTrophyIcon },
       { to: '/arena', label: 'Holocrón', sub: 'Registro de duelos', icon: DatapadIcon },
-      { to: '/melee', label: 'Circuito', sub: 'Melee.gg', icon: MedalIcon },
     ],
   },
   {

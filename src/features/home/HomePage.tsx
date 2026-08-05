@@ -17,7 +17,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, ScanLine, Swords } from 'lucide-react'
 import {
-  DatapadIcon, MedalIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
+  DatapadIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
   DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
   ChanceCubeIcon, KyberIcon,
 } from '../../components/SWIcons'
@@ -41,7 +41,6 @@ interface Sistema {
 
 const mainSystems: Sistema[] = [
   { icon: DatapadIcon,     label: 'Holocrón',    tone: 'green',  to: '/arena',      auth: true },
-  { icon: MedalIcon,       label: 'Circuito Melee', tone: 'amber',  to: '/melee',      auth: true },
   { icon: MandoTrophyIcon, label: 'Eventos',   tone: 'amber',  to: '/events',     auth: true },
   { icon: KyberIcon,       label: 'Meta',      tone: 'cyan',   to: '/meta' },
   { icon: CargoIcon,       label: 'Mi Botín',   tone: 'green',  to: '/collection', auth: true },
