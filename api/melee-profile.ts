@@ -208,7 +208,16 @@ async function perfilExiste(usuario: string): Promise<boolean> {
       redirect: 'manual',
       signal: ctl.signal,
     })
-    return r.status === 200
+    if (r.status !== 200) return false
+
+    // El código de estado NO alcanza: melee devuelve **200 con una página de
+    // error** («Oops! Something Went Wrong | Melee») para un perfil que no
+    // existe. Lo comprobé pidiendo `zzz-no-existe-12345`: 200 y 83 KB de HTML.
+    //
+    // Lo que sí distingue es este campo oculto, que la página real usa para
+    // saber a quién le pide los resultados y que en la de error no está.
+    const html = (await r.text()).slice(0, 200_000)
+    return /id="User_UserName"[^>]*\bvalue="[^"]+"/.test(html)
   } catch {
     // Ante la duda no se acusa a nadie de no existir.
     return true
