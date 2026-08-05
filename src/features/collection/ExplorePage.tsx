@@ -10,7 +10,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Search, Users, Skull, Package, Eye, EyeOff, Tag,
-  ShoppingBag, Loader2, ExternalLink, RefreshCw, Sparkles} from 'lucide-react'
+  ShoppingBag, Loader2, RefreshCw, Sparkles, MessageCircle} from 'lucide-react'
 import {
   searchPublicProfiles,
   getExploreProfiles,
@@ -21,6 +21,7 @@ import {
 import { getCardsByIds } from '../../services/swuApi'
 import { getTradeMatches, type TradeMatch } from '../../services/tradeService'
 import { CardImage } from '../../components/CardImage'
+import { Carta3D } from '../../components/Carta3D'
 import { VitrinaShowcase } from './VitrinaShowcase'
 import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import { TradeMatches } from './TradeMatches'
@@ -369,60 +370,102 @@ function MarketTab() {
       )}
 
       {!loading && filtered.length > 0 && (
-        <div className="space-y-1.5 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0">
+        /* Vitrina de tienda: la carta grande y el precio encima, como en el
+           mostrador. Antes era una fila de lista con una miniatura de 56px,
+           donde lo que se veía era el texto y no la mercancía. */
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {filtered.map(l => {
             const card = cards.get(l.cardId)
+            const apaisada = listFaceIsLandscape(card)
             return (
               <div
                 key={`${l.userId}-${l.cardId}`}
-                className="bg-swu-surface rounded-xl p-3 border border-swu-amber/30 flex items-center gap-3"
+                className="bg-swu-surface rounded-xl border border-swu-amber/25 overflow-hidden flex flex-col"
               >
-                <button onClick={() => navigate(`/cards/${l.cardId}`)} className="flex-shrink-0">
-                  <CardImage
-                    src={listFaceUrl(card)}
-                    orientacion={listFaceIsLandscape(card) ? 'apaisada' : 'vertical'}
-                    fit="cover"
-                    alt={card?.name}
-                    className={listFaceIsLandscape(card) ? 'w-20 aspect-[400/286]' : 'w-14 aspect-[286/400]'}
-                  />
+                <button
+                  onClick={() => navigate(`/cards/${l.cardId}`)}
+                  aria-label={`Ver ${card?.name ?? 'la carta'}`}
+                  className="relative p-2"
+                >
+                  <Carta3D brillo intensidad={10}>
+                    <CardImage
+                      src={listFaceUrl(card)}
+                      orientacion={apaisada ? 'apaisada' : 'vertical'}
+                      fit="cover"
+                      elevacion="realce"
+                      alt={card?.name}
+                      className={`w-full ${apaisada ? 'aspect-[400/286]' : 'aspect-[286/400]'}`}
+                    />
+                  </Carta3D>
+
+                  {/* El precio va encima de la carta, como la etiqueta en la
+                      funda. Es lo primero que se mira en una tienda. */}
+                  <span className="absolute top-3 right-3 z-10 px-1.5 py-0.5 rounded-md bg-black/80 backdrop-blur-[2px]">
+                    {l.price != null ? (
+                      <span className="text-[11px] font-extrabold text-swu-amber font-mono">
+                        ${l.price.toFixed(2)}
+                      </span>
+                    ) : (
+                      <span className="text-[9px] text-swu-muted font-mono">a convenir</span>
+                    )}
+                  </span>
+
+                  {l.quantity > 1 && (
+                    <span className="absolute bottom-3 right-3 z-10 text-[9px] font-mono font-bold text-white bg-black/75 rounded px-1">
+                      x{l.quantity}
+                    </span>
+                  )}
                 </button>
 
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-swu-text truncate">
+                <div className="px-2.5 pb-2.5 flex-1 flex flex-col">
+                  <p className="text-[12px] font-semibold text-swu-text leading-tight line-clamp-2">
                     {card?.name ?? l.cardId}
-                  </div>
+                  </p>
                   {card?.subtitle && (
-                    <div className="text-[10px] text-swu-muted truncate">{card.subtitle}</div>
+                    <p className="text-[9px] text-swu-muted truncate">{card.subtitle}</p>
                   )}
-
-                  {/* Seller chip */}
-                  <button
-                    onClick={() => navigate(`/u/${l.userId}`)}
-                    className="text-[10px] text-swu-muted hover:text-swu-text inline-flex items-center gap-1 mt-1"
-                  >
-                    <Tag size={9} className="text-swu-amber" />
-                    Vende: <span className="font-medium">{l.sellerName}</span>
-                    <ExternalLink size={9} />
-                  </button>
 
                   {l.notes && (
-                    <p className="text-[10px] text-swu-muted/80 italic mt-0.5 line-clamp-2">"{l.notes}"</p>
+                    <p className="text-[10px] text-swu-muted/80 italic mt-1 line-clamp-2">«{l.notes}»</p>
                   )}
-                </div>
 
-                <div className="text-right flex-shrink-0">
-                  {l.price != null ? (
-                    <p className="text-base font-extrabold text-swu-amber font-mono">${l.price.toFixed(2)}</p>
+                  <button
+                    onClick={() => navigate(`/u/${l.userId}`)}
+                    className="text-[10px] text-swu-muted hover:text-swu-text inline-flex items-center gap-1 mt-1.5 self-start"
+                  >
+                    <Tag size={9} className="text-swu-amber flex-shrink-0" aria-hidden />
+                    <span className="truncate max-w-[110px]">{l.sellerName}</span>
+                  </button>
+
+                  {/* El contacto, que es de lo que se trata Contrabando: sin
+                      esto se veía qué hay y de quién, y no había forma de
+                      escribirle. Solo aparece si esa persona eligió compartir
+                      su número — es opcional y reversible desde su perfil. */}
+                  {l.sellerWhatsapp ? (
+                    <a
+                      href={`https://wa.me/${l.sellerWhatsapp}?text=${encodeURIComponent(
+                        `Hola ${l.sellerName}, te escribo por HOLOCRÓN SWU: vi que tenés ${card?.name ?? 'una carta'} en venta.`,
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      className="mt-2 flex items-center justify-center gap-1.5 bg-swu-green/15 border border-swu-green/40
+                                 text-swu-green text-[11px] font-semibold rounded-lg py-1.5 active:scale-[0.98] transition-transform"
+                    >
+                      <MessageCircle size={12} aria-hidden /> Escribirle
+                    </a>
                   ) : (
-                    <p className="text-[10px] text-swu-muted font-mono">a convenir</p>
+                    <p className="mt-2 text-[9px] text-swu-muted/60 text-center leading-tight">
+                      Sin WhatsApp — tocá su nombre para ver el perfil
+                    </p>
                   )}
-                  <p className="text-[9px] text-swu-muted/60">qty {l.quantity}</p>
                 </div>
               </div>
             )
           })}
         </div>
       )}
+
     </div>
   )
 }

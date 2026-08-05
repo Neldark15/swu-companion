@@ -386,6 +386,15 @@ export interface MarketplaceListing {
   // Joined seller info
   sellerName: string
   sellerAvatar: string
+  /**
+   * Teléfono para cerrar el trato, si esa persona eligió compartirlo.
+   *
+   * Es OPCIONAL y la decisión es de cada quien (ver WhatsappSetting): la
+   * columna solo la puede leer alguien con sesión, nunca un visitante
+   * anónimo. Sin esto, Contrabando mostraba qué hay en venta y de quién, y
+   * después no había forma de escribirle.
+   */
+  sellerWhatsapp: string | null
 }
 
 export interface MyListingSummary {
@@ -436,7 +445,35 @@ export async function markCardForSale(
   // nuevo en venta sin tener que entrar a Contrabando a revisar.
   void announceSaleToFeed(userId, cardId, opts.cardName, opts.price ?? null)
 
+  // Y avisar al teléfono. El servidor agrupa —un aviso por vendedor por hora—
+  // y verifica contra la base lo que de verdad se publicó, así que publicar
+  // treinta cartas de un sobre manda UNA notificación y no treinta. El detalle
+  // está en api/notify-listing.ts.
+  void avisarPublicacion(cardId, opts.cardName)
+
   return { ok: true }
+}
+
+/**
+ * Dispara el aviso de «hay cartas nuevas en venta».
+ *
+ * Es best-effort a propósito: si el push falla, la carta igual quedó
+ * publicada. Lo contrario —que un fallo de notificación deshaga la venta—
+ * sería mucho peor.
+ */
+async function avisarPublicacion(cardId: string, cardName?: string): Promise<void> {
+  try {
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (!token) return
+    await fetch('/api/notify-listing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ cardId, cardName }),
+    })
+  } catch {
+    // Silencio: es un extra, no parte de publicar.
+  }
 }
 
 /** Publica en el feed que una carta salió a la venta. Best-effort. */
@@ -538,12 +575,13 @@ export async function getMarketplaceListings(opts?: { limit?: number; cardId?: s
   const userIds = Array.from(new Set(rows.map(r => r.user_id)))
   const { data: profiles } = await supabase
     .from('profiles')
-    .select('id, name, avatar')
+    .select('id, name, avatar, whatsapp')
     .in('id', userIds)
   const sellerMap = new Map((profiles || []).map(p => [p.id, p]))
 
   return rows.map(r => {
-    const seller = sellerMap.get(r.user_id)
+    const seller = sellerMap.get(r.user_id) as
+      { name?: string; avatar?: string; whatsapp?: string | null } | undefined
     return {
       userId: r.user_id,
       cardId: r.card_id,
@@ -553,6 +591,7 @@ export async function getMarketplaceListings(opts?: { limit?: number; cardId?: s
       listedAt: r.listed_at,
       sellerName: seller?.name ?? 'Vendedor',
       sellerAvatar: seller?.avatar ?? '👤',
+      sellerWhatsapp: seller?.whatsapp ?? null,
     } as MarketplaceListing
   })
 }
@@ -572,7 +611,7 @@ export async function getUserListings(userId: string): Promise<MarketplaceListin
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('name, avatar')
+    .select('name, avatar, whatsapp')
     .eq('id', userId)
     .single()
 
@@ -584,6 +623,7 @@ export async function getUserListings(userId: string): Promise<MarketplaceListin
     notes: r.sale_notes,
     listedAt: r.listed_at,
     sellerName: profile?.name ?? 'Vendedor',
+    sellerWhatsapp: (profile as { whatsapp?: string | null } | null)?.whatsapp ?? null,
     sellerAvatar: profile?.avatar ?? '👤',
   }))
 }

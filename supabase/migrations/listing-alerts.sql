@@ -1,0 +1,10 @@
+-- Freno de los avisos de «hay cartas nuevas en venta».
+-- (Aplicada en la base; este archivo queda como registro.)
+--
+-- Sin esto, publicar 30 cartas de un sobre manda 30 notificaciones a las 16
+-- personas de la comunidad. Nadie aguanta eso: lo primero que hace es apagar
+-- las notificaciones, y ahí se pierde el canal para siempre — incluido el de
+-- los torneos, que es el que de verdad importa.
+--
+-- Solo la toca el servidor (service role): dejarla abierta al cliente
+-- permitiría borrar el propio freno.
