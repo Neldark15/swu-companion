@@ -11,11 +11,13 @@
 
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ExternalLink, RotateCcw } from 'lucide-react'
+import { ExternalLink, RotateCcw, Check, Minus } from 'lucide-react'
 import { Sheet } from './ui/Sheet'
 import { CardImage } from './CardImage'
 import { Carta3D } from './Carta3D'
 import { isLandscapeFace } from '../services/cardArt'
+import { getCardQuantity } from '../services/collectionService'
+import { PLAYSET_SIZE } from '../services/swuApi'
 import { db } from '../services/db'
 import type { Card } from '../types'
 
@@ -70,6 +72,22 @@ export function CardPreviewSheet({
     return () => { vivo = false }
   }, [cardId])
 
+  /**
+   * Cuántas copias tiene quien está mirando.
+   *
+   * Es el dato que convierte un análisis en algo accionable: leyendo una
+   * receta, lo primero que uno quiere saber es qué le falta para armarla. Sin
+   * esto hay que salir a Mi Botín y buscar carta por carta.
+   */
+  const [enBinder, setEnBinder] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!cardId) { setEnBinder(null); return }
+    let vivo = true
+    void getCardQuantity(cardId).then(q => { if (vivo) setEnBinder(q) })
+    return () => { vivo = false }
+  }, [cardId])
+
   const abierta = cardId !== null
   // La orientación sale de la CARA que se está mostrando, no del tipo de
   // carta. El reverso de un líder es su lado de unidad, que es VERTICAL: con
@@ -88,30 +106,65 @@ export function CardPreviewSheet({
       {carta && (
         <div className="p-4 space-y-3">
           <div className="relative">
-            {/* La carta se inclina y brilla al tocarla, como al girarla en la
-                mano. Las impresiones especiales llevan además el halo
-                irisado, que es lo que de verdad hacen en la vida real. */}
-            <Carta3D
-              brillo
-              iridiscente={especial}
-              className={`mx-auto ${apaisada ? 'max-w-sm' : 'max-w-[220px]'}`}
-            >
-              <CardImage
-                src={src}
-                alt={carta.name}
-                orientacion={apaisada ? 'apaisada' : 'vertical'}
-                fit="cover"
-                elevacion="realce"
-                className={`w-full ${apaisada ? 'aspect-[400/286]' : 'aspect-[286/400]'}`}
-              />
-            </Carta3D>
-            {carta.backImageUrl && (
-              <button
-                onClick={() => setDorsoDe(d => (d === cardId ? null : cardId))}
-                className="absolute top-1 right-1 flex items-center gap-1 text-[10px] text-swu-cyan bg-swu-bg/85 border border-swu-border rounded-lg px-2 py-1"
-              >
-                <RotateCcw size={11} aria-hidden /> {dorso ? 'Frente' : 'Dorso'}
-              </button>
+            {/* Un LÍDER es dos cartas: el lado de líder, con la habilidad
+                que se usa cada ronda, y el de unidad desplegada. Enseñar solo
+                una y esconder la otra tras un botón obliga a recordar qué
+                decía la que no se ve, que es justo lo que uno necesita
+                comparar al leer un análisis. Se muestran las dos. */}
+            {carta.isLeader && carta.backImageUrl ? (
+              <div className="space-y-2">
+                <div className="mx-auto max-w-sm">
+                  <p className="text-[9px] uppercase tracking-widest text-swu-amber mb-1">Líder</p>
+                  <Carta3D brillo iridiscente={especial}>
+                    <CardImage
+                      src={carta.imageUrl}
+                      alt={`${carta.name}, lado de líder`}
+                      orientacion="apaisada"
+                      fit="cover"
+                      elevacion="realce"
+                      className="w-full aspect-[400/286]"
+                    />
+                  </Carta3D>
+                </div>
+                <div className="mx-auto max-w-[200px]">
+                  <p className="text-[9px] uppercase tracking-widest text-swu-cyan mb-1">Desplegado</p>
+                  <Carta3D brillo iridiscente={especial}>
+                    <CardImage
+                      src={carta.backImageUrl}
+                      alt={`${carta.name}, lado de unidad`}
+                      orientacion="vertical"
+                      fit="cover"
+                      elevacion="realce"
+                      className="w-full aspect-[286/400]"
+                    />
+                  </Carta3D>
+                </div>
+              </div>
+            ) : (
+              <>
+                <Carta3D
+                  brillo
+                  iridiscente={especial}
+                  className={`mx-auto ${apaisada ? 'max-w-sm' : 'max-w-[220px]'}`}
+                >
+                  <CardImage
+                    src={src}
+                    alt={carta.name}
+                    orientacion={apaisada ? 'apaisada' : 'vertical'}
+                    fit="cover"
+                    elevacion="realce"
+                    className={`w-full ${apaisada ? 'aspect-[400/286]' : 'aspect-[286/400]'}`}
+                  />
+                </Carta3D>
+                {carta.backImageUrl && (
+                  <button
+                    onClick={() => setDorsoDe(d => (d === cardId ? null : cardId))}
+                    className="absolute top-1 right-1 flex items-center gap-1 text-[10px] text-swu-cyan bg-swu-bg/85 border border-swu-border rounded-lg px-2 py-1"
+                  >
+                    <RotateCcw size={11} aria-hidden /> {dorso ? 'Frente' : 'Dorso'}
+                  </button>
+                )}
+              </>
             )}
           </div>
 
@@ -131,6 +184,34 @@ export function CardPreviewSheet({
                   {a}
                 </span>
               ))}
+            </div>
+          )}
+
+          {/* Lo tenés o no. Va ARRIBA de las estadísticas porque, leyendo una
+              receta, es la pregunta que se hace primero. */}
+          {enBinder !== null && (
+            <div
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${
+                enBinder > 0
+                  ? 'bg-swu-green/10 border-swu-green/35'
+                  : 'bg-swu-surface border-swu-border'
+              }`}
+            >
+              {enBinder > 0
+                ? <Check size={15} className="text-swu-green flex-shrink-0" aria-hidden />
+                : <Minus size={15} className="text-swu-muted flex-shrink-0" aria-hidden />}
+              <p className={`text-[12px] font-semibold flex-1 ${enBinder > 0 ? 'text-swu-green' : 'text-swu-muted'}`}>
+                {enBinder === 0
+                  ? 'No la tenés en tu binder'
+                  : `La tenés · ${enBinder} ${enBinder === 1 ? 'copia' : 'copias'}`}
+              </p>
+              {/* El playset son 3: decirlo evita la cuenta mental de «¿me
+                  alcanza para el mazo?». */}
+              {enBinder > 0 && enBinder < PLAYSET_SIZE && (
+                <span className="text-[10px] font-mono text-swu-muted">
+                  te faltan {PLAYSET_SIZE - enBinder}
+                </span>
+              )}
             </div>
           )}
 
@@ -154,6 +235,21 @@ export function CardPreviewSheet({
             <p className="text-[11px] text-swu-muted">
               <span className="font-semibold text-swu-text">Rasgos: </span>
               {carta.traits.join(', ')}
+            </p>
+          )}
+          {carta.isUnique && (
+            <p className="text-[11px] text-swu-amber">
+              <span className="font-semibold">Única</span> — solo una copia en juego a la vez.
+            </p>
+          )}
+          {carta.artist && (
+            <p className="text-[11px] text-swu-muted">
+              <span className="font-semibold text-swu-text">Arte: </span>{carta.artist}
+            </p>
+          )}
+          {carta.variantType && carta.variantType !== 'Standard' && (
+            <p className="text-[11px] text-swu-muted">
+              <span className="font-semibold text-swu-text">Impresión: </span>{carta.variantType}
             </p>
           )}
 
