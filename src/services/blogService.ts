@@ -168,3 +168,45 @@ export async function borrar(id: string): Promise<{ ok: boolean; error?: string 
   const { error } = await supabase.from('blog_posts').delete().eq('id', id)
   return error ? { ok: false, error: error.message } : { ok: true }
 }
+
+// ── Imágenes ─────────────────────────────────────────────────────────
+
+/** Lo que acepta el bucket. Se comprueba acá para dar un mensaje entendible
+ *  en vez de dejar que falle la subida con un error de Storage. */
+const TIPOS = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif']
+const MAX_BYTES = 5 * 1024 * 1024
+
+/**
+ * Sube una imagen del artículo y devuelve su URL pública.
+ *
+ * El nombre del archivo NO se toma del que subió la persona: un nombre con
+ * `../` o con caracteres raros se convierte en una ruta dentro del bucket.
+ * Se genera uno propio y se conserva solo la extensión.
+ */
+export async function subirImagen(
+  archivo: File,
+  userId: string,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión al servidor' }
+
+  if (!TIPOS.includes(archivo.type)) {
+    return { ok: false, error: 'Solo JPG, PNG, WEBP, AVIF o GIF.' }
+  }
+  if (archivo.size > MAX_BYTES) {
+    const mb = (archivo.size / 1024 / 1024).toFixed(1)
+    return { ok: false, error: `La imagen pesa ${mb} MB y el máximo son 5 MB.` }
+  }
+
+  const ext = (archivo.name.split('.').pop() ?? 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
+  const nombre = `${userId}/${crypto.randomUUID()}.${ext || 'jpg'}`
+
+  const { error } = await supabase.storage.from('blog').upload(nombre, archivo, {
+    contentType: archivo.type,
+    cacheControl: '31536000',
+    upsert: false,
+  })
+  if (error) return { ok: false, error: error.message }
+
+  const { data } = supabase.storage.from('blog').getPublicUrl(nombre)
+  return { ok: true, url: data.publicUrl }
+}

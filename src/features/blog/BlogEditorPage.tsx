@@ -10,14 +10,14 @@
  * carta, que es lo único que no se adivina.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Save, Eye, EyeOff, Trash2, Send } from 'lucide-react'
+import { ArrowLeft, Save, Eye, EyeOff, Trash2, Send, ImagePlus, Loader2 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { useAuth } from '../../hooks/useAuth'
 import { Articulo } from './Articulo'
 import {
-  guardar, borrar, listarTodos, slugificar, minutosDeLectura,
+  guardar, borrar, listarTodos, slugificar, minutosDeLectura, subirImagen,
   KIND_LABEL, type BlogKind, type BlogPost,
 } from '../../services/blogService'
 
@@ -50,6 +50,10 @@ export function BlogEditorPage() {
   const [error, setError] = useState<string | null>(null)
   const [vista, setVista] = useState<'escribir' | 'previa'>('escribir')
   const [tagsTexto, setTagsTexto] = useState('')
+  const [subiendo, setSubiendo] = useState<'portada' | 'texto' | null>(null)
+  const portadaRef = useRef<HTMLInputElement>(null)
+  const textoRef = useRef<HTMLInputElement>(null)
+  const areaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     if (!id) return
@@ -90,6 +94,45 @@ export function BlogEditorPage() {
     setGuardando(false)
     if (!r.ok) { setError(r.error); return }
     navigate(`/blog/${r.slug}`)
+  }
+
+  /**
+   * Sube una imagen y la coloca.
+   *
+   * Para el TEXTO se inserta en la posición del cursor, no al final: quien
+   * está escribiendo el tercer párrafo quiere la foto ahí, y tener que
+   * cortar y pegar el `![…]()` desde el final es exactamente la fricción que
+   * hace que después nadie ponga imágenes.
+   */
+  const subir = async (archivo: File, destino: 'portada' | 'texto') => {
+    if (!supabaseUser) return
+    setSubiendo(destino)
+    setError(null)
+    const r = await subirImagen(archivo, supabaseUser.id)
+    setSubiendo(null)
+    if (!r.ok) { setError(r.error); return }
+
+    if (destino === 'portada') {
+      setPost(p => ({ ...p, cover_url: r.url }))
+      return
+    }
+
+    const marca = `\n![](${r.url})\n`
+    const area = areaRef.current
+    const actual = post.content ?? ''
+    if (!area) { setPost(p => ({ ...p, content: actual + marca })); return }
+
+    const ini = area.selectionStart ?? actual.length
+    const fin = area.selectionEnd ?? actual.length
+    const nuevo = actual.slice(0, ini) + marca + actual.slice(fin)
+    setPost(p => ({ ...p, content: nuevo }))
+    // Devolver el cursor DENTRO de los corchetes del pie, que es lo
+    // siguiente que se quiere escribir.
+    requestAnimationFrame(() => {
+      area.focus()
+      const pos = ini + 3
+      area.setSelectionRange(pos, pos)
+    })
   }
 
   const eliminar = async () => {
@@ -182,16 +225,80 @@ export function BlogEditorPage() {
               />
             </div>
 
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <input
+                  value={post.cover_url ?? ''}
+                  onChange={e => setPost(p => ({ ...p, cover_url: e.target.value }))}
+                  placeholder="Portada: pegá una URL o subí una foto"
+                  inputMode="url"
+                  className="flex-1 min-w-0 bg-swu-surface border border-swu-border rounded-lg px-3 py-2 text-sm
+                             text-swu-text placeholder:text-swu-muted/50"
+                />
+                <button
+                  onClick={() => portadaRef.current?.click()}
+                  disabled={subiendo !== null}
+                  className="flex-shrink-0 flex items-center gap-1.5 text-[11px] text-swu-cyan border border-swu-cyan/40
+                             rounded-lg px-3 disabled:opacity-40"
+                >
+                  {subiendo === 'portada'
+                    ? <Loader2 size={13} className="animate-spin" aria-hidden />
+                    : <ImagePlus size={13} aria-hidden />}
+                  Subir
+                </button>
+              </div>
+              {post.cover_url && (
+                <div className="relative">
+                  <img src={post.cover_url} alt="" className="w-full aspect-[16/9] object-cover rounded-lg" />
+                  <button
+                    onClick={() => setPost(p => ({ ...p, cover_url: null }))}
+                    className="absolute top-2 right-2 bg-black/75 text-white rounded-full p-1.5"
+                    aria-label="Quitar la portada"
+                  >
+                    <Trash2 size={13} aria-hidden />
+                  </button>
+                </div>
+              )}
+            </div>
             <input
-              value={post.cover_url ?? ''}
-              onChange={e => setPost(p => ({ ...p, cover_url: e.target.value }))}
-              placeholder="URL de la imagen de portada (opcional)"
-              inputMode="url"
-              className="w-full bg-swu-surface border border-swu-border rounded-lg px-3 py-2 text-sm
-                         text-swu-text placeholder:text-swu-muted/50"
+              ref={portadaRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/avif,image/gif"
+              className="hidden"
+              onChange={e => {
+                const f = e.target.files?.[0]
+                e.target.value = ''
+                if (f) void subir(f, 'portada')
+              }}
             />
 
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-swu-muted">Cuerpo del artículo</span>
+              <button
+                onClick={() => textoRef.current?.click()}
+                disabled={subiendo !== null}
+                className="flex items-center gap-1.5 text-[11px] text-swu-cyan border border-swu-cyan/40
+                           rounded-full px-2.5 py-1 disabled:opacity-40"
+              >
+                {subiendo === 'texto'
+                  ? <Loader2 size={12} className="animate-spin" aria-hidden />
+                  : <ImagePlus size={12} aria-hidden />}
+                Insertar foto
+              </button>
+            </div>
+            <input
+              ref={textoRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/avif,image/gif"
+              className="hidden"
+              onChange={e => {
+                const f = e.target.files?.[0]
+                e.target.value = ''
+                if (f) void subir(f, 'texto')
+              }}
+            />
             <textarea
+              ref={areaRef}
               value={post.content ?? ''}
               onChange={e => setPost(p => ({ ...p, content: e.target.value }))}
               placeholder="Escribí el artículo…"
