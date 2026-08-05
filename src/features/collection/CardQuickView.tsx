@@ -15,7 +15,7 @@ import { Minus, Plus, ExternalLink, Tag } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Chip } from '../../components/ui/Chip'
 import { CardImage } from '../../components/CardImage'
-import { listFaceUrl, listFaceFit } from '../../services/cardArt'
+import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import { PLAYSET_SIZE } from '../../services/swuApi'
 import { formatPrice } from '../../services/pricing'
 import { translateType, translateRarity, translateArena } from '../../services/translations'
@@ -43,14 +43,24 @@ export function CardQuickView({ slot, price, listed, onChangeQty, onSell }: Card
     void onChangeQty(n)
   }
 
+  const apaisada = listFaceIsLandscape(card)
+
   return (
     <div className="p-4 space-y-4">
       <div className="flex gap-3">
+        {/* La caja toma la forma de la carta. Antes era `w-24 h-32` fijo:
+            0,75 contra el 0,715 real, así que a toda carta vertical le
+            recortaba 6px entre arriba y abajo —justo sus esquinas— y encima
+            cambiaba de forma respecto a la casilla del binder de la que se
+            abre. Y una base, que es apaisada, quedaba como una tirita con el
+            46% de la caja en gris. */}
         <CardImage
           src={listFaceUrl(card)}
-          fit={listFaceFit(card)}
+          orientacion={apaisada ? 'apaisada' : 'vertical'}
+          fit="cover"
+          elevacion="realce"
           alt={card.name}
-          className="w-24 h-32 flex-shrink-0"
+          className={`flex-shrink-0 ${apaisada ? 'w-32 aspect-[400/286]' : 'w-24 aspect-[286/400]'}`}
         />
         <div className="min-w-0 flex-1 space-y-1.5">
           <div>

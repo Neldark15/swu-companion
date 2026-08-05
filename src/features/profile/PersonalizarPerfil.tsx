@@ -18,6 +18,7 @@ import { Check, AlertTriangle, Save, Star } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { CardImage } from '../../components/CardImage'
+import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import { useAuth } from '../../hooks/useAuth'
 import {
   getPersonalizacion, guardarPersonalizacion, misFavoritas,
@@ -147,7 +148,15 @@ export function PersonalizarPerfil() {
                     elegida ? 'border-swu-cyan scale-[0.97]' : 'border-transparent'
                   }`}
                 >
-                  <CardImage src={c.imageUrl} alt={c.name} className="w-full aspect-[5/7]" />
+                  {/* Mismo arreglo que la vitrina: si acá se elige desde una
+                      miniatura ya recortada, se elige a ciegas. */}
+                  <CardImage
+                    src={listFaceUrl(c)}
+                    orientacion={listFaceIsLandscape(c) ? 'apaisada' : 'vertical'}
+                    fit="cover"
+                    alt={c.name}
+                    className={`w-full ${listFaceIsLandscape(c) ? 'aspect-[400/286]' : 'aspect-[286/400]'}`}
+                  />
                   {elegida && (
                     <span className="absolute top-1 right-1 w-5 h-5 rounded-full bg-swu-cyan flex items-center justify-center">
                       <Check size={12} className="text-swu-bg" aria-hidden />

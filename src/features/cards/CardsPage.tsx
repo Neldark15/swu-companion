@@ -9,7 +9,7 @@ import { Button } from '../../components/ui/Button'
 import { Chip, type ChipTone } from '../../components/ui/Chip'
 import { SegmentedControl } from '../../components/ui/SegmentedControl'
 import { CardImage } from '../../components/CardImage'
-import { listFaceUrl, listFaceFit } from '../../services/cardArt'
+import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import {
   searchCards, getSets, getLocalCardCount, loadFullDatabase, ensureFreshDatabase, collectionEntry,
   subscribeDbLoadProgress, MAIN_SET_MIN_CARDS, COST_MAX_BUCKET, PLAYSET_SIZE,
@@ -734,7 +734,17 @@ export function CardsPage() {
                 }}
                 className="w-full bg-swu-surface rounded-xl p-3 border border-swu-border flex items-center gap-3 text-left cursor-pointer active:scale-[0.99] transition-transform"
               >
-                <CardImage src={listFaceUrl(c)} fit={listFaceFit(c)} alt={c.name} className="w-14 h-20" />
+                {/* La caja toma la forma de la carta. Con `w-14 h-20` fijo, una base
+                    apaisada se dibujaba a 56x40 dentro de 56x80: la mitad de área
+                    que la unidad de la fila de al lado, hundida entre dos bandas
+                    oscuras. Filtrando por tipo «Base» la lista entera se veía así. */}
+                <CardImage
+                  src={listFaceUrl(c)}
+                  orientacion={listFaceIsLandscape(c) ? 'apaisada' : 'vertical'}
+                  fit="cover"
+                  alt={c.name}
+                  className={listFaceIsLandscape(c) ? 'w-20 aspect-[400/286]' : 'w-14 aspect-[286/400]'}
+                />
                 <div className="flex-1 min-w-0">
                   {/* Nombre y subtítulo apilados: en una sola línea, con la
                       miniatura más grande, el nombre se cortaba a la mitad

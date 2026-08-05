@@ -1,9 +1,10 @@
 /**
  * ScanPage — apuntar la cámara a una carta y sumarla a la colección.
  *
- * Lee el código impreso al pie de la carta (set + número, ej. `ASH·EN 1/264`),
- * que identifica la carta sin ambigüedad. El detalle de por qué se lee eso y
- * no la ilustración está en services/cardScanner.ts.
+ * Reconoce la carta por su ILUSTRACIÓN, comparándola contra un índice de
+ * hashes que viaja con la app: 0,4 ms medidos, sin CDN y sin conexión. El
+ * código impreso al pie (`ASH·EN 1/264`) queda de respaldo por OCR, para las
+ * cartas que comparten arte. El porqué está en services/cardScanner.ts.
  *
  * ── Decisiones de uso ─────────────────────────────────────────────────
  *
@@ -24,6 +25,7 @@ import {
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { CardImage } from '../../components/CardImage'
+import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import { EmptyState } from '../../components/ui/EmptyState'
 import {
   leerCodigo, leerCodigoDeImagen, buscarPorCodigo, parseCodigo, detenerOCR,
@@ -559,7 +561,14 @@ export function ScanPage() {
           <div className="w-full max-w-sm bg-swu-surface border border-swu-border rounded-xl overflow-hidden">
             <div className="flex items-start gap-3 p-3">
               <div className="w-20 flex-shrink-0 rounded-lg overflow-hidden bg-swu-bg">
-                <CardImage src={hallazgo.card.imageUrl} alt={hallazgo.card.name} className="w-full aspect-[5/7]" />
+                <CardImage
+                  src={listFaceUrl(hallazgo.card)}
+                  orientacion={listFaceIsLandscape(hallazgo.card) ? 'apaisada' : 'vertical'}
+                  fit="cover"
+                  elevacion="realce"
+                  alt={hallazgo.card.name}
+                  className={`w-full ${listFaceIsLandscape(hallazgo.card) ? 'aspect-[400/286]' : 'aspect-[286/400]'}`}
+                />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-swu-text leading-tight">{hallazgo.card.name}</p>

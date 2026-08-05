@@ -177,3 +177,117 @@ input:focus, textarea:focus, select:focus {
     70% 100%, 30% 100%, 0 70%, 0 30%
   );
 }
+
+/* ─────────────────────────────────────────────────────────────
+ * Cartas
+ *
+ * El arte oficial llega en PNG RGBA con las esquinas YA recortadas: la carta
+ * trae su propia silueta. De ahí que la profundidad se haga con
+ * `drop-shadow` y no con `box-shadow` — la sombra de caja dibujaría un
+ * rectángulo por detrás de una carta redondeada y se le verían los picos.
+ * Y por eso tampoco se le pone fondo ni `border-radius` propios: un radio
+ * fijo discrepa del que trae la imagen a todos los tamaños.
+ * ───────────────────────────────────────────────────────────── */
+
+/* ── Radio de esquina proporcional ──────────────────────────────
+ *
+ * La carta impresa tiene un radio de ~8px sobre 286px de ancho: el 2,8%.
+ * Un `rounded-lg` de 8px FIJOS es correcto solo si la carta se dibuja a su
+ * tamaño original; en una miniatura de 40px es SIETE VECES el radio real y
+ * no recorta la esquina transparente sino arte opaco — la carta se ve como
+ * una pastilla con las puntas mordidas.
+ *
+ * En porcentaje sí escala: `border-radius` en % toma el ancho para el eje
+ * horizontal y el alto para el vertical, así que dando los dos por separado
+ * la esquina queda CIRCULAR y del tamaño correcto a cualquier escala.
+ *
+ *   vertical  286x400 -> 8/286 = 2.8%  /  8/400 = 2.0%
+ *   apaisada  400x286 -> 8/400 = 2.0%  /  8/286 = 2.8%
+ */
+@utility radio-carta {
+  border-radius: 2.8% / 2%;
+}
+
+@utility radio-carta-apaisada {
+  border-radius: 2% / 2.8%;
+}
+
+/* Listas densas: apenas despega la carta del fondo. Un solo drop-shadow,
+   que es lo que se puede repetir 200 veces sin que el teléfono sufra. */
+@utility carta-plana {
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.55));
+}
+
+/* Carta protagonista: dos sombras, uno de contacto y otro de proyección,
+   que es lo que da la sensación de que está apoyada y no pegada. */
+@utility carta-realce {
+  filter:
+    drop-shadow(0 1px 2px rgb(0 0 0 / 0.5))
+    drop-shadow(0 8px 18px rgb(0 0 0 / 0.45));
+}
+
+/* Relleno del hueco que deja una carta apaisada en una celda vertical: su
+   propia imagen, ampliada y desenfocada. Va oscurecida y desaturada para que
+   NUNCA compita con la carta nítida que lleva encima. */
+@utility carta-relleno {
+  filter: blur(18px) saturate(0.75) brightness(0.45);
+  transform: scale(1.35);
+}
+
+/* Barrido del esqueleto. Más tranquilo que un `animate-pulse`, que en una
+   rejilla larga deja la pantalla entera latiendo. */
+@utility carta-esqueleto {
+  /* El fondo va en swu-surface y NO en swu-border/20: medido, aquello daba
+     1,04:1 contra el fondo de la página, o sea invisible. Y en el binder eso
+     hacía que una casilla QUE SÍ TENÉS pero cargando se viera idéntica a una
+     casilla vacía, justo los dos estados que esa pantalla existe para
+     distinguir. */
+  background-color: var(--color-swu-surface);
+  background-image: linear-gradient(
+    100deg,
+    transparent 20%,
+    color-mix(in srgb, var(--color-swu-border) 70%, transparent) 45%,
+    transparent 70%
+  );
+  background-size: 220% 100%;
+  animation: carta-barrido 1.6s ease-in-out infinite;
+}
+
+@keyframes carta-barrido {
+  from { background-position: 140% 0; }
+  to   { background-position: -40% 0; }
+}
+
+/* Foil: una banda diagonal irisada, muy tenue. `mix-blend-mode` la funde con
+   el arte en vez de apoyarse encima como una calcomanía. */
+@utility carta-foil {
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgb(34 211 238 / 0.20) 42%,
+    rgb(255 255 255 / 0.26) 50%,
+    rgb(245 158 11 / 0.20) 58%,
+    transparent 70%
+  );
+  background-size: 260% 260%;
+  mix-blend-mode: screen;
+  animation: carta-brillo 5s ease-in-out infinite;
+  border-radius: inherit;
+}
+
+@keyframes carta-brillo {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+/* Quien pidió menos movimiento no recibe barridos ni brillos. El foil se
+   queda como un reflejo fijo, que sigue informando sin animarse. */
+@media (prefers-reduced-motion: reduce) {
+  .carta-esqueleto,
+  .carta-foil {
+    animation: none;
+  }
+  .carta-foil {
+    background-position: 50% 50%;
+  }
+}

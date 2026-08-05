@@ -22,7 +22,7 @@ import {
 import { getCardsByIds } from '../../services/swuApi'
 import { getTradeMatches, type TradeMatch } from '../../services/tradeService'
 import { CardImage } from '../../components/CardImage'
-import { listFaceUrl, listFaceFit } from '../../services/cardArt'
+import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import { TradeMatches } from './TradeMatches'
 import { useAuth } from '../../hooks/useAuth'
 import { db } from '../../services/db'
@@ -372,9 +372,10 @@ function MarketTab() {
                 <button onClick={() => navigate(`/cards/${l.cardId}`)} className="flex-shrink-0">
                   <CardImage
                     src={listFaceUrl(card)}
-                    fit={listFaceFit(card)}
+                    orientacion={listFaceIsLandscape(card) ? 'apaisada' : 'vertical'}
+                    fit="cover"
                     alt={card?.name}
-                    className="w-14 h-20"
+                    className={listFaceIsLandscape(card) ? 'w-20 aspect-[400/286]' : 'w-14 aspect-[286/400]'}
                   />
                 </button>
 

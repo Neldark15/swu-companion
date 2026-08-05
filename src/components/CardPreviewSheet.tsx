@@ -14,6 +14,7 @@ import { Link } from 'react-router-dom'
 import { ExternalLink, RotateCcw } from 'lucide-react'
 import { Sheet } from './ui/Sheet'
 import { CardImage } from './CardImage'
+import { isLandscapeFace } from '../services/cardArt'
 import { db } from '../services/db'
 import type { Card } from '../types'
 
@@ -69,8 +70,13 @@ export function CardPreviewSheet({
   }, [cardId])
 
   const abierta = cardId !== null
-  // Los líderes y algunas cartas son apaisados; con `cover` se verían recortados.
-  const apaisada = carta?.isLeader || carta?.isBase
+  // La orientación sale de la CARA que se está mostrando, no del tipo de
+  // carta. El reverso de un líder es su lado de unidad, que es VERTICAL: con
+  // la caja fijada por el tipo, al tocar «Dorso» esa cara quedaba metida en un
+  // marco apaisado con dos franjas grises ocupando la mitad del ancho, y
+  // encima se veía más chica que cualquier carta normal. `isLandscapeFace` ya
+  // existía para exactamente esto.
+  const apaisada = carta ? isLandscapeFace(carta, dorso) : false
   const src = dorso && carta?.backImageUrl ? carta.backImageUrl : carta?.imageUrl
 
   return (
@@ -82,8 +88,10 @@ export function CardPreviewSheet({
               <CardImage
                 src={src}
                 alt={carta.name}
-                fit="contain"
-                className={`w-full ${apaisada ? 'aspect-[7/5]' : 'aspect-[5/7]'} rounded-xl`}
+                orientacion={apaisada ? 'apaisada' : 'vertical'}
+                fit="cover"
+                elevacion="realce"
+                className={`w-full ${apaisada ? 'aspect-[400/286]' : 'aspect-[286/400]'}`}
               />
             </div>
             {carta.backImageUrl && (

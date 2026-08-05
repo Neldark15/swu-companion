@@ -323,11 +323,21 @@ export function MetaLiveView() {
         {abierto && (
           <div className="p-4 space-y-3">
             <div className="flex items-start gap-3">
-              {receta?.leaderImageUrl && (
-                <div className="w-20 flex-shrink-0 rounded-lg overflow-hidden bg-swu-bg">
-                  <CardImage src={receta.leaderImageUrl} alt={abierto.leaderName} fit="contain" className="w-full aspect-[7/5]" />
-                </div>
-              )}
+              {/* La columna se dibuja SIEMPRE, no solo cuando llegó la receta.
+                  Como `receta` arranca en null en cada apertura, antes el
+                  nombre y los chips se pintaban a todo el ancho y saltaban 92px
+                  a la derecha cuando cargaba la imagen —el 100% de las veces,
+                  en la interacción principal de la vista—. CardImage ya dibuja
+                  su propio esqueleto mientras tanto. */}
+              <div className="w-20 flex-shrink-0">
+                <CardImage
+                  src={receta?.leaderImageUrl}
+                  alt={abierto.leaderName}
+                  orientacion="apaisada"
+                  fit="cover"
+                  className="w-full aspect-[400/286]"
+                />
+              </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-swu-text leading-tight">{abierto.leaderName}</p>
                 <p className="text-[11px] text-swu-muted">

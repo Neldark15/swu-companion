@@ -16,7 +16,7 @@
  */
 
 import { CardImage } from '../../components/CardImage'
-import { listFaceUrl, listFaceFit } from '../../services/cardArt'
+import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import type { BinderSlot } from '../../services/collectionProgress'
 import { PLAYSET_SIZE } from '../../services/swuApi'
 
@@ -31,11 +31,18 @@ export function BinderGrid({ slots, onSelect, hideMissing = false }: BinderGridP
   const visible = hideMissing ? slots.filter(s => s.qty > 0) : slots
 
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+    // `grid-flow-dense` es lo que hace que las casillas apaisadas —que ocupan
+    // dos columnas— no dejen un hueco detrás: las cartas verticales que vienen
+    // después se meten solas en los espacios sueltos.
+    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2 grid-flow-dense">
       {visible.map(slot => {
         const { card, qty } = slot
         const owned = qty > 0
         const complete = qty >= PLAYSET_SIZE
+        // Las bases son apaisadas y no tienen cara vertical: en una casilla
+        // 5:7 ocupaban el 40% y dejaban dos franjas negras. Se les da una
+        // casilla con SU forma, que además las hace legibles.
+        const apaisada = listFaceIsLandscape(card)
 
         return (
           <button
@@ -47,19 +54,21 @@ export function BinderGrid({ slots, onSelect, hideMissing = false }: BinderGridP
                 : `${card.name}, no la tenés`
             }
             className={`
-              relative aspect-[5/7] rounded-lg overflow-hidden border transition-all
-              active:scale-[0.97]
+              relative overflow-hidden rounded-lg transition-transform duration-200
+              active:scale-[0.97] hover:-translate-y-0.5
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent
+              ${apaisada ? 'col-span-2 aspect-[400/286]' : 'aspect-[286/400]'}
               ${owned
-                ? 'border-swu-border'
-                : 'border-dashed border-swu-border/60 bg-swu-bg'}
+                ? ''
+                : 'border border-dashed border-swu-border bg-swu-surface/70'}
             `}
           >
             {owned ? (
               <>
                 <CardImage
                   src={listFaceUrl(card)}
-                  fit={listFaceFit(card)}
+                  orientacion={apaisada ? 'apaisada' : 'vertical'}
+                  fit="cover"
                   alt=""
                   className="w-full h-full"
                   rootMargin={400}
@@ -67,7 +76,7 @@ export function BinderGrid({ slots, onSelect, hideMissing = false }: BinderGridP
                 {/* Cuántas copias. El playset completo se marca en verde, y
                     además lleva el número: el color no es el único aviso. */}
                 <span
-                  className={`absolute bottom-1 right-1 min-w-5 h-5 px-1 rounded
+                  className={`absolute bottom-1 right-1 z-10 min-w-5 h-5 px-1 rounded
                               text-[10px] font-bold font-mono
                               flex items-center justify-center
                               ${complete
@@ -79,9 +88,15 @@ export function BinderGrid({ slots, onSelect, hideMissing = false }: BinderGridP
               </>
             ) : (
               // Hueco: se ve el número de carta para saber QUÉ falta.
-              <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-swu-muted/40">
+              //
+              // El texto iba en `text-swu-muted/40` = 1,87:1 de contraste, y el
+              // recuadro en `border-swu-border/60` = 1,14:1 sobre un fondo
+              // idéntico al de la página. O sea: la única razón de ser de esta
+              // vista —«los huecos son la información»— estaba dibujada pero no
+              // se veía. Ahora el hueco tiene fondo propio y texto legible.
+              <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-swu-muted">
                 <span className="text-[10px] font-mono">#{card.setNumber}</span>
-                <span className="text-[9px] px-1 text-center leading-tight line-clamp-2">
+                <span className="text-[9px] px-1 text-center leading-tight line-clamp-2 text-swu-muted/80">
                   {card.name}
                 </span>
               </span>

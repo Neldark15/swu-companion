@@ -50,9 +50,25 @@ export function listFaceFit(card: Card | null | undefined): 'cover' | 'contain' 
  * `isBase:false`, pero su arte es apaisado igual que una base. Mirando solo
  * las banderas se recortaba/deformaba.
  */
-function isLandscapeArt(card: Card): boolean {
+export function isLandscapeArt(card: Card): boolean {
   if (card.isBase) return true
   return (card.type as string) === 'Force Token'
+}
+
+/**
+ * ¿La cara que se muestra en una lista es apaisada?
+ *
+ * Medido sobre el export: los **154 líderes tienen reverso vertical**, así que
+ * en las listas llenan la casilla igual que una unidad. Las que de verdad
+ * quedan apaisadas son 92 de 2.291 (4%): las 91 bases y el Force Token.
+ *
+ * Se usa para darles una CASILLA apaisada en las rejillas, en vez de meterlas
+ * en una vertical donde ocupaban el 40% y dejaban dos huecos negros.
+ */
+export function listFaceIsLandscape(card: Card | null | undefined): boolean {
+  if (!card) return false
+  if (isLandscapeArt(card)) return true
+  return !!card.isLeader && !card.backImageUrl
 }
 
 /**

@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { CardImage } from '../../components/CardImage'
+import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import {
   cartasDeVitrina, ASPECTOS,
   type Personalizacion, type Aspecto,
@@ -76,8 +77,19 @@ export function Vitrina({ ids, titulo = 'Cartas favoritas' }: { ids: string[]; t
             to={`/cards/${c.id}`}
             className="w-20 flex-shrink-0 active:scale-[0.97] transition-transform"
           >
-            <div className="rounded-lg overflow-hidden bg-swu-surface border border-swu-border">
-              <CardImage src={c.imageUrl} alt={c.name} className="w-full aspect-[5/7]" />
+            {/* Va por `listFaceUrl`, como las otras seis pantallas. Usando
+                `c.imageUrl` crudo, una favorita apaisada —líder, base o el
+                Force Token— se recortaba al 51% central y salía irreconocible:
+                un pedazo de cara y medio cuadro de texto. La vitrina no filtra
+                tipos, así que cualquiera puede marcar una. */}
+            <div className="overflow-hidden">
+              <CardImage
+                src={listFaceUrl(c)}
+                orientacion={listFaceIsLandscape(c) ? 'apaisada' : 'vertical'}
+                fit="cover"
+                alt={c.name}
+                className={`w-full ${listFaceIsLandscape(c) ? 'aspect-[400/286]' : 'aspect-[286/400]'}`}
+              />
             </div>
             <p className="text-[9px] text-swu-muted truncate mt-1 text-center">{c.name}</p>
           </Link>
