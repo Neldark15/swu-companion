@@ -223,9 +223,14 @@ export function RankingPage() {
   }
 
   useEffect(() => {
-    if (tab === 'global') loadGlobal()
-    else if (tab === 'monthly') loadMonthly()
-    else loadTournamentRanking()
+    // Envuelto en una función asíncrona a propósito: llamarlo en seco desde
+    // el cuerpo del efecto encadena un render antes de que React pinte.
+    void (async () => {
+      if (tab === 'global') await loadGlobal()
+      else if (tab === 'monthly') await loadMonthly()
+      else await loadTournamentRanking()
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, month, tournamentSubTab, tournamentMonth, countryFilter])
 
   /* ── Tournament podium card ── */

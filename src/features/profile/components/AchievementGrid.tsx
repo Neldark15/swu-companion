@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Lock } from 'lucide-react'
 import { ACHIEVEMENTS, ASPECT_CONFIG, type Aspect } from '../../../services/gamification'
-import { SWU_ICON_MAP, IconLocked } from '../../../components/icons/SWUIcons'
+import { IconLocked } from '../../../components/icons/SWUIcons'
+import { SWU_ICON_MAP } from '../../../components/icons/swuIconMap'
 import { AspectIcon } from '../../../components/icons/AspectIcon'
 
 interface AchievementGridProps {

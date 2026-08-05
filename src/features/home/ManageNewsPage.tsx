@@ -66,7 +66,10 @@ export function ManageNewsPage() {
   }
 
   useEffect(() => {
-    loadNews()
+    // Envuelto en una función asíncrona a propósito: llamarlo en seco desde
+    // el cuerpo del efecto encadena un render antes de que React pinte.
+    void (async () => { await loadNews() })()
+     
   }, [])
 
   const resetForm = () => {

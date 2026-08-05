@@ -47,9 +47,14 @@ function MatchesSection() {
 
   useEffect(() => {
     let cancelled = false
-    if (!supabaseUser) { setLoading(false); return }
+    // Sin sesión no hay cruces que buscar. El estado de carga se apaga dentro
+    // de la función asíncrona y no acá: un `setState` en el cuerpo del efecto
+    // encadena un render antes de pintar.
+    if (!supabaseUser) {
+      void Promise.resolve().then(() => { if (!cancelled) setLoading(false) })
+      return () => { cancelled = true }
+    }
 
-    setFailed(false)
     getTradeMatches(supabaseUser.id)
       .then(async (ms) => {
         if (cancelled) return

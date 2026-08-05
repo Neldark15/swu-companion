@@ -45,13 +45,17 @@ function isStandalone(): boolean {
 
 export function PWAInstallCard() {
   const platform = useMemo(() => detectPlatform(), [])
-  const [standalone, setStandalone] = useState<boolean>(false)
+  // No cambia mientras la pantalla vive: si la app se instala, el navegador
+  // abre una ventana nueva y este componente se monta de cero.
+  const [standalone] = useState<boolean>(isStandalone)
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [installing, setInstalling] = useState(false)
   const [installed, setInstalled] = useState(false)
 
   useEffect(() => {
-    setStandalone(isStandalone())
+    // `isStandalone()` lee del navegador, no cambia durante la vida de la
+    // pantalla: va como estado inicial y no como un setState en el efecto.
+
 
     const onBeforeInstall = (e: Event) => {
       e.preventDefault()

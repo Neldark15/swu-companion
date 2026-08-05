@@ -384,7 +384,9 @@ export function GalaxyPage() {
     if (activeTab !== 'activity') return
     if (activity.length > 0) return
     let cancelled = false
-    setLoadingActivity(true)
+    // El indicador de carga se enciende DENTRO de la promesa: encenderlo en
+    // el cuerpo del efecto encadena un render antes de pintar.
+    void Promise.resolve().then(() => { if (!cancelled) setLoadingActivity(true) })
     getGalaxyActivity(40).then(items => {
       if (!cancelled) {
         setActivity(items)
@@ -404,9 +406,10 @@ export function GalaxyPage() {
   }, [rankings])
 
   useEffect(() => {
-    if (activeTab === 'rankings') {
-      loadRanking(rankingCategory)
-    }
+    if (activeTab !== 'rankings') return
+    // Envuelto en una función asíncrona a propósito: llamarlo en seco desde
+    // el cuerpo del efecto encadena un render antes de que React pinte.
+    void (async () => { await loadRanking(rankingCategory) })()
   }, [activeTab, rankingCategory, loadRanking])
 
   const handleView = useCallback((userId: string) => {

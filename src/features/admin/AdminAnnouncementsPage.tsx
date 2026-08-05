@@ -6,7 +6,7 @@
  * lo que sea) y enviarlos por: Push, In-app toast, Noticia en home.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback} from 'react'
 import {
   Megaphone, Send, Loader2, CheckCircle2, AlertTriangle, History,
   Bell, MessageSquare, Newspaper, Image as ImageIcon, Link as LinkIcon,
@@ -137,15 +137,22 @@ export function AdminAnnouncementsPage() {
   const [previewOpen, setPreviewOpen] = useState(false)
   const [history, setHistory] = useState<AnnouncementHistoryEntry[]>([])
 
-  // ── Load users for picker + history on mount ──
-  useEffect(() => {
-    getAllUsers().then(setUsers)
-    refreshHistory()
+  // Declarada ANTES del efecto que la usa: es una `const`, así que no se
+  // eleva. Funcionaba de casualidad —los efectos corren después del render,
+  // cuando la asignación ya pasó— pero cualquier cambio de orden lo rompía.
+  const refreshHistory = useCallback(async () => {
+    setHistory(await getAnnouncementHistory(20))
   }, [])
 
-  const refreshHistory = async () => {
-    setHistory(await getAnnouncementHistory(20))
-  }
+  // ── Usuarios para el selector + historial, al montar ──
+  useEffect(() => {
+    // Envuelto en una función asíncrona a propósito: llamarlo en seco desde
+    // el cuerpo del efecto encadena un render antes de que React pinte.
+    void (async () => {
+      setUsers(await getAllUsers())
+      await refreshHistory()
+    })()
+  }, [refreshHistory])
 
   const applyTemplate = (t: Template) => {
     setTag(t.tag)

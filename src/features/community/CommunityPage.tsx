@@ -108,7 +108,11 @@ export function CommunityPage() {
     setLoading(false)
   }, [supabaseUser?.id])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    // Envuelto en una función asíncrona a propósito: llamarlo en seco desde
+    // el cuerpo del efecto encadena un render antes de que React pinte.
+    void (async () => { await load() })()
+  }, [load])
 
   // Realtime: los posts nuevos entran solos, sin recargar
   useEffect(() => {

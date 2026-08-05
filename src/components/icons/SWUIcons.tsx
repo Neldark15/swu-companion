@@ -6,7 +6,7 @@
 
 import type { SVGProps } from 'react'
 
-type IconProps = SVGProps<SVGSVGElement> & { size?: number }
+export type IconProps = SVGProps<SVGSVGElement> & { size?: number }
 
 const defaults = (props: IconProps) => ({
   width: props.size || 24,
@@ -578,57 +578,3 @@ export function IconHolocron(props: IconProps) {
 }
 
 // ─── ICON MAP ────────────────────────────────────────────────────
-
-/**
- * Maps icon keys to components for easy lookup
- * Usage: const Icon = SWU_ICON_MAP['vigilance']; <Icon size={20} />
- */
-export const SWU_ICON_MAP: Record<string, React.ComponentType<IconProps>> = {
-  // Aspects
-  vigilance: IconVigilance,
-  command: IconCommand,
-  aggression: IconAggression,
-  cunning: IconCunning,
-  heroism: IconHeroism,
-  villainy: IconVillainy,
-
-  // Achievement icons
-  sentinel: IconSentinel,
-  fortress: IconFortress,
-  calendar: IconCalendar,
-  strategy: IconStrategy,
-  medal: IconMedal,
-  star: IconStar,
-  crown: IconCrown,
-  blade: IconBlade,
-  dual_blades: IconDualBlades,
-  skull: IconSkull,
-  trophy: IconTrophy,
-  draft: IconDraft,
-  wrench: IconWrench,
-  blueprint: IconBlueprint,
-  valid: IconValid,
-  lightbulb: IconLightbulb,
-  chest: IconChest,
-  books: IconBooks,
-  archive: IconArchive,
-  glowing_star: IconGlowingStar,
-  heart: IconHeart,
-  new_moon: IconNewMoon,
-  passkey: IconPasskey,
-  masks: IconMasks,
-  infinity: IconInfinity,
-  dark_lord: IconDarkLord,
-
-  // Ranks
-  youngling: IconYoungling,
-  lightsaber: IconLightsaber,
-  jedi_order: IconJediOrder,
-  council: IconCouncil,
-  grand_master: IconGrandMaster,
-
-  // UI
-  xp: IconXp,
-  locked: IconLocked,
-  holocron: IconHolocron,
-}

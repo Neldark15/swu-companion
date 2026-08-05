@@ -7,7 +7,10 @@ const AUTO_SAVE_INTERVAL = 30_000 // 30 seconds
 export function useMatchPersistence(match: MatchState | null) {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const matchRef = useRef(match)
-  matchRef.current = match
+  // Escribir una ref DURANTE el render rompe la regla de pureza: en modo
+  // concurrente React puede renderizar sin llegar a pintar, y la ref queda
+  // apuntando a un estado que nunca existió en pantalla. Va en un efecto.
+  useEffect(() => { matchRef.current = match }, [match])
 
   // Save match to IndexedDB
   const save = useCallback(async (m: MatchState) => {

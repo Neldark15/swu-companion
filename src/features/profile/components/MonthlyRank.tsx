@@ -45,9 +45,11 @@ export function MonthlyRank({ userId }: MonthlyRankProps) {
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
 
     async function load() {
+      // `setLoading(true)` salía del cuerpo del efecto; acá adentro no
+      // encadena render y el estado inicial ya arranca cargando.
+      setLoading(true)
       const [lb, xp] = await Promise.all([
         getMonthlyLeaderboard(month),
         userId ? getMyMonthlyXp(userId, month) : Promise.resolve(0),

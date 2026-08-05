@@ -78,7 +78,9 @@ export default function TournamentDashboard() {
   }, [code, selectedRound])
 
   useEffect(() => {
-    fetchData()
+    // Envuelto en una función asíncrona a propósito: llamarlo en seco desde
+    // el cuerpo del efecto encadena un render antes de que React pinte.
+    void (async () => { await fetchData() })()
   }, [fetchData])
 
   // Realtime subscriptions

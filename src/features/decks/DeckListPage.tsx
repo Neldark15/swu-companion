@@ -111,7 +111,7 @@ export function DeckListPage() {
 
   // Load on mount and when navigating back
   useEffect(() => {
-    loadDecks()
+    void (async () => { await loadDecks() })()
   }, [loadDecks])
 
   // Also reload when page becomes visible (e.g. navigating back)

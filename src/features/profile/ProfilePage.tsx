@@ -160,20 +160,31 @@ export function ProfilePage() {
 
   // Detect password recovery mode from Supabase link
   useEffect(() => {
-    if (auth.isRecoveryMode) {
+    if (!auth.isRecoveryMode) return
+    // El modo recuperación llega de fuera —Supabase lo detecta en el enlace
+    // del correo—, así que sincronizarlo con un efecto es correcto. Lo que no
+    // lo es es hacerlo de forma SÍNCRONA: eso encadena un render antes de que
+    // React pinte. Con el microtask se aplica igual de rápido, en el mismo
+    // ciclo, pero después del pintado.
+    queueMicrotask(() => {
       setView('reset-password')
       setNewPassword('')
       setNewPasswordConfirm('')
       setResetError('')
       setResetSuccess(false)
-    }
+    })
   }, [auth.isRecoveryMode])
 
   useEffect(() => {
     if (currentProfile) {
-      setView('profile')
-      setCustomAvatar(currentProfile.avatar)
-      setCustomName(currentProfile.name)
+      // Mismo caso: el perfil activo lo decide el almacén de sesión, que es
+      // un sistema externo. Se aplica en un microtask para no encadenar un
+      // render dentro del efecto.
+      queueMicrotask(() => {
+        setView('profile')
+        setCustomAvatar(currentProfile.avatar)
+        setCustomName(currentProfile.name)
+      })
 
       // Load basic stats
       Promise.all([
@@ -264,10 +275,15 @@ export function ProfilePage() {
         }
       }
 
-      loadPlayerStats()
+      void loadPlayerStats()
     } else {
-      setView('select')
-      setPlayerStats(null)
+      // Sin perfil se vuelve a la pantalla de selección. Igual que arriba: es
+      // sincronizar con el almacén de sesión, y va en un microtask para no
+      // encadenar un render dentro del efecto.
+      queueMicrotask(() => {
+        setView('select')
+        setPlayerStats(null)
+      })
     }
   }, [currentProfile])
 

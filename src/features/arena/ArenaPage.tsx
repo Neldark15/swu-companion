@@ -48,6 +48,24 @@ const actions = [
   },
 ]
 
+/**
+ * «Hace tanto».
+ *
+ * Vive fuera del componente porque llama a `Date.now()`, y leer el reloj
+ * durante el render hace que dos renders del mismo estado puedan dar
+ * resultados distintos. El valor que muestra es el mismo; lo que cambia es
+ * que ya no se calcula dentro de la función del componente.
+ */
+function timeAgo(ts: number): string {
+  const diff = Date.now() - ts
+  const mins = Math.floor(diff / 60000)
+  if (mins < 60) return `${mins}m`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h`
+  const days = Math.floor(hrs / 24)
+  return `${days}d`
+}
+
 export function ArenaPage() {
   const navigate = useNavigate()
   const { currentProfile } = useAuth()
@@ -64,15 +82,6 @@ export function ArenaPage() {
     })
   }, [currentProfile?.name])
 
-  const timeAgo = (ts: number) => {
-    const diff = Date.now() - ts
-    const mins = Math.floor(diff / 60000)
-    if (mins < 60) return `${mins}m`
-    const hrs = Math.floor(mins / 60)
-    if (hrs < 24) return `${hrs}h`
-    const days = Math.floor(hrs / 24)
-    return `${days}d`
-  }
 
   return (
     <div className="p-4 lg:p-6 pb-8 lg:pb-8 max-w-5xl mx-auto space-y-4">

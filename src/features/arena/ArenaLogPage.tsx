@@ -23,11 +23,43 @@ export function ArenaLogPage() {
   const [searchParams] = useSearchParams()
   const { currentProfile } = useAuth()
 
-  const [player1Name, setPlayer1Name] = useState(currentProfile?.name || 'Jugador 1')
-  const [player2Name, setPlayer2Name] = useState('')
-  const [mode, setMode] = useState<GameMode>('premier')
-  const [winner, setWinner] = useState<1 | 2>(1)
-  const [score, setScore] = useState<[number, number]>([2, 0])
+  /**
+   * Los valores iniciales salen de la URL, no de un efecto.
+   *
+   * A esta pantalla se llega desde el tracker con `?p1=…&score=…`. Rellenarlo
+   * con un `setState` dentro de un efecto significaba pintar una vez con los
+   * valores por defecto y otra con los reales: un parpadeo en el que el
+   * formulario decía otra cosa. Leyéndolo en el estado inicial no existe ese
+   * primer pintado equivocado.
+   */
+  const [player1Name, setPlayer1Name] = useState(
+    () => searchParams.get('p1') || currentProfile?.name || 'Jugador 1',
+  )
+  const [player2Name, setPlayer2Name] = useState(() => searchParams.get('p2') || '')
+  const [mode, setMode] = useState<GameMode>(() => {
+    const m = searchParams.get('mode')
+    return m === 'premier' || m === 'twin_suns' ? m : 'premier'
+  })
+  const [score, setScore] = useState<[number, number]>(() => {
+    const s = searchParams.get('score')
+    const partes = s ? s.split('-').map(Number) : []
+    return partes.length === 2 && partes.every(Number.isFinite)
+      ? (partes as [number, number])
+      : [2, 0]
+  })
+  /**
+   * El ganador lo DECIDE el marcador; la elección a mano solo desempata.
+   *
+   * Antes era un estado que un efecto corregía después de cada cambio de
+   * marcador: durante un render la pantalla mostraba un ganador que ya no
+   * correspondía. Derivándolo eso no puede pasar.
+   */
+  const [winnerManual, setWinnerManual] = useState<1 | 2>(() => {
+    const w = searchParams.get('winner')
+    return w === '2' ? 2 : 1
+  })
+  const winner: 1 | 2 =
+    score[0] > score[1] ? 1 : score[1] > score[0] ? 2 : winnerManual
   const [player1Deck, setPlayer1Deck] = useState('')
   const [player2Deck, setPlayer2Deck] = useState('')
   const [notes, setNotes] = useState('')
@@ -38,29 +70,6 @@ export function ArenaLogPage() {
   useEffect(() => {
     db.decks.toArray().then(setDecks)
   }, [])
-
-  // Prefill from tracker
-  useEffect(() => {
-    const p1 = searchParams.get('p1')
-    const p2 = searchParams.get('p2')
-    const m = searchParams.get('mode')
-    const s = searchParams.get('score')
-    const w = searchParams.get('winner')
-    if (p1) setPlayer1Name(p1)
-    if (p2) setPlayer2Name(p2)
-    if (m === 'premier' || m === 'twin_suns') setMode(m)
-    if (s) {
-      const parts = s.split('-').map(Number)
-      if (parts.length === 2) setScore(parts as [number, number])
-    }
-    if (w === '1' || w === '2') setWinner(Number(w) as 1 | 2)
-  }, [searchParams])
-
-  // Auto-set winner from score
-  useEffect(() => {
-    if (score[0] > score[1]) setWinner(1)
-    else if (score[1] > score[0]) setWinner(2)
-  }, [score])
 
   const handleSave = async () => {
     if (!player2Name.trim()) return
@@ -217,7 +226,7 @@ export function ArenaLogPage() {
         <p className="text-[10px] text-swu-muted font-mono font-bold tracking-widest mb-2">GANADOR</p>
         <div className="flex gap-2">
           <button
-            onClick={() => setWinner(1)}
+            onClick={() => setWinnerManual(1)}
             className={`flex-1 py-3 rounded-xl border font-bold text-sm transition-colors ${
               winner === 1
                 ? 'bg-swu-green/15 border-swu-green text-swu-green'
@@ -227,7 +236,7 @@ export function ArenaLogPage() {
             {player1Name || 'J1'} Gana
           </button>
           <button
-            onClick={() => setWinner(2)}
+            onClick={() => setWinnerManual(2)}
             className={`flex-1 py-3 rounded-xl border font-bold text-sm transition-colors ${
               winner === 2
                 ? 'bg-swu-red/15 border-swu-red text-swu-red'

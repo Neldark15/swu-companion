@@ -43,8 +43,11 @@ export function UpdatePrompt() {
         setInterval(() => { registration.update().catch(() => {}) }, 60 * 60 * 1000)
       },
     })
-    // `registerSW` devuelve la función que aplica la actualización.
-    setUpdate(() => updateSW)
+    // `registerSW` devuelve la función que aplica la actualización. Se
+    // guarda en un microtask: hacerlo en el cuerpo del efecto encadena un
+    // render antes de la primera pintada, y esto es un aviso que casi nunca
+    // se muestra.
+    queueMicrotask(() => setUpdate(() => updateSW))
   }, [])
 
   if (!needRefresh || dismissed) return null

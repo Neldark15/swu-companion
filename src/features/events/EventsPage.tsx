@@ -57,7 +57,10 @@ export function EventsPage() {
       setLoadingEvents(false)
       return
     }
-    loadEvents()
+    // Envuelto en una función asíncrona a propósito: llamarlo en seco desde
+    // el cuerpo del efecto encadena un render antes de que React pinte.
+    void (async () => { await loadEvents() })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.supabaseUser])
 
   const loadEvents = async () => {

@@ -33,7 +33,12 @@ export function PushNotificationToggle() {
     setLoading(false)
   }
 
-  useEffect(() => { refresh() }, [])
+  useEffect(() => {
+    // Envuelto en una función asíncrona a propósito: llamarlo en seco desde
+    // el cuerpo del efecto encadena un render antes de que React pinte.
+    void (async () => { await refresh() })()
+     
+  }, [])
 
   if (!supabaseUser) {
     return (
