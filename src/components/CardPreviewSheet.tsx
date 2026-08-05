@@ -79,14 +79,20 @@ export function CardPreviewSheet({
    * receta, lo primero que uno quiere saber es qué le falta para armarla. Sin
    * esto hay que salir a Mi Botín y buscar carta por carta.
    */
-  const [enBinder, setEnBinder] = useState<number | null>(null)
+  // La cantidad viaja CON el id de la carta a la que pertenece. Guardar solo
+  // el número haría que al pasar de una carta que tenés a una que no, se
+  // viera «3 copias» sobre la segunda hasta que resolviera la consulta —o
+  // sea, un dato falso durante un instante, que es peor que ninguno.
+  const [enBinder, setEnBinder] = useState<{ id: string; qty: number } | null>(null)
 
   useEffect(() => {
-    if (!cardId) { setEnBinder(null); return }
+    if (!cardId) return
     let vivo = true
-    void getCardQuantity(cardId).then(q => { if (vivo) setEnBinder(q) })
+    void getCardQuantity(cardId).then(qty => { if (vivo) setEnBinder({ id: cardId, qty }) })
     return () => { vivo = false }
   }, [cardId])
+
+  const cantidad = enBinder && enBinder.id === cardId ? enBinder.qty : null
 
   const abierta = cardId !== null
   // La orientación sale de la CARA que se está mostrando, no del tipo de
@@ -189,27 +195,27 @@ export function CardPreviewSheet({
 
           {/* Lo tenés o no. Va ARRIBA de las estadísticas porque, leyendo una
               receta, es la pregunta que se hace primero. */}
-          {enBinder !== null && (
+          {cantidad !== null && (
             <div
               className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${
-                enBinder > 0
+                cantidad > 0
                   ? 'bg-swu-green/10 border-swu-green/35'
                   : 'bg-swu-surface border-swu-border'
               }`}
             >
-              {enBinder > 0
+              {cantidad > 0
                 ? <Check size={15} className="text-swu-green flex-shrink-0" aria-hidden />
                 : <Minus size={15} className="text-swu-muted flex-shrink-0" aria-hidden />}
-              <p className={`text-[12px] font-semibold flex-1 ${enBinder > 0 ? 'text-swu-green' : 'text-swu-muted'}`}>
-                {enBinder === 0
+              <p className={`text-[12px] font-semibold flex-1 ${cantidad > 0 ? 'text-swu-green' : 'text-swu-muted'}`}>
+                {cantidad === 0
                   ? 'No la tenés en tu binder'
-                  : `La tenés · ${enBinder} ${enBinder === 1 ? 'copia' : 'copias'}`}
+                  : `La tenés · ${cantidad} ${cantidad === 1 ? 'copia' : 'copias'}`}
               </p>
               {/* El playset son 3: decirlo evita la cuenta mental de «¿me
                   alcanza para el mazo?». */}
-              {enBinder > 0 && enBinder < PLAYSET_SIZE && (
+              {cantidad > 0 && cantidad < PLAYSET_SIZE && (
                 <span className="text-[10px] font-mono text-swu-muted">
-                  te faltan {PLAYSET_SIZE - enBinder}
+                  te faltan {PLAYSET_SIZE - cantidad}
                 </span>
               )}
             </div>
