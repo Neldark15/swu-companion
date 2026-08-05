@@ -22,14 +22,15 @@ import {
   ChanceCubeIcon, KyberIcon,
 } from '../../components/SWIcons'
 import { HudPanel, HudCorners, HexIcon } from '../../components/Hud'
+import { NoticiasSection } from './NoticiasSection'
+import { TarjetaJugador } from '../profile/TarjetaJugador'
 import { HUD_TEXTO, type HudTone } from '../../components/hudTones'
 import { useAuth } from '../../hooks/useAuth'
-import { calculateLevel } from '../../services/gamification'
+import { type PlayerStats, calculateLevel } from '../../services/gamification'
 import { db } from '../../services/db'
 import { WelcomeHome } from './components/WelcomeHome'
 
 /* Avatar helper: detect image-based avatar vs emoji */
-const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
 
 interface Sistema {
   icon: typeof DatapadIcon
@@ -63,14 +64,16 @@ interface Marcador {
 
 export function HomePage() {
   const navigate = useNavigate()
-  const { currentProfile } = useAuth()
+  const { currentProfile, supabaseUser } = useAuth()
 
   /** Rango y marcador viajan juntos: salen de la misma fila y se pintan a la
    *  vez, así que un solo estado evita un render intermedio a medio llenar. */
   const [panel, setPanel] = useState<{
     rank: { name: string; color: string } | null
     marcadores: Marcador[] | null
-  }>({ rank: null, marcadores: null })
+    /** Las estadísticas completas: la tarjeta de jugador necesita el XP. */
+    stats: PlayerStats | null
+  }>({ rank: null, marcadores: null, stats: null })
 
   useEffect(() => {
     if (!currentProfile) return
@@ -81,6 +84,7 @@ export function HomePage() {
       const r = stats.currentStreak
       setPanel({
         rank: { name: lvl.rank.name, color: lvl.rank.color },
+        stats,
         // Sin partidas no hay marcador: tres ceros dicen «perdiste todo»
         // cuando en realidad todavía no jugaste nada.
         marcadores: stats.matchesPlayed > 0 ? [
@@ -100,73 +104,25 @@ export function HomePage() {
     return () => { vivo = false }
   }, [currentProfile])
 
-  const { rank: rankInfo, marcadores } = panel
+  const { marcadores, stats: playerStats } = panel
 
   if (!currentProfile) return <WelcomeHome />
 
-  const avatar = currentProfile.avatar
-
   return (
     <div className="min-h-screen bg-swu-bg pb-8">
-      {/* ── Panel del comandante ── */}
+      {/* ── Quién sos ──
+          Antes acá iba un panel que decía «CENTRO DE MANDO» y el nombre de la
+          app: información que ya tenés, porque la abriste vos. Ahora va la
+          misma tarjeta del perfil —nivel, rango, país y barra de XP—, que sí
+          dice algo nuevo cada vez que entrás. Es el MISMO componente que usa
+          Mi Perfil, para que las dos pantallas no se contradigan. */}
       <div className="px-4 pt-4">
-        <HudPanel tone="cyan" glow className="relative">
-          <div className="relative overflow-hidden">
-            {/* Arte de fondo, ya existente en la app. Se desvanece hacia la
-                izquierda para que el texto siempre tenga contraste. */}
-            <div className="absolute inset-0" aria-hidden>
-              <img src="/banner-base.png" alt="" className="w-full h-full object-cover object-right" />
-              <div className="absolute inset-0 bg-gradient-to-r from-swu-bg via-swu-bg/85 to-swu-bg/20" />
-              <div
-                className="absolute inset-0 opacity-[0.05]"
-                style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.10) 2px, rgba(255,255,255,0.10) 4px)' }}
-              />
-            </div>
-            <HudCorners tone="cyan" />
-
-            <div className="relative p-4">
-              <div className="flex items-start gap-3">
-                <div className="clip-hud-sm bg-swu-cyan/40 p-px flex-shrink-0">
-                  <div className="clip-hud-sm bg-black/60 p-1.5">
-                    <img src="/swu-logo-title.png" alt="Star Wars: Unlimited" className="w-9 h-11 object-contain" />
-                  </div>
-                </div>
-                <div className="min-w-0 pt-0.5">
-                  <h1 className="text-xl font-extrabold text-white tracking-tight leading-none">
-                    CENTRO DE MANDO
-                  </h1>
-                  <div className="flex items-center gap-1.5 mt-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-swu-green animate-pulse" aria-hidden />
-                    <span className="text-[10px] text-swu-green font-mono font-bold tracking-[0.25em] uppercase">
-                      Online
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={() => navigate('/profile')}
-                className="mt-4 flex items-center gap-3 text-left w-full active:scale-[0.99] transition-transform rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-cyan"
-              >
-                <div className="w-14 h-14 rounded-full p-px bg-gradient-to-br from-swu-green to-swu-cyan flex-shrink-0">
-                  <div className="w-full h-full rounded-full bg-swu-bg overflow-hidden flex items-center justify-center">
-                    {avatar?.startsWith('data:image/')
-                      ? <img src={avatar} alt="" className="w-full h-full object-cover" />
-                      : swAvatarIds.includes(avatar)
-                        ? <img src={`/avatars/${avatar}.png`} alt="" className="w-10 h-10 object-contain" />
-                        : <span className="text-2xl">{avatar || '🎮'}</span>}
-                  </div>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xl font-extrabold text-white leading-tight truncate">{currentProfile.name}</p>
-                  <p className={`text-[10px] font-mono tracking-[0.2em] uppercase ${rankInfo?.color || 'text-swu-muted'}`}>
-                    {rankInfo?.name || 'Piloto activo'}
-                  </p>
-                </div>
-              </button>
-            </div>
-          </div>
-        </HudPanel>
+        <TarjetaJugador
+          perfil={currentProfile}
+          stats={playerStats}
+          enLinea={!!supabaseUser}
+          alTocar="perfil"
+        />
       </div>
 
       {/* ── Acción principal ── */}
@@ -261,6 +217,14 @@ export function HomePage() {
             </button>
           )
         })}
+      </div>
+
+      {/* ── Noticias ──
+          Va DEBAJO de los módulos a propósito: quien abre la app viene a hacer
+          algo —registrar un duelo, buscar una carta—, no a leer. Las noticias
+          se encuentran al bajar, que es cuando uno tiene tiempo. */}
+      <div className="px-4 pt-6">
+        <NoticiasSection />
       </div>
     </div>
   )

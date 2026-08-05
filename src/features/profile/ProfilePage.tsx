@@ -21,49 +21,15 @@ import { TriviaSection } from './components/TriviaSection'
 import { CONTINENTS, getCountryByCode } from '../../data/regions'
 import { MoreNav } from '../../components/layout/MoreNav'
 import { WhatsappSetting } from './WhatsappSetting'
+import { swAvatars } from '../../data/avatars'
+import { getAvatarSrc, isPhotoAvatar } from '../../services/avatars'
 import { MeleeSetting } from './MeleeSetting'
 import { MeleeRecord } from './MeleeRecord'
 import { leerEnlaceMelee } from '../../services/meleeProfileService'
 
 /* ── Star Wars avatar options (images in /avatars/) ── */
-const swAvatars = [
-  { id: 'chewbacca', name: 'Chewbacca' },
-  { id: 'r2d2', name: 'R2-D2' },
-  { id: 'c3po', name: 'C-3PO' },
-  { id: 'bb8', name: 'BB-8' },
-  { id: 'pilot', name: 'Piloto' },
-  { id: 'boba-fett', name: 'Boba Fett' },
-  { id: 'stormtrooper', name: 'Stormtrooper' },
-  { id: 'darth-vader', name: 'Darth Vader' },
-  { id: 'phasma', name: 'Phasma' },
-  { id: 'kylo-ren', name: 'Kylo Ren' },
-  { id: 'jedi-order', name: 'Orden Jedi' },
-  { id: 'phoenix', name: 'Fénix' },
-  { id: 'rebel-alliance', name: 'Alianza Rebelde' },
-  { id: 'galactic-empire', name: 'Imperio' },
-  { id: 'first-order', name: 'Primera Orden' },
-  { id: 'first-order-2', name: 'Primera Orden Alt' },
-  { id: 'starfighter', name: 'Caza Estelar' },
-  { id: 'sith-empire', name: 'Imperio Sith' },
-  { id: 'rebel-alliance-2', name: 'Rebelde Alt' },
-  { id: 'jedi-order-2', name: 'Jedi Alt' },
-  { id: 'new-republic', name: 'Nueva República' },
-  { id: 'empire-gear', name: 'Engranaje Imperial' },
-  { id: 'separatist', name: 'Separatistas' },
-  { id: 'galactic-republic', name: 'República Galáctica' },
-]
 
-/** Check if avatar is a data URI (uploaded photo) */
-function isPhotoAvatar(avatar: string): boolean {
-  return avatar.startsWith('data:image/')
-}
 
-/** Get avatar src from avatar string (supports data URI, icon IDs, emojis) */
-function getAvatarSrc(avatar: string): string | null {
-  if (isPhotoAvatar(avatar)) return avatar
-  if (swAvatars.some(a => a.id === avatar)) return `/avatars/${avatar}.png`
-  return null // it's an emoji
-}
 
 /** Render avatar: photo, icon image, or emoji fallback */
 function AvatarDisplay({ avatar, size = 'md' }: { avatar: string; size?: 'sm' | 'md' | 'lg' | 'xl' }) {
