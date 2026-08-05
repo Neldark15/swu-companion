@@ -238,15 +238,22 @@ export function DeckListPage() {
                 onClick={() => navigate(`/decks/${deck.id}`)}
                 className="bg-swu-surface rounded-2xl border border-swu-border overflow-hidden active:scale-[0.99] transition-transform cursor-pointer"
               >
-                {/* Card thumbnails header */}
-                <div className="flex h-24 bg-swu-bg relative">
+                {/* Cabecera con líder y base.
+                    `object-top` mostraba justo la franja MENOS útil: la barra
+                    del título impreso. Y con `h-24` fijo y mitades de ancho
+                    libre, en escritorio cada mitad medía ~487px y el arte se
+                    renderizaba a 349px de alto dentro de 96: se veía el 27% de
+                    arriba y nada del dibujo. Ahora se recorta por el CENTRO,
+                    que es donde está la ilustración, y la altura crece con la
+                    pantalla en vez de quedarse clavada. */}
+                <div className="flex h-28 sm:h-32 lg:h-40 bg-swu-bg relative">
                   {/* Leader image */}
                   <div className="flex-1 relative overflow-hidden">
                     {leaderImg ? (
                       <img
                         src={leaderImg}
                         alt={leader?.name || ''}
-                        className="w-full h-full object-cover object-top"
+                        className="w-full h-full object-cover object-center"
                         loading="lazy"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                       />
@@ -270,7 +277,7 @@ export function DeckListPage() {
                       <img
                         src={baseImg}
                         alt={base?.name || ''}
-                        className="w-full h-full object-cover object-top"
+                        className="w-full h-full object-cover object-center"
                         loading="lazy"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                       />
