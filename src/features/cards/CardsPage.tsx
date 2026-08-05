@@ -2,13 +2,13 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Search, SlidersHorizontal, X, Loader2, Plus, Minus,
-  Download, RefreshCw, AlertTriangle, Database, Layers, Heart,
-} from 'lucide-react'
+  Download, RefreshCw, AlertTriangle, Database, Layers, Heart, Sparkles} from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Chip, type ChipTone } from '../../components/ui/Chip'
 import { SegmentedControl } from '../../components/ui/SegmentedControl'
 import { CardImage } from '../../components/CardImage'
+import { VitrinaShowcase } from '../collection/VitrinaShowcase'
 import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import {
   searchCards, getSets, getLocalCardCount, loadFullDatabase, ensureFreshDatabase, collectionEntry,
@@ -88,7 +88,29 @@ function snapshotFor(profileId: string | null): SearchSnapshot | null {
   return _snapshot
 }
 
+/** Dos maneras de mirar la base: buscar algo concreto, o pasear la vitrina. */
+function Pestanas(
+  { vista, onCambiar }: { vista: 'buscar' | 'vitrina'; onCambiar: (v: 'buscar' | 'vitrina') => void },
+) {
+  return (
+    <div className="flex bg-swu-surface rounded-lg p-0.5 border border-swu-border">
+      {([['buscar', 'Buscar', Search], ['vitrina', 'Vitrina', Sparkles]] as const).map(([id, txt, Icon]) => (
+        <button
+          key={id}
+          onClick={() => onCambiar(id)}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-[12px] font-semibold transition-colors ${
+            vista === id ? 'bg-swu-accent/15 text-swu-accent' : 'text-swu-muted'
+          }`}
+        >
+          <Icon size={13} aria-hidden /> {txt}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export function CardsPage() {
+  const [vista, setVista] = useState<'buscar' | 'vitrina'>('buscar')
   const navigate = useNavigate()
   const { supabaseUser, currentProfileId } = useAuth()
 
@@ -451,8 +473,21 @@ export function CardsPage() {
     }`
   }
 
+  // La vitrina es para MIRAR cartas, no para comerciarlas: vive acá, en el
+  // buscador, y no en Contrabando, que es el mercado.
+  if (vista === 'vitrina') {
+    return (
+      <div className="p-4 lg:p-6 space-y-3 pb-8 max-w-5xl mx-auto">
+        <Pestanas vista={vista} onCambiar={setVista} />
+        <VitrinaShowcase />
+      </div>
+    )
+  }
+
   return (
     <div className="p-4 lg:p-6 space-y-3 pb-8 lg:pb-8 max-w-5xl mx-auto">
+      <Pestanas vista={vista} onCambiar={setVista} />
+
       {/* Search */}
       <div className="flex gap-2">
         <div className="flex-1 relative">

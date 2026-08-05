@@ -326,14 +326,14 @@ input:focus, textarea:focus, select:focus {
     rotateY(calc(var(--px) * var(--intensidad) * var(--activo)))
     rotateX(calc(var(--py) * var(--intensidad) * -1 * var(--activo)))
     scale(calc(1 + 0.03 * var(--activo)));
-  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* Mientras se toca, la carta sigue al dedo sin suavizado: con la transición
-   puesta el brillo va siempre un paso atrás y se siente elástico. */
-.carta3d-escena:active .carta3d,
-.carta3d-escena:hover .carta3d {
-  transition: transform 90ms linear;
+  /* La duración sale de `--activo`, NO de `:hover`.
+     Esto era el motivo de que en el teléfono se sintiera trabado: en táctil
+     `:hover` no existe y `:active` no es fiable, así que la regla que quitaba
+     el suavizado nunca se aplicaba y CADA movimiento del dedo arrastraba una
+     transición de 260 ms. La carta iba siempre un cuarto de segundo atrás.
+     Con esto: mientras se toca la duración es 0 —sigue al dedo al instante— y
+     al soltar vuelve a 260 ms para que el regreso sea suave. */
+  transition: transform calc((1 - var(--activo)) * 260ms) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Brillo especular. Se mueve con `translate3d` —compositor— y no cambiando
@@ -351,6 +351,8 @@ input:focus, textarea:focus, select:focus {
   );
   opacity: var(--activo);
   transform: translate3d(calc(var(--px) * 26%), calc(var(--py) * 26%), 0);
+  /* Solo la opacidad se suaviza. La POSICIÓN sigue al dedo sin retraso: con
+     transición, el brillo llegaba después de la carta y se veían despegados. */
   transition: opacity 220ms ease;
   mix-blend-mode: screen;
 }

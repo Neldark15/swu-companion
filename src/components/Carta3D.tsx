@@ -67,6 +67,10 @@ export function Carta3D({
   const mover = useCallback((clientX: number, clientY: number) => {
     const el = ref.current
     if (!el) return
+    // Solo se calcula si de verdad está activo: con el dedo llegan eventos de
+    // movimiento durante el scroll, y responder a ellos hacía que las cartas
+    // se inclinaran solas al desplazar la lista.
+    if (el.style.getPropertyValue('--activo') !== '1') return
     const r = el.getBoundingClientRect()
     if (r.width === 0) return
     pendiente.current = {
@@ -92,11 +96,16 @@ export function Carta3D({
   return (
     <div
       className={`carta3d-escena ${className}`}
-      onPointerEnter={() => activar(true)}
-      onPointerLeave={() => activar(false)}
+      // Con ratón basta entrar y salir. Con el dedo hace falta más:
+      // `pointerenter` llega junto con el toque, y `pointercancel` llega
+      // cuando el navegador decide que el gesto era un scroll — sin
+      // atenderlo, la carta se quedaba inclinada y torcida al soltar.
+      onPointerEnter={e => { if (e.pointerType === 'mouse') activar(true) }}
+      onPointerLeave={e => { if (e.pointerType === 'mouse') activar(false) }}
       onPointerDown={e => { activar(true); mover(e.clientX, e.clientY) }}
       onPointerUp={() => activar(false)}
       onPointerCancel={() => activar(false)}
+      onLostPointerCapture={() => activar(false)}
       onPointerMove={e => mover(e.clientX, e.clientY)}
     >
       <div
