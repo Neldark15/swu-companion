@@ -17,8 +17,11 @@ import {
   getMarketplaceListings,
   type PublicProfile,
   type MarketplaceListing,
+  markCardForSale,
+  unmarkCardForSale,
 } from '../../services/collectionService'
 import { getCardsByIds } from '../../services/swuApi'
+import { SaleModal } from './SaleModal'
 import { getTradeMatches, type TradeMatch } from '../../services/tradeService'
 import { CardImage } from '../../components/CardImage'
 import { Carta3D } from '../../components/Carta3D'
@@ -306,6 +309,10 @@ function MarketTab() {
   // Para distinguir lo propio de lo ajeno: sobre lo propio se edita, no se
   // escribe uno mismo por WhatsApp.
   const { supabaseUser } = useAuth()
+  /** La publicación propia que se está corrigiendo, si hay alguna. */
+  const [editando, setEditando] = useState<MarketplaceListing | null>(null)
+  const [guardando, setGuardando] = useState(false)
+
   const [listings, setListings] = useState<MarketplaceListing[]>([])
   const [cards, setCards] = useState<Map<string, Card>>(new Map())
   const [loading, setLoading] = useState(true)
@@ -397,6 +404,44 @@ function MarketTab() {
         </div>
       )}
 
+      {editando && (
+        <SaleModal
+          key={editando.cardId}
+          cardId={editando.cardId}
+          cardName={cards.get(editando.cardId)?.name ?? editando.cardId}
+          owned={editando.owned}
+          current={{
+            cardId: editando.cardId,
+            quantity: editando.quantity,
+            owned: editando.owned,
+            price: editando.price,
+            notes: editando.notes,
+            listedAt: editando.listedAt,
+          }}
+          submitting={guardando}
+          onCancel={() => setEditando(null)}
+          onSave={async (price, notes, cantidad) => {
+            if (!supabaseUser) return
+            setGuardando(true)
+            const r = await markCardForSale(editando.cardId, supabaseUser.id, {
+              price, notes, saleQuantity: cantidad,
+              cardName: cards.get(editando.cardId)?.name,
+            })
+            setGuardando(false)
+            if (!r.ok) { alert(`Error: ${r.error}`); return }
+            setEditando(null)
+            await load()
+          }}
+          onUnlist={async () => {
+            if (!supabaseUser) return
+            if (!confirm('¿Quitar esta carta del mercado?')) return
+            await unmarkCardForSale(editando.cardId, supabaseUser.id)
+            setEditando(null)
+            await load()
+          }}
+        />
+      )}
+
       {!loading && filtered.length > 0 && (
         /* Vitrina de tienda: la carta grande y el precio encima, como en el
            mostrador. Antes era una fila de lista con una miniatura de 56px,
@@ -473,7 +518,7 @@ function MarketTab() {
                       desde ahí para corregir un precio. */}
                   {esMia ? (
                     <button
-                      onClick={() => navigate('/collection?venta=1')}
+                      onClick={() => setEditando(l)}
                       className="mt-2 flex items-center justify-center gap-1.5 bg-swu-amber/15 border border-swu-amber/40
                                  text-swu-amber text-[11px] font-semibold rounded-lg py-1.5 active:scale-[0.98] transition-transform"
                     >
