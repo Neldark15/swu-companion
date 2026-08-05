@@ -434,3 +434,48 @@ input:focus, textarea:focus, select:focus {
     font-weight: 700;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+ * Carta que se mueve sola (la vitrina)
+ *
+ * Una vitrina quieta es un catálogo. Estas impresiones existen porque cambian
+ * con el ángulo, así que se mueven solas y el brillo las recorre — como una
+ * carta girando despacio bajo una luz.
+ *
+ * Va por ANIMACIÓN CSS y no por JavaScript: el compositor la lleva sin
+ * despertar el hilo principal, así que da igual que haya seis en pantalla.
+ * Y en cuanto se toca una, `--activo` pasa a 1 y manda el dedo: la animación
+ * queda pausada mientras dura el gesto.
+ * ───────────────────────────────────────────────────────────── */
+
+@utility carta3d-sola {
+  animation: carta-vaiven 7s ease-in-out infinite;
+}
+
+/* El desfase evita que todas se muevan al mismo tiempo, que se ve mecánico. */
+@utility carta3d-sola-b { animation-delay: -1.7s; }
+@utility carta3d-sola-c { animation-delay: -3.4s; }
+@utility carta3d-sola-d { animation-delay: -5.1s; }
+
+@keyframes carta-vaiven {
+  0%, 100% { --px: -0.55; --py: -0.30; }
+  25%      { --px:  0.40; --py: -0.50; }
+  50%      { --px:  0.55; --py:  0.30; }
+  75%      { --px: -0.40; --py:  0.50; }
+}
+
+/* Para que los ángulos se puedan animar hay que registrar las variables: sin
+   esto el navegador las trata como texto y salta entre valores en vez de
+   interpolarlos. Es lo que hace que el vaivén se vea continuo y no a tirones. */
+@property --px { syntax: '<number>'; inherits: true; initial-value: 0; }
+@property --py { syntax: '<number>'; inherits: true; initial-value: 0; }
+@property --activo { syntax: '<number>'; inherits: true; initial-value: 0; }
+
+/* En reposo la carta se inclina sola, así que `--activo` no puede valer 0 —si
+   no, la rotación se multiplica por cero y no se ve nada—. Se le da un valor
+   base bajo: movimiento suave, y al tocarla sube a 1 y manda el dedo. */
+.carta3d-sola { --activo: 0.55; }
+
+@media (prefers-reduced-motion: reduce) {
+  .carta3d-sola { animation: none; --activo: 0; }
+}

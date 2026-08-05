@@ -60,7 +60,7 @@ export async function getMyMatchLogs(
   offset = 0,
   filters?: { mode?: GameMode; result?: 'win' | 'loss'; search?: string },
 ): Promise<{ logs: MatchLog[]; total: number }> {
-  let collection = db.matchLogs.orderBy('recordedAt').reverse()
+  const collection = db.matchLogs.orderBy('recordedAt').reverse()
   let all = await collection.toArray()
 
   if (filters?.mode) {

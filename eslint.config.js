@@ -19,5 +19,24 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      /**
+       * El guion bajo como «esto no se usa a propósito».
+       *
+       * El código ya venía usando esa convención —`_setCode`, `_gameScore`,
+       * `_myName`— para parámetros que la firma exige pero el cuerpo no
+       * necesita: quitarlos obligaría a tocar a todos los llamadores para no
+       * ganar nada. Es la convención estándar de TypeScript; solo faltaba
+       * decírsela al linter.
+       *
+       * Ojo: es para PARÁMETROS y capturas. Una variable local sin usar sigue
+       * siendo un error, porque ahí sí suele ser código muerto de verdad.
+       */
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+      }],
+    },
   },
 ])

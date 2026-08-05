@@ -44,7 +44,12 @@ export function ExportDeckModal({ open, deck, onClose }: Props) {
       await navigator.clipboard.writeText(text)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch {}
+    } catch {
+      // Copiar puede fallar por permisos del portapapeles o porque el
+      // navegador lo bloquea fuera de un gesto. No hay nada que hacer al
+      // respecto y el texto sigue visible para copiarlo a mano, así que no se
+      // molesta a nadie con un error.
+    }
   }
 
   return (

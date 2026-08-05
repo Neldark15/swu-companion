@@ -79,6 +79,23 @@ async function compressImage(file: File, maxSize = 200, quality = 0.7): Promise<
 
 type View = 'select' | 'register' | 'login' | 'forgot-password' | 'reset-password' | 'profile' | 'customize' | 'security' | 'register-passkey'
 
+/**
+ * Volver.
+ *
+ * Estaba declarado DENTRO de ProfilePage, así que se recreaba en cada
+ * pintada: React lo veía como un tipo de componente nuevo, desmontaba el
+ * anterior y montaba otro. En un botón no se nota el estado perdido, pero sí
+ * el trabajo tirado — y la regla existe porque en un componente con estado
+ * eso es un fallo silencioso muy caro de encontrar.
+ */
+function BackButton({ to, label, onIr }: { to: View; label?: string; onIr: (v: View) => void }) {
+  return (
+    <button onClick={() => onIr(to)} className="flex items-center gap-1 text-sm text-swu-muted mb-1">
+      <ChevronLeft size={16} /> {label || 'Volver'}
+    </button>
+  )
+}
+
 export function ProfilePage() {
   const navigate = useNavigate()
   const auth = useAuth()
@@ -350,11 +367,6 @@ export function ProfilePage() {
   }
 
   // ─── BACK BUTTON ───
-  const BackButton = ({ to, label }: { to: View; label?: string }) => (
-    <button onClick={() => setView(to)} className="flex items-center gap-1 text-sm text-swu-muted mb-1">
-      <ChevronLeft size={16} /> {label || 'Volver'}
-    </button>
-  )
 
   // ═══════════════════════════════════════════════════════════════════
   // SELECT (Landing)
@@ -418,7 +430,7 @@ export function ProfilePage() {
   if (view === 'register') {
     return (
       <div className="p-4 lg:p-6 space-y-5 pb-8 lg:pb-8 max-w-5xl mx-auto">
-        <BackButton to="select" />
+        <BackButton to="select" onIr={setView} />
         <div className="text-center">
           <div className="flex justify-center mb-2">
             <AvatarDisplay avatar={regAvatar} size="xl" />
@@ -533,7 +545,7 @@ export function ProfilePage() {
   if (view === 'login') {
     return (
       <div className="p-4 lg:p-6 space-y-5 pb-8 lg:pb-8 max-w-5xl mx-auto">
-        <BackButton to="select" />
+        <BackButton to="select" onIr={setView} />
         <div className="text-center">
           <Lock size={40} className="mx-auto text-swu-accent mb-2" />
           <h2 className="text-lg font-bold text-swu-text">Iniciar Sesión</h2>
@@ -591,7 +603,7 @@ export function ProfilePage() {
   if (view === 'forgot-password') {
     return (
       <div className="p-4 lg:p-6 space-y-5 pb-8 lg:pb-8 max-w-5xl mx-auto">
-        <BackButton to="login" />
+        <BackButton to="login" onIr={setView} />
         <div className="text-center">
           <Mail size={40} className="mx-auto text-swu-accent mb-2" />
           <h2 className="text-lg font-bold text-swu-text">Recuperar Contraseña</h2>
@@ -702,7 +714,7 @@ export function ProfilePage() {
 
     return (
       <div className="p-4 lg:p-6 space-y-5 pb-8 lg:pb-8 max-w-5xl mx-auto">
-        <BackButton to="profile" />
+        <BackButton to="profile" onIr={setView} />
         <div className="text-center">
           <div className="flex justify-center mb-2">
             <ProfileFrame level={customizeLevelInfo?.level || 1} size={88}>
@@ -846,7 +858,7 @@ export function ProfilePage() {
   if (view === 'security') {
     return (
       <div className="p-4 lg:p-6 space-y-5 pb-8 lg:pb-8 max-w-5xl mx-auto">
-        <BackButton to="profile" />
+        <BackButton to="profile" onIr={setView} />
         <div className="text-center">
           <Shield size={40} className="mx-auto text-swu-accent mb-2" />
           <h2 className="text-lg font-bold text-swu-text">Seguridad</h2>

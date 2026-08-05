@@ -210,7 +210,7 @@ function parsePlainText(text: string): ImportedCard[] {
     // Pattern: optional quantity, set code, card number
     // "2x SOR 001" | "SOR 001 x2" | "SOR_001" | "2 SOR-001"
     const match = trimmed.match(
-      /^(?:(\d+)\s*x?\s+)?([A-Za-z]{2,5})[\s_\-]?(\d{1,4})(?:\s*x?\s*(\d+))?/i,
+      /^(?:(\d+)\s*x?\s+)?([A-Za-z]{2,5})[\s_-]?(\d{1,4})(?:\s*x?\s*(\d+))?/i,
     )
 
     if (match) {
@@ -288,7 +288,11 @@ export async function importToCollection(
         await supabase.from('collection').delete().eq('user_id', userId)
       }
     } catch (e) {
-      result.errors.push('Error al limpiar colección existente')
+      // El motivo REAL va en el mensaje: «Error al limpiar» a secas no deja
+      // diagnosticar nada, y esto sale en la pantalla de importación.
+      result.errors.push(
+        `Error al limpiar colección existente: ${e instanceof Error ? e.message : String(e)}`,
+      )
     }
   }
 
@@ -406,7 +410,9 @@ export async function importToCollection(
         await supabase.from('collection').upsert(chunk)
       }
     } catch (e) {
-      result.errors.push('Error al sincronizar con la nube')
+      result.errors.push(
+        `Error al sincronizar con la nube: ${e instanceof Error ? e.message : String(e)}`,
+      )
     }
   }
 

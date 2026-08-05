@@ -63,7 +63,7 @@ export interface GalaxyStats {
 
 function sanitizeName(name: string | null | undefined): string {
   if (!name) return 'Comandante'
-  if (name.length >= 20 && !/\s/.test(name) && /^[a-zA-Z0-9_\-]+$/.test(name)) return 'Comandante'
+  if (name.length >= 20 && !/\s/.test(name) && /^[a-zA-Z0-9_-]+$/.test(name)) return 'Comandante'
   return name
 }
 

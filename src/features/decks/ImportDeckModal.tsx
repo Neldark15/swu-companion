@@ -40,8 +40,12 @@ export function ImportDeckModal({ open, onClose, onImport }: Props) {
           setResult(null)
         }, 1200)
       }
-    } catch (e: any) {
-      setResult({ success: false, errors: [e.message || 'Error desconocido'], warnings: [], matchedCards: 0, totalCards: 0 })
+    } catch (e) {
+      // `unknown` y no `any`: lo que se lanza puede no ser un Error —una
+      // cadena, un objeto de otra librería— y `e.message` sobre eso da
+      // `undefined` en vez de fallar donde uno lo vería.
+      const msg = e instanceof Error ? e.message : String(e)
+      setResult({ success: false, errors: [msg || 'Error desconocido'], warnings: [], matchedCards: 0, totalCards: 0 })
     } finally {
       setLoading(false)
     }

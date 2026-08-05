@@ -147,7 +147,7 @@ export function VitrinaShowcase() {
           {/* Dos columnas: a cuatro por fila el arte extendido de una Showcase
               no se aprecia, que es justo para lo que existe esta pantalla. */}
           <div className="grid grid-cols-2 gap-3">
-            {visibles.map(c => {
+            {visibles.map((c, i) => {
               // La vitrina muestra el FRENTE (`c.imageUrl`), y el frente de un
               // líder es APAISADO. Con `listFaceIsLandscape` —que responde por
               // la cara que se usa en las listas, o sea el reverso vertical—
@@ -161,7 +161,10 @@ export function VitrinaShowcase() {
                   aria-label={`Ver ${c.name}`}
                   className="text-left"
                 >
-                  <Carta3D brillo iridiscente intensidad={12}>
+                  {/* `sola` las hace inclinarse por su cuenta, desfasadas
+                      entre sí. Una vitrina quieta es un catálogo; estas
+                      impresiones existen porque cambian con el ángulo. */}
+                  <Carta3D brillo iridiscente intensidad={12} sola={i}>
                     <CardImage
                       src={c.imageUrl}
                       orientacion={apaisada ? 'apaisada' : 'vertical'}

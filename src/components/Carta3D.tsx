@@ -40,6 +40,14 @@ interface Props {
   brillo?: boolean
   /** Halo irisado del borde, para las impresiones especiales. */
   iridiscente?: boolean
+  /**
+   * Se mueve sola, sin que nadie la toque.
+   *
+   * Para la vitrina: estas impresiones existen porque cambian con el ángulo,
+   * y quietas no muestran nada. El número desfasa el vaivén de cada una para
+   * que no se muevan todas a la vez, que se ve mecánico.
+   */
+  sola?: number | false
   className?: string
 }
 
@@ -48,6 +56,7 @@ export function Carta3D({
   intensidad = 10,
   brillo = false,
   iridiscente = false,
+  sola = false,
   className = '',
 }: Props) {
   const ref = useRef<HTMLDivElement>(null)
@@ -84,14 +93,19 @@ export function Carta3D({
   const activar = useCallback((on: boolean) => {
     const el = ref.current
     if (!el) return
-    el.style.setProperty('--activo', on ? '1' : '0')
     // Se reserva la capa solo mientras dura el gesto.
     el.style.willChange = on ? 'transform' : 'auto'
-    if (!on) {
-      pendiente.current = { x: 0, y: 0 }
-      if (!frame.current) frame.current = requestAnimationFrame(pintar)
+    if (on) {
+      el.style.setProperty('--activo', '1')
+      return
     }
-  }, [pintar])
+    // Al soltar se BORRAN las variables en vez de ponerlas en 0: así la carta
+    // que se mueve sola vuelve a su animación, en lugar de quedarse clavada.
+    el.style.removeProperty('--activo')
+    el.style.removeProperty('--px')
+    el.style.removeProperty('--py')
+    pendiente.current = null
+  }, [])
 
   return (
     <div
@@ -110,7 +124,9 @@ export function Carta3D({
     >
       <div
         ref={ref}
-        className="carta3d"
+        className={`carta3d ${
+          sola === false ? '' : `carta3d-sola ${['', 'carta3d-sola-b', 'carta3d-sola-c', 'carta3d-sola-d'][sola % 4]}`
+        }`}
         style={{ '--intensidad': `${intensidad}deg` } as React.CSSProperties}
       >
         {children}

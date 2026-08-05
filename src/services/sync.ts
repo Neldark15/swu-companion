@@ -6,7 +6,7 @@
 /** Detect names that look like UIDs/tokens and return 'Jugador' instead */
 function sanitizeName(name: string | null | undefined): string {
   if (!name) return 'Jugador'
-  if (name.length >= 20 && !/\s/.test(name) && /^[a-zA-Z0-9_\-]+$/.test(name)) return 'Jugador'
+  if (name.length >= 20 && !/\s/.test(name) && /^[a-zA-Z0-9_-]+$/.test(name)) return 'Jugador'
   return name
 }
 

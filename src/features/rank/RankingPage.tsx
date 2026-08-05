@@ -27,7 +27,7 @@ function AvatarImg({ avatar, size = 'md' }: { avatar: string; size?: 'sm' | 'md'
 function sanitizeName(name: string): string {
   if (!name) return 'Jugador'
   // If name looks like a UID (20+ chars, no spaces, alphanumeric mix)
-  if (name.length >= 20 && !/\s/.test(name) && /^[a-zA-Z0-9_\-]+$/.test(name)) return 'Jugador'
+  if (name.length >= 20 && !/\s/.test(name) && /^[a-zA-Z0-9_-]+$/.test(name)) return 'Jugador'
   return name
 }
 
@@ -74,6 +74,84 @@ function DiagonalLines() {
       </defs>
       <rect width="100%" height="100%" fill="url(#diag)" />
     </svg>
+  )
+}
+
+/* ── Podio ──
+ *
+ * Estaba definido DENTRO de RankingPage. Un componente declarado en el cuerpo
+ * de otro se recrea en cada pintada, así que React lo trata como un tipo
+ * nuevo: desmonta el anterior, monta uno distinto y pierde su estado. Acá no
+ * había estado que perder, pero el remontaje igual tira el DOM y rehace el
+ * trabajo. No dependía de nada del render, así que sale entero.
+ */
+
+/* ── Podium ring colors ── */
+const podiumRing = [
+  'ring-amber-400 ring-[3px]',    // 1st - gold
+  'ring-gray-400 ring-2',          // 2nd - silver
+  'ring-amber-700 ring-2',         // 3rd - bronze
+]
+const podiumLabel = [
+  'bg-amber-400 text-black',
+  'bg-gray-400 text-black',
+  'bg-amber-700 text-black',
+]
+
+/* ── Shared podium card renderer ── */
+function PodiumCard({ entry, idx, avatarSize }: { entry: GlobalLeaderboardEntry | LeaderboardEntry; idx: number; avatarSize: 'md' | 'lg' | 'xl' }) {
+  const badges = 'unlockedAchievements' in entry
+    ? (entry as GlobalLeaderboardEntry).unlockedAchievements.filter(id => BADGE_MAP.has(id))
+    : []
+  const isGlobal = 'tournamentsFinished' in entry
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      {/* Rank badge */}
+      <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${podiumLabel[idx]}`}>
+        #{idx + 1}
+      </span>
+
+      {/* Avatar with ring */}
+      <div className={`rounded-full ${podiumRing[idx]} p-0.5 bg-gray-900`}>
+        <div className="rounded-full bg-gray-800 flex items-center justify-center overflow-hidden p-1">
+          <AvatarImg avatar={entry.avatar} size={avatarSize} />
+        </div>
+      </div>
+
+      {/* Name */}
+      <p className="text-[11px] font-bold text-gray-100 max-w-[100px] truncate text-center">
+        {sanitizeName(entry.name)}
+      </p>
+
+      {/* Level */}
+      <span className="text-[9px] text-red-400/80 font-mono">Nv. {entry.level}</span>
+
+      {/* Stats */}
+      {isGlobal ? (
+        <div className="flex items-center gap-1.5 text-[9px]">
+          <span className="text-red-400 font-bold">{(entry as GlobalLeaderboardEntry).tournamentsFinished}T</span>
+          <span className="text-gray-500">|</span>
+          <span className="text-red-300/70 font-bold">{(entry as GlobalLeaderboardEntry).wins}W</span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-0.5">
+          <IconXp size={10} className="text-red-400" />
+          <span className="text-[10px] font-bold text-red-400">{(entry as LeaderboardEntry).xpGained}</span>
+        </div>
+      )}
+
+      {/* Badges (global only) */}
+      {badges.length > 0 && (
+        <div className="flex gap-0.5">
+          {badges.slice(0, 3).map(id => (
+            <span key={id} className="text-[10px]" title={BADGE_MAP.get(id)!.name}>
+              {BADGE_MAP.get(id)!.icon}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -149,75 +227,6 @@ export function RankingPage() {
     else if (tab === 'monthly') loadMonthly()
     else loadTournamentRanking()
   }, [tab, month, tournamentSubTab, tournamentMonth, countryFilter])
-
-  /* ── Podium ring colors ── */
-  const podiumRing = [
-    'ring-amber-400 ring-[3px]',    // 1st - gold
-    'ring-gray-400 ring-2',          // 2nd - silver
-    'ring-amber-700 ring-2',         // 3rd - bronze
-  ]
-  const podiumLabel = [
-    'bg-amber-400 text-black',
-    'bg-gray-400 text-black',
-    'bg-amber-700 text-black',
-  ]
-
-  /* ── Shared podium card renderer ── */
-  function PodiumCard({ entry, idx, avatarSize }: { entry: GlobalLeaderboardEntry | LeaderboardEntry; idx: number; avatarSize: 'md' | 'lg' | 'xl' }) {
-    const badges = 'unlockedAchievements' in entry
-      ? (entry as GlobalLeaderboardEntry).unlockedAchievements.filter(id => BADGE_MAP.has(id))
-      : []
-    const isGlobal = 'tournamentsFinished' in entry
-
-    return (
-      <div className="flex flex-col items-center gap-1">
-        {/* Rank badge */}
-        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${podiumLabel[idx]}`}>
-          #{idx + 1}
-        </span>
-
-        {/* Avatar with ring */}
-        <div className={`rounded-full ${podiumRing[idx]} p-0.5 bg-gray-900`}>
-          <div className="rounded-full bg-gray-800 flex items-center justify-center overflow-hidden p-1">
-            <AvatarImg avatar={entry.avatar} size={avatarSize} />
-          </div>
-        </div>
-
-        {/* Name */}
-        <p className="text-[11px] font-bold text-gray-100 max-w-[100px] truncate text-center">
-          {sanitizeName(entry.name)}
-        </p>
-
-        {/* Level */}
-        <span className="text-[9px] text-red-400/80 font-mono">Nv. {entry.level}</span>
-
-        {/* Stats */}
-        {isGlobal ? (
-          <div className="flex items-center gap-1.5 text-[9px]">
-            <span className="text-red-400 font-bold">{(entry as GlobalLeaderboardEntry).tournamentsFinished}T</span>
-            <span className="text-gray-500">|</span>
-            <span className="text-red-300/70 font-bold">{(entry as GlobalLeaderboardEntry).wins}W</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-0.5">
-            <IconXp size={10} className="text-red-400" />
-            <span className="text-[10px] font-bold text-red-400">{(entry as LeaderboardEntry).xpGained}</span>
-          </div>
-        )}
-
-        {/* Badges (global only) */}
-        {badges.length > 0 && (
-          <div className="flex gap-0.5">
-            {badges.slice(0, 3).map(id => (
-              <span key={id} className="text-[10px]" title={BADGE_MAP.get(id)!.name}>
-                {BADGE_MAP.get(id)!.icon}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-    )
-  }
 
   /* ── Tournament podium card ── */
   function TournamentPodiumCard({ entry, idx, avatarSize }: { entry: RankingEntry; idx: number; avatarSize: 'md' | 'lg' | 'xl' }) {

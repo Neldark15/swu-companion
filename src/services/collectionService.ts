@@ -304,11 +304,13 @@ export async function getExploreProfiles(limit = 50): Promise<PublicProfile[]> {
 
   try {
     // Try updated_at first, fall back to created_at
-    let { data, error } = await supabase
+    const primero = await supabase
       .from('profiles')
       .select('id, name, avatar, bio, is_public')
       .order('updated_at', { ascending: false })
       .limit(limit)
+    let data = primero.data
+    const error = primero.error
 
     // If updated_at doesn't exist yet, try created_at
     if (error || !data) {
