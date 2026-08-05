@@ -379,7 +379,11 @@ export async function getMyPublicStatus(userId: string): Promise<{ isPublic: boo
 export interface MarketplaceListing {
   userId: string
   cardId: string
+  /** Copias OFRECIDAS. Antes se mostraba cuántas tenía, que no es lo mismo:
+   *  quien tenía 3 y vendía 1 aparecía ofreciendo las tres. */
   quantity: number
+  /** Cuántas tiene en total. Solo para su propia vista de edición. */
+  owned: number
   price: number | null
   notes: string | null
   listedAt: string
@@ -399,7 +403,10 @@ export interface MarketplaceListing {
 
 export interface MyListingSummary {
   cardId: string
+  /** Copias ofrecidas. */
   quantity: number
+  /** Cuántas tiene en total, para poder subir la oferta hasta ese tope. */
+  owned: number
   price: number | null
   notes: string | null
   listedAt: string
@@ -412,7 +419,13 @@ export interface MyListingSummary {
 export async function markCardForSale(
   cardId: string,
   userId: string,
-  opts: { price?: number | null; notes?: string | null; cardName?: string } = {}
+  opts: {
+    price?: number | null
+    notes?: string | null
+    cardName?: string
+    /** Copias a ofrecer. Sin esto se ofrecen todas, que es lo de antes. */
+    saleQuantity?: number | null
+  } = {}
 ): Promise<{ ok: boolean; error?: string }> {
   if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión al servidor' }
 
@@ -428,12 +441,24 @@ export async function markCardForSale(
     return { ok: false, error: 'No tienes esta carta en tu colección' }
   }
 
+  // No se puede ofrecer más de lo que hay. La base también lo frena con un
+  // CHECK; acá se avisa con un mensaje entendible en vez de dejar que suba un
+  // error de Postgres a la pantalla.
+  const cuantas = opts.saleQuantity ?? null
+  if (cuantas !== null && (cuantas < 1 || cuantas > existing.quantity)) {
+    return {
+      ok: false,
+      error: `Solo tenés ${existing.quantity} ${existing.quantity === 1 ? 'copia' : 'copias'}.`,
+    }
+  }
+
   const { error } = await supabase
     .from('collection')
     .update({
       for_sale: true,
       sale_price: opts.price ?? null,
       sale_notes: opts.notes?.trim() || null,
+      sale_quantity: cuantas,
       listed_at: new Date().toISOString(),
     })
     .eq('user_id', userId)
@@ -520,6 +545,7 @@ export async function unmarkCardForSale(
     .update({
       for_sale: false,
       sale_price: null,
+      sale_quantity: null,
       sale_notes: null,
       listed_at: null,
     })
@@ -537,14 +563,15 @@ export async function getMyListings(userId: string): Promise<MyListingSummary[]>
   if (!isSupabaseReady()) return []
   const { data } = await supabase
     .from('collection')
-    .select('card_id, quantity, sale_price, sale_notes, listed_at')
+    .select('card_id, quantity, sale_quantity, sale_price, sale_notes, listed_at')
     .eq('user_id', userId)
     .eq('for_sale', true)
     .order('listed_at', { ascending: false })
   if (!data) return []
   return data.map(r => ({
     cardId: r.card_id,
-    quantity: r.quantity ?? 0,
+    quantity: (r as { sale_quantity?: number | null }).sale_quantity ?? r.quantity ?? 0,
+    owned: r.quantity ?? 0,
     price: r.sale_price !== null ? Number(r.sale_price) : null,
     notes: r.sale_notes,
     listedAt: r.listed_at,
@@ -561,7 +588,7 @@ export async function getMarketplaceListings(opts?: { limit?: number; cardId?: s
 
   let query = supabase
     .from('collection')
-    .select('user_id, card_id, quantity, sale_price, sale_notes, listed_at')
+    .select('user_id, card_id, quantity, sale_quantity, sale_price, sale_notes, listed_at')
     .eq('for_sale', true)
     .order('listed_at', { ascending: false })
     .limit(limit)
@@ -585,7 +612,9 @@ export async function getMarketplaceListings(opts?: { limit?: number; cardId?: s
     return {
       userId: r.user_id,
       cardId: r.card_id,
-      quantity: r.quantity ?? 0,
+      // Lo que se OFRECE. Si nunca se eligió cantidad, son todas.
+      quantity: (r as { sale_quantity?: number | null }).sale_quantity ?? r.quantity ?? 0,
+      owned: r.quantity ?? 0,
       price: r.sale_price !== null ? Number(r.sale_price) : null,
       notes: r.sale_notes,
       listedAt: r.listed_at,
@@ -603,7 +632,7 @@ export async function getUserListings(userId: string): Promise<MarketplaceListin
   if (!isSupabaseReady()) return []
   const { data: rows } = await supabase
     .from('collection')
-    .select('user_id, card_id, quantity, sale_price, sale_notes, listed_at')
+    .select('user_id, card_id, quantity, sale_quantity, sale_price, sale_notes, listed_at')
     .eq('user_id', userId)
     .eq('for_sale', true)
     .order('listed_at', { ascending: false })
@@ -618,7 +647,8 @@ export async function getUserListings(userId: string): Promise<MarketplaceListin
   return rows.map(r => ({
     userId: r.user_id,
     cardId: r.card_id,
-    quantity: r.quantity ?? 0,
+    quantity: (r as { sale_quantity?: number | null }).sale_quantity ?? r.quantity ?? 0,
+    owned: r.quantity ?? 0,
     price: r.sale_price !== null ? Number(r.sale_price) : null,
     notes: r.sale_notes,
     listedAt: r.listed_at,

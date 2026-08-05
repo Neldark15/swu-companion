@@ -17,7 +17,8 @@
  *     - lista         1. lista numerada
  *     ---             (separador)
  *     [texto](url)    ![pie](url-de-imagen)
- *     [[carta:Bo-Katan Kryze]]     ← la carta, incrustada de verdad
+ *     [[carta:Bo-Katan Kryze]]          ← la carta, incrustada de verdad
+ *     [[carta:Cad Bane|ASH-11]]        ← una impresión CONCRETA
  *
  * Esa última es la razón de ser del blog: un análisis de mazo sin las cartas a
  * la vista obliga a ir a buscarlas a otra pantalla y se pierde el hilo.
@@ -82,7 +83,19 @@ function inline(texto: string, clave: string): ReactNode[] {
 
 // ── Carta incrustada ─────────────────────────────────────────────────
 
-function CartaIncrustada({ nombre, onAbrir }: { nombre: string; onAbrir: (id: string) => void }) {
+/**
+ * Una carta dentro del texto.
+ *
+ * El `set` NO es un adorno: **el nombre no identifica una carta**. Medido
+ * sobre el export, «Cad Bane» son CINCO cartas distintas —dos de ellas
+ * líderes, con habilidades que no se parecen en nada— y «Pre Vizsla» son
+ * cuatro. Sin fijar la impresión, un análisis de mazo muestra la carta
+ * equivocada y dice cualquier cosa. Por eso se escribe `[[carta:Cad
+ * Bane|ASH-11]]` cuando importa cuál es.
+ */
+function CartaIncrustada(
+  { nombre, set, onAbrir }: { nombre: string; set: string | null; onAbrir: (id: string) => void },
+) {
   const [carta, setCarta] = useState<Card | null | 'no-esta'>(null)
 
   useEffect(() => {
@@ -90,11 +103,29 @@ function CartaIncrustada({ nombre, onAbrir }: { nombre: string; onAbrir: (id: st
     void (async () => {
       const { db } = await import('../../services/db')
       const n = nombre.trim().toLowerCase()
-      // Entre varias impresiones se prefiere la canónica: es la que la gente
-      // reconoce y la que el buscador muestra.
+      // `ASH-11` fija set y número; `ASH` solo el set.
+      const m = set ? /^([A-Za-z0-9]{2,5})(?:-(\d+))?$/.exec(set.trim()) : null
+      const setCode = m ? m[1].toUpperCase() : null
+      const setNum = m?.[2] ?? null
+
       const buscar = async () => {
-        const todas = await db.cards.filter(c => c.name.toLowerCase() === n).toArray()
-        return todas.find(c => c.isCanonical) ?? todas[0]
+        let todas = await db.cards.filter(c => c.name.toLowerCase() === n).toArray()
+        if (setCode) {
+          const delSet = todas.filter(c => (c.setCode ?? '').toUpperCase() === setCode)
+          // Si se pidió un set que no existe se avisa mostrando el nombre, en
+          // vez de dibujar en silencio una carta distinta a la pedida.
+          if (delSet.length === 0) return undefined
+          todas = delSet
+        }
+        if (setNum) {
+          const exacta = todas.filter(c => String(c.setNumber ?? '') === setNum)
+          if (exacta.length > 0) todas = exacta
+        }
+        // Entre impresiones de la misma carta se prefiere la Standard: es la
+        // que la gente reconoce.
+        return todas.find(c => c.variantType === 'Standard')
+          ?? todas.find(c => c.isCanonical)
+          ?? todas[0]
       }
 
       let elegida = await buscar()
@@ -114,7 +145,7 @@ function CartaIncrustada({ nombre, onAbrir }: { nombre: string; onAbrir: (id: st
       setCarta(elegida ?? 'no-esta')
     })()
     return () => { vivo = false }
-  }, [nombre])
+  }, [nombre, set])
 
   // Si la carta no existe se deja el NOMBRE, que sigue siendo información.
   // Borrarlo dejaría un hueco y el párrafo perdería sentido.
@@ -125,7 +156,13 @@ function CartaIncrustada({ nombre, onAbrir }: { nombre: string; onAbrir: (id: st
     return <span className="inline-block w-20 h-28 align-middle radio-carta carta-esqueleto" />
   }
 
-  const apaisada = listFaceIsLandscape(carta)
+  // En un artículo el líder se muestra por su FRENTE, que es la cara donde
+  // está la habilidad de la que se habla. `listFaceUrl` devuelve el reverso
+  // —el lado de unidad desplegada— porque en una lista conviene una carta
+  // vertical; acá eso sería mostrar la cara equivocada.
+  const esLider = !!carta.isLeader
+  const src = esLider ? carta.imageUrl : listFaceUrl(carta)
+  const apaisada = esLider ? true : listFaceIsLandscape(carta)
   return (
     <button
       onClick={() => onAbrir(carta.id)}
@@ -134,7 +171,7 @@ function CartaIncrustada({ nombre, onAbrir }: { nombre: string; onAbrir: (id: st
     >
       <Carta3D brillo intensidad={9}>
         <CardImage
-          src={listFaceUrl(carta)}
+          src={src}
           orientacion={apaisada ? 'apaisada' : 'vertical'}
           fit="cover"
           elevacion="realce"
@@ -151,9 +188,17 @@ function conCartas(texto: string, clave: string, onAbrir: (id: string) => void):
   const partes = texto.split(/(\[\[carta:[^\]]+\]\])/g).filter(Boolean)
   const salida: ReactNode[] = []
   partes.forEach((p, i) => {
-    const m = /^\[\[carta:([^\]]+)\]\]$/.exec(p)
-    if (m) salida.push(<CartaIncrustada key={`${clave}-c${i}`} nombre={m[1]} onAbrir={onAbrir} />)
-    else salida.push(...inline(p, `${clave}-t${i}`))
+    const m = /^\[\[carta:([^\]|]+)(?:\|([^\]]+))?\]\]$/.exec(p)
+    if (m) {
+      salida.push(
+        <CartaIncrustada
+          key={`${clave}-c${i}`}
+          nombre={m[1]}
+          set={m[2] ?? null}
+          onAbrir={onAbrir}
+        />,
+      )
+    } else salida.push(...inline(p, `${clave}-t${i}`))
   })
   return salida
 }
