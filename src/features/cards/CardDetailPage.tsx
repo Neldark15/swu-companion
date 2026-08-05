@@ -59,7 +59,9 @@ export function CardDetailPage() {
 
   useEffect(() => {
     if (!id) return
-    setLoading(true)
+    // `setLoading(true)` salía del cuerpo del efecto y encadenaba un render
+    // antes de pintar. Al cambiar de carta el id cambia, y para eso está la
+    // `key` de la ruta: el componente se remonta con `loading` en true.
     Promise.all([
       getCardById(id),
       db.favoriteCards.get(id),
@@ -101,7 +103,11 @@ export function CardDetailPage() {
   const wishKey = card?.id ?? null
 
   useEffect(() => {
-    if (!wishKey || !supabaseUser) { setWanted(false); return }
+    // Sin carta o sin sesión no hay nada que consultar. No se limpia con un
+    // `setWanted(false)` acá porque eso encadena un render; el botón de
+    // «la busco» solo se dibuja habiendo sesión, así que un valor viejo no
+    // llega a verse.
+    if (!wishKey || !supabaseUser) return
     let cancelled = false
     getMyWishlist(supabaseUser.id)
       .then(list => { if (!cancelled) setWanted(list.some(w => w.cardId === wishKey)) })

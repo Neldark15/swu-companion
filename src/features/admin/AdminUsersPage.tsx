@@ -14,12 +14,22 @@ export function AdminUsersPage() {
   const [verificando, setVerificando] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'admin' | 'user'>('all')
 
-  const refresh = async () => {
-    setLoading(true)
-    setUsers(await getAllUsers())
-    setLoading(false)
-  }
-  useEffect(() => { refresh() }, [])
+  // Cargar al montar.
+  //
+  // El `setState` va DESPUÉS del await, dentro de una función asíncrona: si se
+  // llama de forma síncrona en el cuerpo del efecto, React vuelve a renderizar
+  // encadenado antes de pintar. Y el centinela evita escribir estado sobre un
+  // componente que ya se desmontó.
+  useEffect(() => {
+    let vivo = true
+    void (async () => {
+      const datos = await getAllUsers()
+      if (!vivo) return
+      setUsers(datos)
+      setLoading(false)
+    })()
+    return () => { vivo = false }
+  }, [])
 
   // Melee no ofrece ninguna forma de comprobar que una cuenta sea de quien la
   // enlaza: su perfil público no tiene ni biografía donde poner un código. Así

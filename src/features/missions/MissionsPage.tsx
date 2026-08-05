@@ -3,7 +3,7 @@
  * Shows daily/weekly missions with progress, claim buttons, and reset timers
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { Target, Clock, Gift, CheckCircle, Loader2 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import {
@@ -20,28 +20,38 @@ export default function MissionsPage() {
   const [weekly, setWeekly] = useState<UserMission[]>([])
   const [loading, setLoading] = useState(true)
   const [claiming, setClaiming] = useState<string | null>(null)
-  const [dailyTimer, setDailyTimer] = useState({ hours: 0, minutes: 0 })
-  const [weeklyTimer, setWeeklyTimer] = useState({ days: 0, hours: 0 })
+  // Arrancan con la hora REAL, no en cero: si no, el reloj muestra 0h 0m
+  // durante el primer minuto y parece que el reinicio ya pasó.
+  const [dailyTimer, setDailyTimer] = useState(getTimeUntilDailyReset)
+  const [weeklyTimer, setWeeklyTimer] = useState(getTimeUntilWeeklyReset)
 
-  const loadMissions = useCallback(async () => {
-    if (!supabaseUser?.id) return
-    setLoading(true)
-    const data = await getUserMissions(supabaseUser.id)
-    setDaily(data.daily)
-    setWeekly(data.weekly)
-    setLoading(false)
-  }, [supabaseUser?.id])
-
-  useEffect(() => { loadMissions() }, [loadMissions])
+  // Se carga dentro del efecto y no por un `useCallback` aparte: envolverlo
+  // solo para llamarlo desde acá creaba una dependencia que cambiaba de
+  // identidad, y con `supabaseUser?.id` en el arreglo el compilador de React
+  // ni siquiera podía conservar la memoización.
+  const userId = supabaseUser?.id
+  useEffect(() => {
+    if (!userId) return
+    let vivo = true
+    void (async () => {
+      const data = await getUserMissions(userId)
+      if (!vivo) return
+      setDaily(data.daily)
+      setWeekly(data.weekly)
+      setLoading(false)
+    })()
+    return () => { vivo = false }
+  }, [userId])
 
   // Timer countdown
+  // El primer valor sale del estado inicial y no de un `tick()` dentro del
+  // efecto: llamarlo ahí encadena un render antes de la primera pintada, y el
+  // reloj ya arranca con la hora correcta.
   useEffect(() => {
-    function tick() {
+    const interval = setInterval(() => {
       setDailyTimer(getTimeUntilDailyReset())
       setWeeklyTimer(getTimeUntilWeeklyReset())
-    }
-    tick()
-    const interval = setInterval(tick, 60000)
+    }, 60000)
     return () => clearInterval(interval)
   }, [])
 

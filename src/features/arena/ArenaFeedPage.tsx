@@ -11,17 +11,25 @@ export function ArenaFeedPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
 
+  // Cargar al montar.
+  //
+  // El `setState` va DESPUÉS del await, dentro de una función asíncrona: si se
+  // llama de forma síncrona en el cuerpo del efecto, React vuelve a renderizar
+  // encadenado antes de pintar. Y el centinela evita escribir estado sobre un
+  // componente que ya se desmontó.
   useEffect(() => {
-    setLoading(true)
-    getPublicMatchFeed(30)
-      .then((data) => {
-        setLogs(data)
-        setLoading(false)
-      })
-      .catch(() => {
-        setError(true)
-        setLoading(false)
-      })
+    let vivo = true
+    void (async () => {
+      try {
+        const datos = await getPublicMatchFeed(30)
+        if (vivo) setLogs(datos)
+      } catch {
+        if (vivo) setError(true)
+      } finally {
+        if (vivo) setLoading(false)
+      }
+    })()
+    return () => { vivo = false }
   }, [])
 
   const formatDate = (ts: number) => {

@@ -13,10 +13,9 @@ export function RoundTimer({ endTime, large }: Props) {
   const [remaining, setRemaining] = useState<number>(0)
 
   useEffect(() => {
-    if (!endTime) {
-      setRemaining(0)
-      return
-    }
+    // Sin `endTime` no hay nada que contar y el componente devuelve null más
+    // abajo, así que poner el resto en 0 no lo veía nadie.
+    if (!endTime) return
 
     const update = () => {
       const diff = new Date(endTime).getTime() - Date.now()

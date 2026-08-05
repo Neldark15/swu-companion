@@ -19,12 +19,22 @@ export function AdminEventsPage() {
   const [filter, setFilter] = useState<Filter>('all')
   const [actingId, setActingId] = useState<string | null>(null)
 
-  const refresh = async () => {
-    setLoading(true)
-    setEvents(await getOfficialEvents())
-    setLoading(false)
-  }
-  useEffect(() => { refresh() }, [])
+  // Cargar al montar.
+  //
+  // El `setState` va DESPUÉS del await, dentro de una función asíncrona: si se
+  // llama de forma síncrona en el cuerpo del efecto, React vuelve a renderizar
+  // encadenado antes de pintar. Y el centinela evita escribir estado sobre un
+  // componente que ya se desmontó.
+  useEffect(() => {
+    let vivo = true
+    void (async () => {
+      const datos = await getOfficialEvents()
+      if (!vivo) return
+      setEvents(datos)
+      setLoading(false)
+    })()
+    return () => { vivo = false }
+  }, [])
 
   const filtered = useMemo(
     () => filter === 'all' ? events : events.filter(e => e.status === filter),

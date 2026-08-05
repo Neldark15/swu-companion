@@ -479,3 +479,40 @@ input:focus, textarea:focus, select:focus {
 @media (prefers-reduced-motion: reduce) {
   .carta3d-sola { animation: none; --activo: 0; }
 }
+
+/* Destello que recorre el borde de un panel al tocarlo.
+ *
+ * Para los módulos y tarjetas de la app: el brillo de las cartas es radial y
+ * está pensado para una superficie impresa; en un panel de interfaz queda
+ * mejor un barrido que recorre el borde, como una luz pasando por un canto
+ * metálico. Solo `transform` y `opacity`, igual que todo lo demás. */
+@utility destello {
+  position: relative;
+  overflow: hidden;
+}
+
+@utility destello-luz {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 35%,
+    rgb(255 255 255 / 0.14) 48%,
+    rgb(255 255 255 / 0.24) 50%,
+    rgb(255 255 255 / 0.14) 52%,
+    transparent 65%
+  );
+  background-size: 260% 100%;
+  animation: destello-pasa 4.5s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+
+@keyframes destello-pasa {
+  0%       { background-position: 160% 0; }
+  55%, 100% { background-position: -60% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .destello-luz { animation: none; opacity: 0; }
+}

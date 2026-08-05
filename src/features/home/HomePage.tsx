@@ -24,6 +24,7 @@ import {
 import { HudPanel, HudCorners, HexIcon } from '../../components/Hud'
 import { NoticiasSection } from './NoticiasSection'
 import { TarjetaJugador } from '../profile/TarjetaJugador'
+import { Carta3D } from '../../components/Carta3D'
 import { HUD_TEXTO, type HudTone } from '../../components/hudTones'
 import { useAuth } from '../../hooks/useAuth'
 import { type PlayerStats, calculateLevel } from '../../services/gamification'
@@ -199,8 +200,12 @@ export function HomePage() {
             <button
               key={sys.label}
               onClick={() => navigate(sys.to)}
-              className="active:scale-[0.97] transition-transform text-left"
+              className="text-left"
             >
+              {/* El mismo 3D de las cartas, con menos ángulo: un panel de
+                  interfaz que se inclina como una carta se siente a juguete.
+                  Seis grados alcanzan para que responda al dedo. */}
+              <Carta3D brillo intensidad={6} className="h-full">
               <HudPanel tone={sys.tone} glow className="h-full">
                 <div className="relative h-full flex items-center gap-2 p-2.5">
                   <HudCorners tone={sys.tone} />
@@ -214,6 +219,7 @@ export function HomePage() {
                   <ChevronRight size={14} className="text-swu-muted flex-shrink-0" aria-hidden />
                 </div>
               </HudPanel>
+              </Carta3D>
             </button>
           )
         })}

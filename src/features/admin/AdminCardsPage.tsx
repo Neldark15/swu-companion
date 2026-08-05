@@ -12,7 +12,14 @@ export function AdminCardsPage() {
   const refresh = async () => {
     setCount(await getLocalCardsCount())
   }
-  useEffect(() => { refresh() }, [])
+  useEffect(() => {
+    let vivo = true
+    void (async () => {
+      const n = await getLocalCardsCount()
+      if (vivo) setCount(n)
+    })()
+    return () => { vivo = false }
+  }, [])
 
   const handleClear = async () => {
     if (!currentProfile) return
