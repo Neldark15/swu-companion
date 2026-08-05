@@ -15,7 +15,7 @@
 
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, ScanLine, Swords } from 'lucide-react'
+import { ChevronRight, ScanLine, Swords} from 'lucide-react'
 import {
   DatapadIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
   DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
@@ -43,6 +43,7 @@ const mainSystems: Sistema[] = [
   { icon: DatapadIcon,     label: 'Holocrón',    tone: 'green',  to: '/arena',      auth: true },
   { icon: MandoTrophyIcon, label: 'Eventos',   tone: 'amber',  to: '/events',     auth: true },
   { icon: KyberIcon,       label: 'Meta',      tone: 'cyan',   to: '/meta' },
+  { icon: HolonetIcon,     label: 'Blog',      tone: 'amber',  to: '/blog' },
   { icon: CargoIcon,       label: 'Mi Botín',   tone: 'green',  to: '/collection', auth: true },
   { icon: DeckCardsIcon,   label: 'Mis Decks',           tone: 'green',  to: '/decks',      auth: true },
   { icon: BountyIcon,      label: 'Contrabando',  tone: 'red',    to: '/explore',    auth: true },

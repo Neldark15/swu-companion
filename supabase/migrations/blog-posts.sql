@@ -1,0 +1,13 @@
+-- Blog: artículos largos, análisis de mazos y de cartas.
+-- (Aplicada en la base; este archivo queda como registro.)
+--
+-- Distinto de `news`, que son avisos cortos. Acá el contenido ES el producto:
+-- texto largo con formato, imágenes y cartas incrustadas.
+--
+-- Lo publicado lo lee CUALQUIERA, con sesión o sin ella: el blog es la puerta
+-- de entrada para quien llega desde un enlace compartido. Escriben solo los
+-- admins, y esa comprobación mira `profiles.role`, que ya no es escribible
+-- desde el cliente (ver melee-profile-link-and-role-lockdown.sql).
+--
+-- `views` se incrementa por una función `SECURITY DEFINER`: dar UPDATE de esa
+-- columna al cliente sería dar UPDATE de toda la fila.

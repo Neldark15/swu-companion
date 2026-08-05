@@ -24,6 +24,9 @@ const CreateEventPage = lazy(() => import('./features/events/CreateEventPage').t
 const TournamentDashboard = lazy(() => import('./features/events/TournamentDashboard'))
 const TournamentPublicView = lazy(() => import('./features/events/TournamentPublicView'))
 const TournamentPlayerView = lazy(() => import('./features/events/TournamentPlayerView').then(m => ({ default: m.TournamentPlayerView })))
+const BlogPage = lazy(() => import('./features/blog/BlogPage').then(m => ({ default: m.BlogPage })))
+const BlogPostPage = lazy(() => import('./features/blog/BlogPostPage').then(m => ({ default: m.BlogPostPage })))
+const BlogEditorPage = lazy(() => import('./features/blog/BlogEditorPage').then(m => ({ default: m.BlogEditorPage })))
 const ManageNewsPage = lazy(() => import('./features/home/ManageNewsPage').then(m => ({ default: m.ManageNewsPage })))
 const NewsPage = lazy(() => import('./features/home/NewsPage').then(m => ({ default: m.NewsPage })))
 const SedesPage = lazy(() => import('./features/venues/SedesPage').then(m => ({ default: m.SedesPage })))
@@ -161,6 +164,12 @@ export default function App() {
             <Route path="/news" element={<NewsPage />} />
             {/* El meta es público: sirve para prepararse antes de un torneo. */}
             <Route path="/meta" element={<MetaPage />} />
+            {/* El blog se lee SIN cuenta: es lo primero que ve quien llega
+                desde un enlace compartido. Solo el editor exige sesión. */}
+            <Route path="/blog" element={<BlogPage />} />
+            <Route path="/blog/nuevo" element={<P><BlogEditorPage /></P>} />
+            <Route path="/blog/editar/:id" element={<P><BlogEditorPage /></P>} />
+            <Route path="/blog/:slug" element={<BlogPostPage />} />
             <Route path="/news/manage" element={<P><ManageNewsPage /></P>} />
           </Route>
         </Routes>

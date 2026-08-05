@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Hexagon, Swords, ShieldCheck, Megaphone, Newspaper as NewspaperIcon, BarChart3 as MetaIcon } from 'lucide-react'
+import { Hexagon, Swords, ShieldCheck, Megaphone, Newspaper as NewspaperIcon, BarChart3 as MetaIcon, BookOpen} from 'lucide-react'
 import {
   DatapadIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
   DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
@@ -19,6 +19,7 @@ const mainNav: NavItem[] = [
   { id: '/', label: 'Base', sub: 'Centro de mando', icon: Hexagon },
   { id: '/play', label: 'Duelo', sub: 'Tracker en vivo', icon: Swords },
   { id: '/arena', label: 'Holocrón', sub: 'Registro de duelos', icon: DatapadIcon },
+  { id: '/blog', label: 'Blog', sub: 'Análisis y artículos', icon: BookOpen },
   { id: '/events', label: 'Torneo', sub: 'Eventos organizados', icon: MandoTrophyIcon },
   { id: '/profile', label: 'Mi Perfil', sub: 'Holocrón', img: '/holocron-icon.png' },
 ]

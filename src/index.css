@@ -388,3 +388,47 @@ input:focus, textarea:focus, select:focus {
     display: none;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+ * Blog
+ *
+ * La consigna era que se viera «totalmente diferente» al resto de la app, y
+ * el resto de la app es un HUD: tipografía de palo seco, mono, paneles con
+ * esquinas cortadas, cian y ámbar. Un artículo largo con ese lenguaje se lee
+ * como un panel de control, no como una revista.
+ *
+ * Así que acá se cambia lo único que de verdad cambia el carácter de una
+ * página de texto: **la tipografía y la medida**. Serif para los titulares y
+ * columna angosta. No hace falta bajar ninguna fuente: la serif del sistema
+ * ya está y pesa cero.
+ * ───────────────────────────────────────────────────────────── */
+
+@utility blog-serif {
+  font-family: Georgia, 'Iowan Old Style', 'Times New Roman', Times, serif;
+}
+
+/* La medida: 66 caracteres es el ancho con el que el ojo salta de renglón sin
+   perderse. Más largo obliga a rastrear el principio de la línea siguiente. */
+@utility blog-medida {
+  max-width: 66ch;
+}
+
+@utility blog-prosa {
+  /* Los guiones evitan los ríos blancos en una columna angosta, que es
+     justo donde más se notan. */
+  hyphens: auto;
+  text-wrap: pretty;
+}
+
+/* Capitular: marca el arranque del artículo sin necesidad de un adorno. */
+@utility blog-capitular {
+  &::first-letter {
+    font-family: Georgia, 'Iowan Old Style', 'Times New Roman', Times, serif;
+    float: left;
+    font-size: 3.1em;
+    line-height: 0.82;
+    padding: 0.06em 0.09em 0 0;
+    color: var(--color-swu-amber);
+    font-weight: 700;
+  }
+}
