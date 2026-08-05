@@ -8,7 +8,7 @@ import {
 import { useAuth } from '../../hooks/useAuth'
 import { getCardsByIds, loadFullDatabase, getLocalCardCount, isDatabaseComplete, MAIN_SET_LABELS } from '../../services/swuApi'
 import { byCanonicalCard, compareCardsBySetNumber } from '../../services/cardSort'
-import { listFaceUrl, listFaceFit } from '../../services/cardArt'
+import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import {
   getSetProgress, getSetBinder, getRarityProgress,
   type SetProgress, type BinderSlot, type RarityProgress,
@@ -1209,9 +1209,10 @@ export function CollectionPage() {
                         completas: apaisadas y recortadas eran irreconocibles. */}
                     <CardImage
                       src={listFaceUrl(card)}
-                      fit={listFaceFit(card)}
+                      orientacion={listFaceIsLandscape(card) ? 'apaisada' : 'vertical'}
+                      fit="cover"
                       alt={card?.name}
-                      className="w-14 h-20"
+                      className={listFaceIsLandscape(card) ? 'w-20 aspect-[400/286]' : 'w-14 aspect-[286/400]'}
                     />
                   </button>
 
