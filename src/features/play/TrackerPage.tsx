@@ -518,7 +518,17 @@ export function TrackerPage() {
             <div className="space-y-1">
               {baseResults.map((card) => (
                 <button key={card.id} onClick={() => selectBase(card, basePickerFor)} className="w-full bg-swu-surface rounded-xl p-3 border border-swu-border flex items-center gap-3 text-left active:scale-[0.98] transition-transform">
-                  <CardImage src={card.imageUrl} alt={card.name} className="w-12 h-16" />
+                  {/* Las bases son SIEMPRE apaisadas (400x286): en una caja
+                      vertical de 48x64 se recortaban al centro y quedaba un
+                      fragmento irreconocible, justo en la pantalla donde hay
+                      que elegir una. */}
+                  <CardImage
+                    src={card.imageUrl}
+                    orientacion="apaisada"
+                    fit="cover"
+                    alt={card.name}
+                    className="w-20 aspect-[400/286] flex-shrink-0"
+                  />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-swu-text truncate">{card.name}</p>
                     {card.subtitle && <p className="text-xs text-swu-muted truncate">{card.subtitle}</p>}

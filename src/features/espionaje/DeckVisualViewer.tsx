@@ -64,8 +64,8 @@ function HorizontalCard({ card, cardData, label, labelColor, size = 'normal' }: 
   return (
     <div className={isMini ? 'flex-1 min-w-0' : 'flex-1'}>
       {/* Horizontal card image */}
-      <div className={`relative rounded-lg overflow-hidden bg-swu-bg border border-swu-border/50 shadow-md
-                       ${isMini ? 'aspect-[7/5]' : 'aspect-[7/5]'}`}>
+      {/* Líderes y bases son apaisados (400x286) en las dos medidas. */}
+      <div className="relative rounded-lg overflow-hidden bg-swu-bg border border-swu-border/50 shadow-md aspect-[400/286]">
         {imageUrl && !imgError ? (
           <img
             src={imageUrl}
@@ -78,9 +78,6 @@ function HorizontalCard({ card, cardData, label, labelColor, size = 'normal' }: 
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center">
             <Swords size={isMini ? 12 : 20} className="text-swu-muted/30" />
-            {!isMini && (
-              <span className="text-[8px] text-swu-muted mt-1">{card.name}</span>
-            )}
           </div>
         )}
 
@@ -101,15 +98,22 @@ function HorizontalCard({ card, cardData, label, labelColor, size = 'normal' }: 
         )}
       </div>
 
-      {/* Name below card */}
-      {!isMini && (
-        <div className="mt-1 text-center">
-          <p className="text-[9px] font-bold text-swu-text truncate">{card.name}</p>
-          {card.subtitle && (
-            <p className="text-[7px] text-swu-muted truncate">{card.subtitle}</p>
-          )}
-        </div>
-      )}
+      {/* El nombre, SIEMPRE.
+          Estaba tras `!isMini` y este componente solo se invoca con
+          `size="mini"`, así que la rama era código muerto: la cabecera de cada
+          mazo eran dos recuadros sin una sola palabra, y mientras Dexie
+          resolvía —o si la imagen fallaba— quedaba una lista de mazos
+          indistinguibles entre sí. */}
+      <div className="mt-1 text-center">
+        <p className={`${isMini ? 'text-[9px]' : 'text-[11px]'} font-bold text-swu-text truncate`}>
+          {card.name}
+        </p>
+        {card.subtitle && (
+          <p className={`${isMini ? 'text-[7px]' : 'text-[9px]'} text-swu-muted truncate`}>
+            {card.subtitle}
+          </p>
+        )}
+      </div>
     </div>
   )
 }
@@ -199,7 +203,12 @@ export function DeckVisualViewer({ deck }: { deck: PublicDeck }) {
   const totalCards = deck.mainDeck.reduce((s, c) => s + c.quantity, 0)
   const sideboardCount = deck.sideboard.reduce((s, c) => s + c.quantity, 0)
 
+  // Twin Suns lleva DOS líderes. Tomar solo el primero hacía que el segundo
+  // desapareciera de toda la vista —aunque la insignia del formato anunciaba
+  // «Twin Suns» justo al lado—: se descargaba, entraba en los ids a resolver
+  // y nunca se pintaba.
   const leaderCard = deck.leaders[0]
+  const segundoLider = deck.leaders[1]
   const leaderData = leaderCard ? cardDataMap.get(leaderCard.cardId) : undefined
   const baseData = deck.base ? cardDataMap.get(deck.base.cardId) : undefined
 
@@ -232,7 +241,16 @@ export function DeckVisualViewer({ deck }: { deck: PublicDeck }) {
             <HorizontalCard
               card={leaderCard}
               cardData={leaderData}
-              label="Líder"
+              label={segundoLider ? 'Líder 1' : 'Líder'}
+              labelColor="text-swu-amber"
+              size="mini"
+            />
+          )}
+          {segundoLider && (
+            <HorizontalCard
+              card={segundoLider}
+              cardData={cardDataMap.get(segundoLider.cardId)}
+              label="Líder 2"
               labelColor="text-swu-amber"
               size="mini"
             />

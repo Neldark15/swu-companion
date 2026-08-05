@@ -10,6 +10,8 @@ import { getPricesForCards, fetchTCGPrices, formatPrice, type PriceInfo } from '
 import { getPersonalizacion, VACIA, type Personalizacion } from '../../services/profileCustomService'
 import { PerfilPersonalizado } from '../profile/PerfilVitrina'
 import { MeleeRecordDeUsuario } from '../profile/MeleeRecord'
+import { CardImage } from '../../components/CardImage'
+import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import { getCardsByIds, MAIN_SET_LABELS } from '../../services/swuApi'
 import { byCanonicalCard, compareCardsBySetNumber } from '../../services/cardSort'
 import type { Card } from '../../types'
@@ -593,11 +595,20 @@ export function PublicProfilePage() {
                                flex items-center gap-3 text-left active:scale-[0.99]"
                   >
                     {item.card?.imageUrl ? (
-                      <img
-                        src={item.card.imageUrl}
+                      /* Iba con un <img> crudo y la cara FRONTAL: un líder o
+                         una base —apaisados— se recortaban dentro de una caja
+                         vertical. Va por CardImage, que usa la cara correcta
+                         para una lista y respeta el radio real de la carta. */
+                      <CardImage
+                        src={listFaceUrl(item.card)}
+                        orientacion={listFaceIsLandscape(item.card) ? 'apaisada' : 'vertical'}
+                        fit="cover"
                         alt={item.card.name}
-                        className="w-12 h-16 rounded-lg object-cover bg-swu-bg flex-shrink-0"
-                        loading="lazy"
+                        className={`flex-shrink-0 ${
+                          listFaceIsLandscape(item.card)
+                            ? 'w-20 aspect-[400/286]'
+                            : 'w-12 aspect-[286/400]'
+                        }`}
                       />
                     ) : (
                       <div className="w-12 h-16 rounded-lg bg-swu-bg flex items-center justify-center flex-shrink-0">
