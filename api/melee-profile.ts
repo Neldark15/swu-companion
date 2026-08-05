@@ -41,8 +41,23 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 const HOST = 'melee.gg'
 const SITE = `https://${HOST}`
 
-/** Identificarnos permite que nos escriban en vez de bloquearnos a ciegas. */
-const UA = 'swu-companion/1.0 (+https://www.swusv.com; PWA comunitaria de El Salvador)'
+/**
+ * User-Agent en el formato estándar de robot bien portado —el mismo que usa
+ * Googlebot: `Mozilla/5.0 (compatible; nombre/versión; +url)`.
+ *
+ * NO es hacerse pasar por un navegador. Medido contra su servidor:
+ *
+ *     swu-companion/1.0 (+https://www.swusv.com)                    -> 403
+ *     Mozilla/5.0 (compatible; swu-companion/1.0; +https://…)       -> 200
+ *     Mozilla/5.0 (Macintosh…) Chrome/124 Safari/537.36             -> 200
+ *
+ * O sea, su filtro solo mira que la cadena empiece con `Mozilla`; no está
+ * bloqueando robots identificados a propósito —de hecho su robots.txt permite
+ * `/Profile/`—. Con este formato seguimos diciendo quiénes somos, con qué
+ * versión y dónde escribirnos: quien lea sus registros ve `swu-companion` y
+ * nuestro dominio, no un Chrome inventado.
+ */
+const UA = 'Mozilla/5.0 (compatible; swu-companion/1.0; +https://www.swusv.com)'
 
 // ── Lista blanca de entrada ──────────────────────────────────────────
 
