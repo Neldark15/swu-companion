@@ -10,8 +10,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Search, Users, Skull, Package, Eye, EyeOff, Tag,
-  ShoppingBag, Loader2, ExternalLink, RefreshCw,
-} from 'lucide-react'
+  ShoppingBag, Loader2, ExternalLink, RefreshCw, Sparkles} from 'lucide-react'
 import {
   searchPublicProfiles,
   getExploreProfiles,
@@ -22,6 +21,7 @@ import {
 import { getCardsByIds } from '../../services/swuApi'
 import { getTradeMatches, type TradeMatch } from '../../services/tradeService'
 import { CardImage } from '../../components/CardImage'
+import { VitrinaShowcase } from './VitrinaShowcase'
 import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import { TradeMatches } from './TradeMatches'
 import { useAuth } from '../../hooks/useAuth'
@@ -106,7 +106,7 @@ function MatchesSection() {
 /* Avatar helper */
 const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
 
-type Tab = 'collections' | 'market'
+type Tab = 'collections' | 'market' | 'vitrina'
 
 export function ExplorePage() {
   const navigate = useNavigate()
@@ -144,9 +144,17 @@ export function ExplorePage() {
             icon={ShoppingBag}
             label="Mercancía"
           />
+          <TabBtn
+            active={tab === 'vitrina'}
+            onClick={() => setTab('vitrina')}
+            icon={Sparkles}
+            label="Vitrina"
+          />
         </div>
 
-        {tab === 'collections' ? <CollectionsTab /> : <MarketTab />}
+        {tab === 'collections' ? <CollectionsTab />
+          : tab === 'market' ? <MarketTab />
+          : <VitrinaShowcase />}
       </div>
     </div>
   )

@@ -14,6 +14,7 @@ import { Link } from 'react-router-dom'
 import { ExternalLink, RotateCcw } from 'lucide-react'
 import { Sheet } from './ui/Sheet'
 import { CardImage } from './CardImage'
+import { Carta3D } from './Carta3D'
 import { isLandscapeFace } from '../services/cardArt'
 import { db } from '../services/db'
 import type { Card } from '../types'
@@ -78,13 +79,23 @@ export function CardPreviewSheet({
   // existía para exactamente esto.
   const apaisada = carta ? isLandscapeFace(carta, dorso) : false
   const src = dorso && carta?.backImageUrl ? carta.backImageUrl : carta?.imageUrl
+  // Showcase, Prestige y las foil son las que cambian de color según el
+  // ángulo; una Standard no, y ponerle el halo sería inventarle un acabado.
+  const especial = /showcase|prestige|foil/i.test(carta?.variantType ?? '')
 
   return (
     <Sheet open={abierta} onClose={onClose} title={carta?.name ?? 'Carta'}>
       {carta && (
         <div className="p-4 space-y-3">
           <div className="relative">
-            <div className={`mx-auto ${apaisada ? 'max-w-sm' : 'max-w-[220px]'}`}>
+            {/* La carta se inclina y brilla al tocarla, como al girarla en la
+                mano. Las impresiones especiales llevan además el halo
+                irisado, que es lo que de verdad hacen en la vida real. */}
+            <Carta3D
+              brillo
+              iridiscente={especial}
+              className={`mx-auto ${apaisada ? 'max-w-sm' : 'max-w-[220px]'}`}
+            >
               <CardImage
                 src={src}
                 alt={carta.name}
@@ -93,7 +104,7 @@ export function CardPreviewSheet({
                 elevacion="realce"
                 className={`w-full ${apaisada ? 'aspect-[400/286]' : 'aspect-[286/400]'}`}
               />
-            </div>
+            </Carta3D>
             {carta.backImageUrl && (
               <button
                 onClick={() => setDorsoDe(d => (d === cardId ? null : cardId))}

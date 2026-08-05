@@ -1,0 +1,113 @@
+/**
+ * Carta3D — inclinar la carta y verle el brillo, como cuando la girás en la mano.
+ *
+ * ── Cómo se hace que corra en un teléfono de gama baja ────────────────
+ *
+ * Todo el efecto se apoya en cuatro decisiones, y ninguna es opcional:
+ *
+ * 1. **React NO se entera del movimiento.** Los ángulos se escriben como
+ *    variables CSS directamente sobre el nodo con una `ref`. Un `setState` por
+ *    fotograma serían 60 renders por segundo del árbol de arriba, que es
+ *    exactamente lo que hace que estos efectos se sientan pegajosos.
+ *
+ * 2. **Solo `transform` y `opacity`.** Son las dos propiedades que el
+ *    navegador puede animar en el compositor sin volver a calcular ni a
+ *    pintar la página. Nada de `filter: blur`, `backdrop-filter` ni sombras
+ *    animadas: eso es lo que funde a un teléfono barato.
+ *
+ * 3. **Un solo `requestAnimationFrame` en vuelo.** Los eventos de puntero
+ *    llegan más rápido que los fotogramas; sin la compuerta se calcularían
+ *    posiciones que nadie llega a ver.
+ *
+ * 4. **`will-change` solo mientras se toca.** Dejarlo puesto reserva una capa
+ *    de memoria por carta; con una rejilla de cartas eso solo hace falta en la
+ *    que se está tocando.
+ *
+ * Y si la persona pidió menos movimiento, no hay inclinación ni brillo: la
+ * carta se queda quieta. El efecto es adorno, no información.
+ */
+
+import { useRef, useCallback, type ReactNode } from 'react'
+
+interface Props {
+  children: ReactNode
+  /** Cuánto se inclina, en grados. Más de ~14 se siente a caricatura. */
+  intensidad?: number
+  /**
+   * Brillo especular que recorre la carta siguiendo al dedo.
+   * Para las Showcase y las foil, que es donde de verdad existe.
+   */
+  brillo?: boolean
+  /** Halo irisado del borde, para las impresiones especiales. */
+  iridiscente?: boolean
+  className?: string
+}
+
+export function Carta3D({
+  children,
+  intensidad = 10,
+  brillo = false,
+  iridiscente = false,
+  className = '',
+}: Props) {
+  const ref = useRef<HTMLDivElement>(null)
+  const frame = useRef(0)
+  const pendiente = useRef<{ x: number; y: number } | null>(null)
+
+  const pintar = useCallback(() => {
+    frame.current = 0
+    const el = ref.current
+    const p = pendiente.current
+    if (!el || !p) return
+    // `--px`/`--py` van de -1 a 1 con el centro en 0.
+    el.style.setProperty('--px', p.x.toFixed(3))
+    el.style.setProperty('--py', p.y.toFixed(3))
+  }, [])
+
+  const mover = useCallback((clientX: number, clientY: number) => {
+    const el = ref.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    if (r.width === 0) return
+    pendiente.current = {
+      x: ((clientX - r.left) / r.width) * 2 - 1,
+      y: ((clientY - r.top) / r.height) * 2 - 1,
+    }
+    // Compuerta: un solo fotograma en vuelo por más eventos que lleguen.
+    if (!frame.current) frame.current = requestAnimationFrame(pintar)
+  }, [pintar])
+
+  const activar = useCallback((on: boolean) => {
+    const el = ref.current
+    if (!el) return
+    el.style.setProperty('--activo', on ? '1' : '0')
+    // Se reserva la capa solo mientras dura el gesto.
+    el.style.willChange = on ? 'transform' : 'auto'
+    if (!on) {
+      pendiente.current = { x: 0, y: 0 }
+      if (!frame.current) frame.current = requestAnimationFrame(pintar)
+    }
+  }, [pintar])
+
+  return (
+    <div
+      className={`carta3d-escena ${className}`}
+      onPointerEnter={() => activar(true)}
+      onPointerLeave={() => activar(false)}
+      onPointerDown={e => { activar(true); mover(e.clientX, e.clientY) }}
+      onPointerUp={() => activar(false)}
+      onPointerCancel={() => activar(false)}
+      onPointerMove={e => mover(e.clientX, e.clientY)}
+    >
+      <div
+        ref={ref}
+        className="carta3d"
+        style={{ '--intensidad': `${intensidad}deg` } as React.CSSProperties}
+      >
+        {children}
+        {brillo && <span aria-hidden className="carta3d-brillo" />}
+        {iridiscente && <span aria-hidden className="carta3d-iris" />}
+      </div>
+    </div>
+  )
+}
