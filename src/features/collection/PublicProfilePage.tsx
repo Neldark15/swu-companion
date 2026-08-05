@@ -9,6 +9,7 @@ import {
 import { getPricesForCards, fetchTCGPrices, formatPrice, type PriceInfo } from '../../services/pricing'
 import { getPersonalizacion, VACIA, type Personalizacion } from '../../services/profileCustomService'
 import { PerfilPersonalizado } from '../profile/PerfilVitrina'
+import { MeleeRecordDeUsuario } from '../profile/MeleeRecord'
 import { getCardsByIds, MAIN_SET_LABELS } from '../../services/swuApi'
 import { byCanonicalCard, compareCardsBySetNumber } from '../../services/cardSort'
 import type { Card } from '../../types'
@@ -356,6 +357,13 @@ export function PublicProfilePage() {
             {/* Las cartas van fuera del bloque centrado: necesitan el ancho
                 completo para su scroll horizontal propio. */}
             <PerfilPersonalizado p={{ ...custom, favorite_aspects: [] }} />
+
+            {/* Sus torneos de melee, si enlazó cuenta. Si no, no se dibuja. */}
+            {userId && (
+              <div className="mt-3">
+                <MeleeRecordDeUsuario userId={userId} />
+              </div>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-3 gap-2">

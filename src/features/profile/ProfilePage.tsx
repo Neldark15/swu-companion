@@ -21,6 +21,9 @@ import { TriviaSection } from './components/TriviaSection'
 import { CONTINENTS, getCountryByCode } from '../../data/regions'
 import { MoreNav } from '../../components/layout/MoreNav'
 import { WhatsappSetting } from './WhatsappSetting'
+import { MeleeSetting } from './MeleeSetting'
+import { MeleeRecord } from './MeleeRecord'
+import { leerEnlaceMelee } from '../../services/meleeProfileService'
 
 /* ── Star Wars avatar options (images in /avatars/) ── */
 const swAvatars = [
@@ -119,6 +122,21 @@ export function ProfilePage() {
   const [stats, setStats] = useState({ matches: 0, tournaments: 0, decks: 0, favorites: 0 })
   const [passkeySupported, setPasskeySupported] = useState(false)
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null)
+  /** Enlace a melee. Se lee acá y no dentro de MeleeRecord para que la
+   *  sección del historial ni siquiera se monte si nadie enlazó nada. */
+  const [melee, setMelee] = useState<{ usuario: string | null; verificado: boolean }>(
+    { usuario: null, verificado: false },
+  )
+
+  useEffect(() => {
+    // Sin sesión no se limpia con un `setState` acá: eso es un render en
+    // cascada dentro del efecto. La sección ya está condicionada a
+    // `auth.supabaseUser`, así que un valor viejo no se dibuja igual.
+    if (!supabaseUser) return
+    let vivo = true
+    void leerEnlaceMelee(supabaseUser.id).then(r => { if (vivo) setMelee(r) })
+    return () => { vivo = false }
+  }, [supabaseUser])
 
   // Register state
   const [regName, setRegName] = useState('')
@@ -1062,6 +1080,13 @@ export function ProfilePage() {
           )
         })}
       </div>
+
+      {/* Los torneos de melee: primero el historial si ya está enlazado, y
+          después el campo para enlazarlo o cambiarlo. */}
+      {auth.supabaseUser && melee.usuario && (
+        <MeleeRecord usuario={melee.usuario} verificado={melee.verificado} esPropio />
+      )}
+      {auth.supabaseUser && <MeleeSetting userId={auth.supabaseUser.id} />}
 
       {/* Compartir el WhatsApp es opcional y reversible. */}
       {auth.supabaseUser && <WhatsappSetting userId={auth.supabaseUser.id} />}

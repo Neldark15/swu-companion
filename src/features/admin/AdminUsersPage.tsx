@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Search, ShieldCheck, ShieldOff, Loader2, ExternalLink, Users as UsersIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { marcarVerificado } from '../../services/meleeProfileService'
 import { getAllUsers, updateUserRole, type AdminUserRow } from '../../services/adminService'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -10,6 +11,7 @@ export function AdminUsersPage() {
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [verificando, setVerificando] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'admin' | 'user'>('all')
 
   const refresh = async () => {
@@ -18,6 +20,25 @@ export function AdminUsersPage() {
     setLoading(false)
   }
   useEffect(() => { refresh() }, [])
+
+  // Melee no ofrece ninguna forma de comprobar que una cuenta sea de quien la
+  // enlaza: su perfil público no tiene ni biografía donde poner un código. Así
+  // que la insignia es confirmación humana, y el aviso lo dice.
+  const toggleVerificado = async (u: AdminUserRow) => {
+    const marcar = !u.melee_verified
+    if (marcar && !confirm(
+      `¿Confirmás que la cuenta de melee «${u.melee_username}» es de ${u.name}?\n\n`
+      + 'Melee no permite comprobarlo automáticamente, así que esto es tu palabra.',
+    )) return
+    setVerificando(u.id)
+    const r = await marcarVerificado(u.id, marcar)
+    if (r.ok) {
+      setUsers(prev => prev.map(x => x.id === u.id ? { ...x, melee_verified: marcar } : x))
+    } else {
+      alert(`Error: ${r.error ?? 'No se pudo cambiar la verificación'}`)
+    }
+    setVerificando(null)
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -100,6 +121,7 @@ export function AdminUsersPage() {
                 <tr>
                   <th className="px-3 py-2 text-left">Usuario</th>
                   <th className="px-3 py-2 text-left">Rol</th>
+                  <th className="px-3 py-2 text-left">Melee</th>
                   <th className="px-3 py-2 text-right">Nivel</th>
                   <th className="px-3 py-2 text-right">XP</th>
                   <th className="px-3 py-2 text-right">W/L</th>
@@ -130,6 +152,40 @@ export function AdminUsersPage() {
                         </span>
                       ) : (
                         <span className="text-[10px] text-swu-muted">user</span>
+                      )}
+                    </td>
+                    {/* Melee no ofrece NINGUNA forma de comprobar que una
+                        cuenta sea de quien la enlaza —su perfil público no
+                        tiene ni biografía donde poner un código—, así que la
+                        insignia es confirmación humana: la das vos cuando te
+                        consta que esa persona es ese jugador. */}
+                    <td className="px-3 py-2">
+                      {u.melee_username ? (
+                        <div className="flex items-center gap-1.5">
+                          <a
+                            href={`https://melee.gg/Profile/Index/${encodeURIComponent(u.melee_username)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] text-swu-cyan hover:underline font-mono truncate max-w-[110px]"
+                            title="Abrir el perfil en melee.gg para confirmar"
+                          >
+                            @{u.melee_username}
+                          </a>
+                          <button
+                            onClick={() => void toggleVerificado(u)}
+                            disabled={verificando === u.id}
+                            title={u.melee_verified ? 'Quitar la verificación' : 'Confirmar que esta cuenta es suya'}
+                            className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full border transition-colors disabled:opacity-40 ${
+                              u.melee_verified
+                                ? 'text-swu-green border-swu-green/40 bg-swu-green/10'
+                                : 'text-swu-muted border-swu-border hover:border-swu-green/40'
+                            }`}
+                          >
+                            {u.melee_verified ? 'verificado' : 'verificar'}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-swu-muted/50">—</span>
                       )}
                     </td>
                     <td className="px-3 py-2 text-right font-mono">{u.level}</td>

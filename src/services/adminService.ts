@@ -20,6 +20,10 @@ export interface AdminUserRow {
   avatar: string
   email?: string
   role: 'user' | 'admin'
+  /** Cuenta de melee.gg enlazada, si la hay. */
+  melee_username: string | null
+  /** Un admin confirmó que esa cuenta es de esta persona. */
+  melee_verified: boolean
   country: string | null
   created_at: string | null
   // Joined from player_stats
@@ -102,7 +106,7 @@ export async function getAllUsers(): Promise<AdminUserRow[]> {
 
   const { data: profiles, error } = await supabase
     .from('profiles')
-    .select('id, name, avatar, role, settings, created_at')
+    .select('id, name, avatar, role, settings, created_at, melee_username, melee_verified')
     .order('created_at', { ascending: false })
 
   if (error || !profiles) return []
@@ -131,6 +135,8 @@ export async function getAllUsers(): Promise<AdminUserRow[]> {
       name: p.name ?? 'Jugador',
       avatar: p.avatar ?? 'darth-vader',
       role: (p.role as 'user' | 'admin') ?? 'user',
+      melee_username: (p as { melee_username?: string | null }).melee_username ?? null,
+      melee_verified: !!(p as { melee_verified?: boolean }).melee_verified,
       country: (settings.country as string) || null,
       created_at: p.created_at,
       xp: s?.xp ?? 0,
@@ -149,10 +155,18 @@ export async function updateUserRole(
 ): Promise<{ ok: boolean; error?: string }> {
   if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
 
-  const { error } = await supabase
-    .from('profiles')
-    .update({ role })
-    .eq('id', userId)
+  // Va por una función del servidor y NO por un update directo.
+  //
+  // El update directo NUNCA funcionó para cambiar el rol de otra persona: la
+  // única política de UPDATE de `profiles` es `auth.uid() = id`, así que
+  // afectaba 0 filas, PostgREST devolvía éxito, `error` venía null y esta
+  // pantalla decía «listo» sin haber cambiado nada. Y lo único que sí escribía
+  // era la propia fila, que era una escalada de privilegios: cualquiera podía
+  // hacerse admin. La columna ya no es escribible desde el cliente.
+  const { error } = await supabase.rpc('set_user_role', {
+    objetivo: userId,
+    nuevo_rol: role,
+  })
 
   if (error) return { ok: false, error: error.message }
 

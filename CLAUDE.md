@@ -271,6 +271,31 @@ Exigir `N/M` dejaba fuera las 2.095 Hyperspace y sus Foil. `parseCodigo` acepta 
 
 **El bucle NO espera al OCR.** Estuvo gateado en `motor === 'listo'`, así que el escáner quedaba inerte durante toda la descarga de tesseract sin razón: el arte no lo usa. Son dos ritmos, 450 ms el arte y 2,5 s mínimo entre OCR.
 
+### 2n. Melee: qué se toma, qué NO, y por qué el puesto solo miente
+
+El historial de torneos del perfil sale de melee.gg por [api/melee-profile.ts](api/melee-profile.ts). Todo esto está **medido contra su servidor**, no supuesto:
+
+- El endpoint es `POST /Profile/GetResults/{usuario}`, un DataTables del lado del servidor. Es **completamente público**: responde sin una sola cookie. Pero **sin el juego COMPLETO de las 7 columnas devuelve 500**.
+- Su `robots.txt` permite `/Profile/` y **prohíbe** `/Decklist/View/`, `/Decklist/Index/` y todos los `/Tournament/Search*`. Los mazos se **enlazan, nunca se descargan**. Si alguna vez hace falta su contenido, se pide permiso primero.
+- Pide `Crawl-Delay: 5`. Se respeta con un mínimo real de 5 s entre descargas salientes, además del cubo de tokens y la caché de CDN.
+- **El User-Agent tiene que empezar con `Mozilla`.** Medido: `swu-companion/1.0 (+url)` → 403; `Mozilla/5.0 (compatible; swu-companion/1.0; +url)` → 200. Su filtro solo mira ese prefijo; no bloquea robots identificados a propósito. Se usa el formato estándar de robot bien portado —el mismo de Googlebot—, que sigue diciendo quiénes somos. **No cambiarlo por un UA de navegador inventado.**
+- **Un usuario inexistente devuelve `200` con lista vacía**, igual que uno que nunca jugó. Y `/Profile/Index/{quien-sea}` devuelve **200 con una página de error** («Oops! Something Went Wrong»), así que el código de estado tampoco sirve. Se distingue por el campo oculto `User_UserName`, que la página real lleva y la de error no.
+- Se filtra a `StarWarsUnlimited`: melee aloja muchos juegos y mezclar el Magic de alguien con su SWU haría que los agregados no signifiquen nada.
+
+**El puesto, solo, miente.** Un puesto 399 en el Galactic Open es 399 de 1022 —mejor que media sala— y un puesto 3 en un Weekly Play puede ser 3 de 4. Toda la UI muestra siempre «puesto **de N**» más un percentil, y cuando la fuente no dice cuántos jugaron **no se inventa un percentil**: se deja el puesto y se calla.
+
+**No hay forma de verificar de quién es una cuenta.** El perfil público de melee no expone ningún campo editable —ni biografía ni descripción, solo el usuario— así que no hay dónde poner un código de confirmación. Por eso `profiles.melee_verified` lo pone un admin a mano vía `set_melee_verified()`, la columna **no es escribible desde el cliente**, y la interfaz dice «sin verificar» en vez de dar la propiedad por cierta. Cambiar de usuario baja la insignia (disparador `trg_melee_username_cambio`).
+
+### 2o. `profiles`: `role` NO es escribible desde el cliente
+
+Había una escalada de privilegios: `UPDATE` estaba concedido a nivel de **tabla** —y un grant de tabla cubre todas las columnas, presentes y futuras, ver 2j— con la única política `USING (auth.uid() = id)` y sin `WITH CHECK`. Cualquiera logueado podía correr `update({ role: 'admin' }).eq('id', miId)` y quedar admin: crear torneos, mandar push a toda la comunidad y editar sedes.
+
+Ahora `authenticated` tiene una **lista explícita** de columnas actualizables que **excluye `role` y `melee_verified`**, y `anon` no tiene `UPDATE` (con RLS nunca podría escribir nada, así que era riesgo sin uso). Ver [melee-profile-link-and-role-lockdown.sql](supabase/migrations/melee-profile-link-and-role-lockdown.sql).
+
+**Si se agrega una columna que el cliente deba escribir, hay que añadirla a ese `grant update (...)`** o fallará con «permission denied for table profiles».
+
+Efecto secundario que también estaba roto: la pantalla de administración cambiaba roles con un update directo que, por esa misma política `auth.uid() = id`, afectaba **0 filas** al tocar la fila de otro. PostgREST devuelve éxito con 0 filas, `error` venía null y la UI decía «listo» sin cambiar nada. Ahora va por `set_user_role()`, que comprueba admin del lado del servidor, impide cambiarse el rol a uno mismo y no deja quitar al último admin.
+
 ### 2f. supabase-js NO lanza excepción ante error de PostgREST
 `const { data } = await supabase...` sin mirar `error` deja `data` en `null`, el `try/catch` nunca se activa y el fallo se ve igual que "no hay datos". Así estuvo **100% muerta** la caché de precios en la nube (0 filas de por vida): la tabla tenía 6 columnas y el código leía 9. Siempre desestructurar `error`.
 

@@ -24,6 +24,7 @@ import { statsFromSnake, getPublicDecks, type PublicDeck } from '../../services/
 import { GiftIcon } from '../../components/icons/GiftIcon'
 import { DeckVisualViewer } from './DeckVisualViewer'
 import { ProfileFrame } from '../profile/components/ProfileFrame'
+import { MeleeRecordDeUsuario } from '../profile/MeleeRecord'
 
 const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
 
@@ -178,6 +179,14 @@ export function SpyProfilePage() {
               )}
             </div>
           </div>
+
+          {/* Sus torneos oficiales. Va antes de las estadísticas internas
+              porque un récord real de melee pesa más que el XP de la app. */}
+          {userId && (
+            <div className="mt-4">
+              <MeleeRecordDeUsuario userId={userId} />
+            </div>
+          )}
 
           {/* Quick stats */}
           {playerStats && (
