@@ -296,6 +296,21 @@ Ahora `authenticated` tiene una **lista explícita** de columnas actualizables q
 
 Efecto secundario que también estaba roto: la pantalla de administración cambiaba roles con un update directo que, por esa misma política `auth.uid() = id`, afectaba **0 filas** al tocar la fila de otro. PostgREST devuelve éxito con 0 filas, `error` venía null y la UI decía «listo» sin cambiar nada. Ahora va por `set_user_role()`, que comprueba admin del lado del servidor, impide cambiarse el rol a uno mismo y no deja quitar al último admin.
 
+### 2p. Meta nacional: la ingesta de melee y sus trampas, todas medidas
+
+La pestaña «SV» de `/meta` sale de tablas propias (`meta_tournaments`, `meta_standings`) que llena [api/meta-ingesta.ts](api/meta-ingesta.ts) — cron cada 6 h (`vercel.json`, protegido con `CRON_SECRET`) o a mano desde la vista. El descubrimiento parte de los `profiles.melee_username` enlazados: **un jugador enlazado abre el torneo completo** (16 en la sala → 16 arquetipos).
+
+Reglas que no se pueden relajar sin re-medir:
+
+- **`/Standing/GetRoundStandings` topa `length` en 500 exactos y recorta EN SILENCIO** (`length=2000` devuelve 500, byte a byte igual). Se pagina por `start` avanzando por lo que VINO (`desde += crudas`), no por lo pedido.
+- **La ronda final es el último `.round-selector` de `#standings-round-selector-container`** — hay un SEGUNDO contenedor (`pairings-…`) que duplica ids. `roundId` **no es monotónico** (Round 11 = 1420227 > Finals = 1419188): ordenar por id da el campeón equivocado. Tampoco por `Points`: en playoffs el campeón puede tener menos puntos que el segundo. `Rank` es la única verdad, y es único **por ronda** — por eso la PK de `meta_standings` lleva `round_id`.
+- **Hay torneos que melee reconoce pero cuya clasificación NO publica**: el LCQ 2026 declara 1.486 jugadores y 8 rondas cerradas y devuelve `recordsTotal: 0`. Eso es `SinClasificacion` → `descartado` en la cola, NO se reintenta y NO se marca `listo`. Con `total = 0`, `desde >= total` es `0 >= 0`: sin ese caso aparte, el torneo quedaba archivado como ingerido con cero filas.
+- **El Crawl-Delay de 5 s es COMPARTIDO en la base** (`meta_fetch_lease` + RPC `meta_tomar_turno`/`meta_devolver_turno`): cada archivo de `api/` es una lambda con su propio estado de módulo, así que dos relojes en memoria le pegarían a melee cada 2,5 s. `melee-profile.ts` también toma ese turno (con su reloj viejo de respaldo si la RPC falla).
+- **El arquetipo se parsea en el CLIENTE** ([meleeArchetype.ts](src/services/meleeArchetype.ts)) desde `decklist_name`; el servidor guarda el nombre crudo. Partir por `" - "` con los DOS espacios (9 cartas llevan guion pegado); el lado derecho se busca ENTERO — cortar la coma de `Nevarro City, Restored` da OTRA carta real. 13.860/13.860 combinaciones verificadas; ante duda devuelve `null`, y los `null` se CUENTAN (contador visible «listas sin arquetipo»): un 0 ahí con muestra grande delata un parser roto, no un éxito.
+- **`ux_profiles_melee_username`** (único, sobre `lower()`): nadie puede reclamar el usuario de melee de otro — el cruce de «Los nuestros» es por nombre, así que reclamar el nombre era reclamar el historial. El 23505 se traduce en `guardarUsuarioMelee`.
+- **Bajo quórum (20 listas) o con datos parciales NO se muestran porcentajes.** Conteos y «de N», siempre.
+- La cola (`meta_ingest_queue`) y el turno tienen **RLS activa y CERO policies** a propósito: solo entra `service_role`. `intentos` se incrementa al RECLAMAR y se devuelve si la fila vuelve intacta; el único corte es el barrido SQL en `intentos >= 5`.
+
 ### 2f. supabase-js NO lanza excepción ante error de PostgREST
 `const { data } = await supabase...` sin mirar `error` deja `data` en `null`, el `try/catch` nunca se activa y el fallo se ve igual que "no hay datos". Así estuvo **100% muerta** la caché de precios en la nube (0 filas de por vida): la tabla tenía 6 columnas y el código leía 9. Siempre desestructurar `error`.
 
