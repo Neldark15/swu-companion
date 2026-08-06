@@ -449,7 +449,7 @@ input:focus, textarea:focus, select:focus {
  * ───────────────────────────────────────────────────────────── */
 
 @utility carta3d-sola {
-  animation: carta-vaiven 7s ease-in-out infinite;
+  animation: carta-vaiven 5.5s ease-in-out infinite;
 }
 
 /* El desfase evita que todas se muevan al mismo tiempo, que se ve mecánico. */
@@ -457,11 +457,20 @@ input:focus, textarea:focus, select:focus {
 @utility carta3d-sola-c { animation-delay: -3.4s; }
 @utility carta3d-sola-d { animation-delay: -5.1s; }
 
+/* Los valores pasan de 1 a propósito.
+ *
+ * El ángulo sale de `px × intensidad × activo`, y con `activo` en 0,55 —que
+ * es lo que mantiene el brillo suave— un `px` de 0,55 daba 3,6 GRADOS: seis
+ * píxeles de recorrido en toda la vuelta. Medido, y era invisible.
+ *
+ * Al tocar la carta el puntero limita `px` a ±1; acá no hay puntero, así que
+ * se puede pasar de ese rango para compensar la amortiguación y llegar a un
+ * balanceo que de verdad se vea. */
 @keyframes carta-vaiven {
-  0%, 100% { --px: -0.55; --py: -0.30; }
-  25%      { --px:  0.40; --py: -0.50; }
-  50%      { --px:  0.55; --py:  0.30; }
-  75%      { --px: -0.40; --py:  0.50; }
+  0%, 100% { --px: -1.30; --py: -0.70; }
+  25%      { --px:  0.95; --py: -1.20; }
+  50%      { --px:  1.30; --py:  0.70; }
+  75%      { --px: -0.95; --py:  1.20; }
 }
 
 /* Para que los ángulos se puedan animar hay que registrar las variables: sin
