@@ -22,6 +22,16 @@
  *
  * Esa última es la razón de ser del blog: un análisis de mazo sin las cartas a
  * la vista obliga a ir a buscarlas a otra pantalla y se pierde el hilo.
+ *
+ * Y tres bloques de datos para los análisis con números (la sintaxis y el
+ * porqué viven en BloquesEstadisticos.tsx):
+ *
+ *     [[barras: Título]]   ← winrates en barras horizontales
+ *     [[curva: Título]]    ← curva de coste en barras verticales
+ *     [[ficha: Título]]    ← rejilla de etiqueta:valor
+ *
+ * Un bloque que no parsea se muestra como texto plano —igual que si esta
+ * sintaxis no existiera—, así que ningún artículo viejo puede romperse.
  */
 
 import { useState, useEffect, type ReactNode } from 'react'
@@ -29,6 +39,8 @@ import { CardImage } from '../../components/CardImage'
 import { Carta3D } from '../../components/Carta3D'
 import { CardPreviewSheet } from '../../components/CardPreviewSheet'
 import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
+import { BloqueEstadistico } from './BloquesEstadisticos'
+import { parsearBloqueEstadistico, type TipoBloqueEstadistico } from './sintaxisEstadistica'
 import type { Card } from '../../types'
 
 /** Solo http(s). Un `javascript:` en un enlace es ejecución de código. */
@@ -65,7 +77,9 @@ function inline(texto: string, clave: string): ReactNode[] {
     if (m) {
       const href = urlSegura(m[2])
       if (!href) return <span key={k}>{m[1]}</span>
-      const externo = !href.startsWith(window.location.origin)
+      // Por ORIGEN real, no por prefijo: `https://swusv.com.evil.example`
+      // empieza con nuestro origen como string pero es otro dominio.
+      const externo = new URL(href).origin !== window.location.origin
       return (
         <a
           key={k}
@@ -143,7 +157,11 @@ function CartaIncrustada(
 
       if (!vivo) return
       setCarta(elegida ?? 'no-esta')
-    })()
+    })().catch(() => {
+      // Sin red con la base vacía, o IndexedDB bloqueado (navegación privada
+      // de Firefox): degradar al nombre, no dejar el esqueleto para siempre.
+      if (vivo) setCarta('no-esta')
+    })
     return () => { vivo = false }
   }, [nombre, set])
 
@@ -213,6 +231,21 @@ export function Articulo({ contenido }: { contenido: string }) {
   let parrafo: string[] = []
   let lista: { orden: boolean; items: string[] } | null = null
 
+  /**
+   * Bloque estadístico a medio capturar. `crudas` guarda las líneas TAL CUAL
+   * (marcador incluido): si al cerrar el bloque el contenido no parsea, esas
+   * líneas vuelven al párrafo y se leen como texto plano — exactamente lo que
+   * este parser hacía con ellas antes de conocer la sintaxis. Así un error de
+   * formato se VE en la vista previa en vez de tragarse medio artículo.
+   */
+  let stats: {
+    tipo: TipoBloqueEstadistico
+    titulo: string | null
+    fuente: string | null
+    lineas: string[]
+    crudas: string[]
+  } | null = null
+
   const cerrarParrafo = (i: number) => {
     if (parrafo.length === 0) return
     bloques.push(
@@ -239,10 +272,45 @@ export function Articulo({ contenido }: { contenido: string }) {
     lista = null
   }
 
+  const cerrarStats = (i: number) => {
+    if (!stats) return
+    const datos = parsearBloqueEstadistico(stats.tipo, stats.lineas)
+    if (datos) {
+      bloques.push(
+        <BloqueEstadistico key={`be${i}`} titulo={stats.titulo} fuente={stats.fuente} datos={datos} />,
+      )
+    } else parrafo.push(...stats.crudas)
+    stats = null
+  }
+
   lineas.forEach((linea, i) => {
     const l = linea.trim()
 
+    // Dentro de un bloque estadístico TODA línea es dato, sin importar a qué
+    // otra sintaxis se parezca; solo la línea en blanco lo cierra.
+    if (stats) {
+      if (l === '') { cerrarStats(i); cerrarParrafo(i); cerrarLista(i); return }
+      stats.crudas.push(l)
+      const f = /^fuente\s*:\s*(.+)$/i.exec(l)
+      if (f) stats.fuente = f[1].trim()
+      else stats.lineas.push(l)
+      return
+    }
+
     if (l === '') { cerrarParrafo(i); cerrarLista(i); return }
+
+    const be = /^\[\[(barras|curva|ficha)(?::([^\]]*))?\]\]$/.exec(l)
+    if (be) {
+      cerrarParrafo(i); cerrarLista(i)
+      stats = {
+        tipo: be[1] as TipoBloqueEstadistico,
+        titulo: be[2]?.trim() || null,
+        fuente: null,
+        lineas: [],
+        crudas: [l],
+      }
+      return
+    }
 
     if (/^---+$/.test(l)) {
       cerrarParrafo(i); cerrarLista(i)
@@ -307,6 +375,7 @@ export function Articulo({ contenido }: { contenido: string }) {
     cerrarLista(i)
     parrafo.push(l)
   })
+  cerrarStats(lineas.length)
   cerrarParrafo(lineas.length)
   cerrarLista(lineas.length)
 

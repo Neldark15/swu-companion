@@ -35,7 +35,31 @@ const AYUDA = `# Título grande
 [texto del enlace](https://…)
 ![pie de la imagen](https://…)
 
-[[carta:Bo-Katan Kryze]]   ← incrusta la carta`
+[[carta:Bo-Katan Kryze]]   ← incrusta la carta
+[[carta:Cad Bane|ASH-11]]  ← una impresión concreta
+
+─ Bloques de datos ─
+Cada bloque termina en la línea en blanco.
+El título tras «:» y la línea «fuente:» son opcionales.
+
+[[barras: Winrate contra el meta]]
+Cad Bane — campeón: 79.7
+Lando Calrissian: 37.7
+fuente: 600 partidas por rival, SWUSIM
+↑ barras horizontales: ≥80 ámbar, <50 rojo
+
+[[curva: Curva de coste]]
+1:3 2:15 3:20 4:12 5:9 6:2
+↑ barras verticales, pares coste:cantidad
+
+[[ficha: El mazo en números]]
+Unidades: 57
+Con Restore: 5 · Vida de base: 33
+↑ rejilla de etiqueta:valor (vale · o | para
+poner varios en una línea)
+
+Si un bloque no cumple el formato se muestra
+como texto plano: se ve el error, no se rompe.`
 
 export function BlogEditorPage() {
   const { id } = useParams<{ id: string }>()
