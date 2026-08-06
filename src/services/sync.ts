@@ -647,13 +647,19 @@ export async function pullAllFromCloud(userId: string, localProfileId: string) {
         await db.profiles.put(updated)
       }
 
-      // Restore settings to localStorage if cloud has them
+      // Restore settings if cloud has them and this device hasn't made its
+      // own choices yet. NO se escribe el JSON crudo a localStorage: el store
+      // ya rehidrató con defaults, así que eso no se aplicaba hasta recargar
+      // y el primer ajuste tocado subía los defaults pisando la nube. Se pasa
+      // por aplicarSettingsDeNube (validado, campo por campo): setState aplica
+      // al instante y persist escribe el localStorage solo.
       if (cloudProfile.settings && typeof cloudProfile.settings === 'object') {
         const settings = cloudProfile.settings as Record<string, unknown>
         if (Object.keys(settings).length > 0) {
           const existing = localStorage.getItem('swu-settings')
           if (!existing || existing === '{}') {
-            localStorage.setItem('swu-settings', JSON.stringify({ state: settings, version: 0 }))
+            const { aplicarSettingsDeNube } = await import('../hooks/useSettings')
+            aplicarSettingsDeNube(settings)
             console.log('[Sync] Restored settings from cloud')
           }
         }

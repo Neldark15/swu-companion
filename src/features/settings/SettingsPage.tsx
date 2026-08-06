@@ -1,16 +1,136 @@
-import { useState } from 'react'
-import { ChevronLeft, Palette, Type, Vibrate, MessageSquare, Shield, Info, Smartphone, Check, KeyRound, Eye, EyeOff, Zap } from 'lucide-react'
+/**
+ * SettingsPage — la configuración, organizada por lo que cada control TOCA:
+ *
+ * - «Apariencia»: lo que repinta la app entera (acento + tema de fondo).
+ * - «Tarjeta de jugador»: lo que solo vive en la tarjeta (tinte del nombre y
+ *   el sable de la barra de XP), con la tarjeta REAL montada arriba como
+ *   vista previa — la gracia de personalizar es ver el cambio, no imaginarlo.
+ * - «Marco del avatar»: los 7 marcos que se ganan por nivel. Los no ganados
+ *   se ven atenuados con candado y su «Nv. X»: verlos es el incentivo.
+ *
+ * Cada control aplica al instante: los setters de useSettings persisten en
+ * localStorage y sincronizan a la nube solos, así que acá no hay botón de
+ * guardar ni estado intermedio que se pueda desincronizar.
+ */
+
+import { useState, useEffect } from 'react'
+import {
+  ChevronLeft, Palette, Type, Vibrate, MessageSquare, Shield, Info,
+  Smartphone, Check, KeyRound, Eye, EyeOff, Zap, Layers, Brush, Frame, Lock,
+} from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useSettings, ACCENT_COLORS, ACCENT_LABELS, SABER_COLORS } from '../../hooks/useSettings'
 import type { AccentColor, SaberColor } from '../../hooks/useSettings'
+import {
+  TEMAS_FONDO, TINTES_TARJETA, ORDEN_TINTES, MARCOS,
+  marcoGanado, resolverMarco, esTemaFondo, esTinteTarjeta,
+} from '../../services/personalizacion'
+import type { MarcoPerfil } from '../../services/personalizacion'
 import { useAuth } from '../../hooks/useAuth'
+import { db } from '../../services/db'
+import { calculateLevel, type PlayerStats } from '../../services/gamification'
+import { TarjetaJugador } from '../profile/TarjetaJugador'
 import { PushNotificationToggle } from './components/PushNotificationToggle'
+
+/**
+ * El swatch de 'auto' no es un color: es «el color de tu RANGO decide».
+ * Se pinta como una vuelta por los colores reales de los 7 rangos (los de
+ * RANKS en gamification.ts, en orden; el último repite el primero para
+ * cerrar el cónico), para que se entienda que va cambiando con vos.
+ * OJO: son colores de rango, no de marco — el marco 'auto' tiene su propio
+ * swatch (la MiniMarco del más alto ganado) y su paleta es otra.
+ */
+const GRADIENTE_AUTO =
+  'conic-gradient(from 45deg, #9CA3AF, #60A5FA, #4ADE80, #FACC15, #FBBF24, #FCD34D, #FDE047, #9CA3AF)'
+
+/** Las cuatro esquinas decorativas de los marcos ricos, como clases de posición. */
+const ESQUINAS_MINI = [
+  '-top-0.5 -left-0.5', '-top-0.5 -right-0.5',
+  '-bottom-0.5 -left-0.5', '-bottom-0.5 -right-0.5',
+]
+
+/**
+ * Miniatura CUADRADA de un marco para la cuadrícula del picker. Es un boceto
+ * del marco real (borde, glow estático, esquinas), no el marco entero: acá
+ * solo hace falta distinguirlos y ver cuál está elegido.
+ *
+ * El pulso de los marcos animados va con animate-pulse, que solo anima
+ * opacidad — nada de filter/blur (doctrina del repo: teléfonos de gama baja).
+ */
+function MiniMarco({ marco, activo, ganado }: { marco: MarcoPerfil; activo: boolean; ganado: boolean }) {
+  return (
+    <div
+      className="relative w-12 h-12 rounded-xl flex items-center justify-center bg-swu-bg"
+      style={{
+        border: `2px solid ${marco.borde}`,
+        boxShadow: activo
+          ? `0 0 0 2px var(--color-swu-surface), 0 0 0 4px var(--color-swu-accent), 0 0 10px ${marco.brillo}40`
+          : `0 0 10px ${marco.brillo}40`,
+      }}
+    >
+      {marco.esquinas && ESQUINAS_MINI.map((pos) => (
+        <span
+          key={pos}
+          className={`absolute ${pos} w-1.5 h-1.5 rounded-[2px]`}
+          style={{ backgroundColor: marco.brillo }}
+        />
+      ))}
+      {marco.animado && (
+        <span
+          className="absolute inset-0.5 rounded-[9px] animate-pulse motion-reduce:animate-none pointer-events-none"
+          style={{ border: `1px solid ${marco.brillo}` }}
+        />
+      )}
+      {/* El candado dice «todavía no» sin depender del color (atenuado). */}
+      {!ganado
+        ? <Lock size={14} className="text-swu-muted" aria-label="Bloqueado" />
+        : activo && <Check size={16} className="text-swu-text" strokeWidth={3} />}
+    </div>
+  )
+}
 
 export function SettingsPage() {
   const navigate = useNavigate()
-  const { accentColor, setAccentColor, fontSize, setFontSize, hapticFeedback, toggleHaptic, saberColor, setSaberColor } = useSettings()
+  const {
+    accentColor, setAccentColor, fontSize, setFontSize, hapticFeedback, toggleHaptic,
+    saberColor, setSaberColor,
+    temaFondo, setTemaFondo, tinteTarjeta, setTinteTarjeta, marcoElegido, setMarcoElegido,
+  } = useSettings()
   const auth = useAuth()
   const [showAbout, setShowAbout] = useState(false)
+
+  // ── Stats reales para la vista previa y el nivel de los marcos ──
+  // Mismo camino que HomePage: la fila de playerStats en Dexie. Sin stats el
+  // nivel es 1 — solo el primer marco ganado, que es la verdad de una cuenta
+  // que recién empieza.
+  const [statsJugador, setStatsJugador] = useState<PlayerStats | null>(null)
+  useEffect(() => {
+    if (!auth.currentProfile) return
+    let vivo = true
+    db.playerStats.get(auth.currentProfile.id)
+      .then((s) => { if (vivo && s) setStatsJugador(s) })
+      .catch(() => {})
+    return () => { vivo = false }
+  }, [auth.currentProfile])
+
+  const nivel = statsJugador ? calculateLevel(statsJugador.xp).level : 1
+
+  // Los pickers marcan siempre lo EFECTIVO, no lo guardado: si el valor
+  // guardado está corrupto (localStorage editado, datos viejos), la app se
+  // comporta como con el default — el picker tiene que marcar ESE default,
+  // no quedarse sin ninguna opción activa. Misma regla que ya tenía el de
+  // marcos, extendida a tema y tinte.
+  const temaActivo = esTemaFondo(temaFondo) ? temaFondo : 'holocron'
+  const tinteActivo = esTinteTarjeta(tinteTarjeta) ? tinteTarjeta : 'auto'
+
+  // El marco que la cuadrícula marca como activo. Si lo guardado no está
+  // ganado (datos viejos), lo efectivo es 'auto' — misma regla que
+  // resolverMarco, para que el picker no marque algo que no se muestra.
+  const marcoActivo = marcoElegido !== 'auto' && marcoGanado(marcoElegido, nivel)
+    ? marcoElegido
+    : 'auto'
+  /** Lo que 'auto' significa HOY para este nivel: el más alto ganado. */
+  const marcoAuto = resolverMarco('auto', nivel)
 
   // Change password state
   const [showChangePassword, setShowChangePassword] = useState(false)
@@ -48,7 +168,7 @@ export function SettingsPage() {
         <PushNotificationToggle />
       </div>
 
-      {/* Appearance */}
+      {/* ── Apariencia: lo que repinta la app ENTERA ── */}
       <div>
         <p className="text-[10px] text-swu-muted uppercase tracking-wider font-bold mb-2 px-1">Apariencia</p>
         <div className="bg-swu-surface rounded-2xl overflow-hidden">
@@ -90,7 +210,151 @@ export function SettingsPage() {
             </div>
           </div>
 
-          {/* Saber Color Picker */}
+          {/* ── Tema de fondo ──
+              Cada tarjetita se pinta con los colores REALES del tema (bg
+              afuera, surface adentro, dos líneas falsas de texto): un mini
+              boceto de la app, no un nombre que hay que creerse. Al tocar,
+              setTemaFondo repinta la app entera al instante — esa es la
+              gracia: verla cambiar debajo del dedo. */}
+          <div className="border-t border-swu-border/30 p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <Layers size={20} className="text-swu-accent" />
+              <span className="text-sm font-medium text-swu-text">Tema de fondo</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {TEMAS_FONDO.map((tema) => {
+                const activo = temaActivo === tema.id
+                return (
+                  <button
+                    key={tema.id}
+                    onClick={() => setTemaFondo(tema.id)}
+                    className="flex flex-col items-center gap-1.5"
+                  >
+                    <div
+                      className={`relative w-full h-12 rounded-lg p-1.5 transition-all duration-200 ${
+                        activo ? 'ring-2 ring-swu-accent' : 'opacity-80 hover:opacity-100'
+                      }`}
+                      style={{ backgroundColor: tema.bg, border: `1px solid ${tema.border}` }}
+                    >
+                      <div
+                        className="h-full rounded-md px-1.5 py-1 space-y-1"
+                        style={{ backgroundColor: tema.surface }}
+                      >
+                        {/* Dos «líneas de texto» con los colores reales de texto y muted. */}
+                        <div className="h-1 w-3/4 rounded-full" style={{ backgroundColor: '#E2E8F0', opacity: 0.85 }} />
+                        <div className="h-1 w-1/2 rounded-full" style={{ backgroundColor: '#7C8BA1' }} />
+                      </div>
+                      {activo && (
+                        <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-swu-accent flex items-center justify-center">
+                          <Check size={10} className="text-white" strokeWidth={4} />
+                        </span>
+                      )}
+                    </div>
+                    <span className={`text-[9px] font-mono tracking-wide ${
+                      activo ? 'text-swu-text font-bold' : 'text-swu-muted'
+                    }`}>
+                      {tema.etiqueta}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="border-t border-swu-border/30 p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Type size={20} className="text-swu-muted" />
+              <span className="text-sm font-medium text-swu-text">Tamaño de fuente</span>
+            </div>
+            <div className="flex gap-1">
+              {(['sm', 'md', 'lg', 'xl'] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setFontSize(s)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                    fontSize === s ? 'bg-swu-accent text-white' : 'bg-swu-bg text-swu-muted neu-inset'
+                  }`}
+                >
+                  {s.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="border-t border-swu-border/30 p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Vibrate size={20} className="text-swu-muted" />
+              <span className="text-sm font-medium text-swu-text">Haptic feedback</span>
+            </div>
+            <button
+              onClick={toggleHaptic}
+              className={`w-12 h-7 rounded-full transition-colors ${hapticFeedback ? 'bg-swu-accent' : 'bg-swu-bg neu-inset'}`}
+            >
+              <div className={`w-5 h-5 bg-white rounded-full transition-transform mx-1 ${hapticFeedback ? 'translate-x-5' : ''}`} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Tarjeta de jugador: tinte del nombre/rango + sable ── */}
+      <div>
+        <p className="text-[10px] text-swu-muted uppercase tracking-wider font-bold mb-2 px-1">Tarjeta de jugador</p>
+        <div className="bg-swu-surface rounded-2xl overflow-hidden">
+          {/* Vista previa EN VIVO: la misma TarjetaJugador del inicio y el
+              perfil, con el perfil y las stats reales. Los pickers de abajo
+              escriben en useSettings y la tarjeta lee de ahí, así que cada
+              toque se ve acá arriba sin cablear nada. */}
+          {auth.currentProfile && (
+            <div className="p-4 border-b border-swu-border/30">
+              <TarjetaJugador perfil={auth.currentProfile} stats={statsJugador} />
+            </div>
+          )}
+
+          {/* Tinte del nombre y el rango */}
+          <div className="p-4">
+            <div className="flex items-center gap-3 mb-1">
+              <Brush size={20} className="text-swu-accent" />
+              <span className="text-sm font-medium text-swu-text">Tinte del nombre</span>
+            </div>
+            <p className="text-[10px] text-swu-muted mb-3 pl-8">
+              Auto: el color de tu rango decide.
+            </p>
+            <div className="flex gap-2 justify-center flex-wrap">
+              {ORDEN_TINTES.map((id) => {
+                const tinte = id === 'auto' ? null : TINTES_TARJETA[id]
+                const activo = tinteActivo === id
+                return (
+                  <button
+                    key={id}
+                    onClick={() => setTinteTarjeta(id)}
+                    className="flex flex-col items-center gap-1"
+                  >
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${
+                        activo ? 'scale-110' : 'opacity-70 hover:opacity-100'
+                      }`}
+                      style={{
+                        background: tinte
+                          ? `radial-gradient(circle, ${tinte.nucleo} 40%, ${tinte.brillo} 100%)`
+                          : GRADIENTE_AUTO,
+                        boxShadow: activo
+                          ? `0 0 16px ${tinte ? tinte.nucleo : 'var(--color-swu-accent)'}, 0 0 0 2px var(--color-swu-surface), 0 0 0 4px ${tinte ? tinte.nucleo : 'var(--color-swu-accent)'}`
+                          : tinte ? `0 0 8px ${tinte.nucleo}30` : 'var(--neu-shadow-sm)',
+                      }}
+                    >
+                      {activo && <Check size={16} className="text-white" strokeWidth={3} style={{ filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.5))' }} />}
+                    </div>
+                    <span className={`text-[9px] font-mono ${activo ? 'text-swu-text font-bold' : 'text-swu-muted'}`}>
+                      {tinte ? tinte.etiqueta : 'Auto'}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Saber Color Picker — vive acá porque el sable ES parte de la
+              tarjeta (la barra de XP), no de la app entera. */}
           <div className="border-t border-swu-border/30 p-4">
             <div className="flex items-center gap-3 mb-3">
               <Zap size={20} className="text-swu-accent" />
@@ -133,38 +397,61 @@ export function SettingsPage() {
               />
             </div>
           </div>
+        </div>
+      </div>
 
-          <div className="border-t border-swu-border/30 p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Type size={20} className="text-swu-muted" />
-              <span className="text-sm font-medium text-swu-text">Tamaño de fuente</span>
+      {/* ── Marco del avatar: uno por rango, ganado es ganado ── */}
+      <div>
+        <p className="text-[10px] text-swu-muted uppercase tracking-wider font-bold mb-2 px-1">Marco del avatar</p>
+        <div className="bg-swu-surface rounded-2xl overflow-hidden">
+          <div className="p-4">
+            <div className="flex items-center gap-3 mb-1">
+              <Frame size={20} className="text-swu-accent" />
+              <span className="text-sm font-medium text-swu-text">Marco de la fotografía</span>
             </div>
-            <div className="flex gap-1">
-              {(['sm', 'md', 'lg', 'xl'] as const).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setFontSize(s)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
-                    fontSize === s ? 'bg-swu-accent text-white' : 'bg-swu-bg text-swu-muted neu-inset'
-                  }`}
-                >
-                  {s.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
+            <p className="text-[10px] text-swu-muted mb-3 pl-8">
+              Se ganan subiendo de nivel y no se pierden: elegí cualquiera que ya
+              hayas alcanzado. Tu nivel: {nivel}.
+            </p>
+            <div className="grid grid-cols-4 gap-3 justify-items-center">
+              {/* 'Auto' primero: muestra lo que significa HOY (el más alto
+                  ganado), no un dibujo genérico. */}
+              <button
+                onClick={() => setMarcoElegido('auto')}
+                className="flex flex-col items-center gap-1"
+              >
+                <MiniMarco marco={marcoAuto} activo={marcoActivo === 'auto'} ganado />
+                <span className={`text-[9px] font-mono text-center leading-tight ${
+                  marcoActivo === 'auto' ? 'text-swu-text font-bold' : 'text-swu-muted'
+                }`}>
+                  Auto
+                </span>
+              </button>
 
-          <div className="border-t border-swu-border/30 p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Vibrate size={20} className="text-swu-muted" />
-              <span className="text-sm font-medium text-swu-text">Haptic feedback</span>
+              {MARCOS.map((marco) => {
+                const ganado = marcoGanado(marco.id, nivel)
+                const activo = marcoActivo === marco.id
+                return (
+                  <button
+                    key={marco.id}
+                    onClick={() => ganado && setMarcoElegido(marco.id)}
+                    disabled={!ganado}
+                    className={`flex flex-col items-center gap-1 ${ganado ? '' : 'opacity-40 cursor-not-allowed'}`}
+                    aria-label={ganado ? marco.nombre : `${marco.nombre} — se gana en el nivel ${marco.minLevel}`}
+                  >
+                    <MiniMarco marco={marco} activo={activo} ganado={ganado} />
+                    <span className={`text-[9px] font-mono text-center leading-tight ${
+                      activo ? 'text-swu-text font-bold' : 'text-swu-muted'
+                    }`}>
+                      {marco.nombre}
+                    </span>
+                    {!ganado && (
+                      <span className="text-[8px] text-swu-muted font-mono">Nv. {marco.minLevel}</span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
-            <button
-              onClick={toggleHaptic}
-              className={`w-12 h-7 rounded-full transition-colors ${hapticFeedback ? 'bg-swu-accent' : 'bg-swu-bg neu-inset'}`}
-            >
-              <div className={`w-5 h-5 bg-white rounded-full transition-transform mx-1 ${hapticFeedback ? 'translate-x-5' : ''}`} />
-            </button>
           </div>
         </div>
       </div>

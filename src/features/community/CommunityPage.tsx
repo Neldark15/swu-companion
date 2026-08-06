@@ -39,10 +39,12 @@ const swAvatarIds = [
 
 function MemberAvatar({ avatar, level, size = 40 }: { avatar: string; level?: number; size?: number }) {
   return (
+    // Marco 'auto' por nivel: la elección de marco de otra persona no está
+    // disponible en esta lista. La foto ya no es redonda: el marco recorta.
     <ProfileFrame level={level ?? 1} size={size + 16}>
       <div className="w-full h-full flex items-center justify-center bg-swu-bg overflow-hidden">
         {avatar.startsWith('data:image/')
-          ? <img src={avatar} alt="" className="w-full h-full object-cover rounded-full" />
+          ? <img src={avatar} alt="" className="w-full h-full object-cover" />
           : swAvatarIds.includes(avatar)
             ? <img src={`/avatars/${avatar}.png`} alt="" className="object-contain" style={{ width: size * 0.75, height: size * 0.75 }} />
             : <span style={{ fontSize: size * 0.5 }}>{avatar}</span>

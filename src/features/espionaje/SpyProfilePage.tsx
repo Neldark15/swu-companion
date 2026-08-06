@@ -147,10 +147,13 @@ export function SpyProfilePage() {
         {/* Player card */}
         <div className="bg-swu-surface rounded-2xl border border-swu-border p-5">
           <div className="flex items-center gap-4">
+            {/* Marco 'auto' por nivel: la elección ajena no viaja hasta acá,
+                y adivinarla sería mentir. La foto ya no es redonda: el marco
+                recorta al cuadrado. */}
             <ProfileFrame level={levelInfo?.level ?? 1} size={64}>
               <div className="w-full h-full flex items-center justify-center text-3xl bg-swu-bg">
                 {isPhotoAvatar(profile.avatar)
-                  ? <img src={profile.avatar} alt="" className="w-full h-full object-cover rounded-full" />
+                  ? <img src={profile.avatar} alt="" className="w-full h-full object-cover" />
                   : swAvatarIds.includes(profile.avatar)
                     ? <img src={`/avatars/${profile.avatar}.png`} alt="" className="w-12 h-12 object-contain" />
                     : <span>{profile.avatar}</span>

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { db } from '../../services/db'
 import { useAuth } from '../../hooks/useAuth'
+import { useSettings } from '../../hooks/useSettings'
 import { PersonalizarPerfil } from './PersonalizarPerfil'
 import { syncStatsToCloud } from '../../services/sync'
 import { isPasskeyReady } from '../../services/crypto'
@@ -47,7 +48,10 @@ function AvatarDisplay({ avatar, size = 'md' }: { avatar: string; size?: 'sm' | 
       <img
         src={src}
         alt={isPhotoAvatar(avatar) ? 'Foto de perfil' : avatar}
-        className={`${sizeClasses[size]} ${isPhotoAvatar(avatar) ? 'object-cover rounded-full' : 'object-contain'}`}
+        // Las fotos ya no llevan `rounded-full`: siempre viven dentro de un
+        // ProfileFrame, que ahora recorta al cuadrado del marco (el registro
+        // solo ofrece íconos, así que ahí nunca hay foto).
+        className={`${sizeClasses[size]} ${isPhotoAvatar(avatar) ? 'object-cover' : 'object-contain'}`}
       />
     )
   }
@@ -97,6 +101,9 @@ function BackButton({ to, label, onIr }: { to: View; label?: string; onIr: (v: V
 }
 
 export function ProfilePage() {
+  // El marco que la persona ELIGIÓ en Ajustes: es SU perfil, así que acá sí
+  // se pasa al ProfileFrame (en perfiles ajenos se queda el 'auto' por nivel).
+  const marcoElegido = useSettings((s) => s.marcoElegido)
   const navigate = useNavigate()
   const auth = useAuth()
   const { currentProfile, profiles, loadProfiles, logout, supabaseUser } = auth
@@ -733,7 +740,7 @@ export function ProfilePage() {
         <BackButton to="profile" onIr={setView} />
         <div className="text-center">
           <div className="flex justify-center mb-2">
-            <ProfileFrame level={customizeLevelInfo?.level || 1} size={88}>
+            <ProfileFrame level={customizeLevelInfo?.level || 1} size={88} marcoId={marcoElegido}>
               <div className="w-full h-full flex items-center justify-center overflow-hidden">
                 <AvatarDisplay avatar={customAvatar} size="xl" />
               </div>
@@ -953,7 +960,7 @@ export function ProfilePage() {
       {/* Header with level frame */}
       <div className="bg-gradient-to-br from-swu-accent/15 to-amber-500/10 rounded-2xl p-4 border border-swu-accent/20">
         <div className="flex items-center gap-3 mb-3">
-          <ProfileFrame level={levelInfo?.level || 1} size={72}>
+          <ProfileFrame level={levelInfo?.level || 1} size={72} marcoId={marcoElegido}>
             <div className="w-full h-full flex items-center justify-center overflow-hidden">
               <AvatarDisplay avatar={currentProfile?.avatar || 'darth-vader'} size="lg" />
             </div>

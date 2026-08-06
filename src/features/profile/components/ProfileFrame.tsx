@@ -1,202 +1,104 @@
 /**
- * ProfileFrame — Animated level-based frame around the user avatar.
- * Each rank tier gets a progressively fancier frame with different colors and effects.
+ * ProfileFrame — el marco de la fotografía: cuadrado, y GANADO por nivel.
+ *
+ * El dibujo ya no vive acá: sale del catálogo MARCOS de personalizacion.ts,
+ * el mismo que consume Ajustes para el picker. Este componente solo resuelve
+ * QUÉ marco corresponde y lo pinta.
+ *
+ * - Sin `marcoId` (o con uno inválido o no ganado) se cae a 'auto': el marco
+ *   más alto que el nivel ya alcanzó — la conducta de siempre. Por eso los
+ *   usos existentes no necesitan pasar nada nuevo.
+ * - Con `marcoId` ganado se respeta la elección: ganado es ganado, aunque
+ *   el nivel haya subido más.
+ *
+ * ── Rendimiento (esto se pinta en LISTAS: comunidad, espionaje) ──────────
+ *
+ * Nada de filter/blur ni sombras animadas. El glow es un box-shadow ESTÁTICO
+ * —se pinta una vez y no vuelve a costar—, y las únicas animaciones, solo en
+ * los marcos altos (raros en una lista), tocan transform/opacity: la
+ * respiración es `animate-pulse` (opacity) y el eco del marco máximo un
+ * `animate-ping` lento (scale+opacity). Con `prefers-reduced-motion` se
+ * quedan quietas. El marco además tiene NOMBRE: acá va en `title` (tooltip
+ * de escritorio; en táctil no aparece) y en Ajustes el nombre es texto
+ * visible bajo cada miniatura — el color nunca es el único portador de
+ * significado.
  */
+
+import type { ReactNode } from 'react'
+import { esMarcoElegido, resolverMarco } from '../../../services/personalizacion'
 
 interface ProfileFrameProps {
   level: number
-  children: React.ReactNode
+  children: ReactNode
   size?: number
+  /**
+   * El marco ELEGIDO por la persona (normalmente `marcoElegido` de
+   * useSettings). Llega como string porque puede venir de datos guardados:
+   * acá se valida, y `resolverMarco` ya se encarga de caer a 'auto' si la
+   * elección no está ganada.
+   */
+  marcoId?: string
 }
 
-/** Get frame config based on level */
-function getFrameConfig(level: number) {
-  if (level <= 3) return {
-    // Iniciado — simple thin gray ring
-    borderWidth: 2,
-    colors: ['#6B7280', '#9CA3AF'],
-    glow: 'none',
-    animate: false,
-    corners: false,
-    double: false,
-    tier: 0,
-  }
-  if (level <= 6) return {
-    // Cadete — blue ring with subtle glow
-    borderWidth: 3,
-    colors: ['#3B82F6', '#60A5FA'],
-    glow: '0 0 8px rgba(59,130,246,0.4)',
-    animate: false,
-    corners: false,
-    double: false,
-    tier: 1,
-  }
-  if (level <= 10) return {
-    // Estratega — green ring with glow + pulse
-    borderWidth: 3,
-    colors: ['#22C55E', '#4ADE80'],
-    glow: '0 0 12px rgba(34,197,94,0.5)',
-    animate: true,
-    corners: false,
-    double: false,
-    tier: 2,
-  }
-  if (level <= 15) return {
-    // Comandante — gold double ring with corners
-    borderWidth: 3,
-    colors: ['#EAB308', '#FACC15', '#F59E0B'],
-    glow: '0 0 16px rgba(234,179,8,0.5)',
-    animate: true,
-    corners: true,
-    double: true,
-    tier: 3,
-  }
-  if (level <= 20) return {
-    // Guardián Kyber — amber with rotating gradient + sparks
-    borderWidth: 4,
-    colors: ['#F59E0B', '#D97706', '#FBBF24'],
-    glow: '0 0 20px rgba(245,158,11,0.6), 0 0 40px rgba(245,158,11,0.2)',
-    animate: true,
-    corners: true,
-    double: true,
-    tier: 4,
-  }
-  if (level <= 25) return {
-    // Maestro del Holocrón — bright gold with complex border
-    borderWidth: 4,
-    colors: ['#FCD34D', '#F59E0B', '#EF4444', '#FCD34D'],
-    glow: '0 0 24px rgba(252,211,77,0.6), 0 0 48px rgba(252,211,77,0.2)',
-    animate: true,
-    corners: true,
-    double: true,
-    tier: 5,
-  }
-  // Gran Maestro Galáctico — legendary rainbow shimmer
-  return {
-    borderWidth: 4,
-    colors: ['#FDE047', '#F97316', '#EF4444', '#A855F7', '#3B82F6', '#22C55E', '#FDE047'],
-    glow: '0 0 30px rgba(253,224,71,0.5), 0 0 60px rgba(168,85,247,0.3)',
-    animate: true,
-    corners: true,
-    double: true,
-    tier: 6,
-  }
-}
+export function ProfileFrame({ level, children, size = 80, marcoId }: ProfileFrameProps) {
+  const marco = resolverMarco(esMarcoElegido(marcoId) ? marcoId : 'auto', level)
 
-export function ProfileFrame({ level, children, size = 80 }: ProfileFrameProps) {
-  const config = getFrameConfig(level)
-  const outerSize = size + config.borderWidth * 2 + (config.double ? 8 : 4)
-  const gradientId = `frame-grad-${level}`
-  const animDuration = config.tier >= 6 ? '3s' : config.tier >= 4 ? '4s' : '6s'
+  // Los marcos con esquinas llevan borde más grueso; el glow estático solo
+  // aparece de ahí hacia arriba y crece con el tier.
+  const grosor = marco.esquinas ? 3 : 2
+  const exterior = size + grosor * 2
+  const glow = marco.animado
+    ? `0 0 14px ${marco.brillo}66`
+    : marco.esquinas
+      ? `0 0 9px ${marco.brillo}44`
+      : undefined
 
   return (
     <div
-      className="relative inline-flex items-center justify-center"
-      style={{ width: outerSize, height: outerSize }}
+      className="relative inline-flex items-center justify-center rounded-xl"
+      style={{
+        width: exterior,
+        height: exterior,
+        padding: grosor,
+        // El gradiente ES el borde: el hijo opaco deja ver solo el anillo.
+        background: `linear-gradient(135deg, ${marco.borde}, ${marco.brillo}, ${marco.borde})`,
+        boxShadow: glow,
+      }}
+      title={`Marco «${marco.nombre}»`}
     >
-      {/* SVG Frame */}
-      <svg
-        className="absolute inset-0"
-        viewBox={`0 0 ${outerSize} ${outerSize}`}
-        fill="none"
-        style={{ filter: config.glow !== 'none' ? `drop-shadow(${config.glow.split(',')[0]})` : undefined }}
-      >
-        <defs>
-          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-            {config.colors.map((c, i) => (
-              <stop key={i} offset={`${(i / (config.colors.length - 1)) * 100}%`} stopColor={c}>
-                {config.animate && (
-                  <animate
-                    attributeName="stop-color"
-                    values={`${c};${config.colors[(i + 1) % config.colors.length]};${c}`}
-                    dur={animDuration}
-                    repeatCount="indefinite"
-                  />
-                )}
-              </stop>
-            ))}
-          </linearGradient>
-        </defs>
-
-        {/* Outer ring (double border) */}
-        {config.double && (
-          <circle
-            cx={outerSize / 2}
-            cy={outerSize / 2}
-            r={outerSize / 2 - 1}
-            stroke={`url(#${gradientId})`}
-            strokeWidth={1.5}
-            opacity={0.5}
-          />
-        )}
-
-        {/* Main ring */}
-        <circle
-          cx={outerSize / 2}
-          cy={outerSize / 2}
-          r={outerSize / 2 - (config.double ? 5 : 2)}
-          stroke={`url(#${gradientId})`}
-          strokeWidth={config.borderWidth}
-        >
-          {config.animate && config.tier >= 4 && (
-            <animate
-              attributeName="stroke-dashoffset"
-              from="0"
-              to={`${Math.PI * outerSize}`}
-              dur="20s"
-              repeatCount="indefinite"
-            />
-          )}
-        </circle>
-
-        {/* Corner accents */}
-        {config.corners && (
-          <>
-            {[0, 90, 180, 270].map((angle) => {
-              const rad = (angle * Math.PI) / 180
-              const cx = outerSize / 2 + (outerSize / 2 - 2) * Math.cos(rad)
-              const cy = outerSize / 2 + (outerSize / 2 - 2) * Math.sin(rad)
-              return (
-                <circle
-                  key={angle}
-                  cx={cx}
-                  cy={cy}
-                  r={config.tier >= 5 ? 3 : 2}
-                  fill={config.colors[0]}
-                  opacity={0.9}
-                >
-                  {config.animate && (
-                    <animate
-                      attributeName="opacity"
-                      values="0.4;1;0.4"
-                      dur="2s"
-                      begin={`${angle / 360}s`}
-                      repeatCount="indefinite"
-                    />
-                  )}
-                </circle>
-              )
-            })}
-          </>
-        )}
-      </svg>
-
-      {/* Avatar content */}
+      {/* La foto/ícono, recortada al cuadrado siguiendo el radio del marco */}
       <div
-        className="relative rounded-full overflow-hidden bg-swu-bg z-10"
+        className="relative rounded-[10px] overflow-hidden bg-swu-bg z-10"
         style={{ width: size, height: size }}
       >
         {children}
       </div>
 
-      {/* Pulse animation for high tiers */}
-      {config.animate && config.tier >= 2 && (
+      {/* Esquinas dobles decorativas de los marcos altos — estáticas */}
+      {marco.esquinas && (
+        <>
+          <span aria-hidden className="absolute -top-px -left-px w-2.5 h-2.5 border-t-2 border-l-2 rounded-tl-xl" style={{ borderColor: marco.brillo }} />
+          <span aria-hidden className="absolute -top-px -right-px w-2.5 h-2.5 border-t-2 border-r-2 rounded-tr-xl" style={{ borderColor: marco.brillo }} />
+          <span aria-hidden className="absolute -bottom-px -left-px w-2.5 h-2.5 border-b-2 border-l-2 rounded-bl-xl" style={{ borderColor: marco.brillo }} />
+          <span aria-hidden className="absolute -bottom-px -right-px w-2.5 h-2.5 border-b-2 border-r-2 rounded-br-xl" style={{ borderColor: marco.brillo }} />
+        </>
+      )}
+
+      {/* Respiración sutil de los marcos altos — SOLO opacity */}
+      {marco.animado && (
         <div
-          className="absolute inset-0 rounded-full animate-ping opacity-10"
-          style={{
-            border: `2px solid ${config.colors[0]}`,
-            animationDuration: '3s',
-          }}
+          aria-hidden
+          className="absolute inset-0 rounded-xl border-2 animate-pulse motion-reduce:animate-none pointer-events-none"
+          style={{ borderColor: `${marco.brillo}55` }}
+        />
+      )}
+
+      {/* El eco expansivo queda reservado al marco máximo — transform+opacity */}
+      {marco.id === 'galactico' && (
+        <div
+          aria-hidden
+          className="absolute inset-0 rounded-xl border-2 animate-ping motion-reduce:animate-none opacity-10 pointer-events-none"
+          style={{ borderColor: marco.brillo, animationDuration: '3s' }}
         />
       )}
     </div>
