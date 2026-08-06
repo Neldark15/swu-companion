@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button'
 import { Chip, type ChipTone } from '../../components/ui/Chip'
 import { SegmentedControl } from '../../components/ui/SegmentedControl'
 import { CardImage } from '../../components/CardImage'
+import { irA, posicion } from '../../services/scrollApp'
 import { VitrinaShowcase } from '../collection/VitrinaShowcase'
 import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import {
@@ -197,7 +198,7 @@ export function CardsPage() {
     const y = pendingScrollRef.current
     if (y === null) return
     pendingScrollRef.current = null
-    requestAnimationFrame(() => window.scrollTo(0, y))
+    requestAnimationFrame(() => irA(y))
   }, [])
 
   // Si la base de cartas cambió desde que se guardó la instantánea, los
@@ -373,7 +374,7 @@ export function CardsPage() {
   useEffect(() => {
     return () => {
       if (liveRef.current) {
-        _snapshot = { ...liveRef.current, scrollY: window.scrollY }
+        _snapshot = { ...liveRef.current, scrollY: posicion() }
       }
     }
   }, [])

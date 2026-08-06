@@ -57,6 +57,14 @@
   --neu-shadow-sm: 3px 3px 6px #111118, -3px -3px 6px #252535;
 }
 
+/* El documento NO se desplaza: el que scrollea es el `<main>` del caparazón.
+ * Sin esto, iOS deja «rebotar» la página entera y la barra del navegador
+ * aparece y desaparece, moviendo todo lo anclado abajo. */
+html, body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 html, body, #root {
   height: 100%;
   margin: 0;
@@ -524,4 +532,27 @@ input:focus, textarea:focus, select:focus {
 
 @media (prefers-reduced-motion: reduce) {
   .destello-luz { animation: none; opacity: 0; }
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+ * Campos de texto: 16px en pantallas táctiles
+ *
+ * iOS Safari hace zoom automáticamente al enfocar CUALQUIER campo cuya letra
+ * mida menos de 16px. No es un ajuste: es comportamiento fijo del sistema, y
+ * es lo que hace que la app «se sienta como navegador» — se acerca, y al
+ * salir del campo queda descuadrada.
+ *
+ * La salida habitual es poner `maximum-scale=1` en el viewport, pero eso
+ * DESACTIVA el pellizco para ampliar en toda la app: rompe la accesibilidad
+ * de quien necesita agrandar. Acá se sube la letra al mínimo que iOS acepta,
+ * y solo en dispositivos táctiles: en escritorio el diseño conserva sus
+ * tamaños chicos.
+ * ───────────────────────────────────────────────────────────── */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  textarea,
+  select {
+    font-size: 16px;
+  }
 }

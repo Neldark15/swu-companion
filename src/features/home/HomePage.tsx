@@ -23,6 +23,7 @@ import {
 } from '../../components/SWIcons'
 import { HudPanel, HudCorners, HexIcon } from '../../components/Hud'
 import { NoticiasSection } from './NoticiasSection'
+import { TiendaOficial } from './TiendaOficial'
 import { TarjetaJugador } from '../profile/TarjetaJugador'
 import { Carta3D } from '../../components/Carta3D'
 import { HUD_TEXTO, type HudTone } from '../../components/hudTones'
@@ -49,6 +50,9 @@ const mainSystems: Sistema[] = [
   { icon: CargoIcon,       label: 'Mi Botín',   tone: 'green',  to: '/collection', auth: true },
   { icon: DeckCardsIcon,   label: 'Mis Decks',           tone: 'green',  to: '/decks',      auth: true },
   { icon: BountyIcon,      label: 'Contrabando',  tone: 'red',    to: '/explore',    auth: true },
+  // Acceso directo al mercado: llegar a comprar/vender exigía entrar a
+  // Contrabando y después cambiar de pestaña.
+  { icon: CargoIcon,       label: 'Mercancía',  tone: 'amber',  to: '/explore?tab=market', auth: true },
   { icon: SpyIcon,         label: 'Espionaje',         tone: 'purple', to: '/espionaje',  auth: true },
   { icon: DeathStarIcon,   label: 'Misiones',       tone: 'amber',  to: '/misiones',   auth: true },
   { icon: BeskarIcon,      label: 'Consejo Jedi',   tone: 'amber',  to: '/rank',       auth: true },
@@ -229,6 +233,13 @@ export function HomePage() {
           Va DEBAJO de los módulos a propósito: quien abre la app viene a hacer
           algo —registrar un duelo, buscar una carta—, no a leer. Las noticias
           se encuentran al bajar, que es cuando uno tiene tiempo. */}
+      {/* La tienda oficial va ARRIBA de las noticias: para quien recién
+          llega, «dónde consigo las cartas acá» pesa más que cualquier
+          novedad del juego. */}
+      <div className="px-4 pt-6">
+        <TiendaOficial />
+      </div>
+
       <div className="px-4 pt-6">
         <NoticiasSection />
       </div>

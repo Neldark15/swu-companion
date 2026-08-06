@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'
 import { Header } from './Header'
 import { SideNav } from './SideNav'
 import { TabBar } from './TabBar'
+import { ID_SCROLL } from '../../services/scrollApp'
 import { UpdatePrompt } from '../UpdatePrompt'
 import { useAuth } from '../../hooks/useAuth'
 import { NotificationToast } from '../ui/NotificationToast'
@@ -23,7 +24,17 @@ export function AppLayout() {
   usePrefetchRoutes()
 
   return (
-    <div className="min-h-screen bg-swu-bg">
+    /* Caparazón de alto fijo que NO se desplaza.
+     *
+     * Antes el documento entero scrolleaba, y en el teléfono eso hace que la
+     * barra del navegador aparezca y desaparezca al desplazar: todo lo anclado
+     * abajo se movía con ella. Ahora el que scrollea es el `<main>` de adentro,
+     * la altura de la ventana nunca cambia, y la barra de navegación deja de
+     * ser `fixed` —es el último hijo del caparazón— así que no puede moverse.
+     *
+     * `dvh` y no `vh`: en móvil `100vh` mide la ventana SIN la barra del
+     * navegador, así que dejaba el último tramo fuera de la pantalla. */
+    <div className="h-[100dvh] flex flex-col overflow-hidden bg-swu-bg">
       {/* Global notification toast */}
       <NotificationToast />
 
@@ -37,13 +48,13 @@ export function AppLayout() {
       <SideNav />
 
       {/* Main content area */}
-      <div className="lg:ml-64 xl:ml-72">
-        {/* Mobile: constrained width. Desktop: full width with max */}
-        <div className="max-w-lg lg:max-w-full mx-auto min-h-screen relative">
+      {/* `min-h-0` es imprescindible: sin él, un hijo flexible no se deja
+          encoger por debajo de su contenido y el `overflow-y-auto` de dentro
+          nunca llega a scrollear. */}
+      <div className="flex-1 min-h-0 lg:ml-64 xl:ml-72">
+        <div className="max-w-lg lg:max-w-full mx-auto h-full flex flex-col relative">
           <Header />
-          {/* `pb-24` deja libre el alto de la barra inferior para que el último
-              elemento de cada pantalla no quede tapado en móvil. */}
-          <main className="pb-24 lg:pb-6 overflow-y-auto">
+          <main id={ID_SCROLL} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-6">
             <PageTransition>
               <Outlet />
             </PageTransition>

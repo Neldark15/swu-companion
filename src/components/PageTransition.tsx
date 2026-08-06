@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
+import { irArriba } from '../services/scrollApp'
 
 /**
  * PageTransition — lightweight wrapper that:
@@ -17,7 +18,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (pathname !== prevPath.current) {
       prevPath.current = pathname
-      window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
+      irArriba()
     }
   }, [pathname])
 

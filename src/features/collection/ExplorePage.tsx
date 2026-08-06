@@ -7,7 +7,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, Search, Users, Skull, Package, Eye, EyeOff, Tag,
   ShoppingBag, Loader2, RefreshCw, MessageCircle, Pencil} from 'lucide-react'
@@ -143,7 +143,13 @@ function mensajeVendedor(l: MarketplaceListing, card: Card | undefined): string 
 
 export function ExplorePage() {
   const navigate = useNavigate()
-  const [tab, setTab] = useState<Tab>('collections')
+  const [params] = useSearchParams()
+  // `?tab=market` abre directo en el mercado. Es el acceso directo de
+  // «Mercancía» desde Inicio: sin esto el enlace dejaba a la persona en
+  // Colecciones y había que cambiar de pestaña a mano.
+  const [tab, setTab] = useState<Tab>(
+    () => (params.get('tab') === 'market' ? 'market' : 'collections'),
+  )
 
   return (
     <div className="min-h-screen bg-swu-bg pb-8">
