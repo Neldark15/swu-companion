@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { Tag, DollarSign, Loader2, Minus, Plus } from 'lucide-react'
+import { Tag, DollarSign, Loader2, Minus, Plus, Users } from 'lucide-react'
 import { getPricesForCards } from '../../services/pricing'
 import type { MyListingSummary } from '../../services/collectionService'
 
@@ -174,6 +174,21 @@ export function SaleModal({
             />
             <p className="text-[10px] text-swu-muted/60 mt-0.5">{notes.length}/200</p>
           </div>
+
+          {/* Decirlo antes, no después. Publicar acá es un acto público: la
+              carta y el nombre quedan a la vista de toda la comunidad, y el
+              botón de escribirle al vendedor lleva su WhatsApp. Eso pasa
+              aunque el perfil esté en privado —vender y mostrar la colección
+              son dos permisos distintos—, así que si no se dice, alguien
+              podría publicar creyendo que su ajuste de privacidad lo cubre. */}
+          <p className="flex items-start gap-1.5 text-[10px] text-swu-muted leading-snug">
+            <Users size={11} className="text-swu-amber flex-shrink-0 mt-px" aria-hidden />
+            <span>
+              Lo que publiques lo ve <strong className="text-swu-text">toda la comunidad</strong> en
+              Contrabando, con tu nombre y tu WhatsApp para que te escriban. Podés quitarlo
+              cuando querás.
+            </span>
+          </p>
         </div>
 
         <div className="flex gap-2">
