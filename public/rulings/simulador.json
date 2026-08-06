@@ -1,0 +1,29 @@
+{
+  "fuente": "REGLAS.md del motor SWUSIM (~/Claude/swu-sim)",
+  "nota": "según REGLAS.md del motor; auditoría en curso",
+  "generado": "2026-08-06",
+  "mecanicas": {
+    "Ambush": { "estado": "modelada", "nota": "Las unidades entran exhaustas y no atacan la ronda que caen, salvo Ambush (REGLAS §3)." },
+    "Aspect": { "estado": "modelada", "nota": "La penalización de aspecto se calcula sobre la unión líder+base y se PAGA (REGLAS §4, hallazgo 17 de la auditoría)." },
+    "Bounty": { "estado": "no", "nota": "No declarada en REGLAS.md: las cartas con Bounty se juegan como cuerpos vainilla." },
+    "Capture": { "estado": "modelada", "nota": "Boca abajo bajo el captor, vuelve si el captor deja el juego y NO dispara When Defeated (REGLAS §11 y auditoría 5)." },
+    "Coordinate": { "estado": "no", "nota": "No declarada en REGLAS.md: se juega como cuerpo vainilla." },
+    "Disclose": { "estado": "no", "nota": "Declarada explícitamente fuera del motor (Disclose exacto, revelar iconos)." },
+    "Epic Action": { "estado": "modelada", "nota": "Despliegue de líder una sola vez por partida, entra listo; la excepción de Grogu está modelada (REGLAS §6)." },
+    "Experience": { "estado": "modelada", "nota": "Ficha +1/+1 que se pierde si la unidad deja el juego (REGLAS §9)." },
+    "Exploit": { "estado": "no", "nota": "Declarada explícitamente fuera del motor." },
+    "Grit": { "estado": "no", "nota": "No declarada en REGLAS.md: se juega como cuerpo vainilla." },
+    "Hidden": { "estado": "no", "nota": "No declarada en REGLAS.md: se juega como cuerpo vainilla." },
+    "Indirect Damage": { "estado": "modelada", "nota": "Ignora Sentinel y lo asigna el jugador dañado entre base y unidades (REGLAS §8, hallazgo 18)." },
+    "Overwhelm": { "estado": "modelada", "nota": "Exceso calculado sobre el HP RESTANTE, también sin Sentinel; un escudo que previene el daño lo anula (REGLAS §7, auditoría 3-4)." },
+    "Pilot": { "estado": "parcial", "nota": "El On Attack del piloto lo gana la nave y no el líder (hallazgo 20), pero la mecánica completa de pilotos no está declarada en REGLAS.md." },
+    "Plot": { "estado": "no", "nota": "Declarada explícitamente fuera del motor." },
+    "Raid": { "estado": "modelada", "nota": "+N de poder mientras ataca (REGLAS §7)." },
+    "Restore": { "estado": "modelada", "nota": "Cura N a tu base al atacar (REGLAS §7)." },
+    "Saboteur": { "estado": "modelada", "nota": "Ignora Sentinel de su arena y derrota los escudos del defensor (REGLAS §8)." },
+    "Sentinel": { "estado": "modelada", "nota": "Solo protege su propia arena; el texto recordatorio entre paréntesis no otorga la keyword (REGLAS §8, hallazgo 19)." },
+    "Shield": { "estado": "modelada", "nota": "Previene la instancia COMPLETA de daño, no 1 punto (REGLAS §9)." },
+    "Smuggle": { "estado": "no", "nota": "Declarada explícitamente fuera del motor." },
+    "Support": { "estado": "no", "nota": "No declarada en REGLAS.md: se juega como cuerpo vainilla." }
+  }
+}

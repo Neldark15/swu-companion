@@ -49,8 +49,55 @@ const TOPE_PARTIDAS: Record<string, number> = {
   gauntlet: 500,
 }
 
+/**
+ * Orígenes con permiso de CORS.
+ *
+ * Antes se reflejaba `req.headers.origin` tal cual, o sea CUALQUIER origen, con
+ * `Authorization` en la lista de cabeceras permitidas. La auth es Bearer y no
+ * cookie, así que un sitio ajeno no puede robar la sesión de nadie desde el
+ * navegador — el riesgo real era bajo. Pero la PWA llama a `/api/sim` desde su
+ * propio dominio y no necesita CORS para nada: reflejarlo todo era regalar
+ * superficie sin recibir nada a cambio.
+ */
+const ORIGENES = new Set([
+  'https://swusv.com',
+  'https://www.swusv.com',
+  'https://swu-companion-steel.vercel.app',
+  'http://localhost:5173',
+])
+
+function origenPermitido(origen: string | undefined): string | null {
+  if (!origen) return null
+  if (ORIGENES.has(origen)) return origen
+  // Los despliegues de vista previa de Vercel llevan dominio generado.
+  if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origen)) return origen
+  return null
+}
+
+/** Las líneas de `quita`/`mete`: "3x Nombre | Subtítulo". */
+const RX_LINEA_CAMBIO = /^\s*\d{1,2}\s*x\s+\S.*$/
+
+/**
+ * Saneado de `quita`/`mete`.
+ *
+ * Se recortaban a 12 elementos pero no se comprobaba que fueran cadenas: un
+ * array de objetos o de números viajaba tal cual al VPS, que hace `.match()`
+ * sobre ellos. Se filtra por forma, que es la que el simulador espera de todos
+ * modos, y se acota el largo.
+ */
+function limpiarCambios(v: unknown): string[] {
+  if (!Array.isArray(v)) return []
+  return v
+    .filter((x): x is string => typeof x === 'string' && x.length <= 120 && RX_LINEA_CAMBIO.test(x))
+    .slice(0, 12)
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*')
+  const origen = origenPermitido(req.headers.origin)
+  if (origen) {
+    res.setHeader('Access-Control-Allow-Origin', origen)
+    res.setHeader('Vary', 'Origin')
+  }
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
   res.setHeader('Cache-Control', 'no-store')
@@ -112,8 +159,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       if (action !== 'gauntlet' && body.rival != null) payload.rival = String(body.rival)
       if (action === 'probar') {
-        payload.quita = Array.isArray(body.quita) ? body.quita.slice(0, 12) : []
-        payload.mete = Array.isArray(body.mete) ? body.mete.slice(0, 12) : []
+        payload.quita = limpiarCambios(body.quita)
+        payload.mete = limpiarCambios(body.mete)
       }
       break
     }

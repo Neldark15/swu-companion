@@ -58,6 +58,25 @@ export interface ResultadoRival {
   lider: string
 }
 
+/**
+ * Un emparejamiento medido a fondo, CON su margen de error.
+ *
+ * Es la única respuesta del simulador que trae el error real de la medición,
+ * y por eso existe esta acción aparte: el guantelete corre 400 partidas por
+ * rival (±4,9 puntos) y no dice cuánto se equivoca. Verificado contra el
+ * servicio vivo: `{win: 45.9, margen95: 2.5, rondas: 7.1}`.
+ *
+ * `margen95` viaja siempre junto a `win` en la UI. Un win rate sin su margen
+ * es una opinión con formato de dato.
+ */
+export interface ResultadoSimular {
+  rival: string
+  win: number
+  /** Margen de error al 95 %, en puntos porcentuales. */
+  margen95: number
+  rondas: number
+}
+
 export interface EstadoTrabajo {
   estado: 'en cola' | 'corriendo' | 'listo' | 'error'
   hechos: number
@@ -114,8 +133,19 @@ export const simApi = {
   gauntlet: (mazo: MazoEnvio, partidas = 400) =>
     llamar<{ trabajo: string; total: number }>({ action: 'gauntlet', mazo, partidas }),
   trabajo: (id: string) => llamar<EstadoTrabajo>({ action: 'trabajo', id }),
-  probar: (mazo: MazoEnvio, quita: string[], mete: string[], partidas = 800) =>
+  /**
+   * Un solo emparejamiento, a fondo. El tope del proxy son 1500 partidas
+   * (`api/sim.ts`), que es lo que hace falta para que `margen95` baje a ~2,5.
+   */
+  simular: (mazo: MazoEnvio, rival: string, partidas = 1500) =>
+    llamar<ResultadoSimular>({ action: 'simular', mazo, rival, partidas }),
+  /**
+   * `rival` es opcional en el contrato del proxy —si no va, el simulador usa
+   * el suyo por defecto—, pero la UI SIEMPRE lo manda: un delta sin decir
+   * contra quién se midió no se puede repetir ni discutir.
+   */
+  probar: (mazo: MazoEnvio, quita: string[], mete: string[], partidas = 1000, rival?: string) =>
     llamar<{ antes: number; despues: number; delta: number; partidas: number }>(
-      { action: 'probar', mazo, quita, mete, partidas },
+      { action: 'probar', mazo, quita, mete, partidas, ...(rival ? { rival } : {}) },
     ),
 }
