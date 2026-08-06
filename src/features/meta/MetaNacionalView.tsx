@@ -62,6 +62,7 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { SegmentedControl, type SegmentOption } from '../../components/ui/SegmentedControl'
 import { CardImage } from '../../components/CardImage'
 import { getCardsByIds } from '../../services/swuApi'
+import { useAuth } from '../../hooks/useAuth'
 import type { Card } from '../../types'
 import {
   getMetaNacional, dispararIngesta, QUORUM,
@@ -323,6 +324,12 @@ function BotonEnlazar() {
 }
 
 export function MetaNacionalView() {
+  // Las tablas del meta se leen solo con sesión (RLS `to authenticated`): el
+  // dato es público en melee, pero el valor de haberlo juntado es de la
+  // comunidad. Para un visitante sin sesión el «permission denied» es lo
+  // ESPERADO, no un fallo — mostrarle un error rojo con un código de Postgres
+  // sería alarmar por algo que se arregla iniciando sesión. Se corta acá.
+  const { supabaseUser: sesion } = useAuth()
   const [ambito, setAmbito] = useState<AmbitoMeta>('aca')
   const [datos, setDatos] = useState<MetaNacional | null>(null)
   const [cartas, setCartas] = useState<Map<string, Card>>(new Map())
@@ -465,6 +472,26 @@ export function MetaNacionalView() {
     if (muestraChica) return `${base} Muestra chica: sin porcentajes.`
     return base
   })()
+
+  // Sin sesión no hay nada que consultar: el «permission denied» que daría la
+  // base es lo esperado, no un error que enseñar en rojo. Se invita, y ya.
+  if (!sesion) {
+    return (
+      <EmptyState
+        icon={<Flag size={28} aria-hidden />}
+        title="El meta salvadoreño"
+        hint="Los torneos y arquetipos de la comunidad se ven con sesión iniciada. Entrá y aparece todo."
+        action={
+          <Link
+            to="/profile"
+            className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-swu-cyan"
+          >
+            <Link2 size={13} aria-hidden /> Iniciar sesión
+          </Link>
+        }
+      />
+    )
+  }
 
   return (
     <>
