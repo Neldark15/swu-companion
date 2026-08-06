@@ -307,6 +307,9 @@ function MarketTab() {
   const { supabaseUser } = useAuth()
   /** La publicación propia que se está corrigiendo, si hay alguna. */
   const [editando, setEditando] = useState<MarketplaceListing | null>(null)
+  /** Mismo freno que la vitrina: cada carta suma una capa de mezcla, y con
+   *  cien a la vez el teléfono se queda sin memoria de GPU. */
+  const [tope, setTope] = useState(24)
   const [guardando, setGuardando] = useState(false)
 
   const [listings, setListings] = useState<MarketplaceListing[]>([])
@@ -443,7 +446,7 @@ function MarketTab() {
            mostrador. Antes era una fila de lista con una miniatura de 56px,
            donde lo que se veía era el texto y no la mercancía. */
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {filtered.map(l => {
+          {filtered.slice(0, tope).map(l => {
             const card = cards.get(l.cardId)
             const apaisada = listFaceIsLandscape(card)
             const esMia = !!supabaseUser && l.userId === supabaseUser.id
@@ -543,6 +546,16 @@ function MarketTab() {
             )
           })}
         </div>
+      )}
+
+      {!loading && filtered.length > tope && (
+        <button
+          onClick={() => setTope(t => t + 24)}
+          className="w-full py-3 rounded-xl bg-swu-surface border border-swu-border
+                     text-sm font-semibold text-swu-cyan active:scale-[0.99] transition-transform"
+        >
+          Ver {Math.min(24, filtered.length - tope)} más
+        </button>
       )}
 
     </div>

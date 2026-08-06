@@ -26,6 +26,9 @@ import { ensureCards } from '../../services/swuApi'
 import { compareCardsBySetNumber } from '../../services/cardSort'
 import type { Card } from '../../types'
 
+/** Cuántas cartas se agregan cada vez que se toca «ver más». */
+const PASO = 24
+
 /** Las impresiones cuyo acabado cambia con el ángulo. */
 const ACABADOS = ['Showcase', 'Standard Prestige', 'Serialized Prestige', 'Foil Prestige'] as const
 type Acabado = (typeof ACABADOS)[number] | 'todas'
@@ -44,6 +47,16 @@ export function VitrinaShowcase() {
   const [acabado, setAcabado] = useState<Acabado>('Showcase')
   const [q, setQ] = useState('')
   const [abierta, setAbierta] = useState<string | null>(null)
+  /**
+   * Cuántas se dibujan.
+   *
+   * Con «Todas» hay 819 impresiones. Dibujarlas de golpe creaba 819
+   * animaciones y —por las mezclas del brillo y el iris— más de mil capas
+   * compuestas a la vez: eso agota la memoria de la GPU de un teléfono, el
+   * navegador mata la pestaña y la app parece reiniciarse sola. Se dibujan de
+   * a tandas.
+   */
+  const [tope, setTope] = useState(PASO)
 
   useEffect(() => {
     let vivo = true
@@ -59,6 +72,10 @@ export function VitrinaShowcase() {
     })()
     return () => { vivo = false }
   }, [])
+
+  // Al cambiar de acabado o de búsqueda se vuelve a la primera tanda: si no,
+  // se quedaría mostrando 200 de una lista de 12.
+  useEffect(() => { setTope(PASO) }, [acabado, q])
 
   const visibles = useMemo(() => {
     const t = q.trim().toLowerCase()
@@ -143,11 +160,14 @@ export function VitrinaShowcase() {
         />
       ) : (
         <>
-          <p className="text-[10px] text-swu-muted font-mono">{visibles.length} cartas</p>
+          <p className="text-[10px] text-swu-muted font-mono">
+            {visibles.length} cartas
+            {visibles.length > tope && <> · mostrando {tope}</>}
+          </p>
           {/* Dos columnas: a cuatro por fila el arte extendido de una Showcase
               no se aprecia, que es justo para lo que existe esta pantalla. */}
           <div className="grid grid-cols-2 gap-3">
-            {visibles.map((c, i) => {
+            {visibles.slice(0, tope).map((c, i) => {
               // La vitrina muestra el FRENTE (`c.imageUrl`), y el frente de un
               // líder es APAISADO. Con `listFaceIsLandscape` —que responde por
               // la cara que se usa en las listas, o sea el reverso vertical—
@@ -164,7 +184,11 @@ export function VitrinaShowcase() {
                   {/* `sola` las hace inclinarse por su cuenta, desfasadas
                       entre sí. Una vitrina quieta es un catálogo; estas
                       impresiones existen porque cambian con el ángulo. */}
-                  <Carta3D brillo iridiscente intensidad={12} sola={i}>
+                  {/* Sin `iridiscente` acá a propósito: cada halo es una capa
+                      con mezcla `color-dodge`, la más cara que hay, y en una
+                      rejilla eso se multiplica por cada carta. El iris queda
+                      para la carta abierta, que es una sola. */}
+                  <Carta3D brillo intensidad={12} sola={i}>
                     <CardImage
                       src={c.imageUrl}
                       orientacion={apaisada ? 'apaisada' : 'vertical'}
@@ -183,6 +207,16 @@ export function VitrinaShowcase() {
               )
             })}
           </div>
+
+          {visibles.length > tope && (
+            <button
+              onClick={() => setTope(t => t + PASO)}
+              className="w-full py-3 rounded-xl bg-swu-surface border border-swu-border
+                         text-sm font-semibold text-swu-cyan active:scale-[0.99] transition-transform"
+            >
+              Ver {Math.min(PASO, visibles.length - tope)} más
+            </button>
+          )}
         </>
       )}
 
