@@ -137,7 +137,15 @@ export function HomePage() {
             <div className="relative flex items-center gap-3 px-3 py-3.5">
               <HudCorners tone="cyan" />
               <HexIcon tone="cyan" size={38}><Swords size={17} aria-hidden /></HexIcon>
-              <span className="flex-1 text-left text-[13px] font-extrabold text-white tracking-wide whitespace-nowrap">
+              {/* `min-w-0` y sin `nowrap`: era esto lo que empujaba la fila.
+                  Un ítem flex arranca en `min-width: auto`, o sea que no se
+                  deja encoger por debajo de su contenido; con el texto sin
+                  poder cortarse, «REGISTRAR DUELO» imponía su ancho intrínseco
+                  y la fila entera se pasaba del teléfono. Medido: a 320 px se
+                  salía 38 px y a 360 px, 10 px. Ahora parte en dos líneas en
+                  las pantallas angostas, que es preferible a recortar la
+                  acción principal de la pantalla de inicio. */}
+              <span className="flex-1 min-w-0 text-left text-[13px] font-extrabold text-white tracking-wide leading-tight">
                 REGISTRAR DUELO
               </span>
               <ChevronRight size={16} className="text-swu-cyan flex-shrink-0" aria-hidden />

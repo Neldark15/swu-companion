@@ -54,7 +54,18 @@ export function AppLayout() {
       <div className="flex-1 min-h-0 lg:ml-64 xl:ml-72">
         <div className="max-w-lg lg:max-w-full mx-auto h-full flex flex-col relative">
           <Header />
-          <main id={ID_SCROLL} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-6">
+          {/* `overflow-x-hidden` va explícito y NO es un parche.
+              Por especificación, `overflow-y: auto` con el eje X en `visible`
+              obliga a la X a computar `auto` también: el caparazón entero
+              quedaba pudiendo desplazarse de lado, y bastaban 10 px de más en
+              cualquier pantalla para que la app se sintiera suelta. Una lista
+              vertical no tiene por qué moverse en horizontal nunca.
+
+              Los carruseles de adentro (los filtros, la vitrina) siguen
+              andando: cada uno es su propio contenedor con `overflow-x-auto`,
+              y un ancestro recortado no le quita el scroll a un descendiente
+              que scrollea por su cuenta. */}
+          <main id={ID_SCROLL} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain pb-6">
             <PageTransition>
               <Outlet />
             </PageTransition>
