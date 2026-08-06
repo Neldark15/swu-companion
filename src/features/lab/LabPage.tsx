@@ -4,7 +4,7 @@
  * Manda un mazo al simulador del VPS (swusim: las 1 324 cartas del Premier
  * modeladas, reglamento oficial implementado) y lo enfrenta a los 22 mazos
  * reales del Galactic Championship 2026. Tres herramientas: el informe de
- * legalidad y sinergias, el guantelete contra todo el campo, y el probador
+ * legalidad y sinergias, la prueba contra todo el campo, y el probador
  * de cambios («quita esto, mete aquello, ¿gano o pierdo puntos?»).
  *
  * ── El encuadre no es decorativo ──────────────────────────────────────
@@ -106,7 +106,23 @@ export function LabPage() {
   const [validando, setValidando] = useState(false)
   const [trabajo, setTrabajo] = useState<EstadoTrabajo | null>(null)
   const [corriendo, setCorriendo] = useState(false)
-  const idTrabajo = useRef<string | null>(null)
+  /**
+   * El id del trabajo es ESTADO, no una `ref`, y esa diferencia era el bug.
+   *
+   * Antes vivía en un `useRef`. La secuencia real era: `setCorriendo(true)`
+   * provoca un render, el efecto del sondeo corre en ese commit —o sea ANTES
+   * de que la petición al simulador conteste—, encuentra el id todavía en
+   * `null` y se va por la puerta de atrás sin montar el intervalo. Cuando el
+   * id llegaba, asignarlo a una `ref` NO vuelve a disparar el efecto: nadie
+   * sondeaba nunca, `corriendo` se quedaba en `true` para siempre y el botón
+   * giraba sin mostrar nada. No era intermitente: fallaba en todas las
+   * corridas.
+   *
+   * Como estado, la llegada del id es lo que dispara el sondeo.
+   */
+  const [idTrabajo, setIdTrabajo] = useState<string | null>(null)
+  /** Sondeos seguidos que fallaron. Sirve para rendirse diciendo por qué. */
+  const fallosSeguidos = useRef(0)
 
   // ── probador de cambios ──
   const [quitaCarta, setQuitaCarta] = useState('')
@@ -150,12 +166,14 @@ export function LabPage() {
     }
   }, [armarMazo])
 
-  // ── guantelete con sondeo ──
+  // ── prueba contra el meta, con sondeo ──
   const lanzarGauntlet = useCallback(async () => {
-    setError(null); setTrabajo(null); setCorriendo(true)
+    setError(null); setTrabajo(null); setIdTrabajo(null); setCorriendo(true)
+    fallosSeguidos.current = 0
     try {
       const { trabajo: id } = await simApi.gauntlet(armarMazo(), 400)
-      idTrabajo.current = id
+      if (!id) throw new Error('El simulador no devolvió un número de trabajo.')
+      setIdTrabajo(id)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Fallo inesperado.')
       setCorriendo(false)
@@ -163,21 +181,53 @@ export function LabPage() {
   }, [armarMazo])
 
   useEffect(() => {
-    if (!corriendo || !idTrabajo.current) return
+    // `idTrabajo` está en las dependencias a propósito: es su LLEGADA la que
+    // arranca el sondeo. Con el id en una `ref` este efecto corría una sola
+    // vez, cuando todavía no existía, y no volvía a correr nunca.
+    if (!corriendo || !idTrabajo) return
+
+    /**
+     * Rendirse también es una respuesta.
+     *
+     * Un gauntlet de 22 rivales tarda entre 15 y 40 s según la carga del
+     * servidor. Cinco minutos es holgado de sobra; pasado eso, algo se rompió
+     * del otro lado y seguir girando es mentirle a quien mira. Sin este tope,
+     * un trabajo que muere en el simulador deja el botón en marcha para
+     * siempre — que es justo el síntoma que se está arreglando, por otra causa.
+     */
+    const limite = Date.now() + 5 * 60_000
+
     const timer = setInterval(async () => {
+      if (Date.now() > limite) {
+        setCorriendo(false)
+        setError('El simulador tardó más de 5 minutos. Probá de nuevo en un rato.')
+        return
+      }
       try {
-        const estado = await simApi.trabajo(idTrabajo.current as string)
+        const estado = await simApi.trabajo(idTrabajo)
+        fallosSeguidos.current = 0
         setTrabajo(estado)
         if (estado.estado === 'listo' || estado.estado === 'error') {
           setCorriendo(false)
-          if (estado.estado === 'error') setError(estado.error || 'El guantelete falló.')
+          if (estado.estado === 'error') setError(estado.error || 'La prueba falló.')
         }
-      } catch {
-        // un fallo de red en un sondeo no cancela el trabajo: se reintenta solo
+      } catch (e) {
+        // Un fallo suelto no cancela el trabajo —el simulador sigue trabajando
+        // aunque se corte un sondeo—, pero tragárselos TODOS en silencio deja
+        // la pantalla girando sin decir nada. A los cinco seguidos se admite.
+        fallosSeguidos.current += 1
+        if (fallosSeguidos.current >= 5) {
+          setCorriendo(false)
+          setError(
+            e instanceof Error
+              ? `Se perdió el contacto con el simulador: ${e.message}`
+              : 'Se perdió el contacto con el simulador.',
+          )
+        }
       }
     }, 2500)
     return () => clearInterval(timer)
-  }, [corriendo])
+  }, [corriendo, idTrabajo])
 
   const probar = useCallback(async () => {
     setError(null); setPrueba(null); setProbando(true)
@@ -322,16 +372,20 @@ export function LabPage() {
         </Seccion>
       )}
 
-      {/* ── 3 · guantelete ── */}
+      {/* ── 3 · prueba contra el meta ──
+          Se llamaba «Guantelete», traducción literal de *gauntlet*: en español
+          eso es el guante de la armadura, no la prueba. Nadie de la comunidad
+          iba a saber qué botón era ese. */}
       {informe && (
-        <Seccion titulo="Guantelete contra el meta" icono={<Swords size={16} />} tono="amber">
+        <Seccion titulo="Probar contra el meta" icono={<Swords size={16} />} tono="amber">
           {!trabajo && !corriendo && (
             <p className="text-xs text-swu-muted leading-relaxed">
-              22 emparejamientos × 400 partidas cada uno. Tarda alrededor de medio minuto.
+              Tu mazo contra los 22 del Galactic, 400 partidas contra cada uno.
+              Tarda alrededor de medio minuto.
             </p>
           )}
           <Button variant="primary" size="sm" block onClick={lanzarGauntlet} loading={corriendo && !trabajo}>
-            <Swords size={14} /> {listo ? 'Volver a correr' : 'Correr el guantelete'}
+            <Swords size={14} /> {listo ? 'Volver a probar' : 'Probar contra el meta'}
           </Button>
 
           {corriendo && trabajo && (
