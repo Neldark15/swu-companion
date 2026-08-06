@@ -259,6 +259,26 @@ class ErrorDeMelee extends Error {
 /** Se acabó el presupuesto. No es un fallo: es el corte limpio. */
 class ErrorDeTiempo extends Error {}
 
+/**
+ * Melee reconoce el torneo pero no publica su clasificación.
+ *
+ * Medido en producción con el Last Chance Qualifier 2026 (id 403891): la vista
+ * del torneo declara **1.486 jugadores** y **8 rondas cerradas**, y aun así
+ * `/Standing/GetRoundStandings` sobre la última ronda devuelve
+ * `recordsTotal: 0` — 73 bytes, sin una sola fila.
+ *
+ * No es un fallo nuestro ni de melee: hay eventos cuya clasificación
+ * simplemente no se publica. Pero tampoco es un éxito. Sin esta distinción,
+ * `desde (0) >= total (0)` daba «completa» y el torneo quedaba marcado `listo`
+ * con cero puestos: un evento de 1.486 personas archivado como ingerido, que
+ * nadie iba a volver a mirar y que la app mostraría con un top vacío.
+ *
+ * Se separa de un error normal porque **no se debe reintentar**: reintentar
+ * cinco veces algo que melee no publica es gastar cortesía contra su servidor
+ * para llegar siempre al mismo cero. Va a `descartado`, con el motivo escrito.
+ */
+class SinClasificacion extends Error {}
+
 // ── Utilidades ───────────────────────────────────────────────────────
 
 const dormir = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
@@ -1155,6 +1175,15 @@ async function procesarTorneo(
     // terminó el anterior, aunque el servidor haya devuelto de menos.
     desde += crudas
 
+    // Melee no publica la clasificación de este evento. Ojo con el orden: esto
+    // TIENE que mirarse antes que `desde >= total`, porque con total en 0 esa
+    // comparación es `0 >= 0` y daría el torneo por completo y vacío.
+    if (total === 0 && escritas === 0) {
+      throw new SinClasificacion(
+        'melee no publica la clasificación de este torneo (recordsTotal: 0)',
+      )
+    }
+
     if (desde >= total) {
       completa = true
       break
@@ -1311,6 +1340,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let cortadoPorTiempo = false
   let procesados = 0
   let filas = 0
+  /** Torneos cuya clasificación melee no publica. Se cuentan aparte de los
+   *  procesados: sumarlos ahí diría «6 de 6» sobre un torneo del que no se
+   *  guardó nada, que es justo el silencio que esto viene a romper. */
+  let descartados = 0
 
   // ── 1. Descubrir ──
   const hallazgo = await descubrir(
@@ -1371,6 +1404,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         await devolverALaCola(supabase, fila, null, anotarError)
         continue
       }
+      if (err instanceof SinClasificacion) {
+        // No se reintenta: melee no la publica y volver a preguntar cinco veces
+        // da siempre el mismo cero. Queda en `descartado` con el motivo a la
+        // vista, que es la diferencia entre «no hay dato» y «no lo buscamos».
+        descartados++
+        const { error } = await supabase
+          .from('meta_ingest_queue')
+          .update({
+            status: 'descartado',
+            last_error: err.message,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('melee_tournament_id', id)
+        if (error) anotarError(`descartar ${id}`, error.message)
+        continue
+      }
       anotarError(`torneo ${id}`, err.message)
       await devolverALaCola(supabase, fila, err.message, anotarError)
     }
@@ -1378,7 +1427,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   return res.status(200).json({
     modo: sesion.modo,
-    mensaje: `Se procesaron ${procesados} de ${cola.length} torneos de la cola (${filas} puestos guardados).`,
+    mensaje:
+      `Se procesaron ${procesados} de ${cola.length} torneos de la cola (${filas} puestos guardados).`
+      + (descartados > 0
+        ? ` ${descartados} sin clasificación publicada por melee.`
+        : ''),
     /** Torneos de SWU vistos en los perfiles de esta corrida (nuevos o no). */
     descubiertos: hallazgo.descubiertos,
     /** De esos, los que entraron a la cola por primera vez. */
@@ -1386,8 +1439,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     perfilesLeidos: hallazgo.perfiles,
     procesados,
     filas,
+    /** Torneos que melee reconoce pero cuya clasificación no publica. */
+    descartados,
     cortadoPorTiempo,
-    pendientesDelLote: Math.max(0, cola.length - procesados),
+    pendientesDelLote: Math.max(0, cola.length - procesados - descartados),
     errores,
     erroresTotales,
     ms: transcurrido(),

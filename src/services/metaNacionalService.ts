@@ -838,6 +838,15 @@ export async function getMetaNacional(ambito: AmbitoMeta): Promise<MetaNacional>
         .sort((a, b) => a.puesto - b.puesto || a.jugador.localeCompare(b.jugador))
         .slice(0, TOP_POR_TORNEO),
     }))
+    // Un torneo del que no se guardó ni un puesto NO se lista.
+    //
+    // Existe de verdad: melee reconoce eventos con jugadores declarados y
+    // rondas cerradas cuya clasificación nunca publica. Medido en producción
+    // con el Last Chance Qualifier 2026 — 1.486 jugadores, 8 rondas, y
+    // `recordsTotal: 0`. Mostrarlo con un top vacío diría «nadie jugó», que es
+    // falso; lo cierto es que no sabemos quién ganó, y de eso no hay nada útil
+    // que enseñar en una tabla del meta.
+    .filter(t => t.top.length > 0)
     // Lo más reciente arriba. Un torneo sin fecha va al final: no se le inventa
     // una para poder ordenarlo.
     .sort((a, b) => {
