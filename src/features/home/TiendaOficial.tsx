@@ -18,7 +18,7 @@
  * después; y esta lista, que crece agregando un objeto.
  */
 
-import { MapPin, Phone, Mail, ExternalLink, Store } from 'lucide-react'
+import { MapPin, Phone, Mail, ExternalLink, Store, Navigation } from 'lucide-react'
 
 interface TiendaSWU {
   /** Id en el buscador oficial, para enlazar directo a su ficha. */
@@ -52,9 +52,12 @@ function telefonoLegible(t: string): string {
 }
 
 function Tienda({ t }: { t: TiendaSWU }) {
-  const mapa = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-    `${t.nombre}, ${t.direccion}, ${t.ciudad}`,
-  )}`
+  const consulta = encodeURIComponent(`${t.nombre}, ${t.direccion}, ${t.ciudad}`)
+  /** Ver el punto en el mapa. */
+  const mapa = `https://www.google.com/maps/search/?api=1&query=${consulta}`
+  /** Y llegar hasta él: Maps abre la navegación desde dónde estés. */
+  const comoLlegar = `https://www.google.com/maps/dir/?api=1&destination=${consulta}`
+  const fichaOficial = `${BUSCADOR_OFICIAL}&store=${t.id}`
 
   return (
     <div className="bg-swu-surface border border-swu-amber/30 rounded-xl overflow-hidden">
@@ -79,6 +82,7 @@ function Tienda({ t }: { t: TiendaSWU }) {
             {t.direccion}
             <br />
             <span className="text-swu-muted">{t.ciudad}</span>
+            <span className="text-swu-cyan/70"> · ver en el mapa</span>
           </span>
         </a>
 
@@ -102,14 +106,29 @@ function Tienda({ t }: { t: TiendaSWU }) {
           </a>
         )}
 
-        <a
-          href={`${BUSCADOR_OFICIAL}&store=${t.id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1 text-[10px] text-swu-muted hover:text-swu-cyan pt-1"
-        >
-          Ver en el buscador oficial <ExternalLink size={9} aria-hidden />
-        </a>
+        {/* Las dos acciones que de verdad se usan, como botones y no como
+            enlaces escondidos en el texto: llegar hasta la tienda, y verla en
+            el sitio oficial —que es donde figuran sus eventos—. */}
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <a
+            href={comoLlegar}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 bg-swu-cyan/15 border border-swu-cyan/40
+                       text-swu-cyan text-[11px] font-semibold rounded-lg py-2 active:scale-[0.98] transition-transform"
+          >
+            <Navigation size={12} aria-hidden /> Cómo llegar
+          </a>
+          <a
+            href={fichaOficial}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 bg-swu-amber/15 border border-swu-amber/40
+                       text-swu-amber text-[11px] font-semibold rounded-lg py-2 active:scale-[0.98] transition-transform"
+          >
+            <ExternalLink size={12} aria-hidden /> Página oficial
+          </a>
+        </div>
       </div>
     </div>
   )
