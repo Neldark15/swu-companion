@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Trash2, BookOpen, AlertTriangle, CheckCircle2, Swords, Eye, EyeOff, Upload, Share2 } from 'lucide-react'
+import { Plus, Trash2, BookOpen, AlertTriangle, CheckCircle2, Swords, Eye, EyeOff, Upload, Share2, FlaskConical } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { db } from '../../services/db'
 import { getCardById } from '../../services/swuApi'
@@ -320,6 +320,13 @@ export function DeckListPage() {
                       <span>{timeAgo(deck.updatedAt)}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); navigate(`/laboratorio?deck=${deck.id}`) }}
+                        className="p-1.5 rounded-lg bg-swu-cyan/10 text-swu-cyan active:scale-95 transition-transform"
+                        title="Probar en el laboratorio (simulador)"
+                      >
+                        <FlaskConical size={13} />
+                      </button>
                       <button
                         onClick={(e) => handleExport(deck, e)}
                         className="p-1.5 rounded-lg bg-swu-accent/10 text-swu-accent active:scale-95 transition-transform"

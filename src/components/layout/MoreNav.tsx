@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Swords, ShieldCheck, Megaphone, Newspaper, BarChart3, BookOpen} from 'lucide-react'
+import { Swords, ShieldCheck, Megaphone, Newspaper, BarChart3, BookOpen, FlaskConical } from 'lucide-react'
 import {
   DatapadIcon, MandoTrophyIcon, DeckCardsIcon, SpyIcon,
   DeathStarIcon, BeskarIcon, ChanceCubeIcon, RebelIcon, StarfighterIcon,
@@ -35,6 +35,7 @@ const GROUPS: MoreGroup[] = [
     title: 'Construir',
     items: [
       { to: '/decks', label: 'Mis Decks', sub: 'Constructor', icon: DeckCardsIcon },
+      { to: '/laboratorio', label: 'Laboratorio', sub: 'Simulador de mazos', icon: FlaskConical },
       { to: '/misiones', label: 'Misiones', sub: 'Órdenes del día', icon: DeathStarIcon },
       { to: '/utilities', label: 'Utilidades', sub: 'Herramientas', icon: ChanceCubeIcon },
     ],

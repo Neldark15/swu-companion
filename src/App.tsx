@@ -54,6 +54,7 @@ const EspionajePage = lazy(() => import('./features/espionaje/EspionajePage').th
 const SpyProfilePage = lazy(() => import('./features/espionaje/SpyProfilePage').then(m => ({ default: m.SpyProfilePage })))
 const MissionsPage = lazy(() => import('./features/missions/MissionsPage'))
 const GalaxyPage = lazy(() => import('./features/galaxy/GalaxyPage').then(m => ({ default: m.GalaxyPage })))
+const LabPage = lazy(() => import('./features/lab/LabPage').then(m => ({ default: m.LabPage })))
 
 // Admin panel — separate layout, isAdmin guard inside AdminLayout
 const AdminLayout = lazy(() => import('./features/admin/AdminLayout').then(m => ({ default: m.AdminLayout })))
@@ -121,6 +122,7 @@ export default function App() {
 
             {/* ── Protected routes (require login) ── */}
             <Route path="/play" element={<P><PlayPage /></P>} />
+            <Route path="/laboratorio" element={<P><LabPage /></P>} />
             <Route path="/play/tracker/:mode" element={<P><TrackerPage /></P>} />
             <Route path="/play/saved" element={<P><SavedMatchesPage /></P>} />
             <Route path="/events" element={<P><EventsPage /></P>} />
