@@ -248,3 +248,20 @@ export function BountyIcon({ size = 24, className = '' }: IconProps) {
     </svg>
   )
 }
+
+/** Matraz de laboratorio — probar un mazo contra el meta antes de llevarlo. */
+export function LabIcon({ size = 24, className = '' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      {/* El líquido va con el relleno tenue del resto de la familia: en la
+          rejilla del Inicio los íconos se leen a 18 px y una silueta hueca se
+          pierde contra el panel. */}
+      <path d="M8.5 13.5L5 20.2C4.6 20.9 5.1 21.7 5.9 21.7H18.1C18.9 21.7 19.4 20.9 19 20.2L15.5 13.5Z" fill="currentColor" opacity="0.16" />
+      <path d="M9.5 2.5V9.4C9.5 9.8 9.4 10.2 9.2 10.5L4.4 19.7C3.9 20.6 4.6 21.7 5.6 21.7H18.4C19.4 21.7 20.1 20.6 19.6 19.7L14.8 10.5C14.6 10.2 14.5 9.8 14.5 9.4V2.5" />
+      <line x1="8.2" y1="2.5" x2="15.8" y2="2.5" />
+      {/* Dos burbujas: lo que distingue un matraz de un embudo de un vistazo. */}
+      <circle cx="10.6" cy="17.4" r="1.05" fill="currentColor" opacity="0.65" />
+      <circle cx="13.8" cy="19.1" r="0.75" fill="currentColor" opacity="0.45" />
+    </svg>
+  )
+}

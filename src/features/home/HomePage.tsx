@@ -19,7 +19,7 @@ import { ChevronRight, ScanLine, Swords} from 'lucide-react'
 import {
   DatapadIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
   DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
-  ChanceCubeIcon, KyberIcon,
+  ChanceCubeIcon, KyberIcon, LabIcon,
 } from '../../components/SWIcons'
 import { HudPanel, HudCorners, HexIcon } from '../../components/Hud'
 import { NoticiasSection } from './NoticiasSection'
@@ -49,6 +49,12 @@ const mainSystems: Sistema[] = [
   { icon: HolonetIcon,     label: 'Blog',      tone: 'amber',  to: '/blog' },
   { icon: CargoIcon,       label: 'Mi Botín',   tone: 'green',  to: '/collection', auth: true },
   { icon: DeckCardsIcon,   label: 'Mis Decks',           tone: 'green',  to: '/decks',      auth: true },
+  // Va PEGADO a Mis Decks porque es el paso siguiente del mismo trabajo:
+  // se arma un mazo y se prueba. Estaba solo en el SideNav —que es
+  // `hidden lg:flex`, o sea invisible en el teléfono— y en MoreNav, a dos
+  // toques dentro de Perfil. Un módulo al que no se llega desde el Inicio,
+  // en la práctica, no existe.
+  { icon: LabIcon,         label: 'Laboratorio',  tone: 'cyan',   to: '/laboratorio', auth: true },
   { icon: BountyIcon,      label: 'Contrabando',  tone: 'red',    to: '/explore',    auth: true },
   // Acceso directo al mercado: llegar a comprar/vender exigía entrar a
   // Contrabando y después cambiar de pestaña.
