@@ -18,9 +18,26 @@
  * `decklistId` viaja para armar el enlace— pero no se descargan nunca. Si
  * alguna vez hace falta el contenido de un mazo, se pide permiso primero.
  *
- * Y pide `Crawl-Delay: 5`. Se respeta con dos frenos: un mínimo real de 5 s
- * entre descargas salientes y una caché de CDN larga, para que 16 personas
- * mirando el mismo perfil produzcan UNA descarga y no dieciséis.
+ * Y pide `Crawl-Delay: 5`. Se respeta con tres frenos: el turno COMPARTIDO de
+ * descarga que vive en la base (ver abajo), un cubo de tokens por instancia y
+ * una caché de CDN larga, para que 16 personas mirando el mismo perfil
+ * produzcan UNA descarga y no dieciséis.
+ *
+ * ── El turno de descarga es de TODOS, no de este archivo ──────────────
+ *
+ * Vercel empaqueta cada archivo de `api/` como una lambda separada con su
+ * propio estado de módulo. Este archivo y `api/meta-ingesta.ts` descargan los
+ * dos de melee.gg: con un reloj en memoria cada uno, entre los dos le pegaban
+ * cada 2,5 s en vez de cada 5 — o sea, incumpliendo el `Crawl-Delay: 5` que
+ * los dos creían estar respetando. El turno se pide ahora con el RPC
+ * `meta_tomar_turno()`, una sola sentencia atómica sobre la fila única de
+ * `meta_fetch_lease`, que es lo único que las dos lambdas comparten de verdad.
+ *
+ * **El reloj en memoria sigue acá y sigue vivo, como RESPALDO.** Si falta la
+ * env var de Supabase o el RPC falla, se cae a él y se sirve igual: un fallo de
+ * la base no puede tumbar el historial de melee de los perfiles. El respaldo es
+ * peor que el turno compartido (dos relojes otra vez) pero infinitamente mejor
+ * que un 503, y solo dura lo que dure la caída.
  *
  * ── Por qué es un proxy CERRADO ───────────────────────────────────────
  *
@@ -37,9 +54,40 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 const HOST = 'melee.gg'
 const SITE = `https://${HOST}`
+
+// ── Base de datos: SOLO para el turno de descarga ─────────────────────
+
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
+const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+/**
+ * Cliente memoizado por instancia. `createClient` no habla con nadie —solo
+ * arma el objeto— así que crearlo una vez y guardarlo no oculta ningún fallo
+ * de red; lo que evita es rearmarlo en cada petición.
+ *
+ * `undefined` = todavía no se miró; `null` = no hay credenciales y se va por el
+ * respaldo. Se distinguen a propósito para no reintentar la lectura del entorno
+ * en cada llamada.
+ *
+ * Es el service role porque `meta_tomar_turno()` está concedido SOLO a
+ * `service_role` (ver la migración): con RLS activa y cero políticas, la clave
+ * anónima no puede ni ver la tabla. La clave nunca sale de la lambda y el RPC
+ * no recibe ningún dato del usuario — no toma argumentos.
+ */
+let cliente: SupabaseClient | null | undefined
+function baseDeDatos(): SupabaseClient | null {
+  if (cliente !== undefined) return cliente
+  cliente = SUPABASE_URL && SERVICE_ROLE
+    ? createClient(SUPABASE_URL, SERVICE_ROLE, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+    : null
+  return cliente
+}
 
 /**
  * User-Agent en el formato estándar de robot bien portado —el mismo que usa
@@ -82,6 +130,12 @@ function usuarioValido(u: string): boolean {
 
 // ── Frenos de salida ─────────────────────────────────────────────────
 
+class UpstreamError extends Error {
+  constructor(public status: number, msg: string) {
+    super(msg)
+  }
+}
+
 /** Cubo de tokens por instancia: segunda línea de defensa si la caché falla. */
 const RATE_MAX = 12
 const bucket = { tokens: RATE_MAX, at: Date.now() }
@@ -102,21 +156,100 @@ function takeToken(): boolean {
  * esto separa las descargas en el tiempo, que es lo que el sitio pidió.
  */
 const CRAWL_DELAY_MS = 5000
+
+/**
+ * Cuánto se acepta esperar el turno antes de rendirse.
+ *
+ * Más chico que los 15 s de `api/meta-ingesta.ts` porque acá hay una persona
+ * mirando la pantalla y la lambda no lleva `maxDuration` propio. El caso normal
+ * es un solo turno por delante (≤5 s); pasado eso hay contención de verdad y es
+ * más honesto un 429 con `Retry-After` que colgar la petición hasta que la
+ * plataforma la mate. **Nunca se descarga antes del turno**: saltarse la espera
+ * sería incumplir el `Crawl-Delay` que el turno existe para respetar.
+ */
+const ESPERA_TOPE_MS = 8000
+
+const dormir = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
+
+/**
+ * El reloj en memoria. Ya NO es el freno principal —lo es el turno compartido
+ * de la base— pero se mantiene al día en los dos caminos para que, si la base
+ * se cae a mitad de una petición, el respaldo sepa cuándo fue la última
+ * descarga real y no empiece contando desde cero.
+ */
 let ultimaDescarga = 0
-async function esperarTurno(): Promise<void> {
+
+/** Respaldo: el `Crawl-Delay` aplicado solo con lo que sabe esta instancia. */
+async function turnoLocal(): Promise<void> {
   const falta = CRAWL_DELAY_MS - (Date.now() - ultimaDescarga)
-  if (falta > 0) await new Promise(r => setTimeout(r, falta))
+  if (falta > 0) await dormir(falta)
+  ultimaDescarga = Date.now()
+}
+
+/**
+ * Devuelve un turno que se tomó y no se va a usar.
+ *
+ * Sin esto, cada abandono empuja `next_allowed` +5 s sin que nadie descargue y
+ * la espera se realimenta hasta que nadie descarga nunca. El RPC hace un
+ * `least(next_allowed, cuando)`, así que devolver de más es inofensivo.
+ *
+ * Los fallos se tragan a propósito —incluido «la función no existe», que es lo
+ * que pasa hasta que la migración con el RPC esté aplicada—: el peor caso de no
+ * poder devolver es que el próximo llamador espere 5 s de más, y eso no vale
+ * convertir una degradación en un error para quien está pidiendo el perfil.
+ */
+async function devolverTurno(supabase: SupabaseClient, cuando: number): Promise<void> {
+  try {
+    await supabase.rpc('meta_devolver_turno', { cuando: new Date(cuando).toISOString() })
+  } catch {
+    // Ver arriba: perder el turno cuesta 5 s a alguien, fallar cuesta la página.
+  }
+}
+
+/**
+ * Toma el turno GLOBAL de descarga y espera hasta que llegue.
+ *
+ * Se llama SIEMPRE después de `takeToken()`, nunca antes: así una ráfaga contra
+ * este endpoint público no puede empujar la fila más de `RATE_MAX` veces por
+ * minuto ni dejar al cron sin turnos.
+ */
+async function esperarTurno(): Promise<void> {
+  const supabase = baseDeDatos()
+  // Sin credenciales no hay turno compartido que tomar: respaldo directo.
+  if (!supabase) return turnoLocal()
+
+  let crudo: unknown
+  try {
+    // Gotcha 2f de CLAUDE.md: PostgREST no lanza excepción, hay que mirar `error`.
+    const { data, error } = await supabase.rpc('meta_tomar_turno')
+    if (error) throw new Error(error.message)
+    crudo = data
+  } catch {
+    // La base falló. Se sirve igual con el reloj de esta instancia: peor freno,
+    // pero el perfil se ve. Ver el encabezado.
+    return turnoLocal()
+  }
+
+  const turno = typeof crudo === 'string' ? Date.parse(crudo) : NaN
+  if (!Number.isFinite(turno)) {
+    // El turno se tomó —ya movimos la fila— pero no se puede leer cuándo toca.
+    // Se paga el delay COMPLETO en vez de adivinar, igual que en meta-ingesta.
+    await dormir(CRAWL_DELAY_MS)
+    ultimaDescarga = Date.now()
+    return
+  }
+
+  const falta = turno - Date.now()
+  if (falta > ESPERA_TOPE_MS) {
+    await devolverTurno(supabase, turno)
+    throw new UpstreamError(429, 'melee está ocupado, probá en un momento')
+  }
+  if (falta > 0) await dormir(falta)
   ultimaDescarga = Date.now()
 }
 
 /** Tope de bytes decodificados: una respuesta enorme no puede tumbarnos. */
 const MAX_BYTES = 2_000_000
-
-class UpstreamError extends Error {
-  constructor(public status: number, msg: string) {
-    super(msg)
-  }
-}
 
 // ── Descarga ─────────────────────────────────────────────────────────
 
@@ -196,12 +329,17 @@ async function pedirResultados(usuario: string, desde: number, cuantos: number):
  * sabría que se equivocó.
  *
  * Solo se paga cuando la lista vino vacía, que es el único caso ambiguo.
+ *
+ * La espera del turno va DENTRO del `try` a propósito: ahora puede fallar por
+ * contención, y esta comprobación es un extra sobre una respuesta que ya
+ * tenemos. Que se caiga entera la petición por no poder confirmar algo
+ * secundario sería cambiar un dato bueno por un error.
  */
 async function perfilExiste(usuario: string): Promise<boolean> {
-  await esperarTurno()
   const ctl = new AbortController()
   const t = setTimeout(() => ctl.abort(), 15_000)
   try {
+    await esperarTurno()
     const r = await fetch(`${SITE}/Profile/Index/${encodeURIComponent(usuario)}`, {
       method: 'GET',
       headers: { 'User-Agent': UA, Accept: 'text/html' },
@@ -369,7 +507,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (e) {
     const err = e as UpstreamError
     const status = err?.status ?? 502
-    res.setHeader('Cache-Control', status === 404 ? 'public, s-maxage=3600' : 'public, s-maxage=60')
+    if (status === 429) {
+      // Contención en el turno de descarga: se dice cuándo reintentar y se deja
+      // que la CDN absorba la ráfaga por ese mismo rato — ni más, para que el
+      // `Retry-After` no sea mentira, ni menos, para no reenviar todo al origen.
+      res.setHeader('Retry-After', '10')
+      res.setHeader('Cache-Control', 'public, s-maxage=10')
+    } else {
+      res.setHeader('Cache-Control', status === 404 ? 'public, s-maxage=3600' : 'public, s-maxage=60')
+    }
     return res.status(status).json({ error: err?.message ?? 'no se pudo consultar melee' })
   }
 }

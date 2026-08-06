@@ -272,7 +272,23 @@ export async function guardarUsuarioMelee(
     .eq('id', userId)
 
   // supabase-js NO lanza ante un error de PostgREST: hay que mirar `error`.
-  if (error) return { ok: false, error: error.message }
+  if (error) {
+    // 23505 = viola una restricción de unicidad. Solo puede ser una:
+    // `ux_profiles_melee_username`, que impide que dos cuentas reclamen el
+    // mismo usuario de melee. Existe porque el meta nacional cruza por NOMBRE,
+    // así que reclamar el nombre de alguien era reclamar su historial.
+    //
+    // Se traduce acá y no se deja pasar crudo porque el mensaje de Postgres
+    // («duplicate key value violates unique constraint…») no le dice a nadie
+    // qué hacer, y lo que hay que hacer es concreto.
+    if (error.code === '23505') {
+      return {
+        ok: false,
+        error: `«${usuario}» ya está enlazado a otra cuenta de HOLOCRON. Si es tuyo, desenlazalo desde esa cuenta o escribile a un administrador.`,
+      }
+    }
+    return { ok: false, error: error.message }
+  }
   return { ok: true, usuario }
 }
 

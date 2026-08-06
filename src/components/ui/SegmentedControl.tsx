@@ -9,6 +9,12 @@ import { useRef } from 'react'
  *
  * Es un `radiogroup` de verdad, así que las flechas del teclado funcionan
  * como espera un lector de pantalla.
+ *
+ * Las opciones se reparten el ancho a partes iguales y **se recortan**: con
+ * cuatro pestañas en un teléfono angosto, `flex-1` sin `min-w-0` no encoge y
+ * la fila entera se sale de la pantalla. Que una etiqueta termine en «…» es
+ * peor que nada solo si el icono no dice ya de qué se trata; que la fila
+ * desborde rompe la pantalla completa.
  */
 
 export interface SegmentOption<T extends string> {
@@ -67,8 +73,14 @@ export function SegmentedControl<T extends string>({
             aria-checked={active}
             tabIndex={active ? 0 : -1}
             onClick={() => onChange(o.value)}
+            // `min-w-0` va junto a `flex-1` y no es decorativo: sin él la caja
+            // no puede encogerse por debajo de su contenido, así que con cuatro
+            // opciones la fila DESBORDA por debajo de ~325px de ancho. El icono
+            // y el contador se declaran `flex-shrink-0` para que lo que ceda
+            // sea la etiqueta, que es lo único que se puede recortar sin
+            // perder información (el icono ya la duplica).
             className={`
-              flex-1 min-h-9 px-2 rounded-lg text-[11px] font-semibold
+              flex-1 min-w-0 min-h-9 px-2 rounded-lg text-[11px] font-semibold
               inline-flex items-center justify-center gap-1 transition-colors
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent
               ${active
@@ -76,10 +88,15 @@ export function SegmentedControl<T extends string>({
                 : 'text-swu-muted hover:text-swu-text'}
             `}
           >
-            {o.icon}
-            {o.label}
+            {o.icon && (
+              <span className="flex-shrink-0 inline-flex items-center" aria-hidden>
+                {o.icon}
+              </span>
+            )}
+            {/* El `title` deja leer entera la etiqueta recortada. */}
+            <span className="truncate min-w-0" title={o.label}>{o.label}</span>
             {o.count !== undefined && (
-              <span className={active ? 'text-swu-amber' : 'text-swu-muted/60'}>
+              <span className={`flex-shrink-0 ${active ? 'text-swu-amber' : 'text-swu-muted/60'}`}>
                 {o.count.toLocaleString()}
               </span>
             )}

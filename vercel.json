@@ -4,5 +4,16 @@
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "crons": [
+    {
+      "path": "/api/meta-ingesta",
+      "schedule": "7 */6 * * *"
+    }
+  ],
+  "functions": {
+    "api/meta-ingesta.ts": {
+      "maxDuration": 300
+    }
+  }
 }

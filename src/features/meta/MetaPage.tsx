@@ -28,10 +28,11 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Swords, BarChart3, Info,
-  ExternalLink, AlertTriangle, ChevronRight, Trophy,
+  ExternalLink, AlertTriangle, ChevronRight, Trophy, Flag,
 } from 'lucide-react'
 import { TournamentsView } from './TournamentsView'
 import { MetaLiveView } from './MetaLiveView'
+import { MetaNacionalView } from './MetaNacionalView'
 import { Button } from '../../components/ui/Button'
 import { Chip } from '../../components/ui/Chip'
 import { SegmentedControl } from '../../components/ui/SegmentedControl'
@@ -58,7 +59,7 @@ function WinRate({ value }: { value: number | null | undefined }) {
 
 export function MetaPage() {
   const navigate = useNavigate()
-  const [view, setView] = useState<'torneos' | 'meta' | 'matchups'>('torneos')
+  const [view, setView] = useState<'torneos' | 'meta' | 'matchups' | 'nacional'>('torneos')
   const [selected, setSelected] = useState<string | null>(archetypes[0]?.id ?? null)
   const [detail, setDetail] = useState<MetaArchetype | null>(null)
   const [showInfo, setShowInfo] = useState(false)
@@ -120,6 +121,11 @@ export function MetaPage() {
             { value: 'torneos', label: 'Torneos', icon: <Trophy size={13} aria-hidden /> },
             { value: 'meta', label: 'Meta', icon: <BarChart3 size={13} aria-hidden /> },
             { value: 'matchups', label: 'Matchups', icon: <Swords size={13} aria-hidden /> },
+            // «SV» y no «Nacional»: con cuatro pestañas, a 360px de ancho la
+            // etiqueta larga rompía la fila. La bandera lleva el resto.
+            // El control ya no desborda —recorta— pero «Nacio…» no dice más que
+            // «SV», así que la etiqueta corta se queda por legible, no por miedo.
+            { value: 'nacional', label: 'SV', icon: <Flag size={13} aria-hidden /> },
           ]}
         />
 
@@ -128,6 +134,9 @@ export function MetaPage() {
             julio, y 53 de los 177 arquetipos de hoy tienen líderes que
             entonces no existían. La prosa curada sigue en «Matchups». */}
         {view === 'meta' && <MetaLiveView />}
+        {/* El meta de acá. Es la única de las cuatro que habla de nosotros: las
+            otras tres describen el mundo. */}
+        {view === 'nacional' && <MetaNacionalView />}
         {view === 'matchups' && (
           <>
             <div>
@@ -152,7 +161,9 @@ export function MetaPage() {
                   {selectedArch.strategy}
                   {selectedArch.substrategy ? ` · ${selectedArch.substrategy}` : ''}
                 </p>
-                <div className="flex gap-3 text-[11px] font-mono text-swu-muted pt-1">
+                {/* `flex-wrap`: son tres cifras de ancho variable en una fila
+                    que no se puede encoger, y a 320px se salían de la tarjeta. */}
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] font-mono text-swu-muted pt-1">
                   <span>{selectedMatchups.length} matchups</span>
                   <span className="text-swu-green">{selectedArch.favorable ?? 0} favorables</span>
                   <span className="text-swu-red">{selectedArch.unfavorable ?? 0} malos</span>
