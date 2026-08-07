@@ -11,6 +11,21 @@ export default defineConfig({
           vendor: ['react', 'react-dom', 'react-router-dom'],
           db: ['dexie', '@supabase/supabase-js'],
           ui: ['lucide-react'],
+          /**
+           * three.js va en SU PROPIO chunk, compartido.
+           *
+           * Medido antes de separarlo: three quedaba dentro de
+           * `UtilitiesPage` (508 KB de chunk para una pantalla de dados y una
+           * moneda). Rollup mete la librería en el chunk de quien la importa,
+           * así que con TRES pantallas 3D —Utilidades, la Galaxia y la mesa de
+           * partidas— habría bajado tres copias de ~450 KB, una por pantalla.
+           *
+           * Separado, se descarga UNA vez y las tres lo comparten: quien ya
+           * tiró un dado entra a la Galaxia sin descargar nada nuevo del motor
+           * 3D. Y sigue sin costarle un byte a quien nunca abre una pantalla
+           * 3D, porque el chunk solo se pide cuando alguna lo importa.
+           */
+          three: ['three'],
         },
       },
     },
