@@ -153,6 +153,9 @@ export function PushNotificationToggle() {
         <button
           onClick={handleToggle}
           disabled={actionLoading || loading || permission === 'denied'}
+          role="switch"
+          aria-checked={subscribed}
+          aria-label="Notificaciones push"
           className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${
             subscribed ? 'bg-swu-accent' : 'bg-swu-border'
           } disabled:opacity-50`}

@@ -245,7 +245,12 @@ function cardVariantRank(c: Card): number {
  * que una promo no se cuele como carta aparte de la que ya existe.
  */
 function markCanonical(cards: Card[]): Card[] {
-  const key = (c: Card) => `${c.name} ${c.subtitle ?? ''}`
+  // El separador es un NUL para que ningún nombre real pueda colisionar con
+  // la unión. Va como ESCAPE y no como byte crudo: escrito crudo, el archivo
+  // ENTERO cuenta como binario y `grep -r` lo salta en silencio (`file` lo
+  // reportaba como `data`), así que las 983 líneas del servicio de cartas
+  // eran invisibles a cualquier búsqueda sobre el repo.
+  const key = (c: Card) => `${c.name}\u0000${c.subtitle ?? ''}`
 
   const hasStandard = new Set<string>()
   for (const c of cards) if (isStandardPrinting(c)) hasStandard.add(key(c))

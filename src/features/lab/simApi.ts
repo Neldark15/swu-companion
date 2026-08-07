@@ -94,6 +94,94 @@ export interface RivalInfo {
   record?: string
 }
 
+/* ── Una partida, jugada a jugada ────────────────────────────────────── */
+
+/**
+ * Un evento del desarrollo de la partida.
+ *
+ * Es una unión discriminada por `t` porque los campos NO son intercambiables:
+ * un `ataca` contra la base trae `vida_restante` y uno contra una unidad trae
+ * `recibe`. Dejarlo como un saco de opcionales invitaba a leer el campo
+ * equivocado sin que el compilador dijera nada.
+ *
+ * `lado` es 'A' (el mazo que se está probando) o 'B' (el rival), siempre.
+ */
+export type EventoPartida =
+  | { t: 'inicio'; empieza: Lado; a: LadoInicial; b: LadoInicial }
+  | { t: 'ronda'; n: number }
+  /** Una carta se juega. `coste` es el IMPRESO, no el que se pagó. */
+  | { t: 'juega'; lado: Lado; carta: string; coste: number; tipo: TipoCarta; desde: 'mano' | 'recursos'; arena?: Arena }
+  | { t: 'entra'; lado: Lado; carta: string; arena: Arena; lider: boolean; poder: number; hp: number }
+  /** La unidad deja el campo SIN morir: rebote, captura, control robado. */
+  | { t: 'sale'; lado: Lado; carta: string; causa: string }
+  | { t: 'muere'; lado: Lado; carta: string; causa: string }
+  /** `escudo: true` = el escudo se comió el golpe entero y el daño no entró. */
+  | { t: 'dano'; lado: Lado; carta: string; n: number; causa: string; escudo: boolean; resto: number }
+  /** El libro mayor de la vida de la base. Ver la nota de abajo. */
+  | { t: 'base'; lado: Lado; delta: number; vida: number }
+  | { t: 'ataca'; lado: Lado; atacante: string; objetivo: 'base'; arena: Arena; dano: number; vida_restante: number }
+  | { t: 'ataca'; lado: Lado; atacante: string; objetivo: string; arena: Arena; dano: number; recibe: number; sentinel: boolean }
+  | { t: 'captura'; lado: Lado; carta: string }
+  | { t: 'adjunta'; lado: Lado; mejora: string; sobre: string; hostil: boolean; piloto: boolean; poder: number; hp: number }
+  | { t: 'despliega_lider'; lado: Lado; carta: string; gratis: boolean }
+  | { t: 'fin'; ganador: Lado; rondas: number; por: string; base_a: number; base_b: number }
+
+export type Lado = 'A' | 'B'
+export type Arena = 'tierra' | 'espacio'
+export type TipoCarta = 'unidad' | 'evento' | 'mejora' | 'otra'
+export interface LadoInicial { lider: string; base: string; vida: number }
+
+/** Lo mínimo para dibujar una carta: `id` resuelve la imagen. */
+export interface FichaCarta {
+  /** Id SWUDB, «ASH_112». `null` si la carta no tiene set/número. */
+  id: string | null
+  /** 'Leader' va APAISADO en la mesa. */
+  tipo: string
+  coste: number | null
+  poder: number | null
+  hp: number | null
+  arenas: string[]
+  aspectos: string[]
+  unica: boolean
+}
+
+/**
+ * Una partida completa del simulador, lista para reproducir.
+ *
+ * ── Dos cosas que hay que saber para no leerla mal ──
+ *
+ * 1. **`base` es el libro mayor de la vida.** Aparece en CADA cambio, venga de
+ *    donde venga (combate, Overwhelm, indirecto, Restore, curaciones, mazo
+ *    vacío). La suma de sus `delta` cuadra con `base_a`/`base_b` por
+ *    construcción — verificado sobre 396 partidas. El `dano` de un `ataca`
+ *    contra la base son los MISMOS puntos que el `base` que lo acompaña: es la
+ *    narración del mismo hecho, no un segundo golpe. **No sumar los dos.**
+ *
+ * 2. **`cartas` puede no tener una entrada.** Las fichas generadas en mesa
+ *    (X-Wing, TIE Fighter, Mandalorian, Spy) no siempre son cartas del pool.
+ *    Dibujar por nombre cuando falte; nunca dar el `id` por hecho.
+ */
+export interface PartidaNarrada {
+  rival: string
+  semilla: number
+  n: number
+  empieza: Lado
+  ganador: Lado
+  rondas: number
+  base_a: number
+  base_b: number
+  eventos: EventoPartida[]
+  /** La narración en texto, la misma que imprime la CLI. Sirve de subtítulo. */
+  log: string[]
+  cartas: Record<string, FichaCarta>
+  lider_a: string
+  base_a_carta: string
+  lider_b: string
+  base_b_carta: string
+  /** Lo que tardó el motor, en ms. Lo reporta el propio VPS. */
+  ms: number
+}
+
 export class ErrorSim extends Error {}
 
 /** Deck de la app → mazo del simulador. Lanza si faltan líder o base. */
@@ -162,4 +250,18 @@ export const simApi = {
     llamar<{ antes: number; despues: number; delta: number; partidas: number }>(
       { action: 'probar', mazo, quita, mete, partidas, ...(rival ? { rival } : {}) },
     ),
+  /**
+   * UNA partida contra un rival, jugada a jugada — lo que come la mesa 3D.
+   *
+   * Es la MISMA partida que corre dentro de una tanda de `simular`, no una
+   * recreación: con la misma `semilla`, `n` selecciona la partida n-ésima de
+   * esa tanda (empieza A si `n` es par). Así «ver» un emparejamiento y
+   * «medirlo» hablan del mismo objeto, y subir `n` da otra partida real de la
+   * misma medición en vez de una tirada suelta sin relación.
+   *
+   * Medido contra el VPS: 3-4 ms de motor, respuesta de 20-32 KB. Es barato:
+   * no hay que tratarlo como un gauntlet ni ponerle barra de progreso.
+   */
+  partida: (mazo: MazoEnvio, rival: string, semilla = 31337, n = 0) =>
+    llamar<PartidaNarrada>({ action: 'partida', mazo, rival, semilla, n }),
 }

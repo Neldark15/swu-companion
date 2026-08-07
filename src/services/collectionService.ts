@@ -298,57 +298,61 @@ export async function searchPublicProfiles(query: string): Promise<PublicProfile
   }
 }
 
-/** Get ALL profiles for the contrabando page (all users, sorted by recent) */
+/**
+ * Get ALL profiles for the contrabando page (all users, sorted by recent).
+ *
+ * **LANZA si la consulta falla** (gotcha 2f de CLAUDE.md): devolviendo `[]`,
+ * un fallo de PostgREST se veía en pantalla exactamente igual que «no hay
+ * contrabandistas con colecciones públicas todavía» — el peor de los dos
+ * mensajes posibles, porque invita a irse. Los dos llamadores lo atrapan.
+ */
 export async function getExploreProfiles(limit = 50): Promise<PublicProfile[]> {
   if (!isSupabaseReady()) return []
 
-  try {
-    // Try updated_at first, fall back to created_at
-    const primero = await supabase
+  // Try updated_at first, fall back to created_at
+  const primero = await supabase
+    .from('profiles')
+    .select('id, name, avatar, bio, is_public')
+    .order('updated_at', { ascending: false })
+    .limit(limit)
+  let data = primero.data
+
+  // If updated_at doesn't exist yet, try created_at.
+  // El `error` del INTENTO DE RESPALDO no se miraba: si los dos fallaban,
+  // `data` quedaba en null y la pantalla decía «no hay nadie».
+  if (primero.error || !data) {
+    const fallback = await supabase
       .from('profiles')
       .select('id, name, avatar, bio, is_public')
-      .order('updated_at', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(limit)
-    let data = primero.data
-    const error = primero.error
-
-    // If updated_at doesn't exist yet, try created_at
-    if (error || !data) {
-      const fallback = await supabase
-        .from('profiles')
-        .select('id, name, avatar, bio, is_public')
-        .order('created_at', { ascending: false })
-        .limit(limit)
-      data = fallback.data
+    if (fallback.error || !fallback.data) {
+      throw new Error(fallback.error?.message ?? primero.error?.message ?? 'perfiles no disponibles')
     }
-
-    if (!data) return []
-
-    // Get collection counts for all users in parallel
-    const profilesWithCounts = await Promise.all(
-      data.map(async (p) => {
-        const { count } = await supabase
-          .from('collection')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', p.id)
-
-        return {
-          id: p.id,
-          name: p.name,
-          avatar: p.avatar || '👤',
-          bio: p.bio || null,
-          isPublic: p.is_public ?? true,
-          cardCount: count ?? 0,
-          estimatedValue: 0,
-        }
-      }),
-    )
-
-    return profilesWithCounts
-  } catch (e) {
-    console.warn('[Collection] Failed to get explore profiles:', e)
-    return []
+    data = fallback.data
   }
+
+  // Get collection counts for all users in parallel
+  const profilesWithCounts = await Promise.all(
+    data.map(async (p) => {
+      const { count } = await supabase
+        .from('collection')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', p.id)
+
+      return {
+        id: p.id,
+        name: p.name,
+        avatar: p.avatar || '👤',
+        bio: p.bio || null,
+        isPublic: p.is_public ?? true,
+        cardCount: count ?? 0,
+        estimatedValue: 0,
+      }
+    }),
+  )
+
+  return profilesWithCounts
 }
 
 /** Get my profile's public status */
@@ -563,12 +567,16 @@ export async function unmarkCardForSale(
  */
 export async function getMyListings(userId: string): Promise<MyListingSummary[]> {
   if (!isSupabaseReady()) return []
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('collection')
     .select('card_id, quantity, sale_quantity, sale_price, sale_notes, listed_at')
     .eq('user_id', userId)
     .eq('for_sale', true)
     .order('listed_at', { ascending: false })
+  // supabase-js no lanza ante un error de PostgREST: sin mirar `error`, un
+  // fallo dejaba a Mi Botín creyendo que no hay NADA publicado en venta, y
+  // los chips de «en venta» desaparecían de cartas que sí lo están.
+  if (error) console.warn('[Collection] getMyListings falló:', error.message)
   if (!data) return []
   return data.map(r => ({
     cardId: r.card_id,
@@ -597,7 +605,11 @@ export async function getMarketplaceListings(opts?: { limit?: number; cardId?: s
 
   if (opts?.cardId) query = query.eq('card_id', opts.cardId)
 
-  const { data: rows } = await query
+  // **LANZA si falla** (gotcha 2f). Con `[]`, el Mercado decía «todavía no hay
+  // nadie vendiendo cartas» ante un error de RLS o de red, y encima el
+  // encabezado afirmaba «0 listings». Su único llamador ya lo atrapa.
+  const { data: rows, error } = await query
+  if (error) throw new Error(error.message)
   if (!rows || rows.length === 0) return []
 
   // Hydrate sellers in one batch
@@ -632,12 +644,13 @@ export async function getMarketplaceListings(opts?: { limit?: number; cardId?: s
  */
 export async function getUserListings(userId: string): Promise<MarketplaceListing[]> {
   if (!isSupabaseReady()) return []
-  const { data: rows } = await supabase
+  const { data: rows, error } = await supabase
     .from('collection')
     .select('user_id, card_id, quantity, sale_quantity, sale_price, sale_notes, listed_at')
     .eq('user_id', userId)
     .eq('for_sale', true)
     .order('listed_at', { ascending: false })
+  if (error) console.warn('[Collection] getUserListings falló:', error.message)
   if (!rows || rows.length === 0) return []
 
   const { data: profile } = await supabase

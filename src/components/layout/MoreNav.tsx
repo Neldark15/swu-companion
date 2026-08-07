@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Swords, ShieldCheck, Megaphone, Newspaper, BarChart3, BookOpen, FlaskConical, Scale } from 'lucide-react'
+import { Swords, ShieldCheck, Megaphone, Newspaper, BarChart3, BookOpen, FlaskConical, Scale, Radar } from 'lucide-react'
 import {
   DatapadIcon, MandoTrophyIcon, DeckCardsIcon, SpyIcon,
   DeathStarIcon, BeskarIcon, ChanceCubeIcon, RebelIcon, StarfighterIcon,
@@ -49,7 +49,11 @@ const GROUPS: MoreGroup[] = [
       { to: '/meta', label: 'Meta', sub: 'Torneos y matchups', icon: BarChart3 },
       { to: '/community', label: 'Comunidades', sub: 'El Salvador', icon: RebelIcon },
       { to: '/rank', label: 'Consejo Jedi', sub: 'Clasificación', icon: BeskarIcon },
-      { to: '/galaxy', label: 'La Galaxia', sub: 'Explorador global', icon: StarfighterIcon },
+      // Dos entradas porque son dos trabajos: la Galaxia es MIRAR a la
+      // comunidad (quién es quién, qué hizo de último) y el Explorador es
+      // BUSCAR dentro de ella (nombre, país, rankings).
+      { to: '/galaxia', label: 'La Galaxia', sub: 'Universo 3D', icon: StarfighterIcon },
+      { to: '/galaxy', label: 'Explorador', sub: 'Buscar comandantes', icon: Radar },
             { to: '/blog', label: 'Blog', sub: 'Análisis y artículos', icon: BookOpen },
 { to: '/espionaje', label: 'Espionaje', sub: 'Transmisiones', icon: SpyIcon },
     ],

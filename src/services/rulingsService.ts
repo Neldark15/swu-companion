@@ -12,6 +12,13 @@
  * traducciones validadas contra glosario oficial): una traducción DE CORTESÍA
  * que se carga EN PARALELO con el índice y es mejora progresiva — si falta o
  * falla, el módulo entero sigue funcionando solo en inglés.
+ *
+ * Y desde v8.0 viaja un TERCER archivo, `public/datos-cr/cartas.json` (461 KB):
+ * las aclaraciones oficiales POR CARTA (978 cartas, 1.638 rulings) que FFG
+ * publica en `api.swuapi.com` como `additionalRulings`, más la lista de cartas
+ * suspendidas y la nota transicional CR8→CR9. Mismo trato que la traducción:
+ * se pide EN PARALELO, nunca en cascada, y si falla resuelve `null` sin
+ * arrastrar a nadie.
  */
 
 import { normalizeSearch, searchCards } from './swuApi'
@@ -156,6 +163,185 @@ export function cargarSimulador(): Promise<EstadoSimulador | null> {
   return _promesaSim
 }
 
+// ─── Aclaraciones oficiales POR CARTA (public/datos-cr/cartas.json) ───
+
+/** Una carta retirada del formato. `num` viene numérico en el JSON. */
+export interface CartaSuspendida {
+  nombre: string
+  set: string
+  num: number
+  /** 'Premier', 'Eternal'… El formato del que está fuera. */
+  formato: string
+}
+
+/** Nota de FFG que cambia una regla del CR vigente antes de que salga el CR nuevo. */
+export interface NotaTransicion {
+  titulo: string
+  texto: string
+  /** Cartas a las que aplica, como «SET NUM» («ASH 161»). */
+  afecta: string[]
+}
+
+export interface EntradaRulingsCarta {
+  nombre: string
+  set: string
+  /** Número impreso, como cadena («1», «161»). */
+  num: string
+  /** TODAS las impresiones de la carta, empezando por la canónica. */
+  ids: string[]
+  /** Texto oficial, en inglés — es el normativo. */
+  rulings: string[]
+}
+
+export interface MetaRulingsCartas {
+  fuente: string
+  descargado: string
+  cartasConRulings: number
+  rulingsTotales: number
+}
+
+export interface DatosRulingsCartas {
+  meta: MetaRulingsCartas
+  suspendidas: CartaSuspendida[]
+  transicion: NotaTransicion
+  /** Clavado por uuid CANÓNICO — ver `_indiceIds` para resolver variantes. */
+  porId: Record<string, EntradaRulingsCarta>
+}
+
+/**
+ * Índice invertido id → uuid canónico, construido UNA vez al cargar.
+ *
+ * `porId` está clavado por el uuid canónico de cada carta, pero una carta
+ * tiene varias impresiones (Standard, Hyperspace, Foil, Showcase…) y el id que
+ * llega desde cualquier pantalla es el de LA impresión que la persona está
+ * mirando. Sin este índice, abrir la Hyperspace de The Armorer no encontraba
+ * sus 5 aclaraciones: son 4.095 ids apuntando a 978 cartas, y solo 978 de
+ * ellos son clave en `porId`.
+ */
+let _indiceIds: Map<string, string> | null = null
+
+function construirIndice(d: DatosRulingsCartas): Map<string, string> {
+  const m = new Map<string, string>()
+  for (const [canonico, entrada] of Object.entries(d.porId)) {
+    // El canónico primero: si un id apareciera en dos entradas (no pasa hoy,
+    // medido, pero el API puede cambiar), la clave manda sobre la variante.
+    m.set(canonico, canonico)
+    for (const id of entrada.ids) if (!m.has(id)) m.set(id, canonico)
+  }
+  return m
+}
+
+let _promesaCartas: Promise<DatosRulingsCartas | null> | null = null
+
+/**
+ * Las aclaraciones por carta son OPCIONALES y se piden EN PARALELO con el
+ * índice y la traducción (la pantalla dispara las cargas en el mismo efecto).
+ * Si el archivo falta, está truncado o no hay red, resuelve `null`: el módulo
+ * de reglas y las fichas de carta siguen enteros, simplemente sin la sección.
+ */
+export function cargarRulingsCartas(): Promise<DatosRulingsCartas | null> {
+  if (!_promesaCartas) {
+    _promesaCartas = fetch('/datos-cr/cartas.json')
+      .then(r => (r.ok ? (r.json() as Promise<DatosRulingsCartas>) : null))
+      .then(d => {
+        // Validación mínima de forma: un JSON truncado o ajeno no puede
+        // reventar una ficha de carta.
+        if (!d || typeof d !== 'object' || !d.porId || typeof d.porId !== 'object') return null
+        _indiceIds = construirIndice(d)
+        return d
+      })
+      .catch(() => null)
+  }
+  return _promesaCartas
+}
+
+/** Referencia impresa de una carta. Ver `rulingsDeCarta` para qué resuelve. */
+export interface RefImpresa {
+  setCode: string
+  setNumber: number
+}
+
+export interface AclaracionesDeCarta {
+  /** Texto oficial en inglés. Vacío si la carta no tiene ninguna. */
+  rulings: string[]
+  /** La nota CR8→CR9 solo cuando afecta a ESTA carta; si no, `null`. */
+  transicion: NotaTransicion | null
+  /** Suspensión vigente de esta carta, si la hay. */
+  suspendida: CartaSuspendida | null
+  /** De dónde salen y cuándo se bajaron — para la atribución visible. */
+  meta: MetaRulingsCartas
+}
+
+/** «ASH 161», «ash 0161» → «ASH 161». */
+function claveImpresa(setCode: string, num: string | number): string {
+  const n = String(num).trim().replace(/^0+(?=\d)/, '')
+  return `${setCode.trim().toUpperCase()} ${n}`
+}
+
+/**
+ * Todo lo oficial que hay que decir sobre UNA carta.
+ *
+ * Devuelve `null` cuando no hay nada que mostrar — que es la mayoría: 978 de
+ * las 9.057 impresiones tienen aclaraciones, así que dibujar «sin aclaraciones»
+ * en las otras 8.000 sería puro ruido. Quien llama pinta la sección solo si
+ * esto viene distinto de `null`.
+ *
+ * `ref` (set + número impreso) es opcional y resuelve lo que el id NO puede:
+ * la nota transicional y la suspensión están clavadas por «SET NUM», y la
+ * carta que afecta la nota (ASH 161) no tiene rulings propios, o sea que ni
+ * siquiera aparece en `porId`. Se pasa desde la ficha, que ya tiene la carta
+ * cargada — pedirla acá dispararía una consulta a Dexie por cada apertura.
+ */
+export async function rulingsDeCarta(
+  cardId: string,
+  ref?: RefImpresa,
+): Promise<AclaracionesDeCarta | null> {
+  const d = await cargarRulingsCartas()
+  if (!d) return null
+
+  const canonico = _indiceIds?.get(cardId)
+  const rulings = canonico ? (d.porId[canonico]?.rulings ?? []) : []
+
+  const clave = ref ? claveImpresa(ref.setCode, ref.setNumber) : null
+  const transicion = clave && d.transicion?.afecta?.some(a => claveImpresa(...partirClave(a)) === clave)
+    ? d.transicion
+    : null
+  const suspendida = clave
+    ? (d.suspendidas?.find(s => claveImpresa(s.set, s.num) === clave) ?? null)
+    : null
+
+  if (rulings.length === 0 && !transicion && !suspendida) return null
+  return { rulings, transicion, suspendida, meta: d.meta }
+}
+
+/** «ASH 161» → ['ASH', '161']. Lo que no tenga esa forma no matchea nada. */
+function partirClave(a: string): [string, string] {
+  const i = a.trim().lastIndexOf(' ')
+  return i < 0 ? [a.trim(), ''] : [a.slice(0, i), a.slice(i + 1)]
+}
+
+/** Suspensión de una carta por su referencia impresa (para el buscador de /rulings). */
+export function suspensionDe(
+  d: DatosRulingsCartas | null,
+  setCode: string,
+  setNumber: number,
+): CartaSuspendida | null {
+  if (!d?.suspendidas) return null
+  const clave = claveImpresa(setCode, setNumber)
+  return d.suspendidas.find(s => claveImpresa(s.set, s.num) === clave) ?? null
+}
+
+/** ¿La nota transicional CR8→CR9 aplica a esta carta? */
+export function transicionAplicaA(
+  d: DatosRulingsCartas | null,
+  setCode: string,
+  setNumber: number,
+): boolean {
+  if (!d?.transicion?.afecta) return false
+  const clave = claveImpresa(setCode, setNumber)
+  return d.transicion.afecta.some(a => claveImpresa(...partirClave(a)) === clave)
+}
+
 // ─── Búsqueda ───
 
 /**
@@ -295,6 +481,12 @@ export interface CartaConMecanicas {
   carta: Card
   /** Nombres de mecánicas del índice presentes en la carta (keywords o texto). */
   mecanicas: string[]
+  /** Aclaraciones oficiales de FFG para esta carta, en inglés. Casi siempre vacío. */
+  rulings: string[]
+  /** Suspendida en algún formato, si aplica. */
+  suspendida: CartaSuspendida | null
+  /** La nota transicional CR8→CR9 le pega a esta carta. */
+  transicion: boolean
 }
 
 /**
@@ -313,7 +505,13 @@ export async function cartasConMecanicas(
   consulta: string,
   limite = 4,
 ): Promise<CartaConMecanicas[]> {
-  const { cards } = await searchCards({ query: consulta, limit: limite, canonicalOnly: true })
+  // Las dos fuentes salen a la vez: el archivo de aclaraciones no espera a que
+  // Dexie resuelva la búsqueda ni al revés (y las dos están cacheadas, así que
+  // a partir de la segunda consulta esto no cuesta nada).
+  const [{ cards }, porCarta] = await Promise.all([
+    searchCards({ query: consulta, limit: limite, canonicalOnly: true }),
+    cargarRulingsCartas(),
+  ])
   const mecanicas = Object.keys(datos.indice)
 
   return cards.map(carta => {
@@ -325,6 +523,13 @@ export async function cartasConMecanicas(
       // keyword (Shield, Experience, Epic Action, Indirect Damage…).
       return kws.has(nm) || texto.includes(nm)
     })
-    return { carta, mecanicas: presentes }
+    const canonico = _indiceIds?.get(carta.id)
+    return {
+      carta,
+      mecanicas: presentes,
+      rulings: canonico && porCarta ? (porCarta.porId[canonico]?.rulings ?? []) : [],
+      suspendida: suspensionDe(porCarta, carta.setCode, carta.setNumber),
+      transicion: transicionAplicaA(porCarta, carta.setCode, carta.setNumber),
+    }
   })
 }

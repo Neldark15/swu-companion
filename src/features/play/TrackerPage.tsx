@@ -461,9 +461,10 @@ export function TrackerPage() {
           <span className="text-swu-muted text-xs ml-1">Game {currentGame}</span>
         </div>
         <div className="flex gap-1.5">
-          <button onClick={resetGame} className="p-1.5 rounded-lg bg-swu-surface border border-swu-border text-swu-muted"><RotateCcw size={14} /></button>
+          <button onClick={resetGame} aria-label="Reiniciar el game" className="p-1.5 rounded-lg bg-swu-surface border border-swu-border text-swu-muted"><RotateCcw size={14} /></button>
           <button
             onClick={handleManualSave}
+            aria-label={saveFlash ? 'Partida guardada' : 'Guardar partida'}
             className={`p-1.5 rounded-lg border transition-colors ${saveFlash ? 'bg-swu-green/20 border-swu-green/40 text-swu-green' : 'bg-swu-surface border-swu-border text-swu-muted'}`}
           >
             {saveFlash ? <Check size={14} /> : <Save size={14} />}

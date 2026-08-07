@@ -44,7 +44,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, FlaskConical, ShieldCheck, Swords, Scale,
   AlertTriangle, CheckCircle2, Loader2, ClipboardPaste, BookOpen,
-  Stethoscope, Microscope, Sparkles, PackageCheck, CircleStop, Minus,
+  Stethoscope, Microscope, Sparkles, PackageCheck, CircleStop, Minus, Clapperboard,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { HudPanel, HudCorners, HexIcon } from '../../components/Hud'
@@ -259,7 +259,7 @@ function BarraWin({ etiqueta, valor, margen, tono = 'umbral' }: {
  * El detalle se despliega DEBAJO de la fila en vez de abrir otra pantalla: lo
  * que importa es leer el margen al lado del mismo número que lo motivó.
  */
-function FilaRival({ fila, activo, cargando, bloqueado, detalle, error, onClick }: {
+function FilaRival({ fila, activo, cargando, bloqueado, detalle, error, onClick, onVerPartida }: {
   fila: RivalDiag
   activo: boolean
   cargando: boolean
@@ -268,6 +268,14 @@ function FilaRival({ fila, activo, cargando, bloqueado, detalle, error, onClick 
   detalle: ResultadoSimular | null
   error: string | null
   onClick: () => void
+  /**
+   * Ir a ver UNA partida de este emparejamiento en la mesa 3D.
+   *
+   * Falta cuando el mazo se pegó como texto: la mesa arranca de un mazo
+   * guardado, y aquí no hay ninguno al que apuntar. Se omite el enlace en vez
+   * de enseñarlo roto.
+   */
+  onVerPartida?: () => void
 }) {
   return (
     <div>
@@ -327,6 +335,15 @@ function FilaRival({ fila, activo, cargando, bloqueado, detalle, error, onClick 
                 <span className="text-swu-text">{fila.lider}</span>
                 {fila.base ? <> · base <span className="text-swu-text">{fila.base}</span></> : null}
               </div>
+              {/* El número dice CUÁNTO ganás; esto enseña CÓMO. Es una partida
+                  de esta misma medición, no una recreación: misma semilla,
+                  mismo motor. */}
+              {onVerPartida && (
+                <button type="button" onClick={onVerPartida}
+                  className="inline-flex items-center gap-1 text-swu-cyan hover:underline pt-0.5">
+                  <Clapperboard size={12} /> Ver una partida
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -1163,7 +1180,10 @@ export function LabPage() {
                       bloqueado={ocupado}
                       detalle={abierto === f.slug ? detalle : null}
                       error={abierto === f.slug ? errorDetalle : null}
-                      onClick={() => void profundizar(f)} />
+                      onClick={() => void profundizar(f)}
+                      onVerPartida={deckActual
+                        ? () => navigate(`/mesa?deck=${deckActual.id}&rival=${f.slug}`)
+                        : undefined} />
                   ))}
                 </div>
               )}
@@ -1193,7 +1213,10 @@ export function LabPage() {
                       bloqueado={ocupado}
                       detalle={abierto === f.slug ? detalle : null}
                       error={abierto === f.slug ? errorDetalle : null}
-                      onClick={() => void profundizar(f)} />
+                      onClick={() => void profundizar(f)}
+                      onVerPartida={deckActual
+                        ? () => navigate(`/mesa?deck=${deckActual.id}&rival=${f.slug}`)
+                        : undefined} />
                   ))}
                 </div>
               )}
@@ -1217,7 +1240,10 @@ export function LabPage() {
                       bloqueado={ocupado}
                       detalle={abierto === f.slug ? detalle : null}
                       error={abierto === f.slug ? errorDetalle : null}
-                      onClick={() => void profundizar(f)} />
+                      onClick={() => void profundizar(f)}
+                      onVerPartida={deckActual
+                        ? () => navigate(`/mesa?deck=${deckActual.id}&rival=${f.slug}`)
+                        : undefined} />
                   ))}
                 </div>
               )}

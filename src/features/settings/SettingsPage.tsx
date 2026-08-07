@@ -286,8 +286,14 @@ export function SettingsPage() {
               <Vibrate size={20} className="text-swu-muted" />
               <span className="text-sm font-medium text-swu-text">Haptic feedback</span>
             </div>
+            {/* El estado del interruptor vivía SOLO en el color y en dónde
+                queda la bolita: un lector de pantalla anunciaba «botón» y
+                nada más — ni qué controla ni si está encendido. */}
             <button
               onClick={toggleHaptic}
+              role="switch"
+              aria-checked={hapticFeedback}
+              aria-label="Haptic feedback"
               className={`w-12 h-7 rounded-full transition-colors ${hapticFeedback ? 'bg-swu-accent' : 'bg-swu-bg neu-inset'}`}
             >
               <div className={`w-5 h-5 bg-white rounded-full transition-transform mx-1 ${hapticFeedback ? 'translate-x-5' : ''}`} />

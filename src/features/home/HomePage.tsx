@@ -19,7 +19,7 @@ import { ChevronRight, ScanLine, Swords} from 'lucide-react'
 import {
   DatapadIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
   DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
-  ChanceCubeIcon, KyberIcon, LabIcon, HolocronIcon,
+  ChanceCubeIcon, KyberIcon, LabIcon, HolocronIcon, StarfighterIcon, SaberIcon,
 } from '../../components/SWIcons'
 import { HudPanel, HudCorners, HexIcon } from '../../components/Hud'
 import { NoticiasSection } from './NoticiasSection'
@@ -59,11 +59,17 @@ const mainSystems: Sistema[] = [
   // toques dentro de Perfil. Un módulo al que no se llega desde el Inicio,
   // en la práctica, no existe.
   { icon: LabIcon,         label: 'Laboratorio',  tone: 'cyan',   to: '/laboratorio', auth: true },
+  // Y pegada al Laboratorio, por lo mismo: allí sale un porcentaje y aquí se
+  // ve UNA partida de esa misma medición, carta por carta, sobre una mesa.
+  { icon: SaberIcon,       label: 'Mesa',         tone: 'purple', to: '/mesa',       auth: true },
   { icon: BountyIcon,      label: 'Contrabando',  tone: 'red',    to: '/explore',    auth: true },
   // Acceso directo al mercado: llegar a comprar/vender exigía entrar a
   // Contrabando y después cambiar de pestaña.
   { icon: CargoIcon,       label: 'Mercancía',  tone: 'amber',  to: '/explore?tab=market', auth: true },
   { icon: SpyIcon,         label: 'Espionaje',         tone: 'purple', to: '/espionaje',  auth: true },
+  // Pegada a Espionaje: las dos son mirar a la comunidad. Espionaje va a una
+  // persona que ya se conoce; la Galaxia muestra a todas de un vistazo.
+  { icon: StarfighterIcon, label: 'La Galaxia',   tone: 'cyan',   to: '/galaxia',    auth: true },
   { icon: DeathStarIcon,   label: 'Misiones',       tone: 'amber',  to: '/misiones',   auth: true },
   { icon: BeskarIcon,      label: 'Consejo Jedi',   tone: 'amber',  to: '/rank',       auth: true },
   { icon: HolonetIcon,     label: 'Buscar Cartas',         tone: 'cyan',   to: '/cards',      auth: true },

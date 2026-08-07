@@ -183,7 +183,17 @@ export async function updateUserRole(
 
 // ─── System stats ────────────────────────────────────────────
 
-export async function getSystemStats(): Promise<SystemStats> {
+/**
+ * Números del sistema para el panel de administración.
+ *
+ * Devuelve `null` cuando el conteo NO se pudo hacer. Antes era imposible
+ * distinguirlo: `count` viene en `null` ante un error de PostgREST y
+ * `count ?? 0` lo convertía en un CERO con toda la pinta de un dato medido —
+ * el tablero afirmaba «0 usuarios · 0 eventos · 0 posts» con la base entera
+ * detrás. El `else` de AdminDashboard («No se pudieron cargar las stats»)
+ * existía desde siempre y era inalcanzable.
+ */
+export async function getSystemStats(): Promise<SystemStats | null> {
   const empty: SystemStats = {
     totalUsers: 0,
     adminCount: 0,
@@ -218,6 +228,18 @@ export async function getSystemStats(): Promise<SystemStats> {
     supabase.from('news').select('*', { count: 'exact', head: true }),
     supabase.from('community_posts').select('*', { count: 'exact', head: true }),
   ])
+
+  // Si cualquiera de los ocho conteos falló, no hay tablero que enseñar: un
+  // panel a medias con ceros mezclados entre cifras reales es peor que decir
+  // que no se pudo.
+  const fallo = [
+    profilesRes, adminsRes, statsRes, eventsActive,
+    eventsOpen, eventsFinished, newsRes, communityRes,
+  ].find(r => r.error)
+  if (fallo) {
+    console.warn('[Admin] getSystemStats falló:', fallo.error?.message)
+    return null
+  }
 
   // Country count requiere fetch real (filter por JSONB no triggerea count rápido)
   let usersWithCountry = 0

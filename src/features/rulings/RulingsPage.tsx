@@ -22,13 +22,15 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Search, ChevronRight, ChevronDown, Copy, Check, ExternalLink,
-  ArrowLeft, BookMarked, FlaskConical, X,
+  ArrowLeft, BookMarked, FlaskConical, X, Gavel, Ban, AlertTriangle,
 } from 'lucide-react'
 import {
-  cargarRulings, cargarSimulador, cargarTraducciones, buscarEnReglas, comoIdDeRegla,
+  cargarRulings, cargarSimulador, cargarTraducciones, cargarRulingsCartas,
+  buscarEnReglas, comoIdDeRegla,
   rutaDeMigas, cartasConMecanicas, compararIds, traduccionDe,
   type DatosRulings, type EntradaRegla, type EstadoSimulador, type DatosTraducciones,
   type ResultadoBusqueda, type CartaConMecanicas, type EstadoModelado,
+  type DatosRulingsCartas, type NotaTransicion,
 } from '../../services/rulingsService'
 import { normalizeSearch } from '../../services/swuApi'
 
@@ -317,6 +319,8 @@ export function RulingsPage() {
   const [trad, setTrad] = useState<DatosTraducciones | null>(null)
   /** es.json terminó en fallo: el selector se deshabilita en ES/Ambos. */
   const [tradFallo, setTradFallo] = useState(false)
+  /** cartas.json: aclaraciones por carta + suspendidas + nota CR8→CR9. */
+  const [cartasCR, setCartasCR] = useState<DatosRulingsCartas | null>(null)
   const [idioma, setIdioma] = useState<Idioma>(leerIdiomaGuardado)
 
   const [params, setParams] = useSearchParams()
@@ -332,9 +336,11 @@ export function RulingsPage() {
   const [glosarioAbierto, setGlosarioAbierto] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Carga inicial (una vez; el servicio cachea las promesas). Las TRES
-  // peticiones salen EN PARALELO — la traducción no espera al índice ni el
-  // índice a la traducción: es.json es mejora progresiva, no dependencia.
+  // Carga inicial (una vez; el servicio cachea las promesas). Las CUATRO
+  // peticiones salen EN PARALELO — ninguna espera a otra: solo index.json es
+  // obligatorio; es.json, simulador.json y cartas.json son mejora progresiva,
+  // no dependencias. En cascada, un cartas.json de 461 KB retrasaría la
+  // pantalla entera para algo que casi nunca es lo que se vino a buscar.
   const [intento, setIntento] = useState(0)
   useEffect(() => {
     let vivo = true
@@ -346,6 +352,7 @@ export function RulingsPage() {
       if (!vivo) return
       if (t) { setTrad(t); setTradFallo(false) } else { setTradFallo(true) }
     })
+    cargarRulingsCartas().then(c => { if (vivo) setCartasCR(c) })
     return () => { vivo = false }
   }, [intento])
 
@@ -387,7 +394,16 @@ export function RulingsPage() {
     if (!datos || consultaLenta.trim().length < 3 || comoIdDeRegla(consultaLenta)) return
     let vivo = true
     cartasConMecanicas(datos, consultaLenta)
-      .then(cs => { if (vivo) setCartasRes({ consulta: consultaLenta, lista: cs.filter(c => c.mecanicas.length > 0) }) })
+      // Se muestra la carta si aporta ALGO: mecánicas que llevan a una regla,
+      // aclaraciones oficiales, o un estado (suspendida / afectada por la nota
+      // transicional). Antes el corte era solo por mecánicas, y buscar una
+      // carta con 5 rulings y ninguna keyword indexada no devolvía nada.
+      .then(cs => {
+        if (!vivo) return
+        const lista = cs.filter(c =>
+          c.mecanicas.length > 0 || c.rulings.length > 0 || !!c.suspendida || c.transicion)
+        setCartasRes({ consulta: consultaLenta, lista })
+      })
       .catch(() => { if (vivo) setCartasRes({ consulta: consultaLenta, lista: [] }) })
     return () => { vivo = false }
   }, [datos, consultaLenta])
@@ -477,6 +493,13 @@ export function RulingsPage() {
         </div>
         <p className="text-[10px] text-swu-muted/70 mt-1.5 leading-snug">
           El texto normativo es el inglés; el español es traducción de cortesía. © & ™ Lucasfilm Ltd. / FFG.
+          {/* Las aclaraciones por carta son OTRA fuente que el PDF y con otra
+              fecha: se declara acá para que la atribución esté a la vista en
+              toda la pantalla, no solo dentro de la sección desplegada. */}
+          {cartasCR && (
+            <> Aclaraciones por carta: {cartasCR.meta.fuente} (FFG), descargadas el{' '}
+              <span className="font-mono">{cartasCR.meta.descargado}</span>.</>
+          )}
         </p>
         <SelectorIdioma valor={idioma} onChange={cambiarIdioma} sinTraduccion={tradFallo} />
       </div>
@@ -571,6 +594,7 @@ export function RulingsPage() {
           resultados={resultados}
           idDirecto={idDirecto}
           cartas={cartas}
+          cartasCR={cartasCR}
           trad={trad}
           idioma={idiomaVisible}
           tokens={tokens}
@@ -580,6 +604,7 @@ export function RulingsPage() {
       ) : (
         <ArbolIndice
           datos={datos}
+          cartasCR={cartasCR}
           trad={trad}
           idioma={idiomaVisible}
           abiertos={abiertos}
@@ -596,13 +621,15 @@ export function RulingsPage() {
 // ─── Resultados de búsqueda ───
 
 function SeccionResultados({
-  datos, consulta, resultados, idDirecto, cartas, trad, idioma, tokens, irARegla, irAMecanica,
+  datos, consulta, resultados, idDirecto, cartas, cartasCR, trad, idioma, tokens, irARegla, irAMecanica,
 }: {
   datos: DatosRulings
   consulta: string
   resultados: ResultadoBusqueda[]
   idDirecto: string | null
   cartas: CartaConMecanicas[]
+  /** Puede ser null: cartas.json es mejora progresiva. */
+  cartasCR: DatosRulingsCartas | null
   trad: DatosTraducciones | null
   idioma: Idioma
   tokens: string[]
@@ -634,31 +661,23 @@ function SeccionResultados({
         </button>
       )}
 
-      {/* Cartas → mecánicas → reglas */}
+      {/* Cartas → mecánicas → reglas, + lo que FFG aclaró de esa carta */}
       {cartas.length > 0 && (
         <div>
           <h3 className="text-[10px] font-mono tracking-[0.2em] uppercase text-swu-muted/60 mb-1.5 px-1">
-            Cartas y sus mecánicas
+            Cartas: mecánicas y aclaraciones
           </h3>
           <div className="space-y-1.5">
-            {cartas.map(({ carta, mecanicas }) => (
-              <div key={carta.id} className="rounded-xl border border-swu-border bg-swu-surface px-3 py-2.5">
-                <p className="text-xs font-semibold text-swu-text leading-tight">
-                  {carta.name}{carta.subtitle ? <span className="text-swu-muted font-normal"> · {carta.subtitle}</span> : null}
-                </p>
-                <div className="flex flex-wrap gap-1.5 mt-1.5">
-                  {mecanicas.map(m => (
-                    <button
-                      key={m}
-                      onClick={() => irAMecanica(m)}
-                      className="px-2 py-0.5 rounded-full bg-swu-cyan/10 border border-swu-cyan/30
-                                 text-[10px] font-semibold text-swu-cyan hover:bg-swu-cyan/20 transition-colors"
-                    >
-                      {m} → CR {datos.indice[m].def}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {cartas.map(c => (
+              <FilaCarta
+                key={c.carta.id}
+                datos={datos}
+                info={c}
+                transicion={cartasCR?.transicion ?? null}
+                descargado={cartasCR?.meta.descargado ?? null}
+                fuente={cartasCR?.meta.fuente ?? null}
+                irAMecanica={irAMecanica}
+              />
             ))}
           </div>
         </div>
@@ -703,6 +722,112 @@ function SeccionResultados({
             </div>
           )}
         </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Una carta encontrada por nombre: sus mecánicas (que llevan a la regla) y sus
+ * aclaraciones oficiales, que es lo que FFG publicó SOBRE ESA CARTA.
+ *
+ * Los rulings van en INGLÉS aunque la pantalla esté en español: son texto
+ * normativo, igual que las reglas. Traducirlos sería fabricar una versión que
+ * ningún juez puede citar en una mesa.
+ *
+ * Se despliegan a un toque en vez de mostrarse siempre: hay cartas con 5, y
+ * cuatro cartas abiertas de golpe sepultarían los resultados de reglas, que es
+ * lo que la mayoría vino a buscar.
+ */
+function FilaCarta({
+  datos, info, transicion, descargado, fuente, irAMecanica,
+}: {
+  datos: DatosRulings
+  info: CartaConMecanicas
+  transicion: NotaTransicion | null
+  descargado: string | null
+  fuente: string | null
+  irAMecanica: (m: string) => void
+}) {
+  const { carta, mecanicas, rulings, suspendida } = info
+  const [abierta, setAbierta] = useState(false)
+  const idPanel = `rulings-carta-${carta.id}`
+
+  return (
+    <div className="rounded-xl border border-swu-border bg-swu-surface px-3 py-2.5">
+      <div className="flex items-start gap-2">
+        <p className="text-xs font-semibold text-swu-text leading-tight flex-1 min-w-0">
+          {carta.name}{carta.subtitle ? <span className="text-swu-muted font-normal"> · {carta.subtitle}</span> : null}
+          <span className="text-[10px] font-mono text-swu-muted/60 block">{carta.setCode} {carta.setNumber}</span>
+        </p>
+        {suspendida && (
+          <span className="flex items-center gap-1 flex-shrink-0 px-2 py-0.5 rounded-full bg-swu-red/15
+                           border border-swu-red/40 text-[10px] font-bold text-swu-red">
+            <Ban size={10} aria-hidden /> Suspendida · {suspendida.formato}
+          </span>
+        )}
+      </div>
+
+      {mecanicas.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-1.5">
+          {mecanicas.map(m => (
+            <button
+              key={m}
+              onClick={() => irAMecanica(m)}
+              className="px-2 py-0.5 rounded-full bg-swu-cyan/10 border border-swu-cyan/30
+                         text-[10px] font-semibold text-swu-cyan hover:bg-swu-cyan/20 transition-colors"
+            >
+              {m} → CR {datos.indice[m].def}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* La nota transicional cambia una regla del CR vigente: se muestra
+          SIEMPRE en la carta afectada, sin tener que desplegar nada. */}
+      {info.transicion && transicion && (
+        <div className="mt-2 rounded-lg border border-swu-amber/35 bg-swu-amber/10 px-2.5 py-2">
+          <p className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-swu-amber mb-0.5">
+            <AlertTriangle size={11} aria-hidden /> {transicion.titulo}
+          </p>
+          <p className="text-[11px] text-swu-text leading-snug">{transicion.texto}</p>
+        </div>
+      )}
+
+      {rulings.length > 0 && (
+        <>
+          <button
+            onClick={() => setAbierta(a => !a)}
+            aria-expanded={abierta}
+            aria-controls={idPanel}
+            className="mt-2 w-full flex items-center gap-1.5 text-left
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent rounded"
+          >
+            <Gavel size={12} className="text-swu-cyan flex-shrink-0" aria-hidden />
+            {/* El plural pierde la tilde: «aclaraciones», no «aclaraciónes». */}
+            <span className="text-[11px] font-semibold text-swu-cyan flex-1">
+              {rulings.length === 1 ? '1 aclaración oficial' : `${rulings.length} aclaraciones oficiales`}
+            </span>
+            {abierta
+              ? <ChevronDown size={12} className="text-swu-cyan" aria-hidden />
+              : <ChevronRight size={12} className="text-swu-cyan/70" aria-hidden />}
+          </button>
+          {abierta && (
+            <div id={idPanel} className="mt-1.5 pl-1 space-y-1.5">
+              {rulings.map((r, i) => (
+                <div key={i} className="flex gap-2">
+                  <span className="text-[10px] font-mono text-swu-cyan/60 flex-shrink-0 mt-0.5">{i + 1}</span>
+                  <p lang="en" className="text-[11px] text-swu-text/90 leading-relaxed">{r}</p>
+                </div>
+              ))}
+              <p className="text-[10px] text-swu-muted/70 leading-snug pt-1">
+                Texto oficial en inglés (es el normativo).
+                {fuente && <> Fuente: {fuente} · FFG</>}
+                {descargado && <> · descargado <span className="font-mono">{descargado}</span></>}.
+              </p>
+            </div>
+          )}
+        </>
       )}
     </div>
   )
@@ -1036,12 +1161,94 @@ function DetalleMecanica({
   )
 }
 
+// ─── Estado del formato: suspendidas + nota transicional ───
+
+/**
+ * Formatos sobre los que se afirma algo.
+ *
+ * La lista de suspendidas de FFG es ÚNICA y cubre todos los formatos, así que
+ * un formato que no aparece en ella tiene cero cartas suspendidas. Por eso se
+ * puede escribir «Premier: ninguna» — y hay que escribirlo: el silencio no
+ * distingue «lo miramos y está limpio» de «no lo miramos». Premier es donde
+ * juega casi todo el mundo y es justo el que hoy no tiene ninguna.
+ *
+ * Un formato que aparezca en los datos y no esté acá se muestra igual (ver
+ * abajo): que salga un formato nuevo no puede hacer desaparecer sus cartas.
+ */
+const FORMATOS_VIGILADOS = ['Premier', 'Eternal']
+
+function EstadoDelFormato({ datos }: { datos: DatosRulingsCartas }) {
+  const suspendidas = datos.suspendidas ?? []
+  // Los declarados primero y en orden fijo; después cualquier formato que los
+  // datos traigan y la constante no conozca.
+  const formatos = [
+    ...FORMATOS_VIGILADOS,
+    ...[...new Set(suspendidas.map(s => s.formato))].filter(f => !FORMATOS_VIGILADOS.includes(f)),
+  ]
+
+  return (
+    <div className="rounded-xl border border-swu-border bg-swu-surface p-3.5 mb-2 space-y-3">
+      <div>
+        <p className="flex items-center gap-1.5 text-[10px] font-mono tracking-[0.2em] uppercase text-swu-muted/60 mb-2">
+          <Ban size={11} className="text-swu-red" aria-hidden /> Cartas suspendidas
+        </p>
+        <div className="space-y-1.5">
+          {formatos.map(f => {
+            const enFormato = suspendidas.filter(s => s.formato === f)
+            return (
+              <div key={f} className="flex items-start gap-2.5">
+                <span className="text-[11px] font-bold text-swu-text w-16 flex-shrink-0">{f}</span>
+                {enFormato.length === 0 ? (
+                  <span className="text-[11px] text-swu-green">Ninguna</span>
+                ) : (
+                  <span className="text-[11px] text-swu-red leading-snug">
+                    {enFormato.map((s, i) => (
+                      <span key={`${s.set}-${s.num}`}>
+                        {i > 0 && ' · '}
+                        {s.nombre}{' '}
+                        <span className="font-mono text-swu-muted/70">{s.set} {s.num}</span>
+                      </span>
+                    ))}
+                  </span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {datos.transicion && (
+        <div className="rounded-lg border border-swu-amber/35 bg-swu-amber/10 px-2.5 py-2">
+          <p className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-swu-amber mb-1">
+            <AlertTriangle size={11} aria-hidden /> {datos.transicion.titulo}
+          </p>
+          <p className="text-[11px] text-swu-text leading-snug">{datos.transicion.texto}</p>
+          {datos.transicion.afecta.length > 0 && (
+            <p className="text-[10px] text-swu-muted mt-1.5">
+              Afecta a{' '}
+              <span className="font-mono text-swu-amber">{datos.transicion.afecta.join(' · ')}</span>
+              {' '}— buscá la carta acá arriba para verla en su ficha.
+            </p>
+          )}
+        </div>
+      )}
+
+      <p className="text-[10px] text-swu-muted/70 leading-snug">
+        {datos.meta.cartasConRulings} cartas con aclaraciones oficiales ({datos.meta.rulingsTotales} en total).
+        Fuente: {datos.meta.fuente} · Fantasy Flight Games · descargado{' '}
+        <span className="font-mono">{datos.meta.descargado}</span>.
+      </p>
+    </div>
+  )
+}
+
 // ─── Índice navegable (árbol de capítulos) ───
 
 function ArbolIndice({
-  datos, trad, idioma, abiertos, alternar, glosarioAbierto, setGlosarioAbierto, irARegla,
+  datos, cartasCR, trad, idioma, abiertos, alternar, glosarioAbierto, setGlosarioAbierto, irARegla,
 }: {
   datos: DatosRulings
+  cartasCR: DatosRulingsCartas | null
   trad: DatosTraducciones | null
   idioma: Idioma
   abiertos: Set<string>
@@ -1052,6 +1259,13 @@ function ArbolIndice({
 }) {
   return (
     <div className="space-y-1.5">
+      {/* ── Estado del formato: lo que cambió DESPUÉS del PDF ──
+          Va arriba del índice a propósito. El CR es un documento fijo; estas
+          dos cosas (qué está suspendido, qué regla ya no aplica) son las que
+          lo dejan desactualizado, y son justo las que nadie va a encontrar
+          navegando capítulos. */}
+      {cartasCR && <EstadoDelFormato datos={cartasCR} />}
+
       <h3 className="text-[10px] font-mono tracking-[0.2em] uppercase text-swu-muted/60 px-1 pt-1">
         Índice · {datos.meta.totales.reglas} reglas en {datos.meta.totales.secciones} secciones
       </h3>

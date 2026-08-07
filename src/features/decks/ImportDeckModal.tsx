@@ -57,7 +57,7 @@ export function ImportDeckModal({ open, onClose, onImport }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-swu-border">
           <h3 className="text-base font-bold text-swu-text">Importar Deck</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg bg-swu-bg text-swu-muted active:scale-95">
+          <button onClick={onClose} aria-label="Cerrar" className="p-1.5 rounded-lg bg-swu-bg text-swu-muted active:scale-95">
             <X size={16} />
           </button>
         </div>

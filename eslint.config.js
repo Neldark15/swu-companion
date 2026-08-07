@@ -6,7 +6,14 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // `dist` es lo construido. Los `*-banco.tsx` / `banco-*.tsx` de la raíz son
+  // arneses TEMPORALES de medición —montan una pantalla real fuera del
+  // AuthGate e instrumentan WebGL para contar draw calls y fugas de memoria—.
+  // Viven en la raíz a propósito, fuera de `src/`, así que nunca entran al
+  // bundle; pero el linter los trataba como componentes de la app y su
+  // instrumentación (reasignar métodos del contexto WebGL) no puede cumplir
+  // esas reglas ni tiene por qué.
+  globalIgnores(['dist', 'banco-*.tsx', '*-banco.tsx']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

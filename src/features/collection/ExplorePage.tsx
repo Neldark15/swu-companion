@@ -199,13 +199,18 @@ function CollectionsTab() {
   const [profiles, setProfiles] = useState<PublicProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [searching, setSearching] = useState(false)
+  /** Igual que en «Para vos»: un fallo de red no puede verse como un vacío. */
+  const [failed, setFailed] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     getExploreProfiles(50)
-      .then(data => { if (!cancelled) setProfiles(data) })
-      .catch(e => console.warn('[Contrabando] Failed to load profiles:', e))
+      .then(data => { if (!cancelled) { setProfiles(data); setFailed(false) } })
+      .catch(e => {
+        console.warn('[Contrabando] Failed to load profiles:', e)
+        if (!cancelled) setFailed(true)
+      })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [])
@@ -216,7 +221,8 @@ function CollectionsTab() {
     try {
       const data = q.trim() ? await searchPublicProfiles(q) : await getExploreProfiles(50)
       setProfiles(data)
-    } catch { /* ignore */ }
+      setFailed(false)
+    } catch { setFailed(true) }
     finally { setSearching(false) }
   }, [])
 
@@ -240,8 +246,12 @@ function CollectionsTab() {
 
       <div className="flex items-center gap-2 text-swu-muted">
         <Users size={14} />
+        {/* Un «0 contrabandistas» con la consulta caída es un dato inventado:
+            mientras no se sepa, no se afirma un total. */}
         <span className="text-xs font-medium">
-          {query.trim() ? `Resultados para "${query}"` : `${profiles.length} contrabandistas`}
+          {failed
+            ? 'Lista no disponible'
+            : query.trim() ? `Resultados para "${query}"` : `${profiles.length} contrabandistas`}
         </span>
       </div>
 
@@ -252,7 +262,16 @@ function CollectionsTab() {
         </div>
       )}
 
-      {!loading && !searching && profiles.length === 0 && (
+      {!loading && !searching && failed && (
+        <div className="bg-swu-amber/10 border border-swu-amber/30 rounded-xl p-3">
+          <p className="text-xs text-swu-amber font-semibold">No se pudo leer la lista</p>
+          <p className="text-[11px] text-swu-muted mt-0.5">
+            Puede que no haya conexión. No es que no haya contrabandistas.
+          </p>
+        </div>
+      )}
+
+      {!loading && !searching && !failed && profiles.length === 0 && (
         <div className="text-center py-12">
           <Users size={48} className="mx-auto text-swu-muted/30 mb-4" />
           <p className="text-swu-muted text-sm">
@@ -322,12 +341,15 @@ function MarketTab() {
   const [cards, setCards] = useState<Map<string, Card>>(new Map())
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('')
+  /** Igual que en «Para vos»: un fallo de red no puede verse como un vacío. */
+  const [failed, setFailed] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const list = await getMarketplaceListings({ limit: 200 })
       setListings(list)
+      setFailed(false)
       // Hydrate card details
       const cardIds = Array.from(new Set(list.map(l => l.cardId)))
       if (cardIds.length > 0) {
@@ -336,6 +358,7 @@ function MarketTab() {
       }
     } catch (e) {
       console.warn('[Contrabando] Failed to load market:', e)
+      setFailed(true)
     } finally {
       setLoading(false)
     }
@@ -358,8 +381,10 @@ function MarketTab() {
 
   return (
     <div className="space-y-3">
+      {/* «0 listings» con la consulta caída es un número inventado. */}
       <p className="text-xs text-swu-amber/80 font-mono text-center bg-swu-amber/5 rounded-lg border border-swu-amber/20 p-2">
-        Cartas marcadas en venta por los jugadores · {listings.length} listings
+        Cartas marcadas en venta por los jugadores
+        {!failed && ` · ${listings.length} listings`}
       </p>
 
       <div className="flex gap-2">
@@ -390,7 +415,19 @@ function MarketTab() {
         </div>
       )}
 
-      {!loading && filtered.length === 0 && (
+      {!loading && failed && (
+        <div className="bg-swu-amber/10 border border-swu-amber/30 rounded-xl p-3">
+          <p className="text-xs text-swu-amber font-semibold">No se pudo leer el mercado</p>
+          <p className="text-[11px] text-swu-muted mt-0.5">
+            Puede que no haya conexión. No es que nadie esté vendiendo.
+          </p>
+          <button onClick={load} className="mt-2 text-[11px] text-swu-amber underline">
+            Reintentar
+          </button>
+        </div>
+      )}
+
+      {!loading && !failed && filtered.length === 0 && (
         <div className="text-center py-12">
           <ShoppingBag size={48} className="mx-auto text-swu-muted/30 mb-4" />
           <p className="text-swu-muted text-sm">

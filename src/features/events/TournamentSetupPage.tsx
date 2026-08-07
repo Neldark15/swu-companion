@@ -210,6 +210,9 @@ export function TournamentSetupPage() {
           <span className="text-sm text-swu-text">Evitar rematches</span>
           <button
             onClick={() => setAvoidRematches(!avoidRematches)}
+            role="switch"
+            aria-checked={avoidRematches}
+            aria-label="Evitar rematches"
             className={`w-12 h-7 rounded-full transition-colors ${
               avoidRematches ? 'bg-swu-accent' : 'bg-swu-border'
             }`}

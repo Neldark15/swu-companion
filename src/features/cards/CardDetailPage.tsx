@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Heart, Loader2, AlertCircle, BookOpen, Star, Package, Plus, Minus, Maximize2, Search } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { CardZoom } from '../../components/CardZoom'
+import { AclaracionesOficiales } from '../../components/CardPreviewSheet'
 import { isLandscapeFace } from '../../services/cardArt'
 import { getCardById } from '../../services/swuApi'
 import { getMyWishlist, addToWishlist, removeFromWishlist } from '../../services/tradeService'
@@ -87,6 +88,12 @@ export function CardDetailPage() {
           .finally(() => setPriceLoading(false))
       }
     })
+      // Las cuatro lecturas tocan Dexie, y Dexie SÍ rechaza: navegación
+      // privada, almacenamiento bloqueado o una actualización de esquema
+      // retenida por otra pestaña. Sin este `catch`, `loading` se quedaba en
+      // `true` para siempre y la carta era un spinner eterno sin salida.
+      // Apagarlo cae en «Carta no encontrada», que al menos tiene botón.
+      .catch(() => setLoading(false))
   }, [id])
 
   const handleCollectionChange = async (delta: number) => {
@@ -362,6 +369,10 @@ export function CardDetailPage() {
           <p className="text-sm text-swu-text">{translateCardText(card.epicAction)}</p>
         </div>
       )}
+
+      {/* Aclaraciones oficiales de FFG. No se dibuja nada si la carta no tiene
+          — el componente decide, ver CardPreviewSheet.tsx. */}
+      <AclaracionesOficiales carta={card} />
 
       {/* Prices by Variant */}
       {(priceInfo || priceLoading) && (

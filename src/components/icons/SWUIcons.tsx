@@ -14,6 +14,17 @@ const defaults = (props: IconProps) => ({
   viewBox: '0 0 24 24',
   fill: 'none',
   xmlns: 'http://www.w3.org/2000/svg',
+  /**
+   * Decorativos por defecto. Un `<svg>` sin `role` ni `<title>` no le da
+   * NOMBRE a nadie, pero varios lectores de pantalla igual lo anuncian como
+   * «gráfico» y meten ruido entre el texto que sí importa. lucide-react lo
+   * pone solo (`!children && !hasA11yProp(rest) && { 'aria-hidden': 'true' }`);
+   * estos 40 íconos propios no lo hacían.
+   *
+   * Va ANTES del spread a propósito: quien de verdad necesite un ícono
+   * informativo lo pisa pasando `aria-hidden={false}` con su `aria-label`.
+   */
+  'aria-hidden': true,
   ...props,
   size: undefined, // strip from DOM
 })

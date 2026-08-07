@@ -54,7 +54,9 @@ const EspionajePage = lazy(() => import('./features/espionaje/EspionajePage').th
 const SpyProfilePage = lazy(() => import('./features/espionaje/SpyProfilePage').then(m => ({ default: m.SpyProfilePage })))
 const MissionsPage = lazy(() => import('./features/missions/MissionsPage'))
 const GalaxyPage = lazy(() => import('./features/galaxy/GalaxyPage').then(m => ({ default: m.GalaxyPage })))
+const GalaxiaPage = lazy(() => import('./features/galaxia/GalaxiaPage').then(m => ({ default: m.GalaxiaPage })))
 const LabPage = lazy(() => import('./features/lab/LabPage').then(m => ({ default: m.LabPage })))
+const MesaPage = lazy(() => import('./features/mesa/MesaPage').then(m => ({ default: m.MesaPage })))
 const RulingsPage = lazy(() => import('./features/rulings/RulingsPage').then(m => ({ default: m.RulingsPage })))
 
 // Admin panel — separate layout, isAdmin guard inside AdminLayout
@@ -128,6 +130,9 @@ export default function App() {
             {/* ── Protected routes (require login) ── */}
             <Route path="/play" element={<P><PlayPage /></P>} />
             <Route path="/laboratorio" element={<P><LabPage /></P>} />
+            {/* Pegada al Laboratorio porque es su continuación: allí se MIDE un
+                emparejamiento y aquí se VE una partida de esa misma medición. */}
+            <Route path="/mesa" element={<P><MesaPage /></P>} />
             <Route path="/play/tracker/:mode" element={<P><TrackerPage /></P>} />
             <Route path="/play/saved" element={<P><SavedMatchesPage /></P>} />
             <Route path="/events" element={<P><EventsPage /></P>} />
@@ -166,6 +171,10 @@ export default function App() {
             <Route path="/rank" element={<P><RankingPage /></P>} />
             <Route path="/community" element={<P><CommunityPage /></P>} />
             <Route path="/galaxy" element={<P><GalaxyPage /></P>} />
+            {/* La misma comunidad en 3D. Va tras `<P>` igual que el explorador:
+                `profiles` exige sesión salvo perfiles públicos, y la escena
+                necesita saber cuál planeta es el de quien mira. */}
+            <Route path="/galaxia" element={<P><GalaxiaPage /></P>} />
             {/* La agenda es pública: sirve para que alguien sin cuenta vea
                 cuándo es el próximo torneo oficial. */}
             <Route path="/news" element={<NewsPage />} />

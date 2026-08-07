@@ -25,6 +25,7 @@
  *   action: 'gauntlet'         → POST /gauntlet  { mazo, partidas } → { trabajo }
  *   action: 'trabajo'          → GET  /trabajo/<id>
  *   action: 'probar'           → POST /probar    { mazo, quita, mete, rival, partidas }
+ *   action: 'partida'          → POST /partida   { mazo, rival, semilla, n }
  *
  * Los topes de `partidas` se recortan AQUÍ además de en el VPS: las funciones
  * de Vercel cortan a los ~10 s, así que un `probar` de 2 000 partidas (que el
@@ -167,6 +168,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         payload.quita = limpiarCambios(body.quita)
         payload.mete = limpiarCambios(body.mete)
       }
+      break
+    }
+    /**
+     * Una sola partida, jugada a jugada, para reproducirla en la mesa 3D.
+     *
+     * No lleva `partidas`: es UNA, y el VPS la resuelve en 3-4 ms. Lo que sí
+     * se acota son `semilla` y `n`, que van tal cual al motor — el VPS los
+     * valida también, pero un `n` de siete cifras no tiene por qué gastar el
+     * viaje. `n` es el índice dentro de una tanda: con la misma semilla,
+     * `n` reproduce la partida n-ésima de un `simular`.
+     */
+    case 'partida': {
+      ruta = '/partida'
+      const semilla = Number(body.semilla)
+      const n = Number(body.n)
+      payload = {
+        mazo: body.mazo,
+        semilla: Number.isInteger(semilla) && semilla >= 0 && semilla <= 2_147_483_647 ? semilla : 31337,
+        n: Number.isInteger(n) && n >= 0 && n <= 999 ? n : 0,
+      }
+      if (body.rival != null) payload.rival = String(body.rival)
       break
     }
     default:

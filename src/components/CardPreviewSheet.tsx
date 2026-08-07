@@ -11,13 +11,14 @@
 
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ExternalLink, RotateCcw, Check, Minus } from 'lucide-react'
+import { ExternalLink, RotateCcw, Check, Minus, Gavel, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react'
 import { Sheet } from './ui/Sheet'
 import { CardImage } from './CardImage'
 import { Carta3D } from './Carta3D'
 import { isLandscapeFace } from '../services/cardArt'
 import { getCardQuantity } from '../services/collectionService'
 import { PLAYSET_SIZE } from '../services/swuApi'
+import { rulingsDeCarta, type AclaracionesDeCarta } from '../services/rulingsService'
 import { db } from '../services/db'
 import type { Card } from '../types'
 
@@ -47,6 +48,113 @@ function Bloque({ titulo, texto }: { titulo: string; texto: string | null | unde
     <div>
       <p className="text-[10px] font-mono uppercase tracking-wider text-swu-muted/60 mb-0.5">{titulo}</p>
       <p className="text-xs text-swu-text leading-relaxed whitespace-pre-line">{texto}</p>
+    </div>
+  )
+}
+
+/**
+ * «Aclaraciones oficiales» — los rulings que FFG publica POR CARTA.
+ *
+ * Se dibuja SOLO cuando la carta tiene algo oficial que decir. De las 9.057
+ * impresiones, 978 cartas tienen aclaraciones: poner un «sin aclaraciones» en
+ * las otras ocho mil sería ruido en el 90% de las aperturas, y entrenaría a
+ * ignorar la sección justo en las cartas donde importa. Por eso
+ * `rulingsDeCarta` devuelve `null` cuando no hay nada y acá se sale sin pintar.
+ *
+ * El texto va EN INGLÉS a propósito: es el normativo, igual que en /rulings.
+ * Traducirlo sería inventar una versión que ningún juez puede citar. La nota
+ * transicional y la suspensión sí vienen en español porque son avisos
+ * nuestros sobre el estado de la carta, no texto de regla.
+ *
+ * Vive acá y no en un archivo propio porque la comparten la hoja rápida y la
+ * ficha completa, que son las dos formas de «leer una carta» en la app.
+ */
+export function AclaracionesOficiales({ carta }: { carta: Card }) {
+  // Las aclaraciones viajan CON el id de la carta a la que pertenecen, por la
+  // misma razón que la cantidad del binder: al pasar de una carta con rulings
+  // a otra sin ellos, mostrar los viejos un instante es afirmar algo falso
+  // sobre la carta que está a la vista.
+  const [datos, setDatos] = useState<{ id: string; info: AclaracionesDeCarta | null } | null>(null)
+  /** De qué carta está desplegada la sección (mismo patrón que el dorso): al
+   *  abrir otra vuelve sola a plegarse, sin efecto que la reinicie. */
+  const [abiertaDe, setAbiertaDe] = useState<string | null>(null)
+
+  const { id, setCode, setNumber } = carta
+
+  useEffect(() => {
+    let vivo = true
+    void rulingsDeCarta(id, { setCode, setNumber })
+      .then(info => { if (vivo) setDatos({ id, info }) })
+    return () => { vivo = false }
+  }, [id, setCode, setNumber])
+
+  const info = datos && datos.id === id ? datos.info : null
+  if (!info) return null
+
+  const abierta = abiertaDe === id
+  const n = info.rulings.length
+
+  return (
+    <div className="rounded-xl border border-swu-cyan/30 bg-swu-cyan/5 overflow-hidden">
+      <button
+        onClick={() => setAbiertaDe(a => (a === id ? null : id))}
+        aria-expanded={abierta}
+        aria-controls={`aclaraciones-${id}`}
+        className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-swu-cyan/10 transition-colors
+                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent"
+      >
+        <Gavel size={14} className="text-swu-cyan flex-shrink-0" aria-hidden />
+        <span className="text-[12px] font-bold text-swu-cyan flex-1">Aclaraciones oficiales</span>
+        {n > 0 && (
+          <span className="text-[10px] font-mono text-swu-cyan/80 flex-shrink-0">{n}</span>
+        )}
+        {abierta
+          ? <ChevronDown size={14} className="text-swu-cyan flex-shrink-0" aria-hidden />
+          : <ChevronRight size={14} className="text-swu-cyan/70 flex-shrink-0" aria-hidden />}
+      </button>
+
+      {abierta && (
+        <div id={`aclaraciones-${id}`} className="border-t border-swu-cyan/20 px-3 py-2.5 space-y-2.5">
+          {/* Una carta suspendida se juega distinto: va ARRIBA de todo. */}
+          {info.suspendida && (
+            <div className="flex items-start gap-2 rounded-lg border border-swu-red/35 bg-swu-red/10 px-2.5 py-2">
+              <AlertTriangle size={13} className="text-swu-red flex-shrink-0 mt-0.5" aria-hidden />
+              <p className="text-[11px] text-swu-red leading-snug">
+                <span className="font-bold">Suspendida en {info.suspendida.formato}.</span>{' '}
+                No se puede jugar en ese formato.
+              </p>
+            </div>
+          )}
+
+          {info.transicion && (
+            <div className="rounded-lg border border-swu-amber/35 bg-swu-amber/10 px-2.5 py-2">
+              <p className="text-[10px] font-mono uppercase tracking-wider text-swu-amber mb-0.5">
+                {info.transicion.titulo}
+              </p>
+              <p className="text-[11px] text-swu-text leading-snug">{info.transicion.texto}</p>
+            </div>
+          )}
+
+          {info.rulings.length > 0 && (
+            <ul className="space-y-2">
+              {info.rulings.map((r, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="text-[10px] font-mono text-swu-cyan/60 flex-shrink-0 mt-0.5">{i + 1}</span>
+                  {/* `lang="en"` para que un lector de pantalla en español no
+                      lea el inglés con fonética castellana. */}
+                  <p lang="en" className="text-[11px] text-swu-text leading-relaxed">{r}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <p className="text-[10px] text-swu-muted/70 leading-snug border-t border-swu-cyan/15 pt-2">
+            {info.rulings.length > 0 && 'Texto oficial en inglés (es el normativo). '}
+            Fuente: {info.meta.fuente} · Fantasy Flight Games · descargado{' '}
+            <span className="font-mono">{info.meta.descargado}</span>.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -230,6 +338,11 @@ export function CardPreviewSheet({
           <Bloque titulo="Texto" texto={carta.text} />
           <Bloque titulo="Al desplegar" texto={carta.deployBox} />
           <Bloque titulo="Acción épica" texto={carta.epicAction} />
+
+          {/* Va pegada al texto que aclara, no al pie: quien abre la hoja en
+              medio de una partida no debería tener que scrollear para saber
+              que la carta tiene una aclaración oficial. */}
+          <AclaracionesOficiales carta={carta} />
 
           {carta.keywords.length > 0 && (
             <p className="text-[11px] text-swu-muted">

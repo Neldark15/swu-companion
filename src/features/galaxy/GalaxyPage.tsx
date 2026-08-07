@@ -81,9 +81,13 @@ interface PlayerCardProps {
 
 function PlayerCard({ player, rank, onView }: PlayerCardProps) {
   const rankInfo = getRankForLevel(player.level)
+  // Un porcentaje suelto miente: «100%» de una partida se leía igual que
+  // «100%» de cien, y quien no jugó nada mostraba un «0%» inventado. Va
+  // siempre con su denominador —victorias DE partidas— y el porcentaje solo
+  // aparece cuando hay partidas que contar.
   const winRate = player.matchesPlayed > 0
     ? Math.round((player.wins / player.matchesPlayed) * 100)
-    : 0
+    : null
 
   return (
     <button
@@ -136,9 +140,13 @@ function PlayerCard({ player, rank, onView }: PlayerCardProps) {
               <Zap size={9} className="text-swu-amber" />
               {player.xp.toLocaleString()} XP
             </span>
-            <span className="flex items-center gap-0.5">
+            <span
+              className="flex items-center gap-0.5"
+              title={`${player.wins} victorias de ${player.matchesPlayed} partidas`}
+            >
               <Swords size={9} className="text-swu-green" />
-              {player.wins}V {winRate}%
+              {player.wins}V de {player.matchesPlayed}
+              {winRate !== null && <span className="ml-1">· {winRate}%</span>}
             </span>
             {player.unlockedAchievements.length > 0 && (
               <span className="flex items-center gap-0.5">

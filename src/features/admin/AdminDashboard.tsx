@@ -11,10 +11,10 @@ export function AdminDashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getSystemStats().then(s => {
-      setStats(s)
-      setLoading(false)
-    })
+    getSystemStats()
+      .then(s => { setStats(s); setLoading(false) })
+      // Sin `catch`, un rechazo dejaba «Cargando stats…» girando sin final.
+      .catch(() => { setStats(null); setLoading(false) })
   }, [])
 
   return (

@@ -59,7 +59,7 @@ export function ExportDeckModal({ open, deck, onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-swu-border flex-shrink-0">
           <h3 className="text-base font-bold text-swu-text truncate pr-2">Exportar: {deck.name}</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg bg-swu-bg text-swu-muted active:scale-95">
+          <button onClick={onClose} aria-label="Cerrar" className="p-1.5 rounded-lg bg-swu-bg text-swu-muted active:scale-95">
             <X size={16} />
           </button>
         </div>

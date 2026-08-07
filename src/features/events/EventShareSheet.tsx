@@ -38,7 +38,7 @@ export function EventShareSheet({ eventCode, eventName, onClose }: EventShareShe
         {/* Handle */}
         <div className="w-12 h-1 bg-swu-border rounded-full mx-auto" />
 
-        <button onClick={onClose} className="absolute right-4 top-4 p-2 text-swu-muted">
+        <button onClick={onClose} aria-label="Cerrar" className="absolute right-4 top-4 p-2 text-swu-muted">
           <X size={20} />
         </button>
 

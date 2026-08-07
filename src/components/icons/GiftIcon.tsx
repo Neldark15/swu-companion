@@ -13,7 +13,7 @@ interface GiftIconProps {
 /** Jedi holocron book — radiating Force knowledge */
 function LeccionJediIcon({ size = 32, className }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
       {/* Glow */}
       <defs>
         <radialGradient id="jedi-glow" cx="50%" cy="50%" r="50%">
@@ -50,7 +50,7 @@ function LeccionJediIcon({ size = 32, className }: { size?: number; className?: 
 /** Imperial credit chip — gold/silver coin with Empire gear symbol */
 function CreditosImperialesIcon({ size = 32, className }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
       <defs>
         <linearGradient id="credit-face" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#fcd34d" />
@@ -94,7 +94,7 @@ function CreditosImperialesIcon({ size = 32, className }: { size?: number; class
 /** Beskar ingot — sleek mandalorian metal bar */
 function BeskarIcon({ size = 32, className }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
       <defs>
         <linearGradient id="beskar-metal" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#e2e8f0" />
@@ -132,7 +132,7 @@ function BeskarIcon({ size = 32, className }: { size?: number; className?: strin
 /** Holocron — glowing cube/pyramid device */
 function HolocronIcon({ size = 32, className }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
       <defs>
         <radialGradient id="holo-glow" cx="50%" cy="50%" r="50%">
           <stop offset="0%" stopColor="#a855f7" stopOpacity="0.5" />
@@ -179,7 +179,7 @@ function HolocronIcon({ size = 32, className }: { size?: number; className?: str
 /** Kyber Crystal — angular glowing shard */
 function CristalKyberIcon({ size = 32, className }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
       <defs>
         <radialGradient id="kyber-glow" cx="50%" cy="50%" r="50%">
           <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.5" />
