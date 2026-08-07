@@ -134,6 +134,8 @@
 - `/play` Duelo (Swords) — tracker en vivo
 - `/arena` Holocrón (DatapadIcon) — registro de duelos
 - `/melee` Circuito (MedalIcon) — Melee.gg
+- `/laboratorio` Laboratorio (LabIcon) — simulador de mazos contra el meta
+- `/rulings` Rulings (HolocronIcon) — reglamento oficial, PÚBLICO
 - `/events` Torneo (MandoTrophyIcon) — eventos organizados
 - `/profile` Mi Perfil
 
@@ -311,6 +313,55 @@ Reglas que no se pueden relajar sin re-medir:
 - **Bajo quórum (20 listas) o con datos parciales NO se muestran porcentajes.** Conteos y «de N», siempre.
 - La cola (`meta_ingest_queue`) y el turno tienen **RLS activa y CERO policies** a propósito: solo entra `service_role`. `intentos` se incrementa al RECLAMAR y se devuelve si la fila vuelve intacta; el único corte es el barrido SQL en `intentos >= 5`.
 
+### 2q. El laboratorio mide con OTRO pool de cartas que la app
+
+La app tiene la base **completa** (9.057 impresiones, 28 sets); el simulador del
+VPS solo el **Premier vigente** (1.324 cartas: SEC, LAW, JTL, LOF, ASH). Medido:
+**3.720 filas — el 41 %** — están fuera del pool del motor.
+
+Por eso el buscador de mejoras proponía cartas rotadas (Clone Deserter, de SHD) y
+el motor las rechazaba con «no existe en el Premier actual» *después* de gastar
+el viaje. Los sets se **preguntan** al motor (`GET /pool` → `simApi.pool()`), no
+se escriben en el cliente: la rotación cambia y una lista quemada quedaría
+mintiendo. Si `/pool` falla no se filtra y el rechazo del motor sigue de red.
+
+**Umbrales del laboratorio, todos medidos — no elegidos:**
+- `EMPATE_TECNICO` 45-55: a 400 partidas/rival el margen es ±5. Dentro de esa
+  franja NO se ordena por win rate: sería ordenar ruido.
+- `DELTA_MINIMO` 5: el MISMO cambio de cartas midió **+3,0 a 100 partidas,
+  +0,0 a 400 y −4,9 a 3.000** — el signo se da vuelta. Por debajo de 5 puntos
+  un delta no se reporta como mejora; se cuenta aparte y se dice.
+- El motor **no rastrea cartas**: agrega por partida (ganador, rondas, vida de
+  las bases). Nunca afirmar que una carta «falla»; solo «cambiar X por Y midió
+  N puntos contra tal rival».
+- `/probar` exige mazos de **50 cartas exactas** (tope duro de swusim.py): los
+  de base Data Vault (mínimo 66) no pueden usar el probador. Se avisa, no revienta.
+
+### 2r. RULLINGS: los datos NO pueden vivir en `public/rulings/`
+
+`/rulings` sirve el Comprehensive Rules **v8.0 (7/8/26)** parseado por
+[scripts/build-rulings.py](scripts/build-rulings.py). Los JSON viven en
+**`public/datos-cr/`** y no en `public/rulings/`: Vercel resuelve el sistema de
+archivos ANTES que el rewrite de la SPA, así que con la carpeta homónima la ruta
+`/rulings` devolvía el índice crudo en vez de la pantalla (medido:
+`content-type: application/json`).
+
+- `index.json` — 923 entradas, cotejadas contra el CONTENTS del propio PDF y
+  contra un extractor independiente (PDFKit). Ese cruce cazó un bug real: el
+  em-dash WinAnsi fuera del CMap pegaba palabras («them—viewing» → «themviewing»).
+- `es.json` — 935 traducciones. **El texto normativo es el inglés**; el español
+  es de cortesía y la UI lo dice. Terminología oficial verificada contra la API
+  localizada de FFG: **Exploit = «Sacrificio»** (no «Explotar»), **Plot =
+  «Treta»**, **Overwhelm = «Formidable»**, Agresividad (no «Agresión»), Maldad
+  (no «Villanía»). `may`→puede y `must`→debe se validan por script: confundirlos
+  cambia la regla.
+- `cartas.json` — 978 cartas con rulings oficiales (1.638 en total) de
+  `api.swuapi.com` (`additionalRulings`). **La paginación por cursor del API
+  está rota con `limit` alto** (salta filas): se pagina por `offset` avanzando
+  por lo que VINO. `variant_of_uuid` tiene cadenas anidadas — resolver
+  transitivamente hasta la raíz o salen duplicados.
+- La ruta es **pública** (sin `<P>`): un juez en torneo no se loguea.
+
 ### 2f. supabase-js NO lanza excepción ante error de PostgREST
 `const { data } = await supabase...` sin mirar `error` deja `data` en `null`, el `try/catch` nunca se activa y el fallo se ve igual que "no hay datos". Así estuvo **100% muerta** la caché de precios en la nube (0 filas de por vida): la tabla tenía 6 columnas y el código leía 9. Siempre desestructurar `error`.
 
@@ -423,4 +474,4 @@ Migraciones en `supabase/migrations/`. Aplicarlas vía SQL Editor en Supabase da
 
 ---
 
-*Última actualización: 2026-05-22*
+*Última actualización: 2026-08-07*
