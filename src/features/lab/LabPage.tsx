@@ -226,7 +226,8 @@ function Aviso({ children }: { children: React.ReactNode }) {
 function BarraWin({ etiqueta, valor, margen, tono = 'umbral' }: {
   etiqueta: string
   valor: number
-  margen: number
+  /** `null` = no hay margen que dar (una familia de un solo rival). */
+  margen: number | null
   tono?: 'umbral' | 'destacada' | 'neutro'
 }) {
   const color = tono === 'destacada'
@@ -247,7 +248,9 @@ function BarraWin({ etiqueta, valor, margen, tono = 'umbral' }: {
         </div>
       </div>
       <span className="font-mono tabular-nums text-right text-swu-text whitespace-nowrap">
-        {n1(valor)}<span className="text-swu-muted"> ±{n1(margen)}</span>
+        {n1(valor)}
+        {/* Sin margen no se inventa uno: se calla. Ver `FamiliaDiag.margen`. */}
+        {margen !== null && <span className="text-swu-muted"> ±{n1(margen)}</span>}
       </span>
     </div>
   )
@@ -952,7 +955,11 @@ export function LabPage() {
             className="w-full bg-swu-surface border border-swu-border rounded-lg px-3 py-2 text-sm text-swu-text">
             {mazos.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.name} — {d.leaders[0]?.name ?? 'sin líder'}
+                {/* `d.leaders?.` — el `?.` estaba un nivel tarde y un mazo sin
+                    `leaders` (los guarda `sync.ts` con el JSON de la nube tal
+                    cual) tumbaba la pantalla entera al ErrorBoundary. Mismo
+                    caso que MesaPage. */}
+                {d.name} — {d.leaders?.[0]?.name ?? 'sin líder'}
               </option>
             ))}
           </select>
@@ -1259,11 +1266,18 @@ export function LabPage() {
               {diagnostico.porFamilia.length > 0 && (
                 <div className="space-y-1.5 border-t border-swu-border pt-3">
                   <h3 className="text-xs font-bold text-swu-text">Por aspecto del rival</h3>
+                  {/* El margen mide cuánto se separan ENTRE SÍ los rivales del
+                      aspecto, no cuántas partidas se jugaron. Antes decía que
+                      «baja a medida que hay más rivales», que es lo que hace el
+                      error binomial y NO lo que hace la dispersión real: una
+                      familia con rivales en 30 y 70 tiene un margen enorme por
+                      muchas partidas que se le echen. Ver `FamiliaDiag.margen`. */}
                   <p className="text-[11px] leading-relaxed text-swu-muted">
-                    Alfabético, no de peor a mejor. Cada media trae su margen, que depende de cuántos
-                    rivales la componen: con <span className="font-mono">1</span> rival es ±
-                    <span className="font-mono">{n1(MARGEN_GAUNTLET)}</span> —una fila suelta con
-                    otro nombre— y baja a medida que hay más.
+                    Alfabético, no de peor a mejor. El margen dice cuánto se separan entre sí los
+                    rivales de ese aspecto: si van todos parecido es estrecho, y si uno gana 70 y
+                    otro 30 es ancho por muchas partidas que se jueguen. Con un solo rival no hay
+                    margen que dar —es una fila suelta con otro nombre, ±
+                    <span className="font-mono">{n1(MARGEN_GAUNTLET)}</span> por su propia muestra—.
                   </p>
                   {diagnostico.porFamilia.map((f) => (
                     <BarraWin key={f.familia}

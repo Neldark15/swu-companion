@@ -225,9 +225,17 @@ export const useAuth = create<AuthState>()(
         let profile = await db.profiles.get(user.id)
         if (!profile) {
           // Pull profile info from cloud
+          // Columnas EXPLÍCITAS, no `select('*')`.
+          //
+          // Con un grant por columnas (que es como hay que tapar `email`, ver
+          // gotcha 2j), `select=*` pide TODAS y PostgREST responde
+          // «permission denied for table profiles» — o sea que un `*` acá
+          // convierte el cierre de privacidad en una caída del login. De este
+          // perfil solo se usan `name` y `avatar`; el correo sale de
+          // `user.email`, que lo da Auth.
           const { data: cloudProfile } = await supabase
             .from('profiles')
-            .select('*')
+            .select('name, avatar')
             .eq('id', user.id)
             .single()
 

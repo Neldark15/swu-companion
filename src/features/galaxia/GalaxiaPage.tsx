@@ -17,14 +17,26 @@
  *    a mano y es a donde cae solo si el navegador no trae WebGL.
  */
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, ChevronLeft, ChevronRight, Play, Pause, List, Orbit,
   Tag, Award, ChevronsUp, Layers, MessageSquare, Users, AlertTriangle, ExternalLink,
 } from 'lucide-react'
-import { GalaxiaEscena } from './GalaxiaEscena'
 import { hayWebGL } from './webgl'
+
+/**
+ * La escena va en su propio chunk, como en `MesaPage`.
+ *
+ * Con el `import` normal, medido sobre el build, `dist/assets/GalaxiaPage-*.js`
+ * importaba **estáticamente** `three-*.js`: 534 KB (133 gzip) que se bajaban
+ * aunque no hubiera nada que dibujar. Los dos caminos que lo pagaban de gorra
+ * son justo los que no usan el 3D — un navegador sin WebGL y quien entra y
+ * elige «Lista» —, o sea lo contrario del punto 3 de arriba.
+ */
+const GalaxiaEscena = lazy(() =>
+  import('./GalaxiaEscena').then(m => ({ default: m.GalaxiaEscena })),
+)
 import { getGalaxia, type Galaxia, type PlanetaJugador } from '../../services/galaxiaService'
 import { RANKS } from '../../services/gamification'
 import { useAuth } from '../../hooks/useAuth'
@@ -114,7 +126,13 @@ function Emergente({ planeta, onPerfil }: { planeta: PlanetaJugador; onPerfil: (
             Nv.{planeta.nivel} · {rango.name}
           </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 text-[10px] text-swu-muted">
-            <span>{planeta.xp.toLocaleString()} XP</span>
+            {/* Con locale fijo: `toLocaleString()` pelado usa el del
+                DISPOSITIVO, así que el mismo XP salía «3,180» en un teléfono en
+                inglés y «3.180» en uno en español, dentro de la misma
+                comunidad. Es el mismo problema que el de la zona horaria —
+                formato local en un dato comunitario—, otra dimensión.
+                `MetaLiveView` ya lo hacía bien. */}
+            <span>{planeta.xp.toLocaleString('es-SV')} XP</span>
             {/* Sin duelos registrados no se dibuja «0V 0D»: con `matches` vacía
                 los 19 dirían lo mismo y se leería como un contador roto. */}
             {duelos > 0 && <span>{planeta.victorias}V · {planeta.derrotas}D</span>}
@@ -314,8 +332,17 @@ export function GalaxiaPage() {
           </button>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-base font-bold text-swu-text lg:text-lg">La Galaxia</h1>
-            <p className="truncate font-mono text-[10px] tracking-wider text-swu-muted">
-              Sistema {galaxia?.sistema ?? 'El Salvador'} · {totalTexto}
+            {/*
+              A 320 px esta línea medía 215 px de contenido en 199 de caja y el
+              `truncate` se comía justo la UNIDAD del conteo: «Sistema El
+              Salvador · 19 plan…». Un número sin su sustantivo es medio dato.
+              El sistema tiene su propio `truncate` (es el texto largo y
+              prescindible) y el conteo va en un `flex-shrink-0` que nunca se
+              corta — el mismo patrón min-w-0/flex-shrink-0 de ProximosEventos.
+            */}
+            <p className="flex items-baseline gap-1 font-mono text-[10px] tracking-wider text-swu-muted">
+              <span className="min-w-0 truncate">Sistema {galaxia?.sistema ?? 'El Salvador'}</span>
+              <span className="flex-shrink-0">· {totalTexto}</span>
             </p>
           </div>
           {!sin3D && (
@@ -335,24 +362,32 @@ export function GalaxiaPage() {
 
       <main className="mx-auto max-w-lg px-3 py-3 lg:max-w-5xl lg:px-6">
 
-        {/* ── Cargando ── */}
-        {cargando && (
-          <div className="space-y-3">
-            <div className="h-[52vh] min-h-[280px] animate-pulse rounded-2xl border border-swu-border bg-swu-surface" />
-            <div className="h-24 animate-pulse rounded-2xl border border-swu-border bg-swu-surface" />
-          </div>
-        )}
+        {/* La pantalla no tenía NI UNA región viva (medido: 0 `[aria-live]`),
+            así que ni la carga ni el fallo se anunciaban. Acotada a los dos
+            estados y no envolviendo el contenido, que es la lección que ya
+            estaba escrita en MetaNacionalView. */}
+        <div role="status" aria-live="polite">
+          {cargando && (
+            <>
+              <span className="sr-only">Cargando la galaxia…</span>
+              <div className="space-y-3" aria-hidden>
+                <div className="h-[52vh] min-h-[280px] animate-pulse rounded-2xl border border-swu-border bg-swu-surface" />
+                <div className="h-24 animate-pulse rounded-2xl border border-swu-border bg-swu-surface" />
+              </div>
+            </>
+          )}
 
-        {/* ── Error ── */}
-        {!cargando && error && (
-          <div className="rounded-2xl border border-swu-red/30 bg-swu-surface p-6 text-center">
-            <AlertTriangle size={32} className="mx-auto mb-2 text-swu-red opacity-70" />
-            <p className="text-sm text-swu-text">No se pudo leer la galaxia</p>
-            <p className="mt-1 text-[11px] text-swu-muted">
-              Revisá la conexión y volvé a intentar.
-            </p>
-          </div>
-        )}
+          {/* ── Error ── */}
+          {!cargando && error && (
+            <div className="rounded-2xl border border-swu-red/30 bg-swu-surface p-6 text-center">
+              <AlertTriangle size={32} className="mx-auto mb-2 text-swu-red opacity-70" aria-hidden />
+              <p className="text-sm text-swu-text">No se pudo leer la galaxia</p>
+              <p className="mt-1 text-[11px] text-swu-muted">
+                Revisá la conexión y volvé a intentar.
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* ── Vacío ── */}
         {!cargando && !error && planetas.length === 0 && (
@@ -381,14 +416,19 @@ export function GalaxiaPage() {
             )}
 
             {vista === 'orbital' && (
-              <GalaxiaEscena
-                planetas={planetas}
-                seleccion={seleccion}
-                onSeleccionar={alTocar}
-                onSinWebGL={alPerderWebGL}
-                className="h-[46vh] min-h-[260px] max-h-[520px] w-full rounded-2xl
-                           border border-swu-border lg:h-[58vh]"
-              />
+              <Suspense fallback={
+                <div className="h-[46vh] min-h-[260px] max-h-[520px] w-full animate-pulse
+                                rounded-2xl border border-swu-border bg-swu-surface lg:h-[58vh]" />
+              }>
+                <GalaxiaEscena
+                  planetas={planetas}
+                  seleccion={seleccion}
+                  onSeleccionar={alTocar}
+                  onSinWebGL={alPerderWebGL}
+                  className="h-[46vh] min-h-[260px] max-h-[520px] w-full rounded-2xl
+                             border border-swu-border lg:h-[58vh]"
+                />
+              </Suspense>
             )}
 
             {/* El emergente va DEBAJO del lienzo, no flotando encima.

@@ -187,29 +187,72 @@ export async function pullStatsFromCloud(userId: string, localProfileId: string)
 
 // ─── MONTHLY XP (RANK DEL MES) ─────────────────────────────────
 
+/**
+ * Suma XP al mes en curso.
+ *
+ * ── Por qué no es un `select` y un `if` ───────────────────────────────
+ *
+ * La versión anterior era `const { data } = await select().single()` y, si
+ * `data` venía `null`, insertaba. Dos agujeros encadenados, y el segundo
+ * PIERDE XP de verdad, no solo lo muestra mal:
+ *
+ * 1. **`.single()` devuelve error en el caso NORMAL** de la primera vez del
+ *    mes (`PGRST116`, cero filas). Sin mirar `error`, ese caso legítimo era
+ *    indistinguible de un fallo de red o de RLS — el gotcha 2f.
+ * 2. `monthly_xp` tiene `PRIMARY KEY (user_id, month)`. Si el SELECT fallaba
+ *    por CUALQUIER otra razón, se caía al `insert`, que chocaba con la PK
+ *    (23505)… y ese error tampoco se desestructuraba. Resultado: el XP del mes
+ *    no se sumaba y nadie se enteraba.
+ *
+ * Ahora se discrimina por `error.code`, y el 23505 —que también es la carrera
+ * real de dos otorgamientos simultáneos— reintenta la suma en vez de perderla.
+ * Lo que no se pudo guardar se dice en consola con el código de PostgREST.
+ */
 export async function addMonthlyXp(userId: string, xpAmount: number) {
   if (!isSupabaseReady()) return
   const month = getCurrentMonth()
-  try {
-    // Try to increment existing record
-    const { data } = await supabase
-      .from('monthly_xp')
-      .select('xp_gained')
-      .eq('user_id', userId)
-      .eq('month', month)
-      .single()
+  /** Cero filas en `.single()`: no es un fallo, es «todavía no existe». */
+  const SIN_FILA = 'PGRST116'
+  /** Choque con la PK (user_id, month): alguien la creó entre el select y el insert. */
+  const YA_EXISTE = '23505'
 
-    if (data) {
-      await supabase
+  try {
+    // Dos vueltas como mucho: la segunda es para el caso en que otra escritura
+    // simultánea creara la fila justo entre nuestro select y nuestro insert.
+    for (let intento = 0; intento < 2; intento++) {
+      const { data, error } = await supabase
         .from('monthly_xp')
-        .update({ xp_gained: data.xp_gained + xpAmount, updated_at: new Date().toISOString() })
+        .select('xp_gained')
         .eq('user_id', userId)
         .eq('month', month)
-    } else {
-      await supabase
+        .maybeSingle()
+
+      if (error && error.code !== SIN_FILA) {
+        console.warn('[Sync] monthly XP, no se pudo leer:', error.code, error.message)
+        return
+      }
+
+      if (data) {
+        const { error: errUpd } = await supabase
+          .from('monthly_xp')
+          .update({ xp_gained: (data.xp_gained ?? 0) + xpAmount, updated_at: new Date().toISOString() })
+          .eq('user_id', userId)
+          .eq('month', month)
+        if (errUpd) console.warn('[Sync] monthly XP, no se pudo sumar:', errUpd.code, errUpd.message)
+        return
+      }
+
+      const { error: errIns } = await supabase
         .from('monthly_xp')
         .insert({ user_id: userId, month, xp_gained: xpAmount })
+      if (!errIns) return
+      if (errIns.code !== YA_EXISTE) {
+        console.warn('[Sync] monthly XP, no se pudo crear:', errIns.code, errIns.message)
+        return
+      }
+      // La fila apareció mientras tanto: se vuelve a leer y se suma encima.
     }
+    console.warn('[Sync] monthly XP: la fila cambió dos veces seguidas, no se sumó.')
   } catch (e) {
     console.warn('[Sync] Failed to add monthly XP:', e)
   }

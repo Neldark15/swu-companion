@@ -240,8 +240,17 @@ export function HomePage() {
                   <HexIcon tone={sys.tone} size={38}><Icon size={18} /></HexIcon>
                   {/* Solo el rótulo, en blanco: el color lo lleva el ícono. Con
                       subtítulo debajo, nombres como «Circuito Melee» no entran
-                      en media pantalla de 375 px y se cortaban con puntos. */}
-                  <span className="min-w-0 flex-1 text-[13px] font-bold text-white leading-tight">
+                      en media pantalla de 375 px y se cortaban con puntos.
+
+                      A 320 px la caja se queda en 46 px y una palabra sola
+                      —«Contrabando» mide 83— no tiene dónde partirse: se salía
+                      y la recortaba el clip-path del octágono contra el
+                      chevron. Medido en las 9 tarjetas (83/73/67/64/62/58/58/
+                      52/51 px de contenido en 46 de caja). `break-words` la
+                      parte y `text-[11px]` a 320 px le devuelve el aire; a
+                      partir de 360 vuelve a 13. */}
+                  <span className="min-w-0 flex-1 break-words text-[11px] font-bold text-white
+                                   leading-tight min-[360px]:text-[13px]">
                     {sys.label}
                   </span>
                   <ChevronRight size={14} className="text-swu-muted flex-shrink-0" aria-hidden />

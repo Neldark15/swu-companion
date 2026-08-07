@@ -178,12 +178,18 @@ async function resolverCartas(mazo: MazoDelArticulo): Promise<{ lider: Card | nu
     if (lista) lista.push(c)
     else porNombre.set(k, [c])
   }
-  // `anyOfIgnoreCase` solo permuta mayúsculas ASCII; para lo demás se barre.
-  for (const n of nombres) {
-    const k = n.toLowerCase()
-    if (porNombre.has(k)) continue
-    const lentas = await db.cards.filter(c => c.name.toLowerCase() === k).toArray()
-    if (lentas.length > 0) porNombre.set(k, lentas)
+  // `anyOfIgnoreCase` solo permuta mayúsculas ASCII; para lo demás se barre —
+  // pero UNA sola vez para todos los faltantes, no una por nombre. Ver el
+  // mismo arreglo en `BloqueMazo.traerPorNombre`.
+  const faltantes = new Set(nombres.map(n => n.toLowerCase()).filter(k => !porNombre.has(k)))
+  if (faltantes.size > 0) {
+    const lentas = await db.cards.filter(c => faltantes.has(c.name.toLowerCase())).toArray()
+    for (const c of lentas) {
+      const k = c.name.toLowerCase()
+      const lista = porNombre.get(k)
+      if (lista) lista.push(c)
+      else porNombre.set(k, [c])
+    }
   }
 
   const elegir = (ref: RefCarta): Card | null => {

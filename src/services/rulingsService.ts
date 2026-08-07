@@ -134,8 +134,24 @@ export function cargarTraducciones(): Promise<DatosTraducciones | null> {
         return d
       })
       .catch(() => null)
+      .then(soltarSiFallo(() => { _promesaTrad = null }))
   }
   return _promesaTrad
+}
+
+/**
+ * Si la carga opcional resolvió `null`, se suelta la promesa cacheada.
+ *
+ * `cargarRulings` ya limpiaba `_promesaDatos` en su `.catch` para que
+ * «Reintentar» sirviera de algo; las tres cargas opcionales no, y cacheaban el
+ * `null` **para toda la sesión**. Un 502 momentáneo de Vercel al pedir
+ * `cartas.json` dejaba las 1.638 aclaraciones por carta apagadas hasta recargar
+ * la app, y el botón «Reintentar» de la pantalla no las recuperaba. Peor: con
+ * el índice en null, `rulingsDeCarta()` devuelve `null`, que la UI lee como
+ * «esta carta no tiene aclaraciones» — un silencio que se lee como un hecho.
+ */
+function soltarSiFallo<T>(soltar: () => void): (v: T | null) => T | null {
+  return (v) => { if (v === null) soltar(); return v }
 }
 
 /**
@@ -159,6 +175,7 @@ export function cargarSimulador(): Promise<EstadoSimulador | null> {
     _promesaSim = fetch('/datos-cr/simulador.json')
       .then(r => (r.ok ? (r.json() as Promise<EstadoSimulador>) : null))
       .catch(() => null)
+      .then(soltarSiFallo(() => { _promesaSim = null }))
   }
   return _promesaSim
 }
@@ -251,6 +268,7 @@ export function cargarRulingsCartas(): Promise<DatosRulingsCartas | null> {
         return d
       })
       .catch(() => null)
+      .then(soltarSiFallo(() => { _promesaCartas = null }))
   }
   return _promesaCartas
 }

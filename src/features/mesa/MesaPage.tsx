@@ -46,6 +46,23 @@ import {
   type PartidaNarrada, type RivalInfo, type Lado, type Arena,
 } from '../lab/simApi'
 import type { Deck, Card } from '../../types'
+import { artUrlOptimizada } from '../../services/cardArt'
+/**
+ * ¿Hay WebGL en este navegador?
+ *
+ * Se importa de `galaxia/webgl.ts` en vez de tener copia propia. La copia que
+ * había aquí creaba un contexto de sonda y **no lo soltaba ni lo cacheaba**:
+ * medido, 8 llamadas = 8 contextos VIVOS, contra 0 de la de la Galaxia (que
+ * hace `WEBGL_lose_context.loseContext()` y guarda la respuesta a nivel de
+ * módulo). Era +1 contexto por visita a /mesa —+2 en dev por StrictMode—
+ * encima de la fuga del renderer, y con el tope de 16 de Chrome el primero en
+ * morir es siempre el más viejo, que es el 3D del resto de la app.
+ *
+ * El módulo es minúsculo y NO importa `three`, así que no arrastra el motor
+ * 3D: la razón por la que esta pregunta no podía vivir en `MesaEscena` sigue
+ * respetada.
+ */
+import { hayWebGL } from '../galaxia/webgl'
 import {
   estadoEn, totalPasos, avanzar, retroceder, irARonda, rondaEn, rondasDe,
   vidaVisible, enArena, frase,
@@ -66,21 +83,6 @@ import type { ArteCarta } from './MesaEscena'
  * dibujar. Y sin WebGL no se baja nunca.
  */
 const MesaEscena = lazy(() => import('./MesaEscena').then((m) => ({ default: m.MesaEscena })))
-
-/**
- * ¿Hay WebGL en este navegador?
- *
- * Vive aquí y no en `MesaEscena` justo por lo de arriba: es la pregunta que
- * decide si se baja el 3D, así que no puede estar dentro de lo que se baja.
- */
-function hayWebGL(): boolean {
-  try {
-    const c = document.createElement('canvas')
-    return !!(c.getContext('webgl2') || c.getContext('webgl'))
-  } catch {
-    return false
-  }
-}
 
 /** Milisegundos por evento a velocidad 1. Medido a ojo: menos se hace ilegible. */
 const RITMO = 620
@@ -107,9 +109,18 @@ export function MesaPage() {
   /** Sube en cada «otra partida»: selecciona otra de la misma tanda. */
   const [n, setN] = useState(0)
 
-  // WebGL se pregunta UNA vez y no en cada render: crear un canvas de prueba
-  // por render es trabajo tonto, y la respuesta no cambia a media sesión.
-  const conWebGL = useMemo(() => hayWebGL(), [])
+  /*
+   * ¿Se dibuja la mesa en 3D?
+   *
+   * Arranca con la sonda y puede caerse DESPUÉS: la escena avisa por
+   * `onSinWebGL` si el renderer no se pudo crear o si el navegador le quitó el
+   * contexto en marcha. Antes esto se resolvía una sola vez al montar, así que
+   * en los dos casos la pantalla se quedaba con un rectángulo negro de 52vh,
+   * el pie «arrastra para girar» encima y `MesaPlana` sin aparecer — porque
+   * `conWebGL` seguía diciendo que sí.
+   */
+  const [conWebGL, setConWebGL] = useState(() => hayWebGL())
+  const alPerderWebGL = useCallback(() => setConWebGL(false), [])
 
   /* ── Mazos y rivales ── */
   useEffect(() => {
@@ -131,18 +142,28 @@ export function MesaPage() {
   }, [])
 
   /* ── Pedir la partida ── */
+  // Sube en cada petición nueva: una respuesta vieja que llegue tarde ya no
+  // pisa a la que está en curso. Es la misma guarda que tiene `GalaxiaPage`,
+  // y era el único camino asíncrono de las dos pantallas sin ella.
+  const peticionRef = useRef(0)
+  useEffect(() => () => { peticionRef.current = -1 }, [])
+
   const pedir = useCallback(async (cual: number) => {
     const deck = mazos.find((d) => d.id === mazoId)
-    if (!deck) { setError('Elige un mazo guardado.'); return }
-    if (!rival) { setError('Elige un rival.'); return }
+    if (!deck) { setError('Elegí un mazo guardado.'); return }
+    if (!rival) { setError('Elegí un rival.'); return }
+    const mia = ++peticionRef.current
     setFase('cargando'); setError(null); setJugando(false)
     try {
       const p = await simApi.partida(deckAMazo(deck), rival, 31337, cual)
+      const a = await resolverArte(p)
+      if (peticionRef.current !== mia) return
       setPartida(p)
       setIndice(0)
-      setArte(await resolverArte(p))
+      setArte(a)
       setFase('listo')
     } catch (e) {
+      if (peticionRef.current !== mia) return
       setError(e instanceof Error ? e.message : 'El laboratorio no respondió.')
       setFase('error')
     }
@@ -216,8 +237,8 @@ export function MesaPage() {
 
           {mazos.length === 0 ? (
             <p className="text-xs text-swu-muted">
-              No tienes mazos guardados todavía. Arma uno en <b className="text-swu-text">Mis Decks</b> y
-              vuelve.
+              Todavía no tenés mazos guardados. Armá uno en <b className="text-swu-text">Mis Decks</b> y
+              volvé.
             </p>
           ) : (
             <>
@@ -227,7 +248,12 @@ export function MesaPage() {
                   className="w-full mt-1 bg-swu-surface border border-swu-border rounded-lg px-3 py-2 text-sm text-swu-text">
                   {mazos.map((d) => (
                     <option key={d.id} value={d.id}>
-                      {d.name} — {d.leaders[0]?.name ?? 'sin líder'}
+                      {/* `d.leaders?.` y no `d.leaders[0]?.`: el `?.` estaba un
+                          nivel tarde. `sync.ts` guarda el JSON de la nube tal
+                          cual, y un mazo sin `leaders` tumbaba la pantalla
+                          entera al ErrorBoundary con «Cannot read properties of
+                          undefined (reading '0')» antes de pintar nada. */}
+                      {d.name} — {d.leaders?.[0]?.name ?? 'sin líder'}
                     </option>
                   ))}
                 </select>
@@ -246,7 +272,12 @@ export function MesaPage() {
               </label>
 
               <div className="flex gap-2">
+                {/* Sin `disabled` por lista vacía, con `simApi.rivales()` caído
+                    el `<select>` quedaba con CERO opciones y el botón activo:
+                    al pulsarlo sustituía el error real por «Elegí un rival»,
+                    un mensaje sobre una elección que no existe. */}
                 <Button variant="primary" size="sm" block loading={fase === 'cargando'}
+                  disabled={rivales.length === 0}
                   onClick={() => { setN(0); pedir(0) }}>
                   <Play size={14} /> Ver una partida
                 </Button>
@@ -262,17 +293,23 @@ export function MesaPage() {
         </div>
       </HudPanel>
 
-      {error && (
-        <div className="flex gap-2 items-start text-xs text-swu-red bg-swu-red/10 border border-swu-red/30 rounded-lg p-3">
-          <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" /> {error}
-        </div>
-      )}
+      {/* Con lector de pantalla, el error del simulador y el fin de la carga no
+          se anunciaban: la pantalla no tenía NI UNA región viva (medido, 0
+          `[aria-live]`). `/meta` sí las tiene; esto hereda ese patrón —acotado
+          al mensaje, no envolviendo media pantalla. */}
+      <div role="status" aria-live="polite" className="contents">
+        {error && (
+          <div className="flex gap-2 items-start text-xs text-swu-red bg-swu-red/10 border border-swu-red/30 rounded-lg p-3">
+            <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" aria-hidden /> {error}
+          </div>
+        )}
 
-      {fase === 'cargando' && (
-        <div className="flex items-center justify-center gap-2 text-sm text-swu-muted py-10">
-          <Loader2 size={16} className="animate-spin" /> Jugando la partida…
-        </div>
-      )}
+        {fase === 'cargando' && (
+          <div className="flex items-center justify-center gap-2 text-sm text-swu-muted py-10">
+            <Loader2 size={16} className="animate-spin" aria-hidden /> Jugando la partida…
+          </div>
+        )}
+      </div>
 
       {partida && estado && fase === 'listo' && (
         <>
@@ -294,11 +331,14 @@ export function MesaPage() {
                 </div>
               }>
                 <div className="h-[52vh] min-h-[320px]">
-                  <MesaEscena estado={estado} arte={arte} duracion={RITMO / velocidad / 1.6} />
+                  <MesaEscena estado={estado} arte={arte} duracion={RITMO / velocidad / 1.6}
+                    onSinWebGL={alPerderWebGL} />
                 </div>
               </Suspense>
+              {/* En voseo, como el resto de la noche y como la MISMA pista de
+                  /galaxia. Y la rueda se nombra porque ahora existe. */}
               <p className="absolute bottom-1.5 left-2 text-[10px] text-white/35 pointer-events-none">
-                arrastra para girar · pellizca para acercar
+                arrastrá para girar · pellizcá o rodá la rueda para acercar
               </p>
             </div>
           )}
@@ -329,6 +369,23 @@ export function MesaPage() {
  * Una sola consulta por `legacyId` para todas: 40 `getCardById` sueltos serían
  * 40 viajes a IndexedDB y, para lo que no estuviera, 40 peticiones de red.
  */
+/**
+ * El peldaño del proxy que usa la mesa.
+ *
+ * La Mesa era la ÚNICA pantalla que se saltaba `/api/img`: metía `c.imageUrl`
+ * crudo en la textura y `cargador.load()` lo pedía al CDN. Medido con una
+ * partida cargada: **12 peticiones a `cdn.starwarsunlimited.com`, 0 a
+ * `/api/img`**, cuando los otros 23 sitios que dibujan cartas ya pasaban por
+ * el proxy desde el commit a615e76 (88 MB → 6 MB por sesión).
+ *
+ * Y el desperdicio acá es de los grandes: las cartas se pintan a ~25 px CSS
+ * (~50 de dispositivo a dpr 2) desde un PNG de 286×400 de 150-210 KB, y una
+ * partida son ~28 cartas, o sea ~5 MB. 128 es el peldaño más chico que hay y
+ * sobra de largo para 50 px — pero es el que existe, y pedir menos no es una
+ * opción: la escalera es fija a propósito (nota 2t).
+ */
+const ANCHO_ARTE_MESA = 128
+
 async function resolverArte(p: PartidaNarrada): Promise<Map<string, ArteCarta>> {
   const salida = new Map<string, ArteCarta>()
   try {
@@ -360,9 +417,9 @@ async function resolverArte(p: PartidaNarrada): Promise<Map<string, ArteCarta>> 
       // ahí no significa eso — una base nunca se voltea.
       const esLider = ficha.tipo === 'Leader' || c.isLeader
       salida.set(nombre, {
-        url: c.imageUrl,
+        url: artUrlOptimizada(c.imageUrl, ANCHO_ARTE_MESA) ?? c.imageUrl,
         apaisada,
-        dorso: esLider ? c.backImageUrl ?? null : null,
+        dorso: esLider ? artUrlOptimizada(c.backImageUrl, ANCHO_ARTE_MESA) ?? c.backImageUrl ?? null : null,
       })
     }
   } catch {

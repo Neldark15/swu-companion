@@ -219,8 +219,12 @@ export async function getSystemStats(): Promise<SystemStats | null> {
     newsRes,
     communityRes,
   ] = await Promise.all([
-    supabase.from('profiles').select('*', { count: 'exact', head: true }),
-    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'admin'),
+    // `id` y no `*`: con un grant por columnas sobre `profiles` (ver gotcha 2j
+    // y la migración de privacidad), `select=*` pide columnas que el rol no
+    // tiene y PostgREST responde «permission denied». Para un conteo da igual
+    // qué columna se nombre.
+    supabase.from('profiles').select('id', { count: 'exact', head: true }),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'admin'),
     supabase.from('player_stats').select('*', { count: 'exact', head: true }),
     supabase.from('official_events').select('*', { count: 'exact', head: true }).eq('status', 'active'),
     supabase.from('official_events').select('*', { count: 'exact', head: true }).eq('status', 'open'),

@@ -48,7 +48,7 @@
  */
 
 import { supabase, isSupabaseReady } from './supabase'
-import { getGalaxyPlayers } from './galaxyService'
+import { getGalaxyPlayersOFalla } from './galaxyService'
 import { RANKS, ACHIEVEMENTS } from './gamification'
 
 // ─── Contrato ────────────────────────────────────────────
@@ -60,8 +60,14 @@ export interface PlanetaJugador {
   nivel: number
   xp: number
   rango: string
-  /** Determina tamaño y color del planeta. */
+  /**
+   * CAMPO MUERTO: 0 en las 19 cuentas (la tabla `matches` está vacía). Viaja
+   * porque es parte del contrato, pero **el tamaño y el color del planeta NO
+   * pueden salir de acá** — ver la cabecera del archivo. Con victorias, los 19
+   * planetas salen del mismo tamaño. La escena usa `nivel`, que es lo correcto.
+   */
   victorias: number
+  /** Campo muerto, igual que `victorias`. */
   derrotas: number
   /** El último movimiento REAL, o null si no hay ninguno. */
   ultimoMovimiento: { texto: string; cuando: string; tipo: string } | null
@@ -100,6 +106,14 @@ const SISTEMA = 'El Salvador'
  * son una fila por jugador).
  */
 const TOPE_MOVIMIENTOS = 300
+
+/**
+ * Tope de jugadores, compartido por la lista de planetas y por la consulta de
+ * logros. Las dos tienen que pedir lo MISMO: si una trae 200 y la otra 1.000
+ * (el corte silencioso de PostgREST), el emergente y el planeta dejan de
+ * hablar de la misma gente.
+ */
+const TOPE_JUGADORES = 200
 
 /**
  * El texto del emergente flota sobre el planeta: si un post manual trae 500
@@ -247,14 +261,21 @@ async function movimientosDeMazos(mapa: Map<string, Movimiento>): Promise<void> 
  * distintos que hay en la base (cun_1/2, her_1..5, trn_1, vil_1/2) resuelven
  * contra las 70 entradas del catálogo.
  */
-async function movimientosDeLogros(mapa: Map<string, Movimiento>): Promise<number> {
+async function movimientosDeLogros(mapa: Map<string, Movimiento>): Promise<number | null> {
   const { data, error, count } = await supabase
     .from('player_stats')
     .select('user_id, achievement_dates', { count: 'exact' })
+    // Sin tope explícito, PostgREST corta `data` en su max-rows (1.000 por
+    // defecto) mientras `count` sigue siendo exacto: pasadas las 1.000 cuentas
+    // los logros de las demás desaparecían del emergente sin que se notara,
+    // porque el total seguía diciendo la verdad. Ahora el tope es nuestro y
+    // está escrito, como en las otras dos fuentes.
+    .limit(TOPE_JUGADORES)
 
   if (error || !data) {
     console.warn('[Galaxia] logros:', error)
-    return 0
+    // `null`, no `0`: un fallo no es «no hay nadie». Ver `getGalaxia`.
+    return null
   }
 
   for (const fila of data) {
@@ -317,8 +338,12 @@ export async function getGalaxia(miId?: string): Promise<Galaxia> {
 
   const movimientos = new Map<string, Movimiento>()
 
+  // `getGalaxyPlayersOFalla` LANZA si su consulta falla, y ese rechazo sube
+  // hasta el `.catch` de la pantalla. Las tres fuentes de movimiento sí pueden
+  // fallar en silencio —un planeta sin emergente sigue siendo un planeta—;
+  // la lista de jugadores no: si esa se cae, la galaxia entera mentiría.
   const [jugadores, , , total] = await Promise.all([
-    getGalaxyPlayers(200),
+    getGalaxyPlayersOFalla(TOPE_JUGADORES),
     movimientosDePosts(movimientos),
     movimientosDeMazos(movimientos),
     movimientosDeLogros(movimientos),
@@ -352,6 +377,11 @@ export async function getGalaxia(miId?: string): Promise<Galaxia> {
     // El conteo sale de `player_stats`, no de `planetas.length`: si algún día
     // la comunidad pasa el tope de `getGalaxyPlayers`, el número tiene que
     // seguir diciendo la verdad aunque la escena dibuje menos planetas.
-    totalJugadores: total || planetas.length,
+    //
+    // Era `total || planetas.length`, y con `total` en 0 por un fallo eso daba
+    // `0 || 0` = **0**: la cabecera decía «0 planetas» sobre una consulta que
+    // ni siquiera se pudo hacer. Ahora el fallo llega como `null` y el conteo
+    // cae a lo que SÍ se pudo leer, que son los planetas que se van a dibujar.
+    totalJugadores: total ?? planetas.length,
   }
 }

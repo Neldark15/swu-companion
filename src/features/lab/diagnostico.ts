@@ -221,8 +221,25 @@ export interface FamiliaDiag {
   familia: string
   media: number
   n: number
-  /** Margen 95 % de esa media: `n` rivales × 400 partidas cada uno. */
-  margen: number
+  /**
+   * Margen 95 % de la media de la familia, o `null` con un solo rival.
+   *
+   * **No es `margen95(400 · n)`.** Eso es el error estándar de UNA proporción
+   * binomial de 400·n tiradas, o sea suponer que los `n` rivales tienen el
+   * MISMO win rate verdadero — ignora la varianza ENTRE rivales, que es la
+   * grande. Medido con una familia real de 5 rivales en [30, 45, 50, 55, 70]:
+   *
+   *   media 50,0 · desviación entre rivales 14,6
+   *   margen 95 % de la media (SEM entre rivales) → ±14,4
+   *   lo que se imprimía antes (margen95(2000))   →  ±2,2   ← seis veces menos
+   *
+   * Ahora es el SEM de las `n` medias observadas, que es lo que responde a la
+   * pregunta que hace la pantalla: «si vuelvo a sortear rivales de este
+   * aspecto, ¿dónde caería la media?». Con `n = 1` no hay dispersión que medir
+   * y se devuelve `null`: la UI enseña el margen de la fila suelta y dice que
+   * es una fila suelta, en vez de inventar una precisión que no existe.
+   */
+  margen: number | null
 }
 
 export interface Diagnostico {
@@ -442,22 +459,33 @@ function leerPatron(
  * pintar la media sin él.
  */
 function agruparFamilias(filas: readonly RivalDiag[]): FamiliaDiag[] {
-  const acc = new Map<string, { suma: number; n: number }>()
+  const acc = new Map<string, number[]>()
   for (const f of filas) {
-    const a = acc.get(f.familia) ?? { suma: 0, n: 0 }
-    a.suma += f.win
-    a.n += 1
+    const a = acc.get(f.familia) ?? []
+    a.push(f.win)
     acc.set(f.familia, a)
   }
   return [...acc.entries()]
-    .map(([familia, a]) => ({
-      familia,
-      media: a.suma / a.n,
-      n: a.n,
-      // n rivales × 400 partidas cada uno: el margen de la media baja con √n.
-      margen: margen95(PARTIDAS_GAUNTLET * a.n),
-    }))
+    .map(([familia, wins]) => {
+      const n = wins.length
+      const media = wins.reduce((s, w) => s + w, 0) / n
+      return { familia, media, n, margen: margenDeLaMedia(wins) }
+    })
     .sort((x, y) => x.familia.localeCompare(y.familia, 'es'))
+}
+
+/**
+ * Margen 95 % de la media de una familia. Ver `FamiliaDiag.margen`.
+ *
+ * Es 1,96 · SEM sobre las medias OBSERVADAS de cada rival, con la desviación
+ * muestral (n−1). Con un solo rival no hay dispersión que medir: `null`.
+ */
+function margenDeLaMedia(wins: readonly number[]): number | null {
+  const n = wins.length
+  if (n < 2) return null
+  const media = wins.reduce((s, w) => s + w, 0) / n
+  const varianza = wins.reduce((s, w) => s + (w - media) ** 2, 0) / (n - 1)
+  return Math.round(1.96 * Math.sqrt(varianza / n) * 10) / 10
 }
 
 // ─── 2 · Candidatos ──────────────────────────────────────────────────────

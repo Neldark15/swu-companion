@@ -20,8 +20,58 @@ export interface OfficialEvent {
   // Joined data
   organizer_name?: string
   organizer_avatar?: string
+  /**
+   * Cuánta gente se inscribió. **`undefined` significa «sin dato»**, no cero:
+   * si la consulta de inscripciones falla (RLS, red, 5xx de PostgREST) o llega
+   * recortada, este campo NO viaja y la UI tiene que decir «—». Pintar un 0
+   * ahí es anunciar un torneo vacío que tiene 12 inscritos.
+   */
   registered_count?: number
   is_registered?: boolean
+}
+
+/**
+ * Cuántos inscritos tiene cada evento. `null` = no se pudo saber.
+ *
+ * Dos defectos que tapaba la versión de una línea (`(regCounts || []).filter…`):
+ *
+ * 1. **Sin `error`.** Un fallo dejaba `regCounts` en `null` y `.length` daba
+ *    **0** — el gotcha 2f exacto, en la pantalla que ve todo el mundo.
+ * 2. **Sin tope.** PostgREST corta en 1.000 filas EN SILENCIO, así que en
+ *    cuanto la suma de inscripciones de los eventos listados pasara de 1.000
+ *    todos los contadores empezaban a mentir hacia abajo sin aviso.
+ *
+ * Se pide una fila de más que el tope: si vuelven `TOPE + 1`, hay recorte y se
+ * devuelve `null` en vez de un conteo bajo que parece cierto.
+ */
+const TOPE_INSCRIPCIONES = 2000
+
+async function contarInscritos(eventIds: string[]): Promise<Map<string, number> | null> {
+  if (eventIds.length === 0) return new Map()
+
+  const { data, error } = await supabase
+    .from('event_registrations')
+    .select('event_id')
+    .in('event_id', eventIds)
+    .limit(TOPE_INSCRIPCIONES + 1)
+
+  if (error || !data) {
+    console.warn('[eventos] inscritos:', error?.message)
+    return null
+  }
+  if (data.length > TOPE_INSCRIPCIONES) {
+    console.warn('[eventos] inscritos: más de', TOPE_INSCRIPCIONES, '— el conteo sería parcial')
+    return null
+  }
+
+  const mapa = new Map<string, number>()
+  for (const r of data) {
+    const id = r.event_id as string
+    mapa.set(id, (mapa.get(id) ?? 0) + 1)
+  }
+  // Un evento sin inscripciones sí es un 0 de verdad.
+  for (const id of eventIds) if (!mapa.has(id)) mapa.set(id, 0)
+  return mapa
 }
 
 export interface EventRegistration {
@@ -146,10 +196,7 @@ export async function getOfficialEvents(userId?: string): Promise<OfficialEvent[
 
   // Get registration counts
   const eventIds = events.map(e => e.id)
-  const { data: regCounts } = await supabase
-    .from('event_registrations')
-    .select('event_id')
-    .in('event_id', eventIds)
+  const inscritos = await contarInscritos(eventIds)
 
   // Get user's registrations
   let userRegs: string[] = []
@@ -164,12 +211,12 @@ export async function getOfficialEvents(userId?: string): Promise<OfficialEvent[
 
   return events.map(e => {
     const profile = profileMap.get(e.organizer_id)
-    const count = (regCounts || []).filter(r => r.event_id === e.id).length
     return {
       ...e,
       organizer_name: profile?.name || 'Organizador',
       organizer_avatar: profile?.avatar || '🎯',
-      registered_count: count,
+      // `undefined` cuando no se pudo contar: ver `contarInscritos`.
+      registered_count: inscritos?.get(e.id),
       is_registered: userRegs.includes(e.id),
     } as OfficialEvent
   })
@@ -236,16 +283,13 @@ export async function getUpcomingOfficialEvents(limite = 3): Promise<OfficialEve
     .in('id', organizerIds)
   const profileMap = new Map((profiles || []).map(p => [p.id, p]))
 
-  const { data: regCounts } = await supabase
-    .from('event_registrations')
-    .select('event_id')
-    .in('event_id', events.map(e => e.id))
+  const inscritos = await contarInscritos(events.map(e => e.id))
 
   return events.map(e => ({
     ...e,
     organizer_name: profileMap.get(e.organizer_id)?.name || 'Organizador',
     organizer_avatar: profileMap.get(e.organizer_id)?.avatar || '🎯',
-    registered_count: (regCounts || []).filter(r => r.event_id === e.id).length,
+    registered_count: inscritos?.get(e.id),
   } as OfficialEvent))
 }
 

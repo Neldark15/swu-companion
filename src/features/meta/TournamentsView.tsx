@@ -64,6 +64,27 @@ function fecha(iso: string): string {
 /** «Boba Fett (JTL)» → «Boba Fett». El set ya se ve en la carta. */
 const sinSet = (s: string) => s.replace(/\s*\([A-Za-z0-9]{2,6}\)\s*$/, '').trim()
 
+/**
+ * El mensaje que se le enseña a un jugador. Nunca el crudo del parser.
+ *
+ * Medido en pantalla: cuando el proxy devuelve algo que no es JSON, `e.message`
+ * es de `JSON.parse` y salía tal cual en la cara del jugador —
+ * «Unexpected token 'c', "const HOST"... is not valid JSON» en dev, y
+ * «Unexpected token '<'» en producción con un 500 que devuelve HTML. Jerga del
+ * parser, y encima engañosa: parece un problema del texto y es del servidor.
+ *
+ * Los mensajes que SÍ redacta el proxy («El simulador está saturado…») se
+ * conservan: son para leerse. Solo se filtra la jerga.
+ */
+function mensajeLegible(e: unknown): string {
+  const crudo = e instanceof Error ? e.message : ''
+  if (!crudo) return 'No se pudo consultar. Intentá de nuevo en un momento.'
+  if (/is not valid JSON|Unexpected token|JSON\.parse|Failed to fetch|NetworkError|Load failed/i.test(crudo)) {
+    return 'La fuente de torneos no respondió como se esperaba. Intentá de nuevo en un momento.'
+  }
+  return crudo
+}
+
 /** Los niveles grandes se destacan: no es lo mismo ganar un Galactic que un local. */
 const esGrande = (nivel: string) => /galactic|regional|sector/i.test(nivel)
 
@@ -203,7 +224,7 @@ export function TournamentsView() {
       setTournaments([])
       setDecks(new Map())
       setViejo(null)
-      setError(e instanceof Error ? e.message : 'no se pudo consultar')
+      setError(mensajeLegible(e))
     } finally {
       if (id === peticion.current) setLoading(false)
     }
@@ -252,7 +273,7 @@ export function TournamentsView() {
         const r = await resolveDecks(s.map(x => ({ leader: x.leader, base: x.base })))
         if (vivo) setTopDecks(r)
       } catch (e) {
-        if (vivo) setTopError(e instanceof Error ? e.message : 'no se pudo cargar el top')
+        if (vivo) setTopError(mensajeLegible(e))
       }
     })()
     return () => { vivo = false }
@@ -268,7 +289,7 @@ export function TournamentsView() {
       setAgendaVieja(cachedAt)
     } catch (e) {
       setAgenda([])
-      setAgendaError(e instanceof Error ? e.message : 'no se pudo consultar')
+      setAgendaError(mensajeLegible(e))
     } finally {
       setAgendaCargando(false)
     }

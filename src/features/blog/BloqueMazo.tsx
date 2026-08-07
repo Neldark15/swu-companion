@@ -119,11 +119,24 @@ async function traerPorNombre(nombres: string[]): Promise<Map<string, Card[]>> {
     else porNombre.set(k, [c])
   }
 
-  for (const n of nombres) {
-    const k = n.toLowerCase()
-    if (porNombre.has(k)) continue
-    const lentas = await db.cards.filter(c => c.name.toLowerCase() === k).toArray()
-    if (lentas.length > 0) porNombre.set(k, lentas)
+  /*
+   * Lo que el índice no encontró se resuelve en UN solo barrido.
+   *
+   * Antes era un `await db.cards.filter(...)` DENTRO del bucle: un recorrido
+   * completo de las 9.057 filas por cada nombre no encontrado, y secuenciales,
+   * en el hilo principal, al abrir un artículo del blog. Con un bloque de mazo
+   * de ~20 nombres donde varios llevan acentos —`anyOfIgnoreCase` solo permuta
+   * mayúsculas ASCII— eran N barridos de 9.057. Ahora es uno, pase lo que pase.
+   */
+  const faltantes = new Set(nombres.map(n => n.toLowerCase()).filter(k => !porNombre.has(k)))
+  if (faltantes.size > 0) {
+    const lentas = await db.cards.filter(c => faltantes.has(c.name.toLowerCase())).toArray()
+    for (const c of lentas) {
+      const k = c.name.toLowerCase()
+      const lista = porNombre.get(k)
+      if (lista) lista.push(c)
+      else porNombre.set(k, [c])
+    }
   }
   return porNombre
 }

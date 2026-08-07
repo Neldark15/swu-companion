@@ -115,7 +115,11 @@ export function ProximosEventos() {
                       )}
                       <span className="flex items-center gap-1 flex-shrink-0">
                         <Users size={10} aria-hidden />
-                        <span className="font-mono">{ev.registered_count ?? 0}/{ev.max_players}</span>
+                        {/* «—» y no 0: `undefined` es «no se pudo contar». Ver
+                            `registered_count` en events.ts. */}
+                        <span className="font-mono">
+                          {ev.registered_count ?? '—'}/{ev.max_players}
+                        </span>
                       </span>
                     </div>
                   </div>

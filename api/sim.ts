@@ -67,11 +67,24 @@ const ORIGENES = new Set([
   'http://localhost:5173',
 ])
 
+/**
+ * Vistas previas de ESTE proyecto, no de todo Vercel.
+ *
+ * El patrón anterior era `[a-z0-9-]+\.vercel\.app`, que no es «nuestras vistas
+ * previas»: es **cualquier despliegue de Vercel de cualquier persona del
+ * planeta**. El riesgo real es bajo —la auth es Bearer y no cookie, así que un
+ * sitio ajeno necesitaría ya tener el JWT—, pero es superficie regalada, que es
+ * exactamente lo que el comentario de arriba dice que se decidió no hacer.
+ *
+ * Vercel genera `swu-companion-<hash>-<scope>.vercel.app`, así que se ancla al
+ * prefijo del proyecto.
+ */
+const PREVIA_VERCEL = /^https:\/\/swu-companion-[a-z0-9-]+\.vercel\.app$/
+
 function origenPermitido(origen: string | undefined): string | null {
   if (!origen) return null
   if (ORIGENES.has(origen)) return origen
-  // Los despliegues de vista previa de Vercel llevan dominio generado.
-  if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origen)) return origen
+  if (PREVIA_VERCEL.test(origen)) return origen
   return null
 }
 

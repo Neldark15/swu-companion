@@ -279,7 +279,8 @@ export function EventsPage() {
                   )}
                   <span className="flex items-center gap-1">
                     <Users size={12} />
-                    {event.registered_count || 0}/{event.max_players}
+                    {/* «—» = no se pudo contar, que no es lo mismo que cero. */}
+                    {event.registered_count ?? '—'}/{event.max_players}
                   </span>
                 </div>
 

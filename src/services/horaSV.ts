@@ -311,11 +311,17 @@ export function esHoySV(v: Instante): boolean {
   return mismoDiaSV(v, new Date())
 }
 
-/** ¿Es mañana, en El Salvador? */
+/**
+ * ¿Es mañana, en El Salvador?
+ *
+ * Por `inicioDelDiaSiguienteSVenUTC` y no sumando 86.400.000 ms: era la única
+ * función del módulo que usaba el atajo que el propio módulo condena (en una
+ * zona con cambio de hora un día dura 23 o 25 horas, y el instante resultante
+ * podía caer en el día equivocado). En SV hoy da igual; el punto de todo este
+ * archivo es no depender de que siga dando igual.
+ */
 export function esMananaSV(v: Instante): boolean {
-  const hoy = inicioDelDiaSVenUTC()
-  const manana = new Date(hoy.getTime() + 86_400_000)
-  return mismoDiaSV(v, manana)
+  return mismoDiaSV(v, inicioDelDiaSiguienteSVenUTC())
 }
 
 /**

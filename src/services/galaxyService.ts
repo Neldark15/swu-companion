@@ -83,7 +83,32 @@ function single<T>(val: T | T[] | null | undefined): T | null {
  * Fetch players with stats using the same approach as getGlobalLeaderboard.
  * Uses !inner so only profiles that have stats are returned.
  */
+/**
+ * Igual que `getGalaxyPlayers`, pero **lanza** si la consulta falla.
+ *
+ * `getGalaxyPlayers` devuelve `[]` ante un error, y el llamador no tiene forma
+ * de distinguir «no hay jugadores» de «no los pudimos leer». Medido en /galaxia
+ * con el JWT caducado: las cuatro consultas daban 401 (`PGRST301`) y la
+ * pantalla decía «Sistema El Salvador · 0 planetas · está esperando su primera
+ * cuenta» — con 19 cuentas en la base. Eso rompe la regla de la casa («un dato
+ * ausente es *sin dato*, nunca 0») y es el espíritu del gotcha 2f aunque la
+ * letra se cumpla: `error` sí se desestructura, pero se traga.
+ *
+ * Un jugador que se cae de la lista por no tener stats no es un fallo (por eso
+ * el `continue` de abajo); una consulta que no se pudo hacer, sí.
+ */
+export async function getGalaxyPlayersOFalla(limit = 150): Promise<GalaxyPlayer[]> {
+  const salida = await consultarGalaxyPlayers(limit)
+  if (salida === null) throw new Error('No se pudo leer la lista de jugadores.')
+  return salida
+}
+
 export async function getGalaxyPlayers(limit = 150): Promise<GalaxyPlayer[]> {
+  return (await consultarGalaxyPlayers(limit)) ?? []
+}
+
+/** `null` = la consulta falló. `[]` = de verdad no hay nadie. */
+async function consultarGalaxyPlayers(limit: number): Promise<GalaxyPlayer[] | null> {
   if (!isSupabaseReady()) return []
 
   try {
@@ -105,7 +130,7 @@ export async function getGalaxyPlayers(limit = 150): Promise<GalaxyPlayer[]> {
 
     if (error || !data) {
       console.warn('[Galaxy] getGalaxyPlayers error:', error)
-      return []
+      return null
     }
 
     const players: GalaxyPlayer[] = []
@@ -141,7 +166,7 @@ export async function getGalaxyPlayers(limit = 150): Promise<GalaxyPlayer[]> {
     return players
   } catch (e) {
     console.warn('[Galaxy] getGalaxyPlayers exception:', e)
-    return []
+    return null
   }
 }
 

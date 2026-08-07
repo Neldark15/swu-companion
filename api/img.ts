@@ -59,6 +59,15 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import sharp from 'sharp'
 
+/**
+ * La función no puede quedarse colgada del origen ajeno.
+ *
+ * Sin esto el `fetch` al CDN no tenía plazo NI la lambda tope, así que un
+ * CloudFront lento sostenía la invocación hasta el corte de plataforma. Lo
+ * mismo que ya hacen `sim.ts` (25 s) y `melee-profile.ts` (15 s).
+ */
+export const config = { maxDuration: 20 }
+
 /** Único origen admitido. */
 const CDN = 'cdn.starwarsunlimited.com'
 
@@ -67,8 +76,72 @@ const CDN = 'cdn.starwarsunlimited.com'
  * la clave del objeto en el bucket EMPIEZA con `/`, así que las URL reales
  * traen doble barra (`https://cdn…//card_…png`). Con una sola el CDN responde
  * 403 — comprobado.
+ *
+ * El largo va acotado: el sufijo real es `<nombre>_<hash de Strapi>`, y sin
+ * techo un nombre de 4 KB seguía siendo una clave de caché válida.
  */
-const RUTA_CARTA = /^\/+card_[A-Za-z0-9_-]+\.png$/
+const RUTA_CARTA = /^\/{1,2}card_[A-Za-z0-9_-]{1,96}\.png$/
+
+/**
+ * Cubo de tokens por instancia — la defensa que faltaba.
+ *
+ * La ruta se valida por FORMA, no por existencia: `card_zzz1.png`,
+ * `card_zzz2.png`… pasan el regex, no están en la CDN de Vercel (MISS), gastan
+ * una invocación y provocan un GET real al CloudFront de FFG desde nuestro
+ * dominio. Medido en producción: 8 nombres inventados = 8 MISS y 8 fetch
+ * salientes en 4,8 s, sin sesión y sin tope.
+ *
+ * Es el mismo razonamiento que la nota 2l aplica a `swu-events.ts` («el regex
+ * solo no frena la amplificación, porque un slug inventado válido igual
+ * provoca un GET»). Allá se contrasta contra la lista publicada; acá no hay
+ * lista que traer sin pagarla, así que la puerta es el ritmo.
+ *
+ * 240/minuto deja de sobra para el caso real —una pantalla pinta 20-60 cartas
+ * y a partir de la segunda visita las sirve la CDN sin invocar nada— y le pone
+ * techo a la amplificación.
+ */
+const RITMO_MAX = 240
+const cubo = { fichas: RITMO_MAX, en: Date.now() }
+
+function tomarFicha(): boolean {
+  const ahora = Date.now()
+  cubo.fichas = Math.min(RITMO_MAX, cubo.fichas + ((ahora - cubo.en) / 60_000) * RITMO_MAX)
+  cubo.en = ahora
+  if (cubo.fichas < 1) return false
+  cubo.fichas -= 1
+  return true
+}
+
+/**
+ * Un PNG de carta pesa 150-210 KB. 4 MB es diez veces el mayor y sigue siendo
+ * un techo real: sin él entraba a memoria lo que el origen quisiera mandar.
+ */
+const MAX_BYTES = 4_000_000
+
+/**
+ * Bomba de descompresión: un PNG de 30 KB puede declarar 50.000×50.000 px.
+ * sharp trae su propio tope, pero dejarlo implícito es dejarlo a merced de la
+ * versión. El arte real es 286×400.
+ */
+const MAX_PIXELES = 4_000_000
+
+/**
+ * Los errores también se cachean.
+ *
+ * Antes salían con `max-age=0, must-revalidate`, así que cada repetición de la
+ * MISMA URL inválida volvía a invocar la función y —en el caso del 502— volvía
+ * a golpear el origen ajeno. Medido: 8 de 8 `x-vercel-cache: MISS`. Con esto,
+ * un nombre inventado cuesta UN viaje y después lo sirve la CDN.
+ *
+ * El plazo es corto a propósito: un 502 puede ser un tropiezo del origen, y
+ * congelar una carta buena como rota durante horas sería peor que el gasto.
+ */
+const CACHE_ERROR = 'public, max-age=60, s-maxage=600'
+
+function fallo(res: VercelResponse, codigo: number, error: string) {
+  res.setHeader('Cache-Control', CACHE_ERROR)
+  return res.status(codigo).json({ error })
+}
 
 /**
  * Escalera de anchos. Cuatro peldaños que cubren los tamaños que la app pinta
@@ -104,43 +177,91 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // nueva, y por lo tanto un viaje al origen ajeno.
   const claves = Object.keys(req.query)
   if (claves.some(k => k !== 'u' && k !== 'w')) {
-    return res.status(400).json({ error: 'Parámetro no admitido' })
+    return fallo(res, 400, 'Parámetro no admitido')
   }
 
   const crudo = unico(req.query.u)
   const anchoTxt = unico(req.query.w)
   if (!crudo || !anchoTxt) {
-    return res.status(400).json({ error: 'Faltan u y w' })
+    return fallo(res, 400, 'Faltan u y w')
   }
 
   const ancho = Number(anchoTxt)
   if (!Number.isInteger(ancho) || !ANCHOS.has(ancho)) {
-    return res.status(400).json({ error: 'Ancho no admitido' })
+    return fallo(res, 400, 'Ancho no admitido')
   }
 
   let origen: URL
   try {
     origen = new URL(crudo)
   } catch {
-    return res.status(400).json({ error: 'URL inválida' })
+    return fallo(res, 400, 'URL inválida')
   }
-  if (origen.protocol !== 'https:' || origen.hostname !== CDN) {
-    return res.status(400).json({ error: 'Origen no admitido' })
+  /*
+   * `host`, no `hostname`: `hostname` EXCLUYE el puerto, así que
+   * `https://cdn.starwarsunlimited.com:8443//card_a.png` pasaba el filtro y el
+   * proxy salía a hablar al 8443 de ese host. Con `:1` encima quedaba colgado
+   * (no había plazo, ver `config.maxDuration`). Y cada puerto es una clave de
+   * caché distinta en la CDN de Vercel: una invocación nueva por cada uno.
+   *
+   * `username`/`password`: `https://evil.com@cdn.starwarsunlimited.com//card_a.png`
+   * tiene `hostname` correcto —el userinfo no es el host— pero `toString()`
+   * conserva el `evil.com@`, así que lo que se enviaba al cable no era lo que
+   * se había validado. Los dos casos medidos en node antes del arreglo.
+   */
+  if (origen.protocol !== 'https:' || origen.host !== CDN || origen.username || origen.password) {
+    return fallo(res, 400, 'Origen no admitido')
   }
-  if (!RUTA_CARTA.test(origen.pathname) || origen.search || origen.hash) {
-    return res.status(400).json({ error: 'Ruta no admitida' })
+  // `origen.search` es '' con un `?` pelado, así que la comprobación se hace
+  // también sobre la cadena cruda: `…card_a.png?` colaba como clave nueva.
+  if (!RUTA_CARTA.test(origen.pathname) || origen.search || origen.hash ||
+      crudo.includes('?') || crudo.includes('#')) {
+    return fallo(res, 400, 'Ruta no admitida')
   }
 
+  // El token se cobra DESPUÉS de validar la forma (un 400 no toca la red) y
+  // ANTES de salir al origen ajeno.
+  if (!tomarFicha()) {
+    res.setHeader('Retry-After', '30')
+    return fallo(res, 429, 'Demasiadas imágenes a la vez. Reintenta en un momento.')
+  }
+
+  const control = new AbortController()
+  const plazo = setTimeout(() => control.abort(), 12_000)
   try {
-    const upstream = await fetch(origen.toString())
+    const upstream = await fetch(origen.toString(), {
+      // Un redirect a otro host convertiría esto en un proxy abierto — la
+      // misma razón que documenta `melee-profile.ts`. `fetch` sigue los 3xx
+      // por defecto, y el destino lo elegiría la respuesta ajena.
+      redirect: 'manual',
+      signal: control.signal,
+    })
+    if (upstream.status >= 300 && upstream.status < 400) {
+      return fallo(res, 502, 'El origen redirigió')
+    }
     if (!upstream.ok) {
       // El fallo del origen se transmite tal cual: así el cliente sabe que
       // tiene que caer a la URL original en vez de reintentar acá.
-      return res.status(502).json({ error: `Origen respondió ${upstream.status}` })
+      return fallo(res, 502, `Origen respondió ${upstream.status}`)
+    }
+
+    // Lo que el origen dice que manda, antes de traérselo a memoria.
+    const tipo = upstream.headers.get('content-type') ?? ''
+    if (!tipo.startsWith('image/')) {
+      return fallo(res, 502, 'El origen no devolvió una imagen')
+    }
+    const declarado = Number(upstream.headers.get('content-length'))
+    if (Number.isFinite(declarado) && declarado > MAX_BYTES) {
+      return fallo(res, 502, 'La imagen del origen es demasiado grande')
     }
 
     const png = Buffer.from(await upstream.arrayBuffer())
-    const webp = await sharp(png)
+    // Y lo que de verdad llegó: `content-length` es del origen, no nuestro.
+    if (png.length > MAX_BYTES) {
+      return fallo(res, 502, 'La imagen del origen es demasiado grande')
+    }
+
+    const webp = await sharp(png, { limitInputPixels: MAX_PIXELES })
       .resize({ width: ancho, withoutEnlargement: true })
       .webp({ quality: CALIDAD, alphaQuality: 100, effort: 4 })
       .toBuffer()
@@ -154,6 +275,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Content-Length', String(webp.length))
     return res.status(200).send(webp)
   } catch (e) {
-    return res.status(502).json({ error: e instanceof Error ? e.message : 'Fallo al transformar' })
+    const abortado = e instanceof Error && e.name === 'AbortError'
+    return fallo(res, abortado ? 504 : 502,
+      abortado ? 'El origen tardó demasiado' : 'Fallo al transformar')
+  } finally {
+    clearTimeout(plazo)
   }
 }

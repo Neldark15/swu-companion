@@ -75,6 +75,19 @@ interface Props {
   /** Cuánto dura la transición hacia este estado. 0 = sin animación. */
   duracion: number
   className?: string
+  /**
+   * Se llama cuando la mesa NO se puede dibujar: el renderer no se pudo crear,
+   * o el navegador perdió el contexto en marcha.
+   *
+   * Sin esto había dos agujeros medidos. Con `getContext` devolviendo null, el
+   * montaje hacía `catch { return }` y la pantalla quedaba en un rectángulo
+   * negro de 52vh con el pie «arrastra para girar» encima y NADA dentro — sin
+   * lienzo, sin texto y sin error en consola. Y con
+   * `WEBGL_lose_context.loseContext()` sobre una mesa viva, el lienzo se
+   * congelaba sin avisar a nadie. `GalaxiaEscena` ya tenía las dos salidas;
+   * la Mesa no heredó ninguna.
+   */
+  onSinWebGL?: () => void
 }
 
 /* ── Medidas de la mesa, en unidades de escena ───────────────────────── */
@@ -215,17 +228,41 @@ interface Motor {
   vidaB: THREE.Sprite
   orbita: { az: number; el: number; zoom: number }
   raf: number
-  visible: boolean
+  /**
+   * Los DOS estados van separados a propósito.
+   *
+   * Antes el `IntersectionObserver` y el `visibilitychange` escribían la MISMA
+   * variable `visible`, así que con la mesa fuera de pantalla bastaba cambiar
+   * de pestaña y volver para que se pusiera a dibujar a fondo detrás del resto
+   * de la página hasta que el observador volviera a hablar. `GalaxiaEscena`
+   * mantiene los dos y los combina; este es ese patrón.
+   */
+  enPantalla: boolean
+  pestanaVisible: boolean
   reducido: boolean
   ultimoIndice: number
 }
 
+/** ¿Hay que estar dibujando? */
+const debeDibujar = (m: Motor) => m.enPantalla && m.pestanaVisible
+
 /** Suavizado: sale rápido y frena. Lo mismo que usa Dice3D. */
 const suave = (t: number) => 1 - Math.pow(1 - t, 3)
 
-export function MesaEscena({ estado, arte, duracion, className = '' }: Props) {
+export function MesaEscena({ estado, arte, duracion, className = '', onSinWebGL }: Props) {
   const cajaRef = useRef<HTMLDivElement>(null)
   const motorRef = useRef<Motor | null>(null)
+  // El aviso va por ref para que cambiar la función no vuelva a montar la
+  // escena entera — mismo motivo que en GalaxiaEscena.
+  const avisoRef = useRef(onSinWebGL)
+  // Un cuadro suelto a petición. Lo llena el montaje; con movimiento reducido
+  // es la ÚNICA forma de que la mesa se repinte, porque el bucle no corre.
+  const pedirCuadroRef = useRef<() => void>(() => {})
+  // En un efecto y no durante el render (regla `react-hooks/refs`). Va PRIMERO
+  // a propósito: React los corre en orden de declaración, así que el de
+  // montaje ya encuentra el ref con el valor de este render. Mismo patrón que
+  // `GalaxiaEscena`.
+  useEffect(() => { avisoRef.current = onSinWebGL })
 
   /* ── Montaje: una sola vez ── */
   useEffect(() => {
@@ -240,7 +277,10 @@ export function MesaEscena({ estado, arte, duracion, className = '' }: Props) {
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'low-power' })
     } catch {
-      // Sin WebGL no se monta nada: `MesaPage` ya enseña el reproductor 2D.
+      // Antes esto era `return` a secas: la pantalla se quedaba en un
+      // rectángulo negro sin lienzo, sin texto y sin error. Ahora se avisa y
+      // `MesaPage` cae al reproductor plano, que tiene los mismos datos.
+      avisoRef.current?.()
       return
     }
     // Por encima de 2 el teléfono calienta sin que se note la mejora.
@@ -304,7 +344,8 @@ export function MesaEscena({ estado, arte, duracion, className = '' }: Props) {
       fichas: new Map(), cifras: [], basura,
       vidaA, vidaB,
       orbita: { az: 0, el: 0.95, zoom: 1 },
-      raf: 0, visible: true, reducido, ultimoIndice: -1,
+      raf: 0, enPantalla: true, pestanaVisible: !document.hidden,
+      reducido, ultimoIndice: -1,
     }
     motorRef.current = motor
 
@@ -337,7 +378,11 @@ export function MesaEscena({ estado, arte, duracion, className = '' }: Props) {
       activos.set(e.pointerId, { x: e.clientX, y: e.clientY })
       if (activos.size === 1) { arrastrando = true; ultimo = { x: e.clientX, y: e.clientY } }
       if (activos.size === 2) pellizco = distanciaDedos(activos)
-      renderer.domElement.setPointerCapture(e.pointerId)
+      // `setPointerCapture` lanza `NotFoundError` si el puntero ya no está
+      // activo — pasa de verdad cuando el `pointerup` se adelanta al
+      // `pointerdown` (dos dedos, o un ratón que sale de la ventana). El
+      // estado no se corrompe, pero salía como error no capturado en consola.
+      try { renderer.domElement.setPointerCapture(e.pointerId) } catch { /* el dedo ya se fue */ }
     }
     const mover = (e: PointerEvent) => {
       if (!activos.has(e.pointerId)) return
@@ -350,6 +395,7 @@ export function MesaEscena({ estado, arte, duracion, className = '' }: Props) {
           // tocarla a mano se perdería en cuanto la persona girara la mesa.
           motor.orbita.zoom = THREE.MathUtils.clamp(motor.orbita.zoom * (pellizco / d), 0.5, 1.7)
           colocarCamara(motor)
+          pedirCuadro()
         }
         pellizco = d
         return
@@ -361,38 +407,134 @@ export function MesaEscena({ estado, arte, duracion, className = '' }: Props) {
       motor.orbita.el = THREE.MathUtils.clamp(motor.orbita.el - (e.clientY - ultimo.y) * 0.005, 0.42, 1.45)
       ultimo = { x: e.clientX, y: e.clientY }
       colocarCamara(motor)
+      // Girar tiene que verse también con movimiento reducido, donde el bucle
+      // está parado. Cuando el bucle corre, `pedirCuadro` no hace nada.
+      pedirCuadro()
     }
     const arriba = (e: PointerEvent) => {
       activos.delete(e.pointerId)
       if (activos.size < 2) pellizco = 0
       if (activos.size === 0) arrastrando = false
     }
+    // La rueda del ratón acerca y aleja. El pie dice «pellizca para acercar» y
+    // con ratón de escritorio no había NINGUNA forma de hacerlo: solo estaban
+    // registrados los cuatro eventos de puntero. `passive: false` porque hace
+    // falta `preventDefault` para que la página no se desplace debajo.
+    const rueda = (e: WheelEvent) => {
+      e.preventDefault()
+      motor.orbita.zoom = THREE.MathUtils.clamp(motor.orbita.zoom * (1 + e.deltaY * 0.0012), 0.5, 1.7)
+      colocarCamara(motor)
+      pedirCuadro()
+    }
     renderer.domElement.addEventListener('pointerdown', abajo)
     renderer.domElement.addEventListener('pointermove', mover)
     renderer.domElement.addEventListener('pointerup', arriba)
     renderer.domElement.addEventListener('pointercancel', arriba)
+    renderer.domElement.addEventListener('wheel', rueda, { passive: false })
 
     /* ── El bucle ── */
-    // Se para con la pestaña oculta y cuando la mesa sale de pantalla: un rAF
-    // corriendo detrás de otra pantalla es batería tirada.
-    const io = new IntersectionObserver(([e]) => { motor.visible = e.isIntersecting }, { threshold: 0.01 })
-    io.observe(caja)
-    const alCambiarVisibilidad = () => { motor.visible = !document.hidden }
-    document.addEventListener('visibilitychange', alCambiarVisibilidad)
+
+    /**
+     * Un cuadro suelto, fuera del bucle.
+     *
+     * Con `prefers-reduced-motion` el bucle no corre, pero la mesa igual tiene
+     * que repintarse cuando cambia algo (girar con el dedo, un paso nuevo).
+     * Es lo mismo que hace `GalaxiaEscena`.
+     */
+    let rafSuelto = 0
+    const pedirCuadro = () => {
+      const m = motorRef.current
+      if (!m || m.raf || rafSuelto || !debeDibujar(m)) return
+      rafSuelto = requestAnimationFrame(() => {
+        rafSuelto = 0
+        const v = motorRef.current
+        if (v) v.renderer.render(v.scene, v.camera)
+      })
+    }
 
     let anterior = performance.now()
     const animar = () => {
       const m = motorRef.current
       if (!m) return
-      m.raf = requestAnimationFrame(animar)
       const ahora = performance.now()
       const dt = Math.min(ahora - anterior, 100)
       anterior = ahora
-      if (!m.visible || document.hidden) return
       avanzarAnimaciones(m, dt)
       m.renderer.render(m.scene, m.camera)
+      m.raf = requestAnimationFrame(animar)
     }
-    animar()
+
+    /**
+     * Arranca o para el bucle DE VERDAD.
+     *
+     * Antes `requestAnimationFrame` se volvía a pedir siempre y solo se saltaba
+     * el `render`, así que el rAF seguía latiendo a 60 Hz con la pestaña oculta
+     * o la mesa fuera de pantalla — justo lo contrario de lo que decía su
+     * comentario. Y con `prefers-reduced-motion` el bucle renderizaba cada
+     * cuadro una escena congelada.
+     */
+    const reevaluar = () => {
+      const m = motorRef.current
+      if (!m) return
+      const debe = debeDibujar(m) && !m.reducido
+      if (debe && !m.raf) {
+        anterior = performance.now()
+        m.raf = requestAnimationFrame(animar)
+      } else if (!debe && m.raf) {
+        cancelAnimationFrame(m.raf)
+        m.raf = 0
+      }
+      // Con movimiento reducido no hay bucle, pero sí un cuadro para que la
+      // mesa no se quede en negro al volver a pantalla.
+      if (!debe && debeDibujar(m)) pedirCuadro()
+    }
+
+    const io = new IntersectionObserver(([e]) => {
+      const m = motorRef.current
+      if (!m) return
+      m.enPantalla = e.isIntersecting
+      reevaluar()
+    }, { threshold: 0.01 })
+    io.observe(caja)
+
+    const alCambiarVisibilidad = () => {
+      const m = motorRef.current
+      if (!m) return
+      m.pestanaVisible = !document.hidden
+      reevaluar()
+    }
+    document.addEventListener('visibilitychange', alCambiarVisibilidad)
+
+    // El ajuste del sistema puede cambiar con la mesa abierta. Antes se leía
+    // una sola vez al montar y no había forma de que la escena se enterara.
+    const consultaReducido = window.matchMedia?.('(prefers-reduced-motion: reduce)')
+    const alCambiarReducido = (e: MediaQueryListEvent) => {
+      const m = motorRef.current
+      if (!m) return
+      m.reducido = e.matches
+      reevaluar()
+    }
+    consultaReducido?.addEventListener?.('change', alCambiarReducido)
+
+    /**
+     * El navegador puede quitar el contexto en marcha (memoria, cambio de GPU,
+     * o demasiados contextos vivos — ver la nota 2s). Sin este listener el
+     * lienzo se quedaba CONGELADO sin avisar a nadie: medido con
+     * `WEBGL_lose_context.loseContext()`, `perdido: true` y cero aviso.
+     */
+    const alPerderContexto = (e: Event) => {
+      e.preventDefault()
+      const m = motorRef.current
+      if (m?.raf) { cancelAnimationFrame(m.raf); m.raf = 0 }
+      avisoRef.current?.()
+    }
+    renderer.domElement.addEventListener('webglcontextlost', alPerderContexto)
+
+    pedirCuadroRef.current = pedirCuadro
+    // Un primer cuadro siempre, incluso con movimiento reducido: si no, la
+    // mesa arranca en negro en vez de en el fondo de escena.
+    renderer.render(scene, camera)
+    reevaluar()
 
     return () => {
       const m = motorRef.current
@@ -400,10 +542,17 @@ export function MesaEscena({ estado, arte, duracion, className = '' }: Props) {
       ro.disconnect()
       io.disconnect()
       document.removeEventListener('visibilitychange', alCambiarVisibilidad)
+      consultaReducido?.removeEventListener?.('change', alCambiarReducido)
       renderer.domElement.removeEventListener('pointerdown', abajo)
       renderer.domElement.removeEventListener('pointermove', mover)
       renderer.domElement.removeEventListener('pointerup', arriba)
       renderer.domElement.removeEventListener('pointercancel', arriba)
+      renderer.domElement.removeEventListener('wheel', rueda)
+      // ANTES que `forceContextLoss`: si va después, la pérdida que provocamos
+      // nosotros dispara el fallback y la pantalla dice «este navegador no
+      // puede dibujar en 3D» para siempre. Es la nota 2s, al pie de la letra.
+      renderer.domElement.removeEventListener('webglcontextlost', alPerderContexto)
+      cancelAnimationFrame(rafSuelto)
       if (m) {
         cancelAnimationFrame(m.raf)
         // WebGL no se libera solo. Sin esto, entrar y salir de la mesa deja
@@ -417,6 +566,21 @@ export function MesaEscena({ estado, arte, duracion, className = '' }: Props) {
         m.geoCarta.dispose()
         m.geoAro.dispose()
         m.renderer.dispose()
+        /*
+         * `dispose()` NO devuelve el contexto WebGL: libera lo de three, pero
+         * el contexto sigue vivo hasta que el navegador decide matarlo.
+         *
+         * Medido, 12 ciclos de montar/desmontar con CERO lienzos en el DOM:
+         * 27 contextos creados, **18 vivos**, 9 ya matados por Chrome. Y no es
+         * uno por visita a /mesa: `MesaPage` hace `setFase('cargando')` en cada
+         * «Ver una partida» y en cada «Otra», lo que desmonta este bloque
+         * entero — o sea UNO POR PARTIDA VISTA. Con 20 contextos Chrome mata
+         * los más VIEJOS, que son Dice3D, Coin3D, Carta3D y la Galaxia: la
+         * Mesa se llevaba por delante el 3D del resto de la app.
+         *
+         * `GalaxiaEscena` ya lo hacía; la Mesa no. Nota 2s: es obligatorio.
+         */
+        m.renderer.forceContextLoss()
       }
       renderer.domElement.remove()
     }
@@ -427,6 +591,9 @@ export function MesaEscena({ estado, arte, duracion, className = '' }: Props) {
     const m = motorRef.current
     if (!m) return
     sincronizar(m, estado, arte, duracion)
+    // Con movimiento reducido el bucle está parado, así que sin esto la mesa
+    // se quedaba en el paso anterior hasta que alguien la girase con el dedo.
+    if (m.reducido) pedirCuadroRef.current()
   }, [estado, arte, duracion])
 
   return (
@@ -735,9 +902,15 @@ function colocarFicha(
     f.t = 1
   }
   // La condenada se marca en el aro: hay una mejora rival encima.
+  //
+  // El color necesita las DOS ramas. Con solo el `if`, retroceder por debajo
+  // del `adjunta` hostil dejaba la unidad con el aro morado (ya a 0,3, así que
+  // ni siquiera se leía como «condenada») en vez del color de su bando, y no
+  // volvía a su sitio en toda la sesión: la opacidad se reiniciaba y el color
+  // no.
   const matAro = f.aro.material as THREE.MeshBasicMaterial
   matAro.opacity = u.condenada ? 0.75 : 0.3
-  if (u.condenada) matAro.color.set(0xa855f7)
+  matAro.color.set(u.condenada ? 0xa855f7 : (lado === 'A' ? COLOR_A : COLOR_B))
   // Herida: se apaga un poco, en proporción a lo que le queda.
   const salud = u.hp > 0 ? Math.max(0.25, u.resto / u.hp) : 1
   f.material.color.setScalar(f.material.map ? 0.45 + 0.55 * salud : 1)
@@ -809,6 +982,10 @@ function animarEvento(m: Motor, est: EstadoMesa, dur: number) {
         f.t = 0
         f.dur = Math.max(1, dur)
         f.origen = f.destino.clone()
+        // Reiniciar `t` reinicia también el tween del GIRO, así que su origen
+        // tiene que ser dónde está la carta AHORA. Sin esto, un atacante que
+        // ya venía girado volvería a girar desde cero al embestir.
+        f.giroOrigen = f.malla.rotation.z
       }
     }
   }
@@ -863,9 +1040,28 @@ function avanzarAnimaciones(m: Motor, dt: number) {
         if (f.t >= 1) { f.embiste = null; f.malla.position.copy(f.destino) }
       } else {
         f.malla.position.lerpVectors(f.origen, f.destino, s)
-        f.malla.rotation.z = f.giroOrigen + (f.giroDestino - f.giroOrigen) * s
         if (f.muriendo) f.material.opacity = 1 - s
       }
+      /*
+       * El giro va FUERA del `else`, y ese era el bug.
+       *
+       * `GIRO_AGOTADO` estaba muerto en el camino animado, que es el normal.
+       * `aplicar()` marca `agotado` solo en `case 'ataca'`, y `animarEvento`
+       * le da embestida a TODO atacante: la rama de arriba solo tocaba la
+       * posición, así que la carta que acaba de atacar nunca se giraba. Peor:
+       * `animarEvento` pisa `f.t = 0` y `f.origen` justo después de que
+       * `colocarFicha` armara el tween, y a partir de ahí
+       * `movido = … || f.giroDestino !== giro` es false PARA SIEMPRE — no se
+       * reintentaba nunca. Es el mismo error que documenta el bloque de
+       * `colocarFicha`, una rama más allá.
+       *
+       * Medido sobre la partida 1 del fixture, evento 21 (Outland Protector
+       * ataca la base), donde el modelo dice `agotado: true`:
+       *   reproducción animada  rotation.z = 0     (y seguía en 0 dos eventos después)
+       *   mismo estado por salto rotation.z = 0,42  ✓
+       * O sea: la misma mesa se veía distinta según cómo habías llegado.
+       */
+      f.malla.rotation.z = f.giroOrigen + (f.giroDestino - f.giroOrigen) * s
       if (f.muriendo && f.t >= 1) { destruirFicha(m, f); continue }
     }
     f.aro.position.set(f.malla.position.x, f.malla.position.y - 0.01, f.malla.position.z)

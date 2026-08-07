@@ -137,10 +137,34 @@ export function getTodayKey(): string {
 function semanaDe(diaSV: string): string {
   const [anio, mes, dia] = diaSV.split('-').map(Number)
   // Aritmética pura de calendario sobre el día SV: sin zona que la corra.
-  const inicioAnio = Date.UTC(anio, 0, 1)
-  const diaDelAnio = Math.round((Date.UTC(anio, mes - 1, dia) - inicioAnio) / 86_400_000)
+  const hoy = Date.UTC(anio, mes - 1, dia)
+  /*
+   * La MISMA fórmula de siempre, pero evaluada en el DOMINGO en que empieza la
+   * semana en vez de en el día en curso.
+   *
+   * El borde se rompía cada 1 de enero, porque el año de la clave salía del
+   * día y el número de semana se reiniciaba con él:
+   *
+   *   2026-12-31 (jueves)  → 2026-W53
+   *   2027-01-01 (viernes) → 2027-W01   ← la clave cambiaba un VIERNES
+   *   2027-01-03 (domingo) → 2027-W02   ← y otra vez el domingo
+   *
+   * O sea dos cambios en una misma semana. `period_key` es parte de la clave
+   * con la que se guarda el progreso en `user_missions`, así que todo el mundo
+   * perdía a media semana lo que llevara avanzado y encima le cambiaban las
+   * misiones (el set sale de `hashString('weekly_' + weekKey)`) — justo el
+   * desacuerdo que este archivo decía haber cerrado.
+   *
+   * Anclar al domingo lo arregla SIN mover la clave de ninguna semana ya en
+   * curso: para cualquier día, el domingo que lo contiene es el mismo que
+   * antes, así que la fórmula devuelve el mismo string. Verificado día a día.
+   */
+  const domingo = hoy - new Date(hoy).getUTCDay() * 86_400_000
+  const anioSemana = new Date(domingo).getUTCFullYear()
+  const inicioAnio = Date.UTC(anioSemana, 0, 1)
+  const diaDelAnio = Math.round((domingo - inicioAnio) / 86_400_000)
   const semana = Math.ceil((diaDelAnio + new Date(inicioAnio).getUTCDay() + 1) / 7)
-  return `${anio}-W${String(semana).padStart(2, '0')}`
+  return `${anioSemana}-W${String(semana).padStart(2, '0')}`
 }
 
 /**
