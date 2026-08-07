@@ -137,6 +137,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case 'rivales':
       metodo = 'GET'; ruta = '/rivales'
       break
+    // Qué sets conoce el motor. El cliente filtra con esto los candidatos de
+    // mejora: su base tiene 28 sets y el simulador solo el Premier vigente.
+    case 'pool':
+      metodo = 'GET'; ruta = '/pool'
+      break
     case 'trabajo': {
       const id = String(body.id || '')
       if (!RX_TRABAJO.test(id)) return res.status(400).json({ error: 'Id de trabajo inválido.' })

@@ -7,9 +7,11 @@
  * primera carga: un juez en un torneo con mal internet sigue pudiendo citar
  * una regla.
  *
- * El texto de las reglas se conserva EN INGLÉS tal cual viene del documento:
- * es el texto normativo, y traducirlo sería inventar reglas. Lo que va en
- * español es todo lo demás (interfaz, notas, estados del simulador).
+ * El texto NORMATIVO de las reglas sigue siendo el inglés tal cual viene del
+ * documento. Desde v8.0 viaja además `public/datos-cr/es.json` (246 KB, 935
+ * traducciones validadas contra glosario oficial): una traducción DE CORTESÍA
+ * que se carga EN PARALELO con el índice y es mejora progresiva — si falta o
+ * falla, el módulo entero sigue funcionando solo en inglés.
  */
 
 import { normalizeSearch, searchCards } from './swuApi'
@@ -62,6 +64,18 @@ export interface DatosRulings {
   glosario: { termino: string; id: string }[]
 }
 
+// ─── Traducción de cortesía (public/datos-cr/es.json) ───
+
+export interface TraduccionEntrada {
+  titulo: string | null
+  texto: string
+}
+
+export interface DatosTraducciones {
+  meta: { version: string; idioma: string; aviso: string }
+  traducciones: Record<string, TraduccionEntrada>
+}
+
 // ─── Estado del simulador por mecánica (public/datos-cr/simulador.json) ───
 
 export type EstadoModelado = 'modelada' | 'parcial' | 'no'
@@ -92,6 +106,39 @@ export function cargarRulings(): Promise<DatosRulings> {
       })
   }
   return _promesaDatos
+}
+
+let _promesaTrad: Promise<DatosTraducciones | null> | null = null
+
+/**
+ * La traducción es OPCIONAL y se pide EN PARALELO con el índice (la pantalla
+ * dispara las dos cargas en el mismo efecto; ninguna espera a la otra). Si el
+ * archivo falta, está roto o no hay red, resuelve `null` y el módulo sigue
+ * completo en inglés: mejora progresiva, no dependencia.
+ */
+export function cargarTraducciones(): Promise<DatosTraducciones | null> {
+  if (!_promesaTrad) {
+    _promesaTrad = fetch('/datos-cr/es.json')
+      .then(r => (r.ok ? (r.json() as Promise<DatosTraducciones>) : null))
+      .then(d => {
+        // Validación mínima de forma: un JSON truncado o ajeno no puede
+        // reventar la pantalla — simplemente no hay traducción.
+        if (!d || typeof d !== 'object' || typeof d.traducciones !== 'object' || !d.traducciones) return null
+        return d
+      })
+      .catch(() => null)
+  }
+  return _promesaTrad
+}
+
+/**
+ * Traducción de una entrada por id. `Object.hasOwn` por la misma razón que
+ * en la pantalla: un id venido de la URL (`?regla=__proto__`) no puede
+ * alcanzar propiedades heredadas del prototipo.
+ */
+export function traduccionDe(trad: DatosTraducciones | null, id: string): TraduccionEntrada | null {
+  if (!trad || !Object.hasOwn(trad.traducciones, id)) return null
+  return trad.traducciones[id]
 }
 
 let _promesaSim: Promise<EstadoSimulador | null> | null = null
@@ -135,14 +182,23 @@ export interface ResultadoBusqueda {
  * que se nota en un teléfono de gama baja.
  */
 let _blobs: Map<string, { t: string; b: string }> | null = null
+/** Con qué traducción se construyeron los blobs: cuando es.json llega (una
+ *  vez, de null → datos) se reconstruyen para que la búsqueda cubra los dos
+ *  idiomas sin recalcular nada por tecleo. */
+let _blobsTrad: DatosTraducciones | null = null
 
-function blobsDe(datos: DatosRulings): Map<string, { t: string; b: string }> {
-  if (!_blobs) {
+function blobsDe(datos: DatosRulings, trad: DatosTraducciones | null): Map<string, { t: string; b: string }> {
+  if (!_blobs || _blobsTrad !== trad) {
     _blobs = new Map()
+    _blobsTrad = trad
     for (const [id, e] of Object.entries(datos.entradas)) {
+      const tr = traduccionDe(trad, id)
       _blobs.set(id, {
-        t: normalizeSearch(e.titulo ?? ''),
-        b: normalizeSearch(e.texto),
+        // EN + ES concatenados en el MISMO blob: «derrotar» encuentra la
+        // regla de defeat con el mismo puntaje que si buscara en inglés
+        // (normalizeSearch ya pliega los acentos: «háganlo» ≈ «haganlo»).
+        t: normalizeSearch([e.titulo ?? '', tr?.titulo ?? ''].filter(Boolean).join(' ')),
+        b: normalizeSearch([e.texto, tr?.texto ?? ''].filter(Boolean).join(' ')),
       })
     }
   }
@@ -150,7 +206,9 @@ function blobsDe(datos: DatosRulings): Map<string, { t: string; b: string }> {
 }
 
 /**
- * Búsqueda local por texto libre sobre título + cuerpo de las 935 entradas.
+ * Búsqueda local por texto libre sobre título + cuerpo de las 935 entradas,
+ * EN LOS DOS IDIOMAS cuando la traducción está cargada: «derrotar» encuentra
+ * la regla de defeated aunque el texto normativo diga defeat.
  *
  * Reglas del puntaje, de la más a la menos valiosa: frase exacta en el
  * título, frase exacta en el cuerpo, token suelto en el título, token suelto
@@ -160,6 +218,7 @@ function blobsDe(datos: DatosRulings): Map<string, { t: string; b: string }> {
 export function buscarEnReglas(
   datos: DatosRulings,
   consulta: string,
+  trad: DatosTraducciones | null = null,
   limite = 40,
 ): ResultadoBusqueda[] {
   const frase = normalizeSearch(consulta)
@@ -167,7 +226,7 @@ export function buscarEnReglas(
   const tokens = frase.split(/\s+/).filter(Boolean)
   if (tokens.length === 0) return []
 
-  const blobs = blobsDe(datos)
+  const blobs = blobsDe(datos, trad)
   const resultados: ResultadoBusqueda[] = []
 
   for (const [id, e] of Object.entries(datos.entradas)) {

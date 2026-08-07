@@ -168,6 +168,8 @@ interface Contexto {
   rivales: RivalEnriquecido[]
   pool: Card[]
   coleccion: Set<string>
+  /** Sets que el motor sabe simular. `null` si no se pudo preguntar. */
+  setsMotor: Set<string> | null
 }
 
 /** Un candidato ya medido. `delta` es lo único que se puede afirmar de él. */
@@ -665,10 +667,15 @@ export function LabPage() {
     ;(async () => {
       try {
         await ensureCards()
-        const [pool, listaRivales, items] = await Promise.all([
+        // `pool` del motor va en el MISMO Promise.all: es una lectura más y
+        // esperar en cascada sumaría un viaje. Si falla, se sigue sin filtro
+        // (la respuesta del motor es la última red) en vez de quedarse sin
+        // diagnóstico por un dato accesorio.
+        const [pool, listaRivales, items, setsMotor] = await Promise.all([
           db.cards.toArray(),
           simApi.rivales(),
           getMyCollection(currentProfileId ?? undefined),
+          simApi.pool().then((p) => new Set(p.sets)).catch(() => null),
         ])
         const porNombre = indicePorNombre(pool)
         const rivales: RivalEnriquecido[] = listaRivales.rivales.map((r) => {
@@ -686,7 +693,7 @@ export function LabPage() {
             baseVida: cartaBase?.hp ?? null,
           }
         })
-        setContexto({ rivales, pool, coleccion: new Set(items.map((i) => i.cardId)) })
+        setContexto({ rivales, pool, coleccion: new Set(items.map((i) => i.cardId)), setsMotor })
       } catch (e) {
         // Se libera el centinela: un fallo de red no puede dejar la pantalla
         // sin diagnóstico hasta que se recargue la app.
@@ -760,7 +767,7 @@ export function LabPage() {
   // van a correr en vez de prometer «hasta 6»: si salen 3, el aviso dice 3.
   const hipotesis = useMemo(() => {
     if (!deckActual || !diagnostico || !contexto) return []
-    return candidatos(deckActual, diagnostico, contexto.pool, contexto.coleccion)
+    return candidatos(deckActual, diagnostico, contexto.pool, contexto.coleccion, contexto.setsMotor)
   }, [deckActual, diagnostico, contexto])
 
   /**

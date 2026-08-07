@@ -584,8 +584,24 @@ export function candidatos(
   diagnostico: Diagnostico,
   pool: readonly Card[],
   coleccion: ReadonlySet<string>,
+  /**
+   * Sets que el motor sabe simular (`simApi.pool()`).
+   *
+   * Sin esto se proponían cartas que el simulador NO conoce y el intento moría
+   * con «"Clone Deserter" no existe en el Premier actual (JTL–ASH)» — después
+   * de gastar el viaje al VPS. Clone Deserter es de SHD, un set rotado.
+   * Medido: 3.720 de las 9.057 filas de la base están fuera del pool (41 %),
+   * así que no era un caso raro.
+   *
+   * `null` = todavía no llegó la respuesta: se prefiere NO filtrar antes que
+   * quedarse sin candidatos, y el error del motor sigue siendo la última red.
+   */
+  setsDelMotor: ReadonlySet<string> | null,
 ): Candidato[] {
-  const idx = indexar(pool)
+  const enElMotor = setsDelMotor
+    ? pool.filter((c) => setsDelMotor.has(c.setCode))
+    : pool
+  const idx = indexar(enElMotor)
   const disponibles = aspectosDisponibles(mazo, idx)
   if (!disponibles) return []
 

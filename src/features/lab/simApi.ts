@@ -129,6 +129,20 @@ async function llamar<T>(cuerpo: Record<string, unknown>): Promise<T> {
 
 export const simApi = {
   rivales: () => llamar<{ rivales: RivalInfo[] }>({ action: 'rivales' }),
+  /**
+   * Qué sets conoce el motor.
+   *
+   * La app tiene la base COMPLETA —9.057 impresiones, 28 sets— y el simulador
+   * solo el Premier vigente (1.324 cartas). Sin preguntarle, el buscador de
+   * mejoras proponía cambios con cartas rotadas y el motor los rechazaba
+   * DESPUÉS del viaje: «Clone Deserter no existe en el Premier actual».
+   * Medido: 3.720 filas de la base están fuera del pool, el 41 %.
+   *
+   * Se pregunta en vez de escribir los 5 códigos acá porque la rotación
+   * cambia: el día que salga un set nuevo, el motor lo sabe y esta lista se
+   * actualiza sola.
+   */
+  pool: () => llamar<{ sets: string[]; cartas: number }>({ action: 'pool' }),
   validar: (mazo: MazoEnvio) => llamar<InformeValidar>({ action: 'validar', mazo }),
   gauntlet: (mazo: MazoEnvio, partidas = 400) =>
     llamar<{ trabajo: string; total: number }>({ action: 'gauntlet', mazo, partidas }),

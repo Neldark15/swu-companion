@@ -9,8 +9,10 @@
  *   2. Chips de mecánicas: las 22 del índice, a un toque.
  *   3. Índice navegable: el árbol de capítulos, para leer en orden.
  *
- * El texto de las reglas va EN INGLÉS tal cual: es el texto normativo de
- * FFG, y traducirlo sería inventar reglas. La interfaz alrededor, en español.
+ * El texto NORMATIVO de las reglas es el inglés de FFG, tal cual. Desde v8.0
+ * hay además una traducción DE CORTESÍA al español (es.json, mejora
+ * progresiva: si falla, todo sigue en inglés) con selector EN · ES · Ambos
+ * persistido en localStorage. La búsqueda cubre los dos idiomas.
  *
  * La ruta es PÚBLICA y el estado vive en la URL (?regla=7.4.2, ?mec=Sentinel)
  * para que una cita se pueda compartir por WhatsApp y abrir sin cuenta.
@@ -23,9 +25,9 @@ import {
   ArrowLeft, BookMarked, FlaskConical, X,
 } from 'lucide-react'
 import {
-  cargarRulings, cargarSimulador, buscarEnReglas, comoIdDeRegla,
-  rutaDeMigas, cartasConMecanicas, compararIds,
-  type DatosRulings, type EntradaRegla, type EstadoSimulador,
+  cargarRulings, cargarSimulador, cargarTraducciones, buscarEnReglas, comoIdDeRegla,
+  rutaDeMigas, cartasConMecanicas, compararIds, traduccionDe,
+  type DatosRulings, type EntradaRegla, type EstadoSimulador, type DatosTraducciones,
   type ResultadoBusqueda, type CartaConMecanicas, type EstadoModelado,
 } from '../../services/rulingsService'
 import { normalizeSearch } from '../../services/swuApi'
@@ -37,6 +39,109 @@ const NOMBRE_TIPO: Record<EntradaRegla['tipo'], string> = {
   seccion: 'Sección',
   regla: 'Regla',
   letra: 'Regla',
+}
+
+// ─── Idioma de lectura (EN normativo · ES cortesía · Ambos) ───
+
+type Idioma = 'en' | 'es' | 'ambos'
+
+const CLAVE_IDIOMA = 'swu_rulings_idioma'
+
+/** «Ambos» por defecto: es el modo pedido — nunca esconde el texto normativo. */
+function leerIdiomaGuardado(): Idioma {
+  try {
+    const v = localStorage.getItem(CLAVE_IDIOMA)
+    return v === 'en' || v === 'es' || v === 'ambos' ? v : 'ambos'
+  } catch {
+    return 'ambos'
+  }
+}
+
+/**
+ * Título según el idioma visible. En «Ambos» va «GAME CONCEPTS · Conceptos
+ * del juego»; en «ES», solo el español (si existe); el inglés siempre es el
+ * respaldo — una entrada jamás se queda sin título por falta de traducción.
+ */
+function tituloSegunIdioma(en: string | null, es: string | null | undefined, idioma: Idioma): string | null {
+  const tes = es ?? null
+  if (idioma === 'es') return tes ?? en
+  if (idioma === 'ambos' && en && tes) return `${en} · ${tes}`
+  return en ?? tes
+}
+
+const OPCIONES_IDIOMA: { v: Idioma; etiqueta: string }[] = [
+  { v: 'en', etiqueta: 'EN' },
+  { v: 'es', etiqueta: 'ES' },
+  { v: 'ambos', etiqueta: 'Ambos' },
+]
+
+/**
+ * Selector de idioma. No usa el SegmentedControl del repo porque este caso
+ * necesita opciones DESHABILITADAS con explicación (cuando es.json no cargó,
+ * ES y Ambos quedan apagados con un `title` que dice por qué) y el componente
+ * compartido no las modela. Mismo contrato accesible: radiogroup real con
+ * flechas y roving tabindex.
+ */
+function SelectorIdioma({ valor, onChange, sinTraduccion }: {
+  valor: Idioma
+  onChange: (v: Idioma) => void
+  /** es.json falló: el módulo sigue solo en inglés. */
+  sinTraduccion: boolean
+}) {
+  const grupoRef = useRef<HTMLDivElement>(null)
+  const efectivo: Idioma = sinTraduccion ? 'en' : valor
+  const motivo = 'La traducción al español no se pudo cargar — el módulo sigue disponible en inglés.'
+
+  const mover = (dir: 1 | -1) => {
+    if (sinTraduccion) return // solo EN habilitado: no hay a dónde moverse
+    const i = OPCIONES_IDIOMA.findIndex(o => o.v === efectivo)
+    const sig = (i + dir + OPCIONES_IDIOMA.length) % OPCIONES_IDIOMA.length
+    onChange(OPCIONES_IDIOMA[sig].v)
+    // El foco sigue a la selección (roving tabindex): sin esto, el botón que
+    // lo tenía pasa a tabIndex=-1 al redibujar y la flecha siguiente muere.
+    requestAnimationFrame(() => {
+      grupoRef.current?.querySelectorAll<HTMLElement>('[role="radio"]')[sig]?.focus()
+    })
+  }
+
+  return (
+    <div
+      ref={grupoRef}
+      role="radiogroup"
+      aria-label="Idioma de las reglas"
+      title={sinTraduccion ? motivo : undefined}
+      className="flex gap-1 p-1 rounded-xl bg-swu-bg border border-swu-border mt-2.5"
+      onKeyDown={e => {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); mover(1) }
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); mover(-1) }
+      }}
+    >
+      {OPCIONES_IDIOMA.map(o => {
+        const deshabilitada = sinTraduccion && o.v !== 'en'
+        const activa = o.v === efectivo
+        return (
+          <button
+            key={o.v}
+            role="radio"
+            aria-checked={activa}
+            disabled={deshabilitada}
+            title={deshabilitada ? motivo : undefined}
+            tabIndex={activa ? 0 : -1}
+            onClick={() => onChange(o.v)}
+            // `min-w-0` + `truncate`: a 320px las tres opciones caben, pero si
+            // el sistema agranda la fuente, que ceda la etiqueta y no la fila.
+            className={`flex-1 min-w-0 min-h-8 px-2 rounded-lg text-[11px] font-semibold
+                        inline-flex items-center justify-center transition-colors
+                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent
+                        disabled:opacity-40 disabled:cursor-not-allowed
+                        ${activa ? 'bg-swu-surface text-swu-text' : 'text-swu-muted hover:text-swu-text'}`}
+          >
+            <span className="truncate min-w-0">{o.etiqueta}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
 }
 
 /** Resalta los tokens buscados dentro de un texto (insensible a mayúsculas). */
@@ -59,41 +164,99 @@ function Resaltado({ texto, tokens }: { texto: string; tokens: string[] }) {
   )
 }
 
+/** Viñetas («• …») y ejemplos («For example… / Por ejemplo…») llevan su estilo. */
+function claseDeParrafo(p: string): string {
+  if (/^(for example|por ejemplo)/i.test(p)) return 'text-swu-muted italic border-l-2 border-swu-border pl-3'
+  if (p.startsWith('•')) return 'text-swu-text pl-3'
+  return 'text-swu-text'
+}
+
 /**
- * Párrafos del texto oficial: vienen separados por \n, con las viñetas
- * («• …») y los ejemplos («For example…») como párrafos propios.
+ * Párrafos del texto oficial: vienen separados por \n, con las viñetas y los
+ * ejemplos como párrafos propios.
+ *
+ * Con traducción, el idioma manda: en «Ambos» cada párrafo inglés lleva
+ * DEBAJO su español con estilo propio (muted + borde izquierdo) para que
+ * nunca se confundan cuál es el normativo; en «ES» va solo el español. Los
+ * párrafos se emparejan por posición — la traducción conserva la estructura
+ * de \n del original — y si algo no cuadra, el sobrante se muestra igual en
+ * vez de perderse. Sin traducción disponible, inglés, siempre.
  */
-function Parrafos({ texto, tokens = [] }: { texto: string; tokens?: string[] }) {
-  return (
-    <div className="space-y-2">
-      {texto.split('\n').map((p, i) => {
-        const esViñeta = p.startsWith('•')
-        const esEjemplo = /^for example/i.test(p)
-        return (
-          <p
-            key={i}
-            className={`text-[13px] leading-relaxed ${
-              esEjemplo
-                ? 'text-swu-muted italic border-l-2 border-swu-border pl-3'
-                : esViñeta
-                  ? 'text-swu-text pl-3'
-                  : 'text-swu-text'
-            }`}
-          >
+function Parrafos({ texto, textoEs, idioma = 'en', tokens = [] }: {
+  texto: string
+  textoEs?: string | null
+  idioma?: Idioma
+  tokens?: string[]
+}) {
+  const pEn = texto.split('\n')
+  const pEs = textoEs ? textoEs.split('\n') : []
+
+  if (idioma === 'es' && pEs.length > 0) {
+    return (
+      <div className="space-y-2">
+        {pEs.map((p, i) => (
+          <p key={i} className={`text-[13px] leading-relaxed ${claseDeParrafo(p)}`}>
             <Resaltado texto={p} tokens={tokens} />
           </p>
-        )
-      })}
+        ))}
+      </div>
+    )
+  }
+
+  if (idioma === 'ambos' && pEs.length > 0) {
+    const filas = Math.max(pEn.length, pEs.length)
+    return (
+      <div className="space-y-2.5">
+        {Array.from({ length: filas }, (_, i) => (
+          <div key={i} className="space-y-1">
+            {pEn[i] !== undefined && (
+              <p className={`text-[13px] leading-relaxed ${claseDeParrafo(pEn[i])}`}>
+                <Resaltado texto={pEn[i]} tokens={tokens} />
+              </p>
+            )}
+            {pEs[i] !== undefined && (
+              <p className="text-[12px] leading-relaxed text-swu-muted border-l-2 border-swu-cyan/25 pl-3">
+                <Resaltado texto={pEs[i]} tokens={tokens} />
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      {pEn.map((p, i) => (
+        <p key={i} className={`text-[13px] leading-relaxed ${claseDeParrafo(p)}`}>
+          <Resaltado texto={p} tokens={tokens} />
+        </p>
+      ))}
     </div>
   )
 }
 
-/** Botón que copia la cita oficial: «CR 7.4.2 — texto». */
-function BotonCopiarCita({ id, texto }: { id: string; texto: string }) {
+/**
+ * Botón que copia la cita oficial: «CR 7.4.2 — texto». Copia lo que se VE:
+ * en «EN» el inglés, en «ES» el español (con el inglés de respaldo si no hay
+ * traducción) y en «Ambos», los dos — el inglés primero, que es el normativo.
+ */
+function BotonCopiarCita({ id, texto, textoEs, idioma = 'en' }: {
+  id: string
+  texto: string
+  textoEs?: string | null
+  idioma?: Idioma
+}) {
   const [copiado, setCopiado] = useState(false)
   const copiar = async () => {
+    const en = texto.replace(/\n/g, ' ')
+    const es = (textoEs ?? '').replace(/\n/g, ' ')
+    const cita =
+      idioma === 'es' && es ? `CR ${id} — ${es}`
+        : idioma === 'ambos' && es ? `CR ${id} — ${en}\nES: ${es}`
+          : `CR ${id} — ${en}`
     try {
-      await navigator.clipboard.writeText(`CR ${id} — ${texto.replace(/\n/g, ' ')}`)
+      await navigator.clipboard.writeText(cita)
       setCopiado(true)
       setTimeout(() => setCopiado(false), 1500)
     } catch {
@@ -151,6 +314,10 @@ export function RulingsPage() {
   const [datos, setDatos] = useState<DatosRulings | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [sim, setSim] = useState<EstadoSimulador | null>(null)
+  const [trad, setTrad] = useState<DatosTraducciones | null>(null)
+  /** es.json terminó en fallo: el selector se deshabilita en ES/Ambos. */
+  const [tradFallo, setTradFallo] = useState(false)
+  const [idioma, setIdioma] = useState<Idioma>(leerIdiomaGuardado)
 
   const [params, setParams] = useSearchParams()
   const reglaSel = params.get('regla')
@@ -165,7 +332,9 @@ export function RulingsPage() {
   const [glosarioAbierto, setGlosarioAbierto] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Carga inicial (una vez; el servicio cachea la promesa)
+  // Carga inicial (una vez; el servicio cachea las promesas). Las TRES
+  // peticiones salen EN PARALELO — la traducción no espera al índice ni el
+  // índice a la traducción: es.json es mejora progresiva, no dependencia.
   const [intento, setIntento] = useState(0)
   useEffect(() => {
     let vivo = true
@@ -173,8 +342,22 @@ export function RulingsPage() {
       .then(d => { if (vivo) setDatos(d) })
       .catch(() => { if (vivo) setError('No se pudieron cargar las reglas. Revisá la conexión e intentá de nuevo.') })
     cargarSimulador().then(s => { if (vivo) setSim(s) })
+    cargarTraducciones().then(t => {
+      if (!vivo) return
+      if (t) { setTrad(t); setTradFallo(false) } else { setTradFallo(true) }
+    })
     return () => { vivo = false }
   }, [intento])
+
+  const cambiarIdioma = (v: Idioma) => {
+    setIdioma(v)
+    try { localStorage.setItem(CLAVE_IDIOMA, v) } catch { /* Safari privado: la preferencia no persiste, nada más */ }
+  }
+
+  // Sin traducción (cargando todavía o fallida) todo se lee en inglés,
+  // SIN tocar la preferencia guardada: si es.json llega tarde, el modo
+  // elegido revive solo.
+  const idiomaVisible: Idioma = trad ? idioma : 'en'
 
   // Debounce del buscador: 250 ms alcanzan para que no busque por tecla.
   useEffect(() => {
@@ -185,8 +368,11 @@ export function RulingsPage() {
   // Resultados de reglas (síncronos sobre el JSON en memoria)
   const resultados: ResultadoBusqueda[] = useMemo(() => {
     if (!datos || consultaLenta.trim().length < 2) return []
-    return buscarEnReglas(datos, consultaLenta)
-  }, [datos, consultaLenta])
+    // La búsqueda cubre los DOS idiomas siempre que la traducción esté
+    // cargada, sin importar el modo visible: «derrotar» encuentra la regla
+    // de defeated aunque se esté leyendo en inglés.
+    return buscarEnReglas(datos, consultaLenta, trad)
+  }, [datos, consultaLenta, trad])
 
   // Coincidencia directa por número: «7.4.2» ofrece ir derecho a la regla.
   const idDirecto = useMemo(() => {
@@ -290,9 +476,17 @@ export function RulingsPage() {
           </a>
         </div>
         <p className="text-[10px] text-swu-muted/70 mt-1.5 leading-snug">
-          El texto de las reglas se muestra en inglés: es el texto normativo. © & ™ Lucasfilm Ltd. / FFG.
+          El texto normativo es el inglés; el español es traducción de cortesía. © & ™ Lucasfilm Ltd. / FFG.
         </p>
+        <SelectorIdioma valor={idioma} onChange={cambiarIdioma} sinTraduccion={tradFallo} />
       </div>
+
+      {/* ── Aviso permanente en modo ES: acá el normativo no está a la vista ── */}
+      {idiomaVisible === 'es' && trad && (
+        <div className="rounded-xl border border-swu-amber/30 bg-swu-amber/10 px-3.5 py-2 mb-3">
+          <p className="text-[11px] text-swu-amber leading-snug">{trad.meta.aviso}</p>
+        </div>
+      )}
 
       {/* ── Buscador ── */}
       <div className="relative mb-3">
@@ -353,6 +547,8 @@ export function RulingsPage() {
           datos={datos}
           entrada={entradaSel}
           sim={sim}
+          trad={trad}
+          idioma={idiomaVisible}
           tokens={tokens}
           irARegla={irARegla}
           volver={irAlIndice}
@@ -364,7 +560,10 @@ export function RulingsPage() {
           <button onClick={irAlIndice} className="text-xs text-swu-cyan hover:underline">Volver al índice</button>
         </div>
       ) : mecSel && Object.hasOwn(datos.indice, mecSel) ? (
-        <DetalleMecanica datos={datos} mecanica={mecSel} sim={sim} irARegla={irARegla} volver={irAlIndice} />
+        <DetalleMecanica
+          datos={datos} mecanica={mecSel} sim={sim} trad={trad} idioma={idiomaVisible}
+          irARegla={irARegla} volver={irAlIndice}
+        />
       ) : consultaLenta.trim().length >= 2 ? (
         <SeccionResultados
           datos={datos}
@@ -372,6 +571,8 @@ export function RulingsPage() {
           resultados={resultados}
           idDirecto={idDirecto}
           cartas={cartas}
+          trad={trad}
+          idioma={idiomaVisible}
           tokens={tokens}
           irARegla={irARegla}
           irAMecanica={irAMecanica}
@@ -379,6 +580,8 @@ export function RulingsPage() {
       ) : (
         <ArbolIndice
           datos={datos}
+          trad={trad}
+          idioma={idiomaVisible}
           abiertos={abiertos}
           alternar={alternarAbierto}
           glosarioAbierto={glosarioAbierto}
@@ -393,13 +596,15 @@ export function RulingsPage() {
 // ─── Resultados de búsqueda ───
 
 function SeccionResultados({
-  datos, consulta, resultados, idDirecto, cartas, tokens, irARegla, irAMecanica,
+  datos, consulta, resultados, idDirecto, cartas, trad, idioma, tokens, irARegla, irAMecanica,
 }: {
   datos: DatosRulings
   consulta: string
   resultados: ResultadoBusqueda[]
   idDirecto: string | null
   cartas: CartaConMecanicas[]
+  trad: DatosTraducciones | null
+  idioma: Idioma
   tokens: string[]
   irARegla: (id: string) => void
   irAMecanica: (m: string) => void
@@ -423,7 +628,8 @@ function SeccionResultados({
           <ChevronRight size={16} className="text-swu-cyan flex-shrink-0" />
           <span className="text-sm text-swu-cyan font-semibold">Ir a CR {idDirecto}</span>
           <span className="text-[11px] text-swu-muted truncate">
-            {datos.entradas[idDirecto].titulo ?? datos.entradas[idDirecto].texto.slice(0, 60)}
+            {tituloSegunIdioma(datos.entradas[idDirecto].titulo, traduccionDe(trad, idDirecto)?.titulo, idioma)
+              ?? datos.entradas[idDirecto].texto.slice(0, 60)}
           </span>
         </button>
       )}
@@ -466,7 +672,10 @@ function SeccionResultados({
           </h3>
           <div className="space-y-1.5">
             {resultados.map(({ entrada }) => (
-              <FilaResultado key={entrada.id} datos={datos} entrada={entrada} tokens={tokens} alTocar={() => irARegla(entrada.id)} />
+              <FilaResultado
+                key={entrada.id} datos={datos} entrada={entrada} trad={trad} idioma={idioma}
+                tokens={tokens} alTocar={() => irARegla(entrada.id)}
+              />
             ))}
           </div>
         </div>
@@ -499,32 +708,64 @@ function SeccionResultados({
   )
 }
 
+/**
+ * Recorta un texto alrededor de la PRIMERA coincidencia, no del arranque:
+ * en reglas largas la coincidencia podía quedar fuera del fragmento.
+ */
+function recortarFragmento(crudo: string, tokens: string[]): { frag: string; conToken: boolean } {
+  const texto = crudo.replace(/\n/g, ' ')
+  if (!texto) return { frag: '', conToken: false }
+  const bajo = normalizeSearch(texto)
+  let pos = -1
+  for (const t of tokens) {
+    const p = bajo.indexOf(t)
+    if (p >= 0 && (pos < 0 || p < pos)) pos = p
+  }
+  const inicio = Math.max(0, (pos < 0 ? 0 : pos) - 40)
+  const corte = texto.slice(inicio, inicio + 180)
+  return {
+    frag: (inicio > 0 ? '…' : '') + corte + (inicio + 180 < texto.length ? '…' : ''),
+    conToken: pos >= 0,
+  }
+}
+
 function FilaResultado({
-  datos, entrada, tokens, alTocar,
+  datos, entrada, trad, idioma, tokens, alTocar,
 }: {
   datos: DatosRulings
   entrada: EntradaRegla
+  trad: DatosTraducciones | null
+  idioma: Idioma
   tokens: string[]
   alTocar: () => void
 }) {
-  // El fragmento se recorta alrededor de la PRIMERA coincidencia, no del
-  // arranque del texto: en reglas largas la coincidencia podía quedar fuera.
-  const fragmento = useMemo(() => {
-    const texto = entrada.texto.replace(/\n/g, ' ')
-    if (!texto) return ''
-    const bajo = normalizeSearch(texto)
-    let pos = -1
-    for (const t of tokens) {
-      const p = bajo.indexOf(t)
-      if (p >= 0 && (pos < 0 || p < pos)) pos = p
-    }
-    const inicio = Math.max(0, (pos < 0 ? 0 : pos) - 40)
-    const corte = texto.slice(inicio, inicio + 180)
-    return (inicio > 0 ? '…' : '') + corte + (inicio + 180 < texto.length ? '…' : '')
-  }, [entrada.texto, tokens])
+  const tr = traduccionDe(trad, entrada.id)
 
-  const titulo = entrada.titulo
-    ?? datos.entradas[entrada.padre ?? '']?.titulo
+  // El fragmento sale del idioma donde ESTÁ la coincidencia: buscar
+  // «derrotar» puede matchear solo en el español, y un fragmento inglés sin
+  // resaltado parecería un resultado equivocado. En «ES» manda el español;
+  // en «EN»/«Ambos», el inglés — y el otro idioma es el plan B.
+  const fragmento = useMemo(() => {
+    const es = tr?.texto ?? ''
+    const fuentes = idioma === 'es' ? [es, entrada.texto] : [entrada.texto, es]
+    let primero = ''
+    for (const f of fuentes) {
+      if (!f) continue
+      const r = recortarFragmento(f, tokens)
+      if (r.conToken) return r.frag
+      if (!primero) primero = r.frag
+    }
+    return primero
+  }, [entrada.texto, tr, idioma, tokens])
+
+  const titulo = tituloSegunIdioma(entrada.titulo, tr?.titulo, idioma)
+    ?? (entrada.padre
+      ? tituloSegunIdioma(
+        datos.entradas[entrada.padre]?.titulo ?? null,
+        traduccionDe(trad, entrada.padre)?.titulo,
+        idioma,
+      )
+      : null)
     ?? ''
 
   return (
@@ -555,16 +796,20 @@ function FilaResultado({
 // ─── Detalle de una entrada (capítulo, sección, regla o letra) ───
 
 function DetalleEntrada({
-  datos, entrada, sim, tokens, irARegla, volver,
+  datos, entrada, sim, trad, idioma, tokens, irARegla, volver,
 }: {
   datos: DatosRulings
   entrada: EntradaRegla
   sim: EstadoSimulador | null
+  trad: DatosTraducciones | null
+  idioma: Idioma
   tokens: string[]
   irARegla: (id: string) => void
   volver: () => void
 }) {
   const migas = rutaDeMigas(datos, entrada.id)
+  const tr = traduccionDe(trad, entrada.id)
+  const tituloVisible = tituloSegunIdioma(entrada.titulo, tr?.titulo, idioma)
 
   // Si esta regla es el ANCLA de definición de una mecánica del índice, el
   // puente al simulador se muestra acá también (no solo en la vista de chip).
@@ -597,7 +842,7 @@ function DetalleEntrada({
         <div className="flex items-start justify-between gap-2 mb-2">
           <div className="min-w-0">
             <h2 className="text-base font-extrabold text-swu-text leading-tight">
-              CR {entrada.id}{entrada.titulo ? ` — ${entrada.titulo}` : ''}
+              CR {entrada.id}{tituloVisible ? ` — ${tituloVisible}` : ''}
             </h2>
             <p className="text-[10px] font-mono text-swu-muted mt-0.5">
               {NOMBRE_TIPO[entrada.tipo]} · pág. {entrada.pagina} · CR v{datos.meta.version}
@@ -607,14 +852,14 @@ function DetalleEntrada({
 
         {entrada.texto && (
           <>
-            <Parrafos texto={entrada.texto} tokens={tokens} />
+            <Parrafos texto={entrada.texto} textoEs={tr?.texto} idioma={idioma} tokens={tokens} />
             <div className="mt-3">
-              <BotonCopiarCita id={entrada.id} texto={entrada.texto} />
+              <BotonCopiarCita id={entrada.id} texto={entrada.texto} textoEs={tr?.texto} idioma={idioma} />
             </div>
           </>
         )}
 
-        <Referencias datos={datos} refs={entrada.refs} irARegla={irARegla} />
+        <Referencias datos={datos} trad={trad} idioma={idioma} refs={entrada.refs} irARegla={irARegla} />
       </div>
 
       {/* Hijos: las letras de una regla van EN la misma lectura; las reglas
@@ -632,7 +877,9 @@ function DetalleEntrada({
                            px-3 py-2.5 text-left hover:bg-swu-surface-hover transition-colors"
               >
                 <span className="font-mono text-[11px] font-bold text-swu-cyan">{h}</span>
-                <span className="text-xs text-swu-text flex-1 truncate">{s?.titulo}</span>
+                <span className="text-xs text-swu-text flex-1 truncate">
+                  {tituloSegunIdioma(s?.titulo ?? null, traduccionDe(trad, h)?.titulo, idioma)}
+                </span>
                 <ChevronRight size={14} className="text-swu-muted flex-shrink-0" />
               </button>
             )
@@ -644,14 +891,16 @@ function DetalleEntrada({
             {entrada.hijos.map(h => {
               const hijo = datos.entradas[h]
               if (!hijo) return null
+              const trHijo = traduccionDe(trad, h)
+              const tituloHijo = tituloSegunIdioma(hijo.titulo, trHijo?.titulo, idioma)
               return (
                 <div key={h} className="rounded-xl border border-swu-border bg-swu-surface p-3.5">
                   <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <button onClick={() => irARegla(h)} className="font-mono text-[11px] font-bold text-swu-cyan hover:underline">
-                      CR {h}{hijo.titulo ? ` — ${hijo.titulo}` : ''}
+                    <button onClick={() => irARegla(h)} className="font-mono text-[11px] font-bold text-swu-cyan hover:underline text-left">
+                      CR {h}{tituloHijo ? ` — ${tituloHijo}` : ''}
                     </button>
                   </div>
-                  {hijo.texto && <Parrafos texto={hijo.texto} tokens={tokens} />}
+                  {hijo.texto && <Parrafos texto={hijo.texto} textoEs={trHijo?.texto} idioma={idioma} tokens={tokens} />}
                   {/* Nietos (las letras de una regla dentro de una sección) */}
                   {hijo.hijos.map(n => {
                     const nieto = datos.entradas[n]
@@ -661,11 +910,11 @@ function DetalleEntrada({
                         <button onClick={() => irARegla(n)} className="font-mono text-[10px] font-bold text-swu-cyan/80 hover:underline">
                           {n}
                         </button>
-                        <Parrafos texto={nieto.texto} tokens={tokens} />
+                        <Parrafos texto={nieto.texto} textoEs={traduccionDe(trad, n)?.texto} idioma={idioma} tokens={tokens} />
                       </div>
                     )
                   })}
-                  <Referencias datos={datos} refs={hijo.refs} irARegla={irARegla} />
+                  <Referencias datos={datos} trad={trad} idioma={idioma} refs={hijo.refs} irARegla={irARegla} />
                 </div>
               )
             })}
@@ -679,21 +928,34 @@ function DetalleEntrada({
 }
 
 /** Referencias cruzadas («See 8.16. Modifiers») como enlaces tocables. */
-function Referencias({ datos, refs, irARegla }: { datos: DatosRulings; refs: string[]; irARegla: (id: string) => void }) {
+function Referencias({ datos, trad, idioma, refs, irARegla }: {
+  datos: DatosRulings
+  trad: DatosTraducciones | null
+  idioma: Idioma
+  refs: string[]
+  irARegla: (id: string) => void
+}) {
   if (refs.length === 0) return null
   return (
     <div className="flex flex-wrap items-center gap-1.5 mt-3">
       <span className="text-[10px] font-mono uppercase tracking-wider text-swu-muted/60">Ver también</span>
-      {refs.map(r => (
-        <button
-          key={r}
-          onClick={() => irARegla(r)}
-          className="px-2 py-0.5 rounded-full bg-swu-bg border border-swu-border text-[10px] font-mono
-                     text-swu-cyan hover:bg-swu-surface-hover transition-colors"
-        >
-          {r}{datos.entradas[r]?.titulo ? ` ${datos.entradas[r].titulo}` : ''}
-        </button>
-      ))}
+      {refs.map(r => {
+        // En el chip, con UN idioma alcanza («Ambos» duplicaría el largo):
+        // el español si se está leyendo español, el inglés en el resto.
+        const titulo = idioma === 'es'
+          ? traduccionDe(trad, r)?.titulo ?? datos.entradas[r]?.titulo
+          : datos.entradas[r]?.titulo
+        return (
+          <button
+            key={r}
+            onClick={() => irARegla(r)}
+            className="px-2 py-0.5 rounded-full bg-swu-bg border border-swu-border text-[10px] font-mono
+                       text-swu-cyan hover:bg-swu-surface-hover transition-colors"
+          >
+            {r}{titulo ? ` ${titulo}` : ''}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -701,16 +963,19 @@ function Referencias({ datos, refs, irARegla }: { datos: DatosRulings; refs: str
 // ─── Detalle de una mecánica (chip del índice) ───
 
 function DetalleMecanica({
-  datos, mecanica, sim, irARegla, volver,
+  datos, mecanica, sim, trad, idioma, irARegla, volver,
 }: {
   datos: DatosRulings
   mecanica: string
   sim: EstadoSimulador | null
+  trad: DatosTraducciones | null
+  idioma: Idioma
   irARegla: (id: string) => void
   volver: () => void
 }) {
   const info = datos.indice[mecanica]
   const def = datos.entradas[info.def]
+  const trDef = traduccionDe(trad, info.def)
   const relacionadas = [...info.reglas].sort(compararIds).filter(r => r !== info.def)
 
   return (
@@ -723,7 +988,7 @@ function DetalleMecanica({
         <h2 className="text-base font-extrabold text-swu-cyan leading-tight mb-0.5">{mecanica}</h2>
         <p className="text-[10px] font-mono text-swu-muted mb-2.5">Definida en CR {info.def} · pág. {def?.pagina}</p>
         {def?.texto
-          ? <Parrafos texto={def.texto} />
+          ? <Parrafos texto={def.texto} textoEs={trDef?.texto} idioma={idioma} />
           : (
             // Algunas anclas son reglas contenedoras sin párrafo propio: el
             // texto vive en sus letras.
@@ -731,13 +996,15 @@ function DetalleMecanica({
               <div className="space-y-2">
                 {def.hijos.map(h => {
                   const hijo = datos.entradas[h]
-                  return hijo?.texto ? <Parrafos key={h} texto={hijo.texto} /> : null
+                  return hijo?.texto
+                    ? <Parrafos key={h} texto={hijo.texto} textoEs={traduccionDe(trad, h)?.texto} idioma={idioma} />
+                    : null
                 })}
               </div>
             )
           )}
         <div className="mt-3 flex items-center gap-2">
-          {def?.texto && <BotonCopiarCita id={info.def} texto={def.texto} />}
+          {def?.texto && <BotonCopiarCita id={info.def} texto={def.texto} textoEs={trDef?.texto} idioma={idioma} />}
           <button onClick={() => irARegla(info.def)} className="text-[11px] font-mono text-swu-cyan hover:underline">
             Abrir CR {info.def} completa →
           </button>
@@ -772,9 +1039,11 @@ function DetalleMecanica({
 // ─── Índice navegable (árbol de capítulos) ───
 
 function ArbolIndice({
-  datos, abiertos, alternar, glosarioAbierto, setGlosarioAbierto, irARegla,
+  datos, trad, idioma, abiertos, alternar, glosarioAbierto, setGlosarioAbierto, irARegla,
 }: {
   datos: DatosRulings
+  trad: DatosTraducciones | null
+  idioma: Idioma
   abiertos: Set<string>
   alternar: (id: string) => void
   glosarioAbierto: boolean
@@ -801,7 +1070,9 @@ function ArbolIndice({
                 ? <ChevronDown size={14} className="text-swu-cyan flex-shrink-0" />
                 : <ChevronRight size={14} className="text-swu-muted flex-shrink-0" />}
               <span className="font-mono text-[11px] font-bold text-swu-cyan w-5 flex-shrink-0">{c}</span>
-              <span className="text-xs font-semibold text-swu-text flex-1 truncate">{cap.titulo}</span>
+              <span className="text-xs font-semibold text-swu-text flex-1 truncate">
+                {tituloSegunIdioma(cap.titulo, traduccionDe(trad, c)?.titulo, idioma)}
+              </span>
               <span className="text-[10px] font-mono text-swu-muted/60 flex-shrink-0">{cap.hijos.length}</span>
             </button>
 
@@ -821,11 +1092,18 @@ function ArbolIndice({
                           ? <ChevronDown size={12} className="text-swu-cyan flex-shrink-0" />
                           : <ChevronRight size={12} className="text-swu-muted/60 flex-shrink-0" />}
                         <span className="font-mono text-[10px] text-swu-cyan/80 flex-shrink-0">{s}</span>
-                        <span className="text-[11px] text-swu-text truncate">{sec.titulo}</span>
+                        <span className="text-[11px] text-swu-text truncate">
+                          {tituloSegunIdioma(sec.titulo, traduccionDe(trad, s)?.titulo, idioma)}
+                        </span>
                       </button>
                       {secAbierta && sec.hijos.map(r => {
                         const regla = datos.entradas[r]
                         if (!regla) return null
+                        const trR = traduccionDe(trad, r)
+                        // Sin título propio, la primera línea del texto hace
+                        // de resumen — en el idioma que se está leyendo.
+                        const resumen = tituloSegunIdioma(regla.titulo, trR?.titulo, idioma)
+                          ?? (idioma === 'es' && trR?.texto ? trR.texto : regla.texto).split('\n')[0].slice(0, 70)
                         return (
                           <button
                             key={r}
@@ -833,9 +1111,7 @@ function ArbolIndice({
                             className="w-full flex items-baseline gap-2 pl-12 pr-3 py-1.5 text-left hover:bg-swu-surface-hover transition-colors"
                           >
                             <span className="font-mono text-[10px] text-swu-muted flex-shrink-0">{r}</span>
-                            <span className="text-[11px] text-swu-muted truncate">
-                              {regla.titulo ?? regla.texto.split('\n')[0].slice(0, 70)}
-                            </span>
+                            <span className="text-[11px] text-swu-muted truncate">{resumen}</span>
                           </button>
                         )
                       })}
