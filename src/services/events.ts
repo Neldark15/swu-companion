@@ -174,6 +174,69 @@ export async function getOfficialEvents(userId?: string): Promise<OfficialEvent[
   })
 }
 
+/**
+ * Los eventos que todavía no pasaron, para anunciarlos en el Inicio.
+ *
+ * ── Cuándo deja de verse un evento ────────────────────────────────────
+ *
+ * El corte NO es «cuando empieza» sino **el final de su día**: un torneo que
+ * arranca a las 9 de la mañana se sigue anunciando toda esa tarde —la gente
+ * llega tarde, pregunta, se suma a la siguiente ronda— y recién desaparece al
+ * día siguiente. Es lo que pidió Nel y además es lo correcto: un evento en
+ * curso es justo el que más interesa ver.
+ *
+ * El límite se calcula en la zona de QUIEN MIRA (medianoche local) y se manda
+ * en UTC. Con un corte fijo en UTC, acá —seis horas detrás— los eventos se
+ * caerían del Inicio a las 6 de la tarde del día anterior.
+ *
+ * Se excluyen los `finished` y `cancelled`: un evento cancelado no se anuncia
+ * aunque su fecha no haya llegado.
+ */
+export async function getUpcomingOfficialEvents(limite = 3): Promise<OfficialEvent[]> {
+  if (!isSupabaseReady()) return []
+
+  const medianocheDeHoy = new Date()
+  medianocheDeHoy.setHours(0, 0, 0, 0)
+
+  const { data: events, error } = await supabase
+    .from('official_events')
+    .select('*')
+    .in('status', ['open', 'active'])
+    .not('date', 'is', null)
+    .gte('date', medianocheDeHoy.toISOString())
+    // Por cuándo EMPIEZA, no por cuándo se creó: en una lista de «lo que
+    // viene», lo más cercano va primero.
+    .order('date', { ascending: true })
+    .limit(limite)
+
+  // Gotcha 2f: sin mirar `error`, un fallo de RLS se vería igual que «no hay
+  // eventos» y el Inicio se quedaría mudo sin que nadie se entere.
+  if (error) {
+    console.warn('[eventos] próximos:', error.message)
+    return []
+  }
+  if (!events || events.length === 0) return []
+
+  const organizerIds = [...new Set(events.map(e => e.organizer_id))]
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, name, avatar')
+    .in('id', organizerIds)
+  const profileMap = new Map((profiles || []).map(p => [p.id, p]))
+
+  const { data: regCounts } = await supabase
+    .from('event_registrations')
+    .select('event_id')
+    .in('event_id', events.map(e => e.id))
+
+  return events.map(e => ({
+    ...e,
+    organizer_name: profileMap.get(e.organizer_id)?.name || 'Organizador',
+    organizer_avatar: profileMap.get(e.organizer_id)?.avatar || '🎯',
+    registered_count: (regCounts || []).filter(r => r.event_id === e.id).length,
+  } as OfficialEvent))
+}
+
 export async function getEventByCode(code: string): Promise<OfficialEvent | null> {
   if (!isSupabaseReady()) return null
 

@@ -24,6 +24,7 @@ import {
 import { HudPanel, HudCorners, HexIcon } from '../../components/Hud'
 import { NoticiasSection } from './NoticiasSection'
 import { TiendaOficial } from './TiendaOficial'
+import { ProximosEventos } from './ProximosEventos'
 import { TarjetaJugador } from '../profile/TarjetaJugador'
 import { Carta3D } from '../../components/Carta3D'
 import { HUD_TEXTO, type HudTone } from '../../components/hudTones'
@@ -245,6 +246,12 @@ export function HomePage() {
           )
         })}
       </div>
+
+      {/* ── Próximos eventos ──
+          Van PRIMERO de las tres secciones de abajo porque son lo único que
+          CADUCA: una noticia sirve igual mañana, un torneo del sábado no. Si
+          no hay ninguno, el componente no dibuja nada y esta franja no existe. */}
+      <ProximosEventos />
 
       {/* ── Noticias ──
           Va DEBAJO de los módulos a propósito: quien abre la app viene a hacer

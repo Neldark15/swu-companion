@@ -84,11 +84,35 @@ export function CreateEventPage() {
       setError('Debe iniciar sesión')
       return
     }
+    // La fecha y la hora ahora son OBLIGATORIAS. Un evento sin hora de inicio
+    // no se puede anunciar: la gente necesita saber a qué hora llegar, y el
+    // Inicio lo ordena por cuándo empieza.
+    if (!date) {
+      setError('Elegí la fecha del evento')
+      return
+    }
+    if (!time) {
+      setError('Elegí la hora de inicio')
+      return
+    }
 
     setError('')
     setViewState('creating')
 
-    const dateStr = date && time ? `${date}T${time}:00` : date || undefined
+    /**
+     * La hora se convierte a UTC con `toISOString()`, y eso NO es un detalle.
+     *
+     * Antes se mandaba `2026-08-08T15:30:00` pelado, sin zona. Postgres lo lee
+     * como UTC, así que quien escribía las 15:30 guardaba las 15:30 UTC — que
+     * en El Salvador son las **09:30**. Medido en el navegador: escribir 15:30
+     * mostraba «09:30 a. m.», seis horas de corrimiento.
+     *
+     * `new Date('...T15:30:00')` interpreta el string en la zona del navegador
+     * (la de quien crea el evento) y `toISOString()` lo pasa a UTC con el
+     * offset correcto. Es lo mismo que ya hacía la pantalla de EDITAR: los dos
+     * caminos no coincidían, y por eso editar un evento le «arreglaba» la hora.
+     */
+    const dateStr = new Date(`${date}T${time}:00`).toISOString()
 
     const result = await createOfficialEvent({
       name: name.trim(),
@@ -359,22 +383,32 @@ export function CreateEventPage() {
       {/* Date & Time */}
       <div className="space-y-1.5">
         <label className="text-xs font-bold text-swu-muted uppercase tracking-wider flex items-center gap-1">
-          <Calendar size={12} /> Fecha y Hora
+          <Calendar size={12} /> Fecha y hora de inicio <span className="text-swu-red">*</span>
         </label>
         <div className="flex gap-2">
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
+            required
+            aria-label="Fecha del evento"
             className="flex-1 bg-swu-surface border border-swu-border rounded-xl px-4 py-3 text-swu-text text-sm focus:border-swu-accent focus:outline-none"
           />
           <input
             type="time"
             value={time}
             onChange={(e) => setTime(e.target.value)}
+            required
+            aria-label="Hora de inicio"
             className="w-28 bg-swu-surface border border-swu-border rounded-xl px-4 py-3 text-swu-text text-sm focus:border-swu-accent focus:outline-none"
           />
         </div>
+        {/* Se dice para qué sirve: sin hora, el evento no se puede anunciar
+            en el Inicio ni ordenar por cuándo empieza. */}
+        <p className="text-[11px] text-swu-muted leading-snug">
+          Con la hora puesta, el evento aparece en la pantalla de Inicio de toda
+          la comunidad hasta el día que se juega.
+        </p>
       </div>
 
       {/* Location */}
