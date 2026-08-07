@@ -35,11 +35,25 @@
  *   1 LineSegments    → TODAS las órbitas fundidas en un solo búfer, punteadas
  *                       gratis (se emite un segmento sí y otro no).
  *   1 Points          → el campo de estrellas, un búfer de 620 vértices.
- *   2 Mesh + 1 Sprite → el sol, su resplandor y los dos aros (yo / seleccionado)
+ *   3 Mesh + 1 Sprite → el sol, su resplandor y los dos aros (yo / seleccionado)
  *                       que comparten UNA geometría de anillo.
  *
+ * Son **7 llamadas de dibujo por cuadro**, y son 7 con 19 planetas o con 200:
+ * la cuenta no depende de la comunidad. Medido contando `drawElements`,
+ * `drawArrays` y `drawElementsInstanced` sobre el contexto real, con el
+ * histograma de índices para saber qué es cada una:
+ *
+ *     idx2160 ×1  sol          inst1560 ×1  los 19 planetas (520 tri × 19)
+ *     idx6    ×1  resplandor   idx264   ×2  los dos aros
+ *     v620    ×1  estrellas    v524     ×1  órbitas
+ *
+ * Con 19 planetas eso son 10.778 triángulos (720 + 9.880 + 176 + 2), muy por
+ * debajo del umbral donde el número de llamadas empieza a costar.
+ *
  * Los rótulos son DOS divs de HTML movidos con `transform`, no sprites: texto
- * nítido a cualquier zoom, cero texturas y cero materiales extra.
+ * nítido a cualquier zoom, cero texturas y cero materiales extra. Y el cuadro
+ * NO lee geometría del DOM (ver `anchoCSS`/`altoCSS`): leer después de escribir
+ * estilos forzaría un recálculo de layout dentro del cuadro.
  */
 
 import { useEffect, useRef } from 'react'
@@ -327,13 +341,31 @@ export function GalaxiaEscena({
 
     // ── Aros de «yo» y «seleccionado»: comparten geometría ──
     const geoAro = new THREE.RingGeometry(0.86, 1, 44)
+    /**
+     * `forceSinglePass` no es un adorno: sin él los DOS aros cuestan CUATRO
+     * llamadas de dibujo.
+     *
+     * Three dibuja todo material `transparent` + `DoubleSide` en dos pasadas
+     * (primero las caras traseras, después las delanteras) para que una
+     * superficie transparente vista de canto no se vea mal. Estos aros miran
+     * siempre a la cámara —son carteles planos—, así que la pasada trasera se
+     * descarta entera por winding: cero píxeles escritos, y aun así paga su
+     * llamada. Peor: three cambia `material.side` y pone `needsUpdate = true`
+     * dos veces por aro y por cuadro, y cada `needsUpdate` reconstruye la clave
+     * de caché del programa (una cadena con ~50 propiedades) para volver a
+     * buscar el MISMO shader.
+     *
+     * Medido con el histograma de índices por cuadro: `idx264` (la geometría
+     * del aro) aparecía 4 veces, total 9 llamadas. Con el flag son 2 y 7.
+     * Es el caso que la propia documentación de three nombra como ejemplo.
+     */
     const matAroYo = new THREE.MeshBasicMaterial({
       color: 0x22d3ee, transparent: true, opacity: 0.85,
-      side: THREE.DoubleSide, depthWrite: false,
+      side: THREE.DoubleSide, depthWrite: false, forceSinglePass: true,
     })
     const matAroSel = new THREE.MeshBasicMaterial({
       color: 0xf59e0b, transparent: true, opacity: 0.95,
-      side: THREE.DoubleSide, depthWrite: false,
+      side: THREE.DoubleSide, depthWrite: false, forceSinglePass: true,
     })
     const aroYo = new THREE.Mesh(geoAro, matAroYo)
     const aroSel = new THREE.Mesh(geoAro, matAroSel)
@@ -436,6 +468,24 @@ export function GalaxiaEscena({
 
     const matriz = new THREE.Matrix4()
     const proyector = new THREE.Vector3()
+    /** Reusado por `escalaEn`: crear un Vector3 por llamada es basura por cuadro. */
+    const medidor = new THREE.Vector3()
+
+    /**
+     * Tamaño del lienzo en píxeles CSS, guardado en vez de leído.
+     *
+     * El cuadro ESCRIBE `style.transform` en los rótulos y después leía
+     * `clientWidth`/`clientHeight` del lienzo para colocar el siguiente: leer
+     * geometría del DOM después de escribir estilos obliga al navegador a
+     * recalcular el layout ahí mismo, en medio del cuadro. Medido con los
+     * getters instrumentados: 3 lecturas por cuadro, todas evitables.
+     *
+     * Lo actualiza `ajustar()`, que es exactamente donde el tamaño cambia (es
+     * quien llama a `setSize`, y el ResizeObserver quien lo llama a él). Así el
+     * cuadro no toca el DOM para leer ni una vez.
+     */
+    let anchoCSS = 1
+    let altoCSS = 1
 
     function colocar(): void {
       for (let i = 0; i < cuerpos.length; i++) {
@@ -452,19 +502,17 @@ export function GalaxiaEscena({
 
     /** Píxeles de pantalla por unidad de mundo a esa distancia de la cámara. */
     function escalaEn(x: number, z: number): number {
-      const alto = renderer.domElement.clientHeight || 1
-      const d = camera.position.distanceTo(new THREE.Vector3(x, 0, z))
-      return (alto / 2) / (Math.tan((camera.fov * Math.PI) / 360) * Math.max(0.001, d))
+      const d = camera.position.distanceTo(medidor.set(x, 0, z))
+      return (altoCSS / 2) / (Math.tan((camera.fov * Math.PI) / 360) * Math.max(0.001, d))
     }
 
     /** Proyecta a píxeles CSS del lienzo. Devuelve null si queda detrás. */
     function aPantalla(x: number, z: number): { px: number; py: number } | null {
       proyector.set(x, 0, z).project(camera)
       if (proyector.z > 1) return null
-      const el = renderer.domElement
       return {
-        px: (proyector.x * 0.5 + 0.5) * el.clientWidth,
-        py: (-proyector.y * 0.5 + 0.5) * el.clientHeight,
+        px: (proyector.x * 0.5 + 0.5) * anchoCSS,
+        py: (-proyector.y * 0.5 + 0.5) * altoCSS,
       }
     }
 
@@ -568,6 +616,10 @@ export function GalaxiaEscena({
       // pero deja el CSS del lienzo intacto y a DPR 2 el canvas se muestra al
       // doble. Es el mismo tropiezo que documenta Dice3D.
       renderer.setSize(w, h)
+      // `setSize` deja el lienzo en exactamente w×h píxeles CSS, así que estas
+      // dos son la medida real: el cuadro las usa en vez de leer el DOM.
+      anchoCSS = w
+      altoCSS = h
       camera.aspect = w / h
       camera.updateProjectionMatrix()
       const nuevo = encuadre()
@@ -637,8 +689,17 @@ export function GalaxiaEscena({
 
     function alBajar(e: PointerEvent): void {
       const c = coords(e)
-      lienzo.setPointerCapture(e.pointerId)
+      // El dedo se REGISTRA antes de capturarlo, y la captura va con red.
+      //
+      // `setPointerCapture` lanza `NotFoundError` si el puntero ya no está
+      // activo cuando llega el evento. Estaba primero y sin `try`: si lanzaba,
+      // `punteros.set` no llegaba a correr y ese dedo no existía para nadie —
+      // el pellizco moría en silencio y la escena se quedaba orbitando con un
+      // dedo fantasma. Al revés no hay caso malo: perder la captura solo
+      // significa que el gesto se corta si el dedo sale del lienzo, y el
+      // `pointercancel` que llega después limpia igual.
       punteros.set(e.pointerId, c)
+      try { lienzo.setPointerCapture(e.pointerId) } catch { /* dedo ya soltado */ }
       if (punteros.size === 1) {
         esToque = true
         toqueX = c.x; toqueY = c.y; toqueT = performance.now()
@@ -753,6 +814,30 @@ export function GalaxiaEscena({
       geoEstrellas.dispose(); texPunto.dispose(); matEstrellas.dispose()
       luzSol.dispose()
       renderer.dispose()
+
+      /**
+       * `dispose()` NO alcanza, y esa es la trampa: suelta lo que three creó
+       * pero deja el CONTEXTO vivo, con su búfer de dibujo y las 4 texturas
+       * internas que three crea al inicializarlo.
+       *
+       * Medido con 3 idas y vueltas a la pantalla, contando contextos con
+       * `getContext` instrumentado: 1 → 2 → 3 → 4 contextos VIVOS
+       * (`isContextLost() === false`) con UN SOLO lienzo en el DOM, y +4
+       * texturas por visita. Los búferes y los programas sí bajaban a cero, o
+       * sea que el resto de la limpieza estaba bien: lo único que faltaba era
+       * soltar el contexto.
+       *
+       * Importa porque el presupuesto es global y chico: Chrome corta a los 16
+       * contextos y lo comparten Dice3D, Coin3D, Carta3D y la mesa 3D. En una
+       * PWA que vive días, quien entre ~15 veces a la Galaxia rompe el 3D de
+       * TODA la app, y el primero en morir es el más viejo.
+       *
+       * Va DESPUÉS del `removeEventListener` de `webglcontextlost` de arriba.
+       * Si fuera antes, la pérdida que provocamos a propósito llamaría a
+       * `alPerderContexto` → `onSinWebGL()`, y la pantalla se quedaría diciendo
+       * «este navegador no puede dibujar en 3D» para siempre.
+       */
+      renderer.forceContextLoss()
       renderer.domElement.remove()
       miId = null
     }

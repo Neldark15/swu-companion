@@ -273,7 +273,16 @@ export function GalaxiaPage() {
     return () => window.clearInterval(id)
   }, [recorriendo, conMovimiento])
 
-  /** Tocar un planeta manda: corta el recorrido y se queda ahí. */
+  /**
+   * Tocar un planeta manda: corta el recorrido y se queda ahí.
+   *
+   * Tocar el VACÍO no deselecciona, y es a propósito: el emergente vive debajo
+   * del lienzo, así que vaciarlo no «cierra» nada — quita una tarjeta de 100 px
+   * y los tres botones de abajo saltan hacia arriba justo cuando el dedo va a
+   * bajar. Y fallar el planeta por 20 px es lo normal en un teléfono: castigar
+   * el error con un salto de layout es peor que no hacer nada. Para cambiar de
+   * planeta están el toque, las flechas y la lista.
+   */
   const alTocar = useCallback((id: string | null) => {
     if (id) {
       setSeleccion(id)

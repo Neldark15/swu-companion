@@ -252,7 +252,11 @@ export function MesaEscena({ estado, arte, duracion, className = '' }: Props) {
 
     // Los dos marcadores de vida.
     const hacerVida = (z: number, color: number) => {
-      const mat = new THREE.SpriteMaterial({ map: texturaTexto('—', '#ffffff'), transparent: true, depthTest: false })
+      // Nace SIN textura: la pone `ponerVida` en la primera sincronización,
+      // sacándola de la caché de textos. Con una textura de arranque hecha
+      // aquí, esa primera quedaba fuera de la caché y nadie la liberaba —
+      // medido, dos texturas por visita a la mesa.
+      const mat = new THREE.SpriteMaterial({ transparent: true, depthTest: false })
       const s = new THREE.Sprite(mat)
       s.scale.set(3.2, 1.6, 1)
       s.position.set(4.9, 1.5, z)
@@ -415,34 +419,65 @@ function distanciaDedos(activos: Map<number, { x: number; y: number }>): number 
   return Math.hypot(a.x - b.x, a.y - b.y)
 }
 
-/** Media anchura y media profundidad de lo que hay que ver: filas y rótulos. */
-const MEDIO_X = 6.6
-const MEDIO_Z = 10.8
+/**
+ * La caja que tiene que entrar en pantalla: las filas de punta a punta, los
+ * rótulos del borde y la altura a la que flotan los marcadores de vida.
+ */
+const CAJA_X = 7.1
+const CAJA_Y = 2.4
+const CAJA_Z = 10.7
+const ESQUINAS: [number, number, number][] = []
+for (const x of [-CAJA_X, CAJA_X]) for (const y of [0, CAJA_Y]) for (const z of [-CAJA_Z, CAJA_Z]) ESQUINAS.push([x, y, z])
+
+/** Cuánto del cuadro se llena. 0,94 deja un dedo de aire por los cuatro lados. */
+const LLENADO = 0.94
 
 /**
  * Coloca la cámara a la distancia JUSTA para que la mesa entre.
  *
- * Una esfera envolvente —lo obvio— es un desastre aquí: la mesa mide 13×23,
- * o sea que su esfera tiene radio 13,3, y encuadrar esa esfera dejaba la mesa
- * ocupando el 40 % de la pantalla con negro alrededor. Vista desde arriba con
- * un ángulo, la profundidad se APLASTA: 21,6 unidades de largo ocupan
- * 21,6·cos(elevación) en vertical, que a 54° son 12,7. Por eso el encuadre se
- * calcula con los dos ejes por separado y se rehace al orbitar: cuanto más
- * cenital, más largo se ve el tapete y más lejos hay que ponerse.
+ * Se hace PROYECTANDO las ocho esquinas de la caja del contenido y midiendo
+ * cuánto se salen, no con una fórmula cerrada. Las dos fórmulas obvias fallan,
+ * y las dos se probaron:
+ *
+ * · **Esfera envolvente.** La mesa mide 13×23, o sea radio 13,3. Encuadrar esa
+ *   esfera dejaba el tapete ocupando el 40 % de la pantalla, rodeado de negro:
+ *   la esfera reserva sitio para una diagonal que, vista desde arriba, no se
+ *   ve nunca.
+ * · **Aplastar la profundidad por el coseno.** Mejor, pero supone proyección
+ *   ortográfica. Con perspectiva el borde CERCANO está mucho más cerca de la
+ *   cámara que el lejano y ocupa bastante más pantalla, así que la mitad de
+ *   abajo se salía del cuadro — que es exactamente lo que pasó.
+ *
+ * Proyectar y corregir no supone nada: cuatro vueltas de ocho puntos por
+ * gesto de órbita, y encuadra igual de bien a cualquier elevación y en
+ * cualquier proporción de pantalla.
  */
 function colocarCamara(m: Motor) {
   const { az, el, zoom } = m.orbita
-  const medioV = Math.tan((m.camera.fov * Math.PI) / 180 / 2)
-  const medioH = medioV * m.camera.aspect
-  // +1,6 de aire para las cifras flotantes y los marcadores de vida, que
-  // viven por encima del tapete.
-  const alto = MEDIO_Z * Math.cos(el) + 1.6
-  const dist = Math.max(MEDIO_X / medioH, alto / medioV) * 1.04 * zoom
-  m.camera.position.set(
-    Math.sin(az) * Math.cos(el) * dist,
-    Math.sin(el) * dist,
-    Math.cos(az) * Math.cos(el) * dist,
+  const dir = new THREE.Vector3(
+    Math.sin(az) * Math.cos(el),
+    Math.sin(el),
+    Math.cos(az) * Math.cos(el),
   )
+  const medioV = Math.tan((m.camera.fov * Math.PI) / 180 / 2)
+  // Semilla razonable; las vueltas de abajo la corrigen.
+  let dist = CAJA_Z / medioV
+  const p = new THREE.Vector3()
+  for (let vuelta = 0; vuelta < 4; vuelta++) {
+    m.camera.position.copy(dir).multiplyScalar(dist)
+    m.camera.lookAt(0, 0, 0)
+    m.camera.updateMatrixWorld()
+    let peor = 0
+    for (const [x, y, z] of ESQUINAS) {
+      p.set(x, y, z).project(m.camera)
+      peor = Math.max(peor, Math.abs(p.x), Math.abs(p.y))
+    }
+    if (peor === 0) break
+    const factor = peor / LLENADO
+    if (Math.abs(factor - 1) < 0.01) break
+    dist *= factor
+  }
+  m.camera.position.copy(dir).multiplyScalar(dist * zoom)
   m.camera.lookAt(0, 0, 0)
 }
 
@@ -592,11 +627,23 @@ function colocarFicha(
       muriendo: false, embiste: null,
     }
     m.fichas.set(u.uid, f)
-  } else if (!f.material.map && a) {
-    // El arte llegó tarde (la carta se dibujó antes de resolverse su imagen).
-    f.material.map = textura(m, a.url)
-    f.material.color.set(0xffffff)
-    f.material.needsUpdate = true
+  } else {
+    if (!f.material.map && a) {
+      // El arte llegó tarde (la carta se dibujó antes de resolverse su imagen).
+      f.material.map = textura(m, a.url)
+      f.material.color.set(0xffffff)
+      f.material.needsUpdate = true
+    }
+    if (f.muriendo) {
+      // Resucita: se retrocedió justo encima de su muerte. Sin esto la carta
+      // volvía a la mesa a medio desvanecer y, al terminar su animación de
+      // caída, se destruía sola — una unidad viva desapareciendo del tablero.
+      f.muriendo = false
+      f.embiste = null
+      f.t = 1
+      f.malla.position.copy(destino)
+    }
+    f.material.opacity = 1
   }
 
   const giro = u.agotado ? GIRO_AGOTADO * (lado === 'A' ? 1 : -1) : 0
