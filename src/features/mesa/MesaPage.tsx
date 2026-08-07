@@ -84,6 +84,16 @@ import type { ArteCarta } from './MesaEscena'
  */
 const MesaEscena = lazy(() => import('./MesaEscena').then((m) => ({ default: m.MesaEscena })))
 
+/**
+ * Cuántas partidas distintas tiene una tanda con la misma semilla.
+ *
+ * Es el rango que acepta `n` en `/api/sim` (0-999). El botón «Otra» lo
+ * incrementaba SIN techo, y el proxy, fuera de rango, cae en silencio a 0: a
+ * partir del toque 1.001 devolvía siempre la MISMA partida diciendo que era
+ * otra. Dando la vuelta, «Otra» sigue siendo otra para siempre.
+ */
+const PARTIDAS_POR_TANDA = 1000
+
 /** Milisegundos por evento a velocidad 1. Medido a ojo: menos se hace ilegible. */
 const RITMO = 620
 const VELOCIDADES = [0.5, 1, 2, 4]
@@ -283,7 +293,7 @@ export function MesaPage() {
                 </Button>
                 {partida && (
                   <Button variant="secondary" size="sm" disabled={fase === 'cargando'}
-                    onClick={() => { const s = n + 1; setN(s); pedir(s) }}>
+                    onClick={() => { const s = (n + 1) % PARTIDAS_POR_TANDA; setN(s); pedir(s) }}>
                     <Shuffle size={14} /> Otra
                   </Button>
                 )}
