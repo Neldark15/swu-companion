@@ -64,6 +64,8 @@ from datetime import date
 
 # ── Fuente oficial ────────────────────────────────────────────────────
 
+# OJO: el doble slash NO es un typo — así está la clave en el S3 del CDN.
+# Medido 2026-08-06: con un solo slash responde 403; con doble, 200.
 PDF_URL = "https://cdn.starwarsunlimited.com//SWH_Comp_Rules_v8_0_e26603c6e1.pdf"
 PAGINA_FUENTE = "https://starwarsunlimited.com/how-to-play?chapter=rules"
 
@@ -720,7 +722,8 @@ def indexar_mecanicas(entradas: dict[str, dict]) -> dict[str, dict]:
             if e["titulo"] and e["tipo"] in ("seccion", "regla"):
                 t = re.sub(r"\s+(?:X|\[[XYZ]\])$", "", e["titulo"].strip())
                 if (t.upper() in (mecanica.upper(), mecanica.upper() + "S",
-                                  mecanica.upper() + "D",     # «Shielded»
+                                  mecanica.upper() + "D",     # «Captured»
+                                  mecanica.upper() + "ED",    # «Shielded»
                                   mecanica.upper() + "ING")   # «Piloting»
                         and definicion is None):
                     definicion = e["id"]

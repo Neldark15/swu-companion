@@ -13,6 +13,9 @@ dist-ssr
 *.local
 .env
 
+# Caché de scripts de build (PDF oficial descargado por build-rulings.py)
+scripts/.cache/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

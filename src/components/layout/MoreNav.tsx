@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Swords, ShieldCheck, Megaphone, Newspaper, BarChart3, BookOpen, FlaskConical } from 'lucide-react'
+import { Swords, ShieldCheck, Megaphone, Newspaper, BarChart3, BookOpen, FlaskConical, Scale } from 'lucide-react'
 import {
   DatapadIcon, MandoTrophyIcon, DeckCardsIcon, SpyIcon,
   DeathStarIcon, BeskarIcon, ChanceCubeIcon, RebelIcon, StarfighterIcon,
@@ -29,6 +29,8 @@ const GROUPS: MoreGroup[] = [
       { to: '/play', label: 'Duelo', sub: 'Tracker en vivo', icon: Swords },
       { to: '/events', label: 'Torneo', sub: 'Eventos organizados', icon: MandoTrophyIcon },
       { to: '/arena', label: 'Holocrón', sub: 'Registro de duelos', icon: DatapadIcon },
+      // Vive en «Jugar»: se consulta EN la mesa, en medio de una partida.
+      { to: '/rulings', label: 'Rulings', sub: 'Reglas oficiales', icon: Scale },
     ],
   },
   {

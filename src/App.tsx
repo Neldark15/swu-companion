@@ -55,6 +55,7 @@ const SpyProfilePage = lazy(() => import('./features/espionaje/SpyProfilePage').
 const MissionsPage = lazy(() => import('./features/missions/MissionsPage'))
 const GalaxyPage = lazy(() => import('./features/galaxy/GalaxyPage').then(m => ({ default: m.GalaxyPage })))
 const LabPage = lazy(() => import('./features/lab/LabPage').then(m => ({ default: m.LabPage })))
+const RulingsPage = lazy(() => import('./features/rulings/RulingsPage').then(m => ({ default: m.RulingsPage })))
 
 // Admin panel — separate layout, isAdmin guard inside AdminLayout
 const AdminLayout = lazy(() => import('./features/admin/AdminLayout').then(m => ({ default: m.AdminLayout })))
@@ -112,6 +113,10 @@ export default function App() {
             <Route path="/cards" element={<CardsPage />} />
             <Route path="/cards/:id" element={<CardDetailPage />} />
             <Route path="/utilities" element={<UtilitiesPage />} />
+            {/* Las reglas son PÚBLICAS a propósito: un juez en mesa de torneo
+                no tiene por qué loguearse para leer una cita del reglamento,
+                y el deep-link /rulings?regla=7.4.2 se comparte por WhatsApp. */}
+            <Route path="/rulings" element={<RulingsPage />} />
             <Route path="/sedes" element={<SedesPage />} />
             <Route path="/sede/:id" element={<SedePage />} />
             <Route path="/profile" element={<ProfilePage />} />

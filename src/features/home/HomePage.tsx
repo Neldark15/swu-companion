@@ -19,7 +19,7 @@ import { ChevronRight, ScanLine, Swords} from 'lucide-react'
 import {
   DatapadIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
   DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
-  ChanceCubeIcon, KyberIcon, LabIcon,
+  ChanceCubeIcon, KyberIcon, LabIcon, HolocronIcon,
 } from '../../components/SWIcons'
 import { HudPanel, HudCorners, HexIcon } from '../../components/Hud'
 import { NoticiasSection } from './NoticiasSection'
@@ -46,6 +46,9 @@ const mainSystems: Sistema[] = [
   { icon: DatapadIcon,     label: 'Holocrón',    tone: 'green',  to: '/arena',      auth: true },
   { icon: MandoTrophyIcon, label: 'Eventos',   tone: 'amber',  to: '/events',     auth: true },
   { icon: KyberIcon,       label: 'Meta',      tone: 'cyan',   to: '/meta' },
+  // PÚBLICO a propósito (sin auth): un juez en torneo consulta una regla
+  // sin loguearse. Va arriba, cerca de Meta: los dos son consulta de mesa.
+  { icon: HolocronIcon,    label: 'Rulings',   tone: 'cyan',   to: '/rulings' },
   { icon: HolonetIcon,     label: 'Blog',      tone: 'amber',  to: '/blog' },
   { icon: CargoIcon,       label: 'Mi Botín',   tone: 'green',  to: '/collection', auth: true },
   { icon: DeckCardsIcon,   label: 'Mis Decks',           tone: 'green',  to: '/decks',      auth: true },
