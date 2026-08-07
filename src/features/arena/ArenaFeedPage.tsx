@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, Radio, Loader2, WifiOff } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { getPublicMatchFeed } from '../../services/arenaService'
+import { diaMes } from '../../services/horaSV'
 import type { MatchLog } from '../../types'
 
 export function ArenaFeedPage() {
@@ -42,7 +43,9 @@ export function ArenaFeedPage() {
     if (hrs < 24) return `${hrs}h`
     const days = Math.floor(hrs / 24)
     if (days < 7) return `${days}d`
-    return d.toLocaleDateString('es', { day: 'numeric', month: 'short' })
+    // Lo de arriba son duraciones («3h»): no tienen zona. Esto sí es una
+    // fecha de calendario, y el duelo se jugó en El Salvador.
+    return diaMes(d)
   }
 
   return (

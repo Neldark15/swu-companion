@@ -13,12 +13,19 @@ function sanitizeName(name: string | null | undefined): string {
 import { supabase, isSupabaseReady } from './supabase'
 import { db } from './db'
 import type { PlayerStats } from './gamification'
+import { mesCalendarioSV, diaCalendarioSV } from './horaSV'
 
 // ─── HELPERS ────────────────────────────────────────────────────
 
+/**
+ * El mes corriente en El Salvador.
+ *
+ * `getFullYear()/getMonth()` son los del dispositivo: el 31 de enero por la
+ * tarde acá ya es 1 de febrero en Asia, y el XP de ese día se anotaba en el
+ * ranking del mes equivocado según dónde estuviera el teléfono.
+ */
 function getCurrentMonth(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  return mesCalendarioSV()
 }
 
 /** Convert camelCase PlayerStats to snake_case for Supabase */
@@ -89,7 +96,7 @@ export function statsFromSnake(row: Record<string, unknown>, profileId: string):
     currentStreak: (row.current_streak as number) || 0,
     bestStreak: (row.best_streak as number) || 0,
     loginDays: (row.login_days as number) || 1,
-    lastLoginDate: (row.last_login_date as string) || new Date().toISOString().split('T')[0],
+    lastLoginDate: (row.last_login_date as string) || diaCalendarioSV(new Date()),
     modesPlayed: (row.modes_played as string[]) || [],
     arenaMatchesLogged: (row.arena_matches_logged as number) || 0,
     giftsReceived: (row.gifts_received as number) || 0,

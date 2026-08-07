@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { createOfficialEvent, type OfficialEvent } from '../../services/events'
+import { aISOdesdeSV, fechaCortaYHora } from '../../services/horaSV'
 
 type ViewState = 'form' | 'creating' | 'created'
 
@@ -100,19 +101,26 @@ export function CreateEventPage() {
     setViewState('creating')
 
     /**
-     * La hora se convierte a UTC con `toISOString()`, y eso NO es un detalle.
+     * Lo que se teclea es la hora DE LA TIENDA, no la del organizador.
      *
-     * Antes se mandaba `2026-08-08T15:30:00` pelado, sin zona. Postgres lo lee
-     * como UTC, así que quien escribía las 15:30 guardaba las 15:30 UTC — que
-     * en El Salvador son las **09:30**. Medido en el navegador: escribir 15:30
-     * mostraba «09:30 a. m.», seis horas de corrimiento.
+     * Esto ya se arregló una vez a medias. La versión original mandaba
+     * `2026-08-08T15:30:00` pelado, sin zona: Postgres lo leía como UTC y
+     * escribir 15:30 guardaba las 09:30 de El Salvador — seis horas de
+     * corrimiento, medidas en el navegador. Se cambió a
+     * `new Date(...).toISOString()`, que sí pone zona, pero la del
+     * DISPOSITIVO. Medido corriendo el mismo código con el reloj en Tokio:
+     * escribir 15:30 guardaba `2026-08-08T06:30:00.000Z`, que acá son las
+     * 00:30 — nueve horas, y en silencio.
      *
-     * `new Date('...T15:30:00')` interpreta el string en la zona del navegador
-     * (la de quien crea el evento) y `toISOString()` lo pasa a UTC con el
-     * offset correcto. Es lo mismo que ya hacía la pantalla de EDITAR: los dos
-     * caminos no coincidían, y por eso editar un evento le «arreglaba» la hora.
+     * `aISOdesdeSV` fija la zona en `America/El_Salvador`, así que el evento
+     * se guarda igual lo teclee quien lo teclee y desde donde sea.
      */
-    const dateStr = new Date(`${date}T${time}:00`).toISOString()
+    const dateStr = aISOdesdeSV(date, time)
+    if (!dateStr) {
+      setError('La fecha o la hora no son válidas')
+      setViewState('form')
+      return
+    }
 
     const result = await createOfficialEvent({
       name: name.trim(),
@@ -213,9 +221,7 @@ export function CreateEventPage() {
             <div className="flex justify-between">
               <span className="text-swu-muted">Fecha</span>
               <span className="text-swu-text font-semibold">
-                {new Date(createdEvent.date).toLocaleDateString('es-SV', {
-                  day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                })}
+                {fechaCortaYHora(createdEvent.date)}
               </span>
             </div>
           )}

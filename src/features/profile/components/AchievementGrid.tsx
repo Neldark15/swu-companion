@@ -4,6 +4,7 @@ import { ACHIEVEMENTS, ASPECT_CONFIG, type Aspect } from '../../../services/gami
 import { IconLocked } from '../../../components/icons/SWUIcons'
 import { SWU_ICON_MAP } from '../../../components/icons/swuIconMap'
 import { AspectIcon } from '../../../components/icons/AspectIcon'
+import { fechaCorta } from '../../../services/horaSV'
 
 interface AchievementGridProps {
   unlockedIds: string[]
@@ -183,7 +184,7 @@ export function AchievementGrid({ unlockedIds, achievementDates }: AchievementGr
               </div>
             </div>
             {unlocked && date && (
-              <p className="text-[10px] text-swu-muted">Desbloqueado: {new Date(date).toLocaleDateString()}</p>
+              <p className="text-[10px] text-swu-muted">Desbloqueado: {fechaCorta(date)}</p>
             )}
             {!unlocked && (
               <p className="text-[10px] text-swu-muted italic">Bloqueado — {ach.description}</p>

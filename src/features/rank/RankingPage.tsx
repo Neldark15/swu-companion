@@ -7,6 +7,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { IconXp } from '../../components/icons/SWUIcons'
 import { getCountryByCode } from '../../data/regions'
 import { getActiveCountries } from '../../services/communityService'
+import { mesCalendarioSV, mesAnterior, mesSiguiente } from '../../services/horaSV'
 
 /* ── Avatar helper ── */
 const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
@@ -41,23 +42,13 @@ const BADGE_MAP = new Map(ACHIEVEMENTS.filter(a => BADGE_IDS.includes(a.id)).map
 
 /* ── Month utilities ── */
 const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+/** El mes corriente en El Salvador, no en el reloj del dispositivo. */
 function getCurrentMonth() {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  return mesCalendarioSV()
 }
 function formatMonth(m: string) {
   const [y, mo] = m.split('-')
   return `${MONTH_NAMES[parseInt(mo) - 1]} ${y}`
-}
-function prevMonth(m: string) {
-  const [y, mo] = m.split('-').map(Number)
-  const d = new Date(y, mo - 2, 1)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
-function nextMonth(m: string) {
-  const [y, mo] = m.split('-').map(Number)
-  const d = new Date(y, mo, 1)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
 type Tab = 'global' | 'monthly' | 'tournament'
@@ -502,14 +493,14 @@ export function RankingPage() {
         {/* ═══ MONTHLY CONTROLS ═══ */}
         {tab === 'monthly' && (
           <div className="flex items-center justify-center gap-3">
-            <button onClick={() => setMonth(prevMonth(month))} className="p-1.5 text-red-500/60 active:scale-90 active:text-red-400">
+            <button onClick={() => setMonth(mesAnterior(month))} className="p-1.5 text-red-500/60 active:scale-90 active:text-red-400">
               <ChevronLeft size={18} />
             </button>
             <span className="text-xs font-bold text-gray-300 min-w-[130px] text-center tracking-wider uppercase font-mono">
               {formatMonth(month)}
             </span>
             <button
-              onClick={() => !isCurrentMonth && setMonth(nextMonth(month))}
+              onClick={() => !isCurrentMonth && setMonth(mesSiguiente(month))}
               className={`p-1.5 active:scale-90 ${isCurrentMonth ? 'text-gray-700' : 'text-red-500/60 active:text-red-400'}`}
               disabled={isCurrentMonth}
             >
@@ -548,14 +539,14 @@ export function RankingPage() {
             {/* Month navigation for monthly tournament */}
             {tournamentSubTab === 'monthly' && (
               <div className="flex items-center justify-center gap-3">
-                <button onClick={() => setTournamentMonth(prevMonth(tournamentMonth))} className="p-1.5 text-amber-500/60 active:scale-90 active:text-amber-400">
+                <button onClick={() => setTournamentMonth(mesAnterior(tournamentMonth))} className="p-1.5 text-amber-500/60 active:scale-90 active:text-amber-400">
                   <ChevronLeft size={18} />
                 </button>
                 <span className="text-xs font-bold text-gray-300 min-w-[130px] text-center tracking-wider uppercase font-mono">
                   {formatMonth(tournamentMonth)}
                 </span>
                 <button
-                  onClick={() => !isTournamentCurrentMonth && setTournamentMonth(nextMonth(tournamentMonth))}
+                  onClick={() => !isTournamentCurrentMonth && setTournamentMonth(mesSiguiente(tournamentMonth))}
                   className={`p-1.5 active:scale-90 ${isTournamentCurrentMonth ? 'text-gray-700' : 'text-amber-500/60 active:text-amber-400'}`}
                   disabled={isTournamentCurrentMonth}
                 >

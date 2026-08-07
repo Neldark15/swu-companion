@@ -37,15 +37,28 @@ import {
   type HubTournament, type HubStanding, type HubRange, type HubCategory,
   type HubUpcoming, type ResolvedDeck,
 } from '../../services/tournamentsService'
+import {
+  diaMes, anioSV, partesDeDiaSinZona, diaMesSinZona, fechaCortaSinZona,
+  diasHastaDiaSinZona,
+} from '../../services/horaSV'
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 
-/** `2026-08-02` → `2 ago`. Se parte el string a mano: `new Date('2026-08-02')`
- *  se interpreta en UTC y en El Salvador (UTC-6) mostraría el día anterior. */
+/**
+ * `2026-08-02` → `2 ago`. Con el año cuando no es el corriente.
+ *
+ * Estas fechas NO se pasan por `new Date()`: son el día de un torneo que se
+ * juega en otro país y nadie dijo en qué zona, así que anclarlas a una las
+ * puede correr un día. Los helpers `…SinZona` leen el día del string tal cual.
+ *
+ * El «año corriente» sí es el de El Salvador: con `new Date().getFullYear()`
+ * era el del dispositivo, y un 31 de diciembre por la tarde acá ya es enero en
+ * media Asia — el mismo torneo mostraba el año o no según quién mirara.
+ */
 function fecha(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number)
-  if (!y || !m || !d) return iso
-  return `${d} ${MESES[m - 1]}${new Date().getFullYear() === y ? '' : ` ${String(y).slice(2)}`}`
+  const p = partesDeDiaSinZona(iso)
+  if (!p) return iso
+  return p.anio === anioSV() ? diaMesSinZona(iso) : fechaCortaSinZona(iso)
 }
 
 /** «Boba Fett (JTL)» → «Boba Fett». El set ya se ve en la carta. */
@@ -103,13 +116,14 @@ function mesDe(iso: string): string {
   return y && m ? `${MESES_LARGO[m - 1]} ${y}` : iso
 }
 
-/** Días que faltan. Se calcula sobre fechas sueltas, sin husos horarios. */
+/**
+ * Días que faltan. La fecha del torneo va sin zona (ver `fecha`) y el «hoy»
+ * es el de El Salvador — antes salía de `getFullYear/getMonth/getDate`, que
+ * son los del dispositivo, y la cuenta regresiva se corría un día para quien
+ * estuviera de viaje.
+ */
 function faltan(iso: string): number {
-  const [y, m, d] = iso.split('-').map(Number)
-  const hoy = new Date()
-  const a = Date.UTC(y, m - 1, d)
-  const b = Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())
-  return Math.round((a - b) / 86_400_000)
+  return diasHastaDiaSinZona(iso) ?? 0
 }
 
 function cuenta(dias: number): string {
@@ -348,7 +362,7 @@ export function TournamentsView() {
               <WifiOff size={13} className="flex-shrink-0 mt-0.5" aria-hidden />
               <span>
                 Sin conexión con la fuente. Agenda guardada del{' '}
-                {new Date(agendaVieja).toLocaleDateString('es-SV', { day: 'numeric', month: 'short' })}.
+                {diaMes(agendaVieja)}.
               </span>
             </div>
           )}
@@ -469,7 +483,7 @@ export function TournamentsView() {
             <WifiOff size={13} className="flex-shrink-0 mt-0.5" aria-hidden />
             <span>
               Sin conexión con la fuente. Estás viendo lo guardado del{' '}
-              {new Date(viejo).toLocaleDateString('es-SV', { day: 'numeric', month: 'short' })}.
+              {diaMes(viejo)}.
             </span>
           </div>
         )}

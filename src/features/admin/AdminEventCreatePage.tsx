@@ -16,6 +16,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { createOfficialEvent, type OfficialEvent } from '../../services/events'
 import { miSede, type Sede } from '../../services/venuesService'
 import { logAdminAction } from '../../services/adminService'
+import { aISOdesdeSV, fechaCortaYHora } from '../../services/horaSV'
 
 type ViewState = 'form' | 'creating' | 'created'
 
@@ -73,8 +74,32 @@ export function AdminEventCreatePage() {
     if (!name.trim()) { setError('Ingresa un nombre para el evento'); return }
     if (!supabaseUser) { setError('Sesión expirada'); return }
 
-    setView('creating')
-    const dateStr = date && time ? `${date}T${time}:00` : (date || undefined)
+    // La hora que se teclea es la de la tienda donde se juega, siempre.
+    //
+    // Acá vivía el mismo bug que ya se cerró en CreateEventPage y que a esta
+    // pantalla se le pasó: `${date}T${time}:00` va sin zona, así que Postgres
+    // lo leía como UTC y el torneo quedaba guardado seis horas antes de la
+    // hora anunciada. `aISOdesdeSV` interpreta lo tecleado como hora de El
+    // Salvador y devuelve el instante UTC que corresponde.
+    // La rama sin hora tampoco puede mandar el día pelado. `date || undefined`
+    // dejaba salir un `2026-08-08` a una columna **timestamptz**, y Postgres
+    // (que corre en UTC) lo lee como medianoche UTC: el mismo torneo se
+    // anunciaba como el **7 de agosto a las 6:00 p. m.**, un día antes de la
+    // fecha que el admin escogió. La sección se titula «Logística (opcional)» y
+    // ninguno de los dos campos es obligatorio, así que llenar la fecha y
+    // dejar la hora vacía es un estado alcanzable, no una hipótesis.
+    //
+    // `aISOdesdeSV` ya toma la hora vacía como las 00:00 de El Salvador, así
+    // que un día sin hora queda anclado a SU día, que es lo que se pidió.
+    const dateStr = date ? (aISOdesdeSV(date, time) ?? undefined) : undefined
+
+    // Devuelve `null` ante una fecha imposible (un 31 de febrero). Sin este
+    // corte se crearía el torneo sin fecha y en silencio.
+    if (date && !dateStr) {
+      setError('La fecha o la hora no son válidas')
+      setView('form')
+      return
+    }
 
     const result = await createOfficialEvent({
       name: name.trim(),
@@ -193,9 +218,7 @@ export function AdminEventCreatePage() {
           <Row label="Tipo de torneo" value={tournamentType === 'swiss' ? 'Suizo' : 'Eliminación'} />
           <Row label="Máx. jugadores" value={String(created.max_players)} />
           {created.date && (
-            <Row label="Fecha" value={new Date(created.date).toLocaleString('es', {
-              dateStyle: 'medium', timeStyle: 'short',
-            })} />
+            <Row label="Fecha" value={fechaCortaYHora(created.date)} />
           )}
           {created.location && <Row label="Ubicación" value={created.location} />}
         </div>

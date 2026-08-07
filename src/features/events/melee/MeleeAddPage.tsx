@@ -11,6 +11,7 @@ import {
 } from '../../../services/meleeService'
 import type { TournamentFormat } from '../../../types'
 import { db } from '../../../services/db'
+import { diaCalendarioSV } from '../../../services/horaSV'
 
 export function MeleeAddPage() {
   const navigate = useNavigate()
@@ -20,7 +21,9 @@ export function MeleeAddPage() {
   // Form state
   const [meleeUrl, setMeleeUrl] = useState(params.get('url') || '')
   const [name, setName] = useState('')
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  // El día de hoy en El Salvador. Con `toISOString()` el formulario se
+  // prellenaba con la fecha de MAÑANA a partir de las 6 de la tarde de acá.
+  const [date, setDate] = useState(() => diaCalendarioSV(new Date()))
   const [location, setLocation] = useState('')
   const [organizer, setOrganizer] = useState('')
   const [format, setFormat] = useState<TournamentFormat>('premier')

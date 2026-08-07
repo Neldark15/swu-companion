@@ -21,6 +21,7 @@ import {
   leerEnlaceMelee, MeleeNoExiste,
   type MeleePerfil, type MeleeResultado,
 } from '../../services/meleeProfileService'
+import { fechaCortaSinZona } from '../../services/horaSV'
 
 interface Props {
   usuario: string
@@ -56,7 +57,19 @@ function Percentil({ p }: { p: number }) {
 
 function Fila({ r }: { r: MeleeResultado }) {
   const p = percentil(r)
-  const fecha = r.fecha ? new Date(r.fecha) : null
+  /**
+   * La fecha de melee NO se convierte a hora de El Salvador, y es a propósito.
+   *
+   * Viene como `2026-08-01T09:00:00` —sin desfase, medido en la ingesta— o
+   * sea el reloj de pared de la sala donde se jugó, en un país que no sabemos.
+   * `new Date()` le inventaría la zona del dispositivo; formatearla «en SV»
+   * después le inventaría una segunda. Con el teléfono en Tokio, ese mismo
+   * torneo caería el 31 de julio a las 18:00 de El Salvador y la fila diría
+   * **31 jul** un torneo que melee publica el 1 de agosto.
+   *
+   * Un torneo ajeno tiene la fecha que publica su organizador. Se muestra esa.
+   */
+  const fecha = fechaCortaSinZona(r.fecha)
   return (
     <li className="py-2.5 border-b border-swu-border/60 last:border-0">
       <div className="flex items-start justify-between gap-2">
@@ -70,11 +83,7 @@ function Fila({ r }: { r: MeleeResultado }) {
             {r.torneo}
           </a>
           <div className="text-[10px] text-swu-muted mt-0.5 flex flex-wrap items-center gap-x-2">
-            {fecha && (
-              <span className="font-mono">
-                {fecha.toLocaleDateString('es-SV', { day: '2-digit', month: 'short', year: 'numeric' })}
-              </span>
-            )}
+            {fecha && <span className="font-mono">{fecha}</span>}
             {r.organizador && <span className="truncate">{r.organizador}</span>}
             {r.formato && <span className="text-swu-cyan/70">{r.formato}</span>}
           </div>

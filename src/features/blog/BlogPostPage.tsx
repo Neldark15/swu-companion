@@ -14,6 +14,7 @@ import { Articulo } from './Articulo'
 import {
   leerPorSlug, sumarVista, minutosDeLectura, KIND_LABEL, KIND_TONE, type BlogPost,
 } from '../../services/blogService'
+import { fechaLarga } from '../../services/horaSV'
 
 export function BlogPostPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -108,11 +109,7 @@ export function BlogPostPage() {
               {KIND_LABEL[post.kind]}
             </span>
             {post.published_at && (
-              <span>
-                {new Date(post.published_at).toLocaleDateString('es-SV', {
-                  day: 'numeric', month: 'long', year: 'numeric',
-                })}
-              </span>
+              <span>{fechaLarga(post.published_at)}</span>
             )}
             <span className="flex items-center gap-1">
               <Clock size={10} aria-hidden /> {minutosDeLectura(post.content)} min de lectura

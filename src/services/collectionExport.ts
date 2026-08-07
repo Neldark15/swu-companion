@@ -13,6 +13,7 @@ import { getMyCollectionWithPrices, type CollectionCardWithPrice } from './colle
 import { getCardsByIds } from './swuApi'
 import { formatPrice } from './pricing'
 import type { Card } from '../types'
+import { fechaCorta, diaCalendarioSV } from './horaSV'
 
 export type ExportFormat = 'csv' | 'json' | 'txt' | 'json-full'
 
@@ -157,7 +158,7 @@ function generateTXT(items: CollectionCardWithPrice[], cards: Map<string, Card>)
   const lines: string[] = [
     '═══════════════════════════════════════════════',
     '  HOLOCRON SWU — Mi Botín de Cartas',
-    `  Exportado: ${new Date().toLocaleDateString('es-SV')}`,
+    `  Exportado: ${fechaCorta(new Date())}`,
     '═══════════════════════════════════════════════',
     '',
   ]
@@ -234,7 +235,9 @@ export async function exportCollection(
     return (ca?.setNumber ?? 0) - (cb?.setNumber ?? 0)
   })
 
-  const date = new Date().toISOString().slice(0, 10)
+  // El día de El Salvador. Con `toISOString()` el archivo que exportabas a
+  // las 7 de la noche salía nombrado con la fecha de mañana.
+  const date = diaCalendarioSV(new Date())
   const formatInfo = EXPORT_FORMATS.find(f => f.id === format)!
 
   let content: string

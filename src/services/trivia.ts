@@ -5,6 +5,18 @@
  */
 
 import { supabase, isSupabaseReady } from './supabase'
+import { diaCalendarioSV, diaCalendarioSVMas } from './horaSV'
+
+/**
+ * El día de hoy en El Salvador — la clave de la trivia diaria.
+ *
+ * Antes era `new Date().toISOString().split('T')[0]`, o sea el día UTC: la
+ * trivia se renovaba a las 6 de la tarde de acá. Quien jugaba después de esa
+ * hora quemaba las preguntas del día siguiente.
+ */
+function hoySV(): string {
+  return diaCalendarioSV(new Date())
+}
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -130,7 +142,7 @@ function seededShuffle<T>(arr: T[], seed: number): T[] {
 
 /** Get today's 10 questions for a user */
 export function getDailyQuestions(userId: string): TriviaQuestion[] {
-  const today = new Date().toISOString().split('T')[0]
+  const today = hoySV()
   const seed = getDailySeed(userId, today)
   const shuffled = seededShuffle(TRIVIA_QUESTIONS, seed)
   return shuffled.slice(0, 10)
@@ -141,7 +153,7 @@ export function getDailyQuestions(userId: string): TriviaQuestion[] {
 /** Get today's progress from Supabase */
 export async function getTodayProgress(userId: string): Promise<TriviaProgress | null> {
   if (!isSupabaseReady()) return null
-  const today = new Date().toISOString().split('T')[0]
+  const today = hoySV()
 
   const { data } = await supabase
     .from('trivia_progress')
@@ -168,7 +180,7 @@ export async function recordTriviaAnswer(
 ): Promise<{ ok: boolean; xpEarned: number }> {
   if (!isSupabaseReady()) return { ok: false, xpEarned: 0 }
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = hoySV()
   const xp = isCorrect ? 2 : 0
 
   // Get current progress
@@ -230,26 +242,26 @@ export async function getTriviaStats(userId: string): Promise<{ totalCorrect: nu
   let totalAnswered = 0
   let streakDays = 0
 
-  // Calculate streak (consecutive days from today backwards)
-  const today = new Date()
+  // La racha: días seguidos hacia atrás desde hoy.
+  //
+  // Se compara día contra día, en texto. Antes se mezclaban dos relojes en la
+  // misma comparación —`setDate(getDate() - i)` usa el del dispositivo y
+  // `toISOString()` devuelve el de UTC—, así que en El Salvador, a partir de
+  // las 6 de la tarde, el día esperado salía uno adelantado y la racha se
+  // rompía sola todas las noches.
   for (let i = 0; i < data.length; i++) {
     totalCorrect += data[i].correct_answers
     totalAnswered += data[i].questions_answered
 
-    const dayDate = new Date(data[i].date)
-    const expectedDate = new Date(today)
-    expectedDate.setDate(expectedDate.getDate() - i)
+    // Lo guardado ya es un `YYYY-MM-DD`; pasarlo por `new Date` solo le
+    // agregaría una zona que no tiene.
+    const dia = String(data[i].date).slice(0, 10)
 
-    if (dayDate.toISOString().split('T')[0] === expectedDate.toISOString().split('T')[0]) {
+    if (dia === diaCalendarioSVMas(-i)) {
       streakDays++
-    } else if (i === 0) {
-      // Today not played yet, check from yesterday
-      expectedDate.setDate(expectedDate.getDate() - 1)
-      if (dayDate.toISOString().split('T')[0] === expectedDate.toISOString().split('T')[0]) {
-        streakDays++
-      } else {
-        break
-      }
+    } else if (i === 0 && dia === diaCalendarioSVMas(-1)) {
+      // Todavía no jugó hoy: la racha de ayer sigue viva.
+      streakDays++
     } else {
       break
     }

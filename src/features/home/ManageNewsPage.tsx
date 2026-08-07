@@ -18,6 +18,7 @@ import {
   EVENT_TYPE_LABELS, EVENT_TYPE_ORDER,
   type NewsItem, type NewsKind, type EventType,
 } from '../../services/news'
+import { diaMes, aDatetimeLocalSV, aISOdesdeDatetimeLocalSV } from '../../services/horaSV'
 
 const TAG_OPTIONS = [
   { label: 'Set Nuevo', color: 'amber' },
@@ -106,8 +107,14 @@ export function ManageNewsPage() {
     setPinned(item.pinned)
     setKind(item.kind ?? 'news')
     setEventType((item.event_type ?? 'galactic') as EventType)
-    // El <input type="datetime-local"> quiere 'YYYY-MM-DDTHH:mm' sin zona.
-    setEventDate(item.event_date ? item.event_date.slice(0, 16) : '')
+    // El <input type="datetime-local"> quiere 'YYYY-MM-DDTHH:mm' sin zona, y
+    // esa hora tiene que ser la de EL SALVADOR.
+    //
+    // Acá vivía `item.event_date.slice(0, 16)`, que corta el ISO tal cual viene
+    // de Postgres: eso es el reloj UTC, seis horas adelante. Un evento de las
+    // 3:30 p. m. se le mostraba al admin como las 21:30 —una hora que nadie
+    // tecleó— incluso con el teléfono acá.
+    setEventDate(aDatetimeLocalSV(item.event_date))
     setEventLocation(item.event_location ?? '')
     setEventFormat(item.event_format ?? '')
     setRegistrationUrl(item.registration_url ?? '')
@@ -121,12 +128,24 @@ export function ManageNewsPage() {
       setSaveError('Un evento necesita fecha')
       return
     }
+
+    // Lo tecleado es hora de EL SALVADOR, la de la tienda donde se juega.
+    //
+    // Acá vivía `new Date(eventDate).toISOString()`. Un `datetime-local` no
+    // lleva zona, así que `new Date` le pone la del DISPOSITIVO: el mismo
+    // formulario guardaba un instante distinto según dónde estuviera el admin
+    // —desde Tokio, seis p. m. se anunciaba como las 6 de la mañana—.
+    const isoDate = eventDate ? aISOdesdeDatetimeLocalSV(eventDate) : null
+
+    // Devuelve `null` ante una fecha imposible (un 31 de febrero). Sin este
+    // corte el evento se guardaba SIN fecha y en silencio.
+    if (eventDate && !isoDate) {
+      setSaveError('La fecha o la hora no son válidas')
+      return
+    }
+
     setSaving(true)
     setSaveError(null)
-
-    // datetime-local no lleva zona: se interpreta como hora local y se manda
-    // en ISO, que es lo que espera la columna timestamptz.
-    const isoDate = eventDate ? new Date(eventDate).toISOString() : null
 
     if (viewState === 'create') {
       const result = await createNews({
@@ -487,7 +506,7 @@ export function ManageNewsPage() {
                       'bg-swu-border text-swu-muted'
                     }`}>{item.tag}</span>
                     <span className="text-[10px] text-swu-muted">
-                      {new Date(item.created_at).toLocaleDateString('es', { day: 'numeric', month: 'short' })}
+                      {diaMes(item.created_at)}
                     </span>
                   </div>
                   <p className="text-sm font-semibold text-swu-text truncate">{item.title}</p>

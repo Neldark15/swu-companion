@@ -22,6 +22,7 @@ import {
   type AnnouncementHistoryEntry,
 } from '../../services/announcementService'
 import { getAllUsers, type AdminUserRow } from '../../services/adminService'
+import { fechaCortaYHora } from '../../services/horaSV'
 
 // ─── Tag presets ─────────────────────────────────────────
 
@@ -656,7 +657,7 @@ function HistoryRow({ entry }: { entry: AnnouncementHistoryEntry }) {
           <span>·</span>
           <span>{channelTags.join(' + ') || 'sin canales'}</span>
           <span>·</span>
-          <span title={time.toLocaleString('es')}>hace {ago}</span>
+          <span title={fechaCortaYHora(time)}>hace {ago}</span>
           {entry.actor_name && (<><span>·</span><span>{entry.actor_name}</span></>)}
         </div>
       </div>

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { CheckCircle2, XCircle, ChevronRight, Zap, Flame, Star } from 'lucide-react'
 import { HolocronIcon } from '../../../components/SWIcons'
 import { getDailyQuestions, getTodayProgress, recordTriviaAnswer, getTriviaStats, type TriviaQuestion, type TriviaProgress } from '../../../services/trivia'
+import { diaCalendarioSV } from '../../../services/horaSV'
 
 interface TriviaSectionProps {
   userId: string
@@ -85,7 +86,7 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
 
     // Update local progress
     setProgress(prev => ({
-      date: new Date().toISOString().split('T')[0],
+      date: diaCalendarioSV(new Date()),
       questionsAnswered: (prev?.questionsAnswered || 0) + 1,
       correctAnswers: (prev?.correctAnswers || 0) + (isCorrect ? 1 : 0),
       xpEarned: (prev?.xpEarned || 0) + (isCorrect ? 2 : 0),

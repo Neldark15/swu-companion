@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Trophy, ChevronLeft, ChevronRight, Crown, Medal, Award } from 'lucide-react'
 import { getMonthlyLeaderboard, getMyMonthlyXp, type LeaderboardEntry } from '../../../services/sync'
 import { IconXp } from '../../../components/icons/SWUIcons'
+import { mesCalendarioSV, mesAnterior, mesSiguiente } from '../../../services/horaSV'
 
 interface MonthlyRankProps {
   userId: string | null
@@ -18,21 +19,9 @@ function formatMonth(monthStr: string): string {
   return `${MONTH_NAMES[idx] || month} ${year}`
 }
 
+/** El mes corriente en El Salvador, no en el reloj del dispositivo. */
 function getCurrentMonth(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-}
-
-function prevMonth(monthStr: string): string {
-  const [y, m] = monthStr.split('-').map(Number)
-  const d = new Date(y, m - 2, 1)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
-
-function nextMonth(monthStr: string): string {
-  const [y, m] = monthStr.split('-').map(Number)
-  const d = new Date(y, m, 1)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  return mesCalendarioSV()
 }
 
 export function MonthlyRank({ userId }: MonthlyRankProps) {
@@ -83,14 +72,14 @@ export function MonthlyRank({ userId }: MonthlyRankProps) {
           <p className="text-xs font-bold text-swu-muted uppercase tracking-widest">Rank del Mes</p>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={() => setMonth(prevMonth(month))} className="p-1 text-swu-muted active:scale-90">
+          <button onClick={() => setMonth(mesAnterior(month))} className="p-1 text-swu-muted active:scale-90">
             <ChevronLeft size={16} />
           </button>
           <span className="text-[11px] font-bold text-swu-text min-w-[100px] text-center">
             {formatMonth(month)}
           </span>
           <button
-            onClick={() => !isCurrentMonth && setMonth(nextMonth(month))}
+            onClick={() => !isCurrentMonth && setMonth(mesSiguiente(month))}
             className={`p-1 active:scale-90 ${isCurrentMonth ? 'text-swu-border' : 'text-swu-muted'}`}
             disabled={isCurrentMonth}
           >

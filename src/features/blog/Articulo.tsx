@@ -24,11 +24,18 @@
  * la vista obliga a ir a buscarlas a otra pantalla y se pierde el hilo.
  *
  * Y tres bloques de datos para los análisis con números (la sintaxis y el
- * porqué viven en BloquesEstadisticos.tsx):
+ * porqué viven en sintaxisEstadistica.ts):
  *
  *     [[barras: Título]]   ← winrates en barras horizontales
  *     [[curva: Título]]    ← curva de coste en barras verticales
  *     [[ficha: Título]]    ← rejilla de etiqueta:valor
+ *
+ * Y un cuarto bloque que es el mazo entero (sintaxisMazo.ts):
+ *
+ *     [[mazo: Título]]     ← líder, base, lista… y «Copiar a Mis Decks»
+ *
+ * Ese último es el que cierra el circuito del blog: se lee el análisis, se
+ * copia el mazo y se prueba en el laboratorio sin salir del artículo.
  *
  * Un bloque que no parsea se muestra como texto plano —igual que si esta
  * sintaxis no existiera—, así que ningún artículo viejo puede romperse.
@@ -40,8 +47,14 @@ import { Carta3D } from '../../components/Carta3D'
 import { CardPreviewSheet } from '../../components/CardPreviewSheet'
 import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import { BloqueEstadistico } from './BloquesEstadisticos'
+import { BloqueMazo } from './BloqueMazo'
+import { CompartirArticulo, type MazoDestacado } from './CompartirArticulo'
 import { parsearBloqueEstadistico, type TipoBloqueEstadistico } from './sintaxisEstadistica'
+import { parsearMazo } from './sintaxisMazo'
 import type { Card } from '../../types'
+
+/** Los cuatro bloques de línea propia. Todos se cierran con una línea en blanco. */
+type TipoBloque = TipoBloqueEstadistico | 'mazo'
 
 /** Solo http(s). Un `javascript:` en un enlace es ejecución de código. */
 function urlSegura(u: string): string | null {
@@ -232,14 +245,24 @@ export function Articulo({ contenido }: { contenido: string }) {
   let lista: { orden: boolean; items: string[] } | null = null
 
   /**
-   * Bloque estadístico a medio capturar. `crudas` guarda las líneas TAL CUAL
-   * (marcador incluido): si al cerrar el bloque el contenido no parsea, esas
-   * líneas vuelven al párrafo y se leen como texto plano — exactamente lo que
-   * este parser hacía con ellas antes de conocer la sintaxis. Así un error de
+   * El primer bloque de mazo que SÍ parsea. Lo usa la miniatura de Instagram
+   * para poner el líder, la base y el puesto/torneo del artículo.
+   *
+   * Va en un objeto y no en un `let` suelto porque se rellena dentro de
+   * `cerrarStats` —una función anidada— y TypeScript no sigue la asignación
+   * a través de la clausura: leerlo después daría siempre `null`.
+   */
+  const destacado: { mazo: MazoDestacado | null } = { mazo: null }
+
+  /**
+   * Bloque a medio capturar. `crudas` guarda las líneas TAL CUAL (marcador
+   * incluido): si al cerrar el bloque el contenido no parsea, esas líneas
+   * vuelven al párrafo y se leen como texto plano — exactamente lo que este
+   * parser hacía con ellas antes de conocer la sintaxis. Así un error de
    * formato se VE en la vista previa en vez de tragarse medio artículo.
    */
   let stats: {
-    tipo: TipoBloqueEstadistico
+    tipo: TipoBloque
     titulo: string | null
     fuente: string | null
     lineas: string[]
@@ -274,20 +297,35 @@ export function Articulo({ contenido }: { contenido: string }) {
 
   const cerrarStats = (i: number) => {
     if (!stats) return
-    const datos = parsearBloqueEstadistico(stats.tipo, stats.lineas)
+    const b = stats
+    stats = null
+
+    if (b.tipo === 'mazo') {
+      const mazo = parsearMazo(b.lineas)
+      if (mazo) {
+        // Solo el PRIMERO: un artículo que compara tres mazos tiene tres
+        // bloques, y la miniatura no puede afirmar que el tercero es «el» mazo.
+        if (!destacado.mazo) destacado.mazo = { mazo, titulo: b.titulo, fuente: b.fuente }
+        bloques.push(
+          <BloqueMazo key={`bm${i}`} titulo={b.titulo} fuente={b.fuente} mazo={mazo} onAbrir={setAbierta} />,
+        )
+      } else parrafo.push(...b.crudas)
+      return
+    }
+
+    const datos = parsearBloqueEstadistico(b.tipo, b.lineas)
     if (datos) {
       bloques.push(
-        <BloqueEstadistico key={`be${i}`} titulo={stats.titulo} fuente={stats.fuente} datos={datos} />,
+        <BloqueEstadistico key={`be${i}`} titulo={b.titulo} fuente={b.fuente} datos={datos} />,
       )
-    } else parrafo.push(...stats.crudas)
-    stats = null
+    } else parrafo.push(...b.crudas)
   }
 
   lineas.forEach((linea, i) => {
     const l = linea.trim()
 
-    // Dentro de un bloque estadístico TODA línea es dato, sin importar a qué
-    // otra sintaxis se parezca; solo la línea en blanco lo cierra.
+    // Dentro de un bloque TODA línea es dato, sin importar a qué otra sintaxis
+    // se parezca; solo la línea en blanco lo cierra.
     if (stats) {
       if (l === '') { cerrarStats(i); cerrarParrafo(i); cerrarLista(i); return }
       stats.crudas.push(l)
@@ -299,11 +337,11 @@ export function Articulo({ contenido }: { contenido: string }) {
 
     if (l === '') { cerrarParrafo(i); cerrarLista(i); return }
 
-    const be = /^\[\[(barras|curva|ficha)(?::([^\]]*))?\]\]$/.exec(l)
+    const be = /^\[\[(barras|curva|ficha|mazo)(?::([^\]]*))?\]\]$/.exec(l)
     if (be) {
       cerrarParrafo(i); cerrarLista(i)
       stats = {
-        tipo: be[1] as TipoBloqueEstadistico,
+        tipo: be[1] as TipoBloque,
         titulo: be[2]?.trim() || null,
         fuente: null,
         lineas: [],
@@ -382,6 +420,7 @@ export function Articulo({ contenido }: { contenido: string }) {
   return (
     <div className="blog-prosa">
       {bloques}
+      <CompartirArticulo contenido={contenido} destacado={destacado.mazo} />
       <CardPreviewSheet cardId={abierta} onClose={() => setAbierta(null)} />
     </div>
   )

@@ -22,28 +22,22 @@ import { useNavigate } from 'react-router-dom'
 import { CalendarDays, MapPin, Users, ChevronRight } from 'lucide-react'
 import { HudPanel, HudCorners, HexIcon } from '../../components/Hud'
 import { getUpcomingOfficialEvents, type OfficialEvent } from '../../services/events'
-
-/** «vie 8 ago · 3:30 p. m.» — el día de la semana importa para decidir si vas. */
-function cuando(iso: string): string {
-  const d = new Date(iso)
-  const dia = d.toLocaleDateString('es-SV', { weekday: 'short', day: 'numeric', month: 'short' })
-  const hora = d.toLocaleTimeString('es-SV', { hour: 'numeric', minute: '2-digit' })
-  return `${dia} · ${hora}`
-}
+import { fechaYHora, esHoySV, esMananaSV } from '../../services/horaSV'
 
 /**
  * «Hoy» / «Mañana» cuando corresponde.
  *
  * Se compara por DÍA del calendario, no por horas de diferencia: un evento a
  * las 9 de la mañana de mañana está a menos de 24 h, y decir «hoy» sería
- * mentir. Las dos fechas se llevan a medianoche local antes de restar.
+ * mentir.
+ *
+ * Y el día es el de El Salvador. Antes las dos fechas se llevaban a medianoche
+ * con `setHours(0,0,0,0)`, que es la medianoche **del dispositivo**: con el
+ * teléfono en Tokio el torneo de esta noche decía «MAÑANA».
  */
 function etiquetaDia(iso: string): string | null {
-  const dia = new Date(iso); dia.setHours(0, 0, 0, 0)
-  const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
-  const dias = Math.round((dia.getTime() - hoy.getTime()) / 86_400_000)
-  if (dias === 0) return 'HOY'
-  if (dias === 1) return 'MAÑANA'
+  if (esHoySV(iso)) return 'HOY'
+  if (esMananaSV(iso)) return 'MAÑANA'
   return null
 }
 
@@ -109,7 +103,7 @@ export function ProximosEventos() {
                     </div>
 
                     {ev.date && (
-                      <p className="text-[11px] font-mono text-swu-amber truncate">{cuando(ev.date)}</p>
+                      <p className="text-[11px] font-mono text-swu-amber truncate">{fechaYHora(ev.date)}</p>
                     )}
 
                     <div className="flex items-center gap-2.5 text-[10px] text-swu-muted mt-0.5 min-w-0">

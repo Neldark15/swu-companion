@@ -1,4 +1,5 @@
 import { supabase, isSupabaseReady } from './supabase'
+import { inicioDelDiaSVenUTC } from './horaSV'
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -228,9 +229,11 @@ export async function getOfficialEvents(opts?: { limit?: number }): Promise<{
   if (!isSupabaseReady()) return { upcoming: [], past: [] }
 
   const limit = opts?.limit ?? 20
-  const startOfToday = new Date()
-  startOfToday.setHours(0, 0, 0, 0)
-  const cutoff = startOfToday.toISOString()
+  // La medianoche de EL SALVADOR, no la de quien mira: `setHours(0,0,0,0)`
+  // usaba la del dispositivo, y con el teléfono en UTC el corte caía a las
+  // 6 de la tarde de ayer — el Galactic de hoy se pasaba solo a «pasados»
+  // mientras la gente todavía estaba jugándolo. Da las 06:00Z del día.
+  const cutoff = inicioDelDiaSVenUTC().toISOString()
 
   const [up, old] = await Promise.all([
     supabase.from('news').select('*')

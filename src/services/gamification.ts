@@ -17,6 +17,8 @@
  *   Logros Ocultos, Títulos cosméticos, Notificaciones
  */
 
+import { diaCalendarioSV } from './horaSV'
+
 // ─── TYPES ──────────────────────────────────────────────────────────
 
 export type Aspect = 'Vigilance' | 'Command' | 'Aggression' | 'Cunning' | 'Heroism' | 'Villainy' | 'Progress' | 'Transmissions'
@@ -471,7 +473,9 @@ export function getAspectBars(stats: PlayerStats): AspectBar[] {
 }
 
 export function createDefaultStats(profileId: string): PlayerStats {
-  const today = new Date().toISOString().split('T')[0]
+  // El día de El Salvador: este valor arranca la racha de días conectados, y
+  // con `toISOString()` una cuenta creada de noche empezaba fechada mañana.
+  const today = diaCalendarioSV(new Date())
   return {
     profileId,
     xp: 0,

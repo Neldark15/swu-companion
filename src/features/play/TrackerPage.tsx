@@ -6,6 +6,7 @@ import { Badge } from '../../components/ui/Badge'
 import { useMatchPersistence } from '../../hooks/useMatchPersistence'
 import { searchCards } from '../../services/swuApi'
 import { db } from '../../services/db'
+import { fechaCorta } from '../../services/horaSV'
 import { CardImage } from '../../components/CardImage'
 import type { GameMode, MatchState, GameResult, Card, Deck } from '../../types'
 
@@ -439,7 +440,7 @@ export function TrackerPage() {
             className="flex-1 py-3 rounded-xl bg-swu-accent text-white font-bold text-sm"
           >Revancha</button>
         </div>
-        <p className="text-[10px] text-swu-muted">{modeLabels[mode]} · {new Date().toLocaleDateString()}</p>
+        <p className="text-[10px] text-swu-muted">{modeLabels[mode]} · {fechaCorta(new Date())}</p>
       </div>
     )
   }

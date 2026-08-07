@@ -7,6 +7,7 @@ import { supabase, isSupabaseReady } from './supabase'
 import { addMonthlyXp } from './sync'
 import { XP_VALUES, calculateLevel } from './gamification'
 import { db } from './db'
+import { mesCalendarioSV } from './horaSV'
 
 /** Detect names that look like UIDs/tokens and return 'Jugador' instead */
 function sanitizeDisplayName(name: string | null | undefined): string {
@@ -235,7 +236,9 @@ export async function getGlobalTournamentRanking(): Promise<RankingEntry[]> {
 export async function getMonthlyTournamentRanking(month?: string): Promise<RankingEntry[]> {
   if (!isSupabaseReady()) return []
 
-  const targetMonth = month || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+  // El mes de El Salvador: `getMonth()` es el del dispositivo y movía de mes
+  // los torneos jugados el último día, según quién consultara el ranking.
+  const targetMonth = month || mesCalendarioSV()
   const startDate = `${targetMonth}-01`
   const [y, m] = targetMonth.split('-').map(Number)
   const endDate = `${y}-${String(m + 1).padStart(2, '0')}-01`

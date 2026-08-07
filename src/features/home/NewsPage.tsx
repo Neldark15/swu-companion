@@ -26,6 +26,7 @@ import {
   getOfficialEvents, getAnnouncements,
   EVENT_TYPE_LABELS, type NewsItem, type EventType,
 } from '../../services/news'
+import { fechaConDiaLarga, diaMes, diasHastaSV } from '../../services/horaSV'
 
 /** Los de mayor jerarquía se ven distinto: un Galactic no es un Weekly. */
 const EVENT_TONE: Record<EventType, 'amber' | 'cyan' | 'green' | 'neutral'> = {
@@ -39,21 +40,16 @@ const EVENT_TONE: Record<EventType, 'amber' | 'cyan' | 'green' | 'neutral'> = {
   other: 'neutral',
 }
 
-function formatEventDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-SV', {
-    weekday: 'short', day: 'numeric', month: 'long', year: 'numeric',
-  })
-}
-
-/** Cuántos días faltan. Es el dato que uno busca de un vistazo. */
-function daysUntil(iso: string): number {
-  const target = new Date(iso); target.setHours(0, 0, 0, 0)
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  return Math.round((target.getTime() - today.getTime()) / 86_400_000)
-}
-
+/**
+ * Cuántos días faltan. Es el dato que uno busca de un vistazo.
+ *
+ * Los días se cuentan en El Salvador. Con `setHours(0,0,0,0)` se contaban desde
+ * la medianoche del dispositivo, así que el mismo Galactic decía «Mañana» o
+ * «En 2 días» según dónde estuviera el teléfono de quien preguntaba.
+ */
 function countdownLabel(iso: string): string {
-  const d = daysUntil(iso)
+  const d = diasHastaSV(iso)
+  if (d === null) return ''
   if (d === 0) return 'Hoy'
   if (d === 1) return 'Mañana'
   if (d > 1) return `En ${d} días`
@@ -77,7 +73,7 @@ function EventCard({ item, past }: { item: NewsItem; past?: boolean }) {
         </div>
         {!past && item.event_date && (
           <span className={`text-[10px] font-bold font-mono px-2 py-1 rounded-lg flex-shrink-0 ${
-            daysUntil(item.event_date) <= 7
+            (diasHastaSV(item.event_date) ?? Infinity) <= 7
               ? 'bg-swu-amber/15 text-swu-amber'
               : 'bg-swu-bg text-swu-muted'
           }`}>
@@ -93,7 +89,7 @@ function EventCard({ item, past }: { item: NewsItem; past?: boolean }) {
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-swu-muted">
         {item.event_date && (
           <span className="inline-flex items-center gap-1">
-            <CalendarDays size={11} aria-hidden /> {formatEventDate(item.event_date)}
+            <CalendarDays size={11} aria-hidden /> {fechaConDiaLarga(item.event_date)}
           </span>
         )}
         {item.event_location && (
@@ -138,7 +134,7 @@ function AnnouncementCard({ item }: { item: NewsItem }) {
         )}
         {item.tag && <Chip tone="neutral" active>{item.tag}</Chip>}
         <span className="text-[10px] text-swu-muted font-mono">
-          {new Date(item.created_at).toLocaleDateString('es-SV', { day: 'numeric', month: 'short' })}
+          {diaMes(item.created_at)}
         </span>
       </div>
       <h3 className="text-sm font-bold text-swu-text leading-tight">{item.title}</h3>

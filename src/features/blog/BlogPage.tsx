@@ -14,13 +14,7 @@ import { useAuth } from '../../hooks/useAuth'
 import {
   listarPublicados, minutosDeLectura, KIND_LABEL, KIND_TONE, type BlogPost,
 } from '../../services/blogService'
-
-function fecha(iso: string | null): string {
-  if (!iso) return ''
-  return new Date(iso).toLocaleDateString('es-SV', {
-    day: 'numeric', month: 'long', year: 'numeric',
-  })
-}
+import { fechaLarga } from '../../services/horaSV'
 
 function Meta({ p }: { p: BlogPost }) {
   return (
@@ -28,7 +22,7 @@ function Meta({ p }: { p: BlogPost }) {
       <span className={`font-bold uppercase tracking-widest text-[10px] ${KIND_TONE[p.kind]}`}>
         {KIND_LABEL[p.kind]}
       </span>
-      {p.published_at && <span>{fecha(p.published_at)}</span>}
+      {p.published_at && <span>{fechaLarga(p.published_at)}</span>}
       <span className="flex items-center gap-1">
         <Clock size={10} aria-hidden /> {minutosDeLectura(p.content)} min
       </span>

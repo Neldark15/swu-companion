@@ -27,6 +27,7 @@ import { Link } from 'react-router-dom'
 import { Newspaper, ExternalLink, Instagram, Plus, Pin } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { getNews, type NewsItem } from '../../services/news'
+import { diaMes } from '../../services/horaSV'
 
 const CUENTA_OFICIAL = 'https://www.instagram.com/unlimitedffg/'
 
@@ -84,7 +85,7 @@ function Tarjeta({ n }: { n: NewsItem }) {
             {n.tag}
           </span>
           <span className="text-[10px] text-swu-muted ml-auto">
-            {new Date(n.created_at).toLocaleDateString('es-SV', { day: 'numeric', month: 'short' })}
+            {diaMes(n.created_at)}
           </span>
         </div>
         <p className="text-sm font-bold text-swu-text leading-snug">{n.title}</p>

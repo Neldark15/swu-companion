@@ -1,11 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ScrollText, Loader2, Filter, AlertTriangle } from 'lucide-react'
 import { getAuditLogs, type AuditLog } from '../../services/adminService'
-
-function formatDate(iso: string): string {
-  const d = new Date(iso)
-  return d.toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' })
-}
+import { fechaNumericaYHora } from '../../services/horaSV'
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -109,7 +105,7 @@ export function AdminAuditPage() {
               <tbody className="divide-y divide-swu-border/40">
                 {filtered.map(log => (
                   <tr key={log.id} className="hover:bg-black/10">
-                    <td className="px-3 py-2 whitespace-nowrap text-xs" title={formatDate(log.created_at)}>
+                    <td className="px-3 py-2 whitespace-nowrap text-xs" title={fechaNumericaYHora(log.created_at)}>
                       <span className="font-mono text-swu-muted">hace {relativeTime(log.created_at)}</span>
                     </td>
                     <td className="px-3 py-2">

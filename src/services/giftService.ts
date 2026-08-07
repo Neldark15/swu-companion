@@ -7,6 +7,7 @@
 import { supabase, isSupabaseReady } from './supabase'
 import { updateMissionProgress } from './missionService'
 import { addRelationshipPoints } from './relationshipService'
+import { inicioDelDiaSVenUTC, inicioDelDiaSiguienteSVenUTC } from './horaSV'
 
 // ─── TYPES ──────────────────────────────────────────────────────────
 
@@ -89,13 +90,23 @@ const DAILY_LIMIT = 5
 export async function getSentTodayCount(senderId: string): Promise<number> {
   if (!isSupabaseReady()) return 0
   try {
-    const today = new Date().toISOString().split('T')[0]
+    // El día de regalos es el día de El Salvador, de medianoche a medianoche.
+    //
+    // Antes el corte era el día UTC, así que el cupo de 5 se reponía a las 6
+    // de la tarde de acá: quien regalaba de noche gastaba el cupo del día
+    // siguiente y amanecía sin regalos.
+    //
+    // Los dos extremos salen de `inicioDelDia…SVenUTC`, no de pegarle `T00:00Z`
+    // y `T23:59Z` a la fecha: con la etiqueta del día SV y la hora en UTC la
+    // ventana quedaba corrida seis horas respecto del día que decía cubrir.
+    const desde = inicioDelDiaSVenUTC().toISOString()
+    const hasta = inicioDelDiaSiguienteSVenUTC().toISOString()
     const { count, error } = await supabase
       .from('gifts')
       .select('*', { count: 'exact', head: true })
       .eq('sender_id', senderId)
-      .gte('created_at', `${today}T00:00:00.000Z`)
-      .lt('created_at', `${today}T23:59:59.999Z`)
+      .gte('created_at', desde)
+      .lt('created_at', hasta)
 
     if (error) return 0
     return count || 0

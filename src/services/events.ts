@@ -1,4 +1,5 @@
 import { supabase, isSupabaseReady } from './supabase'
+import { inicioDelDiaSVenUTC } from './horaSV'
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -185,9 +186,21 @@ export async function getOfficialEvents(userId?: string): Promise<OfficialEvent[
  * día siguiente. Es lo que pidió Nel y además es lo correcto: un evento en
  * curso es justo el que más interesa ver.
  *
- * El límite se calcula en la zona de QUIEN MIRA (medianoche local) y se manda
- * en UTC. Con un corte fijo en UTC, acá —seis horas detrás— los eventos se
- * caerían del Inicio a las 6 de la tarde del día anterior.
+ * El límite es la medianoche de EL SALVADOR, mandada en UTC (las 06:00Z de
+ * ese mismo día). Con un corte fijo en UTC, acá —seis horas detrás— los
+ * eventos se caerían del Inicio a las 6 de la tarde del día anterior.
+ *
+ * Y tampoco puede ser la medianoche de quien mira: `setHours(0,0,0,0)` usa la
+ * zona del DISPOSITIVO. Medido corriendo el mismo cálculo con el reloj en
+ * otras zonas, para un instante que en SV es el 8 de agosto a las 23:30:
+ *
+ *     El Salvador → 2026-08-08T06:00:00.000Z   ← el correcto
+ *     Asia/Tokyo  → 2026-08-08T15:00:00.000Z   ← 9 h tarde
+ *     UTC         → 2026-08-09T00:00:00.000Z   ← el día equivocado
+ *
+ * Con el corte de Tokio, un torneo de esa mañana desaparece del Inicio; con el
+ * de UTC desaparecen todos los del día. El torneo se juega en la tienda, así
+ * que el día que cuenta es el de la tienda.
  *
  * Se excluyen los `finished` y `cancelled`: un evento cancelado no se anuncia
  * aunque su fecha no haya llegado.
@@ -195,8 +208,7 @@ export async function getOfficialEvents(userId?: string): Promise<OfficialEvent[
 export async function getUpcomingOfficialEvents(limite = 3): Promise<OfficialEvent[]> {
   if (!isSupabaseReady()) return []
 
-  const medianocheDeHoy = new Date()
-  medianocheDeHoy.setHours(0, 0, 0, 0)
+  const medianocheDeHoy = inicioDelDiaSVenUTC()
 
   const { data: events, error } = await supabase
     .from('official_events')

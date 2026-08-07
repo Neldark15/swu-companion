@@ -27,6 +27,7 @@
 import { db } from './db'
 import { normalizeSearch, ensureCards } from './swuApi'
 import type { Card } from '../types'
+import { diaCalendarioSV } from './horaSV'
 
 export interface HubTournament {
   slug: string
@@ -163,7 +164,10 @@ export interface UpcomingResult {
 export async function getUpcoming(force = false): Promise<UpcomingResult> {
   const key = 'swu_hub_agenda'
   const hit = readCache<HubUpcoming[]>(key)
-  const hoy = new Date().toISOString().slice(0, 10)
+  // El hoy de El Salvador, que es donde está quien mira. Con `toISOString()`
+  // era el hoy de UTC: a partir de las 6 de la tarde de acá el torneo de esta
+  // misma noche desaparecía de la agenda por «pasado».
+  const hoy = diaCalendarioSV(new Date())
   const futuros = (list: HubUpcoming[]) => list.filter(e => e.date >= hoy)
 
   if (!force && hit?.fresh) return { events: futuros(hit.data), cachedAt: null }

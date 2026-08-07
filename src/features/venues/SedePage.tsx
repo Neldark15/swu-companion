@@ -22,14 +22,17 @@ import { HudPanel } from '../../components/Hud'
 import { HUD_TEXTO, type HudTone } from '../../components/hudTones'
 import { SedeCabecera } from './SedeCabecera'
 import { getSede, eventosDeSede, type Sede, type EventoDeSede } from '../../services/venuesService'
+import { fechaCorta } from '../../services/horaSV'
 
-const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
-
+/**
+ * La fecha del torneo, en hora de El Salvador.
+ *
+ * Salía de `getDate()/getMonth()/getFullYear()`, que son los del dispositivo:
+ * un torneo de las 7 de la noche se anunciaba con la fecha del día siguiente
+ * en cualquier teléfono al este de nosotros.
+ */
 function fecha(iso: string | null): string {
-  if (!iso) return 'Sin fecha'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return 'Sin fecha'
-  return `${d.getDate()} ${MESES[d.getMonth()]} ${d.getFullYear()}`
+  return fechaCorta(iso) || 'Sin fecha'
 }
 
 export function SedePage() {

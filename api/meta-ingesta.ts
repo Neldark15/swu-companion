@@ -581,9 +581,23 @@ async function torneosDelPerfil(
     const id = num(f.TournamentId)
     if (!id || id <= 0) continue
 
-    // La fecha viene sin desfase horario (`2026-08-01T09:00:00`), así que se
-    // toma como UTC —que es la zona en la que corre la lambda— y se guarda
-    // normalizada para que la base no dependa de dónde se ejecutó esto.
+    // `TournamentStartDate` viene sin desfase (`2026-08-01T09:00:00`) y se toma
+    // como **UTC**, que es lo que melee publica ahí. Se guarda normalizada para
+    // que la base no dependa de dónde corrió la lambda.
+    //
+    // Ojo con el porqué, porque tiene consecuencias: NO se toma como UTC
+    // «porque la lambda corre en UTC» —eso sería acertar de casualidad—, sino
+    // porque el valor ES un instante. Medido contra las filas ya ingeridas: los
+    // tres «Weekly Play» de Decks & Dice llegan como 01:00 y 01:30, que leídos
+    // en UTC son las 19:00 y 19:30 —hora de weekly— y leídos como reloj local
+    // serían torneos que empiezan a la una de la madrugada. Y el Galactic
+    // Championship Day One llega 17:00, o sea media mañana en su huso.
+    //
+    // De ahí que `meta_tournaments.date` sea un instante de verdad y se muestre
+    // con `fechaCompacta` (hora SV), y NO una fecha sin zona de las que hay que
+    // leer tal cual vienen escritas (`diaMesSinZona` en src/services/horaSV).
+    // Confundir las dos cosas es lo que tenía la pestaña «SV» mostrando tres de
+    // ocho torneos un día tarde.
     const fechaCruda = str(f.TournamentStartDate)
     const ms = fechaCruda ? Date.parse(fechaCruda) : NaN
 

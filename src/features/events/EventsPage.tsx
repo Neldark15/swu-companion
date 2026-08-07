@@ -9,19 +9,8 @@ import { Badge } from '../../components/ui/Badge'
 import { db } from '../../services/db'
 import { useAuth } from '../../hooks/useAuth'
 import { getOfficialEvents, joinOfficialEvent, leaveOfficialEvent, deleteOfficialEvent, updateOfficialEvent, type OfficialEvent } from '../../services/events'
+import { aISOdesdeSV, aInputsSV, fechaCorta, hora } from '../../services/horaSV'
 import type { Tournament } from '../../types'
-
-/** Parse an ISO date string into separate date + time values for inputs */
-function parseDateTime(iso: string | null): { date: string; time: string } {
-  if (!iso) return { date: '', time: '' }
-  const d = new Date(iso)
-  const yyyy = d.getFullYear()
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  const hh = String(d.getHours()).padStart(2, '0')
-  const min = String(d.getMinutes()).padStart(2, '0')
-  return { date: `${yyyy}-${mm}-${dd}`, time: `${hh}:${min}` }
-}
 
 export function EventsPage() {
   const navigate = useNavigate()
@@ -95,9 +84,12 @@ export function EventsPage() {
   }
 
   const startEditing = (event: OfficialEvent) => {
-    const { date, time } = parseDateTime(event.date)
-    setEditDate(date)
-    setEditTime(time)
+    // La fecha guardada se descompone EN ZONA SV. Si se descompusiera en la
+    // del dispositivo, abrir el editor desde otra zona ya mostraba otra hora,
+    // y darle Guardar sin tocar nada movía el evento.
+    const { fecha, hora: horaInicio } = aInputsSV(event.date)
+    setEditDate(fecha)
+    setEditTime(horaInicio)
     setEditError('')
     setEditingEventId(event.id)
   }
@@ -113,14 +105,18 @@ export function EventsPage() {
     setEditError('')
 
     try {
-      // Build ISO date string — use full ISO 8601 format
+      // Lo tecleado es hora de El Salvador, igual que al crear el evento. Los
+      // dos caminos tienen que convertir igual: cuando no coincidían, editar
+      // un evento le «arreglaba» o le corría la hora sin que nadie la tocara.
       let newDate: string | null = null
       if (editDate) {
-        const timeStr = editTime || '00:00'
-        newDate = new Date(`${editDate}T${timeStr}:00`).toISOString()
+        newDate = aISOdesdeSV(editDate, editTime)
+        if (!newDate) {
+          setEditError('La fecha o la hora no son válidas')
+          setEditSaving(false)
+          return
+        }
       }
-
-      console.log('[saveEditing] eventId:', editingEventId, 'newDate:', newDate, 'editDate:', editDate, 'editTime:', editTime)
 
       const result = await updateOfficialEvent(editingEventId, { date: newDate })
 
@@ -139,22 +135,6 @@ export function EventsPage() {
       setEditError(`Excepción: ${err instanceof Error ? err.message : String(err)}`)
       setEditSaving(false)
     }
-  }
-
-  const formatDate = (ts: number | string) => {
-    const d = typeof ts === 'string' ? new Date(ts) : new Date(ts)
-    return d.toLocaleDateString('es-SV', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    })
-  }
-
-  const formatTime = (ts: string) => {
-    return new Date(ts).toLocaleTimeString('es-SV', {
-      hour: '2-digit',
-      minute: '2-digit',
-    })
   }
 
   return (
@@ -288,7 +268,7 @@ export function EventsPage() {
                   {event.date && (
                     <span className="flex items-center gap-1">
                       <Calendar size={12} />
-                      {formatDate(event.date)} {formatTime(event.date)}
+                      {fechaCorta(event.date)} {hora(event.date)}
                     </span>
                   )}
                   {event.location && (
@@ -472,7 +452,7 @@ export function EventsPage() {
                 </div>
                 <div className="flex items-center gap-2 text-xs text-swu-muted mt-1">
                   <Calendar size={12} />
-                  <span>{formatDate(t.createdAt)}</span>
+                  <span>{fechaCorta(t.createdAt)}</span>
                   <span>·</span>
                   <span>{t.players.length} jugadores</span>
                   <span>·</span>

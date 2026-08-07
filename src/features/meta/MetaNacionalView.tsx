@@ -68,6 +68,7 @@ import {
   getMetaNacional, dispararIngesta, QUORUM,
   type MetaNacional, type AmbitoMeta, type ArquetipoNacional, type TorneoNacional,
 } from '../../services/metaNacionalService'
+import { fechaCompacta } from '../../services/horaSV'
 
 /** melee.gg, que es de donde salen estas clasificaciones. */
 const FUENTE = { nombre: 'melee.gg', url: 'https://melee.gg' }
@@ -90,17 +91,6 @@ const AMBITOS: SegmentOption<AmbitoMeta>[] = [
   { value: 'aca', label: 'Acá' },
   { value: 'nuestros', label: 'Los nuestros' },
 ]
-
-const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
-
-/** `2026-08-02T…` → `2 ago 26`. Se parte a mano: `new Date(iso)` se lee en UTC
- *  y en El Salvador (UTC-6) mostraría el día anterior. */
-function fecha(iso: string | null): string {
-  if (!iso) return ''
-  const [y, m, d] = iso.slice(0, 10).split('-').map(Number)
-  if (!y || !m || !d) return ''
-  return `${d} ${MESES[m - 1]} ${String(y).slice(2)}`
-}
 
 /** Récord como lo escribe melee: `4-1`, o `4-1-1` cuando hubo empates. */
 const record = (a: ArquetipoNacional) =>
@@ -209,7 +199,25 @@ function FilaArquetipo({
   )
 }
 
-/** Un torneo con sus filas. Enlaza a melee, que es donde viven los datos. */
+/**
+ * Un torneo con sus filas. Enlaza a melee, que es donde viven los datos.
+ *
+ * ── `t.fecha` SÍ es un instante, y por eso va por `fechaCompacta` ──────
+ *
+ * Acá vivía un `fecha()` propio que partía el ISO a mano —`iso.slice(0, 10)`—
+ * porque «`new Date(iso)` se lee en UTC y en El Salvador mostraría el día
+ * anterior». Ese razonamiento vale para una fecha SIN zona, como las de la
+ * agenda mundial (ver `diaMesSinZona` en horaSV). Este valor no es eso:
+ * `meta_tournaments.date` es **timestamptz**, y melee publica
+ * `TournamentStartDate` en UTC. Cortar a 10 devolvía el día **UTC**, seis
+ * horas adelante del nuestro.
+ *
+ * Medido contra las 8 filas de la tabla: los tres Weekly Play —los únicos que
+ * empiezan de noche, 19:00 y 19:30 SV— se mostraban **un día tarde** (14 mar
+ * por 13 mar, 7 mar por 6 mar, 28 feb por 27 feb). Los Galactic, que son de la
+ * mañana, no cruzaban la medianoche UTC y por eso el bug pasaba desapercibido:
+ * pegaba justo en los torneos de sala, que son el punto de la pestaña.
+ */
 function FilaTorneo({ t, ambito }: { t: TorneoNacional; ambito: AmbitoMeta }) {
   return (
     <li className="bg-swu-surface rounded-xl border border-swu-border p-3 space-y-2">
@@ -227,7 +235,7 @@ function FilaTorneo({ t, ambito }: { t: TorneoNacional; ambito: AmbitoMeta }) {
           <span className="flex flex-wrap items-center gap-x-2 mt-0.5 text-[10px] font-mono text-swu-muted">
             {t.fecha && (
               <span className="flex items-center gap-0.5">
-                <CalendarDays size={9} aria-hidden />{fecha(t.fecha)}
+                <CalendarDays size={9} aria-hidden />{fechaCompacta(t.fecha)}
               </span>
             )}
             {t.jugadores !== null && (

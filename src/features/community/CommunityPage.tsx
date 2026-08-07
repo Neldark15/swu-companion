@@ -29,6 +29,7 @@ import {
 } from '../../services/communityService'
 import { ProfileFrame } from '../profile/components/ProfileFrame'
 import { calculateLevel } from '../../services/gamification'
+import { diaMes } from '../../services/horaSV'
 
 const swAvatarIds = [
   'chewbacca', 'r2d2', 'c3po', 'bb8', 'pilot', 'boba-fett', 'stormtrooper',
@@ -83,7 +84,9 @@ function timeAgo(iso: string): string {
   if (hr < 24) return `${hr}h`
   const d = Math.floor(hr / 24)
   if (d < 7) return `${d}d`
-  return new Date(iso).toLocaleDateString('es', { day: 'numeric', month: 'short' })
+  // Arriba son duraciones («3h»), que no tienen zona. Acá ya es una fecha
+  // del calendario y la comunidad está en El Salvador.
+  return diaMes(iso)
 }
 
 export function CommunityPage() {

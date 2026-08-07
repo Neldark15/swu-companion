@@ -499,8 +499,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const standings = ev.standings
 
     // Un torneo que ya pasó no cambia; solo el del día se puede corregir.
+    //
+    // El corte se compara contra el día de EL SALVADOR y no contra
+    // `toISOString().slice(0, 10)`, que es el día UTC. Acá vamos seis horas
+    // atrás, así que entre las 6 de la tarde y la medianoche —justo la hora a
+    // la que se juega y se publican los resultados— el día UTC ya era el
+    // siguiente y un torneo de HOY caía en la rama `cerrado`: se congelaba en
+    // la CDN una semana con la clasificación a medio llenar.
+    //
+    // Se calcula acá y no se importa `diaCalendarioSV` de `src/services/horaSV`
+    // porque `tsconfig.app.json` solo incluye `src`: un import cruzado no lo
+    // revisaría `npm run build` y solo se rompería en el despliegue.
     const day = /20\d{2}-\d{2}-\d{2}/.exec(slug)?.[0] ?? ''
-    const cerrado = day !== '' && day < new Date().toISOString().slice(0, 10)
+    const hoySV = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/El_Salvador',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date())
+    const cerrado = day !== '' && day < hoySV
     res.setHeader('Cache-Control', `public, max-age=${cerrado ? 86400 : 300}`)
     res.setHeader(
       'Vercel-CDN-Cache-Control',
