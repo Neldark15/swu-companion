@@ -57,7 +57,7 @@ export function HolocronLoader() {
               fill="none"
               stroke="currentColor"
               strokeWidth="1.5"
-              className="text-swu-accent"
+              className="text-swu-accent-texto"
               opacity={0.6}
             />
             <path
@@ -65,7 +65,7 @@ export function HolocronLoader() {
               fill="none"
               stroke="currentColor"
               strokeWidth="1"
-              className="text-swu-accent"
+              className="text-swu-accent-texto"
               opacity={0.3}
             />
             <circle cx="24" cy="24" r="3" className="fill-swu-accent" opacity={0.8} />

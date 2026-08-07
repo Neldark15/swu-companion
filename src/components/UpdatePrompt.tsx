@@ -62,7 +62,7 @@ export function UpdatePrompt() {
         <div className="flex items-start gap-2.5">
           <RefreshCw
             size={16}
-            className={`mt-0.5 flex-shrink-0 text-swu-accent ${updating ? 'animate-spin' : ''}`}
+            className={`mt-0.5 flex-shrink-0 text-swu-accent-texto ${updating ? 'animate-spin' : ''}`}
             aria-hidden
           />
           <div className="min-w-0 flex-1">

@@ -190,7 +190,7 @@ export function BlogEditorPage() {
                 : <><EyeOff size={12} aria-hidden /> Escribir</>}
             </button>
             {id && (
-              <button onClick={() => void eliminar()} className="text-swu-red p-1.5" aria-label="Borrar">
+              <button onClick={() => void eliminar()} className="text-swu-red-texto p-1.5" aria-label="Borrar">
                 <Trash2 size={15} aria-hidden />
               </button>
             )}
@@ -348,7 +348,7 @@ export function BlogEditorPage() {
           </>
         )}
 
-        {error && <p className="text-[12px] text-swu-red">{error}</p>}
+        {error && <p className="text-[12px] text-swu-red-texto">{error}</p>}
 
         <div className="flex gap-2 pt-2">
           <Button size="sm" variant="secondary" block loading={guardando} onClick={() => void enviar(false)}>

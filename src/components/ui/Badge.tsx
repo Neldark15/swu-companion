@@ -5,10 +5,10 @@ interface BadgeProps {
 }
 
 const variants = {
-  default: 'bg-swu-accent/15 text-swu-accent',
-  accent: 'bg-swu-accent/15 text-swu-accent',
+  default: 'bg-swu-accent/15 text-swu-accent-texto',
+  accent: 'bg-swu-accent/15 text-swu-accent-texto',
   amber: 'bg-swu-amber/15 text-swu-amber',
-  red: 'bg-swu-red/15 text-swu-red',
+  red: 'bg-swu-red/15 text-swu-red-texto',
   green: 'bg-swu-green/15 text-swu-green',
   purple: 'bg-purple-500/15 text-purple-400',
 }

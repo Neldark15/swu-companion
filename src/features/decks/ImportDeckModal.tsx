@@ -65,7 +65,7 @@ export function ImportDeckModal({ open, onClose, onImport }: Props) {
         {/* Body */}
         <div className="p-4 space-y-3">
           <p className="text-xs text-swu-muted">
-            Pegue un deck en formato <span className="text-swu-accent font-bold">SWUDB JSON</span>,{' '}
+            Pegue un deck en formato <span className="text-swu-accent-texto font-bold">SWUDB JSON</span>,{' '}
             <span className="text-swu-amber font-bold">CSV</span> (Set,CardNumber,Count,IsFoil,Stamp) o{' '}
             <span className="text-green-400 font-bold">Melee texto</span> copiado desde swudb.com.
           </p>
@@ -79,7 +79,7 @@ export function ImportDeckModal({ open, onClose, onImport }: Props) {
             />
             <button
               onClick={handlePaste}
-              className="absolute top-2 right-2 p-1.5 rounded-lg bg-swu-accent/15 text-swu-accent active:scale-95 transition-transform"
+              className="absolute top-2 right-2 p-1.5 rounded-lg bg-swu-accent/15 text-swu-accent-texto active:scale-95 transition-transform"
               title="Pegar del portapapeles"
             >
               <ClipboardPaste size={14} />
@@ -91,7 +91,7 @@ export function ImportDeckModal({ open, onClose, onImport }: Props) {
             <div className={`p-3 rounded-xl border text-xs space-y-1 ${
               result.success
                 ? 'bg-swu-green/10 border-swu-green/30 text-swu-green'
-                : 'bg-swu-red/10 border-swu-red/30 text-swu-red'
+                : 'bg-swu-red/10 border-swu-red/30 text-swu-red-texto'
             }`}>
               <div className="flex items-center gap-2 font-bold">
                 {result.success ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
@@ -99,7 +99,7 @@ export function ImportDeckModal({ open, onClose, onImport }: Props) {
                   ? `Importado: ${result.matchedCards}/${result.totalCards} cartas`
                   : 'Error en importación'}
               </div>
-              {result.errors.map((e, i) => <p key={i} className="text-swu-red">{e}</p>)}
+              {result.errors.map((e, i) => <p key={i} className="text-swu-red-texto">{e}</p>)}
               {result.warnings.slice(0, 5).map((w, i) => <p key={i} className="text-swu-amber">{w}</p>)}
               {result.warnings.length > 5 && (
                 <p className="text-swu-amber">...y {result.warnings.length - 5} advertencias más</p>

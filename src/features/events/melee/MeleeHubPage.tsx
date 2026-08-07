@@ -74,7 +74,7 @@ export function MeleeHubPage() {
           </div>
           <button
             onClick={() => navigate('/events/melee/add')}
-            className="bg-swu-accent/15 text-swu-accent p-2 rounded-lg"
+            className="bg-swu-accent/15 text-swu-accent-texto p-2 rounded-lg"
           >
             <Plus size={18} />
           </button>
@@ -98,7 +98,7 @@ export function MeleeHubPage() {
             <div className="text-[10px] text-swu-muted">Record</div>
           </div>
           <div className="bg-swu-surface rounded-xl p-3 text-center border border-swu-border">
-            <TrendingUp size={16} className="mx-auto text-swu-accent mb-1" />
+            <TrendingUp size={16} className="mx-auto text-swu-accent-texto mb-1" />
             <div className="text-lg font-bold text-swu-text">
               {stats.avgStanding != null ? `${stats.avgStanding}°` : '—'}
             </div>
@@ -140,10 +140,10 @@ export function MeleeHubPage() {
                      rounded-xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform"
         >
           <div className="w-10 h-10 rounded-lg bg-swu-accent/20 border border-swu-accent/40 flex items-center justify-center">
-            <Plus size={20} className="text-swu-accent" />
+            <Plus size={20} className="text-swu-accent-texto" />
           </div>
           <div className="text-left flex-1">
-            <p className="text-sm font-bold text-swu-accent">Registrar Torneo</p>
+            <p className="text-sm font-bold text-swu-accent-texto">Registrar Torneo</p>
             <p className="text-[10px] text-swu-muted">Pegue su link de Melee o ingrese manual</p>
           </div>
         </button>
@@ -207,7 +207,7 @@ export function MeleeHubPage() {
                     t.standing === 1
                       ? 'bg-swu-amber/15 border-swu-amber/30 text-swu-amber'
                       : t.standing != null && t.standing <= 4
-                        ? 'bg-swu-accent/15 border-swu-accent/30 text-swu-accent'
+                        ? 'bg-swu-accent/15 border-swu-accent/30 text-swu-accent-texto'
                         : 'bg-swu-bg border-swu-border text-swu-muted'
                   }`}>
                     <span className="text-sm font-bold">{standingLabel(t.standing)}</span>
@@ -220,7 +220,7 @@ export function MeleeHubPage() {
                       <span className="text-[10px] text-swu-muted flex items-center gap-1">
                         <Calendar size={10} /> {t.date}
                       </span>
-                      <span className="text-[10px] text-swu-accent font-medium">
+                      <span className="text-[10px] text-swu-accent-texto font-medium">
                         {FORMAT_LABELS[t.format] || t.format}
                       </span>
                     </div>

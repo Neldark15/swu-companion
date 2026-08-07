@@ -239,7 +239,7 @@ export function AdminAnnouncementsPage() {
       <header className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-swu-text flex items-center gap-2">
-            <Megaphone size={22} className="text-swu-accent" />
+            <Megaphone size={22} className="text-swu-accent-texto" />
             Centro de Comunicaciones
           </h1>
           <p className="text-sm text-swu-muted mt-1">
@@ -280,7 +280,7 @@ export function AdminAnnouncementsPage() {
                   onClick={() => { setTag(t.label); setTagColor(t.color); if (!icon) setIcon(t.icon) }}
                   className={`text-[11px] px-2 py-1 rounded-md border transition-colors ${
                     tag === t.label
-                      ? 'bg-swu-accent/15 border-swu-accent text-swu-accent'
+                      ? 'bg-swu-accent/15 border-swu-accent text-swu-accent-texto'
                       : 'bg-swu-bg border-swu-border text-swu-muted hover:text-swu-text'
                   }`}
                 >
@@ -483,7 +483,7 @@ export function AdminAnnouncementsPage() {
           <div className={`rounded-lg p-2.5 text-[11px] flex items-start gap-2 ${
             result.ok
               ? 'bg-swu-green/10 border border-swu-green/30 text-swu-green'
-              : 'bg-swu-red/10 border border-swu-red/30 text-swu-red'
+              : 'bg-swu-red/10 border border-swu-red/30 text-swu-red-texto'
           }`}>
             {result.ok ? <CheckCircle2 size={12} className="mt-0.5 flex-shrink-0" /> : <AlertTriangle size={12} className="mt-0.5 flex-shrink-0" />}
             <span>{result.msg}</span>
@@ -530,8 +530,8 @@ export function AdminAnnouncementsPage() {
                   <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
                     tagColor === 'amber' ? 'bg-swu-amber/15 text-swu-amber'
                       : tagColor === 'green' ? 'bg-swu-green/15 text-swu-green'
-                      : tagColor === 'red' ? 'bg-swu-red/15 text-swu-red'
-                      : tagColor === 'accent' ? 'bg-swu-accent/15 text-swu-accent'
+                      : tagColor === 'red' ? 'bg-swu-red/15 text-swu-red-texto'
+                      : tagColor === 'accent' ? 'bg-swu-accent/15 text-swu-accent-texto'
                       : 'bg-swu-muted/15 text-swu-muted'
                   }`}>{tag}</span>
                 )}
@@ -541,7 +541,7 @@ export function AdminAnnouncementsPage() {
                   <img src={imageUrl} alt="" className="mt-2 w-full h-32 object-cover rounded-md" />
                 )}
                 {ctaLabel && ctaUrl && (
-                  <button className="mt-2 px-3 py-1.5 bg-swu-accent/15 text-swu-accent text-xs font-bold rounded-md">
+                  <button className="mt-2 px-3 py-1.5 bg-swu-accent/15 text-swu-accent-texto text-xs font-bold rounded-md">
                     {ctaLabel} →
                   </button>
                 )}
@@ -600,8 +600,8 @@ function ChannelCard({
       }`}
     >
       <div className="flex items-center gap-1.5">
-        <Icon size={14} className={active ? 'text-swu-accent' : 'text-swu-muted'} />
-        <p className={`text-sm font-bold ${active ? 'text-swu-accent' : 'text-swu-text'}`}>{label}</p>
+        <Icon size={14} className={active ? 'text-swu-accent-texto' : 'text-swu-muted'} />
+        <p className={`text-sm font-bold ${active ? 'text-swu-accent-texto' : 'text-swu-text'}`}>{label}</p>
       </div>
       <p className="text-[10px] text-swu-muted mt-0.5">{desc}</p>
     </button>
@@ -621,7 +621,7 @@ function AudienceCard({
       onClick={onClick}
       className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border transition-colors ${
         active
-          ? 'bg-swu-accent/15 border-swu-accent text-swu-accent'
+          ? 'bg-swu-accent/15 border-swu-accent text-swu-accent-texto'
           : 'bg-swu-bg border-swu-border text-swu-muted hover:text-swu-text'
       }`}
     >
@@ -671,19 +671,19 @@ function ChannelMiniStatus({ res }: { res: AnnouncementHistoryEntry['results'] }
     <div className="flex gap-1">
       {res.push && (
         <span title={res.push.ok ? `Push enviado a ${res.push.sent ?? 0}` : `Push falló: ${res.push.error}`}
-              className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${res.push.ok ? 'bg-swu-green/15 text-swu-green' : 'bg-swu-red/15 text-swu-red'}`}>
+              className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${res.push.ok ? 'bg-swu-green/15 text-swu-green' : 'bg-swu-red/15 text-swu-red-texto'}`}>
           Push {res.push.ok ? '✓' : '✗'}
         </span>
       )}
       {res.toast && (
         <span title={res.toast.ok ? 'Toast OK' : `Toast falló: ${res.toast.error}`}
-              className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${res.toast.ok ? 'bg-swu-green/15 text-swu-green' : 'bg-swu-red/15 text-swu-red'}`}>
+              className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${res.toast.ok ? 'bg-swu-green/15 text-swu-green' : 'bg-swu-red/15 text-swu-red-texto'}`}>
           Toast {res.toast.ok ? '✓' : '✗'}
         </span>
       )}
       {res.news && (
         <span title={res.news.ok ? 'News OK' : `News falló: ${res.news.error}`}
-              className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${res.news.ok ? 'bg-swu-green/15 text-swu-green' : 'bg-swu-red/15 text-swu-red'}`}>
+              className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${res.news.ok ? 'bg-swu-green/15 text-swu-green' : 'bg-swu-red/15 text-swu-red-texto'}`}>
           News {res.news.ok ? '✓' : '✗'}
         </span>
       )}

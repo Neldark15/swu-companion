@@ -153,7 +153,7 @@ export function CardDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 size={28} className="text-swu-accent animate-spin" />
+        <Loader2 size={28} className="text-swu-accent-texto animate-spin" />
       </div>
     )
   }
@@ -161,9 +161,9 @@ export function CardDetailPage() {
   if (!card) {
     return (
       <div className="p-4 text-center">
-        <AlertCircle size={32} className="mx-auto text-swu-red mb-2" />
+        <AlertCircle size={32} className="mx-auto text-swu-red-texto mb-2" />
         <p className="text-swu-text font-bold">Carta no encontrada</p>
-        <button onClick={() => navigate('/cards')} className="mt-3 text-sm text-swu-accent">
+        <button onClick={() => navigate('/cards')} className="mt-3 text-sm text-swu-accent-texto">
           Volver a búsqueda
         </button>
       </div>
@@ -216,7 +216,7 @@ export function CardDetailPage() {
             aria-pressed={isFavorite}
             aria-label={isFavorite ? 'Quitar de favoritas' : 'Marcar como favorita'}
             className={`p-2 rounded-lg border transition-colors ${
-              isFavorite ? 'bg-swu-red/20 border-swu-red/40 text-swu-red' : 'bg-swu-surface border-swu-border text-swu-muted'
+              isFavorite ? 'bg-swu-red/20 border-swu-red/40 text-swu-red-texto' : 'bg-swu-surface border-swu-border text-swu-muted'
             }`}
           >
             <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} aria-hidden />
@@ -259,7 +259,7 @@ export function CardDetailPage() {
       {card.backImageUrl && (
         <button
           onClick={() => setShowBack(!showBack)}
-          className="w-full py-2 rounded-lg bg-swu-surface border border-swu-border text-swu-accent text-xs font-bold"
+          className="w-full py-2 rounded-lg bg-swu-surface border border-swu-border text-swu-accent-texto text-xs font-bold"
         >
           {showBack ? 'Ver Frente' : 'Ver Reverso'}
         </button>
@@ -291,7 +291,7 @@ export function CardDetailPage() {
           {card.power !== null && (
             <div className="text-center">
               <p className="text-[10px] text-swu-muted">Poder</p>
-              <p className="text-2xl font-extrabold text-swu-red font-mono">{card.power}</p>
+              <p className="text-2xl font-extrabold text-swu-red-texto font-mono">{card.power}</p>
             </div>
           )}
           {card.hp !== null && (
@@ -344,7 +344,7 @@ export function CardDetailPage() {
       {card.text && (
         <div className="bg-swu-surface rounded-xl p-4 border border-swu-border">
           <div className="flex items-center gap-1.5 mb-2">
-            <BookOpen size={14} className="text-swu-accent" />
+            <BookOpen size={14} className="text-swu-accent-texto" />
             <p className="text-xs font-bold text-swu-muted">Texto de Carta</p>
           </div>
           <p className="text-sm text-swu-text leading-relaxed whitespace-pre-wrap">{translateCardText(card.text)}</p>
@@ -438,8 +438,8 @@ export function CardDetailPage() {
       {/* Collection */}
       <div className="bg-swu-accent/10 rounded-xl p-4 border border-swu-accent/30">
         <div className="flex items-center gap-2 mb-3">
-          <Package size={16} className="text-swu-accent" />
-          <span className="text-sm font-bold text-swu-accent">Colección</span>
+          <Package size={16} className="text-swu-accent-texto" />
+          <span className="text-sm font-bold text-swu-accent-texto">Colección</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs text-swu-muted">
@@ -460,7 +460,7 @@ export function CardDetailPage() {
             <span className="w-8 text-center text-sm font-bold text-swu-text">{collectionQty}</span>
             <button
               onClick={() => handleCollectionChange(1)}
-              className="w-8 h-8 rounded-lg bg-swu-accent/20 border border-swu-accent/40 text-swu-accent
+              className="w-8 h-8 rounded-lg bg-swu-accent/20 border border-swu-accent/40 text-swu-accent-texto
                          flex items-center justify-center active:scale-95"
             >
               <Plus size={14} />

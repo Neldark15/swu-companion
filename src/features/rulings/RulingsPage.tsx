@@ -282,7 +282,7 @@ function BotonCopiarCita({ id, texto, textoEs, idioma = 'en' }: {
 const ESTILO_ESTADO: Record<EstadoModelado, { punto: string; texto: string; rotulo: string }> = {
   modelada: { punto: 'bg-swu-green', texto: 'text-swu-green', rotulo: 'SWUSIM la modela' },
   parcial: { punto: 'bg-swu-amber', texto: 'text-swu-amber', rotulo: 'SWUSIM la modela parcialmente' },
-  no: { punto: 'bg-swu-red', texto: 'text-swu-red', rotulo: 'SWUSIM no la modela' },
+  no: { punto: 'bg-swu-red', texto: 'text-swu-red-texto', rotulo: 'SWUSIM no la modela' },
 }
 
 /**
@@ -762,7 +762,7 @@ function FilaCarta({
         </p>
         {suspendida && (
           <span className="flex items-center gap-1 flex-shrink-0 px-2 py-0.5 rounded-full bg-swu-red/15
-                           border border-swu-red/40 text-[10px] font-bold text-swu-red">
+                           border border-swu-red/40 text-[10px] font-bold text-swu-red-texto">
             <Ban size={10} aria-hidden /> Suspendida · {suspendida.formato}
           </span>
         )}
@@ -1190,7 +1190,7 @@ function EstadoDelFormato({ datos }: { datos: DatosRulingsCartas }) {
     <div className="rounded-xl border border-swu-border bg-swu-surface p-3.5 mb-2 space-y-3">
       <div>
         <p className="flex items-center gap-1.5 text-[10px] font-mono tracking-[0.2em] uppercase text-swu-muted/60 mb-2">
-          <Ban size={11} className="text-swu-red" aria-hidden /> Cartas suspendidas
+          <Ban size={11} className="text-swu-red-texto" aria-hidden /> Cartas suspendidas
         </p>
         <div className="space-y-1.5">
           {formatos.map(f => {
@@ -1201,7 +1201,7 @@ function EstadoDelFormato({ datos }: { datos: DatosRulingsCartas }) {
                 {enFormato.length === 0 ? (
                   <span className="text-[11px] text-swu-green">Ninguna</span>
                 ) : (
-                  <span className="text-[11px] text-swu-red leading-snug">
+                  <span className="text-[11px] text-swu-red-texto leading-snug">
                     {enFormato.map((s, i) => (
                       <span key={`${s.set}-${s.num}`}>
                         {i > 0 && ' · '}

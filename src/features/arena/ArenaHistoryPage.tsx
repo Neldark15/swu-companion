@@ -134,7 +134,7 @@ export function ArenaHistoryPage() {
         <button
           onClick={() => setFilterResult(filterResult === 'loss' ? null : 'loss')}
           className={`rounded-lg px-3 py-1 text-xs font-semibold border transition-colors ${
-            filterResult === 'loss' ? 'bg-swu-red/20 border-swu-red text-swu-red' : 'bg-swu-surface border-swu-border text-swu-muted'
+            filterResult === 'loss' ? 'bg-swu-red/20 border-swu-red text-swu-red-texto' : 'bg-swu-surface border-swu-border text-swu-muted'
           }`}
         >
           Derrotas
@@ -145,7 +145,7 @@ export function ArenaHistoryPage() {
 
       {loading && (
         <div className="flex items-center justify-center py-12">
-          <Loader2 size={28} className="text-swu-accent animate-spin" />
+          <Loader2 size={28} className="text-swu-accent-texto animate-spin" />
         </div>
       )}
 
@@ -164,7 +164,7 @@ export function ArenaHistoryPage() {
                 >
                   <div
                     className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 font-extrabold text-sm ${
-                      isWin ? 'bg-swu-green/15 text-swu-green' : 'bg-swu-red/15 text-swu-red'
+                      isWin ? 'bg-swu-green/15 text-swu-green' : 'bg-swu-red/15 text-swu-red-texto'
                     }`}
                   >
                     {isWin ? 'WIN' : 'LOSS'}
@@ -206,7 +206,7 @@ export function ArenaHistoryPage() {
                         e.stopPropagation()
                         handleDelete(log.id)
                       }}
-                      className="flex items-center gap-1 text-[10px] text-swu-red"
+                      className="flex items-center gap-1 text-[10px] text-swu-red-texto"
                     >
                       <Trash2 size={10} />
                       Eliminar
@@ -224,7 +224,7 @@ export function ArenaHistoryPage() {
         <button
           onClick={() => fetchLogs(false)}
           disabled={loadingMore}
-          className="w-full py-3 rounded-xl bg-swu-surface border border-swu-border text-swu-accent font-bold text-sm flex items-center justify-center gap-2"
+          className="w-full py-3 rounded-xl bg-swu-surface border border-swu-border text-swu-accent-texto font-bold text-sm flex items-center justify-center gap-2"
         >
           {loadingMore ? <Loader2 size={16} className="animate-spin" /> : `Cargar más (${logs.length}/${total})`}
         </button>

@@ -170,7 +170,7 @@ export function EventLobbyPage() {
   if (loading) {
     return (
       <div className="p-4 flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <Loader2 size={32} className="text-swu-accent animate-spin" />
+        <Loader2 size={32} className="text-swu-accent-texto animate-spin" />
         <p className="text-sm text-swu-muted">Cargando evento...</p>
       </div>
     )
@@ -184,7 +184,7 @@ export function EventLobbyPage() {
         </button>
         <div className="bg-swu-surface rounded-2xl border border-swu-border p-8 text-center space-y-3">
           <SearchX size={40} className="mx-auto text-swu-muted/40" />
-          <p className="text-swu-red font-bold">Evento no encontrado</p>
+          <p className="text-swu-red-texto font-bold">Evento no encontrado</p>
           <p className="text-xs text-swu-muted">El código "{code}" no corresponde a ningún evento activo.</p>
         </div>
       </div>
@@ -205,7 +205,7 @@ export function EventLobbyPage() {
       <div className="bg-gradient-to-br from-swu-accent/20 to-swu-green/10 rounded-2xl p-4 border border-swu-accent/30 space-y-3">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-[11px] font-bold text-swu-accent uppercase tracking-widest">Lobby del Evento</p>
+            <p className="text-[11px] font-bold text-swu-accent-texto uppercase tracking-widest">Lobby del Evento</p>
             <h2 className="text-lg font-extrabold text-swu-text mt-0.5">{event.name}</h2>
           </div>
           <div className="flex items-center gap-1.5 bg-swu-green/20 px-2.5 py-1 rounded-full">
@@ -223,7 +223,7 @@ export function EventLobbyPage() {
         <div className="flex items-center gap-2">
           <div className="flex-1 bg-swu-bg/60 rounded-lg px-3 py-2 flex items-center justify-between">
             <span className="text-xs text-swu-muted">Código:</span>
-            <span className="font-mono font-bold text-swu-accent tracking-wider">{code}</span>
+            <span className="font-mono font-bold text-swu-accent-texto tracking-wider">{code}</span>
           </div>
           <button
             onClick={copyCode}
@@ -302,8 +302,8 @@ export function EventLobbyPage() {
                     {p.name.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <p className={`text-sm font-semibold ${p.id === 'self' ? 'text-swu-accent' : 'text-swu-text'}`}>
-                      {p.name} {p.id === 'self' && <span className="text-[10px] text-swu-accent/60">(tú)</span>}
+                    <p className={`text-sm font-semibold ${p.id === 'self' ? 'text-swu-accent-texto' : 'text-swu-text'}`}>
+                      {p.name} {p.id === 'self' && <span className="text-[10px] text-swu-accent-texto/60">(tú)</span>}
                     </p>
                     <p className="text-[11px] text-swu-muted">
                       {timeAgo(p.joinedAt)}
@@ -340,7 +340,7 @@ export function EventLobbyPage() {
             >
               <div className="flex items-start gap-2">
                 <Megaphone size={14} className={
-                  a.priority === 'urgent' ? 'text-swu-red mt-0.5' :
+                  a.priority === 'urgent' ? 'text-swu-red-texto mt-0.5' :
                   a.priority === 'warning' ? 'text-swu-amber mt-0.5' :
                   'text-swu-muted mt-0.5'
                 } />

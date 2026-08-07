@@ -51,7 +51,7 @@ export function AchievementGrid({ unlockedIds, achievementDates }: AchievementGr
           onClick={() => setSelectedAspect('all')}
           className={`shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors ${
             selectedAspect === 'all'
-              ? 'bg-swu-accent/20 text-swu-accent border border-swu-accent/30'
+              ? 'bg-swu-accent/20 text-swu-accent-texto border border-swu-accent/30'
               : 'bg-swu-surface text-swu-muted border border-swu-border'
           }`}
         >

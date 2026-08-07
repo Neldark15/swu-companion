@@ -91,7 +91,7 @@ export function WhatsappSetting({ userId }: { userId: string }) {
         </Button>
       )}
 
-      {error && <p className="text-[11px] text-swu-red">{error}</p>}
+      {error && <p className="text-[11px] text-swu-red-texto">{error}</p>}
 
       <p className="text-[10px] text-swu-muted/60">
         Un número local de 8 dígitos se asume de El Salvador (+503).

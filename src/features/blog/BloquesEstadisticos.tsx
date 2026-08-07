@@ -63,7 +63,7 @@ export function BarrasWinrate({ filas }: { filas: FilaBarra[] }) {
               <span className="text-[12px] leading-snug text-swu-text/85 min-w-0">{f.etiqueta}</span>
               <span
                 className={`text-[12px] font-mono tabular-nums shrink-0 ${
-                  dominante ? 'text-swu-amber' : perdida ? 'text-swu-red' : 'text-swu-green'
+                  dominante ? 'text-swu-amber' : perdida ? 'text-swu-red-texto' : 'text-swu-green'
                 }`}
               >
                 {f.texto}%

@@ -390,7 +390,7 @@ export function ScanPage() {
                   <><Loader2 size={13} className="animate-spin text-swu-amber" aria-hidden />
                     <span className="text-[11px] text-swu-amber font-mono">Descargando la base de cartas…</span></>
                 ) : baseCartas === 'vacia' ? (
-                  <span className="text-[11px] text-swu-red font-mono text-center px-2">
+                  <span className="text-[11px] text-swu-red-texto font-mono text-center px-2">
                     No se pudo descargar la base de cartas. Sin ella no hay con qué comparar.
                   </span>
                 ) : leyendo ? (
@@ -522,7 +522,7 @@ export function ScanPage() {
                 className="w-20 bg-swu-bg border border-swu-border rounded-lg px-2 py-2.5 text-sm text-swu-text text-center font-mono"
               />
             </div>
-            {mError && <p className="text-[11px] text-swu-red">{mError}</p>}
+            {mError && <p className="text-[11px] text-swu-red-texto">{mError}</p>}
             <Button size="sm" block onClick={() => void buscarManual()}>Buscar</Button>
           </div>
         )}

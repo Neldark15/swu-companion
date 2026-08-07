@@ -52,6 +52,17 @@ const RARITY_ORDER: Record<string, number> = {
 /** Filas dibujadas por tanda — mismo patrón de paginado que usa el buscador. */
 const PAGE_SIZE = 200
 
+/**
+ * Las ocho filas de la tarjeta de progreso mientras `getSetProgress()` va en
+ * camino. Existen para que la tarjeta OCUPE SU SITIO desde el primer pintado
+ * en vez de aparecer de golpe y empujar la lista (era el peor salto de layout
+ * de la app: 0,368 en el binder). `total: 0` es lo que las marca como «aún no
+ * hay dato»: se dibujan con guiones y no se pueden pulsar.
+ */
+const SETS_PLACEHOLDER: SetProgress[] = Object.entries(SET_LABELS).map(
+  ([code, label]) => ({ code, label, owned: 0, total: 0, pct: 0 }),
+)
+
 export function CollectionPage() {
   const navigate = useNavigate()
   const { currentProfileId, supabaseUser } = useAuth()
@@ -575,7 +586,7 @@ export function CollectionPage() {
   const rarityColor = (r?: string) => {
     switch (r) {
       case 'Legendary': return 'text-swu-amber'
-      case 'Rare': return 'text-swu-accent'
+      case 'Rare': return 'text-swu-accent-texto'
       case 'Uncommon': return 'text-swu-green'
       case 'Special': return 'text-purple-400'
       default: return 'text-swu-muted'
@@ -606,7 +617,7 @@ export function CollectionPage() {
           )}
           <button
             onClick={() => navigate('/cards')}
-            className="bg-swu-accent/15 text-swu-accent p-2 rounded-lg"
+            className="bg-swu-accent/15 text-swu-accent-texto p-2 rounded-lg"
           >
             <Plus size={18} />
           </button>
@@ -617,7 +628,7 @@ export function CollectionPage() {
         {/* Stats */}
         <div className="grid grid-cols-4 lg:grid-cols-4 gap-2 lg:gap-3">
           <div className="bg-swu-surface rounded-xl p-3 text-center border border-swu-border">
-            <Package size={16} className="mx-auto text-swu-accent mb-1" />
+            <Package size={16} className="mx-auto text-swu-accent-texto mb-1" />
             <div className="text-lg font-bold text-swu-text">{stats.uniqueCards}</div>
             <div className="text-[10px] text-swu-muted">Únicas</div>
           </div>
@@ -643,13 +654,36 @@ export function CollectionPage() {
           </div>
         </div>
 
-        {/* Progreso por expansión — tocar una barra filtra la lista a ese set */}
-        {progress && progress.grandTotal > 0 && (
+        {/* Progreso por expansión — tocar una barra filtra la lista a ese set
+         *
+         * El hueco se reserva DESDE EL PRIMER PINTADO. Antes esta tarjeta no
+         * existía hasta que `getSetProgress()` resolvía —lee las 9.057 filas
+         * de Dexie— y entonces aparecía de golpe con el anillo de 72 px y sus
+         * ocho barras, empujando la lista entera hacia abajo. Medido, era la
+         * causa del CLS de **0,246** en la lista y **0,368** en el binder:
+         * 2,5 y 3,7 veces el umbral de «bueno», y el peor salto de toda la
+         * app.
+         *
+         * El hueco no se reserva con un `min-height` a ojo sino dibujando la
+         * MISMA estructura con guiones: los ocho sets son fijos
+         * (`MAIN_SET_LABELS`), así que la altura coincide por construcción y
+         * no hay número mágico que se desajuste cuando alguien toque el
+         * diseño.
+         *
+         * El hueco se reserva TAMBIÉN mientras carga la colección, no solo
+         * cuando ya hay cartas: `items` llega de Supabase, así que con la
+         * condición puesta solo en `items.length > 0` la tarjeta seguía
+         * apareciendo tarde —medido, el salto se mantenía en 0,25— nada más
+         * que un paso antes. Con cero cartas y carga terminada no aparece
+         * nunca, y entonces sí sobra reservarle sitio. */}
+        {(loading || items.length > 0) && (
           <div className="bg-swu-surface rounded-xl border border-swu-border p-3 space-y-2">
             <div className="flex items-center gap-3">
               <ProgressRing
-                pct={progress.grandTotal > 0 ? (progress.ownedTotal / progress.grandTotal) * 100 : 0}
-                sub={`${progress.ownedTotal.toLocaleString()}/${progress.grandTotal.toLocaleString()}`}
+                pct={progress && progress.grandTotal > 0 ? (progress.ownedTotal / progress.grandTotal) * 100 : 0}
+                sub={progress && progress.grandTotal > 0
+                  ? `${progress.ownedTotal.toLocaleString()}/${progress.grandTotal.toLocaleString()}`
+                  : '—'}
                 size={72}
                 stroke={7}
               />
@@ -662,12 +696,14 @@ export function CollectionPage() {
             </div>
 
             <div className="space-y-1">
-              {progress.sets.map(s => {
+              {(progress?.sets ?? SETS_PLACEHOLDER).map(s => {
                 const active = filterSet === s.code
+                const listo = s.total > 0
                 return (
                   <button
                     key={s.code}
-                    onClick={() => setFilterSet(active ? '' : s.code)}
+                    onClick={() => listo && setFilterSet(active ? '' : s.code)}
+                    disabled={!listo}
                     title={s.label}
                     className="w-full flex items-center gap-2 py-0.5 active:scale-[0.99] transition-transform"
                   >
@@ -683,12 +719,12 @@ export function CollectionPage() {
                       />
                     </div>
                     <span className="text-[10px] font-mono text-swu-muted w-16 text-right">
-                      {s.owned}/{s.total}
+                      {listo ? `${s.owned}/${s.total}` : '—'}
                     </span>
                     <span className={`text-[10px] font-bold font-mono w-9 text-right ${
                       s.pct === 100 ? 'text-swu-green' : s.pct === 0 ? 'text-swu-muted/50' : 'text-swu-text'
                     }`}>
-                      {s.pct}%
+                      {listo ? `${s.pct}%` : '—'}
                     </span>
                   </button>
                 )
@@ -921,7 +957,7 @@ export function CollectionPage() {
             onClick={() => setShowFilters(!showFilters)}
             className={`p-2.5 rounded-xl border transition-colors ${
               showFilters || filterType || filterSet || filterRarity
-                ? 'bg-swu-accent/15 border-swu-accent text-swu-accent'
+                ? 'bg-swu-accent/15 border-swu-accent text-swu-accent-texto'
                 : 'bg-swu-surface border-swu-border text-swu-muted'
             }`}
           >
@@ -1053,7 +1089,7 @@ export function CollectionPage() {
               <div className="flex items-center justify-between pt-1 border-t border-swu-border/50">
                 <div className="flex flex-wrap gap-1">
                   {filterType && (
-                    <span className="px-2 py-0.5 rounded-full bg-swu-accent/15 text-swu-accent text-[10px] font-medium">
+                    <span className="px-2 py-0.5 rounded-full bg-swu-accent/15 text-swu-accent-texto text-[10px] font-medium">
                       {filterType}
                     </span>
                   )}
@@ -1070,7 +1106,7 @@ export function CollectionPage() {
                 </div>
                 <button
                   onClick={() => { setFilterType(''); setFilterSet(''); setFilterRarity('') }}
-                  className="text-[10px] text-swu-red font-medium"
+                  className="text-[10px] text-swu-red-texto font-medium"
                 >
                   Limpiar filtros
                 </button>
@@ -1291,7 +1327,7 @@ export function CollectionPage() {
                       </span>
                       <button
                         onClick={() => handleQuantityChange(item.cardId, 1)}
-                        className="w-6 h-6 rounded bg-swu-accent/15 text-swu-accent flex items-center justify-center
+                        className="w-6 h-6 rounded bg-swu-accent/15 text-swu-accent-texto flex items-center justify-center
                                    text-xs font-bold active:scale-95"
                       >
                         +
@@ -1309,7 +1345,7 @@ export function CollectionPage() {
               <button
                 onClick={() => setVisibleCount(v => v + PAGE_SIZE)}
                 className="w-full mt-2 py-3 rounded-xl bg-swu-surface border border-swu-border
-                           text-swu-accent font-bold text-sm active:scale-[0.99] transition-transform"
+                           text-swu-accent-texto font-bold text-sm active:scale-[0.99] transition-transform"
               >
                 Mostrar más ({visibleCount.toLocaleString()}/{displayed.length.toLocaleString()})
               </button>

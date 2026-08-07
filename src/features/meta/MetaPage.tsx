@@ -45,7 +45,7 @@ import {
 
 const TONE_CLASS = {
   green: 'text-swu-green',
-  red: 'text-swu-red',
+  red: 'text-swu-red-texto',
   neutral: 'text-swu-muted',
 } as const
 
@@ -166,7 +166,7 @@ export function MetaPage() {
                 <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] font-mono text-swu-muted pt-1">
                   <span>{selectedMatchups.length} matchups</span>
                   <span className="text-swu-green">{selectedArch.favorable ?? 0} favorables</span>
-                  <span className="text-swu-red">{selectedArch.unfavorable ?? 0} malos</span>
+                  <span className="text-swu-red-texto">{selectedArch.unfavorable ?? 0} malos</span>
                 </div>
                 {sampleWarning(selectedArch) && (
                   <p className="text-[11px] text-swu-amber flex items-center gap-1 pt-0.5">

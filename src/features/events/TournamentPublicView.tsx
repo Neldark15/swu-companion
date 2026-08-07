@@ -144,7 +144,7 @@ export default function TournamentPublicView() {
             <div>
               <h1 className="text-lg font-bold text-swu-text">{event.name}</h1>
               <div className="flex items-center gap-2 text-xs text-swu-muted mt-1">
-                <span className="uppercase font-bold text-swu-accent">
+                <span className="uppercase font-bold text-swu-accent-texto">
                   {event.tournament_type === 'swiss' ? 'Suizo' : 'Eliminación'}
                 </span>
                 <span>·</span>
@@ -172,7 +172,7 @@ export default function TournamentPublicView() {
           <button
             onClick={() => setActiveTab('standings')}
             className={`flex-1 py-2 text-sm rounded transition-colors ${
-              activeTab === 'standings' ? 'bg-swu-accent/20 text-swu-accent font-bold' : 'text-swu-muted'
+              activeTab === 'standings' ? 'bg-swu-accent/20 text-swu-accent-texto font-bold' : 'text-swu-muted'
             }`}
           >
             Standings
@@ -180,7 +180,7 @@ export default function TournamentPublicView() {
           <button
             onClick={() => setActiveTab('pairings')}
             className={`flex-1 py-2 text-sm rounded transition-colors ${
-              activeTab === 'pairings' ? 'bg-swu-accent/20 text-swu-accent font-bold' : 'text-swu-muted'
+              activeTab === 'pairings' ? 'bg-swu-accent/20 text-swu-accent-texto font-bold' : 'text-swu-muted'
             }`}
           >
             Pairings
@@ -189,7 +189,7 @@ export default function TournamentPublicView() {
             <button
               onClick={() => setActiveTab('bracket')}
               className={`flex-1 py-2 text-sm rounded transition-colors ${
-                activeTab === 'bracket' ? 'bg-swu-accent/20 text-swu-accent font-bold' : 'text-swu-muted'
+                activeTab === 'bracket' ? 'bg-swu-accent/20 text-swu-accent-texto font-bold' : 'text-swu-muted'
               }`}
             >
               Bracket

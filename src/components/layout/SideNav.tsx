@@ -59,7 +59,7 @@ export function SideNav() {
         onClick={() => navigate(item.id)}
         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 group ${
           active
-            ? 'bg-swu-accent/15 text-swu-accent border border-swu-accent/30'
+            ? 'bg-swu-accent/15 text-swu-accent-texto border border-swu-accent/30'
             : 'text-swu-muted hover:bg-swu-surface-hover hover:text-swu-text border border-transparent'
         }`}
       >
@@ -77,7 +77,7 @@ export function SideNav() {
           ) : null}
         </div>
         <div className="flex-1 min-w-0">
-          <div className={`text-sm font-semibold truncate ${active ? 'text-swu-accent' : ''}`}>{item.label}</div>
+          <div className={`text-sm font-semibold truncate ${active ? 'text-swu-accent-texto' : ''}`}>{item.label}</div>
           <div className="text-[10px] text-swu-muted font-mono tracking-wider truncate">{item.sub}</div>
         </div>
         {active && <div className="w-1 h-6 rounded-full bg-swu-accent flex-shrink-0" />}
@@ -119,7 +119,7 @@ export function SideNav() {
             onClick={() => navigate('/admin/announcements')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 group ${
               location.pathname === '/admin/announcements'
-                ? 'bg-swu-accent/15 text-swu-accent border border-swu-accent/30'
+                ? 'bg-swu-accent/15 text-swu-accent-texto border border-swu-accent/30'
                 : 'text-swu-muted hover:bg-swu-surface-hover hover:text-swu-text border border-transparent'
             }`}
           >
@@ -129,7 +129,7 @@ export function SideNav() {
               <Megaphone size={18} />
             </div>
             <div className="flex-1 min-w-0">
-              <div className={`text-sm font-semibold truncate ${location.pathname === '/admin/announcements' ? 'text-swu-accent' : ''}`}>Anuncios</div>
+              <div className={`text-sm font-semibold truncate ${location.pathname === '/admin/announcements' ? 'text-swu-accent-texto' : ''}`}>Anuncios</div>
               <div className="text-[10px] text-swu-muted font-mono tracking-wider truncate">Centro de comunicaciones</div>
             </div>
           </button>

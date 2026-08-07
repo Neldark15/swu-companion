@@ -60,7 +60,7 @@ export function AdminDashboard() {
           </section>
         </>
       ) : (
-        <p className="text-sm text-swu-red">No se pudieron cargar las stats.</p>
+        <p className="text-sm text-swu-red-texto">No se pudieron cargar las stats.</p>
       )}
     </div>
   )
@@ -89,7 +89,7 @@ function KpiTile({
         <span>{label}</span>
       </div>
       <div className="mt-1 flex items-baseline gap-1.5">
-        <span className={`text-2xl font-extrabold font-mono ${accent ? 'text-swu-accent' : 'text-swu-text'}`}>
+        <span className={`text-2xl font-extrabold font-mono ${accent ? 'text-swu-accent-texto' : 'text-swu-text'}`}>
           {value.toLocaleString()}
         </span>
         {sub && <span className="text-[10px] text-swu-muted">{sub}</span>}
@@ -111,8 +111,8 @@ function QuickLink({
       to={to}
       className="bg-swu-surface rounded-xl p-4 border border-swu-border hover:border-swu-accent/40 transition-colors group"
     >
-      <Icon size={20} className="text-swu-accent mb-2" />
-      <p className="text-sm font-semibold text-swu-text group-hover:text-swu-accent transition-colors">{title}</p>
+      <Icon size={20} className="text-swu-accent-texto mb-2" />
+      <p className="text-sm font-semibold text-swu-text group-hover:text-swu-accent-texto transition-colors">{title}</p>
       <p className="text-[11px] text-swu-muted mt-0.5">{desc}</p>
     </Link>
   )

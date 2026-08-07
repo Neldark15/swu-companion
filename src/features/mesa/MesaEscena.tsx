@@ -31,12 +31,20 @@
  * por las 12 rondas, y con la caché del navegador que ya comparte con
  * `CardImage`, la mesa arranca al instante.
  *
- * ── Los líderes y las bases van APAISADOS ─────────────────────────────
+ * ── Los líderes y las bases van APAISADOS… menos el líder desplegado ──
  *
  * El arte oficial es 400×286 en líderes y bases, y 286×400 en todo lo demás.
  * Meter uno en el hueco del otro es el bug que ya salió cuatro veces en este
  * repo. Aquí la orientación la decide `arte.apaisada`, que sale del tipo de
  * carta que declara el propio simulador.
+ *
+ * Con UNA excepción, que es la regla del juego: al desplegarse, un líder se
+ * VOLTEA a su cara de unidad y pasa a la arena como una unidad más. Esa cara
+ * es el dorso de la carta y es VERTICAL (286×400 medido sobre el arte
+ * oficial). Dibujarlo apaisado en la fila hacía dos cosas mal a la vez:
+ * enseñaba la cara sin desplegar de un líder ya desplegado, y como el apaisado
+ * mide 1,92 de ancho contra el 1,72 del hueco más grande, se salía SIEMPRE de
+ * su sitio y pisaba a la vecina (0,34 de solape con 7 unidades en fila).
  */
 
 import { useEffect, useRef } from 'react'
@@ -49,6 +57,15 @@ import type { Lado, Arena } from '../lab/simApi'
 export interface ArteCarta {
   url: string
   apaisada: boolean
+  /**
+   * La cara de UNIDAD de un líder — su dorso.
+   *
+   * Un líder tiene dos caras y son de distinta forma: el frente es 400×286
+   * (apaisado, el que se ve en su zona) y el dorso es 286×400 (vertical, la
+   * unidad en la que se convierte al desplegarse). Verificado sobre el arte
+   * oficial, no supuesto. `null` en todo lo que no sea un líder de dos caras.
+   */
+  dorso: string | null
 }
 
 interface Props {
@@ -84,6 +101,16 @@ const FILA_Z: Record<string, number> = {
 const MANO_Z: Record<Lado, number> = { A: 13.5, B: -13.5 }
 
 const clave = (lado: Lado, arena: Arena) => `${lado}:${arena}`
+
+/**
+ * Qué cara de la carta toca dibujar.
+ *
+ * `frente` es la de la zona —el líder sin desplegar, la base—; `unidad` es la
+ * de la arena. Solo importa en los líderes, que son los únicos con dos caras,
+ * pero se pide siempre: así el sitio de llamada declara qué está colocando y
+ * no hay que adivinarlo por el uid.
+ */
+type Cara = 'frente' | 'unidad'
 
 /** Inclinación de las cartas hacia la cámara: tumbadas del todo no se leen. */
 const INCLINACION = -Math.PI / 2 + 0.34
@@ -515,9 +542,12 @@ function textoCacheado(m: Motor, txt: string, color: string): THREE.Texture {
 
 /* ── Sincronizar el estado con la escena ─────────────────────────────── */
 
+/** Lo que separa a dos vecinas de una fila. Con muchas cartas, se solapan. */
+const pasoFila = (total: number) => Math.min(PASO_MAX, ANCHO_FILA / Math.max(1, total))
+
 /** Dónde va cada unidad de una fila, repartida y centrada. */
 function sitio(indice: number, total: number, z: number): THREE.Vector3 {
-  const paso = Math.min(PASO_MAX, ANCHO_FILA / Math.max(1, total))
+  const paso = pasoFila(total)
   const ancho = (total - 1) * paso
   return new THREE.Vector3(-ancho / 2 + indice * paso, 0.02 + indice * 0.001, z)
 }
@@ -538,7 +568,7 @@ function sincronizar(m: Motor, est: EstadoMesa, arte: Map<string, ArteCarta>, du
       fila.forEach((u, i) => {
         vivos.add(u.uid)
         const destino = sitio(i, fila.length, z)
-        colocarFicha(m, u, lado, destino, arte, dur)
+        colocarFicha(m, u, lado, destino, arte, dur, 'unidad')
       })
     }
     // Zona de base y líder: dos cartas apaisadas, siempre visibles.
@@ -582,23 +612,40 @@ function ponerVida(m: Motor, s: THREE.Sprite, vida: number, color: number) {
   if (mat.map !== tex) { mat.map = tex; mat.needsUpdate = true }
 }
 
+/**
+ * Qué cara de la carta se ve y cómo de grande, resuelto en un sitio.
+ *
+ * `cara` es lo que separa al líder de su zona del líder ya desplegado: son la
+ * MISMA carta con dos caras de distinta forma, y solo quien coloca sabe cuál
+ * de las dos toca.
+ */
+function verCarta(a: ArteCarta | undefined, cara: Cara) {
+  // En la arena, un líder enseña su dorso: la cara de unidad, que es vertical.
+  const dorso = cara === 'unidad' ? a?.dorso ?? null : null
+  const apaisada = dorso ? false : (a?.apaisada ?? false)
+  // Un apaisado en la fila —solo pasa si a un líder le faltara el dorso— se
+  // recorta al ancho de una carta normal. Más ancho que sus vecinas es lo que
+  // hacía que se saliera del hueco y las pisara; que sea más CHICO no rompe
+  // nada, y sigue con su proporción, que es lo que nunca se puede tocar.
+  const w = apaisada && cara === 'unidad' ? CARTA_ANCHO : (apaisada ? CARTA_ANCHO * 1.28 : CARTA_ANCHO)
+  return { url: dorso ?? a?.url ?? null, apaisada, w, h: w * (apaisada ? RATIO_APAISADO : RATIO_VERTICAL) }
+}
+
 /** Crea la carta si no existe y le fija su destino. */
 function colocarFicha(
   m: Motor, u: UnidadMesa, lado: Lado, destino: THREE.Vector3,
-  arte: Map<string, ArteCarta>, dur: number,
+  arte: Map<string, ArteCarta>, dur: number, cara: Cara,
 ) {
   let f = m.fichas.get(u.uid)
   const a = arte.get(u.nombre)
-  const apaisada = a?.apaisada ?? false
-  const w = apaisada ? CARTA_ANCHO * 1.28 : CARTA_ANCHO
-  const h = w * (apaisada ? RATIO_APAISADO : RATIO_VERTICAL)
+  const { url, w, h } = verCarta(a, cara)
 
   if (!f) {
     const material = new THREE.MeshBasicMaterial({
       // Sin arte todavía, un rectángulo del color del bando: la carta ocupa su
       // sitio desde el primer fotograma en vez de aparecer de la nada.
-      color: a ? 0xffffff : (lado === 'A' ? COLOR_A : COLOR_B),
-      map: a ? textura(m, a.url) : null,
+      color: url ? 0xffffff : (lado === 'A' ? COLOR_A : COLOR_B),
+      map: url ? textura(m, url) : null,
       transparent: true,
       depthWrite: false,
     })
@@ -628,11 +675,15 @@ function colocarFicha(
     }
     m.fichas.set(u.uid, f)
   } else {
-    if (!f.material.map && a) {
+    if (!f.material.map && url) {
       // El arte llegó tarde (la carta se dibujó antes de resolverse su imagen).
-      f.material.map = textura(m, a.url)
+      // Con él llega también la FORMA, así que la malla y su aro se reescalan:
+      // el rectángulo de espera es vertical y la carta podría no serlo.
+      f.material.map = textura(m, url)
       f.material.color.set(0xffffff)
       f.material.needsUpdate = true
+      f.malla.scale.set(w, h, 1)
+      f.aro.scale.set(w * 1.14, h * 1.1, 1)
     }
     if (f.muriendo) {
       // Resucita: se retrocedió justo encima de su muerte. Sin esto la carta
@@ -655,6 +706,33 @@ function colocarFicha(
     f.giroDestino = giro
     f.t = dur > 0 ? 0 : 1
     f.dur = Math.max(1, dur)
+  }
+  /*
+   * Sin animación hay que colocarla A MANO. `avanzarAnimaciones` solo toca la
+   * posición dentro de `if (f.t < 1)`, y aquí `f.t` ya vale 1: la carta se
+   * quedaba donde estuviera y la MESA ENSEÑABA UNA FILA QUE NO ERA. Medido en
+   * la partida de 161 eventos, llegando al paso 96 por seis caminos: la fila
+   * de tierra del rival tiene 5 unidades y salía repartida como 4 (−2,58 /
+   * −0,86 / 0,86 / 2,58 en vez de −3,44 / −1,72 / 0 / 1,72 / 3,44), y por otro
+   * camino a paso 1,3714 —el reparto de SIETE—. Solo el salto 0 → 96 acertaba,
+   * porque ahí todas las fichas nacen y las nuevas sí se posan en su sitio.
+   *
+   * `dur` es 0 en tres situaciones REALES, no de laboratorio: cualquier salto
+   * (arrastrar la barra, los botones de ronda, volver al principio, retroceder),
+   * y SIEMPRE con `prefers-reduced-motion` — a quien pide menos movimiento se
+   * le enseñaba un tablero que no correspondía en cada paso.
+   *
+   * Va fuera del `if (movido)` a propósito: el error se quedaba PEGADO. Una vez
+   * que `destino` era el bueno y la malla no, la sincronización siguiente veía
+   * `movido === false` y no volvía a intentarlo nunca.
+   */
+  if (dur === 0) {
+    f.malla.position.copy(f.destino)
+    f.malla.rotation.z = f.giroDestino
+    f.aro.position.set(f.destino.x, f.destino.y - 0.01, f.destino.z)
+    f.aro.rotation.z = f.giroDestino
+    f.embiste = null
+    f.t = 1
   }
   // La condenada se marca en el aro: hay una mejora rival encima.
   const matAro = f.aro.material as THREE.MeshBasicMaterial
@@ -679,8 +757,8 @@ function colocarZona(
   const z = FILA_Z[clave(lado, 'zona' as Arena)]
   const base = pseudoUnidad(lado === 'A' ? -1 : -2, l.base, lado)
   const lider = pseudoUnidad(lado === 'A' ? -3 : -4, l.lider, lado)
-  colocarFicha(m, base, lado, new THREE.Vector3(-1.5, 0.02, z), arte, 0)
-  colocarFicha(m, lider, lado, new THREE.Vector3(1.5, 0.02, z), arte, 0)
+  colocarFicha(m, base, lado, new THREE.Vector3(-1.5, 0.02, z), arte, 0, 'frente')
+  colocarFicha(m, lider, lado, new THREE.Vector3(1.5, 0.02, z), arte, 0, 'frente')
   const f = m.fichas.get(lider.uid)
   if (f) f.material.opacity = l.liderDesplegado ? 0.22 : 1
   const fb = m.fichas.get(base.uid)

@@ -88,7 +88,7 @@ export function WelcomeHome() {
         <div className="bg-swu-surface rounded-2xl border border-swu-accent/30 p-5 space-y-4 shadow-lg">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-swu-accent/15 flex items-center justify-center">
-              <LogIn size={16} className="text-swu-accent" />
+              <LogIn size={16} className="text-swu-accent-texto" />
             </div>
             <div>
               <h2 className="text-base font-bold text-swu-text">Iniciar sesión</h2>
@@ -136,7 +136,7 @@ export function WelcomeHome() {
             </div>
 
             {error && (
-              <div className="bg-swu-red/10 border border-swu-red/30 rounded-lg p-2 text-[11px] text-swu-red flex items-center gap-1.5">
+              <div className="bg-swu-red/10 border border-swu-red/30 rounded-lg p-2 text-[11px] text-swu-red-texto flex items-center gap-1.5">
                 <AlertTriangle size={12} />
                 {error}
               </div>
@@ -168,7 +168,7 @@ export function WelcomeHome() {
 
           <button
             onClick={() => navigate('/profile')}
-            className="w-full py-2.5 rounded-lg bg-swu-surface border border-swu-accent/30 text-swu-accent font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98]"
+            className="w-full py-2.5 rounded-lg bg-swu-surface border border-swu-accent/30 text-swu-accent-texto font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98]"
           >
             <UserPlus size={14} />
             Crear cuenta nueva

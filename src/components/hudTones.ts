@@ -13,7 +13,7 @@ export const HUD_TEXTO: Record<HudTone, string> = {
   cyan: 'text-swu-cyan',
   amber: 'text-swu-amber',
   green: 'text-swu-green',
-  red: 'text-swu-red',
+  red: 'text-swu-red-texto',
   purple: 'text-purple-400',
   neutral: 'text-swu-muted',
 }

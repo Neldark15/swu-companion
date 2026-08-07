@@ -52,7 +52,7 @@ export function StandingsTable({ standings, highlightUserId, compact }: Props) {
                   {s.player_name}
                   {isDropped && <span className="ml-1 text-red-400 text-xs">(DROP)</span>}
                 </td>
-                <td className="py-2 px-2 text-center font-bold text-swu-accent">{s.points}</td>
+                <td className="py-2 px-2 text-center font-bold text-swu-accent-texto">{s.points}</td>
                 <td className="py-2 px-2 text-center text-swu-text">
                   {s.match_wins}-{s.match_losses}-{s.match_draws}
                 </td>

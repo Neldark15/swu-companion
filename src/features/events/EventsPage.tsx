@@ -154,8 +154,8 @@ export function EventsPage() {
           onClick={() => navigate('/events/join')}
           className="flex-1 bg-swu-accent/10 border-2 border-swu-accent/30 rounded-2xl p-5 text-center active:scale-[0.97] transition-transform"
         >
-          <QrCode size={28} className="mx-auto text-swu-accent mb-2" />
-          <p className="font-bold text-swu-accent">Unirse a Evento</p>
+          <QrCode size={28} className="mx-auto text-swu-accent-texto mb-2" />
+          <p className="font-bold text-swu-accent-texto">Unirse a Evento</p>
           <p className="text-[11px] text-swu-muted mt-1">Código o QR</p>
         </button>
         <button
@@ -221,14 +221,14 @@ export function EventsPage() {
             <p className="text-sm text-swu-muted">Inicie sesión para ver eventos oficiales</p>
             <button
               onClick={() => navigate('/profile')}
-              className="text-sm font-bold text-swu-accent"
+              className="text-sm font-bold text-swu-accent-texto"
             >
               Ir a Perfil →
             </button>
           </div>
         ) : loadingEvents ? (
           <div className="bg-swu-surface rounded-2xl border border-swu-border p-8 flex items-center justify-center gap-2">
-            <Loader2 size={18} className="text-swu-accent animate-spin" />
+            <Loader2 size={18} className="text-swu-accent-texto animate-spin" />
             <span className="text-sm text-swu-muted">Cargando eventos...</span>
           </div>
         ) : officialEvents.length === 0 ? (
@@ -286,7 +286,7 @@ export function EventsPage() {
                 {/* ── Admin Edit Panel (inline) ── */}
                 {auth.isAdmin && editingEventId === event.id && (
                   <div className="bg-swu-bg rounded-xl p-3 border border-swu-accent/20 space-y-3">
-                    <p className="text-[11px] font-bold text-swu-accent tracking-wider uppercase">Editar Fecha / Hora</p>
+                    <p className="text-[11px] font-bold text-swu-accent-texto tracking-wider uppercase">Editar Fecha / Hora</p>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="text-[10px] text-swu-muted block mb-1">Fecha</label>
@@ -337,7 +337,7 @@ export function EventsPage() {
                     Org: <span className="text-swu-text font-medium">{event.organizer_avatar} {event.organizer_name}</span>
                   </span>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-swu-accent bg-swu-accent/10 px-2 py-0.5 rounded">
+                    <span className="font-mono text-xs font-bold text-swu-accent-texto bg-swu-accent/10 px-2 py-0.5 rounded">
                       {event.code}
                     </span>
                     {auth.isAdmin && editingEventId !== event.id && (
@@ -345,7 +345,7 @@ export function EventsPage() {
                         {/* Edit button */}
                         <button
                           onClick={() => startEditing(event)}
-                          className="p-1 rounded-lg bg-swu-accent/10 text-swu-accent active:scale-95 transition-transform"
+                          className="p-1 rounded-lg bg-swu-accent/10 text-swu-accent-texto active:scale-95 transition-transform"
                           title="Editar fecha/hora"
                         >
                           <Pencil size={14} />
@@ -415,7 +415,7 @@ export function EventsPage() {
                     )}
                     <button
                       onClick={() => navigate(`/events/live/${event.code}`)}
-                      className="flex-1 py-2 rounded-xl text-xs font-bold bg-swu-accent/10 border border-swu-accent/30 text-swu-accent flex items-center justify-center gap-1"
+                      className="flex-1 py-2 rounded-xl text-xs font-bold bg-swu-accent/10 border border-swu-accent/30 text-swu-accent-texto flex items-center justify-center gap-1"
                     >
                       <Trophy size={14} /> Standings
                     </button>

@@ -84,7 +84,7 @@ export function PushNotificationToggle() {
         {isIOS && !isStandalone && (
           <div className="bg-swu-accent/10 border border-swu-accent/20 rounded-lg p-3 text-[11px] text-swu-text leading-relaxed">
             <p className="font-semibold mb-1 flex items-center gap-1">
-              <Smartphone size={12} className="text-swu-accent" /> Esto es lo que pasa en iOS
+              <Smartphone size={12} className="text-swu-accent-texto" /> Esto es lo que pasa en iOS
             </p>
             <p className="mb-2">
               Apple solo permite Web Push si la PWA está <strong>instalada desde Safari</strong>
@@ -143,7 +143,7 @@ export function PushNotificationToggle() {
       <div className="flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-swu-text flex items-center gap-1.5">
-            {subscribed ? <Bell size={14} className="text-swu-accent" /> : <BellOff size={14} className="text-swu-muted" />}
+            {subscribed ? <Bell size={14} className="text-swu-accent-texto" /> : <BellOff size={14} className="text-swu-muted" />}
             Notificaciones Push
           </p>
           <p className="text-[11px] text-swu-muted mt-0.5">
@@ -164,7 +164,7 @@ export function PushNotificationToggle() {
             subscribed ? 'translate-x-6' : ''
           }`}>
             {actionLoading && (
-              <Loader2 size={12} className="absolute inset-0 m-auto animate-spin text-swu-accent" />
+              <Loader2 size={12} className="absolute inset-0 m-auto animate-spin text-swu-accent-texto" />
             )}
           </span>
         </button>
@@ -178,7 +178,7 @@ export function PushNotificationToggle() {
       )}
 
       {error && (
-        <div className="bg-swu-red/10 border border-swu-red/30 rounded-lg p-2 text-[11px] text-swu-red">{error}</div>
+        <div className="bg-swu-red/10 border border-swu-red/30 rounded-lg p-2 text-[11px] text-swu-red-texto">{error}</div>
       )}
 
       {permission === 'denied' && (
@@ -200,7 +200,7 @@ function PermissionPill({ perm, subscribed }: { perm: NotificationPermission | '
     )
   }
   if (perm === 'denied') {
-    return <span className="text-[10px] font-bold text-swu-red bg-swu-red/15 px-2 py-0.5 rounded-full">BLOQUEADO</span>
+    return <span className="text-[10px] font-bold text-swu-red-texto bg-swu-red/15 px-2 py-0.5 rounded-full">BLOQUEADO</span>
   }
   return <span className="text-[10px] font-bold text-swu-muted bg-swu-muted/15 px-2 py-0.5 rounded-full">INACTIVO</span>
 }

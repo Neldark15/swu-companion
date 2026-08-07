@@ -53,7 +53,7 @@ export function RoundTimer({ endTime, large }: Props) {
             ? 'text-red-500 animate-pulse'
             : isUrgent
             ? 'text-red-400'
-            : 'text-swu-accent'
+            : 'text-swu-accent-texto'
         }`}
       >
         {isExpired ? '00:00' : display}

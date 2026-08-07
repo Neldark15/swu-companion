@@ -22,7 +22,7 @@ export function ArenaStatsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 size={28} className="text-swu-accent animate-spin" />
+        <Loader2 size={28} className="text-swu-accent-texto animate-spin" />
       </div>
     )
   }
@@ -66,13 +66,13 @@ export function ArenaStatsPage() {
           <p className="text-[10px] text-swu-muted font-mono tracking-wider">VICTORIAS</p>
         </div>
         <div className="bg-swu-surface rounded-xl p-4 border border-swu-border text-center">
-          <Swords size={20} className="mx-auto text-swu-red mb-2" />
-          <p className="text-2xl font-extrabold text-swu-red font-mono">{stats.losses}</p>
+          <Swords size={20} className="mx-auto text-swu-red-texto mb-2" />
+          <p className="text-2xl font-extrabold text-swu-red-texto font-mono">{stats.losses}</p>
           <p className="text-[10px] text-swu-muted font-mono tracking-wider">DERROTAS</p>
         </div>
         <div className="bg-swu-surface rounded-xl p-4 border border-swu-border text-center">
-          <TrendingUp size={20} className="mx-auto text-swu-accent mb-2" />
-          <p className="text-2xl font-extrabold text-swu-accent font-mono">{stats.winrate}%</p>
+          <TrendingUp size={20} className="mx-auto text-swu-accent-texto mb-2" />
+          <p className="text-2xl font-extrabold text-swu-accent-texto font-mono">{stats.winrate}%</p>
           <p className="text-[10px] text-swu-muted font-mono tracking-wider">WINRATE</p>
         </div>
         <div className="bg-swu-surface rounded-xl p-4 border border-swu-border text-center">
@@ -108,7 +108,7 @@ export function ArenaStatsPage() {
         </div>
         <div className="flex justify-between mt-1">
           <span className="text-[10px] text-swu-green">{stats.winrate}% Win</span>
-          <span className="text-[10px] text-swu-red">{100 - stats.winrate}% Loss</span>
+          <span className="text-[10px] text-swu-red-texto">{100 - stats.winrate}% Loss</span>
         </div>
       </div>
 

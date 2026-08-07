@@ -175,7 +175,7 @@ export function SettingsPage() {
           {/* Accent Color Picker */}
           <div className="p-4">
             <div className="flex items-center gap-3 mb-3">
-              <Palette size={20} className="text-swu-accent" />
+              <Palette size={20} className="text-swu-accent-texto" />
               <span className="text-sm font-medium text-swu-text">Color de acento</span>
             </div>
             <div className="flex gap-3 justify-center">
@@ -218,7 +218,7 @@ export function SettingsPage() {
               gracia: verla cambiar debajo del dedo. */}
           <div className="border-t border-swu-border/30 p-4">
             <div className="flex items-center gap-3 mb-3">
-              <Layers size={20} className="text-swu-accent" />
+              <Layers size={20} className="text-swu-accent-texto" />
               <span className="text-sm font-medium text-swu-text">Tema de fondo</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
@@ -319,7 +319,7 @@ export function SettingsPage() {
           {/* Tinte del nombre y el rango */}
           <div className="p-4">
             <div className="flex items-center gap-3 mb-1">
-              <Brush size={20} className="text-swu-accent" />
+              <Brush size={20} className="text-swu-accent-texto" />
               <span className="text-sm font-medium text-swu-text">Tinte del nombre</span>
             </div>
             <p className="text-[10px] text-swu-muted mb-3 pl-8">
@@ -363,7 +363,7 @@ export function SettingsPage() {
               tarjeta (la barra de XP), no de la app entera. */}
           <div className="border-t border-swu-border/30 p-4">
             <div className="flex items-center gap-3 mb-3">
-              <Zap size={20} className="text-swu-accent" />
+              <Zap size={20} className="text-swu-accent-texto" />
               <span className="text-sm font-medium text-swu-text">Color de sable de luz</span>
             </div>
             <div className="flex gap-2 justify-center flex-wrap">
@@ -412,7 +412,7 @@ export function SettingsPage() {
         <div className="bg-swu-surface rounded-2xl overflow-hidden">
           <div className="p-4">
             <div className="flex items-center gap-3 mb-1">
-              <Frame size={20} className="text-swu-accent" />
+              <Frame size={20} className="text-swu-accent-texto" />
               <span className="text-sm font-medium text-swu-text">Marco de la fotografía</span>
             </div>
             <p className="text-[10px] text-swu-muted mb-3 pl-8">
@@ -471,7 +471,7 @@ export function SettingsPage() {
               onClick={() => { setShowChangePassword(!showChangePassword); setPwdSuccess(false); setPwdError(''); setNewPwd(''); setNewPwdConfirm('') }}
               className="w-full p-4 flex items-center gap-3 active:bg-swu-bg transition-colors"
             >
-              <KeyRound size={20} className="text-swu-accent" />
+              <KeyRound size={20} className="text-swu-accent-texto" />
               <span className="flex-1 text-left text-sm font-medium text-swu-text">Cambiar Contraseña</span>
               <ChevronLeft size={16} className={`text-swu-muted transition-transform ${showChangePassword ? '-rotate-90' : ''}`} />
             </button>
@@ -497,7 +497,7 @@ export function SettingsPage() {
                         onKeyDown={(e) => { if (e.key === 'Enter') handleChangePassword() }}
                         className="w-full bg-swu-bg border border-swu-border rounded-xl p-2.5 text-sm text-swu-text outline-none focus:border-swu-accent" />
                     </div>
-                    {pwdError && <p className="text-xs text-swu-red text-center font-medium">{pwdError}</p>}
+                    {pwdError && <p className="text-xs text-swu-red-texto text-center font-medium">{pwdError}</p>}
                     <button onClick={handleChangePassword} disabled={pwdLoading}
                       className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all ${!pwdLoading ? 'bg-swu-accent text-white active:scale-[0.98]' : 'bg-swu-border text-swu-muted'}`}>
                       {pwdLoading ? 'Actualizando...' : 'Cambiar Contraseña'}
@@ -523,7 +523,7 @@ export function SettingsPage() {
             onClick={() => setShowAbout(!showAbout)}
             className="w-full p-4 flex items-center gap-3 active:bg-swu-bg transition-colors"
           >
-            <Info size={20} className="text-swu-accent" />
+            <Info size={20} className="text-swu-accent-texto" />
             <span className="flex-1 text-left text-sm font-medium text-swu-text">Acerca de</span>
             <ChevronLeft size={16} className={`text-swu-muted transition-transform ${showAbout ? '-rotate-90' : ''}`} />
           </button>

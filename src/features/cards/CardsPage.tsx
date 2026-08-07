@@ -100,7 +100,7 @@ function Pestanas(
           key={id}
           onClick={() => onCambiar(id)}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-[12px] font-semibold transition-colors ${
-            vista === id ? 'bg-swu-accent/15 text-swu-accent' : 'text-swu-muted'
+            vista === id ? 'bg-swu-accent/15 text-swu-accent-texto' : 'text-swu-muted'
           }`}
         >
           <Icon size={13} aria-hidden /> {txt}
@@ -464,7 +464,7 @@ export function CardsPage() {
 
   const chipClass = (active: boolean, tone: 'accent' | 'amber' | 'green' | 'purple' = 'accent') => {
     const tones = {
-      accent: 'bg-swu-accent/20 border-swu-accent text-swu-accent',
+      accent: 'bg-swu-accent/20 border-swu-accent text-swu-accent-texto',
       amber: 'bg-swu-amber/20 border-swu-amber text-swu-amber',
       green: 'bg-swu-green/20 border-swu-green text-swu-green',
       purple: 'bg-purple-400/20 border-purple-400 text-purple-400',
@@ -508,7 +508,7 @@ export function CardsPage() {
         <button
           onClick={() => setShowFilters(!showFilters)}
           className={`px-4 rounded-xl border text-sm font-semibold transition-colors relative ${
-            showFilters ? 'bg-swu-accent/15 border-swu-accent text-swu-accent' : 'bg-swu-surface border-swu-border text-swu-muted'
+            showFilters ? 'bg-swu-accent/15 border-swu-accent text-swu-accent-texto' : 'bg-swu-surface border-swu-border text-swu-muted'
           }`}
         >
           <SlidersHorizontal size={18} />
@@ -534,7 +534,7 @@ export function CardsPage() {
               {c.label}
             </Chip>
           ))}
-          <Button variant="ghost" size="xs" onClick={clearFilters} className="text-swu-red">
+          <Button variant="ghost" size="xs" onClick={clearFilters} className="text-swu-red-texto">
             Limpiar
           </Button>
         </div>
@@ -548,7 +548,7 @@ export function CardsPage() {
               key={l.label}
               onClick={l.run}
               className="px-3 py-1.5 rounded-full bg-swu-surface border border-swu-border text-swu-muted
-                         text-[11px] font-semibold active:scale-95 transition-transform hover:text-swu-accent hover:border-swu-accent/40"
+                         text-[11px] font-semibold active:scale-95 transition-transform hover:text-swu-accent-texto hover:border-swu-accent/40"
             >
               {l.label}
             </button>
@@ -668,8 +668,8 @@ export function CardsPage() {
       {(dbProgress.phase === 'downloading' || dbProgress.phase === 'parsing' || dbProgress.phase === 'saving') && (
         <div className="bg-swu-accent/5 border border-swu-accent/30 rounded-lg p-3 space-y-2">
           <div className="flex items-center gap-2">
-            <Loader2 size={14} className="text-swu-accent animate-spin" />
-            <p className="text-xs font-semibold text-swu-accent">{dbProgress.message}</p>
+            <Loader2 size={14} className="text-swu-accent-texto animate-spin" />
+            <p className="text-xs font-semibold text-swu-accent-texto">{dbProgress.message}</p>
           </div>
           {dbProgress.phase === 'saving' && dbProgress.saved && dbProgress.totalToSave && (
             <div className="h-1 bg-swu-bg rounded-full overflow-hidden">
@@ -690,13 +690,13 @@ export function CardsPage() {
       {dbProgress.phase === 'error' && (
         <div className="bg-swu-red/10 border border-swu-red/30 rounded-lg p-3 space-y-2">
           <div className="flex items-center gap-2">
-            <AlertTriangle size={14} className="text-swu-red" />
-            <p className="text-xs font-semibold text-swu-red">{dbProgress.message}</p>
+            <AlertTriangle size={14} className="text-swu-red-texto" />
+            <p className="text-xs font-semibold text-swu-red-texto">{dbProgress.message}</p>
           </div>
           {dbProgress.error && (
             <p className="text-[10px] text-swu-muted font-mono">{dbProgress.error}</p>
           )}
-          <button onClick={refreshDb} className="text-[11px] text-swu-accent font-semibold flex items-center gap-1">
+          <button onClick={refreshDb} className="text-[11px] text-swu-accent-texto font-semibold flex items-center gap-1">
             <RefreshCw size={11} /> Reintentar
           </button>
         </div>
@@ -715,7 +715,7 @@ export function CardsPage() {
         <button
           onClick={refreshDb}
           disabled={dbProgress.phase === 'downloading' || dbProgress.phase === 'saving' || dbProgress.phase === 'parsing'}
-          className="text-[11px] text-swu-accent flex items-center gap-1 disabled:opacity-40"
+          className="text-[11px] text-swu-accent-texto flex items-center gap-1 disabled:opacity-40"
           title="Re-descarga la base completa de cartas"
         >
           <Download size={11} /> Actualizar
@@ -741,7 +741,7 @@ export function CardsPage() {
       <div className={loading ? 'opacity-40 pointer-events-none transition-opacity' : 'transition-opacity'}>
         {loading && cards.length === 0 && (
           <div className="flex items-center justify-center py-12">
-            <Loader2 size={28} className="text-swu-accent animate-spin" />
+            <Loader2 size={28} className="text-swu-accent-texto animate-spin" />
           </div>
         )}
 
@@ -819,17 +819,17 @@ export function CardsPage() {
                   <div className="flex flex-col items-center gap-0.5" onClick={e => e.stopPropagation()}>
                     <button
                       onClick={(e) => handleCollectionChange(c, 1, e)}
-                      className="w-7 h-7 rounded-lg bg-swu-accent/15 border border-swu-accent/30 text-swu-accent flex items-center justify-center active:scale-90 transition-transform"
+                      className="w-7 h-7 rounded-lg bg-swu-accent/15 border border-swu-accent/30 text-swu-accent-texto flex items-center justify-center active:scale-90 transition-transform"
                     >
                       <Plus size={12} />
                     </button>
-                    <span className={`text-[10px] font-bold font-mono ${qty > 0 ? 'text-swu-accent' : 'text-swu-muted/40'}`}>
+                    <span className={`text-[10px] font-bold font-mono ${qty > 0 ? 'text-swu-accent-texto' : 'text-swu-muted/40'}`}>
                       {qty}
                     </span>
                     {qty > 0 ? (
                       <button
                         onClick={(e) => handleCollectionChange(c, -1, e)}
-                        className="w-7 h-7 rounded-lg bg-swu-red/15 border border-swu-red/30 text-swu-red flex items-center justify-center active:scale-90 transition-transform"
+                        className="w-7 h-7 rounded-lg bg-swu-red/15 border border-swu-red/30 text-swu-red-texto flex items-center justify-center active:scale-90 transition-transform"
                       >
                         <Minus size={12} />
                       </button>
@@ -856,7 +856,7 @@ export function CardsPage() {
         <button
           onClick={() => doSearch(false)}
           disabled={loadingMore}
-          className="w-full py-3 rounded-xl bg-swu-surface border border-swu-border text-swu-accent font-bold text-sm flex items-center justify-center gap-2"
+          className="w-full py-3 rounded-xl bg-swu-surface border border-swu-border text-swu-accent-texto font-bold text-sm flex items-center justify-center gap-2"
         >
           {loadingMore ? <Loader2 size={16} className="animate-spin" /> : `Cargar más (${cards.length}/${total.toLocaleString()})`}
         </button>
@@ -882,7 +882,7 @@ export function CardsPage() {
           ) : activeChips.length > 0 ? (
             <>
               <p className="text-xs text-swu-muted mt-1">Ningún resultado con estos filtros</p>
-              <button onClick={clearFilters} className="mt-3 text-xs text-swu-accent font-semibold">
+              <button onClick={clearFilters} className="mt-3 text-xs text-swu-accent-texto font-semibold">
                 Limpiar filtros
               </button>
             </>

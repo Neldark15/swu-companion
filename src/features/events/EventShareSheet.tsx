@@ -50,7 +50,7 @@ export function EventShareSheet({ eventCode, eventName, onClose }: EventShareShe
         {/* Big code display */}
         <div className="bg-swu-bg rounded-2xl p-6 text-center border border-swu-border">
           <p className="text-[11px] text-swu-muted uppercase tracking-widest mb-2">Código del Evento</p>
-          <p className="text-4xl font-extrabold font-mono tracking-[0.3em] text-swu-accent">{eventCode}</p>
+          <p className="text-4xl font-extrabold font-mono tracking-[0.3em] text-swu-accent-texto">{eventCode}</p>
         </div>
 
         {/* QR placeholder */}

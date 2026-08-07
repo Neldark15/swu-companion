@@ -68,8 +68,8 @@ export function CreateEventPage() {
           <ChevronLeft size={18} /> Volver
         </button>
         <div className="bg-swu-red/10 border border-swu-red/30 rounded-2xl p-8 text-center space-y-2">
-          <Crown size={40} className="mx-auto text-swu-red/50" />
-          <p className="text-swu-red font-bold">Acceso Restringido</p>
+          <Crown size={40} className="mx-auto text-swu-red-texto/50" />
+          <p className="text-swu-red-texto font-bold">Acceso Restringido</p>
           <p className="text-xs text-swu-muted">Solo los administradores pueden crear eventos oficiales.</p>
         </div>
       </div>
@@ -180,7 +180,7 @@ export function CreateEventPage() {
           {/* Code display */}
           <div className="bg-swu-bg rounded-xl p-4 space-y-2">
             <p className="text-xs text-swu-muted font-medium">Código del evento</p>
-            <p className="text-4xl font-mono font-extrabold tracking-[0.3em] text-swu-accent">
+            <p className="text-4xl font-mono font-extrabold tracking-[0.3em] text-swu-accent-texto">
               {createdEvent.code}
             </p>
             <p className="text-xs text-swu-muted">Comparta este código con los jugadores</p>
@@ -290,7 +290,7 @@ export function CreateEventPage() {
               onClick={() => setFormat(opt.value)}
               className={`p-3 rounded-xl border text-left transition-colors ${
                 format === opt.value
-                  ? 'bg-swu-accent/10 border-swu-accent text-swu-accent'
+                  ? 'bg-swu-accent/10 border-swu-accent text-swu-accent-texto'
                   : 'bg-swu-surface border-swu-border text-swu-text'
               }`}
             >
@@ -313,7 +313,7 @@ export function CreateEventPage() {
               onClick={() => setMatchType(opt.value)}
               className={`flex-1 p-3 rounded-xl border text-center transition-colors ${
                 matchType === opt.value
-                  ? 'bg-swu-accent/10 border-swu-accent text-swu-accent'
+                  ? 'bg-swu-accent/10 border-swu-accent text-swu-accent-texto'
                   : 'bg-swu-surface border-swu-border text-swu-text'
               }`}
             >
@@ -336,7 +336,7 @@ export function CreateEventPage() {
               onClick={() => setTournamentType(opt.value as 'swiss' | 'elimination')}
               className={`flex-1 p-3 rounded-xl border text-center transition-colors ${
                 tournamentType === opt.value
-                  ? 'bg-swu-accent/10 border-swu-accent text-swu-accent'
+                  ? 'bg-swu-accent/10 border-swu-accent text-swu-accent-texto'
                   : 'bg-swu-surface border-swu-border text-swu-text'
               }`}
             >
@@ -359,7 +359,7 @@ export function CreateEventPage() {
               onClick={() => setMaxPlayers(n)}
               className={`px-4 py-2.5 rounded-xl border font-bold text-sm transition-colors ${
                 maxPlayers === n
-                  ? 'bg-swu-accent/10 border-swu-accent text-swu-accent'
+                  ? 'bg-swu-accent/10 border-swu-accent text-swu-accent-texto'
                   : 'bg-swu-surface border-swu-border text-swu-muted'
               }`}
             >
@@ -389,7 +389,7 @@ export function CreateEventPage() {
       {/* Date & Time */}
       <div className="space-y-1.5">
         <label className="text-xs font-bold text-swu-muted uppercase tracking-wider flex items-center gap-1">
-          <Calendar size={12} /> Fecha y hora de inicio <span className="text-swu-red">*</span>
+          <Calendar size={12} /> Fecha y hora de inicio <span className="text-swu-red-texto">*</span>
         </label>
         <div className="flex gap-2">
           <input
@@ -433,7 +433,7 @@ export function CreateEventPage() {
       {/* Error */}
       {error && (
         <div className="bg-swu-red/10 border border-swu-red/30 rounded-xl p-3 text-center">
-          <p className="text-sm text-swu-red font-semibold">{error}</p>
+          <p className="text-sm text-swu-red-texto font-semibold">{error}</p>
         </div>
       )}
 

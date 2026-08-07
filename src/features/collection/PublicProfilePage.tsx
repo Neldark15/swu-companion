@@ -287,7 +287,7 @@ export function PublicProfilePage() {
   const rarityColor = (r?: string) => {
     switch (r) {
       case 'Legendary': return 'text-swu-amber'
-      case 'Rare': return 'text-swu-accent'
+      case 'Rare': return 'text-swu-accent-texto'
       case 'Uncommon': return 'text-swu-green'
       case 'Special': return 'text-purple-400'
       default: return 'text-swu-muted'
@@ -370,7 +370,7 @@ export function PublicProfilePage() {
             {/* Stats */}
             <div className="grid grid-cols-3 gap-2">
               <div className="bg-swu-surface rounded-xl p-3 text-center border border-swu-border">
-                <Package size={16} className="mx-auto text-swu-accent mb-1" />
+                <Package size={16} className="mx-auto text-swu-accent-texto mb-1" />
                 <div className="text-lg font-bold text-swu-text">{stats.unique}</div>
                 <div className="text-[10px] text-swu-muted">Únicas</div>
               </div>
@@ -423,7 +423,7 @@ export function PublicProfilePage() {
                     onClick={() => setShowFilters(!showFilters)}
                     className={`p-2.5 rounded-xl border transition-colors ${
                       showFilters || filterType || filterSet || filterRarity
-                        ? 'bg-swu-accent/15 border-swu-accent text-swu-accent'
+                        ? 'bg-swu-accent/15 border-swu-accent text-swu-accent-texto'
                         : 'bg-swu-surface border-swu-border text-swu-muted'
                     }`}
                   >
@@ -549,7 +549,7 @@ export function PublicProfilePage() {
                       <div className="flex items-center justify-between pt-1 border-t border-swu-border/50">
                         <div className="flex flex-wrap gap-1">
                           {filterType && (
-                            <span className="px-2 py-0.5 rounded-full bg-swu-accent/15 text-swu-accent text-[10px] font-medium">
+                            <span className="px-2 py-0.5 rounded-full bg-swu-accent/15 text-swu-accent-texto text-[10px] font-medium">
                               {filterType}
                             </span>
                           )}
@@ -637,7 +637,7 @@ export function PublicProfilePage() {
                       )}
                     </div>
 
-                    <div className="text-sm font-bold text-swu-accent flex-shrink-0">
+                    <div className="text-sm font-bold text-swu-accent-texto flex-shrink-0">
                       ×{item.quantity}
                     </div>
                   </button>

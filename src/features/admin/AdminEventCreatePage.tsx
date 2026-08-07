@@ -167,7 +167,7 @@ export function AdminEventCreatePage() {
           </button>
           <button
             onClick={() => { setCreated(null); setView('form'); setName(''); setDescription(''); setDate(''); setTime(''); setLocation('') }}
-            className="text-xs text-swu-accent font-semibold"
+            className="text-xs text-swu-accent-texto font-semibold"
           >
             Crear otro
           </button>
@@ -182,7 +182,7 @@ export function AdminEventCreatePage() {
 
           <div className="bg-swu-bg rounded-xl p-4 space-y-1">
             <p className="text-[10px] text-swu-muted font-medium uppercase tracking-wider">Código del evento</p>
-            <p className="text-4xl font-mono font-extrabold tracking-[0.3em] text-swu-accent">
+            <p className="text-4xl font-mono font-extrabold tracking-[0.3em] text-swu-accent-texto">
               {created.code}
             </p>
             <p className="text-[11px] text-swu-muted">Comparte este código con los jugadores</p>
@@ -321,7 +321,7 @@ export function AdminEventCreatePage() {
                   onClick={() => setMaxPlayers(n)}
                   className={`px-3 py-1.5 rounded-md text-xs font-bold border transition-colors ${
                     maxPlayers === n
-                      ? 'bg-swu-accent/15 border-swu-accent text-swu-accent'
+                      ? 'bg-swu-accent/15 border-swu-accent text-swu-accent-texto'
                       : 'bg-swu-bg border-swu-border text-swu-muted hover:text-swu-text'
                   }`}
                 >
@@ -349,7 +349,7 @@ export function AdminEventCreatePage() {
               />
             </div>
             <div className="text-right pb-1">
-              <p className="text-3xl font-extrabold font-mono text-swu-accent leading-none">{maxPlayers}</p>
+              <p className="text-3xl font-extrabold font-mono text-swu-accent-texto leading-none">{maxPlayers}</p>
               <p className="text-[9px] text-swu-muted uppercase tracking-wider mt-0.5">jugadores</p>
             </div>
           </div>
@@ -420,7 +420,7 @@ export function AdminEventCreatePage() {
       </Section>
 
       {error && (
-        <div className="bg-swu-red/10 border border-swu-red/30 rounded-lg p-3 flex items-center gap-2 text-[12px] text-swu-red">
+        <div className="bg-swu-red/10 border border-swu-red/30 rounded-lg p-3 flex items-center gap-2 text-[12px] text-swu-red-texto">
           <AlertTriangle size={14} /> {error}
         </div>
       )}
@@ -474,7 +474,7 @@ function Field({
     <div>
       <label className="text-[10px] uppercase tracking-wider text-swu-muted font-medium flex items-center gap-1 mb-1">
         {Icon && <Icon size={10} />}
-        {label} {required && <span className="text-swu-red">*</span>}
+        {label} {required && <span className="text-swu-red-texto">*</span>}
       </label>
       {children}
     </div>
@@ -498,7 +498,7 @@ function ChoiceCard({
           : 'bg-swu-bg border-swu-border hover:border-swu-accent/30'
       }`}
     >
-      <p className={`text-sm font-bold ${active ? 'text-swu-accent' : 'text-swu-text'}`}>{label}</p>
+      <p className={`text-sm font-bold ${active ? 'text-swu-accent-texto' : 'text-swu-text'}`}>{label}</p>
       <p className="text-[11px] text-swu-muted mt-0.5">{desc}</p>
     </button>
   )

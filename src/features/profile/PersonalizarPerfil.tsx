@@ -170,7 +170,7 @@ export function PersonalizarPerfil() {
       </section>
 
       {error && (
-        <div className="flex items-start gap-2 text-[11px] text-swu-red bg-swu-red/10 border border-swu-red/30 rounded-lg px-3 py-2">
+        <div className="flex items-start gap-2 text-[11px] text-swu-red-texto bg-swu-red/10 border border-swu-red/30 rounded-lg px-3 py-2">
           <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" aria-hidden /> {error}
         </div>
       )}

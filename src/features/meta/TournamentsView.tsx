@@ -509,7 +509,7 @@ export function TournamentsView() {
 
         {/* Con datos viejos en pantalla el error va como aviso, no como vacío. */}
         {error && tournaments.length > 0 && (
-          <div className="flex items-start gap-2 text-[11px] text-swu-red bg-swu-red/10 border border-swu-red/30 rounded-lg px-3 py-2">
+          <div className="flex items-start gap-2 text-[11px] text-swu-red-texto bg-swu-red/10 border border-swu-red/30 rounded-lg px-3 py-2">
             <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" aria-hidden />
             <span>No se pudo actualizar: {error}</span>
           </div>
@@ -617,7 +617,7 @@ export function TournamentsView() {
 
             <div aria-live="polite">
               {topError && (
-                <p className="text-[11px] text-swu-red flex items-start gap-1.5">
+                <p className="text-[11px] text-swu-red-texto flex items-start gap-1.5">
                   <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" aria-hidden />
                   {topError}
                 </p>

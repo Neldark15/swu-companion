@@ -118,8 +118,8 @@ export function AclaracionesOficiales({ carta }: { carta: Card }) {
           {/* Una carta suspendida se juega distinto: va ARRIBA de todo. */}
           {info.suspendida && (
             <div className="flex items-start gap-2 rounded-lg border border-swu-red/35 bg-swu-red/10 px-2.5 py-2">
-              <AlertTriangle size={13} className="text-swu-red flex-shrink-0 mt-0.5" aria-hidden />
-              <p className="text-[11px] text-swu-red leading-snug">
+              <AlertTriangle size={13} className="text-swu-red-texto flex-shrink-0 mt-0.5" aria-hidden />
+              <p className="text-[11px] text-swu-red-texto leading-snug">
                 <span className="font-bold">Suspendida en {info.suspendida.formato}.</span>{' '}
                 No se puede jugar en ese formato.
               </p>

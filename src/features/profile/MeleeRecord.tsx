@@ -207,7 +207,7 @@ export function MeleeRecord({ usuario, verificado = false, esPropio = false }: P
       )}
 
       {estado === 'no-existe' && (
-        <p className="p-4 text-xs text-swu-red">
+        <p className="p-4 text-xs text-swu-red-texto">
           melee.gg no tiene un perfil «{usuario}».
           {esPropio && ' Revisá cómo lo escribiste en tu perfil.'}
         </p>

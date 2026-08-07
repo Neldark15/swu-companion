@@ -69,9 +69,9 @@ export function Header() {
             {/* Mobile: Back to Base button */}
             <button
               onClick={() => navigate('/')}
-              className="lg:hidden flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-swu-bg neu-inset text-swu-muted hover:text-swu-accent active:scale-95 transition-all"
+              className="lg:hidden flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-swu-bg neu-inset text-swu-muted hover:text-swu-accent-texto active:scale-95 transition-all"
             >
-              <Hexagon size={16} className="text-swu-accent" />
+              <Hexagon size={16} className="text-swu-accent-texto" />
               <span className="text-xs font-bold tracking-wide">Base</span>
             </button>
             {/* Mobile: page title next to base button */}
@@ -80,7 +80,7 @@ export function Header() {
             <div className="hidden lg:flex items-center gap-2">
               <button
                 onClick={() => navigate('/')}
-                className="text-sm text-swu-muted hover:text-swu-accent transition-colors font-medium"
+                className="text-sm text-swu-muted hover:text-swu-accent-texto transition-colors font-medium"
               >
                 Base
               </button>

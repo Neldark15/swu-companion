@@ -191,7 +191,7 @@ export function DeckListPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowImport(true)}
-            className="px-3 py-2 rounded-xl border border-swu-accent/30 bg-swu-accent/10 text-swu-accent font-bold text-sm flex items-center gap-1.5 active:scale-95 transition-transform"
+            className="px-3 py-2 rounded-xl border border-swu-accent/30 bg-swu-accent/10 text-swu-accent-texto font-bold text-sm flex items-center gap-1.5 active:scale-95 transition-transform"
             title="Importar deck desde SWUDB o texto"
           >
             <Upload size={14} /> Importar
@@ -315,7 +315,7 @@ export function DeckListPage() {
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 text-[11px] text-swu-muted">
-                      <span className="font-mono font-bold text-swu-accent">{mainCount}/{targetSize}</span>
+                      <span className="font-mono font-bold text-swu-accent-texto">{mainCount}/{targetSize}</span>
                       {sideCount > 0 && <span>Side: {sideCount}</span>}
                       <span>{timeAgo(deck.updatedAt)}</span>
                     </div>
@@ -329,7 +329,7 @@ export function DeckListPage() {
                       </button>
                       <button
                         onClick={(e) => handleExport(deck, e)}
-                        className="p-1.5 rounded-lg bg-swu-accent/10 text-swu-accent active:scale-95 transition-transform"
+                        className="p-1.5 rounded-lg bg-swu-accent/10 text-swu-accent-texto active:scale-95 transition-transform"
                         title="Exportar deck"
                       >
                         <Share2 size={13} />
@@ -347,7 +347,7 @@ export function DeckListPage() {
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); setDeckToDelete(deck) }}
-                        className="p-1.5 rounded-lg bg-swu-red/10 text-swu-red active:scale-95 transition-transform"
+                        className="p-1.5 rounded-lg bg-swu-red/10 text-swu-red-texto active:scale-95 transition-transform"
                         title="Borrar deck"
                       >
                         <Trash2 size={13} />
@@ -375,7 +375,7 @@ export function DeckListPage() {
           <div className="bg-swu-surface rounded-2xl border border-swu-red/30 p-5 max-w-sm w-full space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-swu-red/15 flex items-center justify-center flex-shrink-0">
-                <AlertTriangle size={20} className="text-swu-red" />
+                <AlertTriangle size={20} className="text-swu-red-texto" />
               </div>
               <div className="min-w-0">
                 <div className="text-sm font-bold text-swu-text">¿Borrar este deck?</div>

@@ -114,7 +114,7 @@ export function SavedMatchesPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Icon size={16} className="text-swu-accent" />
+                    <Icon size={16} className="text-swu-accent-texto" />
                     <span className="text-xs font-bold text-swu-text">{modeLabels[match.mode]}</span>
                     {match.isActive ? (
                       <Badge variant="green">En curso</Badge>
@@ -132,9 +132,9 @@ export function SavedMatchesPage() {
                     {match.isActive && <p className="text-[10px] text-swu-muted">HP: {p1?.baseHp}</p>}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-lg font-extrabold text-swu-accent font-mono">{s1}</span>
+                    <span className="text-lg font-extrabold text-swu-accent-texto font-mono">{s1}</span>
                     <span className="text-swu-muted text-xs">—</span>
-                    <span className="text-lg font-extrabold text-swu-red font-mono">{s2}</span>
+                    <span className="text-lg font-extrabold text-swu-red-texto font-mono">{s2}</span>
                   </div>
                   <div className="flex-1 text-right">
                     <p className="text-xs font-bold text-swu-text">{p2?.name || 'P2'}</p>
@@ -157,14 +157,14 @@ export function SavedMatchesPage() {
                   {match.isActive && (
                     <button
                       onClick={() => handleResume(match)}
-                      className="flex-1 py-2 rounded-lg bg-swu-accent/20 border border-swu-accent/40 text-swu-accent text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform"
+                      className="flex-1 py-2 rounded-lg bg-swu-accent/20 border border-swu-accent/40 text-swu-accent-texto text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform"
                     >
                       <Play size={14} /> Reanudar
                     </button>
                   )}
                   <button
                     onClick={() => handleDelete(match.id)}
-                    className="py-2 px-4 rounded-lg bg-swu-red/10 border border-swu-red/30 text-swu-red text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform"
+                    className="py-2 px-4 rounded-lg bg-swu-red/10 border border-swu-red/30 text-swu-red-texto text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform"
                   >
                     <Trash2 size={14} />
                   </button>

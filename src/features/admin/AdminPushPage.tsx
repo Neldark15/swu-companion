@@ -114,7 +114,7 @@ export function AdminPushPage() {
 
       {/* Stats */}
       <div className="bg-swu-surface rounded-xl border border-swu-border p-3 flex items-center gap-3">
-        <Bell size={20} className="text-swu-accent" />
+        <Bell size={20} className="text-swu-accent-texto" />
         <div>
           <p className="text-xl font-extrabold font-mono text-swu-text">{subCount ?? '…'}</p>
           <p className="text-[10px] text-swu-muted">suscripciones activas</p>
@@ -235,7 +235,7 @@ export function AdminPushPage() {
           <div className={`rounded-lg p-2.5 text-[11px] flex items-center gap-2 ${
             result.ok
               ? 'bg-swu-green/10 border border-swu-green/30 text-swu-green'
-              : 'bg-swu-red/10 border border-swu-red/30 text-swu-red'
+              : 'bg-swu-red/10 border border-swu-red/30 text-swu-red-texto'
           }`}>
             {result.ok ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
             {result.msg}
@@ -261,7 +261,7 @@ function TargetButton({ icon: Icon, label, active, onClick }: { icon: typeof Glo
       onClick={onClick}
       className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border transition-colors ${
         active
-          ? 'bg-swu-accent/15 border-swu-accent text-swu-accent'
+          ? 'bg-swu-accent/15 border-swu-accent text-swu-accent-texto'
           : 'bg-swu-bg border-swu-border text-swu-muted hover:text-swu-text'
       }`}
     >

@@ -215,7 +215,7 @@ export function SaleModal({
           <button
             onClick={onUnlist}
             disabled={submitting}
-            className="w-full py-2 rounded-xl border border-swu-red/30 text-swu-red text-xs font-semibold
+            className="w-full py-2 rounded-xl border border-swu-red/30 text-swu-red-texto text-xs font-semibold
                        active:scale-[0.98] disabled:opacity-50"
           >
             Quitar del mercado

@@ -585,7 +585,7 @@ export function BloqueMazo(
 
         {fase.f === 'error' && (
           <div className="space-y-2">
-            <p className="flex items-start gap-1.5 text-[11px] text-swu-red m-0">
+            <p className="flex items-start gap-1.5 text-[11px] text-swu-red-texto m-0">
               <AlertTriangle size={12} className="mt-[2px] shrink-0" aria-hidden />
               <span>{fase.mensaje}</span>
             </p>

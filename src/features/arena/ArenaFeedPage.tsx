@@ -69,14 +69,14 @@ export function ArenaFeedPage() {
 
       {loading && (
         <div className="flex items-center justify-center py-12">
-          <Loader2 size={28} className="text-swu-accent animate-spin" />
+          <Loader2 size={28} className="text-swu-accent-texto animate-spin" />
         </div>
       )}
 
       {error && (
         <div className="flex items-center gap-2 bg-swu-red/10 border border-swu-red/30 rounded-lg px-3 py-3">
-          <WifiOff size={14} className="text-swu-red" />
-          <span className="text-xs text-swu-red">No se pudo cargar el feed. Verifique su conexión.</span>
+          <WifiOff size={14} className="text-swu-red-texto" />
+          <span className="text-xs text-swu-red-texto">No se pudo cargar el feed. Verifique su conexión.</span>
         </div>
       )}
 

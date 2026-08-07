@@ -44,7 +44,7 @@ export function BracketView({ rounds, pairingsByRound, playerNames }: Props) {
           return (
             <div key={round.id} className="flex flex-col gap-2 min-w-[160px]">
               {/* Round header */}
-              <div className="text-center text-xs text-swu-accent font-bold uppercase tracking-wider mb-1">
+              <div className="text-center text-xs text-swu-accent-texto font-bold uppercase tracking-wider mb-1">
                 {getRoundLabel(round.round_number, totalRounds)}
               </div>
 

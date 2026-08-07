@@ -159,7 +159,7 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
           <div className="flex items-start gap-2">
             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase shrink-0 ${
               question.category === 'swu'
-                ? 'bg-swu-accent/20 text-swu-accent'
+                ? 'bg-swu-accent/20 text-swu-accent-texto'
                 : 'bg-swu-amber/20 text-swu-amber'
             }`}>
               {question.category === 'swu' ? 'SWU' : 'Universo'}
@@ -265,7 +265,7 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
             <p className="text-[9px] text-swu-muted uppercase">XP Hoy</p>
           </div>
           <div>
-            <p className="text-lg font-extrabold text-swu-accent flex items-center justify-center gap-1">
+            <p className="text-lg font-extrabold text-swu-accent-texto flex items-center justify-center gap-1">
               {stats.streakDays}<Flame size={14} />
             </p>
             <p className="text-[9px] text-swu-muted uppercase">Racha</p>

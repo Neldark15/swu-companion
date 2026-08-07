@@ -274,7 +274,7 @@ export function ManageNewsPage() {
                   onClick={() => { setTag(opt.label); setTagColor(opt.color) }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                     tag === opt.label
-                      ? 'bg-swu-accent/20 border-swu-accent text-swu-accent'
+                      ? 'bg-swu-accent/20 border-swu-accent text-swu-accent-texto'
                       : 'bg-swu-surface border-swu-border text-swu-muted'
                   }`}
                 >
@@ -334,7 +334,7 @@ export function ManageNewsPage() {
                   onClick={() => setKind(k)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
                     kind === k
-                      ? 'bg-swu-accent/20 border-swu-accent text-swu-accent'
+                      ? 'bg-swu-accent/20 border-swu-accent text-swu-accent-texto'
                       : 'bg-swu-surface border-swu-border text-swu-muted'
                   }`}
                 >
@@ -372,7 +372,7 @@ export function ManageNewsPage() {
 
               <div>
                 <label className="text-xs text-swu-muted mb-1.5 block">
-                  Fecha y hora <span className="text-swu-red">*</span>
+                  Fecha y hora <span className="text-swu-red-texto">*</span>
                 </label>
                 <input
                   type="datetime-local"
@@ -416,7 +416,7 @@ export function ManageNewsPage() {
           )}
 
           {saveError && (
-            <p className="text-xs text-swu-red bg-swu-red/10 border border-swu-red/30 rounded-lg px-3 py-2">
+            <p className="text-xs text-swu-red-texto bg-swu-red/10 border border-swu-red/30 rounded-lg px-3 py-2">
               {saveError}
             </p>
           )}
@@ -477,13 +477,13 @@ export function ManageNewsPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 size={28} className="text-swu-accent animate-spin" />
+          <Loader2 size={28} className="text-swu-accent-texto animate-spin" />
         </div>
       ) : newsList.length === 0 ? (
         <div className="bg-swu-surface rounded-2xl border border-swu-border p-8 text-center">
           <Newspaper size={40} className="mx-auto text-swu-muted mb-2" />
           <p className="text-sm text-swu-muted">No hay noticias aún.</p>
-          <button onClick={openCreate} className="mt-3 text-sm text-swu-accent font-bold">
+          <button onClick={openCreate} className="mt-3 text-sm text-swu-accent-texto font-bold">
             Crear primera noticia
           </button>
         </div>
@@ -502,7 +502,7 @@ export function ManageNewsPage() {
                       item.tag_color === 'amber' ? 'bg-swu-amber/20 text-swu-amber' :
                       item.tag_color === 'green' ? 'bg-swu-green/20 text-swu-green' :
                       item.tag_color === 'purple' ? 'bg-purple-500/20 text-purple-400' :
-                      item.tag_color === 'accent' ? 'bg-swu-accent/20 text-swu-accent' :
+                      item.tag_color === 'accent' ? 'bg-swu-accent/20 text-swu-accent-texto' :
                       'bg-swu-border text-swu-muted'
                     }`}>{item.tag}</span>
                     <span className="text-[10px] text-swu-muted">
@@ -525,7 +525,7 @@ export function ManageNewsPage() {
                   </button>
                   <button
                     onClick={() => handleDelete(item.id)}
-                    className="p-1.5 rounded-lg bg-swu-bg text-swu-muted hover:text-swu-red transition-colors"
+                    className="p-1.5 rounded-lg bg-swu-bg text-swu-muted hover:text-swu-red-texto transition-colors"
                     title="Eliminar"
                   >
                     <Trash2 size={14} />

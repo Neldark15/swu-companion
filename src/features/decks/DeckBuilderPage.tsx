@@ -283,7 +283,7 @@ export function DeckBuilderPage() {
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><Loader2 size={28} className="text-swu-accent animate-spin" /></div>
+    return <div className="flex items-center justify-center h-64"><Loader2 size={28} className="text-swu-accent-texto animate-spin" /></div>
   }
 
   const mainCount = countCards(deck.mainDeck)
@@ -421,7 +421,7 @@ export function DeckBuilderPage() {
                     {/* Remove button */}
                     <button
                       onClick={() => removeCard('leaders', c.cardId)}
-                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 text-swu-red flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity active:opacity-100 z-10"
+                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 text-swu-red-texto flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity active:opacity-100 z-10"
                     >
                       <X size={12} />
                     </button>
@@ -462,7 +462,7 @@ export function DeckBuilderPage() {
                     </div>
                     <button
                       onClick={() => removeCard('base', '')}
-                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 text-swu-red flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity active:opacity-100 z-10"
+                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 text-swu-red-texto flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity active:opacity-100 z-10"
                     >
                       <X size={12} />
                     </button>
@@ -486,7 +486,7 @@ export function DeckBuilderPage() {
               <Package size={12} className="text-swu-muted" />
               {[...setBreakdown.entries()].sort((a, b) => b[1] - a[1]).map(([code, qty]) => (
                 <span key={code} className="text-[10px] bg-swu-surface border border-swu-border rounded-md px-1.5 py-0.5 text-swu-muted font-mono">
-                  <span className="text-swu-accent font-bold">{code}</span> ×{qty}
+                  <span className="text-swu-accent-texto font-bold">{code}</span> ×{qty}
                 </span>
               ))}
             </div>
@@ -494,7 +494,7 @@ export function DeckBuilderPage() {
 
           {/* ═══ MAZO PRINCIPAL — with thumbnails ═══ */}
           <div>
-            <p className="text-xs font-bold text-swu-accent mb-1.5">Mazo Principal ({mainCount}/{targetSize} mín.)</p>
+            <p className="text-xs font-bold text-swu-accent-texto mb-1.5">Mazo Principal ({mainCount}/{targetSize} mín.)</p>
             {deck.mainDeck.length === 0 ? (
               <p className="text-[10px] text-swu-muted bg-swu-surface rounded-lg p-3 border border-swu-border text-center">Vaya a "Buscar" para agregar cartas</p>
             ) : (
@@ -519,7 +519,7 @@ export function DeckBuilderPage() {
                       )}
                     </button>
                     {/* Quantity badge */}
-                    <span className="w-6 h-6 rounded bg-swu-accent/20 text-swu-accent text-xs font-bold flex items-center justify-center font-mono flex-shrink-0">{c.quantity}</span>
+                    <span className="w-6 h-6 rounded bg-swu-accent/20 text-swu-accent-texto text-xs font-bold flex items-center justify-center font-mono flex-shrink-0">{c.quantity}</span>
                     {/* Name + set */}
                     <button
                       onClick={() => setVerCarta(c.cardId)}
@@ -530,7 +530,7 @@ export function DeckBuilderPage() {
                     </button>
                     {/* Controls */}
                     <div className="flex gap-1 flex-shrink-0">
-                      <button onClick={() => removeCard('mainDeck', c.cardId)} className="w-6 h-6 rounded bg-swu-red/10 text-swu-red flex items-center justify-center"><Minus size={12} /></button>
+                      <button onClick={() => removeCard('mainDeck', c.cardId)} className="w-6 h-6 rounded bg-swu-red/10 text-swu-red-texto flex items-center justify-center"><Minus size={12} /></button>
                       <button onClick={() => incrementCard('mainDeck', c.cardId)} className="w-6 h-6 rounded bg-swu-green/10 text-swu-green flex items-center justify-center"><Plus size={12} /></button>
                     </div>
                   </div>
@@ -577,7 +577,7 @@ export function DeckBuilderPage() {
                     </button>
                     {/* Controls */}
                     <div className="flex gap-1 flex-shrink-0">
-                      <button onClick={() => removeCard('sideboard', c.cardId)} className="w-6 h-6 rounded bg-swu-red/10 text-swu-red flex items-center justify-center"><Minus size={12} /></button>
+                      <button onClick={() => removeCard('sideboard', c.cardId)} className="w-6 h-6 rounded bg-swu-red/10 text-swu-red-texto flex items-center justify-center"><Minus size={12} /></button>
                       <button onClick={() => incrementCard('sideboard', c.cardId)} className="w-6 h-6 rounded bg-swu-green/10 text-swu-green flex items-center justify-center"><Plus size={12} /></button>
                     </div>
                   </div>
@@ -592,7 +592,7 @@ export function DeckBuilderPage() {
         <div className="space-y-3">
           {fmtRules.hasSideboard ? (
             <div className="flex gap-2">
-              <button onClick={() => setAddTarget('mainDeck')} className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors ${addTarget === 'mainDeck' ? 'bg-swu-accent/20 border-swu-accent text-swu-accent' : 'bg-swu-surface border-swu-border text-swu-muted'}`}>Mazo ({mainCount})</button>
+              <button onClick={() => setAddTarget('mainDeck')} className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors ${addTarget === 'mainDeck' ? 'bg-swu-accent/20 border-swu-accent text-swu-accent-texto' : 'bg-swu-surface border-swu-border text-swu-muted'}`}>Mazo ({mainCount})</button>
               <button onClick={() => setAddTarget('sideboard')} className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors ${addTarget === 'sideboard' ? 'bg-purple-400/20 border-purple-400 text-purple-400' : 'bg-swu-surface border-swu-border text-swu-muted'}`}>Sideboard ({sideCount})</button>
             </div>
           ) : null}
@@ -613,7 +613,7 @@ export function DeckBuilderPage() {
                   onClick={() => setSearchAspect(searchAspect === a ? null : a)}
                   className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold border transition-colors ${
                     searchAspect === a
-                      ? 'bg-swu-accent/20 border-swu-accent text-swu-accent'
+                      ? 'bg-swu-accent/20 border-swu-accent text-swu-accent-texto'
                       : 'bg-swu-surface border-swu-border text-swu-muted'
                   }`}
                 >
@@ -639,7 +639,7 @@ export function DeckBuilderPage() {
               {(searchAspect || searchCost !== null) && (
                 <button
                   onClick={() => { setSearchAspect(null); setSearchCost(null) }}
-                  className="text-[10px] text-swu-red font-medium ml-1"
+                  className="text-[10px] text-swu-red-texto font-medium ml-1"
                 >
                   Limpiar
                 </button>
@@ -651,8 +651,8 @@ export function DeckBuilderPage() {
           {(dbProgress.phase === 'downloading' || dbProgress.phase === 'parsing' || dbProgress.phase === 'saving') && (
             <div className="bg-swu-accent/5 border border-swu-accent/30 rounded-lg p-3 space-y-1.5">
               <div className="flex items-center gap-2">
-                <Loader2 size={13} className="text-swu-accent animate-spin" />
-                <p className="text-xs font-semibold text-swu-accent">{dbProgress.message}</p>
+                <Loader2 size={13} className="text-swu-accent-texto animate-spin" />
+                <p className="text-xs font-semibold text-swu-accent-texto">{dbProgress.message}</p>
               </div>
               {dbProgress.phase === 'saving' && dbProgress.saved && dbProgress.totalToSave && (
                 <div className="h-1 bg-swu-bg rounded-full overflow-hidden">
@@ -664,11 +664,11 @@ export function DeckBuilderPage() {
           )}
           {dbProgress.phase === 'error' && (
             <div className="bg-swu-red/10 border border-swu-red/30 rounded-lg p-2.5 flex items-center gap-2">
-              <AlertTriangle size={13} className="text-swu-red" />
-              <p className="text-[11px] text-swu-red">{dbProgress.message}</p>
+              <AlertTriangle size={13} className="text-swu-red-texto" />
+              <p className="text-[11px] text-swu-red-texto">{dbProgress.message}</p>
             </div>
           )}
-          {searching && <div className="flex items-center justify-center py-8"><Loader2 size={24} className="text-swu-accent animate-spin" /></div>}
+          {searching && <div className="flex items-center justify-center py-8"><Loader2 size={24} className="text-swu-accent-texto animate-spin" /></div>}
           {!searching && searchResults.length > 0 && (
             <>
               <p className="text-[10px] text-swu-muted">{searchTotal} resultados</p>
@@ -690,10 +690,10 @@ export function DeckBuilderPage() {
                       </div>
                     </div>
                     <div className="flex-shrink-0 text-right">
-                      {(inDeck || inSide) && <span className="text-[10px] text-swu-accent font-bold">×{(inDeck?.quantity || 0) + (inSide?.quantity || 0)}</span>}
+                      {(inDeck || inSide) && <span className="text-[10px] text-swu-accent-texto font-bold">×{(inDeck?.quantity || 0) + (inSide?.quantity || 0)}</span>}
                       {isLeaderInDeck && <span className="text-[9px] text-swu-amber">Líder</span>}
                       {isBaseInDeck && <span className="text-[9px] text-swu-green">Base</span>}
-                      {!isLeaderInDeck && !isBaseInDeck && <Plus size={16} className="text-swu-accent" />}
+                      {!isLeaderInDeck && !isBaseInDeck && <Plus size={16} className="text-swu-accent-texto" />}
                     </div>
                   </button>
                 )

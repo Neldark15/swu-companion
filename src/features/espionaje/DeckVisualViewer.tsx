@@ -224,7 +224,7 @@ export function DeckVisualViewer({ deck }: { deck: PublicDeck }) {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-swu-text truncate">{deck.name}</p>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[10px] font-mono text-swu-accent font-bold">{totalCards} cartas</span>
+              <span className="text-[10px] font-mono text-swu-accent-texto font-bold">{totalCards} cartas</span>
               <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 font-bold">
                 {deck.format === 'twin_suns' ? 'Twin Suns' : deck.format.charAt(0).toUpperCase() + deck.format.slice(1)}
               </span>

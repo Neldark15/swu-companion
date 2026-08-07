@@ -24,7 +24,7 @@ export function AuthGate({ children }: AuthGateProps) {
       <div className="max-w-sm w-full text-center space-y-6">
         {/* Icon */}
         <div className="mx-auto w-16 h-16 rounded-2xl bg-swu-accent/10 border border-swu-accent/20 flex items-center justify-center">
-          <Shield size={32} className="text-swu-accent" />
+          <Shield size={32} className="text-swu-accent-texto" />
         </div>
 
         {/* Title */}
@@ -48,7 +48,7 @@ export function AuthGate({ children }: AuthGateProps) {
             return (
               <div key={f.label} className="flex items-center gap-3 text-left">
                 <div className="w-8 h-8 rounded-lg bg-swu-bg border border-swu-border flex items-center justify-center shrink-0">
-                  <Icon size={14} className="text-swu-accent" />
+                  <Icon size={14} className="text-swu-accent-texto" />
                 </div>
                 <div>
                   <p className="text-xs font-bold text-swu-text">{f.label}</p>

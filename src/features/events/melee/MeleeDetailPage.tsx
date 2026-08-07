@@ -119,7 +119,7 @@ export function MeleeDetailPage() {
               </div>
             )}
             <div className="text-center">
-              <div className="text-2xl font-bold text-swu-accent">{winrate}%</div>
+              <div className="text-2xl font-bold text-swu-accent-texto">{winrate}%</div>
               <div className="text-[10px] text-swu-muted">Winrate</div>
             </div>
           </div>

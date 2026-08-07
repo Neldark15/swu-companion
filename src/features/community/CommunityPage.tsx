@@ -70,7 +70,7 @@ const POST_STYLE: Record<PostType, { icon: typeof Trophy; label: string; cls: st
   achievement: { icon: Award, label: 'Logro', cls: 'text-swu-amber bg-swu-amber/10 border-swu-amber/25' },
   tournament: { icon: Trophy, label: 'Torneo', cls: 'text-swu-green bg-swu-green/10 border-swu-green/25' },
   trade: { icon: Tag, label: 'Venta', cls: 'text-red-400 bg-red-500/10 border-red-500/25' },
-  level_up: { icon: Sparkles, label: 'Rango', cls: 'text-swu-accent bg-swu-accent/10 border-swu-accent/25' },
+  level_up: { icon: Sparkles, label: 'Rango', cls: 'text-swu-accent-texto bg-swu-accent/10 border-swu-accent/25' },
   welcome: { icon: Users, label: 'Nuevo', cls: 'text-purple-400 bg-purple-500/10 border-purple-500/25' },
   message: { icon: MessageCircle, label: '', cls: 'text-swu-muted bg-swu-surface border-swu-border' },
 }
@@ -178,7 +178,7 @@ export function CommunityPage() {
       {/* ── Cabecera ── */}
       <header>
         <h1 className="text-xl font-extrabold text-swu-text flex items-center gap-2">
-          <Users size={20} className="text-swu-accent" />
+          <Users size={20} className="text-swu-accent-texto" />
           Comunidad {HOME_COUNTRY_LABEL}
         </h1>
         <p className="text-[11px] text-swu-muted mt-0.5">
@@ -195,7 +195,7 @@ export function CommunityPage() {
             </span>
             <button
               onClick={() => navigate('/rank')}
-              className="text-[10px] text-swu-accent flex items-center gap-0.5"
+              className="text-[10px] text-swu-accent-texto flex items-center gap-0.5"
             >
               Ranking completo <ChevronRight size={10} />
             </button>
@@ -217,10 +217,10 @@ export function CommunityPage() {
                   }`}>{i + 1}</span>
                   <MemberAvatar avatar={m.avatar} level={lvl} size={28} />
                   <span className="flex-1 min-w-0 text-sm text-swu-text truncate">
-                    {m.name}{isMe && <span className="text-[10px] text-swu-accent ml-1">(vos)</span>}
+                    {m.name}{isMe && <span className="text-[10px] text-swu-accent-texto ml-1">(vos)</span>}
                   </span>
                   <span className="text-[10px] text-swu-muted font-mono">Nv{lvl}</span>
-                  <span className="text-xs font-bold text-swu-accent font-mono w-14 text-right">
+                  <span className="text-xs font-bold text-swu-accent-texto font-mono w-14 text-right">
                     {(m.xp ?? 0).toLocaleString()}
                   </span>
                 </button>
@@ -347,7 +347,7 @@ export function CommunityPage() {
                     {isMine && (
                       <button
                         onClick={() => handleDelete(post.id)}
-                        className="text-[11px] text-swu-muted hover:text-swu-red"
+                        className="text-[11px] text-swu-muted hover:text-swu-red-texto"
                       >
                         <Trash2 size={12} />
                       </button>

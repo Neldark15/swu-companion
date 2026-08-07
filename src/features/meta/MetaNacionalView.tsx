@@ -569,7 +569,7 @@ export function MetaNacionalView() {
         {estado && (
           <p
             className={`flex items-start gap-1.5 text-[10px] font-mono px-1 leading-snug ${
-              error ? 'text-swu-red' : 'text-swu-muted'
+              error ? 'text-swu-red-texto' : 'text-swu-muted'
             }`}
           >
             {cargando && <RefreshCw size={10} className="animate-spin flex-shrink-0 mt-0.5" aria-hidden />}
@@ -608,7 +608,7 @@ export function MetaNacionalView() {
             lo de ahora. Repetir el mensaje de error palabra por palabra dos
             veces seguidas se lee como un fallo del programa. */}
         {error && datos && (
-          <div className="flex items-start gap-2 text-[11px] text-swu-red bg-swu-red/10 border border-swu-red/30 rounded-lg px-3 py-2">
+          <div className="flex items-start gap-2 text-[11px] text-swu-red-texto bg-swu-red/10 border border-swu-red/30 rounded-lg px-3 py-2">
             <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" aria-hidden />
             <span className="leading-snug min-w-0">
               Esto es lo último que se pudo leer, no lo de ahora.{' '}
@@ -673,7 +673,7 @@ export function MetaNacionalView() {
                 es más grave: aquello dice «hay poco», esto dice «lo que hay
                 puede no ser lo que pasó». */}
             {parcial && (
-              <div className="flex items-start gap-1.5 text-[11px] text-swu-red bg-swu-red/10 border border-swu-red/30 rounded-lg px-2.5 py-2">
+              <div className="flex items-start gap-1.5 text-[11px] text-swu-red-texto bg-swu-red/10 border border-swu-red/30 rounded-lg px-2.5 py-2">
                 <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" aria-hidden />
                 <span className="leading-snug min-w-0">
                   <b>Muestra incompleta.</b> No se pudo traer todo, así que lo de abajo es un
@@ -770,7 +770,7 @@ export function MetaNacionalView() {
                     publicada
                     {datos.noParseado > 0 && (
                       <>
-                        {' '}y <b className="font-mono text-swu-red">{datos.noParseado}</b> con
+                        {' '}y <b className="font-mono text-swu-red-texto">{datos.noParseado}</b> con
                         lista publicada que no se pudo leer
                       </>
                     )}
@@ -785,7 +785,7 @@ export function MetaNacionalView() {
                     <b className="font-mono">{datos.sinLista}</b> sin lista publicada
                     {datos.noParseado > 0 && (
                       <>
-                        {' '}y <b className="font-mono text-swu-red">{datos.noParseado}</b> con
+                        {' '}y <b className="font-mono text-swu-red-texto">{datos.noParseado}</b> con
                         lista publicada que no se pudo leer
                       </>
                     )}

@@ -122,7 +122,7 @@ function PairingCard({
       {canReport && (isMyMatch || !currentUserId) && !reporting && (
         <button
           onClick={() => setReporting(true)}
-          className="mt-2 w-full text-xs py-1.5 bg-swu-accent/20 text-swu-accent rounded hover:bg-swu-accent/30 transition-colors"
+          className="mt-2 w-full text-xs py-1.5 bg-swu-accent/20 text-swu-accent-texto rounded hover:bg-swu-accent/30 transition-colors"
         >
           Reportar Resultado
         </button>
@@ -143,7 +143,7 @@ function PairingCard({
                 >
                   -
                 </button>
-                <span className="w-6 text-center font-bold text-swu-accent">{score1}</span>
+                <span className="w-6 text-center font-bold text-swu-accent-texto">{score1}</span>
                 <button
                   onClick={() => setScore1(Math.min(3, score1 + 1))}
                   className="w-7 h-7 rounded bg-swu-bg text-swu-text text-sm"
@@ -163,7 +163,7 @@ function PairingCard({
                 >
                   -
                 </button>
-                <span className="w-6 text-center font-bold text-swu-accent">{score2}</span>
+                <span className="w-6 text-center font-bold text-swu-accent-texto">{score2}</span>
                 <button
                   onClick={() => setScore2(Math.min(3, score2 + 1))}
                   className="w-7 h-7 rounded bg-swu-bg text-swu-text text-sm"

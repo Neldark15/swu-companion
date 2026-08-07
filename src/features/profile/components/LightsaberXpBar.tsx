@@ -78,7 +78,7 @@ export function LightsaberXpBar({ xp }: LightsaberXpBarProps) {
               style={{ opacity: 0.3 }}
             >
               <div
-                className="w-8 h-full bg-gradient-to-r from-transparent via-white to-transparent"
+                className="xp-shimmer w-8 h-full bg-gradient-to-r from-transparent via-white to-transparent"
                 style={{
                   animation: 'shimmer 3s ease-in-out infinite',
                 }}
@@ -114,12 +114,19 @@ export function LightsaberXpBar({ xp }: LightsaberXpBarProps) {
         <span>{Math.round(progress * 100)}%</span>
       </div>
 
-      {/* Shimmer keyframes (injected via style tag) */}
+      {/* Shimmer keyframes (injected via style tag).
+          El barrido recorre la barra entera, así que es de los que hay que
+          apagar cuando se pide menos movimiento. La compuerta va acá y no en
+          index.css porque la animación se declara acá: medido, era una de las
+          dos que seguían corriendo con `prefers-reduced-motion: reduce`. */}
       <style>{`
         @keyframes shimmer {
           0% { transform: translateX(-100%); }
           50% { transform: translateX(400%); }
           100% { transform: translateX(400%); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .xp-shimmer { animation: none !important; opacity: 0; }
         }
       `}</style>
     </div>

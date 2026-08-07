@@ -18,7 +18,7 @@ const actions = [
     icon: ScrollText,
     label: 'Registrar Combate',
     sub: 'Log de partida casual',
-    color: 'text-swu-accent',
+    color: 'text-swu-accent-texto',
     bg: 'bg-swu-accent/10 border-swu-accent/20',
     to: '/arena/log',
   },
@@ -42,7 +42,7 @@ const actions = [
     icon: Radio,
     label: 'Transmisiones',
     sub: 'Feed galáctico',
-    color: 'text-swu-red',
+    color: 'text-swu-red-texto',
     bg: 'bg-swu-red/10 border-swu-red/20',
     to: '/arena/feed',
   },
@@ -117,13 +117,13 @@ export function ArenaPage() {
             <p className="text-[9px] text-swu-muted font-mono">WINS</p>
           </div>
           <div className="bg-swu-surface rounded-xl p-3 border border-swu-border text-center">
-            <Minus size={14} className="mx-auto text-swu-red mb-1" />
-            <p className="text-lg font-extrabold text-swu-red font-mono">{stats.losses}</p>
+            <Minus size={14} className="mx-auto text-swu-red-texto mb-1" />
+            <p className="text-lg font-extrabold text-swu-red-texto font-mono">{stats.losses}</p>
             <p className="text-[9px] text-swu-muted font-mono">LOSSES</p>
           </div>
           <div className="bg-swu-surface rounded-xl p-3 border border-swu-border text-center">
-            <TrendingUp size={14} className="mx-auto text-swu-accent mb-1" />
-            <p className="text-lg font-extrabold text-swu-accent font-mono">{stats.winrate}%</p>
+            <TrendingUp size={14} className="mx-auto text-swu-accent-texto mb-1" />
+            <p className="text-lg font-extrabold text-swu-accent-texto font-mono">{stats.winrate}%</p>
             <p className="text-[9px] text-swu-muted font-mono">WINRATE</p>
           </div>
           <div className="bg-swu-surface rounded-xl p-3 border border-swu-border text-center">
@@ -161,7 +161,7 @@ export function ArenaPage() {
         <div>
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-xs text-swu-muted font-mono tracking-widest uppercase">Últimos Combates</h3>
-            <button onClick={() => navigate('/arena/history')} className="text-[10px] text-swu-accent font-bold">
+            <button onClick={() => navigate('/arena/history')} className="text-[10px] text-swu-accent-texto font-bold">
               Ver todo →
             </button>
           </div>
@@ -176,7 +176,7 @@ export function ArenaPage() {
                   }`}
                 >
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-extrabold ${
-                    isWin ? 'bg-swu-green/15 text-swu-green' : 'bg-swu-red/15 text-swu-red'
+                    isWin ? 'bg-swu-green/15 text-swu-green' : 'bg-swu-red/15 text-swu-red-texto'
                   }`}>
                     {isWin ? 'W' : 'L'}
                   </div>

@@ -239,7 +239,7 @@ export function TournamentPlayerView() {
       <div className="p-6 text-center space-y-3">
         <ShieldAlert size={32} className="mx-auto text-swu-muted/40" />
         <p className="text-sm text-swu-text">Torneo no encontrado</p>
-        <button onClick={() => navigate('/events')} className="text-xs text-swu-accent">Volver a eventos</button>
+        <button onClick={() => navigate('/events')} className="text-xs text-swu-accent-texto">Volver a eventos</button>
       </div>
     )
   }
@@ -248,7 +248,7 @@ export function TournamentPlayerView() {
     return (
       <div className="p-6 text-center space-y-3">
         <p className="text-sm text-swu-text">Inicia sesión para entrar al torneo</p>
-        <button onClick={() => navigate('/profile')} className="text-xs text-swu-accent">Ir a sesión</button>
+        <button onClick={() => navigate('/profile')} className="text-xs text-swu-accent-texto">Ir a sesión</button>
       </div>
     )
   }
@@ -263,7 +263,7 @@ export function TournamentPlayerView() {
         </p>
         <button
           onClick={() => navigate(`/events/live/${code}`)}
-          className="px-3 py-2 rounded-lg bg-swu-accent/15 text-swu-accent text-xs font-semibold"
+          className="px-3 py-2 rounded-lg bg-swu-accent/15 text-swu-accent-texto text-xs font-semibold"
         >
           Ver torneo público
         </button>
@@ -293,7 +293,7 @@ export function TournamentPlayerView() {
             key={t}
             onClick={() => setTab(t)}
             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              tab === t ? 'bg-swu-accent/20 text-swu-accent' : 'text-swu-muted hover:text-swu-text'
+              tab === t ? 'bg-swu-accent/20 text-swu-accent-texto' : 'text-swu-muted hover:text-swu-text'
             }`}
           >
             {t === 'mine' ? 'Mi mesa' : t === 'all' ? 'Todas' : 'Standings'}
@@ -306,7 +306,7 @@ export function TournamentPlayerView() {
         <section className="space-y-3">
           {event.status === 'finished' ? (
             <div className="bg-swu-surface rounded-2xl border border-swu-border p-6 text-center space-y-2">
-              <Trophy size={32} className="mx-auto text-swu-accent" />
+              <Trophy size={32} className="mx-auto text-swu-accent-texto" />
               <p className="text-sm font-semibold text-swu-text">Torneo terminado</p>
               <p className="text-[11px] text-swu-muted">Mira el ranking final en la pestaña Standings.</p>
             </div>
@@ -332,7 +332,7 @@ export function TournamentPlayerView() {
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-swu-muted">Mesa {myPairing.table_number ?? '?'}</p>
                   <h2 className="text-base font-bold text-swu-text flex items-center gap-2">
-                    <Swords size={16} className="text-swu-accent" />
+                    <Swords size={16} className="text-swu-accent-texto" />
                     vs {opponentName}
                   </h2>
                 </div>
@@ -376,7 +376,7 @@ export function TournamentPlayerView() {
                     <button
                       onClick={onDispute}
                       disabled={confirming}
-                      className="flex-1 py-2.5 rounded-lg bg-swu-red/15 text-swu-red text-sm font-bold active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-1.5"
+                      className="flex-1 py-2.5 rounded-lg bg-swu-red/15 text-swu-red-texto text-sm font-bold active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-1.5"
                     >
                       <AlertTriangle size={14} /> Disputar
                     </button>
@@ -384,7 +384,7 @@ export function TournamentPlayerView() {
                 </div>
               ) : myState === 'disputed' ? (
                 <div className="bg-swu-red/10 border border-swu-red/30 rounded-xl p-3 space-y-1">
-                  <p className="text-xs font-semibold text-swu-red flex items-center gap-2">
+                  <p className="text-xs font-semibold text-swu-red-texto flex items-center gap-2">
                     <AlertTriangle size={14} /> Resultado disputado
                   </p>
                   <p className="text-[11px] text-swu-muted">Esperando que el admin lo resuelva.</p>
@@ -410,7 +410,7 @@ export function TournamentPlayerView() {
               )}
 
               {error && (
-                <div className="bg-swu-red/10 border border-swu-red/30 rounded-lg p-2 text-[11px] text-swu-red">{error}</div>
+                <div className="bg-swu-red/10 border border-swu-red/30 rounded-lg p-2 text-[11px] text-swu-red-texto">{error}</div>
               )}
             </div>
           )}
@@ -474,7 +474,7 @@ function StateBadge({ state }: { state: 'idle' | 'waiting_opponent' | 'confirm_p
     waiting_opponent: { text: 'ESPERANDO', cls: 'bg-swu-amber/15 text-swu-amber' },
     confirm_pending: { text: 'CONFIRMA', cls: 'bg-swu-amber/15 text-swu-amber' },
     confirmed: { text: 'CONFIRMADO', cls: 'bg-swu-green/15 text-swu-green' },
-    disputed: { text: 'DISPUTADO', cls: 'bg-swu-red/15 text-swu-red' },
+    disputed: { text: 'DISPUTADO', cls: 'bg-swu-red/15 text-swu-red-texto' },
   }
   const { text, cls } = map[state]
   return <span className={`text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded-full ${cls}`}>{text}</span>

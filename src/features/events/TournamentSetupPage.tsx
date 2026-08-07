@@ -138,7 +138,7 @@ export function TournamentSetupPage() {
               onClick={() => setFormat(f.id)}
               className={`rounded-xl p-3 text-left border-2 transition-colors ${
                 format === f.id
-                  ? 'bg-swu-accent/10 border-swu-accent/40 text-swu-accent'
+                  ? 'bg-swu-accent/10 border-swu-accent/40 text-swu-accent-texto'
                   : 'bg-swu-surface border-swu-border text-swu-muted'
               }`}
             >
@@ -159,7 +159,7 @@ export function TournamentSetupPage() {
             onClick={() => setTournamentType('swiss')}
             className={`flex-1 rounded-xl p-3 text-center border-2 transition-colors ${
               tournamentType === 'swiss'
-                ? 'bg-swu-accent/10 border-swu-accent/40 text-swu-accent'
+                ? 'bg-swu-accent/10 border-swu-accent/40 text-swu-accent-texto'
                 : 'bg-swu-surface border-swu-border text-swu-muted'
             }`}
           >
@@ -171,7 +171,7 @@ export function TournamentSetupPage() {
             onClick={() => setTournamentType('elimination')}
             className={`flex-1 rounded-xl p-3 text-center border-2 transition-colors ${
               tournamentType === 'elimination'
-                ? 'bg-swu-accent/10 border-swu-accent/40 text-swu-accent'
+                ? 'bg-swu-accent/10 border-swu-accent/40 text-swu-accent-texto'
                 : 'bg-swu-surface border-swu-border text-swu-muted'
             }`}
           >
@@ -194,7 +194,7 @@ export function TournamentSetupPage() {
               onClick={() => setMatchType(mt)}
               className={`flex-1 rounded-xl py-3 text-center font-bold text-sm border-2 transition-colors ${
                 matchType === mt
-                  ? 'bg-swu-accent/10 border-swu-accent/40 text-swu-accent'
+                  ? 'bg-swu-accent/10 border-swu-accent/40 text-swu-accent-texto'
                   : 'bg-swu-surface border-swu-border text-swu-muted'
               }`}
             >
@@ -258,7 +258,7 @@ export function TournamentSetupPage() {
               {playerSlots.length > 2 && (
                 <button
                   onClick={() => removePlayer(idx)}
-                  className="p-2 rounded-lg bg-swu-red/10 border border-swu-red/30 text-swu-red flex-shrink-0"
+                  className="p-2 rounded-lg bg-swu-red/10 border border-swu-red/30 text-swu-red-texto flex-shrink-0"
                 >
                   <X size={16} />
                 </button>
@@ -282,7 +282,7 @@ export function TournamentSetupPage() {
 
       {/* Error */}
       {error && (
-        <p className="text-sm text-swu-red bg-swu-red/10 rounded-lg p-3 border border-swu-red/30">
+        <p className="text-sm text-swu-red-texto bg-swu-red/10 rounded-lg p-3 border border-swu-red/30">
           {error}
         </p>
       )}

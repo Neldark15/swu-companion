@@ -112,7 +112,7 @@ export function ArenaLogPage() {
 
       {/* Player 1 */}
       <div className="bg-swu-surface rounded-xl p-4 border border-swu-accent/30 space-y-3">
-        <p className="text-[10px] text-swu-accent font-mono font-bold tracking-widest">JUGADOR 1 (YO)</p>
+        <p className="text-[10px] text-swu-accent-texto font-mono font-bold tracking-widest">JUGADOR 1 (YO)</p>
         <input
           value={player1Name}
           onChange={(e) => setPlayer1Name(e.target.value)}
@@ -129,7 +129,7 @@ export function ArenaLogPage() {
                   onClick={() => setPlayer1Deck(player1Deck === d.name ? '' : d.name)}
                   className={`rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors ${
                     player1Deck === d.name
-                      ? 'bg-swu-accent/20 border-swu-accent text-swu-accent'
+                      ? 'bg-swu-accent/20 border-swu-accent text-swu-accent-texto'
                       : 'bg-swu-bg border-swu-border text-swu-muted'
                   }`}
                 >
@@ -157,7 +157,7 @@ export function ArenaLogPage() {
 
       {/* Player 2 */}
       <div className="bg-swu-surface rounded-xl p-4 border border-swu-red/30 space-y-3">
-        <p className="text-[10px] text-swu-red font-mono font-bold tracking-widest">JUGADOR 2 (OPONENTE)</p>
+        <p className="text-[10px] text-swu-red-texto font-mono font-bold tracking-widest">JUGADOR 2 (OPONENTE)</p>
         <input
           value={player2Name}
           onChange={(e) => setPlayer2Name(e.target.value)}
@@ -210,7 +210,7 @@ export function ArenaLogPage() {
                   isSelected
                     ? isWin
                       ? 'bg-swu-green/15 border-swu-green text-swu-green'
-                      : 'bg-swu-red/15 border-swu-red text-swu-red'
+                      : 'bg-swu-red/15 border-swu-red text-swu-red-texto'
                     : 'bg-swu-surface border-swu-border text-swu-muted'
                 }`}
               >
@@ -239,7 +239,7 @@ export function ArenaLogPage() {
             onClick={() => setWinnerManual(2)}
             className={`flex-1 py-3 rounded-xl border font-bold text-sm transition-colors ${
               winner === 2
-                ? 'bg-swu-red/15 border-swu-red text-swu-red'
+                ? 'bg-swu-red/15 border-swu-red text-swu-red-texto'
                 : 'bg-swu-surface border-swu-border text-swu-muted'
             }`}
           >

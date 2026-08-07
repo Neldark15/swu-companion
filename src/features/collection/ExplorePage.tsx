@@ -515,8 +515,16 @@ function MarketTab() {
                   </Carta3D>
 
                   {/* El precio va encima de la carta, como la etiqueta en la
-                      funda. Es lo primero que se mira en una tienda. */}
-                  <span className="absolute top-3 right-3 z-10 px-1.5 py-0.5 rounded-md bg-black/80 backdrop-blur-[2px]">
+                      funda. Es lo primero que se mira en una tienda.
+                   *
+                   * Sin `backdrop-blur`. Tenía `backdrop-blur-[2px]` DETRÁS de
+                   * un negro al 80%: dos píxeles de desenfoque bajo una capa
+                   * casi opaca no se ven, y medido costaban **24 capas de
+                   * compositor** en esta pantalla —`backdrop-filter` es la
+                   * operación más cara que hay en un teléfono, porque obliga a
+                   * releer lo ya pintado por debajo—. Se quitó lo invisible y
+                   * se quedó lo que hace legible el precio, que es el negro. */}
+                  <span className="absolute top-3 right-3 z-10 px-1.5 py-0.5 rounded-md bg-black/80">
                     {l.price != null ? (
                       <span className="text-[11px] font-extrabold text-swu-amber font-mono">
                         ${l.price.toFixed(2)}

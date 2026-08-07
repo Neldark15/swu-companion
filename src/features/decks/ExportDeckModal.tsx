@@ -70,7 +70,7 @@ export function ExportDeckModal({ open, deck, onClose }: Props) {
             onClick={() => setFormat('json')}
             className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition-all ${
               format === 'json'
-                ? 'bg-swu-accent/15 border-swu-accent/40 text-swu-accent'
+                ? 'bg-swu-accent/15 border-swu-accent/40 text-swu-accent-texto'
                 : 'bg-swu-bg border-swu-border text-swu-muted'
             }`}
           >

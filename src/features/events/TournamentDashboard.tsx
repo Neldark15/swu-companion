@@ -229,7 +229,7 @@ export default function TournamentDashboard() {
       <div className="min-h-screen bg-swu-bg flex items-center justify-center p-4">
         <div className="text-swu-muted text-center">
           <p>Evento no encontrado</p>
-          <button onClick={() => navigate('/events')} className="text-swu-accent mt-2">
+          <button onClick={() => navigate('/events')} className="text-swu-accent-texto mt-2">
             Volver a Eventos
           </button>
         </div>
@@ -280,7 +280,7 @@ export default function TournamentDashboard() {
                 navigator.clipboard.writeText(`${window.location.origin}/events/live/${event.code}`)
                 showMessage('Link copiado')
               }}
-              className="text-xs px-2 py-1 bg-swu-accent/20 text-swu-accent rounded"
+              className="text-xs px-2 py-1 bg-swu-accent/20 text-swu-accent-texto rounded"
             >
               📋 Link
             </button>
@@ -318,7 +318,7 @@ export default function TournamentDashboard() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs rounded transition-colors ${
                 activeTab === tab.id
-                  ? 'bg-swu-accent/20 text-swu-accent font-bold'
+                  ? 'bg-swu-accent/20 text-swu-accent-texto font-bold'
                   : 'text-swu-muted hover:text-swu-text'
               }`}
             >
@@ -351,7 +351,7 @@ export default function TournamentDashboard() {
                 <button
                   onClick={handleGeneratePairings}
                   disabled={actionLoading}
-                  className="flex-1 py-2.5 bg-swu-accent/20 text-swu-accent rounded-lg font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 bg-swu-accent/20 text-swu-accent-texto rounded-lg font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <Play size={16} />
                   {event.current_round === 0 ? 'Generar Ronda 1' : 'Siguiente Ronda'}

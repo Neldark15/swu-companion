@@ -52,7 +52,7 @@ export function AdminAuditPage() {
           <button
             onClick={() => setActionFilter('')}
             className={`text-[11px] px-2.5 py-1 rounded-md ${
-              actionFilter === '' ? 'bg-swu-accent/20 text-swu-accent' : 'text-swu-muted hover:text-swu-text'
+              actionFilter === '' ? 'bg-swu-accent/20 text-swu-accent-texto' : 'text-swu-muted hover:text-swu-text'
             }`}
           >
             Todas
@@ -62,7 +62,7 @@ export function AdminAuditPage() {
               key={a}
               onClick={() => setActionFilter(a)}
               className={`text-[11px] px-2.5 py-1 rounded-md font-mono ${
-                actionFilter === a ? 'bg-swu-accent/20 text-swu-accent' : 'text-swu-muted hover:text-swu-text'
+                actionFilter === a ? 'bg-swu-accent/20 text-swu-accent-texto' : 'text-swu-muted hover:text-swu-text'
               }`}
             >
               {a}
@@ -109,7 +109,7 @@ export function AdminAuditPage() {
                       <span className="font-mono text-swu-muted">hace {relativeTime(log.created_at)}</span>
                     </td>
                     <td className="px-3 py-2">
-                      <span className="text-[11px] font-mono bg-black/30 px-1.5 py-0.5 rounded text-swu-accent">{log.action}</span>
+                      <span className="text-[11px] font-mono bg-black/30 px-1.5 py-0.5 rounded text-swu-accent-texto">{log.action}</span>
                     </td>
                     <td className="px-3 py-2 text-xs">
                       <span className="text-swu-text">{log.actor_name ?? 'Sistema'}</span>

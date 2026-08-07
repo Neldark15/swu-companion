@@ -40,7 +40,7 @@ const ORDEN_LABEL: Record<Orden, string> = {
   mazos: 'Mazos', cuota: 'Cuota', wr: 'Win rate', top8: 'Top 8', titulos: 'Títulos',
 }
 
-const TONO_CLASE = { green: 'text-swu-green', red: 'text-swu-red', neutral: 'text-swu-muted' } as const
+const TONO_CLASE = { green: 'text-swu-green', red: 'text-swu-red-texto', neutral: 'text-swu-muted' } as const
 
 function WR({ v, fiable }: { v: number | null | undefined; fiable: boolean }) {
   return (
@@ -52,7 +52,7 @@ function WR({ v, fiable }: { v: number | null | undefined; fiable: boolean }) {
 
 function Tendencia({ t }: { t: string | null }) {
   if (t === 'rising' || t === 'up') return <TrendingUp size={11} className="text-swu-green" aria-label="subiendo" />
-  if (t === 'falling' || t === 'down') return <TrendingDown size={11} className="text-swu-red" aria-label="bajando" />
+  if (t === 'falling' || t === 'down') return <TrendingDown size={11} className="text-swu-red-texto" aria-label="bajando" />
   return <Minus size={11} className="text-swu-muted/50" aria-label="estable" />
 }
 
@@ -243,7 +243,7 @@ export function MetaLiveView() {
         )}
 
         {error && filas.length > 0 && (
-          <div className="flex items-start gap-2 text-[11px] text-swu-red bg-swu-red/10 border border-swu-red/30 rounded-lg px-3 py-2">
+          <div className="flex items-start gap-2 text-[11px] text-swu-red-texto bg-swu-red/10 border border-swu-red/30 rounded-lg px-3 py-2">
             <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" aria-hidden />
             <span>No se pudo actualizar: {error}</span>
           </div>
@@ -392,7 +392,7 @@ export function MetaLiveView() {
             </div>
 
             {recetaError && (
-              <p className="text-[11px] text-swu-red flex items-start gap-1.5">
+              <p className="text-[11px] text-swu-red-texto flex items-start gap-1.5">
                 <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" aria-hidden /> {recetaError}
               </p>
             )}

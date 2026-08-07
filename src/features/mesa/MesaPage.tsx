@@ -355,7 +355,15 @@ async function resolverArte(p: PartidaNarrada): Promise<Map<string, ArteCarta>> 
       // la base local de respaldo. Los líderes y las bases son 400×286: meter
       // uno en un hueco vertical es el bug que ya salió cuatro veces aquí.
       const apaisada = ficha.tipo === 'Leader' || ficha.tipo === 'Base' || c.isLeader || c.isBase
-      salida.set(nombre, { url: c.imageUrl, apaisada })
+      // El dorso SOLO de los líderes: es su cara de unidad, la que se ve al
+      // desplegarse. La base también tiene `backImageUrl` en algunas filas y
+      // ahí no significa eso — una base nunca se voltea.
+      const esLider = ficha.tipo === 'Leader' || c.isLeader
+      salida.set(nombre, {
+        url: c.imageUrl,
+        apaisada,
+        dorso: esLider ? c.backImageUrl ?? null : null,
+      })
     }
   } catch {
     // Sin arte la mesa sigue: las cartas salen como rectángulos del color de
@@ -384,7 +392,19 @@ function Controles({
 
   return (
     <div className="space-y-2.5 bg-swu-surface border border-swu-border rounded-xl p-3">
-      <div className="flex items-center gap-2">
+      {/*
+        `flex-wrap` no es decoración. Medido en Chrome a 320 px: el grupo de
+        velocidad iba de 202 a 345 y el contenedor se acaba en 300, así que
+        `2×` salía cortado por la mitad y `4×` quedaba ENTERO fuera —un control
+        imposible de tocar— y encima la página no desborda (scrollWidth 320 =
+        clientWidth 320), o sea que no había scroll que lo rescatara. **A 360 px
+        pasaba igual**, que es la anchura de medio Android. Con el envoltorio el
+        grupo baja a su propia línea, sigue a la derecha por el `ml-auto` y cabe:
+        mide 143 px contra los 280 útiles. De 375 px en adelante no envuelve y
+        la fila sigue midiendo los mismos 44 px de alto — medido en 320, 360,
+        375, 390 y 430.
+      */}
+      <div className="flex items-center gap-2 flex-wrap">
         <Button size="xs" variant="secondary" onClick={() => { onJugando(false); onIndice(0) }}
           aria-label="Volver al principio"><RotateCcw size={14} /></Button>
         <Button size="xs" variant="secondary"
@@ -496,6 +516,19 @@ function MesaPlana({ estado, arte, mi, suyo }: {
   )
 }
 
+/**
+ * La cara que enseña una carta que está EN LA ARENA.
+ *
+ * Un líder desplegado se voltea a su cara de unidad, que es el dorso y es
+ * vertical. Es la misma regla que aplica la mesa 3D; vive aquí duplicada a
+ * propósito, porque importar la función de `MesaEscena` metería `three` en
+ * ESTE chunk y mataría el `lazy()`.
+ */
+function caraEnArena(a: ArteCarta | undefined) {
+  if (a?.dorso) return { url: a.dorso, apaisada: false }
+  return { url: a?.url, apaisada: a?.apaisada ?? false }
+}
+
 function FilaPlana({ l, arena, arte, quien }: {
   l: LadoMesa; arena: Arena; arte: Map<string, ArteCarta>; quien: string
 }) {
@@ -509,15 +542,18 @@ function FilaPlana({ l, arena, arte, quien }: {
         <p className="text-[11px] text-swu-muted/60">vacío</p>
       ) : (
         <div className="flex gap-1.5 overflow-x-auto pb-1">
-          {us.map((u) => (
-            <div key={u.uid} className="flex-shrink-0 w-12">
-              <CardImage src={arte.get(u.nombre)?.url} alt={u.nombre} className="w-12 h-16"
-                orientacion={arte.get(u.nombre)?.apaisada ? 'apaisada' : 'vertical'} />
-              <p className="text-[9px] font-mono text-center text-swu-muted mt-0.5">
-                {u.poder}/{u.resto}
-              </p>
-            </div>
-          ))}
+          {us.map((u) => {
+            const c = caraEnArena(arte.get(u.nombre))
+            return (
+              <div key={u.uid} className="flex-shrink-0 w-12">
+                <CardImage src={c.url} alt={u.nombre} className="w-12 h-16"
+                  orientacion={c.apaisada ? 'apaisada' : 'vertical'} />
+                <p className="text-[9px] font-mono text-center text-swu-muted mt-0.5">
+                  {u.poder}/{u.resto}
+                </p>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

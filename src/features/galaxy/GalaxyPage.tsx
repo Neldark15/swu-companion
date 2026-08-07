@@ -61,7 +61,7 @@ function TabButton({ label, icon, active, onClick }: TabButtonProps) {
       onClick={onClick}
       className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
         active
-          ? 'bg-swu-accent/15 text-swu-accent border border-swu-accent/30'
+          ? 'bg-swu-accent/15 text-swu-accent-texto border border-swu-accent/30'
           : 'text-swu-muted hover:text-swu-text border border-transparent'
       }`}
     >
@@ -215,7 +215,7 @@ function RankingRow({ entry, category, onView }: RankingRowProps) {
 
       {/* Value */}
       <div className="text-right flex-shrink-0">
-        <div className="text-sm font-bold text-swu-accent">{valueLabel[category]}</div>
+        <div className="text-sm font-bold text-swu-accent-texto">{valueLabel[category]}</div>
       </div>
     </button>
   )
@@ -285,7 +285,7 @@ function MapTab({ players, stats }: MapTabProps) {
       {/* Global Stats */}
       <div className="grid grid-cols-2 gap-2">
         <div className="bg-swu-surface rounded-xl p-3 border border-swu-border text-center">
-          <Users size={18} className="mx-auto text-swu-accent mb-1" />
+          <Users size={18} className="mx-auto text-swu-accent-texto mb-1" />
           <div className="text-xl font-bold text-swu-text">{stats.totalPlayers}</div>
           <div className="text-[10px] text-swu-muted">Comandantes</div>
         </div>
@@ -331,7 +331,7 @@ function MapTab({ players, stats }: MapTabProps) {
                   style={{ width: `${(count / max) * 100}%` }}
                 />
               </div>
-              <span className="text-xs font-bold text-swu-accent w-8 text-right">{count}</span>
+              <span className="text-xs font-bold text-swu-accent-texto w-8 text-right">{count}</span>
             </div>
           ))}
         </div>
@@ -560,7 +560,7 @@ export function GalaxyPage() {
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold
                                whitespace-nowrap transition-all border ${
                     rankingCategory === tab.id
-                      ? 'bg-swu-accent/15 text-swu-accent border-swu-accent/30'
+                      ? 'bg-swu-accent/15 text-swu-accent-texto border-swu-accent/30'
                       : 'bg-swu-surface text-swu-muted border-swu-border hover:text-swu-text'
                   }`}
                 >

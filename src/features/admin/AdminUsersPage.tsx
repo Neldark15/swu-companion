@@ -104,7 +104,7 @@ export function AdminUsersPage() {
               key={f}
               onClick={() => setFilter(f)}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                filter === f ? 'bg-swu-accent/20 text-swu-accent' : 'text-swu-muted hover:text-swu-text'
+                filter === f ? 'bg-swu-accent/20 text-swu-accent-texto' : 'text-swu-muted hover:text-swu-text'
               }`}
             >
               {f === 'all' ? 'Todos' : f === 'admin' ? 'Admins' : 'Usuarios'}
@@ -147,7 +147,7 @@ export function AdminUsersPage() {
                         <span className="font-medium text-swu-text">{u.name}</span>
                         <Link
                           to={`/u/${u.id}`}
-                          className="text-swu-muted hover:text-swu-accent"
+                          className="text-swu-muted hover:text-swu-accent-texto"
                           title="Ver perfil público"
                         >
                           <ExternalLink size={12} />
@@ -157,7 +157,7 @@ export function AdminUsersPage() {
                     </td>
                     <td className="px-3 py-2">
                       {u.role === 'admin' ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-swu-accent bg-swu-accent/15 px-2 py-0.5 rounded-full">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-swu-accent-texto bg-swu-accent/15 px-2 py-0.5 rounded-full">
                           <ShieldCheck size={10} /> ADMIN
                         </span>
                       ) : (
@@ -216,8 +216,8 @@ export function AdminUsersPage() {
                           u.id === currentProfile?.id
                             ? 'text-swu-muted/40 cursor-not-allowed'
                             : u.role === 'admin'
-                            ? 'text-swu-red hover:bg-swu-red/10'
-                            : 'text-swu-accent hover:bg-swu-accent/10'
+                            ? 'text-swu-red-texto hover:bg-swu-red/10'
+                            : 'text-swu-accent-texto hover:bg-swu-accent/10'
                         }`}
                       >
                         {savingId === u.id ? (

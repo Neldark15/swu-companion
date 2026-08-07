@@ -33,6 +33,7 @@
 
 import { useState, useRef, useEffect, memo } from 'react'
 import { Package } from 'lucide-react'
+import { anchoArte, artUrlOptimizada } from '../services/cardArt'
 
 /** Proporciones reales del arte oficial. */
 export const RATIO_VERTICAL = 286 / 400
@@ -81,18 +82,43 @@ export const CardImage = memo(function CardImage({
   foil = false,
 }: CardImageProps) {
   const [state, setState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
-  // Sin IntersectionObserver no hay a qué esperar, así que arranca visible.
-  // Va como estado inicial y no como un `setState` dentro del efecto: eso
-  // último provoca un render en cascada por cada carta de la rejilla.
-  const [isVisible, setIsVisible] = useState(
-    () => typeof IntersectionObserver === 'undefined',
-  )
   /** Orientación medida de la imagen ya cargada. Manda sobre la declarada:
    *  si un llamador se equivoca, la carta igual se ve bien. */
   const [medida, setMedida] = useState<Orientacion | null>(null)
+  /**
+   * La URL que de verdad se pide: la original recortada al tamaño de ESTA
+   * caja, y a la vez la señal de «ya está cerca de la pantalla».
+   *
+   * Guarda JUNTO a la URL de quién es (`para`). Así, si la rejilla reusa este
+   * componente para otra carta —cambia `src` sin desmontar—, la URL vieja
+   * deja de valer sola, sin un efecto que la limpie y sin un fotograma
+   * mostrando la carta anterior.
+   *
+   * `null` = todavía no toca pedir nada. Sin IntersectionObserver no hay a
+   * qué esperar, así que arranca con el peldaño más grande. Va como estado
+   * inicial y no como un `setState` dentro de un efecto: eso último provoca
+   * un render en cascada por cada carta de la rejilla.
+   */
+  const [pedido, setPedido] = useState<{ para: string; url: string } | null>(() =>
+    typeof IntersectionObserver === 'undefined' && src
+      ? { para: src, url: artUrlOptimizada(src, anchoArte(Infinity, 1)) ?? src }
+      : null,
+  )
   const containerRef = useRef<HTMLDivElement>(null)
+  const urlPedida = pedido && pedido.para === src ? pedido.url : null
+  const isVisible = urlPedida !== null
 
-  // IntersectionObserver — solo carga cuando está cerca de la pantalla.
+  /**
+   * IntersectionObserver — solo carga cuando está cerca de la pantalla, y de
+   * paso decide A QUÉ TAMAÑO pedirla.
+   *
+   * El tamaño se MIDE, no se declara en cada sitio: hay 23 archivos que
+   * dibujan cartas y ninguno sabe a cuántos píxeles termina en el teléfono de
+   * quien mira. El nodo sí lo sabe, y el propio observador ya trae la caja
+   * medida en `entry.boundingClientRect`, así que sale gratis: ni un
+   * `getBoundingClientRect` extra —que forzaría un cálculo de layout
+   * sincrónico por carta— ni un efecto de más.
+   */
   useEffect(() => {
     const el = containerRef.current
     if (!el || !src) return
@@ -102,10 +128,14 @@ export const CardImage = memo(function CardImage({
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true)
-          observer.disconnect()
-        }
+        if (!entry.isIntersecting) return
+        observer.disconnect()
+        const ancho = entry.boundingClientRect.width
+        const dpr = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1
+        // Sin ancho medible no se adivina: se pide el peldaño más grande, que
+        // es lo que hacía la app antes y nunca se ve mal.
+        const peldano = ancho > 0 ? anchoArte(ancho, dpr) : anchoArte(Infinity, 1)
+        setPedido({ para: src, url: artUrlOptimizada(src, peldano) ?? src })
       },
       { rootMargin: `${rootMargin}px` },
     )
@@ -116,7 +146,7 @@ export const CardImage = memo(function CardImage({
 
   // Carga de la imagen.
   useEffect(() => {
-    if (!isVisible || !src) return
+    if (!isVisible || !src || !urlPedida) return
 
     let cancelled = false
     const img = new Image()
@@ -129,14 +159,40 @@ export const CardImage = memo(function CardImage({
         setMedida(img.naturalWidth >= img.naturalHeight ? 'apaisada' : 'vertical')
       }
     }
-    img.onload = () => { if (!cancelled) { medir(); setState('loaded') } }
-    img.onerror = () => { if (!cancelled) setState('error') }
-    img.src = src
+    const listo = () => { if (!cancelled) { medir(); setState('loaded') } }
+    const fallo = () => {
+      if (cancelled) return
+      // Primer fallo con recorte: se reintenta con la ORIGINAL. Que la url
+      // pedida sea ya la original es justamente la señal de que este es el
+      // segundo intento, o sea una carta que de verdad no está.
+      if (urlPedida !== src) setPedido({ para: src, url: src })
+      else setState('error')
+    }
 
-    // Red de seguridad para el mismo caso: si ya está resuelta, no hay ningún
-    // evento que esperar. Va en un microtask —no en el cuerpo del efecto—
-    // porque un `setState` síncrono ahí dispara un render en cascada por cada
-    // carta, y en una rejilla de 200 eso se siente.
+    // `decode()` descomprime el PNG/WebP FUERA del hilo principal y recién
+    // entonces damos la carta por lista. Sin esto, la descompresión ocurría
+    // dentro del fotograma en que la carta se pinta: medido, 149 ms de
+    // fotograma al desplazar la lista y 100 ms en el binder, con tirones
+    // largos de 109-155 ms. Es el mismo trabajo, hecho donde no se ve.
+    if (typeof img.decode === 'function') {
+      img.decoding = 'async'
+      img.src = urlPedida
+      img.decode().then(listo, () => {
+        // `decode()` también rechaza si la imagen se reemplazó a media carga;
+        // si en realidad llegó bien, no es un fallo.
+        if (img.complete && img.naturalWidth > 0) listo()
+        else fallo()
+      })
+    } else {
+      img.onload = listo
+      img.onerror = fallo
+      img.src = urlPedida
+    }
+
+    // Red de seguridad: si ya está resuelta, no hay ningún evento que esperar.
+    // Va en un microtask —no en el cuerpo del efecto— porque un `setState`
+    // síncrono ahí dispara un render en cascada por cada carta, y en una
+    // rejilla de 200 eso se siente.
     queueMicrotask(() => {
       if (cancelled) return
       if (img.complete && img.naturalWidth > 0) { medir(); setState('loaded') }
@@ -144,7 +200,7 @@ export const CardImage = memo(function CardImage({
     })
 
     return () => { cancelled = true }
-  }, [isVisible, src])
+  }, [isVisible, src, urlPedida])
 
   const orient = medida ?? orientacion ?? 'vertical'
 
@@ -176,21 +232,34 @@ export const CardImage = memo(function CardImage({
       ref={containerRef}
       className={`${className} overflow-hidden flex-shrink-0 relative isolate`}
     >
-      {/* Esqueleto: un barrido suave en vez de un bloque que parpadea. */}
+      {/* Esqueleto: un barrido suave en vez de un bloque que parpadea.
+       *
+       * El barrido solo corre si la carta está CERCA DE LA PANTALLA. Antes
+       * dependía solo de `state`, que arranca en 'idle', así que se pintaba
+       * aunque el IntersectionObserver no hubiera disparado nunca: al abrir
+       * Mi Botín había 3 imágenes en el DOM y **200 animaciones infinitas**
+       * corriendo (257 en el binder) para filas que estaban enteras fuera de
+       * pantalla. Y `carta-barrido` anima `background-position`, que es
+       * PINTADO —no compositor—, así que costaba de verdad.
+       *
+       * Fuera de pantalla queda la misma caja del mismo color: el hueco se
+       * ve idéntico, sin nada que animar. */}
       {state !== 'loaded' && state !== 'error' && (
-        <div className={`absolute inset-0 ${radio} carta-esqueleto`} />
+        <div className={`absolute inset-0 ${radio} ${isVisible ? 'carta-esqueleto' : 'carta-hueco'}`} />
       )}
 
-      {isVisible && state !== 'error' && (
+      {isVisible && urlPedida && state !== 'error' && (
         <>
           {/* Relleno: la MISMA imagen ampliada y desenfocada rellena el hueco
               que deja una carta apaisada en una celda vertical. Es el mismo
-              archivo, así que no cuesta una descarga extra. */}
+              archivo —la misma URL, incluido el recorte— así que no cuesta
+              una descarga extra. */}
           {ajuste === 'contain' && (
             <img
-              src={src}
+              src={urlPedida}
               alt=""
               aria-hidden
+              decoding="async"
               className={`absolute inset-0 w-full h-full object-cover carta-relleno transition-opacity duration-500 ${
                 state === 'loaded' ? 'opacity-100' : 'opacity-0'
               }`}
@@ -198,8 +267,9 @@ export const CardImage = memo(function CardImage({
           )}
 
           <img
-            src={src}
+            src={urlPedida}
             alt={alt}
+            decoding="async"
             className={`relative w-full h-full ${
               ajuste === 'contain' ? 'object-contain' : `object-cover ${radio}`
             } ${sombra} transition-[opacity,transform] duration-300 ${

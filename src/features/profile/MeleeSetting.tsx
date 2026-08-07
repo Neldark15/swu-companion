@@ -119,7 +119,7 @@ export function MeleeSetting({ userId }: { userId: string }) {
         )}
       </div>
 
-      {error && <p className="text-[11px] text-swu-red leading-snug">{error}</p>}
+      {error && <p className="text-[11px] text-swu-red-texto leading-snug">{error}</p>}
 
       {/* La honestidad va acá y no en letra chica al final. */}
       {guardado && !verificado && (

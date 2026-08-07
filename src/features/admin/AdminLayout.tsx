@@ -78,7 +78,7 @@ export function AdminLayout() {
         {/* Header */}
         <div className="px-4 py-5 border-b border-swu-border/40">
           <div className="flex items-center gap-2">
-            <ShieldCheck size={16} className="text-swu-accent" />
+            <ShieldCheck size={16} className="text-swu-accent-texto" />
             <span className="text-[10px] tracking-[0.3em] uppercase text-swu-muted font-mono">
               Cuartel General
             </span>
@@ -105,7 +105,7 @@ export function AdminLayout() {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                   isActive
-                    ? 'bg-swu-accent/15 text-swu-accent'
+                    ? 'bg-swu-accent/15 text-swu-accent-texto'
                     : 'text-swu-muted hover:text-swu-text hover:bg-swu-surface/40'
                 }`
               }
@@ -136,7 +136,7 @@ export function AdminLayout() {
             <span>App</span>
           </button>
           <div className="flex items-center gap-1.5">
-            <ShieldCheck size={14} className="text-swu-accent" />
+            <ShieldCheck size={14} className="text-swu-accent-texto" />
             <span className="text-xs font-bold text-swu-text">Admin</span>
           </div>
           <div className="w-12" />
@@ -151,7 +151,7 @@ export function AdminLayout() {
               className={({ isActive }) =>
                 `flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] whitespace-nowrap transition-colors ${
                   isActive
-                    ? 'bg-swu-accent/15 text-swu-accent'
+                    ? 'bg-swu-accent/15 text-swu-accent-texto'
                     : 'text-swu-muted hover:text-swu-text'
                 }`
               }

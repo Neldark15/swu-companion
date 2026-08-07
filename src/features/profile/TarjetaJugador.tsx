@@ -93,7 +93,7 @@ export function TarjetaJugador({
                 {pais.flag} {pais.name}
               </span>
             )}
-            {perfil.credentialId && <Fingerprint size={10} className="text-swu-accent" aria-hidden />}
+            {perfil.credentialId && <Fingerprint size={10} className="text-swu-accent-texto" aria-hidden />}
             {enLinea && (
               <span className="text-[9px] bg-swu-green/20 text-swu-green px-1.5 py-0.5 rounded-full font-bold">
                 Online

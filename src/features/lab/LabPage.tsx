@@ -317,7 +317,7 @@ function FilaRival({ fila, activo, cargando, bloqueado, detalle, error, onClick,
               Midiendo <span className="font-mono">{PARTIDAS_SIMULAR}</span> partidas…
             </span>
           )}
-          {!cargando && error && <span className="text-swu-red">{error}</span>}
+          {!cargando && error && <span className="text-swu-red-texto">{error}</span>}
           {!cargando && !error && detalle && (
             <div className="space-y-0.5">
               {/* El margen va SIEMPRE pegado al win rate. Es lo que separa un
@@ -384,7 +384,7 @@ function CambioMedido({ medido, rival }: { medido: Medido; rival: string }) {
           </div>
         </div>
         <div className={`font-mono tabular-nums text-xl font-black flex-shrink-0 ${
-          mejora ? 'text-swu-green' : 'text-swu-red'}`}>
+          mejora ? 'text-swu-green' : 'text-swu-red-texto'}`}>
           {mejora ? '+' : '−'}{n1(Math.abs(delta))}
         </div>
       </div>
@@ -968,7 +968,7 @@ export function LabPage() {
       </Seccion>
 
       {error && (
-        <div className="flex gap-2 items-start text-xs text-swu-red bg-swu-red/10 border border-swu-red/30 rounded-lg p-3">
+        <div className="flex gap-2 items-start text-xs text-swu-red-texto bg-swu-red/10 border border-swu-red/30 rounded-lg p-3">
           <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" /> {error}
         </div>
       )}
@@ -1116,7 +1116,7 @@ export function LabPage() {
           )}
 
           {!cargandoContexto && errorContexto && (
-            <p className="text-xs text-swu-red">
+            <p className="text-xs text-swu-red-texto">
               {errorContexto} Sin la base de cartas local no se puede agrupar por aspecto.
             </p>
           )}
@@ -1162,7 +1162,7 @@ export function LabPage() {
                   empate técnico, y por exactamente la misma razón. */}
               {diagnostico.pierde.length > 0 && (
                 <div className="space-y-1.5">
-                  <h3 className="text-xs font-bold text-swu-red">
+                  <h3 className="text-xs font-bold text-swu-red-texto">
                     Dónde perdés{' '}
                     <span className="font-mono font-normal text-swu-muted">
                       ({diagnostico.pierde.length})
@@ -1371,7 +1371,7 @@ export function LabPage() {
               )}
 
               {errorBusqueda && (
-                <p className="text-xs text-swu-red leading-relaxed">{errorBusqueda}</p>
+                <p className="text-xs text-swu-red-texto leading-relaxed">{errorBusqueda}</p>
               )}
 
               {medidos && medidos.length > 0 && (
@@ -1467,7 +1467,7 @@ export function LabPage() {
 
           {/* El error del probador, junto al botón que lo pidió. */}
           {errorPrueba && (
-            <div className="flex gap-2 items-start text-xs text-swu-red bg-swu-red/10
+            <div className="flex gap-2 items-start text-xs text-swu-red-texto bg-swu-red/10
               border border-swu-red/30 rounded-lg p-2.5">
               <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" /> {errorPrueba}
             </div>
@@ -1492,7 +1492,7 @@ export function LabPage() {
                   el «-0,0» que salía de un delta de −0,04.) */}
               <div className={`text-2xl font-black font-mono tabular-nums ${
                 !esReportable(prueba.delta) ? 'text-swu-muted'
-                  : prueba.delta > 0 ? 'text-swu-green' : 'text-swu-red'}`}>
+                  : prueba.delta > 0 ? 'text-swu-green' : 'text-swu-red-texto'}`}>
                 {esReportable(prueba.delta) ? (prueba.delta > 0 ? '+' : '−') : ''}
                 {n1(Math.abs(prueba.delta))}
               </div>

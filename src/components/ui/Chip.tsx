@@ -13,7 +13,7 @@ import { X } from 'lucide-react'
 export type ChipTone = 'accent' | 'amber' | 'cyan' | 'coral' | 'green' | 'neutral'
 
 const ACTIVE: Record<ChipTone, string> = {
-  accent: 'bg-swu-accent/15 border-swu-accent/50 text-swu-accent',
+  accent: 'bg-swu-accent/15 border-swu-accent/50 text-swu-accent-texto',
   amber: 'bg-swu-amber/15 border-swu-amber/50 text-swu-amber',
   cyan: 'bg-swu-cyan/15 border-swu-cyan/50 text-swu-cyan',
   coral: 'bg-swu-coral/15 border-swu-coral/50 text-swu-coral',

@@ -100,6 +100,16 @@ export function AspectBars({ bars }: AspectBarsProps) {
           50% { box-shadow: 0 0 14px rgba(0,191,255,0.7), inset 0 0 6px rgba(0,191,255,0.3); border-color: #66D9FF; }
         }
         .animate-kyber-glow { animation: kyber-glow 2s ease-in-out infinite; }
+        /* Late al que pidió menos movimiento no. Se queda el estado alto del
+           ciclo, así que el aspecto kyber SIGUE distinguiéndose de los demás
+           —el brillo informa— pero sin latir. */
+        @media (prefers-reduced-motion: reduce) {
+          .animate-kyber-glow {
+            animation: none !important;
+            box-shadow: 0 0 14px rgba(0,191,255,0.7), inset 0 0 6px rgba(0,191,255,0.3);
+            border-color: #66D9FF;
+          }
+        }
       `}</style>
     </div>
   )

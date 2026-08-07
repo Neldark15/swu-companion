@@ -63,7 +63,7 @@ export function AdminCardsPage() {
           <button
             disabled={clearing}
             onClick={handleClear}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-swu-red/15 text-swu-red text-sm font-semibold hover:bg-swu-red/25 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-swu-red/15 text-swu-red-texto text-sm font-semibold hover:bg-swu-red/25 transition-colors disabled:opacity-50"
           >
             {clearing ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
             {clearing ? 'Limpiando…' : 'Limpiar caché'}

@@ -144,7 +144,7 @@ export function TradeMatches({ matches, cards, myName, loading }: TradeMatchesPr
             <div className="flex items-center gap-2">
               <button
                 onClick={() => navigate(`/u/${match.trader.userId}`)}
-                className="text-sm font-bold text-swu-text hover:text-swu-accent transition-colors"
+                className="text-sm font-bold text-swu-text hover:text-swu-accent-texto transition-colors"
               >
                 {match.trader.name}
               </button>

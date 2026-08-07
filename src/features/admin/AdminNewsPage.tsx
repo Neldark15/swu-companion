@@ -14,7 +14,7 @@ export function AdminNewsPage() {
       </header>
 
       <div className="bg-swu-surface rounded-xl border border-swu-border p-6 max-w-md">
-        <Newspaper size={32} className="text-swu-accent mb-3" />
+        <Newspaper size={32} className="text-swu-accent-texto mb-3" />
         <h2 className="text-lg font-bold text-swu-text mb-2">Gestor de Noticias</h2>
         <p className="text-sm text-swu-muted mb-4">
           Crea, edita, pin y borra noticias que se muestran en el home de la app a todos los usuarios.

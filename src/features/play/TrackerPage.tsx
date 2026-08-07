@@ -251,7 +251,7 @@ export function TrackerPage() {
   const PlayerPanel = ({ idx, flipped }: { idx: number; flipped: boolean }) => {
     const p = players[idx]
     const isInit = initiative === idx
-    const colors = ['text-swu-accent', 'text-swu-red', 'text-swu-green', 'text-purple-400']
+    const colors = ['text-swu-accent-texto', 'text-swu-red-texto', 'text-swu-green', 'text-purple-400']
     const borders = ['border-swu-accent/30', 'border-swu-red/30', 'border-swu-green/30', 'border-purple-400/30']
     const accent = colors[idx % colors.length]
     const borderAccent = borders[idx % borders.length]
@@ -319,18 +319,18 @@ export function TrackerPage() {
             <Zap size={12} className="mx-auto text-swu-amber mb-0.5" />
             <p className="text-[8px] text-swu-muted">Rec.</p>
             <div className="flex items-center justify-center gap-0.5 mt-0.5">
-              <button onClick={() => updatePlayer(idx, 'resources', Math.max(0, p.resources - 1))} className="text-swu-red text-sm font-bold leading-none">−</button>
+              <button onClick={() => updatePlayer(idx, 'resources', Math.max(0, p.resources - 1))} className="text-swu-red-texto text-sm font-bold leading-none">−</button>
               <span className="text-base font-bold text-swu-amber font-mono">{p.resources}</span>
               <button onClick={() => updatePlayer(idx, 'resources', p.resources + 1)} className="text-swu-green text-sm font-bold leading-none">+</button>
             </div>
           </div>
 
           <div className="bg-swu-bg rounded-lg p-1.5 text-center">
-            <Shield size={12} className="mx-auto text-swu-accent mb-0.5" />
+            <Shield size={12} className="mx-auto text-swu-accent-texto mb-0.5" />
             <p className="text-[8px] text-swu-muted">Esc.</p>
             <div className="flex items-center justify-center gap-0.5 mt-0.5">
-              <button onClick={() => updatePlayer(idx, 'shields', Math.max(0, p.shields - 1))} className="text-swu-red text-sm font-bold leading-none">−</button>
-              <span className="text-base font-bold text-swu-accent font-mono">{p.shields}</span>
+              <button onClick={() => updatePlayer(idx, 'shields', Math.max(0, p.shields - 1))} className="text-swu-red-texto text-sm font-bold leading-none">−</button>
+              <span className="text-base font-bold text-swu-accent-texto font-mono">{p.shields}</span>
               <button onClick={() => updatePlayer(idx, 'shields', p.shields + 1)} className="text-swu-green text-sm font-bold leading-none">+</button>
             </div>
           </div>
@@ -339,7 +339,7 @@ export function TrackerPage() {
             <Sparkles size={12} className="mx-auto text-purple-400 mb-0.5" />
             <p className="text-[8px] text-swu-muted">XP</p>
             <div className="flex items-center justify-center gap-0.5 mt-0.5">
-              <button onClick={() => updatePlayer(idx, 'experience', Math.max(0, p.experience - 1))} className="text-swu-red text-sm font-bold leading-none">−</button>
+              <button onClick={() => updatePlayer(idx, 'experience', Math.max(0, p.experience - 1))} className="text-swu-red-texto text-sm font-bold leading-none">−</button>
               <span className="text-base font-bold text-purple-400 font-mono">{p.experience}</span>
               <button onClick={() => updatePlayer(idx, 'experience', p.experience + 1)} className="text-swu-green text-sm font-bold leading-none">+</button>
             </div>
@@ -476,9 +476,9 @@ export function TrackerPage() {
         <>
           <PlayerPanel idx={0} flipped={true} />
           <div className="flex gap-2">
-            <button onClick={() => recordWin(0)} className="flex-1 py-1.5 rounded-lg bg-swu-accent/20 border border-swu-accent/40 text-swu-accent font-bold text-xs active:scale-95 transition-transform">J1 Gana</button>
+            <button onClick={() => recordWin(0)} className="flex-1 py-1.5 rounded-lg bg-swu-accent/20 border border-swu-accent/40 text-swu-accent-texto font-bold text-xs active:scale-95 transition-transform">J1 Gana</button>
             <button onClick={() => setInitiative(initiative === 0 ? 1 : 0)} className="flex-[2] py-1.5 rounded-xl bg-gradient-to-r from-swu-amber/20 to-swu-amber/10 border-2 border-swu-amber/40 text-swu-amber font-bold text-xs tracking-wide active:scale-95 transition-transform">INICIATIVA</button>
-            <button onClick={() => recordWin(1)} className="flex-1 py-1.5 rounded-lg bg-swu-red/20 border border-swu-red/40 text-swu-red font-bold text-xs active:scale-95 transition-transform">J2 Gana</button>
+            <button onClick={() => recordWin(1)} className="flex-1 py-1.5 rounded-lg bg-swu-red/20 border border-swu-red/40 text-swu-red-texto font-bold text-xs active:scale-95 transition-transform">J2 Gana</button>
           </div>
           <PlayerPanel idx={1} flipped={false} />
         </>
@@ -534,7 +534,7 @@ export function TrackerPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-swu-text truncate">{card.name}</p>
                     {card.subtitle && <p className="text-xs text-swu-muted truncate">{card.subtitle}</p>}
-                    <p className="text-xs text-swu-muted mt-0.5">{card.setCode} · HP: <span className="font-bold text-swu-accent">{card.hp}</span></p>
+                    <p className="text-xs text-swu-muted mt-0.5">{card.setCode} · HP: <span className="font-bold text-swu-accent-texto">{card.hp}</span></p>
                   </div>
                 </button>
               ))}

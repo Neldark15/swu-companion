@@ -158,7 +158,7 @@ export function MonthlyRank({ userId }: MonthlyRankProps) {
                     <span className="text-[11px] font-mono text-swu-muted w-5 text-right">{entry.rank}</span>
                     <span className="text-lg">{entry.avatar}</span>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-[11px] font-bold truncate ${isMe ? 'text-swu-accent' : 'text-swu-text'}`}>
+                      <p className={`text-[11px] font-bold truncate ${isMe ? 'text-swu-accent-texto' : 'text-swu-text'}`}>
                         {entry.name} {isMe && '(Tú)'}
                       </p>
                       <p className="text-[9px] text-swu-muted">Nv. {entry.level}</p>
@@ -176,7 +176,7 @@ export function MonthlyRank({ userId }: MonthlyRankProps) {
           {/* My position summary */}
           {userId && myPos > 0 && (
             <div className="bg-swu-accent/10 rounded-lg px-3 py-2 border border-swu-accent/20 flex items-center justify-between">
-              <span className="text-[11px] text-swu-accent font-bold">Tu posición: #{myPos}</span>
+              <span className="text-[11px] text-swu-accent-texto font-bold">Tu posición: #{myPos}</span>
               <div className="flex items-center gap-1">
                 <IconXp size={12} className="text-amber-400" />
                 <span className="text-[11px] font-bold text-amber-400">{myXp} XP este mes</span>

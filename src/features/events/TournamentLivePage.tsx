@@ -281,9 +281,9 @@ export function TournamentLivePage() {
   if (!tournament) {
     return (
       <div className="p-4 text-center">
-        <AlertCircle size={32} className="mx-auto text-swu-red mb-2" />
+        <AlertCircle size={32} className="mx-auto text-swu-red-texto mb-2" />
         <p className="text-swu-text font-bold">Torneo no encontrado</p>
-        <button onClick={() => navigate('/events')} className="mt-3 text-sm text-swu-accent">
+        <button onClick={() => navigate('/events')} className="mt-3 text-sm text-swu-accent-texto">
           Volver a Eventos
         </button>
       </div>
@@ -355,7 +355,7 @@ export function TournamentLivePage() {
               className="w-9 h-9 rounded-lg bg-swu-accent/10 flex items-center justify-center active:bg-swu-accent/20 transition-colors"
               title="Compartir evento"
             >
-              <Share2 size={16} className="text-swu-accent" />
+              <Share2 size={16} className="text-swu-accent-texto" />
             </button>
           )}
           {isFinished ? (
@@ -536,9 +536,9 @@ export function TournamentLivePage() {
                   {isTop && <Trophy size={12} className="text-swu-amber flex-shrink-0" />}
                   {isLinked && <Link2 size={10} className="text-swu-green flex-shrink-0" />}
                   {player.name}
-                  {isEliminatedPlayer && <span className="text-[9px] text-swu-red ml-1">ELIMINADO</span>}
+                  {isEliminatedPlayer && <span className="text-[9px] text-swu-red-texto ml-1">ELIMINADO</span>}
                 </span>
-                <span className="text-sm font-extrabold text-swu-accent text-center font-mono">
+                <span className="text-sm font-extrabold text-swu-accent-texto text-center font-mono">
                   {player.points}
                 </span>
                 <span className="text-[10px] text-swu-text text-center font-mono">
@@ -558,7 +558,7 @@ export function TournamentLivePage() {
         <div className="space-y-4">
           {tournament.rounds.length === 0 ? (
             <div className="text-center py-8">
-              <GitBranch size={40} className="mx-auto text-swu-accent/40 mb-3" />
+              <GitBranch size={40} className="mx-auto text-swu-accent-texto/40 mb-3" />
               <p className="text-sm text-swu-muted">El bracket se generará al iniciar la primera ronda.</p>
             </div>
           ) : (
@@ -567,7 +567,7 @@ export function TournamentLivePage() {
               const label = getRoundLabel(round.number, totalElimRnds)
               return (
                 <div key={round.number} className="space-y-2">
-                  <h3 className="text-xs font-bold text-swu-accent uppercase tracking-wider">{label}</h3>
+                  <h3 className="text-xs font-bold text-swu-accent-texto uppercase tracking-wider">{label}</h3>
                   {round.pairings.map((p, pi) => {
                     const isBye = !p.player2Id
                     const p1Won = p.result?.winnerId === p.player1Id
@@ -620,14 +620,14 @@ export function TournamentLivePage() {
 
             <div className="flex items-center justify-between">
               <div className="flex-1 text-center">
-                <p className="text-sm font-bold text-swu-accent flex items-center justify-center gap-1">
+                <p className="text-sm font-bold text-swu-accent-texto flex items-center justify-center gap-1">
                   {getPlayerLinked(resultModal.pairing.player1Id) && <Link2 size={10} className="text-swu-green" />}
                   {getPlayerName(resultModal.pairing.player1Id)}
                 </p>
                 <div className="flex items-center justify-center gap-3 mt-2">
                   <button
                     onClick={() => setModalScore(([s1, s2]) => [Math.max(0, s1 - 1), s2])}
-                    className="w-10 h-10 rounded-lg bg-swu-red/10 border border-swu-red/30 text-swu-red font-bold text-lg"
+                    className="w-10 h-10 rounded-lg bg-swu-red/10 border border-swu-red/30 text-swu-red-texto font-bold text-lg"
                   >
                     −
                   </button>
@@ -644,14 +644,14 @@ export function TournamentLivePage() {
               <span className="text-swu-muted font-bold mx-2">vs</span>
 
               <div className="flex-1 text-center">
-                <p className="text-sm font-bold text-swu-red flex items-center justify-center gap-1">
+                <p className="text-sm font-bold text-swu-red-texto flex items-center justify-center gap-1">
                   {getPlayerName(resultModal.pairing.player2Id)}
                   {getPlayerLinked(resultModal.pairing.player2Id) && <Link2 size={10} className="text-swu-green" />}
                 </p>
                 <div className="flex items-center justify-center gap-3 mt-2">
                   <button
                     onClick={() => setModalScore(([s1, s2]) => [s1, Math.max(0, s2 - 1)])}
-                    className="w-10 h-10 rounded-lg bg-swu-red/10 border border-swu-red/30 text-swu-red font-bold text-lg"
+                    className="w-10 h-10 rounded-lg bg-swu-red/10 border border-swu-red/30 text-swu-red-texto font-bold text-lg"
                   >
                     −
                   </button>

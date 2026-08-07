@@ -225,7 +225,7 @@ export function AdminVenuePage() {
               {url && (
                 <button
                   onClick={() => { void borrarImagen(url); set(tipo === 'banner' ? 'banner_url' : 'logo_url', null) }}
-                  className="w-full text-[10px] text-swu-red flex items-center justify-center gap-1"
+                  className="w-full text-[10px] text-swu-red-texto flex items-center justify-center gap-1"
                 >
                   <Trash2 size={11} aria-hidden /> Quitar
                 </button>
@@ -320,7 +320,7 @@ export function AdminVenuePage() {
       </div>
 
       {error && (
-        <div className="flex items-start gap-2 text-[11px] text-swu-red bg-swu-red/10 border border-swu-red/30 rounded-lg px-3 py-2">
+        <div className="flex items-start gap-2 text-[11px] text-swu-red-texto bg-swu-red/10 border border-swu-red/30 rounded-lg px-3 py-2">
           <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" aria-hidden />
           <span>{error}</span>
         </div>

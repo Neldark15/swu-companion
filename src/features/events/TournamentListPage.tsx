@@ -98,13 +98,13 @@ export function TournamentListPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => navigate(`/events/tournament/${t.id}`)}
-                    className="flex-1 py-2 rounded-lg bg-swu-accent/20 border border-swu-accent/40 text-swu-accent text-xs font-bold active:scale-95 transition-transform"
+                    className="flex-1 py-2 rounded-lg bg-swu-accent/20 border border-swu-accent/40 text-swu-accent-texto text-xs font-bold active:scale-95 transition-transform"
                   >
                     {t.status === 'active' ? 'Continuar' : 'Ver Resultados'}
                   </button>
                   <button
                     onClick={() => handleDelete(t.id)}
-                    className="py-2 px-4 rounded-lg bg-swu-red/10 border border-swu-red/30 text-swu-red text-xs font-bold active:scale-95 transition-transform"
+                    className="py-2 px-4 rounded-lg bg-swu-red/10 border border-swu-red/30 text-swu-red-texto text-xs font-bold active:scale-95 transition-transform"
                   >
                     <Trash2 size={14} />
                   </button>

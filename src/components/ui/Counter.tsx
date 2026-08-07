@@ -35,7 +35,7 @@ export function Counter({ value, onChange, min = 0, max = 999, label, size = 'md
         <button
           onClick={decrement}
           onContextMenu={(e) => { e.preventDefault(); onChange(Math.max(min, value - 5)) }}
-          className={`${s.btn} flex items-center justify-center rounded-xl bg-swu-red/10 border border-swu-red/30 text-swu-red active:scale-95 transition-transform`}
+          className={`${s.btn} flex items-center justify-center rounded-xl bg-swu-red/10 border border-swu-red/30 text-swu-red-texto active:scale-95 transition-transform`}
         >
           <Minus size={size === 'lg' ? 24 : size === 'md' ? 20 : 16} />
         </button>

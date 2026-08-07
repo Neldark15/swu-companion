@@ -9,7 +9,7 @@ const modes = [
     label: 'Premier 1v1',
     desc: '2 jugadores · 30 HP · Estándar competitivo',
     icon: Swords,
-    color: 'border-swu-accent/40 text-swu-accent',
+    color: 'border-swu-accent/40 text-swu-accent-texto',
   },
   {
     id: 'twin_suns' as const,
@@ -61,7 +61,7 @@ export function PlayPage() {
           <span className="text-sm font-medium">Partidas Guardadas</span>
         </div>
         {savedCount > 0 && (
-          <span className="text-sm font-bold text-swu-accent">{savedCount}</span>
+          <span className="text-sm font-bold text-swu-accent-texto">{savedCount}</span>
         )}
       </button>
     </div>

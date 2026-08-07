@@ -110,7 +110,7 @@ export function PWAInstallCard() {
       <div className="bg-gradient-to-r from-swu-accent/10 to-swu-amber/5 p-4 border-b border-swu-border">
         <div className="flex items-start gap-3">
           <div className="w-11 h-11 rounded-lg bg-swu-accent/15 flex items-center justify-center flex-shrink-0">
-            <Download size={20} className="text-swu-accent" />
+            <Download size={20} className="text-swu-accent-texto" />
           </div>
           <div className="flex-1">
             <h3 className="text-sm font-bold text-swu-text">Instalá HOLOCRON SWU</h3>
@@ -269,7 +269,7 @@ function PlatformHeader({ icon: Icon, label }: { icon: typeof Apple; label: stri
 function Step({ n, children }: { n: number; children: React.ReactNode }) {
   return (
     <div className="flex gap-2.5 text-[12px] text-swu-text leading-relaxed">
-      <span className="w-5 h-5 rounded-full bg-swu-accent/20 text-swu-accent text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+      <span className="w-5 h-5 rounded-full bg-swu-accent/20 text-swu-accent-texto text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
         {n}
       </span>
       <p>{children}</p>

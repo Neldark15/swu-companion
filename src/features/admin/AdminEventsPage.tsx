@@ -102,7 +102,7 @@ export function AdminEventsPage() {
             key={f}
             onClick={() => setFilter(f)}
             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              filter === f ? 'bg-swu-accent/20 text-swu-accent' : 'text-swu-muted hover:text-swu-text'
+              filter === f ? 'bg-swu-accent/20 text-swu-accent-texto' : 'text-swu-muted hover:text-swu-text'
             }`}
           >
             {f === 'all' ? 'Todos' : f === 'open' ? 'Abiertos' : f === 'active' ? 'Activos' : f === 'finished' ? 'Terminados' : 'Cancelados'}
@@ -140,7 +140,7 @@ export function AdminEventsPage() {
 
               <Link
                 to={`/events/lobby/${e.code}`}
-                className="text-[11px] text-swu-muted hover:text-swu-accent flex items-center gap-1"
+                className="text-[11px] text-swu-muted hover:text-swu-accent-texto flex items-center gap-1"
                 title="Abrir lobby"
               >
                 <ExternalLink size={12} /> Lobby
@@ -195,7 +195,7 @@ function StatusBadge({ status }: { status: OfficialEvent['status'] }) {
     open: 'bg-blue-500/15 text-blue-400',
     active: 'bg-swu-green/15 text-swu-green',
     finished: 'bg-swu-muted/15 text-swu-muted',
-    cancelled: 'bg-swu-red/15 text-swu-red',
+    cancelled: 'bg-swu-red/15 text-swu-red-texto',
   }[status]
   return <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${styles}`}>{status}</span>
 }
@@ -212,7 +212,7 @@ function ActionBtn({
   const colorClass = color === 'green'
     ? 'text-swu-green hover:bg-swu-green/10'
     : color === 'red'
-    ? 'text-swu-red hover:bg-swu-red/10'
+    ? 'text-swu-red-texto hover:bg-swu-red/10'
     : 'text-swu-muted hover:bg-swu-surface'
   return (
     <button

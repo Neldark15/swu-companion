@@ -29,11 +29,37 @@
   --color-swu-surface: #1e1e2e;
   --color-swu-surface-hover: #2a2a3c;
   /* Elegible por el usuario en Ajustes; se sobreescribe en tiempo de
-     ejecución desde useSettings. Por defecto coincide con swu-red. */
-  --color-swu-accent: #EF4444;
+     ejecución desde useSettings (inline en <html>, así que gana sobre esto y
+     los derivados de abajo se recalculan solos).
+
+     Era #EF4444. Medido: con blanco encima daba **3,76:1** — por debajo del
+     4,5 que pide WCAG para texto normal— y así están los 41 botones
+     principales de la app («Nuevo», «Crear Primer Deck», el chip «Todos»).
+     #DC2626 es el rojo más cercano al original que sí pasa: **4,83:1**. */
+  --color-swu-accent: #DC2626;
   --color-swu-text: #E2E8F0;
-  --color-swu-muted: #7C8BA1;
+  /* Era #7C8BA1: 4,74 sobre surface (pasaba raspando) pero **4,06 sobre
+     surface-hover**, o sea fallaba en cuanto el elemento estaba activo o
+     bajo el cursor. Este da 5,80 y **4,97**. */
+  --color-swu-muted: #8B9BB2;
   --color-swu-border: #2a2a3c;
+
+  /* ── El acento como TEXTO ──────────────────────────────────────────
+   *
+   * No es capricho tener dos: la aritmética no deja usar un solo rojo.
+   * Para que blanco encima llegue a 4,5 el color tiene que ser oscuro
+   * (luminancia ≤ 0,183); para que el mismo color leído SOBRE el fondo
+   * oscuro llegue a 4,5 tiene que ser claro (≥ 0,245). No hay número que
+   * cumpla las dos, así que el rol manda: `bg-swu-accent` lleva el rojo
+   * sólido, `text-swu-accent-texto` lleva esta versión aclarada.
+   *
+   * Va con `color-mix` sobre la variable y no como hex fijo para que el
+   * color que el usuario elija en Ajustes siga teniendo una versión legible
+   * sin que haya que mantener una segunda tabla.
+   *
+   * Medido con el acento por defecto: 5,82 sobre surface, 4,99 sobre
+   * surface-hover. Antes, `text-swu-accent` daba 4,36 y 3,73. */
+  --color-swu-accent-texto: color-mix(in srgb, var(--color-swu-accent) 62%, white);
 
   /* ── Semántica de estado ──────────────────────────────────────────
    * Cada color significa UNA cosa y siempre la misma. Van siempre
@@ -45,6 +71,11 @@
   --color-swu-coral: #FB7185;   /* buscadas: me falta, la quiero        */
   --color-swu-green: #22C55E;   /* ofertas: en venta, disponible        */
   --color-swu-red: #EF4444;     /* destructivo: borrar, error           */
+  /* Mismo desdoble que el acento, por el mismo motivo. `bg-swu-red` sigue
+     siendo el rojo sólido de «borrar»; esto es el rojo cuando se LEE.
+     Medido: 6,99 sobre surface y 5,99 sobre surface-hover, contra los 4,36 y
+     3,73 de leer `text-swu-red` directo. */
+  --color-swu-red-texto: color-mix(in srgb, var(--color-swu-red) 62%, white);
 
   --font-sans: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
@@ -55,6 +86,48 @@
   --neu-shadow-raised: 6px 6px 12px #111118, -6px -6px 12px #252535;
   --neu-shadow-inset: inset 3px 3px 6px #111118, inset -3px -3px 6px #252535;
   --neu-shadow-sm: 3px 3px 6px #111118, -3px -3px 6px #252535;
+
+  /* Tinta que se lee ENCIMA del acento. La escribe `applyAccentColor()` en
+     cuanto hay preferencia guardada; esto es el valor para el acento por
+     defecto (#DC2626, donde el blanco da 4,83:1). */
+  --color-swu-accent-fg: #FFFFFF;
+}
+
+/* ── Texto sobre un botón de acento ────────────────────────────────────
+ *
+ * Va SIN capa a propósito, que es el único sitio desde donde se puede ganarle
+ * a la utilidad `text-white`: en Tailwind v4 las utilidades viven en
+ * `@layer utilities`, y una regla sin capa gana contra cualquier capa sin
+ * importar el orden ni la especificidad. (Es el mismo mecanismo que en su
+ * momento rompió los anillos de foco desde aquí; por eso esto toca SOLO
+ * `color` y solo donde están las dos clases juntas.)
+ *
+ * El motivo es que la paleta de acentos la elige el usuario y **los seis
+ * colores fallaban con blanco fijo**: rojo 3,76 · verde 2,28 · azul 2,54 ·
+ * púrpura 2,72 · blanco 1,23 y el amarillo **1,53:1**, o sea el texto de
+ * todos los botones principales invisible. Con esto cada acento recibe la
+ * tinta que se lee encima suyo: blanco cuando alcanza, oscuro cuando no.
+ *
+ * Se hace acá y no en los 41 sitios que combinan `bg-swu-accent text-white`
+ * porque el que sabe qué tinta hace falta es el color, no el botón. */
+.bg-swu-accent.text-white {
+  color: var(--color-swu-accent-fg);
+}
+
+/* Lo mismo para los colores semánticos, que son fijos y por eso no necesitan
+ * que nadie calcule nada: con blanco encima NINGUNO llega a 4,5 —ámbar 2,15 ·
+ * cian 1,81 · coral 2,69 · verde 2,28 · rojo 3,76— y con la tinta oscura
+ * todos pasan holgados: 9,13 · 10,85 · 7,29 · 8,61 · 5,21.
+ *
+ * Ojo con el alcance: `.bg-swu-amber` NO casa con `bg-swu-amber/15`, que es
+ * otra clase distinta. Los tintes —que son fondo de texto claro— se quedan
+ * como están, que es justo lo que se quiere. */
+.bg-swu-amber.text-white,
+.bg-swu-cyan.text-white,
+.bg-swu-coral.text-white,
+.bg-swu-green.text-white,
+.bg-swu-red.text-white {
+  color: #0B0B12;
 }
 
 /* El documento NO se desplaza: el que scrollea es el `<main>` del caparazón.
@@ -264,6 +337,13 @@ input:focus, textarea:focus, select:focus {
 @keyframes carta-barrido {
   from { background-position: 140% 0; }
   to   { background-position: -40% 0; }
+}
+
+/* El hueco de una carta que todavía está lejos de la pantalla. Mismo color y
+   misma forma que el esqueleto, pero SIN gradiente y SIN animación: no hay a
+   quién avisarle de que está cargando algo que no se ve. */
+@utility carta-hueco {
+  background-color: var(--color-swu-surface);
 }
 
 /* Foil: una banda diagonal irisada, muy tenue. `mix-blend-mode` la funde con
@@ -534,6 +614,47 @@ input:focus, textarea:focus, select:focus {
   .destello-luz { animation: none; opacity: 0; }
 }
 
+
+/* ─────────────────────────────────────────────────────────────
+ * Menos movimiento: las utilidades de Tailwind
+ *
+ * Los cuatro bloques `@media` de más arriba cubren solo las animaciones
+ * PROPIAS (carta, foil, destello, vaivén). Las clases `animate-*` de Tailwind
+ * no las cubría nadie: medido con `--force-prefers-reduced-motion`, seguían
+ * con `playState: "running"` 4 utilidades y 2 animaciones inyectadas con
+ * `<style>` en línea.
+ *
+ * Se para lo que DESPLAZA o ESCALA algo por la pantalla, que es lo que
+ * dispara un trastorno vestibular:
+ *
+ *   animate-bounce (4)   · sube y baja
+ *   animate-ping (3)     · se expande hasta el doble
+ *   animate-slide-up (2) · entra desde abajo, pantalla completa
+ *   animate-slide-in-top · baja desde arriba, pantalla completa
+ *   shimmer / kyber-glow · barrido que recorre una barra
+ *   animate-pulse (30)   · por coherencia con `carta-esqueleto`, que ya se
+ *                          paraba: un esqueleto quieto sigue diciendo lo mismo
+ *
+ * Las que entran se quedan en su posición FINAL (`animation: none` sobre una
+ * animación de entrada deja el elemento donde termina), así que no se pierde
+ * nada: aparece, en vez de deslizarse.
+ *
+ * `animate-spin` NO se para, a propósito. Es el único que informa de algo que
+ * no tiene equivalente estático —«esto sigue trabajando»—; pararlo dejaría la
+ * app pareciendo colgada. Es un giro de 16-20 px, no un movimiento de
+ * pantalla. Es lo que hacen los sistemas de diseño que se toman esto en
+ * serio, y es una decisión, no un olvido.
+ * ───────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .animate-bounce,
+  .animate-ping,
+  .animate-pulse,
+  .animate-slide-up,
+  .animate-slide-in-top,
+  .animate-kyber-glow {
+    animation: none !important;
+  }
+}
 
 /* ─────────────────────────────────────────────────────────────
  * Campos de texto: 16px en pantallas táctiles

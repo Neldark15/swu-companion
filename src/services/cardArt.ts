@@ -21,6 +21,54 @@
 
 import type { Card } from '../types'
 
+/* ─────────────────────────────────────────────────────────────
+ * Tamaño de descarga
+ *
+ * El CDN del juego NO redimensiona: es un CloudFront pelado sobre S3 y
+ * devuelve el PNG entero pase lo que pase (medido — las ocho convenciones
+ * habituales dan la misma respuesta byte a byte). Así que la app se bajaba
+ * 286x400 para pintar 56x78, y el 85% de esos bytes se tiraba.
+ *
+ * `/api/img` (ver api/img.ts) hace el recorte que el CDN no hace. Acá solo
+ * está la parte del cliente: elegir el peldaño y armar la URL.
+ * ───────────────────────────────────────────────────────────── */
+
+/** Tiene que coincidir con ANCHOS de api/img.ts. Un ancho fuera de la lista
+ *  es 400, para que las claves de caché de la CDN sean finitas. */
+export const ANCHOS_ARTE = [128, 224, 288, 448] as const
+
+/**
+ * El peldaño más chico que cubre los píxeles que de verdad se van a pintar.
+ *
+ * `anchoCss` es el ancho de la caja; se multiplica por la densidad de la
+ * pantalla porque en un teléfono a dpr 2 una caja de 56 px necesita 112
+ * píxeles reales para no verse borrosa.
+ */
+export function anchoArte(anchoCss: number, dpr: number): number {
+  const necesita = anchoCss * dpr
+  return ANCHOS_ARTE.find(a => a >= necesita) ?? ANCHOS_ARTE[ANCHOS_ARTE.length - 1]
+}
+
+/**
+ * La URL por la que conviene pedir esa carta a ese tamaño.
+ *
+ * Devuelve la original —sin tocar— cuando el recorte no aplica:
+ *
+ * - **En desarrollo**, porque `/api/img` es una función de Vercel y en `vite
+ *   dev` no existe: el proxy devolvería el index.html de la SPA y cada carta
+ *   gastaría un viaje en fallar antes de caer a la original.
+ * - **Si la URL no es del CDN del juego**, porque el proxy solo admite ese
+ *   host y responder 400 sería peor que no intentarlo.
+ *
+ * Nunca lanza: si algo no encaja, la carta se ve como siempre.
+ */
+export function artUrlOptimizada(url: string | null | undefined, ancho: number): string | null {
+  if (!url) return null
+  if (!import.meta.env.PROD) return url
+  if (!url.startsWith('https://cdn.starwarsunlimited.com/')) return url
+  return `/api/img?u=${encodeURIComponent(url)}&w=${ancho}`
+}
+
 /**
  * La cara que conviene mostrar en una lista vertical.
  * Para líderes devuelve el lado de unidad (vertical) si existe.

@@ -78,7 +78,7 @@ export function TabBar() {
                 flex-1 flex flex-col items-center justify-center gap-0.5 min-h-14 px-1 py-1.5
                 transition-colors relative
                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-swu-accent
-                ${active ? 'text-swu-accent' : 'text-swu-muted'}
+                ${active ? 'text-swu-accent-texto' : 'text-swu-muted'}
               `}
             >
               {/* Indicador arriba: no depende solo del color para marcar el activo */}

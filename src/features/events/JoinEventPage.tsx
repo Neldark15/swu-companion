@@ -219,9 +219,9 @@ export function JoinEventPage() {
 
           {joinState !== 'idle' && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              {joinState === 'validating' && <Loader2 size={22} className="text-swu-accent animate-spin" />}
+              {joinState === 'validating' && <Loader2 size={22} className="text-swu-accent-texto animate-spin" />}
               {joinState === 'found' && <CheckCircle2 size={22} className="text-swu-green" />}
-              {joinState === 'not_found' && <XCircle size={22} className="text-swu-red" />}
+              {joinState === 'not_found' && <XCircle size={22} className="text-swu-red-texto" />}
               {joinState === 'joining' && <Loader2 size={22} className="text-swu-green animate-spin" />}
               {joinState === 'joined' && <CheckCircle2 size={22} className="text-swu-green" />}
             </div>
@@ -234,7 +234,7 @@ export function JoinEventPage() {
 
         {joinState === 'not_found' && (
           <div className="bg-swu-red/10 border border-swu-red/30 rounded-xl p-3 text-center">
-            <p className="text-sm text-swu-red font-semibold">Evento no encontrado</p>
+            <p className="text-sm text-swu-red-texto font-semibold">Evento no encontrado</p>
             <p className="text-xs text-swu-muted mt-0.5">Verifique el código e intente de nuevo</p>
           </div>
         )}
@@ -315,7 +315,7 @@ export function JoinEventPage() {
       {scanState === 'idle' ? (
         <button
           onClick={startQrScan}
-          className="w-full border-2 border-dashed border-swu-accent/40 rounded-2xl p-6 flex flex-col items-center gap-3 text-swu-accent active:bg-swu-accent/5 transition-colors"
+          className="w-full border-2 border-dashed border-swu-accent/40 rounded-2xl p-6 flex flex-col items-center gap-3 text-swu-accent-texto active:bg-swu-accent/5 transition-colors"
         >
           <div className="w-16 h-16 rounded-full bg-swu-accent/10 flex items-center justify-center">
             <QrCode size={32} />
@@ -327,7 +327,7 @@ export function JoinEventPage() {
         </button>
       ) : scanState === 'requesting' ? (
         <div className="bg-swu-surface rounded-2xl border border-swu-border p-6 flex flex-col items-center gap-3">
-          <Loader2 size={32} className="text-swu-accent animate-spin" />
+          <Loader2 size={32} className="text-swu-accent-texto animate-spin" />
           <p className="text-sm font-semibold text-swu-text">Solicitando acceso a cámara...</p>
           <p className="text-xs text-swu-muted">Acepte el permiso en su navegador</p>
         </div>
@@ -377,13 +377,13 @@ export function JoinEventPage() {
       ) : scanState === 'error' ? (
         <div className="bg-swu-red/10 border border-swu-red/30 rounded-2xl p-4 space-y-3">
           <div className="flex items-center gap-2">
-            <WifiOff size={18} className="text-swu-red" />
-            <p className="text-sm font-bold text-swu-red">No se pudo acceder a la cámara</p>
+            <WifiOff size={18} className="text-swu-red-texto" />
+            <p className="text-sm font-bold text-swu-red-texto">No se pudo acceder a la cámara</p>
           </div>
           <p className="text-xs text-swu-muted">Verifique los permisos de cámara en su navegador.</p>
           <button
             onClick={() => setScanState('idle')}
-            className="text-sm text-swu-accent font-medium"
+            className="text-sm text-swu-accent-texto font-medium"
           >
             Reintentar
           </button>

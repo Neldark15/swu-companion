@@ -399,7 +399,7 @@ export function ProfilePage() {
     return (
       <div className="p-4 lg:p-6 space-y-5 pb-8 lg:pb-8 max-w-5xl mx-auto">
         <div className="text-center pt-2">
-          <User size={40} className="mx-auto text-swu-accent mb-2" />
+          <User size={40} className="mx-auto text-swu-accent-texto mb-2" />
           <h2 className="text-lg font-bold text-swu-text">Bienvenido</h2>
           <p className="text-xs text-swu-muted mt-0.5">Inicie sesión o cree una cuenta nueva</p>
         </div>
@@ -408,9 +408,9 @@ export function ProfilePage() {
           <button onClick={() => { setLoginEmail(''); setLoginPassword(''); setLoginError(''); setView('login') }}
             className="bg-swu-surface rounded-xl p-4 border border-swu-accent/40 flex flex-col items-center gap-2 active:scale-[0.97] transition-transform">
             <div className="w-12 h-12 rounded-full bg-swu-accent/20 flex items-center justify-center">
-              <Lock size={22} className="text-swu-accent" />
+              <Lock size={22} className="text-swu-accent-texto" />
             </div>
-            <span className="text-sm font-bold text-swu-accent">Iniciar Sesión</span>
+            <span className="text-sm font-bold text-swu-accent-texto">Iniciar Sesión</span>
             <span className="text-[10px] text-swu-muted">Email + contraseña</span>
           </button>
           <button onClick={() => { setRegName(''); setRegEmail(''); setRegPassword(''); setRegPasswordConfirm(''); setRegError(''); setRegAvatar('darth-vader'); setView('register') }}
@@ -426,7 +426,7 @@ export function ProfilePage() {
         {/* Quick Passkey Login */}
         {passkeySupported && profilesWithPasskey.length > 0 && (
           <button onClick={handleAnyPasskeyLogin} disabled={loginLoading}
-            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-swu-accent/20 to-purple-500/20 border border-swu-accent/40 font-bold text-sm flex items-center justify-center gap-2 text-swu-accent active:scale-[0.98] transition-transform disabled:opacity-50">
+            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-swu-accent/20 to-purple-500/20 border border-swu-accent/40 font-bold text-sm flex items-center justify-center gap-2 text-swu-accent-texto active:scale-[0.98] transition-transform disabled:opacity-50">
             <Fingerprint size={20} />
             {loginLoading ? 'Verificando...' : 'Iniciar con Passkey'}
           </button>
@@ -474,7 +474,7 @@ export function ProfilePage() {
               ))}
             </div>
             {regAvatar && (
-              <p className="text-[10px] text-swu-accent text-center mt-1.5 font-mono tracking-wider">
+              <p className="text-[10px] text-swu-accent-texto text-center mt-1.5 font-mono tracking-wider">
                 {swAvatars.find(a => a.id === regAvatar)?.name}
               </p>
             )}
@@ -514,7 +514,7 @@ export function ProfilePage() {
               className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 text-sm text-swu-text outline-none focus:border-swu-accent" />
           </div>
 
-          {regError && <p className="text-sm text-swu-red text-center font-medium">{regError}</p>}
+          {regError && <p className="text-sm text-swu-red-texto text-center font-medium">{regError}</p>}
 
           <button onClick={handleRegister} disabled={regLoading}
             className={`w-full py-3.5 rounded-xl font-bold text-base transition-all ${!regLoading ? 'bg-swu-green text-white active:scale-[0.98]' : 'bg-swu-border text-swu-muted'}`}>
@@ -536,7 +536,7 @@ export function ProfilePage() {
     return (
       <div className="p-4 lg:p-6 space-y-5 pb-8 lg:pb-8 max-w-5xl mx-auto">
         <div className="text-center pt-4">
-          <Fingerprint size={56} className="mx-auto text-swu-accent mb-3" />
+          <Fingerprint size={56} className="mx-auto text-swu-accent-texto mb-3" />
           <h2 className="text-lg font-bold text-swu-text">Inicio Rápido</h2>
           <p className="text-xs text-swu-muted mt-0.5">Passkey (opcional)</p>
         </div>
@@ -570,7 +570,7 @@ export function ProfilePage() {
       <div className="p-4 lg:p-6 space-y-5 pb-8 lg:pb-8 max-w-5xl mx-auto">
         <BackButton to="select" onIr={setView} />
         <div className="text-center">
-          <Lock size={40} className="mx-auto text-swu-accent mb-2" />
+          <Lock size={40} className="mx-auto text-swu-accent-texto mb-2" />
           <h2 className="text-lg font-bold text-swu-text">Iniciar Sesión</h2>
           <p className="text-xs text-swu-muted mt-0.5">Ingrese con su correo y contraseña</p>
         </div>
@@ -597,7 +597,7 @@ export function ProfilePage() {
             </div>
           </div>
 
-          {loginError && <p className="text-sm text-swu-red text-center font-medium">{loginError}</p>}
+          {loginError && <p className="text-sm text-swu-red-texto text-center font-medium">{loginError}</p>}
 
           <button onClick={handleLogin} disabled={loginLoading}
             className={`w-full py-3.5 rounded-xl font-bold text-base transition-all ${!loginLoading ? 'bg-swu-accent text-white active:scale-[0.98]' : 'bg-swu-border text-swu-muted'}`}>
@@ -605,13 +605,13 @@ export function ProfilePage() {
           </button>
 
           <button onClick={() => { setForgotEmail(loginEmail); setForgotError(''); setForgotSuccess(false); setView('forgot-password') }}
-            className="w-full py-2 text-sm text-swu-accent text-center font-medium">
+            className="w-full py-2 text-sm text-swu-accent-texto text-center font-medium">
             ¿Olvidó su contraseña?
           </button>
 
           {passkeySupported && profiles.some(p => p.credentialId) && (
             <button onClick={handleAnyPasskeyLogin} disabled={loginLoading}
-              className="w-full py-3 rounded-xl bg-swu-accent/10 border border-swu-accent/30 text-swu-accent font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-50">
+              className="w-full py-3 rounded-xl bg-swu-accent/10 border border-swu-accent/30 text-swu-accent-texto font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-50">
               <Fingerprint size={18} /> Usar Passkey
             </button>
           )}
@@ -628,7 +628,7 @@ export function ProfilePage() {
       <div className="p-4 lg:p-6 space-y-5 pb-8 lg:pb-8 max-w-5xl mx-auto">
         <BackButton to="login" onIr={setView} />
         <div className="text-center">
-          <Mail size={40} className="mx-auto text-swu-accent mb-2" />
+          <Mail size={40} className="mx-auto text-swu-accent-texto mb-2" />
           <h2 className="text-lg font-bold text-swu-text">Recuperar Contraseña</h2>
           <p className="text-xs text-swu-muted mt-0.5">Le enviaremos un enlace para restablecer su contraseña</p>
         </div>
@@ -643,7 +643,7 @@ export function ProfilePage() {
             </div>
           </div>
 
-          {forgotError && <p className="text-sm text-swu-red text-center font-medium">{forgotError}</p>}
+          {forgotError && <p className="text-sm text-swu-red-texto text-center font-medium">{forgotError}</p>}
           {forgotSuccess && (
             <div className="bg-swu-green/10 rounded-lg p-3 border border-swu-green/30">
               <p className="text-sm text-swu-green text-center font-medium">Correo enviado exitosamente</p>
@@ -667,7 +667,7 @@ export function ProfilePage() {
     return (
       <div className="p-4 lg:p-6 space-y-5 pb-8 lg:pb-8 max-w-5xl mx-auto">
         <div className="text-center">
-          <KeyRound size={40} className="mx-auto text-swu-accent mb-2" />
+          <KeyRound size={40} className="mx-auto text-swu-accent-texto mb-2" />
           <h2 className="text-lg font-bold text-swu-text">Nueva Contraseña</h2>
           <p className="text-xs text-swu-muted mt-0.5">Ingrese su nueva contraseña para restablecer el acceso</p>
         </div>
@@ -692,7 +692,7 @@ export function ProfilePage() {
                   className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 text-sm text-swu-text outline-none focus:border-swu-accent" />
               </div>
 
-              {resetError && <p className="text-sm text-swu-red text-center font-medium">{resetError}</p>}
+              {resetError && <p className="text-sm text-swu-red-texto text-center font-medium">{resetError}</p>}
 
               <button onClick={handleResetPassword} disabled={resetLoading}
                 className={`w-full py-3.5 rounded-xl font-bold text-base transition-all ${!resetLoading ? 'bg-swu-accent text-white active:scale-[0.98]' : 'bg-swu-border text-swu-muted'}`}>
@@ -753,12 +753,12 @@ export function ProfilePage() {
           <div>
             <p className="text-xs text-swu-muted mb-2">Subir foto de perfil</p>
             <label className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 border-dashed border-swu-border hover:border-swu-accent/50 bg-swu-bg cursor-pointer transition-colors active:scale-[0.98]">
-              <Camera size={18} className="text-swu-accent" />
-              <span className="text-sm font-medium text-swu-accent">Elegir imagen</span>
+              <Camera size={18} className="text-swu-accent-texto" />
+              <span className="text-sm font-medium text-swu-accent-texto">Elegir imagen</span>
               <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
             </label>
             {isPhotoAvatar(customAvatar) && (
-              <button onClick={() => setCustomAvatar('darth-vader')} className="w-full mt-2 text-[11px] text-swu-red text-center">
+              <button onClick={() => setCustomAvatar('darth-vader')} className="w-full mt-2 text-[11px] text-swu-red-texto text-center">
                 Quitar foto y usar icono
               </button>
             )}
@@ -776,7 +776,7 @@ export function ProfilePage() {
               ))}
             </div>
             {customAvatar && !isPhotoAvatar(customAvatar) && (
-              <p className="text-[10px] text-swu-accent text-center mt-1.5 font-mono tracking-wider">
+              <p className="text-[10px] text-swu-accent-texto text-center mt-1.5 font-mono tracking-wider">
                 {swAvatars.find(a => a.id === customAvatar)?.name || customAvatar}
               </p>
             )}
@@ -816,7 +816,7 @@ export function ProfilePage() {
                   }}
                   className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                     customContinent === cont.id
-                      ? 'bg-swu-accent/15 border-swu-accent text-swu-accent'
+                      ? 'bg-swu-accent/15 border-swu-accent text-swu-accent-texto'
                       : 'bg-swu-bg border-swu-border text-swu-muted hover:border-swu-accent/30'
                   }`}
                 >
@@ -838,7 +838,7 @@ export function ProfilePage() {
                       onClick={() => setCustomCountry(country.code)}
                       className={`flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium border transition-all text-left ${
                         customCountry === country.code
-                          ? 'bg-swu-accent/15 border-swu-accent text-swu-accent'
+                          ? 'bg-swu-accent/15 border-swu-accent text-swu-accent-texto'
                           : 'bg-swu-surface border-swu-border text-swu-text hover:border-swu-accent/30'
                       }`}
                     >
@@ -853,12 +853,12 @@ export function ProfilePage() {
             {/* Current selection display */}
             {customCountry && (
               <div className="mt-2 flex items-center justify-between bg-swu-accent/5 border border-swu-accent/20 rounded-lg px-3 py-2">
-                <span className="text-xs text-swu-accent font-medium">
+                <span className="text-xs text-swu-accent-texto font-medium">
                   {getCountryByCode(customCountry)?.flag} {getCountryByCode(customCountry)?.name}
                 </span>
                 <button
                   onClick={() => { setCustomCountry(''); setCustomContinent('') }}
-                  className="text-[10px] text-swu-red"
+                  className="text-[10px] text-swu-red-texto"
                 >
                   Quitar
                 </button>
@@ -883,14 +883,14 @@ export function ProfilePage() {
       <div className="p-4 lg:p-6 space-y-5 pb-8 lg:pb-8 max-w-5xl mx-auto">
         <BackButton to="profile" onIr={setView} />
         <div className="text-center">
-          <Shield size={40} className="mx-auto text-swu-accent mb-2" />
+          <Shield size={40} className="mx-auto text-swu-accent-texto mb-2" />
           <h2 className="text-lg font-bold text-swu-text">Seguridad</h2>
         </div>
 
         {/* Account info */}
         <div className="bg-swu-surface rounded-2xl p-4 border border-swu-border space-y-3">
           <div className="flex items-center gap-2">
-            <Mail size={16} className="text-swu-accent" />
+            <Mail size={16} className="text-swu-accent-texto" />
             <p className="text-sm font-bold text-swu-text">Cuenta</p>
           </div>
           <p className="text-xs text-swu-muted">{currentProfile?.email || 'Sin correo'}</p>
@@ -903,7 +903,7 @@ export function ProfilePage() {
         {/* Passkey Section */}
         <div className="bg-swu-surface rounded-2xl p-4 border border-swu-border space-y-3">
           <div className="flex items-center gap-2">
-            <Fingerprint size={16} className="text-swu-accent" />
+            <Fingerprint size={16} className="text-swu-accent-texto" />
             <p className="text-sm font-bold text-swu-text">Passkey (Biometría)</p>
           </div>
           {currentProfile?.credentialId ? (
@@ -913,7 +913,7 @@ export function ProfilePage() {
                 <p className="text-xs text-swu-green font-medium">Passkey registrada y activa</p>
               </div>
               <button onClick={async () => { if (confirm('¿Eliminar la passkey?')) await auth.removePasskey() }}
-                className="w-full py-2.5 rounded-xl bg-swu-red/10 border border-swu-red/30 text-swu-red text-sm font-medium active:scale-[0.98] transition-transform">
+                className="w-full py-2.5 rounded-xl bg-swu-red/10 border border-swu-red/30 text-swu-red-texto text-sm font-medium active:scale-[0.98] transition-transform">
                 Eliminar Passkey
               </button>
             </>
@@ -974,7 +974,7 @@ export function ProfilePage() {
                   {getCountryByCode(currentProfile.country)?.flag} {getCountryByCode(currentProfile.country)?.name}
                 </span>
               )}
-              {currentProfile?.credentialId && <Fingerprint size={10} className="text-swu-accent" />}
+              {currentProfile?.credentialId && <Fingerprint size={10} className="text-swu-accent-texto" />}
               {supabaseUser && (
                 <span className="text-[9px] bg-swu-green/20 text-swu-green px-1.5 py-0.5 rounded-full font-bold">Online</span>
               )}
@@ -991,7 +991,7 @@ export function ProfilePage() {
           className="w-full flex items-center gap-3 bg-gradient-to-r from-swu-accent/10 to-swu-accent/5 rounded-2xl p-3 border border-swu-accent/30 active:scale-[0.99] transition-transform text-left"
         >
           <div className="w-9 h-9 rounded-lg bg-swu-accent/15 flex items-center justify-center flex-shrink-0">
-            <Globe size={18} className="text-swu-accent" />
+            <Globe size={18} className="text-swu-accent-texto" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-swu-text">Configura tu región</p>
@@ -999,7 +999,7 @@ export function ProfilePage() {
               Únete a la comunidad de tu país y aparece en rankings regionales
             </p>
           </div>
-          <ChevronRight size={16} className="text-swu-accent flex-shrink-0" />
+          <ChevronRight size={16} className="text-swu-accent-texto flex-shrink-0" />
         </button>
       )}
 
@@ -1051,13 +1051,13 @@ export function ProfilePage() {
       <div className="grid grid-cols-2 gap-2">
         <button onClick={() => setView('customize')}
           className="bg-swu-surface rounded-xl px-3 py-3 border border-swu-accent/30 flex items-center gap-2 active:scale-[0.98] transition-transform">
-          <Palette size={16} className="text-swu-accent" />
-          <span className="text-sm font-medium text-swu-accent">Personalizar</span>
+          <Palette size={16} className="text-swu-accent-texto" />
+          <span className="text-sm font-medium text-swu-accent-texto">Personalizar</span>
         </button>
         <button onClick={() => setView('security')}
           className="bg-swu-surface rounded-xl px-3 py-3 border border-swu-accent/30 flex items-center gap-2 active:scale-[0.98] transition-transform">
-          <Shield size={16} className="text-swu-accent" />
-          <span className="text-sm font-medium text-swu-accent">Seguridad</span>
+          <Shield size={16} className="text-swu-accent-texto" />
+          <span className="text-sm font-medium text-swu-accent-texto">Seguridad</span>
         </button>
       </div>
 
@@ -1073,8 +1073,8 @@ export function ProfilePage() {
                   ? 'bg-swu-accent/10 border-swu-accent/30'
                   : 'bg-swu-surface border-swu-border'
               }`}>
-              <Icon size={18} className={isHighlight ? 'text-swu-accent' : 'text-swu-muted'} />
-              <span className={`flex-1 text-left text-sm font-medium ${isHighlight ? 'text-swu-accent' : 'text-swu-text'}`}>{item.label}</span>
+              <Icon size={18} className={isHighlight ? 'text-swu-accent-texto' : 'text-swu-muted'} />
+              <span className={`flex-1 text-left text-sm font-medium ${isHighlight ? 'text-swu-accent-texto' : 'text-swu-text'}`}>{item.label}</span>
               {item.count !== undefined && <span className="text-xs text-swu-muted font-mono">{item.count}</span>}
               <ChevronRight size={16} className="text-swu-muted" />
             </button>
@@ -1098,7 +1098,7 @@ export function ProfilePage() {
 
       {/* Logout */}
       <button onClick={async () => { await logout(); setView('select') }}
-        className="w-full py-3 rounded-xl bg-swu-red/10 border border-swu-red/30 text-swu-red font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform">
+        className="w-full py-3 rounded-xl bg-swu-red/10 border border-swu-red/30 text-swu-red-texto font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform">
         <LogOut size={18} /> Cerrar Sesión
       </button>
     </div>
