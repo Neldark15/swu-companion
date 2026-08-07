@@ -362,6 +362,55 @@ archivos ANTES que el rewrite de la SPA, así que con la carpeta homónima la ru
   transitivamente hasta la raíz o salen duplicados.
 - La ruta es **pública** (sin `<P>`): un juez en torneo no se loguea.
 
+### 2s. Las tres pantallas 3D comparten UN three.js — y el contexto WebGL se suelta
+
+`three` va en `manualChunks` de [vite.config.ts](vite.config.ts). Medido: estaba
+DENTRO de `UtilitiesPage` (508 KB de chunk para dados y una moneda), y con tres
+pantallas 3D —Utilidades, `/galaxia`, `/mesa`— habrían sido tres copias de
+~450 KB. Separado: **522 KB compartidos** y cada pantalla pesa 17-25 KB.
+
+**three PELADO**, sin `@react-three/fiber` ni `drei` (200 KB más). El patrón de
+montaje/limpieza canónico es [Dice3D.tsx](src/features/utilities/Dice3D.tsx).
+
+**`renderer.forceContextLoss()` en la limpieza es obligatorio**, y va DESPUÉS de
+quitar el listener de `webglcontextlost` — si va antes, la pérdida provocada
+dispara el fallback y la pantalla dice «este navegador no puede dibujar en 3D»
+para siempre. Sin esto se fugaba **1 contexto y 4 texturas por visita**, y
+reproducido con 20 contextos, Chrome mata **los más viejos**: el de la Galaxia
+sería el primero en morir y se llevaría el 3D del resto de la app.
+
+Otras reglas medidas de las escenas: una geometría y un material COMPARTIDOS
+(19 planetas con material propio son 19 programas de shader);
+`setPixelRatio(Math.min(devicePixelRatio, 2))`; rAF pausado con
+`document.hidden` **y** `IntersectionObserver`; `transparent + DoubleSide`
+dibuja DOS veces y la pasada trasera se descarta entera por winding —cero
+píxeles y paga la llamada—.
+
+### 2t. Las imágenes de carta pasan por `/api/img`, no por el CDN directo
+
+Medido: la lista de Mi Botín muestra las cartas a 56×78 css y descargaba el PNG
+de 286×400. **45 MB para pintar 1,4 MB de píxeles.** Una sesión que abría tres
+pantallas bajaba **88 MB**; ahora **6 MB**.
+
+[api/img.ts](api/img.ts) es un proxy CERRADO (host exacto, ruta verificada
+contra 431 URLs reales, escalera fija de 128/224/288/448, cualquier otro ancho
+es 400 sin tocar la red) que devuelve **WebP con el alfa intacto** — `drop-shadow`
+y `radio-carta` dependen de las esquinas transparentes. `Cache-Control:
+immutable` un año: cada carta se convierte UNA vez para toda la comunidad.
+
+Antes de construirlo se verificó que no hubiera salida gratis: las miniaturas de
+Strapi dan **403**, las 8 convenciones de redimensionado por query devuelven los
+**mismos 204.214 bytes** (es CloudFront pelado sobre S3) y el API de cartas no
+tiene ningún campo de miniatura.
+
+`CardImage` **mide su propia caja** y elige el peldaño, así que los 23 sitios que
+dibujan cartas no se tocaron: ninguno sabía a cuántos píxeles termina la carta
+en el teléfono de quien mira.
+
+**Trampa de método al medir mejoras**: verificar con el MISMO perfil de Chrome da
+números idénticos porque el service worker sirve la app vieja desde su precaché.
+Perfil nuevo en cada corrida, o los arreglos parecen inútiles y se descartan.
+
 ### 2f. supabase-js NO lanza excepción ante error de PostgREST
 `const { data } = await supabase...` sin mirar `error` deja `data` en `null`, el `try/catch` nunca se activa y el fallo se ve igual que "no hay datos". Así estuvo **100% muerta** la caché de precios en la nube (0 filas de por vida): la tabla tenía 6 columnas y el código leía 9. Siempre desestructurar `error`.
 
