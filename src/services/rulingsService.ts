@@ -1,7 +1,7 @@
 /**
  * RULLINGS — servicio de las Comprehensive Rules oficiales.
  *
- * Los datos viajan CON la app: `public/rulings/index.json` (303 KB, generado
+ * Los datos viajan CON la app: `public/datos-cr/index.json` (303 KB, generado
  * por scripts/build-rulings.py desde el PDF oficial de FFG) se baja UNA vez
  * y se cachea en memoria. No hay API, no hay IA, no hay red después de la
  * primera carga: un juez en un torneo con mal internet sigue pudiendo citar
@@ -62,7 +62,7 @@ export interface DatosRulings {
   glosario: { termino: string; id: string }[]
 }
 
-// ─── Estado del simulador por mecánica (public/rulings/simulador.json) ───
+// ─── Estado del simulador por mecánica (public/datos-cr/simulador.json) ───
 
 export type EstadoModelado = 'modelada' | 'parcial' | 'no'
 
@@ -79,7 +79,7 @@ let _promesaDatos: Promise<DatosRulings> | null = null
 
 export function cargarRulings(): Promise<DatosRulings> {
   if (!_promesaDatos) {
-    _promesaDatos = fetch('/rulings/index.json')
+    _promesaDatos = fetch('/datos-cr/index.json')
       .then(r => {
         if (!r.ok) throw new Error(`rulings/index.json → HTTP ${r.status}`)
         return r.json() as Promise<DatosRulings>
@@ -102,7 +102,7 @@ let _promesaSim: Promise<EstadoSimulador | null> | null = null
  */
 export function cargarSimulador(): Promise<EstadoSimulador | null> {
   if (!_promesaSim) {
-    _promesaSim = fetch('/rulings/simulador.json')
+    _promesaSim = fetch('/datos-cr/simulador.json')
       .then(r => (r.ok ? (r.json() as Promise<EstadoSimulador>) : null))
       .catch(() => null)
   }
