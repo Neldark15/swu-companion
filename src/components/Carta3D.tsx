@@ -48,6 +48,14 @@ interface Props {
    * que no se muevan todas a la vez, que se ve mecánico.
    */
   sola?: number | false
+  /**
+   * Vuelta de presentación al aparecer, y brillo que QUEDA después.
+   *
+   * Para la carta que se abre: sin esto arrancaba plana —`--activo` en 0— y no
+   * mostraba reflejo hasta que alguien la tocara, que es lo contrario de lo que
+   * hace una foil en la mano.
+   */
+  alAbrir?: boolean
   className?: string
 }
 
@@ -57,6 +65,7 @@ export function Carta3D({
   brillo = false,
   iridiscente = false,
   sola = false,
+  alAbrir = false,
   className = '',
 }: Props) {
   const ref = useRef<HTMLDivElement>(null)
@@ -95,10 +104,25 @@ export function Carta3D({
     if (!el) return
     // Se reserva la capa solo mientras dura el gesto.
     el.style.willChange = on ? 'transform' : 'auto'
+    // Una animación EN CURSO le gana a un estilo en línea, así que sin pausarla
+    // la carta de la vitrina seguía con su vaivén e ignoraba el dedo por
+    // completo. El comentario del CSS decía que se pausaba; no lo hacía nadie.
+    el.style.animationPlayState = on ? 'paused' : ''
     if (on) {
       el.style.setProperty('--activo', '1')
       return
     }
+    // La compuerta se SUELTA acá, y con el fotograma pendiente cancelado.
+    //
+    // Sin esto quedaba trabada para siempre: `mover()` solo pide un fotograma
+    // si `frame.current` es 0, y `pintar()` es el único que lo devuelve a 0. Si
+    // el navegador nunca llega a ejecutar ese fotograma —pasa al cambiar de
+    // pestaña o bloquear el teléfono con la carta tocada, donde
+    // `requestAnimationFrame` deja de correr— la compuerta se quedaba cerrada y
+    // al volver la carta ya no respondía al dedo hasta remontarla. Medido en
+    // este mismo navegador: con la pestaña oculta, 0 fotogramas en 600 ms.
+    if (frame.current) cancelAnimationFrame(frame.current)
+    frame.current = 0
     // Al soltar se BORRAN las variables en vez de ponerlas en 0: así la carta
     // que se mueve sola vuelve a su animación, en lugar de quedarse clavada.
     el.style.removeProperty('--activo')
@@ -124,7 +148,7 @@ export function Carta3D({
     >
       <div
         ref={ref}
-        className={`carta3d ${
+        className={`carta3d ${alAbrir ? 'carta3d-abre' : ''} ${
           sola === false ? '' : `carta3d-sola ${['', 'carta3d-sola-b', 'carta3d-sola-c', 'carta3d-sola-d'][sola % 4]}`
         }`}
         style={{ '--intensidad': `${intensidad}deg` } as React.CSSProperties}

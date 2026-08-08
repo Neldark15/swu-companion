@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Heart, Loader2, AlertCircle, BookOpen, Star, Package, Plus, Minus, Maximize2, Search } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { CardZoom } from '../../components/CardZoom'
-import { AclaracionesOficiales } from '../../components/CardPreviewSheet'
+import { AclaracionesFFG } from '../../components/CardPreviewSheet'
+import { Carta3D } from '../../components/Carta3D'
 import { isLandscapeFace } from '../../services/cardArt'
 import { getCardById } from '../../services/swuApi'
 import { getMyWishlist, addToWishlist, removeFromWishlist } from '../../services/tradeService'
@@ -171,6 +172,9 @@ export function CardDetailPage() {
   }
 
   const imageUrl = showBack && card.backImageUrl ? card.backImageUrl : card.imageUrl
+  // Solo estas impresiones cambian de color con el ángulo. Ponerle el halo a
+  // una Standard sería inventarle un acabado que la carta no tiene.
+  const especial = /showcase|prestige|foil/i.test(card.variantType ?? '')
   const landscape = isLandscapeFace(card, showBack)
 
   // El frente de un líder ya trae su bloque de unidad dentro del texto de la
@@ -232,12 +236,16 @@ export function CardDetailPage() {
             aria-label={`Ampliar ${card.name}`}
             className="relative w-full max-w-sm active:scale-[0.99] transition-transform"
           >
-            <img
-              src={imageUrl}
-              alt={card.name}
-              style={{ aspectRatio: landscape ? '400 / 287' : '400 / 559' }}
-              className="w-full h-auto rounded-2xl shadow-xl shadow-black/30 border-2 border-swu-border bg-swu-surface"
-            />
+            {/* El reflejo va acá y no en la hoja de vista previa nomás: esta es
+                la pantalla donde alguien se queda mirando la carta. */}
+            <Carta3D alAbrir brillo iridiscente={especial}>
+              <img
+                src={imageUrl}
+                alt={card.name}
+                style={{ aspectRatio: landscape ? '400 / 287' : '400 / 559' }}
+                className="w-full h-auto rounded-2xl shadow-xl shadow-black/30 border-2 border-swu-border bg-swu-surface"
+              />
+            </Carta3D>
             <span className="absolute bottom-2 right-2 px-2 py-1 rounded-lg bg-black/60 backdrop-blur
                              text-white text-[10px] font-semibold flex items-center gap-1 pointer-events-none">
               <Maximize2 size={11} /> Ampliar
@@ -370,9 +378,9 @@ export function CardDetailPage() {
         </div>
       )}
 
-      {/* Aclaraciones oficiales de FFG. No se dibuja nada si la carta no tiene
+      {/* Aclaraciones de FFG. No se dibuja nada si la carta no tiene
           — el componente decide, ver CardPreviewSheet.tsx. */}
-      <AclaracionesOficiales carta={card} />
+      <AclaracionesFFG carta={card} />
 
       {/* Prices by Variant */}
       {(priceInfo || priceLoading) && (

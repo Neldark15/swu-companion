@@ -577,6 +577,46 @@ input:focus, textarea:focus, select:focus {
   .carta3d-sola { animation: none; --activo: 0; }
 }
 
+/* ─────────────────────────────────────────────────────────────
+ * La carta que se ABRE
+ *
+ * Al abrir una carta el brillo no existía: `--activo` arranca en 0, así que la
+ * carta quedaba plana hasta que alguien la tocara. Justo al revés de lo que
+ * hace una foil de verdad, que lo primero que muestra es el reflejo.
+ *
+ * Acá se le da UNA vuelta de presentación —se inclina y una luz la recorre— y
+ * después queda en reposo CON brillo, no apagada. Una sola pasada y no un
+ * vaivén eterno: en esta pantalla además se lee el texto de la carta, y algo
+ * que se mueve todo el tiempo al lado de un párrafo cansa.
+ *
+ * Sin `fill-mode`: al terminar, la animación suelta `--px`/`--py` y vuelven a
+ * mandar los estilos en línea que escribe el dedo. Con `both` se quedaría
+ * dueña de esas variables para siempre y la carta no volvería a responder al
+ * tacto — una animación en curso le gana a un estilo en línea.
+ * ───────────────────────────────────────────────────────────── */
+
+@utility carta3d-abre {
+  /* Brillo de reposo. Más bajo que la vitrina (0,55): allá la carta es el
+     objeto; acá compite con el texto que hay al lado. */
+  --activo: 0.42;
+  animation: carta-presenta 2.1s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Termina en 0/0, que es el valor base, para que al soltar la animación no
+   haya salto. Los valores pasan de 1 por lo mismo que en el vaivén: `--activo`
+   amortigua el ángulo y con ±1 el recorrido no se ve. */
+@keyframes carta-presenta {
+  0%   { --px: -1.25; --py: -0.60; }
+  50%  { --px:  1.25; --py:  0.40; }
+  100% { --px:  0;    --py:  0;    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Sin vuelta de presentación, pero el reflejo queda: es lo que distingue una
+     Showcase de una normal, o sea información, no adorno. */
+  .carta3d-abre { animation: none; --activo: 0.42; }
+}
+
 /* Destello que recorre el borde de un panel al tocarlo.
  *
  * Para los módulos y tarjetas de la app: el brillo de las cartas es radial y
