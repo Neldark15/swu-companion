@@ -127,8 +127,44 @@ type Cara = 'frente' | 'unidad'
 
 /** Inclinación de las cartas hacia la cámara: tumbadas del todo no se leen. */
 const INCLINACION = -Math.PI / 2 + 0.34
-/** Lo que gira una carta agotada. En SWU agotar es girar la carta. */
-const GIRO_AGOTADO = 0.42
+/**
+ * Lo que gira una carta agotada: un cuarto de vuelta.
+ *
+ * En SWU agotar ES girar la carta 90°, y es el gesto más reconocible de la
+ * mesa. Estaba en 0,42 rad —24°, un cabeceo— porque a 90° una carta vertical
+ * pasa a medir 2,1 de ancho contra el paso de 1,72 de la fila y pisaba a sus
+ * vecinas. La solución no era achicar el giro sino la de la mesa de verdad:
+ * la carta girada además se CORRE hacia su dueño (`CORRIMIENTO_AGOTADO`), que
+ * es exactamente lo que hace un jugador para que no estorbe a las de al lado.
+ */
+const GIRO_AGOTADO = Math.PI / 2
+
+/** Cuánto se aparta de la fila una carta agotada, hacia su propio lado. */
+const CORRIMIENTO_AGOTADO = 0.62
+
+/**
+ * Cuánto asoma una mejora por debajo de la unidad que lleva encima.
+ *
+ * En el juego la mejora va DEBAJO de la carta, corrida hacia su dueño para que
+ * se siga leyendo cuál es. Estaban en el modelo (`u.mejoras`) y no se dibujaba
+ * ninguna: un Vader con dos mejoras se veía igual que uno pelado.
+ */
+const ASOMA_MEJORA = 0.46
+const PASO_MEJORA = 0.22
+
+/** El giro de una unidad según su estado. Lo comparten la escena y las mejoras. */
+function giroDe(agotado: boolean, lado: Lado): number {
+  return agotado ? GIRO_AGOTADO * (lado === 'A' ? 1 : -1) : 0
+}
+
+/**
+ * Cuánto se levanta una carta a mitad de viaje.
+ *
+ * Bajo a propósito: la cámara mira casi de canto, así que un arco alto saca la
+ * carta del encuadre y tapa la fila de atrás. Lo justo para que se lea como
+ * «la levantaron y la apoyaron» y no como «se deslizó».
+ */
+const ALTURA_ARCO = 0.55
 
 const COLOR_A = 0x22d3ee
 const COLOR_B = 0xf87171
@@ -160,6 +196,32 @@ function texturaTapete(): THREE.Texture {
   return t
 }
 
+/**
+ * La sombra de contacto: una mancha suave que va debajo de cada carta.
+ *
+ * Es lo que hacía falta para que las cartas se APOYEN en el tapete en vez de
+ * flotar sobre él. Sin luces no hay sombras de verdad, pero tampoco hacen
+ * falta: el ojo lee «apoyado» por el contacto entre el objeto y su mancha, y
+ * eso se pinta. Cuanto más alto va la carta, más grande y más tenue —que es lo
+ * único que distingue una carta en la mano de una puesta en la mesa—.
+ *
+ * Un degradado radial y no un círculo duro: el borde neto se lee como un
+ * agujero en el tapete.
+ */
+function texturaSombra(): THREE.Texture {
+  const S = 128
+  const c = document.createElement('canvas')
+  c.width = c.height = S
+  const x = c.getContext('2d')!
+  const g = x.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2)
+  g.addColorStop(0, 'rgba(0,0,0,0.62)')
+  g.addColorStop(0.45, 'rgba(0,0,0,0.34)')
+  g.addColorStop(1, 'rgba(0,0,0,0)')
+  x.fillStyle = g
+  x.fillRect(0, 0, S, S)
+  return new THREE.CanvasTexture(c)
+}
+
 /** Una etiqueta de texto sobre fondo transparente, para rótulos y cifras. */
 function texturaTexto(texto: string, color: string, tam = 76): THREE.Texture {
   const W = 256, H = 128
@@ -189,6 +251,8 @@ interface Ficha {
   material: THREE.MeshBasicMaterial
   /** Aro de color bajo la carta: de quién es y si está condenada. */
   aro: THREE.Mesh
+  /** Mancha de contacto contra el tapete. Ver `texturaSombra`. */
+  sombra: THREE.Mesh
   destino: THREE.Vector3
   origen: THREE.Vector3
   giroDestino: number
@@ -217,6 +281,8 @@ interface Motor {
   camera: THREE.PerspectiveCamera
   geoCarta: THREE.PlaneGeometry
   geoAro: THREE.PlaneGeometry
+  /** Una sola textura de mancha para TODAS las cartas. */
+  texSombra: THREE.Texture
   texturas: Map<string, THREE.Texture>
   /** Texturas de cifras, cacheadas por el texto: «-4» se repite mucho. */
   textos: Map<string, THREE.Texture>
@@ -340,6 +406,7 @@ export function MesaEscena({ estado, arte, duracion, className = '', onSinWebGL 
       renderer, scene, camera,
       geoCarta: new THREE.PlaneGeometry(1, 1),
       geoAro: new THREE.PlaneGeometry(1, 1),
+      texSombra: texturaSombra(),
       texturas: new Map(), textos: new Map(),
       fichas: new Map(), cifras: [], basura,
       vidaA, vidaB,
@@ -448,8 +515,23 @@ export function MesaEscena({ estado, arte, duracion, className = '', onSinWebGL 
       rafSuelto = requestAnimationFrame(() => {
         rafSuelto = 0
         const v = motorRef.current
-        if (v) v.renderer.render(v.scene, v.camera)
+        if (!v) return
+        // Con dt = 0: no avanza ninguna animación, pero SÍ coloca lo que cuelga
+        // de cada carta —su aro y su sombra—. Sin esta llamada, con movimiento
+        // reducido (donde el bucle no corre y esta es la única vía de pintado)
+        // las sombras se quedaban en el origen y con opacidad 0: invisibles
+        // para siempre, justo en el modo que no tiene animación que las coloque.
+        avanzarAnimaciones(v, 0)
+        v.renderer.render(v.scene, v.camera)
       })
+    }
+
+    // Asa de inspección, SOLO en desarrollo: `import.meta.env.DEV` es un
+    // literal, así que el empaquetador poda este bloque entero en producción.
+    // Sirve para contar mallas y leer posiciones desde la consola sin adivinar
+    // por píxeles, que es como se estaba depurando la escena hasta ahora.
+    if (import.meta.env.DEV) {
+      ;(window as unknown as { __mesa?: unknown }).__mesa = motorRef
     }
 
     let anterior = performance.now()
@@ -565,6 +647,7 @@ export function MesaEscena({ estado, arte, duracion, className = '', onSinWebGL 
         for (const b of m.basura) b.dispose()
         m.geoCarta.dispose()
         m.geoAro.dispose()
+        m.texSombra.dispose()
         m.renderer.dispose()
         /*
          * `dispose()` NO devuelve el contexto WebGL: libera lo de three, pero
@@ -735,7 +818,12 @@ function sincronizar(m: Motor, est: EstadoMesa, arte: Map<string, ArteCarta>, du
       fila.forEach((u, i) => {
         vivos.add(u.uid)
         const destino = sitio(i, fila.length, z)
+        // La agotada se aparta hacia su dueño: girada mide 2,1 de ancho y el
+        // paso de la fila es 1,72. Apartarla es lo que se hace en la mesa, y
+        // deja la fila legible sin tener que achicar el giro.
+        if (u.agotado) destino.z += lado === 'A' ? CORRIMIENTO_AGOTADO : -CORRIMIENTO_AGOTADO
         colocarFicha(m, u, lado, destino, arte, dur, 'unidad')
+        for (const uid of colocarMejoras(m, u, lado, destino, arte, dur)) vivos.add(uid)
       })
     }
     // Zona de base y líder: dos cartas apaisadas, siempre visibles.
@@ -827,14 +915,24 @@ function colocarFicha(
     aro.scale.set(w * 1.14, h * 1.1, 1)
     aro.rotation.x = INCLINACION
 
+    // La mancha va TUMBADA del todo (−90°), no inclinada como la carta: está
+    // pegada al tapete, no es una capa más de la carta. Y `renderOrder` bajo
+    // con `depthWrite: false` para que no se pelee con el tapete ni tape nada.
+    const sombra = new THREE.Mesh(m.geoAro, new THREE.MeshBasicMaterial({
+      map: m.texSombra, transparent: true, depthWrite: false, opacity: 0,
+    }))
+    sombra.rotation.x = -Math.PI / 2
+    sombra.renderOrder = -1
+
     m.scene.add(malla)
     m.scene.add(aro)
+    m.scene.add(sombra)
 
     // Entra desde la mano: fuera de cuadro, por detrás de su dueño.
     const origen = new THREE.Vector3(destino.x * 0.4, 1.2, MANO_Z[lado])
     malla.position.copy(dur > 0 ? origen : destino)
     f = {
-      uid: u.uid, malla, material, aro,
+      uid: u.uid, malla, material, aro, sombra,
       destino: destino.clone(), origen,
       giroDestino: 0, giroOrigen: 0,
       t: dur > 0 ? 0 : 1, dur: Math.max(1, dur),
@@ -864,7 +962,7 @@ function colocarFicha(
     f.material.opacity = 1
   }
 
-  const giro = u.agotado ? GIRO_AGOTADO * (lado === 'A' ? 1 : -1) : 0
+  const giro = giroDe(u.agotado, lado)
   const movido = !f.destino.equals(destino) || f.giroDestino !== giro
   if (movido) {
     f.origen = f.malla.position.clone()
@@ -917,6 +1015,67 @@ function colocarFicha(
 }
 
 /**
+ * Las mejoras que lleva puestas una unidad.
+ *
+ * En la mesa una mejora es una carta DEBAJO de la unidad, corrida hacia su
+ * dueño para que se siga viendo cuál es. Estaban en el modelo desde el primer
+ * día y no se dibujaba ninguna: una unidad con dos mejoras encima se veía
+ * exactamente igual que una pelada, cuando en la partida es lo que decide el
+ * combate.
+ *
+ * Los uid se derivan del de la unidad y se van MUY abajo (−1000 y bajando)
+ * para no chocar ni con las unidades (positivos) ni con base y líder (−1..−4).
+ * Así viven en el mismo mapa de fichas y se liberan con todo lo demás.
+ *
+ * El corrimiento se GIRA con la carta: si la unidad está agotada —un cuarto de
+ * vuelta— sus mejoras tienen que salir por el mismo lado que salían antes de
+ * girar, porque en la mesa el montoncito gira entero. Sin esto, al agotarse
+ * una unidad sus mejoras se le cruzaban por delante.
+ */
+function colocarMejoras(
+  m: Motor, u: UnidadMesa, lado: Lado, base: THREE.Vector3,
+  arte: Map<string, ArteCarta>, dur: number,
+): number[] {
+  if (u.mejoras.length === 0) return []
+  const giro = giroDe(u.agotado, lado)
+  const dir = lado === 'A' ? 1 : -1
+  const rot = new THREE.Euler(INCLINACION, 0, giro)
+  const uids: number[] = []
+  u.mejoras.forEach((nombre, i) => {
+    const uid = -1000 - (u.uid * 8 + i)
+    /*
+     * El desplazamiento es LOCAL A LA CARTA, no del mundo.
+     *
+     * Primero lo escribí como un empujón en el eje z del mundo y lo pasé por la
+     * rotación completa: medido, la mejora asomaba 0,15 en vez de 0,46 porque
+     * la inclinación (−90°+0,34) convierte casi todo ese vector en «arriba», y
+     * la componente y se descartaba. O sea, la mejora quedaba flotando en vez
+     * de asomar.
+     *
+     * Lo correcto es partir del «abajo» DE LA CARTA —su −y local— y dejar que
+     * su propia rotación lo lleve al mundo. Así sale solo:
+     *   sin girar   → sale hacia su dueño, un poco hundida  ✓
+     *   agotada 90° → sale de costado, que es hacia donde mira ya la carta  ✓
+     * `dir` invierte el lado B, que se lee desde el otro extremo de la mesa.
+     */
+    const d = ASOMA_MEJORA + i * PASO_MEJORA
+    const off = new THREE.Vector3(0, -dir * d, 0).applyEuler(rot)
+    const destino = new THREE.Vector3(
+      base.x + off.x,
+      // La componente y de la rotación ya la hunde bajo la unidad; el sumando
+      // extra separa las mejoras ENTRE SÍ, que si no pelean por el mismo plano.
+      base.y + off.y - 0.004 * (i + 1),
+      base.z + off.z,
+    )
+    const mej = pseudoUnidad(uid, nombre, lado)
+    mej.agotado = u.agotado
+    colocarFicha(m, mej, lado, destino, arte, dur, 'frente')
+    uids.push(uid)
+  })
+  return uids
+}
+
+/**
  * La base y el líder de un lado, en su zona.
  *
  * Se dibujan con uid negativos —fuera del espacio de las unidades— para poder
@@ -954,6 +1113,11 @@ function pseudoUnidad(uid: number, nombre: string, lado: Lado): UnidadMesa {
 function destruirFicha(m: Motor, f: Ficha) {
   m.scene.remove(f.malla)
   m.scene.remove(f.aro)
+  m.scene.remove(f.sombra)
+  // El `map` de la sombra es la textura COMPARTIDA del motor: no se libera acá
+  // (la liberaría para todas las demás cartas). Se va con el desmontaje.
+  ;(f.sombra.material as THREE.MeshBasicMaterial).map = null
+  ;(f.sombra.material as THREE.Material).dispose()
   // El `map` NO se libera: es de la caché compartida y otras cartas del mismo
   // nombre lo están usando. Se libera entero al desmontar.
   f.material.map = null
@@ -1040,6 +1204,14 @@ function avanzarAnimaciones(m: Motor, dt: number) {
         if (f.t >= 1) { f.embiste = null; f.malla.position.copy(f.destino) }
       } else {
         f.malla.position.lerpVectors(f.origen, f.destino, s)
+        // Un arco, no una línea recta.
+        //
+        // Una mano no desliza la carta por el tapete: la levanta, la lleva y la
+        // apoya. En recta el movimiento se leía como una pieza de software
+        // moviéndose sola. La parábola se anula en los extremos, así que salida
+        // y llegada quedan exactamente donde estaban; solo cambia el camino.
+        // Nada para la carta que se está muriendo: esa se hunde, no vuela.
+        if (!f.muriendo) f.malla.position.y += Math.sin(s * Math.PI) * ALTURA_ARCO
         if (f.muriendo) f.material.opacity = 1 - s
       }
       /*
@@ -1068,6 +1240,31 @@ function avanzarAnimaciones(m: Motor, dt: number) {
     f.aro.rotation.z = f.malla.rotation.z
     ;(f.aro.material as THREE.MeshBasicMaterial).opacity =
       Math.min((f.aro.material as THREE.MeshBasicMaterial).opacity, f.material.opacity)
+
+    /*
+     * La mancha se queda en el TAPETE mientras la carta sube.
+     *
+     * Ahí está todo el efecto: si la sombra subiera con la carta serían dos
+     * objetos pegados y no se leería ninguna altura. Quedándose abajo y
+     * creciendo —más grande y más tenue cuanto más alto—, la distancia entre la
+     * carta y su mancha ES la altura. Es el mismo truco de un decorado pintado:
+     * no hay luz, hay contacto.
+     *
+     * Se desplaza un poco en −z además: la cámara mira desde el lado A, así que
+     * una sombra perfectamente centrada se esconde bajo la carta y no se ve.
+     */
+    const alto = Math.max(0, f.malla.position.y)
+    const crece = 1 + alto * 0.38
+    f.sombra.position.set(
+      f.malla.position.x + alto * 0.10,
+      0.012,                                  // rozando el tapete, sin z-fighting
+      f.malla.position.z + alto * 0.30,
+    )
+    f.sombra.scale.set(f.aro.scale.x * 1.05 * crece, f.aro.scale.y * 1.05 * crece, 1)
+    f.sombra.rotation.z = f.malla.rotation.z
+    // Se diluye con la altura y respeta el desvanecido de la carta que muere.
+    ;(f.sombra.material as THREE.MeshBasicMaterial).opacity =
+      Math.min(0.85, 0.85 / (1 + alto * 1.5)) * f.material.opacity
   }
 
   for (let i = m.cifras.length - 1; i >= 0; i--) {

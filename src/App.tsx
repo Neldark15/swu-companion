@@ -57,6 +57,9 @@ const GalaxyPage = lazy(() => import('./features/galaxy/GalaxyPage').then(m => (
 const GalaxiaPage = lazy(() => import('./features/galaxia/GalaxiaPage').then(m => ({ default: m.GalaxiaPage })))
 const LabPage = lazy(() => import('./features/lab/LabPage').then(m => ({ default: m.LabPage })))
 const MesaPage = lazy(() => import('./features/mesa/MesaPage').then(m => ({ default: m.MesaPage })))
+// Banco de pruebas de la mesa 3D. Solo en desarrollo: se cae del bundle de
+// producción porque `import.meta.env.DEV` es literal y el árbol se poda.
+const BancoMesa = lazy(() => import('./features/mesa/BancoMesa').then(m => ({ default: m.BancoMesa })))
 const RulingsPage = lazy(() => import('./features/rulings/RulingsPage').then(m => ({ default: m.RulingsPage })))
 
 // Admin panel — separate layout, isAdmin guard inside AdminLayout
@@ -133,6 +136,7 @@ export default function App() {
             {/* Pegada al Laboratorio porque es su continuación: allí se MIDE un
                 emparejamiento y aquí se VE una partida de esa misma medición. */}
             <Route path="/mesa" element={<P><MesaPage /></P>} />
+            {import.meta.env.DEV && <Route path="/banco-mesa" element={<BancoMesa />} />}
             <Route path="/play/tracker/:mode" element={<P><TrackerPage /></P>} />
             <Route path="/play/saved" element={<P><SavedMatchesPage /></P>} />
             <Route path="/events" element={<P><EventsPage /></P>} />
@@ -176,7 +180,7 @@ export default function App() {
                 necesita saber cuál planeta es el de quien mira. */}
             <Route path="/galaxia" element={<P><GalaxiaPage /></P>} />
             {/* La agenda es pública: sirve para que alguien sin cuenta vea
-                cuándo es el próximo torneo oficial. */}
+                cuándo es el próximo torneo. */}
             <Route path="/news" element={<NewsPage />} />
             {/* El meta es público: sirve para prepararse antes de un torneo. */}
             <Route path="/meta" element={<MetaPage />} />

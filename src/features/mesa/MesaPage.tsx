@@ -638,10 +638,25 @@ function Relato({ partida, indice, mi, suyo, onIr }: {
 }) {
   const cajaRef = useRef<HTMLDivElement>(null)
 
-  // La línea que se está viendo se mantiene a la vista sola.
+  // La línea que se está viendo se mantiene a la vista sola —pero SOLO dentro
+  // de esta caja.
+  //
+  // Antes era `scrollIntoView({ block: 'nearest' })`, y esa llamada desplaza al
+  // antecesor desplazable más cercano: cuando la línea no entraba en la
+  // ventana, ese antecesor era la PÁGINA. Resultado: cada jugada arrastraba la
+  // pantalla hacia abajo y la mesa 3D —que está arriba— se iba de vista justo
+  // mientras se estaba mirando. Acá se mueve el `scrollTop` de la caja a mano,
+  // que es lo único que se quería desde el principio.
   useEffect(() => {
-    const el = cajaRef.current?.querySelector('[data-actual="1"]')
-    el?.scrollIntoView({ block: 'nearest' })
+    const caja = cajaRef.current
+    const el = caja?.querySelector<HTMLElement>('[data-actual="1"]')
+    if (!caja || !el) return
+    // Por rectángulos y no por `offsetTop`: `offsetTop` es relativo al
+    // antecesor posicionado, que no tiene por qué ser esta caja.
+    const rc = caja.getBoundingClientRect()
+    const re = el.getBoundingClientRect()
+    if (re.top < rc.top) caja.scrollTop += re.top - rc.top
+    else if (re.bottom > rc.bottom) caja.scrollTop += re.bottom - rc.bottom
   }, [indice])
 
   return (
