@@ -23,7 +23,7 @@ import {
 } from '../../components/SWIcons'
 import { HudPanel, HudCorners, HexIcon } from '../../components/Hud'
 import { NoticiasSection } from './NoticiasSection'
-import { TiendaOficial } from './TiendaOficial'
+import { DondeJugar } from './DondeJugar'
 import { ProximosEventos } from './ProximosEventos'
 import { TarjetaJugador } from '../profile/TarjetaJugador'
 import { Carta3D } from '../../components/Carta3D'
@@ -272,11 +272,11 @@ export function HomePage() {
           Va DEBAJO de los módulos a propósito: quien abre la app viene a hacer
           algo —registrar un duelo, buscar una carta—, no a leer. Las noticias
           se encuentran al bajar, que es cuando uno tiene tiempo. */}
-      {/* La tienda oficial va ARRIBA de las noticias: para quien recién
+      {/* La tienda va ARRIBA de las noticias: para quien recién
           llega, «dónde consigo las cartas acá» pesa más que cualquier
           novedad del juego. */}
       <div className="px-4 pt-6">
-        <TiendaOficial />
+        <DondeJugar />
       </div>
 
       <div className="px-4 pt-6">

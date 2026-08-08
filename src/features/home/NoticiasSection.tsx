@@ -29,7 +29,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { getNews, type NewsItem } from '../../services/news'
 import { diaMes } from '../../services/horaSV'
 
-const CUENTA_OFICIAL = 'https://www.instagram.com/unlimitedffg/'
+const CUENTA_FFG = 'https://www.instagram.com/unlimitedffg/'
 
 /**
  * Código de una publicación de Instagram, si el enlace es de una.
@@ -46,7 +46,7 @@ function codigoInstagram(url: string | null): string | null {
 function EmbedInstagram({ codigo }: { codigo: string }) {
   return (
     <div className="rounded-xl overflow-hidden border border-swu-border bg-white">
-      {/* El incrustado oficial. Se carga en diferido: son ~400 KB de Instagram
+      {/* El incrustado de Instagram. Se carga en diferido: son ~400 KB de Instagram
           y no tienen por qué pesar en la primera pintada de Inicio. */}
       <iframe
         src={`https://www.instagram.com/p/${codigo}/embed/`}
@@ -153,7 +153,7 @@ export function NoticiasSection() {
       ) : items.length === 0 ? (
         <p className="text-[12px] text-swu-muted">
           Todavía no hay noticias.
-          {isAdmin && ' Pegá el enlace de una publicación de la cuenta oficial y se muestra entera acá.'}
+          {isAdmin && ' Pegá el enlace de una publicación de @unlimitedffg y se muestra entera acá.'}
         </p>
       ) : (
         <div className="space-y-3">
@@ -165,7 +165,7 @@ export function NoticiasSection() {
           haya o no noticias cargadas: seguirla directo es mejor que esperar a
           que alguien acá la copie. */}
       <a
-        href={CUENTA_OFICIAL}
+        href={CUENTA_FFG}
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center gap-2 bg-swu-surface border border-swu-border rounded-xl px-3 py-2.5 active:scale-[0.99] transition-transform"
@@ -173,7 +173,7 @@ export function NoticiasSection() {
         <Instagram size={16} className="text-swu-coral flex-shrink-0" aria-hidden />
         <div className="min-w-0 flex-1">
           <p className="text-[12px] font-semibold text-swu-text">@unlimitedffg</p>
-          <p className="text-[10px] text-swu-muted">La cuenta oficial del juego</p>
+          <p className="text-[10px] text-swu-muted">La cuenta de Fantasy Flight Games</p>
         </div>
         <ExternalLink size={12} className="text-swu-muted flex-shrink-0" aria-hidden />
       </a>

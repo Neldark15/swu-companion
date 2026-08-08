@@ -30,7 +30,7 @@ const GROUPS: MoreGroup[] = [
       { to: '/events', label: 'Torneo', sub: 'Eventos organizados', icon: MandoTrophyIcon },
       { to: '/arena', label: 'Holocrón', sub: 'Registro de duelos', icon: DatapadIcon },
       // Vive en «Jugar»: se consulta EN la mesa, en medio de una partida.
-      { to: '/rulings', label: 'Rulings', sub: 'Reglas oficiales', icon: Scale },
+      { to: '/rulings', label: 'Rulings', sub: 'Reglamento del juego', icon: Scale },
     ],
   },
   {
@@ -45,7 +45,7 @@ const GROUPS: MoreGroup[] = [
   {
     title: 'Comunidad',
     items: [
-      { to: '/news', label: 'Noticias', sub: 'Agenda oficial', icon: Newspaper },
+      { to: '/news', label: 'Noticias', sub: 'Agenda de torneos', icon: Newspaper },
       { to: '/meta', label: 'Meta', sub: 'Torneos y matchups', icon: BarChart3 },
       { to: '/community', label: 'Comunidades', sub: 'El Salvador', icon: RebelIcon },
       { to: '/rank', label: 'Consejo Jedi', sub: 'Clasificación', icon: BeskarIcon },

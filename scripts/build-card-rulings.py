@@ -47,7 +47,7 @@ SUSPENDIDAS = [
 TRANSICION = {
     "titulo": "CR8→CR9",
     "texto": (
-        "Nota transicional oficial: cuando una unidad sale de juego, sus "
+        "Nota transicional de FFG: cuando una unidad sale de juego, sus "
         "mejoras se consideran derrotadas SIMULTÁNEAMENTE con ella (no en "
         "secuencia). La regla 1.16.5C del CR 8.0 ya no aplica y será "
         "eliminada en el CR 9.0."

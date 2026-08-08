@@ -69,7 +69,7 @@ function Bloque({ titulo, texto }: { titulo: string; texto: string | null | unde
  * Vive acá y no en un archivo propio porque la comparten la hoja rápida y la
  * ficha completa, que son las dos formas de «leer una carta» en la app.
  */
-export function AclaracionesOficiales({ carta }: { carta: Card }) {
+export function AclaracionesFFG({ carta }: { carta: Card }) {
   // Las aclaraciones viajan CON el id de la carta a la que pertenecen, por la
   // misma razón que la cantidad del binder: al pasar de una carta con rulings
   // a otra sin ellos, mostrar los viejos un instante es afirmar algo falso
@@ -104,7 +104,7 @@ export function AclaracionesOficiales({ carta }: { carta: Card }) {
                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent"
       >
         <Gavel size={14} className="text-swu-cyan flex-shrink-0" aria-hidden />
-        <span className="text-[12px] font-bold text-swu-cyan flex-1">Aclaraciones oficiales</span>
+        <span className="text-[12px] font-bold text-swu-cyan flex-1">Aclaraciones de FFG</span>
         {n > 0 && (
           <span className="text-[10px] font-mono text-swu-cyan/80 flex-shrink-0">{n}</span>
         )}
@@ -149,7 +149,7 @@ export function AclaracionesOficiales({ carta }: { carta: Card }) {
           )}
 
           <p className="text-[10px] text-swu-muted/70 leading-snug border-t border-swu-cyan/15 pt-2">
-            {info.rulings.length > 0 && 'Texto oficial en inglés (es el normativo). '}
+            {info.rulings.length > 0 && 'Texto en inglés (es el normativo). '}
             Fuente: {info.meta.fuente} · Fantasy Flight Games · descargado{' '}
             <span className="font-mono">{info.meta.descargado}</span>.
           </p>
@@ -229,7 +229,7 @@ export function CardPreviewSheet({
               <div className="space-y-2">
                 <div className="mx-auto max-w-sm">
                   <p className="text-[9px] uppercase tracking-widest text-swu-amber mb-1">Líder</p>
-                  <Carta3D brillo iridiscente={especial}>
+                  <Carta3D alAbrir brillo iridiscente={especial}>
                     <CardImage
                       src={carta.imageUrl}
                       alt={`${carta.name}, lado de líder`}
@@ -242,7 +242,7 @@ export function CardPreviewSheet({
                 </div>
                 <div className="mx-auto max-w-[200px]">
                   <p className="text-[9px] uppercase tracking-widest text-swu-cyan mb-1">Desplegado</p>
-                  <Carta3D brillo iridiscente={especial}>
+                  <Carta3D alAbrir brillo iridiscente={especial}>
                     <CardImage
                       src={carta.backImageUrl}
                       alt={`${carta.name}, lado de unidad`}
@@ -257,6 +257,7 @@ export function CardPreviewSheet({
             ) : (
               <>
                 <Carta3D
+                  alAbrir
                   brillo
                   iridiscente={especial}
                   className={`mx-auto ${apaisada ? 'max-w-sm' : 'max-w-[220px]'}`}
@@ -341,8 +342,8 @@ export function CardPreviewSheet({
 
           {/* Va pegada al texto que aclara, no al pie: quien abre la hoja en
               medio de una partida no debería tener que scrollear para saber
-              que la carta tiene una aclaración oficial. */}
-          <AclaracionesOficiales carta={carta} />
+              que la carta tiene una aclaración de FFG. */}
+          <AclaracionesFFG carta={carta} />
 
           {carta.keywords.length > 0 && (
             <p className="text-[11px] text-swu-muted">

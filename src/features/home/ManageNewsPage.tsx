@@ -326,7 +326,7 @@ export function ManageNewsPage() {
             <div className="flex gap-1.5 flex-wrap">
               {([
                 ['news', 'Anuncio'],
-                ['event', 'Evento oficial'],
+                ['event', 'Evento'],
                 ['release', 'Lanzamiento'],
               ] as [NewsKind, string][]).map(([k, label]) => (
                 <button

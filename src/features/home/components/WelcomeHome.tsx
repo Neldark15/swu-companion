@@ -70,7 +70,7 @@ export function WelcomeHome() {
             Centro de Mando
           </p>
           <p className="text-[12px] text-swu-text/80 mt-3 max-w-xs mx-auto leading-snug">
-            Tu companion oficial para <span className="text-swu-amber font-semibold">Star Wars: Unlimited</span> —
+            Tu companion para <span className="text-swu-amber font-semibold">Star Wars: Unlimited</span> —
             tracker, torneos, colección y comunidad.
           </p>
 

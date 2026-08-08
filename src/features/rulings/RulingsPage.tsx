@@ -488,7 +488,7 @@ export function RulingsPage() {
             rel="noopener noreferrer"
             className="flex items-center gap-1 text-[10px] font-mono text-swu-cyan hover:underline flex-shrink-0"
           >
-            PDF oficial <ExternalLink size={10} />
+            PDF de FFG <ExternalLink size={10} />
           </a>
         </div>
         <p className="text-[10px] text-swu-muted/70 mt-1.5 leading-snug">
@@ -806,7 +806,7 @@ function FilaCarta({
             <Gavel size={12} className="text-swu-cyan flex-shrink-0" aria-hidden />
             {/* El plural pierde la tilde: «aclaraciones», no «aclaraciónes». */}
             <span className="text-[11px] font-semibold text-swu-cyan flex-1">
-              {rulings.length === 1 ? '1 aclaración oficial' : `${rulings.length} aclaraciones oficiales`}
+              {rulings.length === 1 ? '1 aclaración de FFG' : `${rulings.length} aclaraciones de FFG`}
             </span>
             {abierta
               ? <ChevronDown size={12} className="text-swu-cyan" aria-hidden />
@@ -821,7 +821,7 @@ function FilaCarta({
                 </div>
               ))}
               <p className="text-[10px] text-swu-muted/70 leading-snug pt-1">
-                Texto oficial en inglés (es el normativo).
+                Texto en inglés (es el normativo).
                 {fuente && <> Fuente: {fuente} · FFG</>}
                 {descargado && <> · descargado <span className="font-mono">{descargado}</span></>}.
               </p>
@@ -1234,7 +1234,7 @@ function EstadoDelFormato({ datos }: { datos: DatosRulingsCartas }) {
       )}
 
       <p className="text-[10px] text-swu-muted/70 leading-snug">
-        {datos.meta.cartasConRulings} cartas con aclaraciones oficiales ({datos.meta.rulingsTotales} en total).
+        {datos.meta.cartasConRulings} cartas con aclaraciones de FFG ({datos.meta.rulingsTotales} en total).
         Fuente: {datos.meta.fuente} · Fantasy Flight Games · descargado{' '}
         <span className="font-mono">{datos.meta.descargado}</span>.
       </p>

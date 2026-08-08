@@ -35,7 +35,7 @@
   "La métrica de la imagen es win rate a nivel MATCH (Bo3). Los 0% y 100% suelen ser muestras de 1-3 matches: pistas, no certezas.",
   "La agregación por estrategia es promedio simple de matchups, no ponderado por muestra.",
   "Clasificación estratégica corregida el 2026-07-31 con etiquetas comunitarias: Boba-LC y Mando-Col → Aggro/Tempo; Lando-Blue, Aurra-DV y Greef-DV → Midrange; Krennic-Blue → Control. La premisa \"Data Vault = ramp\" era errónea (la base solo sube el mazo mínimo a 60). Familias Ramp y Engine quedan con 1 solo arquetipo: leer sus filas agregadas como direccionales.",
-  "swumetastats atribuye 9 puestos de top 8 (asigna 1 a Greef Karga Blue); el top 8 oficial de FFG tiene 8: 3 Cad Bane Blue, 3 Vader Yellow, 1 Boba LC, 1 Lando Blue. Prevalece FFG.",
+  "swumetastats atribuye 9 puestos de top 8 (asigna 1 a Greef Karga Blue); el top 8 publicado por FFG tiene 8: 3 Cad Bane Blue, 3 Vader Yellow, 1 Boba LC, 1 Lando Blue. Prevalece FFG.",
   "Snapshot del meta al 30-31 de julio de 2026; nuevos torneos (y el set Homeworlds anunciado) pueden cambiar las conclusiones."
  ],
  "sources": [
@@ -60,7 +60,7 @@
    "use": "Documentación de la API pública"
   },
   {
-   "name": "Recap oficial FFG",
+   "name": "Recap de FFG",
    "url": "https://starwarsunlimited.com/articles/galactic-recap-season-one",
    "use": "Resultados, formato y anuncios"
   },

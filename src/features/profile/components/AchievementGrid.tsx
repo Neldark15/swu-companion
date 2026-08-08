@@ -45,7 +45,7 @@ export function AchievementGrid({ unlockedIds, achievementDates }: AchievementGr
         </div>
       </div>
 
-      {/* Aspect filter tabs — uses official SWU aspect icons */}
+      {/* Aspect filter tabs — uses the SWU aspect icons */}
       <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
         <button
           onClick={() => setSelectedAspect('all')}
@@ -166,7 +166,7 @@ export function AchievementGrid({ unlockedIds, achievementDates }: AchievementGr
         return (
           <div className={`rounded-xl p-4 border ${config.bgColor} ${config.borderColor} space-y-1`}>
             <div className="flex items-center gap-3">
-              {/* Show official aspect icon + achievement SVG icon */}
+              {/* Show the aspect icon + achievement SVG icon */}
               <div className="relative">
                 <AspectIcon aspect={ach.aspect} size={28} />
               </div>

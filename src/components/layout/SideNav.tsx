@@ -32,12 +32,12 @@ const secondaryNav: NavItem[] = [
   { id: '/decks', label: 'Mis Decks', sub: 'Constructor', icon: DeckCardsIcon },
   { id: '/laboratorio', label: 'Laboratorio', sub: 'Simulador de mazos', icon: FlaskConical },
   { id: '/galaxy', label: 'La Galaxia', sub: 'Explorador Global', icon: StarfighterIcon },
-  { id: '/news', label: 'Noticias', sub: 'Agenda oficial', icon: NewspaperIcon },
+  { id: '/news', label: 'Noticias', sub: 'Agenda de torneos', icon: NewspaperIcon },
   { id: '/meta', label: 'Meta', sub: 'Torneos y matchups', icon: MetaIcon },
   { id: '/community', label: 'Comunidades', sub: 'Galaxia', icon: RebelIcon },
   { id: '/rank', label: 'Consejo Jedi', sub: 'Leaderboard', icon: BeskarIcon },
   { id: '/cards', label: 'Buscar Cartas', sub: 'Base de datos', icon: HolonetIcon },
-  { id: '/rulings', label: 'Rulings', sub: 'Reglas oficiales', icon: Scale },
+  { id: '/rulings', label: 'Rulings', sub: 'Reglamento del juego', icon: Scale },
   { id: '/utilities', label: 'Utilidades', sub: 'Herramientas', icon: ChanceCubeIcon },
 ]
 

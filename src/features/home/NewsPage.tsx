@@ -219,7 +219,7 @@ export function NewsPage() {
               title="Todavía no hay eventos cargados"
               hint={isAdmin
                 ? 'Cargá el Galactic, los Qualifiers y los Store Showdown desde Gestionar para que el grupo los vea acá.'
-                : 'Cuando se anuncien los próximos torneos oficiales, van a aparecer acá con fecha y lugar.'}
+                : 'Cuando se anuncien los próximos torneos, van a aparecer acá con fecha y lugar.'}
               action={isAdmin
                 ? <Button size="sm" variant="primary" onClick={() => navigate('/news/manage')}>Cargar evento</Button>
                 : undefined}

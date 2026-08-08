@@ -70,7 +70,7 @@ export function CreateEventPage() {
         <div className="bg-swu-red/10 border border-swu-red/30 rounded-2xl p-8 text-center space-y-2">
           <Crown size={40} className="mx-auto text-swu-red-texto/50" />
           <p className="text-swu-red-texto font-bold">Acceso Restringido</p>
-          <p className="text-xs text-swu-muted">Solo los administradores pueden crear eventos oficiales.</p>
+          <p className="text-xs text-swu-muted">Solo los administradores pueden crear eventos.</p>
         </div>
       </div>
     )
@@ -252,7 +252,7 @@ export function CreateEventPage() {
 
       <div className="flex items-center gap-2">
         <Crown size={20} className="text-swu-amber" />
-        <h2 className="text-lg font-bold text-swu-text">Crear Evento Oficial</h2>
+        <h2 className="text-lg font-bold text-swu-text">Crear Evento</h2>
       </div>
 
       {/* Name */}
@@ -450,7 +450,7 @@ export function CreateEventPage() {
         {viewState === 'creating' ? (
           <><Loader2 size={18} className="animate-spin" /> Creando evento...</>
         ) : (
-          <><Crown size={18} /> Crear Evento Oficial</>
+          <><Crown size={18} /> Crear Evento</>
         )}
       </button>
     </div>

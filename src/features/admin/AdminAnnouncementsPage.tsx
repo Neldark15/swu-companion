@@ -59,7 +59,7 @@ const TEMPLATES: Template[] = [
     tagColor: 'amber',
     emoji: '🛒',
     title: 'Nueva mercadería disponible',
-    body: 'Acabamos de recibir nueva mercadería oficial. Stock limitado — pasa a verla.',
+    body: 'Acabamos de recibir mercadería nueva. Stock limitado — pasa a verla.',
     ctaLabel: 'Ver tienda',
     channels: { push: true, toast: true, news: true, newsPinned: false },
   },
@@ -316,7 +316,7 @@ export function AdminAnnouncementsPage() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             maxLength={100}
-            placeholder="Nueva mercadería oficial disponible"
+            placeholder="Mercadería nueva disponible"
             className="w-full mt-1 px-3 py-2 bg-swu-bg border border-swu-border rounded-lg text-sm text-swu-text"
           />
           <p className="text-[10px] text-swu-muted/60 mt-0.5">{title.length}/100</p>

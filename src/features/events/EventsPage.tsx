@@ -201,24 +201,24 @@ export function EventsPage() {
             <Crown size={24} className="text-swu-amber" />
           </div>
           <div className="text-left flex-1">
-            <p className="font-bold text-swu-amber">Crear Evento Oficial</p>
+            <p className="font-bold text-swu-amber">Crear Evento</p>
             <p className="text-[11px] text-swu-muted">Visible para todos los jugadores registrados</p>
           </div>
           <ChevronRight size={18} className="text-swu-amber" />
         </button>
       )}
 
-      {/* Official Events Section */}
+      {/* Sección de eventos */}
       <div>
         <div className="flex items-center gap-2 mb-3">
           <Crown size={14} className="text-swu-amber" />
-          <h3 className="text-sm font-bold text-swu-text">Eventos Oficiales</h3>
+          <h3 className="text-sm font-bold text-swu-text">Eventos</h3>
         </div>
 
         {!auth.supabaseUser ? (
           <div className="bg-swu-surface rounded-2xl border border-swu-border p-6 text-center space-y-3">
             <LogIn size={32} className="mx-auto text-swu-muted/30" />
-            <p className="text-sm text-swu-muted">Inicie sesión para ver eventos oficiales</p>
+            <p className="text-sm text-swu-muted">Inicie sesión para ver los eventos</p>
             <button
               onClick={() => navigate('/profile')}
               className="text-sm font-bold text-swu-accent-texto"
@@ -234,7 +234,7 @@ export function EventsPage() {
         ) : officialEvents.length === 0 ? (
           <div className="bg-swu-surface rounded-2xl border border-swu-border p-6 text-center space-y-2">
             <Swords size={32} className="mx-auto text-swu-muted/30" />
-            <p className="text-sm text-swu-muted">No hay eventos oficiales activos</p>
+            <p className="text-sm text-swu-muted">No hay eventos activos</p>
             <p className="text-xs text-swu-muted/70">Los eventos aparecerán aquí cuando un organizador los cree</p>
           </div>
         ) : (

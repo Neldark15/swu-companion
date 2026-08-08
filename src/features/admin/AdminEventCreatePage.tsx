@@ -234,7 +234,7 @@ export function AdminEventCreatePage() {
           <ArrowLeft size={14} /> Volver a eventos
         </button>
         <h1 className="text-2xl font-bold text-swu-text">Nuevo evento</h1>
-        <p className="text-sm text-swu-muted mt-1">Crea un torneo oficial con código único para invitar jugadores</p>
+        <p className="text-sm text-swu-muted mt-1">Crea un torneo con código único para invitar jugadores</p>
       </header>
 
       {/* Name + description */}
