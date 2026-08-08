@@ -10,7 +10,7 @@
 
 import { useMemo, useState } from 'react'
 import { GalaxiaEscena } from './GalaxiaEscena'
-import { LENTES, metricaDe, magnitudDe, type Lente } from './GalaxiaPage'
+import { LENTES, metricaDe, magnitudDe, type Lente } from './lentes'
 import type { PlanetaJugador } from '../../services/galaxiaService'
 
 function sintetico(i: number): PlanetaJugador {
