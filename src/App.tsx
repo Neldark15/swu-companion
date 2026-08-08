@@ -59,7 +59,14 @@ const LabPage = lazy(() => import('./features/lab/LabPage').then(m => ({ default
 const MesaPage = lazy(() => import('./features/mesa/MesaPage').then(m => ({ default: m.MesaPage })))
 // Banco de pruebas de la mesa 3D. Solo en desarrollo: se cae del bundle de
 // producción porque `import.meta.env.DEV` es literal y el árbol se poda.
-const BancoMesa = lazy(() => import('./features/mesa/BancoMesa').then(m => ({ default: m.BancoMesa })))
+// El ternario con `import.meta.env.DEV` es lo que PODA el chunk: la ruta de
+// abajo ya estaba tras el mismo guardia, pero un `lazy(import(...))` suelto
+// emite el archivo IGUAL aunque nadie lo cargue — medido: 99,5 KB (el fixture
+// va adentro) que la PWA precachea para toda la comunidad. Con el import
+// dentro de la rama muerta, el empaquetador no lo emite.
+const BancoMesa = import.meta.env.DEV
+  ? lazy(() => import('./features/mesa/BancoMesa').then(m => ({ default: m.BancoMesa })))
+  : () => null
 const RulingsPage = lazy(() => import('./features/rulings/RulingsPage').then(m => ({ default: m.RulingsPage })))
 
 // Admin panel — separate layout, isAdmin guard inside AdminLayout
