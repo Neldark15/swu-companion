@@ -15,8 +15,8 @@ import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import { getCardsByIds, MAIN_SET_LABELS } from '../../services/swuApi'
 import { byCanonicalCard, compareCardsBySetNumber } from '../../services/cardSort'
 import type { Card } from '../../types'
+import { Avatar } from '../../components/ui/Avatar'
 
-const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
 
 type SortKey = 'canonical' | 'name' | 'price' | 'quantity' | 'rarity' | 'set'
 type FilterType = '' | 'Unit' | 'Event' | 'Upgrade' | 'Leader' | 'Base'
@@ -339,14 +339,8 @@ export function PublicProfilePage() {
           <>
             {/* Profile header */}
             <div className="bg-swu-surface rounded-xl p-4 border border-swu-border text-center">
-              <div className="w-16 h-16 rounded-full bg-swu-bg mx-auto mb-2 flex items-center justify-center overflow-hidden">
-                {profile.avatar?.startsWith('data:image/')
-                  ? <img src={profile.avatar} alt="" className="w-16 h-16 object-cover rounded-full" />
-                  : swAvatarIds.includes(profile.avatar)
-                    ? <img src={`/avatars/${profile.avatar}.png`} alt="" className="w-12 h-12 object-contain" />
-                    : <span className="text-4xl">{profile.avatar}</span>
-                }
-              </div>
+              {/* emoji de 36px (text-4xl) en una caja de 64 */}
+              <Avatar avatar={profile.avatar} size={64} escalaEmoji={36 / 64} className="mx-auto mb-2" />
               <div className="text-lg font-bold text-swu-text">{profile.name}</div>
               {profile.bio && (
                 <div className="text-sm text-swu-muted mt-1">{profile.bio}</div>

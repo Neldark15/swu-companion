@@ -23,14 +23,10 @@ import { CONTINENTS, getCountryByCode } from '../../data/regions'
 import { MoreNav } from '../../components/layout/MoreNav'
 import { WhatsappSetting } from './WhatsappSetting'
 import { swAvatars } from '../../data/avatars'
-import { getAvatarSrc, isPhotoAvatar } from '../../services/avatars'
+import { getAvatarSrc, isPhotoAvatar, urlAvatarSW } from '../../services/avatars'
 import { MeleeSetting } from './MeleeSetting'
 import { MeleeRecord } from './MeleeRecord'
 import { leerEnlaceMelee } from '../../services/meleeProfileService'
-
-/* ── Star Wars avatar options (images in /avatars/) ── */
-
-
 
 /** Render avatar: photo, icon image, or emoji fallback */
 function AvatarDisplay({ avatar, size = 'md' }: { avatar: string; size?: 'sm' | 'md' | 'lg' | 'xl' }) {
@@ -469,7 +465,7 @@ export function ProfilePage() {
               {swAvatars.map((a) => (
                 <button key={a.id} onClick={() => setRegAvatar(a.id)}
                   className={`w-14 h-14 rounded-xl flex items-center justify-center border-2 transition-all p-1 ${regAvatar === a.id ? 'border-swu-accent bg-swu-accent/20 scale-110' : 'border-swu-border bg-swu-bg'}`}>
-                  <img src={`/avatars/${a.id}.png`} alt={a.name} className="w-10 h-10 object-contain" />
+                  <img src={urlAvatarSW(a.id)} alt={a.name} className="w-10 h-10 object-contain" />
                 </button>
               ))}
             </div>
@@ -771,7 +767,7 @@ export function ProfilePage() {
               {swAvatars.map((a) => (
                 <button key={a.id} onClick={() => setCustomAvatar(a.id)}
                   className={`w-12 h-12 rounded-xl flex items-center justify-center border-2 transition-all p-0.5 ${customAvatar === a.id ? 'border-swu-accent bg-swu-accent/20 scale-110' : 'border-swu-border bg-swu-bg'}`}>
-                  <img src={`/avatars/${a.id}.png`} alt={a.name} className="w-9 h-9 object-contain" />
+                  <img src={urlAvatarSW(a.id)} alt={a.name} className="w-9 h-9 object-contain" />
                 </button>
               ))}
             </div>

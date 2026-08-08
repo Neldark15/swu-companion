@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, Users, Eye, Zap, Trophy } from 'lucide-react'
 import { searchSpyProfiles } from '../../services/giftService'
 import { calculateLevel } from '../../services/gamification'
+import { Avatar } from '../../components/ui/Avatar'
 
-const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
 
 export function EspionajePage() {
   const navigate = useNavigate()
@@ -119,16 +119,8 @@ export function EspionajePage() {
                   className="w-full bg-swu-surface rounded-xl p-3 border border-swu-border
                              flex items-center gap-3 text-left active:scale-[0.99] transition-transform"
                 >
-                  {/* Avatar */}
-                  <div className="w-10 h-10 rounded-full bg-swu-bg flex items-center justify-center
-                                  text-lg flex-shrink-0 overflow-hidden">
-                    {p.avatar?.startsWith('data:image/')
-                      ? <img src={p.avatar} alt="" className="w-10 h-10 object-cover rounded-full" />
-                      : swAvatarIds.includes(p.avatar)
-                        ? <img src={`/avatars/${p.avatar}.png`} alt="" className="w-8 h-8 object-contain" />
-                        : <span>{p.avatar}</span>
-                    }
-                  </div>
+                  {/* Avatar — emoji de 18px en una caja de 40, como ya venía */}
+                  <Avatar avatar={p.avatar} size={40} escalaIcono={0.8} escalaEmoji={18 / 40} />
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">

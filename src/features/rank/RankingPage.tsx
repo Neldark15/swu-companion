@@ -8,20 +8,25 @@ import { IconXp } from '../../components/icons/SWUIcons'
 import { getCountryByCode } from '../../data/regions'
 import { getActiveCountries } from '../../services/communityService'
 import { mesCalendarioSV, mesAnterior, mesSiguiente } from '../../services/horaSV'
+import { Avatar } from '../../components/ui/Avatar'
 
-/* ── Avatar helper ── */
-const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
+/* ── Avatar helper ──
+   Acá el ícono del juego llena la caja entera (escala 1), a diferencia del
+   resto de la app. Los px del emoji son los text-lg/2xl/4xl/5xl de siempre. */
+const AVATAR_PX = { sm: 32, md: 48, lg: 64, xl: 80 }
+const AVATAR_EMOJI_PX = { sm: 18, md: 24, lg: 36, xl: 48 }
 
 function AvatarImg({ avatar, size = 'md' }: { avatar: string; size?: 'sm' | 'md' | 'lg' | 'xl' }) {
-  const cls = { sm: 'w-8 h-8', md: 'w-12 h-12', lg: 'w-16 h-16', xl: 'w-20 h-20' }
-  const txtCls = { sm: 'text-lg', md: 'text-2xl', lg: 'text-4xl', xl: 'text-5xl' }
-  if (avatar?.startsWith('data:image/')) {
-    return <img src={avatar} alt="" className={`${cls[size]} object-cover rounded-full`} />
-  }
-  if (swAvatarIds.includes(avatar)) {
-    return <img src={`/avatars/${avatar}.png`} alt="" className={`${cls[size]} object-contain`} />
-  }
-  return <span className={txtCls[size]}>{avatar || '🎯'}</span>
+  const px = AVATAR_PX[size]
+  return (
+    <Avatar
+      avatar={avatar || '🎯'}
+      size={px}
+      caja="ninguna"
+      escalaIcono={1}
+      escalaEmoji={AVATAR_EMOJI_PX[size] / px}
+    />
+  )
 }
 
 /** Detect names that look like UIDs or garbage and sanitize */

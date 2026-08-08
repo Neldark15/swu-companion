@@ -30,39 +30,21 @@ import {
 import { ProfileFrame } from '../profile/components/ProfileFrame'
 import { calculateLevel } from '../../services/gamification'
 import { diaMes } from '../../services/horaSV'
-
-const swAvatarIds = [
-  'chewbacca', 'r2d2', 'c3po', 'bb8', 'pilot', 'boba-fett', 'stormtrooper',
-  'darth-vader', 'phasma', 'kylo-ren', 'jedi-order', 'phoenix', 'rebel-alliance',
-  'galactic-empire', 'first-order', 'first-order-2', 'starfighter', 'sith-empire',
-  'rebel-alliance-2', 'jedi-order-2', 'new-republic', 'empire-gear', 'separatist', 'galactic-republic',
-]
+import { Avatar } from '../../components/ui/Avatar'
 
 function MemberAvatar({ avatar, level, size = 40 }: { avatar: string; level?: number; size?: number }) {
   return (
     // Marco 'auto' por nivel: la elección de marco de otra persona no está
     // disponible en esta lista. La foto ya no es redonda: el marco recorta.
     <ProfileFrame level={level ?? 1} size={size + 16}>
-      <div className="w-full h-full flex items-center justify-center bg-swu-bg overflow-hidden">
-        {avatar.startsWith('data:image/')
-          ? <img src={avatar} alt="" className="w-full h-full object-cover" />
-          : swAvatarIds.includes(avatar)
-            ? <img src={`/avatars/${avatar}.png`} alt="" className="object-contain" style={{ width: size * 0.75, height: size * 0.75 }} />
-            : <span style={{ fontSize: size * 0.5 }}>{avatar}</span>
-        }
-      </div>
+      <Avatar avatar={avatar} size={size} caja="marco" />
     </ProfileFrame>
   )
 }
 
 function PostAvatar({ avatar }: { avatar: string }) {
-  if (avatar.startsWith('data:image/')) {
-    return <img src={avatar} alt="" className="w-8 h-8 object-cover rounded-full" />
-  }
-  if (swAvatarIds.includes(avatar)) {
-    return <img src={`/avatars/${avatar}.png`} alt="" className="w-6 h-6 object-contain" />
-  }
-  return <span className="text-lg">{avatar}</span>
+  // emoji de 18px (text-lg) para una caja de 32
+  return <Avatar avatar={avatar} size={32} caja="ninguna" escalaEmoji={18 / 32} />
 }
 
 /** Estilo por tipo de post — el feed se lee de un vistazo por color/icono. */

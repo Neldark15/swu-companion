@@ -41,9 +41,9 @@ import { getGalaxia, type Galaxia, type PlanetaJugador } from '../../services/ga
 import { RANKS } from '../../services/gamification'
 import { useAuth } from '../../hooks/useAuth'
 import { fechaCorta } from '../../services/horaSV'
+import { Avatar } from '../../components/ui/Avatar'
 
 /* Los avatares de la app: id conocido → imagen, `data:` → foto, si no emoji. */
-const AVATARES_SW = ['chewbacca', 'r2d2', 'c3po', 'bb8', 'pilot', 'boba-fett', 'stormtrooper', 'darth-vader', 'phasma', 'kylo-ren', 'jedi-order', 'phoenix', 'rebel-alliance', 'galactic-empire', 'first-order', 'first-order-2', 'starfighter', 'sith-empire', 'rebel-alliance-2', 'jedi-order-2', 'new-republic', 'empire-gear', 'separatist', 'galactic-republic']
 
 /** Cada 4,5 s el recorrido pasa al siguiente planeta con movimiento. */
 const PASO_RECORRIDO = 4500
@@ -86,20 +86,9 @@ function pintaDe(tipo: string) {
 
 // ─── Piezas ──────────────────────────────────────────────
 
-function Avatar({ avatar, size = 40 }: { avatar: string; size?: number }) {
-  return (
-    <div
-      className="flex-shrink-0 rounded-xl bg-swu-bg flex items-center justify-center overflow-hidden"
-      style={{ width: size, height: size }}
-    >
-      {avatar.startsWith('data:image/')
-        ? <img src={avatar} alt="" className="w-full h-full object-cover" />
-        : AVATARES_SW.includes(avatar)
-          ? <img src={`/avatars/${avatar}.png`} alt="" className="object-contain"
-                 style={{ width: size * 0.78, height: size * 0.78 }} />
-          : <span style={{ fontSize: size * 0.5 }}>{avatar}</span>}
-    </div>
-  )
+/** El avatar con la forma de esta pantalla: caja de esquinas suaves, no burbuja. */
+function AvatarGalaxia({ avatar, size = 40 }: { avatar: string; size?: number }) {
+  return <Avatar avatar={avatar} size={size} caja="redondeada" escalaIcono={0.78} />
 }
 
 /** El emergente: quién es, en qué rango va y qué hizo de último. */
@@ -113,7 +102,7 @@ function Emergente({ planeta, onPerfil }: { planeta: PlanetaJugador; onPerfil: (
     <div className="rounded-2xl border border-swu-border bg-swu-surface/95 backdrop-blur p-3
                     shadow-[0_8px_30px_-8px_rgba(0,0,0,0.8)]">
       <div className="flex items-start gap-2.5">
-        <Avatar avatar={planeta.avatar} />
+        <AvatarGalaxia avatar={planeta.avatar} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span className="truncate text-sm font-bold text-swu-text">{planeta.nombre}</span>
@@ -189,7 +178,7 @@ function ListaPlanetas({
                 <span className="mt-1 w-5 flex-shrink-0 text-right font-mono text-[10px] text-swu-muted">
                   {p.orbita + 1}
                 </span>
-                <Avatar avatar={p.avatar} size={32} />
+                <AvatarGalaxia avatar={p.avatar} size={32} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="truncate text-xs font-semibold text-swu-text">{p.nombre}</span>

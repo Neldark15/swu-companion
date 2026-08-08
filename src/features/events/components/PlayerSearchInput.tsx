@@ -6,6 +6,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Search, Link2, User } from 'lucide-react'
 import { searchProfiles, type SearchableProfile } from '../../../services/playerSearch'
+import { Avatar } from '../../../components/ui/Avatar'
 
 interface Props {
   value: string
@@ -108,10 +109,9 @@ export function PlayerSearchInput({ value, linkedUserId, placeholder, onChange }
               onClick={() => handleSelect(profile)}
               className="w-full px-3 py-2.5 flex items-center gap-2.5 hover:bg-swu-accent/10 transition-colors text-left border-b border-swu-border/30 last:border-0"
             >
-              {profile.avatar?.startsWith('data:image/')
-                ? <img src={profile.avatar} alt="" className="w-8 h-8 rounded-full object-cover" />
-                : <span className="text-lg">{profile.avatar}</span>
-              }
+              {/* Le faltaba la rama del ícono del juego: a quien tuviera uno se
+                  le pintaba el id crudo («chewbacca») como si fuera un emoji. */}
+              <Avatar avatar={profile.avatar} size={32} caja="ninguna" escalaEmoji={18 / 32} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-swu-text truncate">{profile.name}</p>
                 <p className="text-[10px] text-swu-green">Cuenta registrada</p>

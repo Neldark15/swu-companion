@@ -25,12 +25,8 @@ import { GiftIcon } from '../../components/icons/GiftIcon'
 import { DeckVisualViewer } from './DeckVisualViewer'
 import { ProfileFrame } from '../profile/components/ProfileFrame'
 import { MeleeRecordDeUsuario } from '../profile/MeleeRecord'
+import { Avatar } from '../../components/ui/Avatar'
 
-const swAvatarIds = ['chewbacca','r2d2','c3po','bb8','pilot','boba-fett','stormtrooper','darth-vader','phasma','kylo-ren','jedi-order','phoenix','rebel-alliance','galactic-empire','first-order','first-order-2','starfighter','sith-empire','rebel-alliance-2','jedi-order-2','new-republic','empire-gear','separatist','galactic-republic']
-
-function isPhotoAvatar(avatar: string) {
-  return avatar.startsWith('data:image/')
-}
 
 /** Convert Supabase snake_case stats to PlayerStats for display */
 function statsFromRow(row: Record<string, unknown>): PlayerStats {
@@ -151,14 +147,8 @@ export function SpyProfilePage() {
                 y adivinarla sería mentir. La foto ya no es redonda: el marco
                 recorta al cuadrado. */}
             <ProfileFrame level={levelInfo?.level ?? 1} size={64}>
-              <div className="w-full h-full flex items-center justify-center text-3xl bg-swu-bg">
-                {isPhotoAvatar(profile.avatar)
-                  ? <img src={profile.avatar} alt="" className="w-full h-full object-cover" />
-                  : swAvatarIds.includes(profile.avatar)
-                    ? <img src={`/avatars/${profile.avatar}.png`} alt="" className="w-12 h-12 object-contain" />
-                    : <span>{profile.avatar}</span>
-                }
-              </div>
+              {/* emoji de 30px (text-3xl) para una caja de 64 */}
+              <Avatar avatar={profile.avatar} size={64} caja="marco" escalaEmoji={30 / 64} />
             </ProfileFrame>
             <div className="flex-1 min-w-0">
               <h2 className="text-xl font-bold text-swu-text truncate">{profile.name}</h2>
@@ -183,7 +173,7 @@ export function SpyProfilePage() {
             </div>
           </div>
 
-          {/* Sus torneos oficiales. Va antes de las estadísticas internas
+          {/* Sus torneos de melee. Va antes de las estadísticas internas
               porque un récord real de melee pesa más que el XP de la app. */}
           {userId && (
             <div className="mt-4">

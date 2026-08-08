@@ -15,9 +15,19 @@ export function isPhotoAvatar(avatar: string): boolean {
   return avatar.startsWith('data:image/')
 }
 
+/** ¿Es uno de los íconos del juego que trae la app? */
+export function esAvatarSW(avatar: string): boolean {
+  return swAvatars.some(a => a.id === avatar)
+}
+
+/** Dónde vive el ícono del juego con ese id. */
+export function urlAvatarSW(id: string): string {
+  return `/avatars/${id}.png`
+}
+
 /** La URL de la imagen, o null si es un emoji y hay que pintarlo como texto. */
 export function getAvatarSrc(avatar: string): string | null {
   if (isPhotoAvatar(avatar)) return avatar
-  if (swAvatars.some(a => a.id === avatar)) return `/avatars/${avatar}.png`
+  if (esAvatarSW(avatar)) return urlAvatarSW(avatar)
   return null
 }
