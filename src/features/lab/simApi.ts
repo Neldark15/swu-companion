@@ -114,7 +114,7 @@ export type EventoPartida =
   /** Una carta se juega. `coste` es el IMPRESO, no el que se pagó; `gasto` es
    *  el ACUMULADO de la ronda tras pagar esta carta (los gastos sin evento
    *  propio —épicas, habilidades— se recogen en la siguiente jugada). */
-  | { t: 'juega'; lado: Lado; carta: string; coste: number; gasto?: number; tipo: TipoCarta; desde: 'mano' | 'recursos'; arena?: Arena }
+  | { t: 'juega'; lado: Lado; carta: string; coste: number; gasto?: number; rec?: number; tipo: TipoCarta; desde: 'mano' | 'recursos'; arena?: Arena }
   | { t: 'entra'; lado: Lado; carta: string; arena: Arena; lider: boolean; poder: number; hp: number }
   /** La unidad deja el campo SIN morir: rebote, captura, control robado. */
   | { t: 'sale'; lado: Lado; carta: string; causa: string }

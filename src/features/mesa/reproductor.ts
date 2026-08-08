@@ -256,12 +256,19 @@ function aplicar(e: Interno, ev: EventoPartida, indice: number) {
       e.b.gastado = 0
       break
 
-    case 'juega':
+    case 'juega': {
       // Solo marca de quién es el turno: la unidad aparece con su `entra`, y
       // los eventos y las mejoras se ven en `adjunta` o en el daño que hacen.
       e.foco = { actor: null, objetivo: null, lado: ev.lado }
-      if (typeof ev.gasto === 'number') elLado(e, ev.lado).gastado = ev.gasto
+      const l = elLado(e, ev.lado)
+      if (typeof ev.gasto === 'number') l.gastado = ev.gasto
+      // El TOTAL también viaja: una ficha Credit creada a mitad de ronda suma
+      // un recurso gastable al instante y la foto del evento 'ronda' queda
+      // vieja. Medido contra Krennic: sin esto, 6 de 60 partidas mostraban
+      // jugadas con gasto por encima del total pintado.
+      if (typeof ev.rec === 'number') l.recursos = ev.rec
       break
+    }
 
     case 'entra': {
       const l = elLado(e, ev.lado)
