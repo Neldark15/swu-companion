@@ -404,8 +404,13 @@ async function resolverArte(p: PartidaNarrada): Promise<Map<string, ArteCarta>> 
     const filas = ids.length ? await db.cards.where('legacyId').anyOf(ids).toArray() : []
     const porId = new Map(filas.map((c) => [c.legacyId!, c]))
 
-    // Plan B por nombre para lo que no traiga id (fichas generadas en mesa).
-    const huerfanos = Object.entries(p.cartas).filter(([, f]) => !f.id || !porId.has(f.id))
+    // Plan B por nombre: lo que no traiga id, lo que el id no encuentre, y los
+    // TOKENS cuyo id resolvió a una carta que NO es token — ese desajuste era
+    // el bug de los TIE de Vader (el motor mandaba JTL_001, que existe y es
+    // Asajj Ventress, así que el plan A «acertaba» con la carta equivocada).
+    const esToken = (c: Card | undefined) => (c?.type ?? '').includes('Token')
+    const huerfanos = Object.entries(p.cartas).filter(([, f]) =>
+      !f.id || !porId.has(f.id) || (f.tipo === 'Token' && !esToken(porId.get(f.id))))
     let porNombre = new Map<string, Card>()
     if (huerfanos.length) {
       const nombres = huerfanos.map(([n]) => n.split(' | ')[0])
@@ -416,7 +421,14 @@ async function resolverArte(p: PartidaNarrada): Promise<Map<string, ArteCarta>> 
     }
 
     for (const [nombre, ficha] of Object.entries(p.cartas)) {
-      const c = (ficha.id ? porId.get(ficha.id) : undefined) ?? porNombre.get(nombre)
+      let c = (ficha.id ? porId.get(ficha.id) : undefined) ?? porNombre.get(nombre)
+      if (ficha.tipo === 'Token' && !esToken(c)) {
+        // El id resolvió a una carta que no es token: se intenta por nombre
+        // (que para estos nombres solo contiene impresiones token), y si
+        // tampoco, mejor el rectángulo del color del bando que OTRA carta.
+        c = porNombre.get(nombre)
+        if (!esToken(c)) c = undefined
+      }
       if (!c?.imageUrl) continue
       // La orientación la decide el TIPO que declara el simulador, con el de
       // la base local de respaldo. Los líderes y las bases son 400×286: meter
@@ -562,7 +574,17 @@ function Vida({ lado, l, quien }: { lado: Lado; l: LadoMesa; quien: string }) {
       <div className="h-1.5 bg-swu-bg rounded-full mt-1.5 overflow-hidden">
         <div className={`h-full ${color} transition-[width] duration-300`} style={{ width: `${pct}%` }} />
       </div>
-      <p className="text-[10px] text-swu-muted mt-1 truncate">{l.base}</p>
+      <div className="flex items-center justify-between gap-2 mt-1 min-w-0">
+        <p className="text-[10px] text-swu-muted truncate">{l.base}</p>
+        {/* Solo si el motor los anunció: un 0 inventado sería otra afirmación.
+            «disponibles/total»; el gastado llega con cada jugada y los gastos
+            sin evento propio se recogen en la siguiente (contrato de `gastado`). */}
+        {typeof l.recursos === 'number' && (
+          <span className="text-[10px] font-mono text-swu-amber flex-shrink-0">
+            ⬢ {Math.max(0, l.recursos - l.gastado)}/{l.recursos}
+          </span>
+        )}
+      </div>
     </div>
   )
 }

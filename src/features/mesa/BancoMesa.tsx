@@ -19,7 +19,9 @@ import { PARTIDAS } from './partidas.fixture'
 import { estadoEn, totalPasos, frase } from './reproductor'
 
 export function BancoMesa() {
-  const partida = PARTIDAS[0]
+  // La última del fixture: la única con recursos en los eventos y tokens de
+  // Vader — justo lo que este banco existe para mirar.
+  const partida = PARTIDAS[PARTIDAS.length - 1]
   const total = totalPasos(partida)
   const [i, setI] = useState(Math.min(24, total))
   const estado = estadoEn(partida, i)

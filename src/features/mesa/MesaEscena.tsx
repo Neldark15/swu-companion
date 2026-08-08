@@ -197,6 +197,38 @@ function texturaTapete(): THREE.Texture {
 }
 
 /**
+ * El dorso de una carta de recurso, dibujado a mano.
+ *
+ * Los recursos van boca abajo, así que no hay arte que pedir: un dorso genérico
+ * —campo oscuro, borde y un rombo— dibujado UNA vez en un canvas y compartido
+ * por todas las cartas de recurso de los dos lados.
+ */
+function texturaDorso(): THREE.Texture {
+  const W = 128, H = 179
+  const c = document.createElement('canvas')
+  c.width = W; c.height = H
+  const x = c.getContext('2d')!
+  const g = x.createLinearGradient(0, 0, W, H)
+  g.addColorStop(0, '#1b2233')
+  g.addColorStop(1, '#0d1220')
+  x.fillStyle = g
+  x.fillRect(0, 0, W, H)
+  x.strokeStyle = 'rgba(148,163,184,0.5)'
+  x.lineWidth = 5
+  x.strokeRect(4, 4, W - 8, H - 8)
+  // El rombo del centro, apenas insinuado.
+  x.strokeStyle = 'rgba(245,158,11,0.4)'
+  x.lineWidth = 3
+  x.beginPath()
+  x.moveTo(W / 2, H * 0.3); x.lineTo(W * 0.72, H / 2)
+  x.lineTo(W / 2, H * 0.7); x.lineTo(W * 0.28, H / 2)
+  x.closePath(); x.stroke()
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace
+  return t
+}
+
+/**
  * La sombra de contacto: una mancha suave que va debajo de cada carta.
  *
  * Es lo que hacía falta para que las cartas se APOYEN en el tapete en vez de
@@ -283,6 +315,10 @@ interface Motor {
   geoAro: THREE.PlaneGeometry
   /** Una sola textura de mancha para TODAS las cartas. */
   texSombra: THREE.Texture
+  /** El dorso genérico de los recursos, también uno solo. */
+  texDorso: THREE.Texture
+  /** Las cartas de recurso vivas, por lado. Se reconcilian en cada estado. */
+  recursos: { A: THREE.Mesh[]; B: THREE.Mesh[] }
   texturas: Map<string, THREE.Texture>
   /** Texturas de cifras, cacheadas por el texto: «-4» se repite mucho. */
   textos: Map<string, THREE.Texture>
@@ -407,6 +443,8 @@ export function MesaEscena({ estado, arte, duracion, className = '', onSinWebGL 
       geoCarta: new THREE.PlaneGeometry(1, 1),
       geoAro: new THREE.PlaneGeometry(1, 1),
       texSombra: texturaSombra(),
+      texDorso: texturaDorso(),
+      recursos: { A: [], B: [] },
       texturas: new Map(), textos: new Map(),
       fichas: new Map(), cifras: [], basura,
       vidaA, vidaB,
@@ -648,6 +686,14 @@ export function MesaEscena({ estado, arte, duracion, className = '', onSinWebGL 
         m.geoCarta.dispose()
         m.geoAro.dispose()
         m.texSombra.dispose()
+        m.texDorso.dispose()
+        for (const lado of ['A', 'B'] as const) {
+          for (const r of m.recursos[lado]) {
+            m.scene.remove(r)
+            ;(r.material as THREE.MeshBasicMaterial).map = null
+            ;(r.material as THREE.Material).dispose()
+          }
+        }
         m.renderer.dispose()
         /*
          * `dispose()` NO devuelve el contexto WebGL: libera lo de three, pero
@@ -831,6 +877,9 @@ function sincronizar(m: Motor, est: EstadoMesa, arte: Map<string, ArteCarta>, du
     // sin esto se creaban y se destruían en la misma sincronización, y las dos
     // bases y los dos líderes no llegaban a dibujarse ni un fotograma.
     for (const uid of colocarZona(m, l, lado, est, arte)) vivos.add(uid)
+    // La fila de recursos vive FUERA del mapa de fichas (no son unidades y el
+    // barrido de `vivos` las mataría); se reconcilia aparte.
+    colocarRecursos(m, lado, l.recursos, l.gastado)
   }
 
   // Las que se acaban de ir: caen y se desvanecen.
@@ -1012,6 +1061,53 @@ function colocarFicha(
   // Herida: se apaga un poco, en proporción a lo que le queda.
   const salud = u.hp > 0 ? Math.max(0.25, u.resto / u.hp) : 1
   f.material.color.setScalar(f.material.map ? 0.45 + 0.55 * salud : 1)
+}
+
+/**
+ * La fila de recursos de un lado: cartas boca abajo junto a su zona.
+ *
+ * Como en la mesa de verdad: cada recurso es una carta, y las que ya se
+ * gastaron están GIRADAS. Los datos son los del motor —`recursos` con los que
+ * arrancó la ronda, `gastado` acumulado hasta la última jugada— y si la
+ * partida es de un motor viejo que no los anuncia, no se dibuja nada.
+ *
+ * Se reconcilia, no se recrea: entre un estado y el siguiente casi siempre
+ * cambia UNA carta (entra el recurso nuevo de la ronda, o se gira una gastada).
+ * Destruir y recrear 10 mallas por paso sería basura de GC en cada jugada.
+ */
+function colocarRecursos(m: Motor, lado: Lado, recursos: number | undefined, gastado: number) {
+  const fila = m.recursos[lado]
+  const n = Math.min(recursos ?? 0, 16)          // 16: más no entra en el ancho
+  // Faltan: se crean con el dorso compartido.
+  while (fila.length < n) {
+    const r = new THREE.Mesh(m.geoCarta, new THREE.MeshBasicMaterial({
+      map: m.texDorso, transparent: true, depthWrite: false,
+    }))
+    r.scale.set(0.62, 0.87, 1)                   // miniatura: es un contador, no una carta legible
+    r.rotation.x = INCLINACION
+    m.scene.add(r)
+    fila.push(r)
+  }
+  // Sobran (retroceso a una ronda anterior): se destruyen.
+  while (fila.length > n) {
+    const r = fila.pop()!
+    m.scene.remove(r)
+    ;(r.material as THREE.MeshBasicMaterial).map = null
+    ;(r.material as THREE.Material).dispose()
+  }
+  // La fila vive al costado derecho de la zona del dueño, apretada para que
+  // 16 quepan sin salirse del tapete.
+  const z = FILA_Z[clave(lado, 'zona' as Arena)] + (lado === 'A' ? -1.6 : 1.6)
+  const dir = lado === 'A' ? 1 : -1
+  fila.forEach((r, i) => {
+    r.position.set(3.1 + (i % 8) * 0.34, 0.03 + i * 0.002, z + Math.floor(i / 8) * 1.05 * dir)
+    // Las primeras `gastado` se giran, que es como se agota un recurso. Si el
+    // gasto real fue mayor (gastos sin evento), esto se queda corto un rato y
+    // se corrige en la siguiente jugada — mismo contrato que `agotado`.
+    r.rotation.z = i < gastado ? GIRO_AGOTADO * dir : 0
+    const mat = r.material as THREE.MeshBasicMaterial
+    mat.opacity = i < gastado ? 0.45 : 1
+  })
 }
 
 /**

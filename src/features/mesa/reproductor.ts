@@ -113,6 +113,20 @@ export interface LadoMesa {
   unidades: UnidadMesa[]
   /** Cartas rivales capturadas por este lado, por nombre. */
   capturadas: string[]
+  /**
+   * Recursos con los que arrancó la ronda. `undefined` = la partida es de un
+   * motor viejo que no los anunciaba, y entonces NO se dibuja nada — un cero
+   * inventado se leería como «no tiene recursos», que es otra afirmación.
+   */
+  recursos?: number
+  /**
+   * Lo gastado en la ronda hasta el último `juega`. Es el acumulado que emite
+   * el motor, no una suma nuestra: los gastos sin evento propio (acciones
+   * épicas, habilidades con coste) aparecen recogidos en la jugada siguiente,
+   * así que el marcador se queda corto a ratos pero se re-sincroniza solo —
+   * el mismo contrato que `agotado`.
+   */
+  gastado: number
 }
 
 /** A quién mira la cámara en este paso. `'base'` es la base del otro lado. */
@@ -166,7 +180,7 @@ interface Interno extends EstadoMesa {
 }
 
 function ladoVacio(lider: string, base: string, vida: number): LadoMesa {
-  return { lider, base, vida, vidaInicial: vida, liderDesplegado: false, unidades: [], capturadas: [] }
+  return { lider, base, vida, vidaInicial: vida, liderDesplegado: false, unidades: [], capturadas: [], gastado: 0 }
 }
 
 /**
@@ -234,12 +248,19 @@ function aplicar(e: Interno, ev: EventoPartida, indice: number) {
       e.ronda = ev.n
       // Empieza la ronda: todo el mundo endereza.
       for (const u of [...e.a.unidades, ...e.b.unidades]) u.agotado = false
+      // Y los recursos se refrescan. Solo si el motor los dice: en una partida
+      // vieja quedan `undefined` y la pila no se dibuja.
+      if (typeof ev.rec_a === 'number') e.a.recursos = ev.rec_a
+      if (typeof ev.rec_b === 'number') e.b.recursos = ev.rec_b
+      e.a.gastado = 0
+      e.b.gastado = 0
       break
 
     case 'juega':
       // Solo marca de quién es el turno: la unidad aparece con su `entra`, y
       // los eventos y las mejoras se ven en `adjunta` o en el daño que hacen.
       e.foco = { actor: null, objetivo: null, lado: ev.lado }
+      if (typeof ev.gasto === 'number') elLado(e, ev.lado).gastado = ev.gasto
       break
 
     case 'entra': {
