@@ -127,6 +127,18 @@ function Emergente({ planeta, onPerfil }: { planeta: PlanetaJugador; onPerfil: (
             {duelos > 0 && <span>{planeta.victorias}V · {planeta.derrotas}D</span>}
             <span>Órbita {planeta.orbita + 1}</span>
           </div>
+          {/* Las magnitudes de las lentes, siempre visibles: son los datos que
+              el planeta codifica. Los ceros SÍ se muestran acá — «0 cartas» es
+              información (no registró colección), a diferencia de 0V·0D que es
+              una tabla vacía para todos. */}
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 text-[10px] text-swu-muted">
+            <span>🃏 {planeta.cartas.toLocaleString('es-SV')} cartas</span>
+            <span>🗂 {planeta.mazos} {planeta.mazos === 1 ? 'mazo' : 'mazos'}</span>
+            <span>🏅 {planeta.logros} {planeta.logros === 1 ? 'logro' : 'logros'}</span>
+          </div>
+          {planeta.titulo && (
+            <p className="mt-0.5 truncate text-[10px] italic text-swu-amber/80">«{planeta.titulo}»</p>
+          )}
         </div>
         <button
           onClick={onPerfil}
@@ -206,6 +218,54 @@ function ListaPlanetas({
   )
 }
 
+// ─── Lentes ──────────────────────────────────────────────
+
+/**
+ * Una lente re-mapea el sistema entero: la ÓRBITA (quién queda más cerca del
+ * sol) y el TAMAÑO del planeta salen de la magnitud elegida. El color se queda
+ * SIEMPRE en el rango — es la identidad del jugador y cambiarla por lente
+ * volvería la escena ilegible («¿por qué Rodo ahora es azul?»).
+ *
+ * Solo hay lentes sobre magnitudes con varianza real en la base (contado:
+ * nivel 6 valores, cartas 7, mazos 5, logros 1-9 en las 20 cuentas). Torneos,
+ * racha y duelos están en CERO para todos: una lente ahí son 20 planetas
+ * idénticos, y eso no es una vista, es un adorno.
+ */
+export type Lente = 'nivel' | 'coleccion' | 'mazos' | 'logros'
+
+export const LENTES: { id: Lente; rotulo: string; leyenda: string }[] = [
+  { id: 'nivel', rotulo: 'Nivel', leyenda: 'nivel' },
+  { id: 'coleccion', rotulo: 'Colección', leyenda: 'cartas coleccionadas' },
+  { id: 'mazos', rotulo: 'Mazos', leyenda: 'mazos creados' },
+  { id: 'logros', rotulo: 'Logros', leyenda: 'logros desbloqueados' },
+]
+
+export function metricaDe(p: PlanetaJugador, lente: Lente): number {
+  switch (lente) {
+    case 'nivel': return p.nivel
+    case 'coleccion': return p.cartas
+    case 'mazos': return p.mazos
+    case 'logros': return p.logros
+  }
+}
+
+/**
+ * Magnitud 0..1 para el radio del planeta.
+ *
+ * La colección va en log: el máximo real es 2.900 cartas contra colecciones de
+ * decenas — en lineal, todos menos uno serían puntos invisibles al lado de una
+ * bola. El resto de las lentes tiene rangos cortos (1-26, 0-6, 0-9) y el
+ * lineal les alcanza; el nivel conserva su compresión log de siempre para que
+ * la vista por defecto se vea idéntica a la de antes de las lentes.
+ */
+export function magnitudDe(p: PlanetaJugador, lente: Lente, max: number): number {
+  if (lente === 'nivel') return p.magnitud
+  const v = metricaDe(p, lente)
+  if (max <= 0) return 0
+  if (lente === 'coleccion') return Math.log1p(v) / Math.log1p(max)
+  return v / max
+}
+
 // ─── Pantalla ────────────────────────────────────────────
 
 export function GalaxiaPage() {
@@ -240,7 +300,30 @@ export function GalaxiaPage() {
     return () => { cancelado = true }
   }, [currentProfileId])
 
-  const planetas = useMemo(() => galaxia?.planetas ?? [], [galaxia])
+  const [lente, setLente] = useState<Lente>('nivel')
+
+  /**
+   * La lista que ve TODO lo demás (escena, lista, emergente, recorrido) ya
+   * viene re-ordenada por la lente: órbita = puesto en la magnitud elegida,
+   * desempate por nivel y después por id — el mismo desempate estable del
+   * servicio, para que refrescar no baraje a los empatados.
+   *
+   * Memoizada porque la escena reconstruye TODO al cambiar la referencia
+   * (recompila shaders incluidos): tiene que cambiar solo cuando cambian los
+   * datos o la lente, no en cada render.
+   */
+  const planetas = useMemo(() => {
+    const base = galaxia?.planetas ?? []
+    if (base.length === 0) return base
+    const max = Math.max(...base.map(p => metricaDe(p, lente)))
+    return base
+      .slice()
+      .sort((a, b) =>
+        (metricaDe(b, lente) - metricaDe(a, lente)) ||
+        (b.nivel - a.nivel) ||
+        (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      .map((p, i) => ({ ...p, orbita: i, magnitud: magnitudDe(p, lente, max) }))
+  }, [galaxia, lente])
 
   /** El recorrido solo pasa por planetas CON movimiento: es lo que va a mostrar. */
   const conMovimiento = useMemo(
@@ -403,6 +486,33 @@ export function GalaxiaPage() {
                 </p>
               </div>
             )}
+
+            {/* ── Lentes: qué magnitud dibujan la órbita y el tamaño ── */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5" role="tablist" aria-label="Lente de la galaxia">
+              {LENTES.map(l => (
+                <button
+                  key={l.id}
+                  role="tab"
+                  aria-selected={lente === l.id}
+                  onClick={() => setLente(l.id)}
+                  className={`flex-shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold
+                              transition-colors focus-visible:outline-none focus-visible:ring-2
+                              focus-visible:ring-swu-accent ${
+                    lente === l.id
+                      ? 'border-swu-cyan/60 bg-swu-cyan/15 text-swu-cyan'
+                      : 'border-swu-border bg-swu-surface text-swu-muted'
+                  }`}
+                >
+                  {l.rotulo}
+                </button>
+              ))}
+            </div>
+            {/* La leyenda dice qué codifica qué, y cambia con la lente: una
+                escena con cuatro codificaciones a la vez sin leyenda es un
+                adivinanza, no una visualización. */}
+            <p className="font-mono text-[10px] leading-snug text-swu-muted">
+              tamaño y órbita = {LENTES.find(l => l.id === lente)?.leyenda} · color = rango · lunas = logros
+            </p>
 
             {vista === 'orbital' && (
               <Suspense fallback={

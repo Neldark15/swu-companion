@@ -64,6 +64,9 @@ const MesaPage = lazy(() => import('./features/mesa/MesaPage').then(m => ({ defa
 // emite el archivo IGUAL aunque nadie lo cargue — medido: 99,5 KB (el fixture
 // va adentro) que la PWA precachea para toda la comunidad. Con el import
 // dentro de la rama muerta, el empaquetador no lo emite.
+const BancoGalaxia = import.meta.env.DEV
+  ? lazy(() => import('./features/galaxia/BancoGalaxia').then(m => ({ default: m.BancoGalaxia })))
+  : () => null
 const BancoMesa = import.meta.env.DEV
   ? lazy(() => import('./features/mesa/BancoMesa').then(m => ({ default: m.BancoMesa })))
   : () => null
@@ -144,6 +147,7 @@ export default function App() {
                 emparejamiento y aquí se VE una partida de esa misma medición. */}
             <Route path="/mesa" element={<P><MesaPage /></P>} />
             {import.meta.env.DEV && <Route path="/banco-mesa" element={<BancoMesa />} />}
+            {import.meta.env.DEV && <Route path="/banco-galaxia" element={<BancoGalaxia />} />}
             <Route path="/play/tracker/:mode" element={<P><TrackerPage /></P>} />
             <Route path="/play/saved" element={<P><SavedMatchesPage /></P>} />
             <Route path="/events" element={<P><EventsPage /></P>} />

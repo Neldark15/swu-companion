@@ -74,6 +74,25 @@ export interface PlanetaJugador {
   /** Para el orden orbital: estable entre cargas. */
   orbita: number
   esYo: boolean
+  /**
+   * Las magnitudes con VARIANZA real en la base (contado el 2026-08-08 sobre
+   * las 20 cuentas): cartas 7 valores distintos, mazos 5, logros 1-9 en todas,
+   * reputación 5. Torneos, racha y duelos están en CERO para todo el mundo y
+   * por eso NO viajan: una lente sobre un campo muerto son 20 planetas
+   * idénticos — mentira con forma de vista.
+   */
+  cartas: number
+  mazos: number
+  logros: number
+  reputacion: number
+  /** Título activo elegido por el jugador, o cadena vacía. */
+  titulo: string
+  /**
+   * Tamaño del planeta en la vista ACTUAL, 0..1. Lo calcula la pantalla según
+   * la lente elegida; el servicio lo inicializa con el nivel (la vista por
+   * defecto). La escena dibuja `0.42 + 0.52·magnitud` y no sabe de lentes.
+   */
+  magnitud: number
 }
 
 export interface Galaxia {
@@ -368,6 +387,14 @@ export async function getGalaxia(miId?: string): Promise<Galaxia> {
           : null,
         orbita: i,
         esYo: !!miId && j.userId === miId,
+        cartas: j.cardsCollected,
+        mazos: j.decksCreated,
+        logros: j.unlockedAchievements.length,
+        reputacion: j.socialReputation,
+        titulo: j.activeTitle,
+        // La misma compresión log que usaba la escena: nivel 1-26 → 0..1 sin
+        // que un nivel 40 futuro se coma la pantalla.
+        magnitud: Math.min(1, Math.log2(1 + Math.max(1, j.level)) / Math.log2(27)),
       }
     })
 

@@ -32,13 +32,15 @@
  *   1 InstancedMesh   → los N planetas (1 geometría + 1 material, color por
  *                       instancia). Con un material por planeta serían N
  *                       programas de shader compilándose al entrar.
+ *   1 InstancedMesh   → TODAS las lunas (una por logro, tope 9 por planeta):
+ *                       otra sola llamada aunque haya 180.
  *   1 LineSegments    → TODAS las órbitas fundidas en un solo búfer, punteadas
  *                       gratis (se emite un segmento sí y otro no).
  *   1 Points          → el campo de estrellas, un búfer de 620 vértices.
  *   3 Mesh + 1 Sprite → el sol, su resplandor y los dos aros (yo / seleccionado)
  *                       que comparten UNA geometría de anillo.
  *
- * Son **7 llamadas de dibujo por cuadro**, y son 7 con 19 planetas o con 200:
+ * Son **8 llamadas de dibujo por cuadro**, y son 8 con 19 planetas o con 200:
  * la cuenta no depende de la comunidad. Medido contando `drawElements`,
  * `drawArrays` y `drawElementsInstanced` sobre el contexto real, con el
  * histograma de índices para saber qué es cada una:
@@ -106,17 +108,14 @@ function acomodo(orbita: number): { k: number; hueco: number; cupo: number } {
 }
 
 /**
- * Tamaño del planeta por NIVEL, nunca por victorias.
- *
- * `victorias`/`derrotas` son 0 en las 19 cuentas (la tabla `matches` está
- * vacía): dimensionar por ahí daría 19 planetas idénticos. El nivel va de 1 a 8
- * hoy y el techo de rango está en 26, así que se comprime con log — si mañana
- * alguien llega a nivel 40 su planeta no se come la pantalla.
+ * Tamaño del planeta por MAGNITUD (0..1), que decide la pantalla según la
+ * lente activa (nivel, colección, mazos, logros). La escena no sabe de lentes:
+ * dibuja lo que le digan. La razón original sigue vigente — `victorias` es 0
+ * en todas las cuentas y dimensionar por ahí daría planetas idénticos; por eso
+ * las lentes disponibles son solo las magnitudes con varianza real.
  */
-function radioPlaneta(nivel: number): number {
-  const n = Math.max(1, nivel)
-  const t = Math.min(1, Math.log2(1 + n) / Math.log2(27))
-  return 0.42 + 0.52 * t
+function radioPlaneta(magnitud: number): number {
+  return 0.42 + 0.52 * Math.max(0, Math.min(1, magnitud))
 }
 
 /**
@@ -287,7 +286,7 @@ export function GalaxiaEscena({
       return {
         id: p.id,
         nombre: p.nombre,
-        radio: radioPlaneta(p.nivel),
+        radio: radioPlaneta(p.magnitud),
         rOrbita: radioAnillo(k),
         angBase: (hueco / cupo) * Math.PI * 2 + k * AUREO,
         velocidad: velocidadAnillo(k),
@@ -338,6 +337,47 @@ export function GalaxiaEscena({
     })
     if (malla.instanceColor) malla.instanceColor.needsUpdate = true
     scene.add(malla)
+
+    // ── Lunas: los LOGROS de cada jugador, orbitando su planeta ──
+    //
+    // Es la forma de dato nueva que sí tiene cobertura total: las 20 cuentas
+    // tienen entre 1 y 9 logros (contado en la base). Una luna por logro, tope
+    // 9 — más de eso se vuelve un enjambre ilegible alrededor de un planeta
+    // chico. TODAS las lunas de TODOS los planetas van en UN InstancedMesh:
+    // una llamada de dibujo, igual que los planetas. Las matrices se
+    // actualizan por cuadro (son ~80 con 20 jugadores; la Mesa mueve más).
+    interface Luna { planeta: number; rLocal: number; vel: number; fase: number; inclinacion: number }
+    const lunas: Luna[] = []
+    planetas.forEach((p, i) => {
+      const n = Math.min(9, Math.max(0, p.logros))
+      for (let m = 0; m < n; m++) {
+        lunas.push({
+          planeta: i,
+          // Escalonadas en dos pisos para que 9 no se pisen entre sí.
+          rLocal: cuerpos[i].radio + 0.34 + (m % 2) * 0.17,
+          // Cada una a su ritmo, y más rápido que los planetas: son chicas y
+          // el movimiento es lo único que las separa visualmente del fondo.
+          vel: 0.65 + (m * 0.11) % 0.5,
+          fase: (m / n) * Math.PI * 2,
+          // Planos distintos: todas en el ecuador parecían un aro punteado.
+          inclinacion: ((m % 3) - 1) * 0.45,
+        })
+      }
+    })
+    const geoLuna = new THREE.SphereGeometry(0.085, 8, 6)
+    const matLuna = new THREE.MeshBasicMaterial({ color: 0xcfe8ff })
+    const mallaLunas = lunas.length ? new THREE.InstancedMesh(geoLuna, matLuna, lunas.length) : null
+    if (mallaLunas) {
+      mallaLunas.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+      scene.add(mallaLunas)
+    }
+
+    // Asa de inspección SOLO en desarrollo (`import.meta.env.DEV` es literal:
+    // el empaquetador poda el bloque en producción). Igual que `__mesa`: contar
+    // cuerpos y lunas por números en vez de adivinar por píxeles.
+    if (import.meta.env.DEV) {
+      ;(window as unknown as { __galaxia?: unknown }).__galaxia = { cuerpos, lunas }
+    }
 
     // ── Aros de «yo» y «seleccionado»: comparten geometría ──
     const geoAro = new THREE.RingGeometry(0.86, 1, 44)
@@ -498,6 +538,23 @@ export function GalaxiaEscena({
         malla.setMatrixAt(i, matriz)
       }
       malla.instanceMatrix.needsUpdate = true
+      // Las lunas van DESPUÉS: leen la posición que los planetas acaban de
+      // escribir en `cuerpos`, así nunca orbitan un planeta de hace un cuadro.
+      if (mallaLunas) {
+        for (let i = 0; i < lunas.length; i++) {
+          const l = lunas[i]
+          const c = cuerpos[l.planeta]
+          const a = l.fase + tiempo * l.vel
+          matriz.identity()
+          matriz.setPosition(
+            c.x + Math.cos(a) * l.rLocal,
+            Math.sin(a) * l.rLocal * Math.sin(l.inclinacion),
+            c.z + Math.sin(a) * l.rLocal * Math.cos(l.inclinacion),
+          )
+          mallaLunas.setMatrixAt(i, matriz)
+        }
+        mallaLunas.instanceMatrix.needsUpdate = true
+      }
     }
 
     /** Píxeles de pantalla por unidad de mundo a esa distancia de la cámara. */
@@ -810,6 +867,8 @@ export function GalaxiaEscena({
       geoOrbitas.dispose(); matOrbitas.dispose()
       geoPlaneta.dispose(); matPlaneta.dispose()
       malla.dispose()
+      geoLuna.dispose(); matLuna.dispose()
+      mallaLunas?.dispose()
       geoAro.dispose(); matAroYo.dispose(); matAroSel.dispose()
       geoEstrellas.dispose(); texPunto.dispose(); matEstrellas.dispose()
       luzSol.dispose()
