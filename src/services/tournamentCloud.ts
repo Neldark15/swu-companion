@@ -1160,18 +1160,44 @@ export async function dropPlayer(
 
 // ─── Finish Tournament ──────────────────────────────────────
 
+/**
+ * Cierra el torneo Y REPARTE las estadísticas.
+ *
+ * Antes esto solo hacía `update official_events set status='finished'`: nadie
+ * daba XP, ni subía `tournaments_finished`, ni escribía `tournament_results`.
+ * El torneo terminaba y en los perfiles no quedaba rastro — que es justo lo
+ * que se notó tras el torneo de Sonsonate del 8/8.
+ *
+ * Y no se podía arreglar desde el cliente: las políticas de `player_stats` y
+ * `tournament_results` son `auth.uid() = user_id`, así que el organizador solo
+ * puede escribirse a SÍ MISMO. El intento del tracker local viejo lo demuestra
+ * — recorría a todos los jugadores desde el aparato del organizador y los
+ * updates ajenos afectaban 0 filas SIN error (PostgREST devuelve éxito con 0
+ * filas) mientras los inserts rebotaban dentro de un `catch` vacío. En la base
+ * quedó la prueba: de aquel torneo hay UNA fila de resultado, la del propio
+ * organizador.
+ *
+ * Por eso el reparto vive en `cerrar_torneo()`, una función SECURITY DEFINER
+ * que comprueba del lado del servidor que quien llama sea el organizador o un
+ * admin, hace la transición `<> 'finished'` de forma atómica —llamarla dos
+ * veces NO premia dos veces— y escribe todo en una sola transacción.
+ */
 export async function finishTournament(
   eventId: string
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; premiados?: number; aviso?: string }> {
   if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
 
-  const { error } = await supabase
-    .from('official_events')
-    .update({ status: 'finished', updated_at: new Date().toISOString() })
-    .eq('id', eventId)
+  const { data, error } = await supabase.rpc('cerrar_torneo', { p_evento: eventId })
 
   if (error) return { ok: false, error: error.message }
-  return { ok: true }
+
+  // La función devuelve su propio veredicto: `ok:false` con motivo cuando
+  // quien llama no es el organizador o el torneo ya estaba cerrado.
+  const r = data as { ok: boolean; error?: string; premiados?: number; aviso?: string } | null
+  if (!r) return { ok: false, error: 'El servidor no respondió al cierre.' }
+  if (!r.ok) return { ok: false, error: r.error ?? 'No se pudo cerrar el torneo.' }
+
+  return { ok: true, premiados: r.premiados ?? 0, aviso: r.aviso }
 }
 
 // ─── Realtime Subscriptions ─────────────────────────────────

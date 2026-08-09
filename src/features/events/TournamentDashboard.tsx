@@ -195,11 +195,24 @@ export default function TournamentDashboard() {
 
   const handleFinish = async () => {
     if (!event) return
-    if (!confirm('¿Finalizar el torneo?')) return
+    // Se dice QUÉ hace el botón: finalizar ya no es solo cambiar un estado,
+    // reparte XP y puntos de ranking a todos, y no se puede repetir.
+    if (!confirm(
+      'Al finalizar se reparten XP y puntos de ranking a los jugadores de la ' +
+      'clasificación. Es definitivo: no se puede volver a repartir. ¿Finalizar?'
+    )) return
     const res = await finishTournament(event.id)
     if (res.ok) {
-      showMessage('Torneo finalizado')
+      // El aviso llega cuando el torneo se cierra SIN clasificación: se cerró,
+      // pero no hubo a quién premiar y hay que decirlo en vez de festejar.
+      showMessage(res.aviso
+        ? res.aviso
+        : `Torneo finalizado · estadísticas repartidas a ${res.premiados} jugador${res.premiados === 1 ? '' : 'es'}`)
       fetchData()
+    } else {
+      // Antes esta rama NO existía: si el cierre fallaba, el botón no decía
+      // nada y quedaba la impresión de que había funcionado.
+      showMessage(res.error || 'No se pudo finalizar el torneo', true)
     }
   }
 
