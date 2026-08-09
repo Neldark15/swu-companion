@@ -30,7 +30,8 @@
 -- —el único lugar desde donde se puede escribir stats de terceros sin abrirle
 -- RLS al cliente— y hace todo en una transacción:
 --
---   · verifica que quien llama sea el organizador del evento o un admin
+--   · verifica que quien llama sea ADMIN (ver la nota adentro: un
+--     organizador que no sea admin no puede existir en este sistema)
 --   · transición atómica open/active → finished (`where status <> 'finished'`):
 --     llamarla dos veces NO premia dos veces
 --   · por cada fila de `tournament_standings`, en el orden que ya usa la UI
@@ -67,11 +68,21 @@ begin
     return jsonb_build_object('ok', false, 'error', 'El evento no existe.');
   end if;
 
-  if v_evento.organizer_id is distinct from auth.uid()
-     and not exists (select 1 from public.profiles
-                     where id = auth.uid() and role = 'admin') then
+  -- ADMIN, sin rama de organizador.
+  --
+  -- Un organizador que no sea admin NO PUEDE EXISTIR, y no por costumbre sino
+  -- por construcción: crear un evento exige admin (`events_insert`), y llevar
+  -- rondas, emparejamientos y clasificación también (las tres tablas piden
+  -- role='admin'). El panel corta a los no-admin de entrada. Comprobado sobre
+  -- la base: 0 eventos con organizador que no sea admin.
+  --
+  -- La rama `organizer_id = auth.uid()` sugería un rol que el sistema no puede
+  -- producir; alguien podía construir encima de esa premisa falsa. Una sola
+  -- regla en todas las capas: los torneos los llevan los administradores.
+  if not exists (select 1 from public.profiles
+                 where id = auth.uid() and role = 'admin') then
     return jsonb_build_object('ok', false, 'error',
-      'Solo el organizador del evento o un admin pueden cerrarlo.');
+      'Solo un administrador puede cerrar el torneo.');
   end if;
 
   -- Atómico: si dos pestañas cierran a la vez, solo una reparte.
@@ -141,6 +152,6 @@ begin
 end;
 $$;
 
--- Ejecutable solo con sesión; el chequeo de organizador/admin vive adentro.
+-- Ejecutable solo con sesión; el chequeo de admin vive adentro.
 revoke all on function public.cerrar_torneo(uuid) from public, anon;
 grant execute on function public.cerrar_torneo(uuid) to authenticated;

@@ -313,6 +313,38 @@ Reglas que no se pueden relajar sin re-medir:
 - **Bajo quórum (20 listas) o con datos parciales NO se muestran porcentajes.** Conteos y «de N», siempre.
 - La cola (`meta_ingest_queue`) y el turno tienen **RLS activa y CERO policies** a propósito: solo entra `service_role`. `intentos` se incrementa al RECLAMAR y se devuelve si la fila vuelve intacta; el único corte es el barrido SQL en `intentos >= 5`.
 
+### 2u. Torneos: los organizadores SON los administradores, y el cierre reparte
+
+Tras el torneo de Sonsonate (8/8/26) no quedó nada en los perfiles. Tres cosas,
+todas medidas contra producción:
+
+- **Nadie repartía nada al cerrar.** `finishTournament()` solo hacía
+  `update official_events set status='finished'`. `awardTournamentFinish()`
+  existe pero solo lo llama el tracker local viejo.
+- **Y desde el cliente era imposible.** `player_stats` y `tournament_results`
+  son `auth.uid() = user_id`: el organizador solo puede escribirse A SÍ MISMO.
+  El tracker viejo recorre a todos desde su aparato — los updates ajenos
+  afectan **0 filas SIN error** y los inserts rebotan dentro de un `catch`
+  vacío. La prueba quedó en la base: del torneo de marzo hay UNA fila de
+  resultado, la del propio organizador.
+- Por eso el reparto vive en **`cerrar_torneo()`**, SECURITY DEFINER: es el
+  único sitio desde donde se escriben stats de terceros sin abrirle RLS al
+  cliente. Transición atómica `<> 'finished'` — llamarla dos veces NO premia
+  dos veces (verificado: 4 filas, no 8).
+
+**Un organizador que no sea admin NO PUEDE EXISTIR**, y no por costumbre: crear
+un evento exige admin (`events_insert`), y `tournament_rounds`, `_pairings` y
+`_standings` también. El panel corta a los no-admin de entrada. Toda capa nueva
+tiene que usar **una sola regla: admin**; una rama `organizer_id = auth.uid()`
+sugiere un rol que el sistema no puede producir.
+
+Eso destapó el bug que de verdad bloqueaba: **`reg_select` no tenía rama de
+admin**. Medido sobre el evento con 4 inscritos — Rodorigo (admin Y organizador)
+veía 4, Nelson (admin, no organizador) veía **0**. Como
+`initializeTournament()` lee esa tabla desde el cliente, cualquier admin que no
+fuera el creador chocaba con «Se necesitan al menos 2 jugadores registrados»
+teniendo 4. El jugador normal sigue viendo solo la suya (verificado: 1).
+
 ### 2q. El laboratorio mide con OTRO pool de cartas que la app
 
 La app tiene la base **completa** (9.057 impresiones, 28 sets); el simulador del
