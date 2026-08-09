@@ -40,6 +40,8 @@ import { Dice3D } from '../utilities/Dice3D'
 import { db } from '../../services/db'
 import { ensureCards } from '../../services/swuApi'
 import { useAuth } from '../../hooks/useAuth'
+import { supabase, isSupabaseReady } from '../../services/supabase'
+import { searchProfiles, type SearchableProfile } from '../../services/playerSearch'
 import type { Card, Deck } from '../../types'
 
 /* ── Estado persistido ───────────────────────────────────── */
@@ -52,14 +54,20 @@ interface LadoDuelo {
   vida: number
   /** Partidas ganadas del duelo (mejor de 3). */
   victorias: number
-  /** Avatar: arte del líder si el lado vino de un mazo; si no, el genérico. */
+  /** Arte del líder si el lado vino de un mazo (respaldo del avatar). */
   liderImg: string | null
+  /** La FOTO de perfil: la del dueño del teléfono o la del rival elegido. */
+  avatar: string | null
   etiqueta: string
 }
 
 interface Duelo {
+  /** Lo genera el cliente para poder upsert el MISMO duelo mientras avanza. */
+  id: string
   a: LadoDuelo
   b: LadoDuelo
+  /** El contrincante elegido entre los usuarios de la app, si se eligió. */
+  rival: { id: string; nombre: string; avatar: string } | null
   ronda: number
   iniciativa: 'a' | 'b' | null
   /** Pila de cambios de vida, para deshacer. */
@@ -78,6 +86,13 @@ function cargar(): Duelo | null {
     const d = JSON.parse(s) as Duelo
     // Lo mínimo para confiar en lo guardado: dos lados con vida numérica.
     if (typeof d?.a?.vida !== 'number' || typeof d?.b?.vida !== 'number') return null
+    // Un duelo guardado ANTES de que existieran el id, el rival y los avatares
+    // se completa acá: sin esto, reanudarlo intentaba subir a la nube con id
+    // undefined y el upsert fallaba en silencio (bueno, en console.warn).
+    if (!d.id) d.id = crypto.randomUUID()
+    if (d.rival === undefined) d.rival = null
+    if (d.a.avatar === undefined) d.a.avatar = null
+    if (d.b.avatar === undefined) d.b.avatar = null
     return d
   } catch { return null }
 }
@@ -186,23 +201,30 @@ function MitadJugador({
         </button>
       </div>
 
-      {/* Avatar + ficha de iniciativa, en la esquina que mira al centro. */}
+      {/* Avatar + ficha de iniciativa, en la esquina que mira al centro.
+          El avatar es la FOTO DE PERFIL (la propia o la del rival elegido);
+          el arte del líder queda de respaldo si el lado vino de un mazo. */}
       <div className="absolute bottom-2 left-2 flex items-center gap-2">
         <div className="h-11 w-11 rounded-full overflow-hidden border-2 border-swu-cyan/60 bg-swu-bg">
-          {lado.liderImg
-            ? <img src={lado.liderImg} alt="" className="h-full w-full object-cover object-left" />
-            : <Avatar avatar={lado.etiqueta === 'Vos' ? '🧑‍🚀' : '⚔️'} size={40} caja="redondeada" />}
+          {lado.avatar
+            ? <Avatar avatar={lado.avatar} size={40} caja="redondeada" />
+            : lado.liderImg
+              ? <img src={lado.liderImg} alt="" className="h-full w-full object-cover object-left" />
+              : <Avatar avatar={lado.etiqueta === 'Vos' ? '🧑‍🚀' : '⚔️'} size={40} caja="redondeada" />}
         </div>
+        {/* La ficha de iniciativa del juego real: el chip oscuro con el logo.
+            Quien la tiene la ve encendida; un toque la toma o la suelta. */}
         <button
           onClick={onIniciativa}
           aria-label="Tomar la iniciativa"
-          className={`rounded-full px-2.5 py-1 text-[10px] font-bold border transition-colors ${
+          className={`relative h-12 w-12 rounded-xl border-2 overflow-hidden transition-all
+                      bg-[#0a1020] flex items-center justify-center ${
             conIniciativa
-              ? 'bg-swu-amber text-black border-swu-amber'
-              : 'bg-black/40 text-white/60 border-white/25'
+              ? 'border-swu-amber shadow-[0_0_14px_rgba(245,158,11,0.55)] opacity-100'
+              : 'border-white/20 opacity-40'
           }`}
         >
-          INICIATIVA
+          <img src="/swu-logo-title.png" alt="Ficha de iniciativa" className="h-9 w-9 object-contain" />
         </button>
       </div>
     </div>
@@ -317,7 +339,7 @@ function SelectorLado({
 
 export function ContadorPage() {
   const navigate = useNavigate()
-  const { currentProfile } = useAuth()
+  const { currentProfile, supabaseUser } = useAuth()
 
   const [duelo, setDuelo] = useState<Duelo | null>(null)
   // Inicializador perezoso y no un efecto: leer localStorage es síncrono y
@@ -329,6 +351,15 @@ export function ContadorPage() {
   const [ladoB, setLadoB] = useState<{ base: Card; lider: Card | null } | null>(null)
   const [dado, setDado] = useState<{ abierto: boolean; valores: number[]; tirada: number }>({ abierto: false, valores: [1], tirada: 0 })
   const [ajustes, setAjustes] = useState(false)
+  // El contrincante: se busca entre los usuarios de la app. Elegirlo es lo que
+  // vuelve el duelo un cara-a-cara con historial; sin elegirlo el duelo se
+  // guarda igual, como «Invitado».
+  const [rival, setRival] = useState<SearchableProfile | null>(null)
+  const [busqueda, setBusqueda] = useState('')
+  const [candidatos, setCandidatos] = useState<SearchableProfile[]>([])
+  // Etiquetado con el id del rival: así cambiar de rival no exige «limpiar» el
+  // estado en el efecto (la regla del lint) — el render solo lo usa si coincide.
+  const [caraACara, setCaraACara] = useState<{ rivalId: string; duelos: number; ganados: number; perdidos: number } | null>(null)
 
   // Datos: las 91 bases canónicas y los mazos del dispositivo.
   useEffect(() => {
@@ -370,14 +401,78 @@ export function ContadorPage() {
     }
   }, [duelo])
 
+  // Búsqueda de contrincante, con un pequeño respiro para no consultar por tecla.
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      if (busqueda.trim().length < 2) { setCandidatos([]); return }
+      void searchProfiles(busqueda).then(r =>
+        setCandidatos(r.filter(p => p.id !== supabaseUser?.id)))
+    }, 250)
+    return () => window.clearTimeout(id)
+  }, [busqueda, supabaseUser?.id])
+
+  // El cara-a-cara contra el rival elegido, EN LAS DOS DIRECCIONES: los duelos
+  // que yo guardé contra él y los que él guardó contra mí.
+  useEffect(() => {
+    if (!rival || !supabaseUser || !isSupabaseReady()) return
+    let vivo = true
+    void (async () => {
+      const { data, error } = await supabase
+        .from('duelos_amistosos')
+        .select('creador_id, victorias_creador, victorias_rival, terminado')
+        .or(`and(creador_id.eq.${supabaseUser.id},rival_id.eq.${rival.id}),and(creador_id.eq.${rival.id},rival_id.eq.${supabaseUser.id})`)
+        .eq('terminado', true)
+      if (!vivo || error || !data) return
+      let g = 0, p = 0
+      for (const d of data) {
+        const mias = d.creador_id === supabaseUser.id ? d.victorias_creador : d.victorias_rival
+        const suyas = d.creador_id === supabaseUser.id ? d.victorias_rival : d.victorias_creador
+        if (mias > suyas) g++
+        else if (suyas > mias) p++
+      }
+      setCaraACara({ rivalId: rival.id, duelos: data.length, ganados: g, perdidos: p })
+    })()
+    return () => { vivo = false }
+  }, [rival, supabaseUser])
+
+  /**
+   * El duelo sube a la nube con calma (800 ms tras el último cambio) y SOLO
+   * campos de resultado. Es fire-and-forget: la mesa no espera a la red. Y es
+   * un duelo AMISTOSO por contrato — la tabla no tiene triggers ni toca
+   * player_stats: el ranking no se entera (pedido explícito).
+   */
+  const subidaRef = useRef<number>(0)
+  const subir = useCallback((d: Duelo) => {
+    if (!supabaseUser || !isSupabaseReady()) return
+    window.clearTimeout(subidaRef.current)
+    subidaRef.current = window.setTimeout(() => {
+      void supabase.from('duelos_amistosos').upsert({
+        id: d.id,
+        creador_id: supabaseUser.id,
+        rival_id: d.rival?.id ?? null,
+        rival_nombre: d.rival?.nombre ?? 'Invitado',
+        base_creador: d.a.baseNombre,
+        base_rival: d.b.baseNombre,
+        victorias_creador: d.a.victorias,
+        victorias_rival: d.b.victorias,
+        rondas: d.ronda,
+        updated_at: new Date().toISOString(),
+      }).then(({ error }) => {
+        // Gotcha 2f: supabase-js no lanza; sin mirar `error` el fallo es invisible.
+        if (error) console.warn('[Contador] no se pudo guardar el duelo:', error.message)
+      })
+    }, 800)
+  }, [supabaseUser])
+
   const cambiar = useCallback((fn: (d: Duelo) => Duelo) => {
     setDuelo(actual => {
       if (!actual) return actual
       const nuevo = fn(actual)
       guardar(nuevo)
+      subir(nuevo)
       return nuevo
     })
-  }, [])
+  }, [subir])
 
   const vida = useCallback((lado: 'a' | 'b', delta: number) => {
     cambiar(d => {
@@ -401,27 +496,58 @@ export function ContadorPage() {
   }, [cambiar])
 
   const empezar = useCallback((a: { base: Card; lider: Card | null }, b: { base: Card; lider: Card | null }) => {
-    const lado = (x: { base: Card; lider: Card | null }, etiqueta: string): LadoDuelo => ({
+    const lado = (x: { base: Card; lider: Card | null }, etiqueta: string, avatar: string | null): LadoDuelo => ({
       baseNombre: x.base.name,
       baseImg: x.base.imageUrl ?? null,
       vidaInicial: x.base.hp ?? 30,
       vida: x.base.hp ?? 30,
       victorias: 0,
       liderImg: x.lider?.imageUrl ?? null,
+      avatar,
       etiqueta,
     })
-    const d: Duelo = { a: lado(a, 'Vos'), b: lado(b, 'Rival'), ronda: 1, iniciativa: null, hist: [] }
+    const d: Duelo = {
+      id: crypto.randomUUID(),
+      a: lado(a, 'Vos', currentProfile?.avatar ?? null),
+      b: lado(b, rival?.name ?? 'Rival', rival?.avatar ?? null),
+      rival: rival ? { id: rival.id, nombre: rival.name, avatar: rival.avatar } : null,
+      ronda: 1,
+      iniciativa: null,
+      hist: [],
+    }
     guardar(d)
+    subir(d)
     setDuelo(d)
     setReanudable(null)
-  }, [])
+  }, [currentProfile?.avatar, rival, subir])
 
   const terminar = useCallback(() => {
+    // El cierre en la nube marca el duelo como terminado — es lo que lo hace
+    // contar en el cara-a-cara. Sin sesión, simplemente no hay historial.
+    if (duelo && supabaseUser && isSupabaseReady()) {
+      window.clearTimeout(subidaRef.current)
+      void supabase.from('duelos_amistosos').upsert({
+        id: duelo.id,
+        creador_id: supabaseUser.id,
+        rival_id: duelo.rival?.id ?? null,
+        rival_nombre: duelo.rival?.nombre ?? 'Invitado',
+        base_creador: duelo.a.baseNombre,
+        base_rival: duelo.b.baseNombre,
+        victorias_creador: duelo.a.victorias,
+        victorias_rival: duelo.b.victorias,
+        rondas: duelo.ronda,
+        terminado: true,
+        updated_at: new Date().toISOString(),
+      }).then(({ error }) => {
+        if (error) console.warn('[Contador] no se pudo cerrar el duelo:', error.message)
+      })
+    }
     borrar()
     setDuelo(null)
     setAjustes(false)
     setLadoA(null); setLadoB(null)
-  }, [])
+    setRival(null); setBusqueda('')
+  }, [duelo, supabaseUser])
 
   /* ── El duelo en curso: pantalla completa, por encima de la TabBar ── */
   if (duelo) {
@@ -565,7 +691,56 @@ export function ContadorPage() {
         </button>
       )}
 
-      <SelectorLado titulo="Jugador de enfrente" bases={bases} decks={decks}
+      {/* El contrincante, buscado entre los usuarios de la app. Elegirlo es lo
+          que arma el historial cara-a-cara; sin elegirlo, el duelo se guarda
+          igual como «Invitado». Nada de esto toca el ranking: la tabla de
+          duelos amistosos no tiene triggers ni escribe player_stats. */}
+      <div className="rounded-2xl border border-swu-border bg-swu-surface p-3 space-y-2">
+        <p className="text-sm font-bold text-swu-text">Contrincante</p>
+        {rival ? (
+          <div className="flex items-center gap-2">
+            <Avatar avatar={rival.avatar} size={36} caja="redondeada" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-semibold text-swu-text truncate">{rival.name}</p>
+              {caraACara && caraACara.rivalId === rival.id && (
+                <p className="text-[10px] text-swu-muted">
+                  {caraACara.duelos === 0
+                    ? 'Primer duelo guardado entre ustedes.'
+                    : `${caraACara.duelos} duelo${caraACara.duelos === 1 ? '' : 's'} · ganaste ${caraACara.ganados} · perdiste ${caraACara.perdidos}`}
+                </p>
+              )}
+            </div>
+            <button onClick={() => setRival(null)}
+              className="rounded-lg border border-swu-border px-2 py-1 text-[11px] text-swu-muted">
+              Quitar
+            </button>
+          </div>
+        ) : (
+          <>
+            <input
+              value={busqueda}
+              onChange={e => setBusqueda(e.target.value)}
+              placeholder="Buscá por nombre… (opcional: sin rival se guarda como Invitado)"
+              className="w-full rounded-lg border border-swu-border bg-swu-bg px-3 py-2 text-sm text-swu-text
+                         placeholder:text-swu-muted focus:outline-none focus:ring-2 focus:ring-swu-accent"
+            />
+            {candidatos.length > 0 && (
+              <div className="space-y-1">
+                {candidatos.map(c => (
+                  <button key={c.id}
+                    onClick={() => { setRival(c); setBusqueda(''); setCandidatos([]) }}
+                    className="flex w-full items-center gap-2 rounded-lg border border-swu-border bg-swu-bg px-2 py-1.5 text-left">
+                    <Avatar avatar={c.avatar} size={28} caja="redondeada" />
+                    <span className="text-[13px] text-swu-text truncate">{c.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      <SelectorLado titulo={rival ? `Base de ${rival.name}` : 'Jugador de enfrente'} bases={bases} decks={decks}
         elegido={ladoB} onElegir={(base, lider) => setLadoB({ base, lider })} />
       <SelectorLado titulo={`Vos${currentProfile?.name ? ` (${currentProfile.name})` : ''}`}
         bases={bases} decks={decks}
