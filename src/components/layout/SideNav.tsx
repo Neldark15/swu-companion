@@ -38,7 +38,7 @@ const secondaryNav: NavItem[] = [
   { id: '/rank', label: 'Consejo Jedi', sub: 'Leaderboard', icon: BeskarIcon },
   { id: '/cards', label: 'Buscar Cartas', sub: 'Base de datos', icon: HolonetIcon },
   { id: '/rulings', label: 'Rulings', sub: 'Reglamento del juego', icon: Scale },
-  { id: '/utilities', label: 'Utilidades', sub: 'Herramientas', icon: ChanceCubeIcon },
+  { id: '/contador', label: 'Contador', sub: 'Duelo en mesa real', icon: ChanceCubeIcon },
 ]
 
 export function SideNav() {

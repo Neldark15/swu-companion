@@ -34,7 +34,7 @@ const SedePage = lazy(() => import('./features/venues/SedePage').then(m => ({ de
 const AdminVenuePage = lazy(() => import('./features/admin/AdminVenuePage').then(m => ({ default: m.AdminVenuePage })))
 const ScanPage = lazy(() => import('./features/scan/ScanPage').then(m => ({ default: m.ScanPage })))
 const MetaPage = lazy(() => import('./features/meta/MetaPage').then(m => ({ default: m.MetaPage })))
-const UtilitiesPage = lazy(() => import('./features/utilities/UtilitiesPage').then(m => ({ default: m.UtilitiesPage })))
+const ContadorPage = lazy(() => import('./features/contador/ContadorPage').then(m => ({ default: m.ContadorPage })))
 const ProfilePage = lazy(() => import('./features/profile/ProfilePage').then(m => ({ default: m.ProfilePage })))
 const SettingsPage = lazy(() => import('./features/settings/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const RankingPage = lazy(() => import('./features/rank/RankingPage').then(m => ({ default: m.RankingPage })))
@@ -127,7 +127,10 @@ export default function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/cards" element={<CardsPage />} />
             <Route path="/cards/:id" element={<CardDetailPage />} />
-            <Route path="/utilities" element={<UtilitiesPage />} />
+            <Route path="/contador" element={<ContadorPage />} />
+            {/* Utilidades se retiró: el dado vive dentro del Contador y la moneda
+                ya no se usa. La ruta vieja redirige para no romper marcadores. */}
+            <Route path="/utilities" element={<Navigate to="/contador" replace />} />
             {/* Las reglas son PÚBLICAS a propósito: un juez en mesa de torneo
                 no tiene por qué loguearse para leer una cita del reglamento,
                 y el deep-link /rulings?regla=7.4.2 se comparte por WhatsApp. */}

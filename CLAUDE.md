@@ -149,7 +149,7 @@
 - `/community` Comunidades (RebelIcon)
 - `/rank` Consejo Jedi (BeskarIcon) — leaderboard
 - `/cards` Buscar Cartas (HolonetIcon)
-- `/utilities` Utilidades (ChanceCubeIcon)
+- `/contador` Contador (ChanceCubeIcon) — duelo en mesa real (la vieja `/utilities` redirige acá; la moneda se retiró, `Dice3D` vive dentro del Contador)
 
 ---
 
