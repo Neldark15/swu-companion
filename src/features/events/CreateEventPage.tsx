@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronLeft,
@@ -18,6 +18,7 @@ import {
 import { useAuth } from '../../hooks/useAuth'
 import { createOfficialEvent, type OfficialEvent } from '../../services/events'
 import { aISOdesdeSV, fechaCortaYHora } from '../../services/horaSV'
+import { leerBorrador, guardarBorrador, borrarBorrador, LLAVES_BORRADOR } from '../../services/borradores'
 
 type ViewState = 'form' | 'creating' | 'created'
 
@@ -49,16 +50,37 @@ export function CreateEventPage() {
   const [codeCopied, setCodeCopied] = useState(false)
   const [error, setError] = useState('')
 
+  /* Borrador: son nueve campos y se perdían enteros si la pantalla se
+     remontaba —atender un WhatsApp mientras se carga un torneo alcanzaba—.
+     Se lee UNA vez, sincrónico, en los inicializadores perezosos: leerlo en un
+     efecto y llamar a los `setX` sería un render encadenado y además lo rechaza
+     el lint de este repo. */
+  // Dentro de un `useState` y no suelto en el cuerpo: suelto se releía y
+  // reparseaba localStorage en CADA render, o sea en cada tecla.
+  const [b] = useState(() => leerBorrador<{
+    name: string; description: string; format: string; matchType: string
+    tournamentType: 'swiss' | 'elimination'; maxPlayers: number
+    date: string; time: string; location: string
+  }>(LLAVES_BORRADOR.evento))
+
   // Form state
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [format, setFormat] = useState('premier')
-  const [matchType, setMatchType] = useState('bo1')
-  const [tournamentType, setTournamentType] = useState<'swiss' | 'elimination'>('swiss')
-  const [maxPlayers, setMaxPlayers] = useState(32)
-  const [date, setDate] = useState('')
-  const [time, setTime] = useState('')
-  const [location, setLocation] = useState('')
+  const [name, setName] = useState(b?.name ?? '')
+  const [description, setDescription] = useState(b?.description ?? '')
+  const [format, setFormat] = useState(b?.format ?? 'premier')
+  const [matchType, setMatchType] = useState(b?.matchType ?? 'bo1')
+  const [tournamentType, setTournamentType] = useState<'swiss' | 'elimination'>(b?.tournamentType ?? 'swiss')
+  const [maxPlayers, setMaxPlayers] = useState(b?.maxPlayers ?? 32)
+  const [date, setDate] = useState(b?.date ?? '')
+  const [time, setTime] = useState(b?.time ?? '')
+  const [location, setLocation] = useState(b?.location ?? '')
+
+  /* Se guarda en cada tecla. Un `setItem` de nueve campos cortos no se nota, y
+     evita tener que adivinar cuál es el «buen momento» para guardar. */
+  useEffect(() => {
+    guardarBorrador(LLAVES_BORRADOR.evento, {
+      name, description, format, matchType, tournamentType, maxPlayers, date, time, location,
+    })
+  }, [name, description, format, matchType, tournamentType, maxPlayers, date, time, location])
 
   // Guard: only admins
   if (!auth.isAdmin) {
@@ -140,6 +162,9 @@ export function CreateEventPage() {
       return
     }
 
+    // El borrador se descarta acá y no antes: si `createOfficialEvent` falla,
+    // quien lo escribió tiene que conservar los nueve campos.
+    borrarBorrador(LLAVES_BORRADOR.evento)
     setCreatedEvent(result.event!)
     setViewState('created')
   }

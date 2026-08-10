@@ -12,32 +12,62 @@ import {
 import type { TournamentFormat } from '../../../types'
 import { db } from '../../../services/db'
 import { diaCalendarioSV } from '../../../services/horaSV'
+import { leerBorrador, guardarBorrador, borrarBorrador, LLAVES_BORRADOR } from '../../../services/borradores'
+
+/** Lo que se conserva del formulario si la pantalla se remonta a medio llenar. */
+interface Borrador {
+  meleeUrl: string; name: string; date: string; location: string; organizer: string
+  format: TournamentFormat; playerCount: string; standing: string
+  wins: string; losses: string; draws: string
+  deckName: string; deckLeader: string; deckBase: string
+  notes: string; selectedTags: string[]
+}
 
 export function MeleeAddPage() {
   const navigate = useNavigate()
   const { supabaseUser } = useAuth()
   const [params] = useSearchParams()
 
+  /* Borrador: diecisiete campos. Es el formulario más largo de la app y el que
+     más duele perder — se llena después de un torneo, de memoria, y volver a
+     empezar es volver a acordarse de todo. Se lee una sola vez y sincrónico,
+     para los inicializadores perezosos. */
+  // Dentro de un `useState` y no suelto en el cuerpo: suelto se releía y
+  // reparseaba localStorage en CADA render, o sea en cada tecla de 17 campos.
+  const [b] = useState(() => leerBorrador<Borrador>(LLAVES_BORRADOR.meleeAdd))
+
   // Form state
-  const [meleeUrl, setMeleeUrl] = useState(params.get('url') || '')
-  const [name, setName] = useState('')
+  //
+  // La URL del enlace manda sobre el borrador: si llegaste con `?url=`, ese es
+  // el torneo que querés cargar, no el que dejaste a medias la semana pasada.
+  const [meleeUrl, setMeleeUrl] = useState(params.get('url') || b?.meleeUrl || '')
+  const [name, setName] = useState(b?.name ?? '')
   // El día de hoy en El Salvador. Con `toISOString()` el formulario se
   // prellenaba con la fecha de MAÑANA a partir de las 6 de la tarde de acá.
-  const [date, setDate] = useState(() => diaCalendarioSV(new Date()))
-  const [location, setLocation] = useState('')
-  const [organizer, setOrganizer] = useState('')
-  const [format, setFormat] = useState<TournamentFormat>('premier')
-  const [playerCount, setPlayerCount] = useState('')
-  const [standing, setStanding] = useState('')
-  const [wins, setWins] = useState('')
-  const [losses, setLosses] = useState('')
-  const [draws, setDraws] = useState('')
-  const [deckName, setDeckName] = useState('')
-  const [deckLeader, setDeckLeader] = useState('')
-  const [deckBase, setDeckBase] = useState('')
-  const [notes, setNotes] = useState('')
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [date, setDate] = useState(() => b?.date ?? diaCalendarioSV(new Date()))
+  const [location, setLocation] = useState(b?.location ?? '')
+  const [organizer, setOrganizer] = useState(b?.organizer ?? '')
+  const [format, setFormat] = useState<TournamentFormat>(b?.format ?? 'premier')
+  const [playerCount, setPlayerCount] = useState(b?.playerCount ?? '')
+  const [standing, setStanding] = useState(b?.standing ?? '')
+  const [wins, setWins] = useState(b?.wins ?? '')
+  const [losses, setLosses] = useState(b?.losses ?? '')
+  const [draws, setDraws] = useState(b?.draws ?? '')
+  const [deckName, setDeckName] = useState(b?.deckName ?? '')
+  const [deckLeader, setDeckLeader] = useState(b?.deckLeader ?? '')
+  const [deckBase, setDeckBase] = useState(b?.deckBase ?? '')
+  const [notes, setNotes] = useState(b?.notes ?? '')
+  const [selectedTags, setSelectedTags] = useState<string[]>(
+    Array.isArray(b?.selectedTags) ? b.selectedTags : [])
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    guardarBorrador<Borrador>(LLAVES_BORRADOR.meleeAdd, {
+      meleeUrl, name, date, location, organizer, format, playerCount, standing,
+      wins, losses, draws, deckName, deckLeader, deckBase, notes, selectedTags,
+    })
+  }, [meleeUrl, name, date, location, organizer, format, playerCount, standing,
+      wins, losses, draws, deckName, deckLeader, deckBase, notes, selectedTags])
 
   // Available decks from Dexie
   const [myDecks, setMyDecks] = useState<{ id: string; name: string }[]>([])
@@ -85,6 +115,9 @@ export function MeleeAddPage() {
         recordedAt: Date.now(),
       })
 
+      // Solo acá, con el torneo ya guardado. En el `catch` NO se borra: si
+      // falló, los diecisiete campos tienen que seguir estando al volver.
+      borrarBorrador(LLAVES_BORRADOR.meleeAdd)
       navigate('/events/melee', { replace: true })
     } catch (e) {
       console.error('[Melee] Save failed:', e)

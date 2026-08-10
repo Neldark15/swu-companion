@@ -305,15 +305,19 @@ export function DeckBuilderPage() {
         </button>
       </div>
 
+      {/* El nombre y el formato eran los DOS únicos campos que cambiaban con
+          `setDeck` sin llamar a `autoSave`: las cartas se guardaban solas (ocho
+          sitios lo llaman) pero renombrar el mazo y salir perdía el nombre.
+          Ahora van por el mismo camino que el resto. */}
       <div className="flex items-center gap-2">
         {editingName ? (
           <input autoFocus className="flex-1 bg-swu-surface border border-swu-border rounded-lg px-3 py-2 text-sm text-swu-text font-bold" defaultValue={deck.name}
-            onBlur={(e) => { setDeck((p) => ({ ...p, name: e.target.value || 'Nuevo Deck' })); setEditingName(false) }}
-            onKeyDown={(e) => { if (e.key === 'Enter') { setDeck((p) => ({ ...p, name: (e.target as HTMLInputElement).value || 'Nuevo Deck' })); setEditingName(false) } }} />
+            onBlur={(e) => { setDeck((p) => { const nd = { ...p, name: e.target.value || 'Nuevo Deck' }; autoSave(nd); return nd }); setEditingName(false) }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { setDeck((p) => { const nd = { ...p, name: (e.target as HTMLInputElement).value || 'Nuevo Deck' }; autoSave(nd); return nd }); setEditingName(false) } }} />
         ) : (
           <button onClick={() => setEditingName(true)} className="flex-1 text-left"><h2 className="text-lg font-bold text-swu-text">{deck.name}</h2></button>
         )}
-        <select value={deck.format} onChange={(e) => setDeck((p) => ({ ...p, format: e.target.value as TournamentFormat | 'limited' }))}
+        <select value={deck.format} onChange={(e) => setDeck((p) => { const nd = { ...p, format: e.target.value as TournamentFormat | 'limited' }; autoSave(nd); return nd })}
           className="bg-swu-surface border border-swu-border rounded-lg px-3 py-2 text-xs text-swu-text font-bold">
           {Object.entries(formatLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>

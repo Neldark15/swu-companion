@@ -53,7 +53,11 @@ import { ensureCards } from '../../services/swuApi'
 import { getMyCollection } from '../../services/collectionService'
 import { translateAspect } from '../../services/translations'
 import { useAuth } from '../../hooks/useAuth'
+import { leerBorrador, guardarBorrador, borrarBorrador, LLAVES_BORRADOR } from '../../services/borradores'
 import type { Card, Deck } from '../../types'
+
+/** El sondeo se rinde a los 5 min: un id más viejo ya no apunta a nada vivo. */
+const VIGENCIA_TRABAJO_MS = 6 * 60 * 1000
 import {
   simApi, deckAMazo, ErrorSim,
   type MazoEnvio, type InformeValidar, type EstadoTrabajo, type ResultadoSimular,
@@ -427,7 +431,8 @@ export function LabPage() {
   const [informe, setInforme] = useState<InformeValidar | null>(null)
   const [validando, setValidando] = useState(false)
   const [trabajo, setTrabajo] = useState<EstadoTrabajo | null>(null)
-  const [corriendo, setCorriendo] = useState(false)
+  const [corriendo, setCorriendo] = useState(() =>
+    !!leerBorrador<{ idTrabajo: string }>(LLAVES_BORRADOR.laboratorio, VIGENCIA_TRABAJO_MS)?.idTrabajo)
   /**
    * El id del trabajo es ESTADO, no una `ref`, y esa diferencia era el bug.
    *
@@ -442,7 +447,15 @@ export function LabPage() {
    *
    * Como estado, la llegada del id es lo que dispara el sondeo.
    */
-  const [idTrabajo, setIdTrabajo] = useState<string | null>(null)
+  /* Se persiste, y por un motivo concreto: el trabajo corre en el VPS y sigue
+     corriendo aunque la app se cierre. Lo único que se perdía al remontarse la
+     pantalla era el ID —y sin ID no hay a quién sondear, así que una prueba de
+     varios minutos quedaba huérfana y había que relanzarla.
+
+     La vigencia es corta a propósito: el sondeo se rinde a los 5 minutos, así
+     que un id más viejo que eso ya no apunta a nada vivo. */
+  const [idTrabajo, setIdTrabajo] = useState<string | null>(() =>
+    leerBorrador<{ idTrabajo: string }>(LLAVES_BORRADOR.laboratorio, VIGENCIA_TRABAJO_MS)?.idTrabajo ?? null)
   /** Sondeos seguidos que fallaron. Sirve para rendirse diciendo por qué. */
   const fallosSeguidos = useRef(0)
 
@@ -583,6 +596,7 @@ export function LabPage() {
     genDetalle.current += 1
     genBusqueda.current += 1
     setCorriendo(false); setIdTrabajo(null); setTrabajo(null)
+    borrarBorrador(LLAVES_BORRADOR.laboratorio)
     setPrueba(null); setErrorPrueba(null)
     setAbierto(null); setDetalle(null); setErrorDetalle(null); setCargandoDetalle(false)
     setBuscando(false); setMedidos(null); setErrorBusqueda(null)
@@ -599,6 +613,9 @@ export function LabPage() {
       if (genTrabajo.current !== mia) return
       if (!id) throw new Error('El simulador no devolvió un número de trabajo.')
       setIdTrabajo(id)
+      // El trabajo ya vive en el VPS: desde acá el id es lo único que hace
+      // falta para volver a encontrarlo si la pantalla se remonta.
+      guardarBorrador(LLAVES_BORRADOR.laboratorio, { idTrabajo: id })
     } catch (e) {
       if (genTrabajo.current !== mia) return
       setError(e instanceof Error ? e.message : 'Fallo inesperado.')
@@ -632,6 +649,9 @@ export function LabPage() {
       if (genTrabajo.current !== mia) return
       if (Date.now() > limite) {
         setCorriendo(false)
+        // Se acabó la espera: el id ya no sirve para nada y no debe sobrevivir
+        // a la recarga, o volverías a una pantalla sondeando un fantasma.
+        borrarBorrador(LLAVES_BORRADOR.laboratorio)
         setError('El simulador tardó más de 5 minutos. Probá de nuevo en un rato.')
         return
       }
@@ -642,6 +662,7 @@ export function LabPage() {
         setTrabajo(estado)
         if (estado.estado === 'listo' || estado.estado === 'error') {
           setCorriendo(false)
+          borrarBorrador(LLAVES_BORRADOR.laboratorio)
           if (estado.estado === 'error') setError(estado.error || 'La prueba falló.')
         }
       } catch (e) {
@@ -652,6 +673,7 @@ export function LabPage() {
         fallosSeguidos.current += 1
         if (fallosSeguidos.current >= 5) {
           setCorriendo(false)
+          borrarBorrador(LLAVES_BORRADOR.laboratorio)
           setError(
             e instanceof Error
               ? `Se perdió el contacto con el simulador: ${e.message}`
