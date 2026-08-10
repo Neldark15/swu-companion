@@ -32,6 +32,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Swords, Dices, Undo2, Settings2, X, Search, Layers, Plus, Minus, RotateCcw,
+  Timer, ScrollText, Trophy, History,
 } from 'lucide-react'
 import { CardImage } from '../../components/CardImage'
 import { Carta3D } from '../../components/Carta3D'
@@ -42,6 +43,7 @@ import { ensureCards } from '../../services/swuApi'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase, isSupabaseReady } from '../../services/supabase'
 import { searchProfiles, type SearchableProfile } from '../../services/playerSearch'
+import { fechaCorta } from '../../services/horaSV'
 import type { Card, Deck } from '../../types'
 
 /* ── Estado persistido ───────────────────────────────────── */
@@ -54,11 +56,29 @@ interface LadoDuelo {
   vida: number
   /** Partidas ganadas del duelo (mejor de 3). */
   victorias: number
-  /** Arte del líder si el lado vino de un mazo (respaldo del avatar). */
+  /** Nombre y arte del líder, si el lado vino de un mazo. */
+  liderNombre: string | null
   liderImg: string | null
+  /** Desplegado = el líder bajó a la mesa. Es el momento clave de una partida. */
+  liderDesplegado: boolean
   /** La FOTO de perfil: la del dueño del teléfono o la del rival elegido. */
   avatar: string | null
   etiqueta: string
+}
+
+/**
+ * Un movimiento de vida.
+ *
+ * Lleva `ronda` y `ts` porque cumple DOS funciones: deshacer y ser el registro
+ * que se lee («R3: rival −4»). Un array de deltas pelados servía para lo
+ * primero y no para lo segundo.
+ */
+interface Movimiento {
+  lado: 'a' | 'b'
+  delta: number
+  ronda: number
+  /** Epoch del ÚLTIMO toque del grupo: con eso se decide si el siguiente suma. */
+  ts: number
 }
 
 interface Duelo {
@@ -70,8 +90,29 @@ interface Duelo {
   rival: { id: string; nombre: string; avatar: string } | null
   ronda: number
   iniciativa: 'a' | 'b' | null
-  /** Pila de cambios de vida, para deshacer. */
-  hist: { lado: 'a' | 'b'; delta: number }[]
+  /** Movimientos de vida: deshacer + registro visible. */
+  hist: Movimiento[]
+  /** Juegos cerrados del mejor-de-3, en orden. */
+  juegos: { ganador: 'a' | 'b' }[]
+  /**
+   * Reloj de ronda. Se guarda el INSTANTE de fin (epoch), no los segundos que
+   * faltan: así recargar el teléfono no regala ni roba tiempo.
+   */
+  reloj: { finMs: number; minutos: number } | null
+}
+
+/** Segundos → «mm:ss», y «0:00» cuando ya se acabó (nunca en negativo). */
+function mmss(seg: number): string {
+  const s = Math.max(0, seg)
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+/** Toques seguidos dentro de esta ventana son UN movimiento. Ver `vida()`. */
+const VENTANA_AGRUPADO = 1500
+
+/** Vibración corta al tocar. Silenciosa donde no exista (iOS Safari). */
+function vibrar(ms = 12) {
+  try { navigator.vibrate?.(ms) } catch { /* sin soporte */ }
 }
 
 const CLAVE = 'contador_duelo_v1'
@@ -91,8 +132,20 @@ function cargar(): Duelo | null {
     // undefined y el upsert fallaba en silencio (bueno, en console.warn).
     if (!d.id) d.id = crypto.randomUUID()
     if (d.rival === undefined) d.rival = null
-    if (d.a.avatar === undefined) d.a.avatar = null
-    if (d.b.avatar === undefined) d.b.avatar = null
+    for (const l of [d.a, d.b]) {
+      if (l.avatar === undefined) l.avatar = null
+      if (l.liderNombre === undefined) l.liderNombre = null
+      if (l.liderDesplegado === undefined) l.liderDesplegado = false
+    }
+    if (!Array.isArray(d.juegos)) d.juegos = []
+    if (d.reloj === undefined) d.reloj = null
+    // Los movimientos viejos no traían ronda ni ts: se completan para que el
+    // registro no muestre huecos y el agrupado no compare contra `undefined`.
+    d.hist = (Array.isArray(d.hist) ? d.hist : []).map(m => ({
+      lado: m.lado, delta: m.delta,
+      ronda: typeof m.ronda === 'number' ? m.ronda : 1,
+      ts: typeof m.ts === 'number' ? m.ts : 0,
+    }))
     return d
   } catch { return null }
 }
@@ -103,7 +156,7 @@ function borrar() {
 /* ── La mitad de un jugador ──────────────────────────────── */
 
 function MitadJugador({
-  lado, invertida, conIniciativa, onVida, onIniciativa, onVictorias,
+  lado, invertida, conIniciativa, onVida, onIniciativa, onVictorias, onDesplegarLider,
 }: {
   lado: LadoDuelo
   invertida: boolean
@@ -111,6 +164,7 @@ function MitadJugador({
   onVida: (delta: number) => void
   onIniciativa: () => void
   onVictorias: (n: number) => void
+  onDesplegarLider: () => void
 }) {
   const pct = lado.vidaInicial > 0 ? lado.vida / lado.vidaInicial : 0
   const colorVida = lado.vida === 0 ? 'text-swu-red' : pct <= 0.34 ? 'text-swu-coral' : pct <= 0.67 ? 'text-swu-amber' : 'text-white'
@@ -121,9 +175,12 @@ function MitadJugador({
   // «pegado» restando vida solo.
   const temporizador = useRef<{ espera?: number; rafaga?: number }>({})
   const empezar = useCallback((delta: number) => {
+    // Vibra en cada cambio: con el teléfono lejos y reflejos de luz no siempre
+    // se ve si el toque entró, y el pulso lo confirma sin mirar.
+    vibrar()
     onVida(delta)
     temporizador.current.espera = window.setTimeout(() => {
-      temporizador.current.rafaga = window.setInterval(() => onVida(delta), 140)
+      temporizador.current.rafaga = window.setInterval(() => { vibrar(8); onVida(delta) }, 140)
     }, 450)
   }, [onVida])
   const parar = useCallback(() => {
@@ -146,8 +203,16 @@ function MitadJugador({
               fit="cover"
               className="w-full aspect-[400/286] rounded-2xl opacity-80"
             />
-            {/* Velo para que la cifra gane SIEMPRE el contraste sobre el arte. */}
+            {/* Velo para que la cifra gane SIEMPRE el contraste sobre el arte.
+                El velo plano al 35 % alcanzaba con artes oscuras y no con las
+                claras: la vida en ámbar sobre la roca beige de Coaxium Mine
+                quedaba casi ilegible. Encima va una cama radial centrada donde
+                vive la cifra —oscura en el centro, nula en los bordes—, así el
+                número tiene fondo garantizado sea cual sea la base y el arte
+                se sigue viendo alrededor. */}
             <div className="absolute inset-0 rounded-2xl bg-black/35" />
+            <div className="absolute inset-0 rounded-2xl
+                            bg-[radial-gradient(ellipse_42%_52%_at_50%_50%,rgba(0,0,0,0.72)_0%,rgba(0,0,0,0.45)_55%,transparent_100%)]" />
           </div>
         </Carta3D>
       </div>
@@ -176,28 +241,44 @@ function MitadJugador({
         ))}
       </div>
 
-      {/* − VIDA + : la fila protagonista, como en la referencia. */}
-      <div className="absolute inset-0 flex items-center justify-between px-5">
+      {/* − VIDA + .
+          La zona TOCABLE es el tercio entero de cada lado, no el botón: con el
+          teléfono en el medio de la mesa se toca de lejos y en ángulo, y un
+          blanco de 80 px se falla. El círculo queda de señal visual (no recibe
+          eventos: los toma el tercio que lo contiene). El tercio del medio no
+          es tocable a propósito — ahí vive la cifra y un toque suelto no debe
+          mover la vida de nadie. */}
+      <div className="absolute inset-0 flex">
         <button
           aria-label="Restar vida"
           onPointerDown={() => empezar(-1)}
           onPointerUp={parar} onPointerLeave={parar} onPointerCancel={parar}
-          className="h-20 w-20 rounded-full border-4 border-white/70 bg-black/45 text-white
-                     flex items-center justify-center active:scale-95 transition-transform backdrop-blur-sm"
+          className="flex-1 flex items-center justify-center active:bg-white/5 transition-colors"
         >
-          <Minus size={34} strokeWidth={3} />
+          {/* El rojo va en el MENOS. `--color-swu-red` está documentado en
+              index.css como «destructivo», y lo destructivo acá es perder vida;
+              además es el botón que se toca casi siempre, así que el color
+              fuerte tiene que estar donde va el pulgar, no en la corrección. */}
+          <span className="pointer-events-none h-20 w-20 rounded-full border-4 border-swu-red/80 bg-black/45 text-swu-red
+                           flex items-center justify-center backdrop-blur-sm">
+            <Minus size={34} strokeWidth={3} />
+          </span>
         </button>
-        <span className={`text-[88px] leading-none font-black tabular-nums drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] ${colorVida}`}>
-          {lado.vida}
-        </span>
+        <div className="flex-1 flex items-center justify-center pointer-events-none">
+          <span className={`text-[88px] leading-none font-black tabular-nums drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] ${colorVida}`}>
+            {lado.vida}
+          </span>
+        </div>
         <button
           aria-label="Sumar vida"
           onPointerDown={() => empezar(1)}
           onPointerUp={parar} onPointerLeave={parar} onPointerCancel={parar}
-          className="h-20 w-20 rounded-full border-4 border-swu-red/80 bg-black/45 text-swu-red
-                     flex items-center justify-center active:scale-95 transition-transform backdrop-blur-sm"
+          className="flex-1 flex items-center justify-center active:bg-white/5 transition-colors"
         >
-          <Plus size={34} strokeWidth={3} />
+          <span className="pointer-events-none h-20 w-20 rounded-full border-4 border-white/70 bg-black/45 text-white
+                           flex items-center justify-center backdrop-blur-sm">
+            <Plus size={34} strokeWidth={3} />
+          </span>
         </button>
       </div>
 
@@ -215,9 +296,13 @@ function MitadJugador({
         {/* La ficha de iniciativa del juego real: el chip oscuro con el logo.
             Quien la tiene la ve encendida; un toque la toma o la suelta. */}
         <button
-          onClick={onIniciativa}
+          // La ficha y la ronda se tocan SIN mirar —el teléfono está plano en la
+          // mesa y vos estás viendo cartas—, así que son las dos que más
+          // necesitan el acuse al tacto. Eran justo las dos que no lo tenían.
+          onClick={() => { vibrar(); onIniciativa() }}
           aria-label="Tomar la iniciativa"
-          className={`relative h-12 w-12 rounded-xl border-2 overflow-hidden transition-all
+          className={`relative h-12 w-12 rounded-xl border-2 overflow-hidden
+                      transition-[border-color,box-shadow,opacity] duration-150
                       bg-[#0a1020] flex items-center justify-center ${
             conIniciativa
               ? 'border-swu-amber shadow-[0_0_14px_rgba(245,158,11,0.55)] opacity-100'
@@ -226,6 +311,29 @@ function MitadJugador({
         >
           <img src="/swu-logo-title.png" alt="Ficha de iniciativa" className="h-9 w-9 object-contain" />
         </button>
+        {/* El líder, si el lado vino de un mazo. Un toque lo despliega: es el
+            momento que cambia la partida y el que más se olvida de marcar. */}
+        {lado.liderNombre && (
+          <button
+            onClick={() => { vibrar(); onDesplegarLider() }}
+            aria-label={lado.liderDesplegado ? 'Replegar el líder' : 'Desplegar el líder'}
+            // `transition-all` animaba trece propiedades —los cuatro radios y
+            // los cuatro paddings incluidos— cuando lo único que cambia es
+            // color, sombra y opacidad. Se nombran las que cambian.
+            className={`flex items-center gap-1.5 rounded-full border pl-1 pr-2 py-1 transition-[color,background-color,border-color,box-shadow,opacity] duration-150 ${
+              lado.liderDesplegado
+                ? 'border-swu-cyan bg-swu-cyan/20 shadow-[0_0_12px_rgba(34,211,238,0.4)]'
+                : 'border-white/20 bg-black/40 opacity-60'
+            }`}
+          >
+            {lado.liderImg
+              ? <img src={lado.liderImg} alt="" className="h-6 w-6 rounded-full object-cover object-left" />
+              : <span className="h-6 w-6 rounded-full bg-swu-bg" />}
+            <span className={`text-[9px] font-bold ${lado.liderDesplegado ? 'text-swu-cyan' : 'text-white/60'}`}>
+              {lado.liderDesplegado ? 'EN MESA' : 'LÍDER'}
+            </span>
+          </button>
+        )}
       </div>
     </div>
   )
@@ -351,6 +459,23 @@ export function ContadorPage() {
   const [ladoB, setLadoB] = useState<{ base: Card; lider: Card | null } | null>(null)
   const [dado, setDado] = useState<{ abierto: boolean; valores: number[]; tirada: number }>({ abierto: false, valores: [1], tirada: 0 })
   const [ajustes, setAjustes] = useState(false)
+  const [registro, setRegistro] = useState(false)
+  const [relojPanel, setReloj] = useState(false)
+  /** (3) «Mis duelos»: el historial guardado, que hasta ahora no se veía. */
+  const [historial, setHistorial] = useState<{
+    id: string; conQuien: string; mias: number; suyas: number; bases: string; cuando: string
+  }[] | null>(null)
+  const [verHistorial, setVerHistorial] = useState(false)
+  /** Lado que ya se ofreció cerrar: no volver a preguntar hasta que reviva. */
+  const [cierreOfrecido, setCierreOfrecido] = useState<'a' | 'b' | null>(null)
+  /**
+   * El «ahora» del reloj, en el ESTADO y no leído en el render.
+   *
+   * `Date.now()` dentro del render es impuro: el mismo estado daría pantallas
+   * distintas y React puede re-renderizar cuando quiera. Acá el tiempo entra
+   * por el mismo camino que todo lo demás — un `setState` cada segundo.
+   */
+  const [ahora, setAhora] = useState(() => Date.now())
   // El contrincante: se busca entre los usuarios de la app. Elegirlo es lo que
   // vuelve el duelo un cara-a-cara con historial; sin elegirlo el duelo se
   // guarda igual, como «Invitado».
@@ -464,6 +589,57 @@ export function ContadorPage() {
     }, 800)
   }, [supabaseUser])
 
+  // El reloj se repinta cada segundo. El estado NO guarda los segundos que
+  // faltan (guarda el instante de fin), así que este tic solo fuerza el render.
+  useEffect(() => {
+    if (!duelo?.reloj) return
+    // El primer refresco va DENTRO del intervalo, no en el cuerpo del efecto:
+    // un `setState` síncrono ahí encadena un render (regla del lint). El
+    // desfase máximo es de un segundo en un reloj de 50 minutos.
+    const id = window.setInterval(() => setAhora(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [duelo?.reloj])
+
+  // (3) El historial completo, de LOS DOS LADOS: los duelos que guardé y
+  // aquellos donde yo fui el rival (esos ya se podían leer por RLS y nadie
+  // los mostraba). Se carga al abrir el panel, no al entrar a la pantalla.
+  useEffect(() => {
+    if (!verHistorial || !supabaseUser || !isSupabaseReady()) return
+    let vivo = true
+    void (async () => {
+      const { data, error } = await supabase
+        .from('duelos_amistosos')
+        .select('id, creador_id, rival_id, rival_nombre, base_creador, base_rival, victorias_creador, victorias_rival, created_at, terminado')
+        .or(`creador_id.eq.${supabaseUser.id},rival_id.eq.${supabaseUser.id}`)
+        .eq('terminado', true)
+        .order('created_at', { ascending: false })
+        .limit(30)
+      if (!vivo) return
+      if (error || !data) { setHistorial([]); return }
+      // El nombre de quien creó el duelo no viaja en la fila; cuando yo fui el
+      // rival se resuelve contra los perfiles en una sola consulta.
+      const ajenos = [...new Set(data.filter(d => d.creador_id !== supabaseUser.id).map(d => d.creador_id))]
+      const nombres = new Map<string, string>()
+      if (ajenos.length) {
+        const { data: perfiles } = await supabase.from('profiles').select('id, name').in('id', ajenos)
+        for (const p of perfiles ?? []) nombres.set(p.id, p.name)
+      }
+      if (!vivo) return
+      setHistorial(data.map(d => {
+        const yoCree = d.creador_id === supabaseUser.id
+        return {
+          id: d.id,
+          conQuien: yoCree ? (d.rival_nombre || 'Invitado') : (nombres.get(d.creador_id) ?? 'Alguien'),
+          mias: yoCree ? d.victorias_creador : d.victorias_rival,
+          suyas: yoCree ? d.victorias_rival : d.victorias_creador,
+          bases: yoCree ? `${d.base_creador} vs ${d.base_rival}` : `${d.base_rival} vs ${d.base_creador}`,
+          cuando: fechaCorta(d.created_at),
+        }
+      }))
+    })()
+    return () => { vivo = false }
+  }, [verHistorial, supabaseUser])
+
   const cambiar = useCallback((fn: (d: Duelo) => Duelo) => {
     setDuelo(actual => {
       if (!actual) return actual
@@ -474,12 +650,32 @@ export function ContadorPage() {
     })
   }, [subir])
 
+  /**
+   * Cambiar vida, AGRUPANDO los toques seguidos.
+   *
+   * Antes cada tick era una entrada: mantener presionado y bajar 7 de vida
+   * dejaba 7 entradas y deshacer pedía 7 toques. En la mesa el caso real es
+   * «me pasé por un gesto», y un gesto tiene que deshacerse de una. Se funde
+   * con la última entrada si es el MISMO lado, la MISMA ronda y dentro de
+   * `VENTANA_AGRUPADO`; si el grupo vuelve a cero, se descarta entero.
+   */
   const vida = useCallback((lado: 'a' | 'b', delta: number) => {
     cambiar(d => {
       const v = Math.max(0, Math.min(99, d[lado].vida + delta))
       const real = v - d[lado].vida
       if (real === 0) return d
-      return { ...d, [lado]: { ...d[lado], vida: v }, hist: [...d.hist.slice(-49), { lado, delta: real }] }
+      const ahora = Date.now()
+      const ultimo = d.hist[d.hist.length - 1]
+      const sigue = ultimo && ultimo.lado === lado && ultimo.ronda === d.ronda
+        && ahora - ultimo.ts <= VENTANA_AGRUPADO
+      let hist: Movimiento[]
+      if (sigue) {
+        const fundido = { ...ultimo, delta: ultimo.delta + real, ts: ahora }
+        hist = fundido.delta === 0 ? d.hist.slice(0, -1) : [...d.hist.slice(0, -1), fundido]
+      } else {
+        hist = [...d.hist.slice(-49), { lado, delta: real, ronda: d.ronda, ts: ahora }]
+      }
+      return { ...d, [lado]: { ...d[lado], vida: v }, hist }
     })
   }, [cambiar])
 
@@ -495,6 +691,39 @@ export function ContadorPage() {
     })
   }, [cambiar])
 
+  /**
+   * Cierra el juego del mejor-de-3: anota el punto y deja la mesa lista.
+   *
+   * Antes esto eran tres toques sueltos (marcar el punto, reiniciar vidas,
+   * volver la ronda a 1) y era fácil olvidarse del punto — justo el dato que
+   * alimenta el cara-a-cara. El reloj NO se reinicia: en torneo la ronda es
+   * una sola para los tres juegos.
+   */
+  const cerrarJuego = useCallback((ganador: 'a' | 'b') => {
+    cambiar(d => ({
+      ...d,
+      [ganador]: { ...d[ganador], victorias: Math.min(2, d[ganador].victorias + 1) },
+      a: { ...(ganador === 'a' ? { ...d.a, victorias: Math.min(2, d.a.victorias + 1) } : d.a), vida: d.a.vidaInicial, liderDesplegado: false },
+      b: { ...(ganador === 'b' ? { ...d.b, victorias: Math.min(2, d.b.victorias + 1) } : d.b), vida: d.b.vidaInicial, liderDesplegado: false },
+      juegos: [...d.juegos, { ganador }],
+      ronda: 1,
+      iniciativa: null,
+      hist: [],
+    }))
+  }, [cambiar])
+
+  const reloj = useCallback((minutos: number | null) => {
+    // `ahora` solo lo refresca el intervalo, y el intervalo solo corre cuando ya
+    // hay reloj: al arrancarlo, el primer pintado usaba un `ahora` congelado
+    // desde el montaje y mostraba de más (medido: 33:58 al pedir 30 min, cuatro
+    // minutos después de abrir el duelo). Se pone en hora en el mismo tic.
+    setAhora(Date.now())
+    cambiar(d => ({
+      ...d,
+      reloj: minutos === null ? null : { finMs: Date.now() + minutos * 60_000, minutos },
+    }))
+  }, [cambiar])
+
   const empezar = useCallback((a: { base: Card; lider: Card | null }, b: { base: Card; lider: Card | null }) => {
     const lado = (x: { base: Card; lider: Card | null }, etiqueta: string, avatar: string | null): LadoDuelo => ({
       baseNombre: x.base.name,
@@ -502,7 +731,9 @@ export function ContadorPage() {
       vidaInicial: x.base.hp ?? 30,
       vida: x.base.hp ?? 30,
       victorias: 0,
+      liderNombre: x.lider?.name ?? null,
       liderImg: x.lider?.imageUrl ?? null,
+      liderDesplegado: false,
       avatar,
       etiqueta,
     })
@@ -514,6 +745,8 @@ export function ContadorPage() {
       ronda: 1,
       iniciativa: null,
       hist: [],
+      juegos: [],
+      reloj: null,
     }
     guardar(d)
     subir(d)
@@ -551,6 +784,21 @@ export function ContadorPage() {
 
   /* ── El duelo en curso: pantalla completa, por encima de la TabBar ── */
   if (duelo) {
+    // Segundos que faltan. Se calcula del instante de fin guardado, así que
+    // recargar el teléfono no regala ni roba tiempo.
+    const restante = duelo.reloj ? Math.round((duelo.reloj.finMs - ahora) / 1000) : 0
+    // ¿Alguien está en 0? Se ofrece cerrar el juego UNA vez por caída.
+    const caido: 'a' | 'b' | null = duelo.a.vida === 0 ? 'a' : duelo.b.vida === 0 ? 'b' : null
+    const ofrecerCierre = caido !== null && cierreOfrecido !== caido && duelo.juegos.length < 3
+    const ganadorDelJuego: 'a' | 'b' | null = caido === 'a' ? 'b' : caido === 'b' ? 'a' : null
+    const nombreDe = (l: 'a' | 'b') => (l === 'a' ? 'Vos' : duelo.rival?.nombre ?? 'Rival')
+    // «Vos» no concuerda con la tercera persona: «Vos gana el juego» y «la base
+    // de Vos» son las dos frases que salían. En voseo el lado propio va en
+    // segunda persona y el rival en tercera.
+    const fraseGana = (l: 'a' | 'b') =>
+      l === 'a' ? 'Ganaste el juego' : `${nombreDe(l)} gana el juego`
+    const fraseBase = (l: 'a' | 'b') =>
+      l === 'a' ? 'Tu base' : `La base de ${nombreDe(l)}`
     return (
       <div className="fixed inset-0 z-[60] flex flex-col bg-[#060913]">
         <MitadJugador
@@ -558,12 +806,13 @@ export function ContadorPage() {
           onVida={d => vida('b', d)}
           onIniciativa={() => cambiar(x => ({ ...x, iniciativa: x.iniciativa === 'b' ? null : 'b' }))}
           onVictorias={n => cambiar(x => ({ ...x, b: { ...x.b, victorias: n } }))}
+          onDesplegarLider={() => cambiar(x => ({ ...x, b: { ...x.b, liderDesplegado: !x.b.liderDesplegado } }))}
         />
 
         {/* La barra del medio: las herramientas de la referencia, mejoradas. */}
         <div className="relative z-10 flex items-center justify-center gap-3 border-y border-white/10 bg-black/60 px-3 py-2 backdrop-blur">
           <button
-            onClick={() => cambiar(x => ({ ...x, ronda: x.ronda + 1 }))}
+            onClick={() => { vibrar(); cambiar(x => ({ ...x, ronda: x.ronda + 1 })) }}
             className="rounded-full border border-swu-cyan/50 bg-swu-cyan/10 px-3 py-1.5 text-[12px] font-mono font-bold text-swu-cyan"
             aria-label="Siguiente ronda"
           >
@@ -576,6 +825,28 @@ export function ContadorPage() {
             className="rounded-full border border-white/20 bg-white/5 p-2 text-white disabled:opacity-30"
           >
             <Undo2 size={16} />
+          </button>
+          {/* Reloj de ronda: el torneo juega a 50 min y practicar sin reloj es
+              practicar otro juego. Se pinta ámbar en los últimos 5 y rojo al
+              acabarse; no suena ni bloquea nada — avisa. */}
+          <button
+            onClick={() => setReloj(true)}
+            aria-label="Reloj de ronda"
+            className={`rounded-full border px-2.5 py-1.5 text-[12px] font-mono font-bold ${
+              !duelo.reloj ? 'border-white/20 bg-white/5 text-white/70'
+                : restante <= 0 ? 'border-swu-red bg-swu-red/20 text-swu-red'
+                : restante <= 300 ? 'border-swu-amber bg-swu-amber/20 text-swu-amber'
+                : 'border-white/20 bg-white/5 text-white'
+            }`}
+          >
+            {duelo.reloj ? mmss(restante) : <Timer size={16} />}
+          </button>
+          <button
+            onClick={() => setRegistro(true)}
+            aria-label="Registro de la partida"
+            className="rounded-full border border-white/20 bg-white/5 p-2 text-white"
+          >
+            <ScrollText size={16} />
           </button>
           <button
             onClick={() => setDado(d => ({ ...d, abierto: true }))}
@@ -598,7 +869,113 @@ export function ContadorPage() {
           onVida={d => vida('a', d)}
           onIniciativa={() => cambiar(x => ({ ...x, iniciativa: x.iniciativa === 'a' ? null : 'a' }))}
           onVictorias={n => cambiar(x => ({ ...x, a: { ...x.a, victorias: n } }))}
+          onDesplegarLider={() => cambiar(x => ({ ...x, a: { ...x.a, liderDesplegado: !x.a.liderDesplegado } }))}
         />
+
+        {/* (2) Alguien llegó a 0: se ofrece cerrar el juego. Antes la vida
+            llegaba a cero, se pintaba roja y no pasaba nada — el punto del
+            mejor-de-3 había que acordarse de marcarlo a mano, y ese es
+            justamente el dato que alimenta el cara-a-cara. */}
+        {ofrecerCierre && ganadorDelJuego && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/80 p-6">
+            <div className="w-full max-w-sm rounded-2xl border border-swu-amber/50 bg-swu-surface p-4 text-center">
+              <Trophy size={26} className="mx-auto mb-2 text-swu-amber" />
+              <p className="text-base font-bold text-swu-text">
+                {fraseGana(ganadorDelJuego)}
+              </p>
+              <p className="mt-1 text-[11px] text-swu-muted">
+                {fraseBase(caido!)} llegó a 0. Se anota el punto y las vidas vuelven a su valor inicial.
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => { setCierreOfrecido(caido); }}
+                  className="rounded-xl border border-swu-border bg-swu-bg py-2.5 text-sm text-swu-muted"
+                >
+                  Todavía no
+                </button>
+                <button
+                  onClick={() => { vibrar(20); cerrarJuego(ganadorDelJuego); setCierreOfrecido(null) }}
+                  className="rounded-xl bg-swu-amber py-2.5 text-sm font-bold text-black"
+                >
+                  Anotar y seguir
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* (4) Reloj de ronda. */}
+        {relojPanel && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 p-6"
+               onClick={() => setReloj(false)}>
+            <div className="w-full max-w-sm rounded-2xl border border-swu-border bg-swu-surface p-4"
+                 onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-bold text-swu-text">Reloj de ronda</p>
+                <button onClick={() => setReloj(false)} aria-label="Cerrar">
+                  <X size={16} className="text-swu-muted" />
+                </button>
+              </div>
+              {duelo.reloj && (
+                <p className="mb-3 text-center text-4xl font-black tabular-nums text-swu-text">{mmss(restante)}</p>
+              )}
+              <div className="grid grid-cols-3 gap-2">
+                {[50, 40, 30].map(m => (
+                  <button key={m}
+                    onClick={() => { reloj(m); setReloj(false) }}
+                    className="rounded-xl border border-swu-cyan/50 bg-swu-cyan/10 py-2.5 text-sm font-bold text-swu-cyan"
+                  >
+                    {m} min
+                  </button>
+                ))}
+              </div>
+              {duelo.reloj && (
+                <button
+                  onClick={() => { reloj(null); setReloj(false) }}
+                  className="mt-2 w-full rounded-xl border border-swu-border py-2 text-[12px] text-swu-muted"
+                >
+                  Quitar el reloj
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* (5) Registro: los mismos movimientos que usa deshacer, leíbles. */}
+        {registro && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 p-6"
+               onClick={() => setRegistro(false)}>
+            <div className="w-full max-w-sm rounded-2xl border border-swu-border bg-swu-surface p-4"
+                 onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-bold text-swu-text">Registro de la partida</p>
+                <button onClick={() => setRegistro(false)} aria-label="Cerrar">
+                  <X size={16} className="text-swu-muted" />
+                </button>
+              </div>
+              {duelo.juegos.length > 0 && (
+                <p className="mb-2 text-[11px] text-swu-amber">
+                  Juegos: {duelo.juegos.map(j => nombreDe(j.ganador)).join(' · ')}
+                </p>
+              )}
+              {duelo.hist.length === 0
+                ? <p className="text-[12px] text-swu-muted">Todavía no hay movimientos en este juego.</p>
+                : (
+                  <ol className="max-h-64 space-y-1 overflow-y-auto pr-1 text-[12px]">
+                    {[...duelo.hist].reverse().map((m, i) => (
+                      <li key={i} className="flex items-center justify-between gap-2 border-b border-swu-border/50 pb-1">
+                        <span className="font-mono text-swu-muted">R{m.ronda}</span>
+                        <span className="flex-1 truncate text-swu-text">{nombreDe(m.lado)}</span>
+                        <span className={`font-mono font-bold ${m.delta < 0 ? 'text-swu-red' : 'text-swu-green'}`}>
+                          {m.delta > 0 ? '+' : ''}{m.delta}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+            </div>
+          </div>
+        )}
 
         {/* Dados: el de las Utilidades viejas, en un panel. */}
         {dado.abierto && (
@@ -754,6 +1131,49 @@ export function ContadorPage() {
       >
         Comenzar duelo
       </button>
+
+      {/* (3) «Mis duelos»: hasta ahora el historial se guardaba y el único
+          sitio donde se veía era al elegir al MISMO rival otra vez. Acá está
+          entero, incluidos los duelos donde el teléfono lo llevó el otro. */}
+      <button
+        onClick={() => setVerHistorial(v => !v)}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-swu-border
+                   bg-swu-surface py-2.5 text-[12px] font-semibold text-swu-text"
+      >
+        <History size={14} className="text-swu-cyan" />
+        {verHistorial ? 'Ocultar mis duelos' : 'Mis duelos'}
+      </button>
+
+      {verHistorial && (
+        <div className="rounded-2xl border border-swu-border bg-swu-surface p-3">
+          {!supabaseUser
+            ? <p className="text-[12px] text-swu-muted">Iniciá sesión para guardar y ver tus duelos.</p>
+            : historial === null
+              ? <div className="h-16 animate-pulse rounded-lg bg-swu-bg" />
+              : historial.length === 0
+                ? <p className="text-[12px] text-swu-muted">
+                    Todavía no hay duelos terminados. Un duelo cuenta cuando lo cerrás desde los ajustes.
+                  </p>
+                : (
+                  <ul className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                    {historial.map(h => (
+                      <li key={h.id} className="flex items-center gap-2 rounded-lg border border-swu-border bg-swu-bg px-2.5 py-2">
+                        <span className={`font-mono text-sm font-bold ${
+                          h.mias > h.suyas ? 'text-swu-green' : h.suyas > h.mias ? 'text-swu-red' : 'text-swu-muted'
+                        }`}>
+                          {h.mias}–{h.suyas}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[12px] font-semibold text-swu-text">{h.conQuien}</p>
+                          <p className="truncate text-[10px] text-swu-muted">{h.bases}</p>
+                        </div>
+                        <span className="flex-shrink-0 text-[10px] text-swu-muted">{h.cuando}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+        </div>
+      )}
 
       <button onClick={() => navigate(-1)} className="w-full py-1 text-[12px] text-swu-muted">
         Volver
