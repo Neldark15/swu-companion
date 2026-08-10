@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { HolocronLoader } from './PageTransition'
 import { Shield, UserPlus, Sparkles, Swords, ScrollText, Trophy, Target } from 'lucide-react'
 
 const features = [
@@ -14,8 +15,17 @@ interface AuthGateProps {
 }
 
 export function AuthGate({ children }: AuthGateProps) {
-  const { currentProfile } = useAuth()
+  const { currentProfile, authListo } = useAuth()
   const navigate = useNavigate()
+
+  /* «Todavía no sé» NO es «no tenés cuenta».
+   *
+   * Este muro cubre 38 rutas y decidía solo con `currentProfile`, que arranca
+   * en null porque no se persiste. Resultado: en cada arranque en frío la app
+   * te ofrecía Iniciar Sesión aunque estuvieras logueado, hasta que respondía
+   * la nube. Mientras `initAuth` no termine se muestra el cargador; el muro
+   * queda para cuando de verdad no hay cuenta. */
+  if (!authListo) return <HolocronLoader />
 
   if (currentProfile) return <>{children}</>
 

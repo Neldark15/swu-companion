@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-
 import { AppLayout } from './components/layout/AppLayout'
 import { AuthGate } from './components/AuthGate'
 import { HolocronLoader } from './components/PageTransition'
+import { useRutaPersistente } from './hooks/useRutaPersistente'
 
 // Lazy-loaded pages — each becomes its own chunk
 const HomePage = lazy(() => import('./features/home/HomePage').then(m => ({ default: m.HomePage })))
@@ -99,9 +100,18 @@ function RedirigirMelee() {
   return <Navigate to={`/events/melee/${id ?? ''}`} replace />
 }
 
+/** Recuerda dónde estabas si el sistema mata la PWA en segundo plano.
+ *  Tiene que colgar DENTRO de BrowserRouter para poder usar los hooks del
+ *  router, y por eso vive en su propio componente y no en App. */
+function MemoriaDeRuta() {
+  useRutaPersistente()
+  return null
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <MemoriaDeRuta />
       {/* Sin esto, cualquier error de render deja la pantalla en blanco, sin
           mensaje ni salida — y en la PWA instalada no hay ni barra de
           direcciones para escapar. */}
@@ -205,6 +215,18 @@ export default function App() {
             <Route path="/blog/editar/:id" element={<P><BlogEditorPage /></P>} />
             <Route path="/blog/:slug" element={<BlogPostPage />} />
             <Route path="/news/manage" element={<P><ManageNewsPage /></P>} />
+            {/* Cualquier ruta que no exista cae en Inicio.
+
+                Sin esto NO se renderizaba nada: ni cabecera, ni barra de abajo,
+                ni siquiera el AppLayout —o sea que `initAuth()` tampoco corría—.
+                Pantalla negra y punto. Y como `vercel.json` reescribe todo lo
+                que no sea /api/ a index.html, un enlace viejo de WhatsApp o un
+                marcador a una ruta que cambió de nombre moría así; en la PWA
+                instalada no hay barra de direcciones para escapar.
+
+                Va al final a propósito: React Router ordena por especificidad,
+                pero dejarlo último también lo deja claro al leer. */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
       </Suspense>

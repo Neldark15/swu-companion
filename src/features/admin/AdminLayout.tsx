@@ -36,18 +36,40 @@ const NAV_ITEMS: NavItemDef[] = [
 
 export function AdminLayout() {
   const navigate = useNavigate()
-  const { isAdmin, currentProfile, initAuth } = useAuth()
+  const { isAdmin, currentProfile, initAuth, authListo, rolListo } = useAuth()
 
   useEffect(() => {
     initAuth()
   }, [])
 
-  // Bounce non-admins back to home
+  /* Expulsa a los que no son admin — pero solo cuando YA SE SABE que no lo son.
+   *
+   * Antes la condición era `currentProfile && !isAdmin`, y eso alcanzaba
+   * mientras perfil y rol se publicaban juntos. Ya no: el perfil sale primero y
+   * el rol llega después de consultar la nube, así que existe una ventana donde
+   * hay perfil y `isAdmin` todavía vale lo que quedó guardado. A un admin recién
+   * promovido —o a cualquiera cuyo aparato tenga `isAdmin:false` en
+   * localStorage— lo echaba de su propio panel antes de preguntar, y con
+   * `replace` ni el botón Atrás lo devolvía.
+   *
+   * `rolListo` es «ya terminé de averiguar», con respuesta o sin ella: si la
+   * consulta falló se conserva el rol persistido y tampoco se expulsa, que es
+   * lo correcto para el organizador con mala señal en el local. */
   useEffect(() => {
-    if (currentProfile && !isAdmin) {
+    if (rolListo && currentProfile && !isAdmin) {
       navigate('/', { replace: true })
     }
-  }, [currentProfile, isAdmin, navigate])
+  }, [rolListo, currentProfile, isAdmin, navigate])
+
+  /* Mientras la sesión se está resolviendo no se afirma que no hay sesión: si
+   * no, un admin con la app recién abierta ve «Inicie sesión» y se va. */
+  if (!authListo) {
+    return (
+      <div className="min-h-screen bg-swu-bg flex items-center justify-center p-6">
+        <div className="animate-pulse text-sm text-swu-muted">Cargando…</div>
+      </div>
+    )
+  }
 
   if (!currentProfile) {
     return (

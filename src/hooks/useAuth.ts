@@ -15,6 +15,29 @@ interface AuthState {
   role: 'user' | 'admin'
   isAdmin: boolean
   isRecoveryMode: boolean
+  /**
+   * ¿Terminó ya el primer `initAuth`?
+   *
+   * Sin esto, AuthGate no puede distinguir «no hay sesión» de «todavía no sé»,
+   * y como decide con `currentProfile` —el único campo de sesión que
+   * `partialize` NO guarda— en CADA arranque en frío las 38 rutas privadas
+   * pintaban «Acceso Restringido» con botón de Iniciar Sesión hasta que
+   * respondía la nube. Con datos móviles eso son segundos, y se ve idéntico a
+   * haberse deslogueado. Nunca se persiste: al arrancar siempre es `false`.
+   */
+  authListo: boolean
+  /**
+   * ¿Terminó ya de averiguarse el rol? Distinto de saberlo: es `true` también
+   * cuando la consulta falló.
+   *
+   * Existe porque el rol dejó de publicarse en el mismo `set` que el perfil
+   * (antes bloqueaba la app entera esperando una consulta a la nube). Eso abrió
+   * una ventana donde hay perfil pero `isAdmin` todavía es el valor persistido,
+   * y AdminLayout expulsa justo con esa combinación —con `replace`, así que ni
+   * el botón Atrás devuelve—. Un admin recién promovido, o cualquiera cuyo
+   * aparato tenga `isAdmin:false` guardado, quedaba fuera de su propio panel.
+   */
+  rolListo: boolean
 
   // Local profile (Dexie cache)
   currentProfileId: string | null
@@ -54,6 +77,24 @@ interface AuthState {
   deleteProfile: (profileId: string) => Promise<void>
 }
 
+/**
+ * El `onAuthStateChange` se engancha UNA sola vez por carga de la app.
+ *
+ * `initAuth()` se llama desde tres sitios (AppLayout, ProfilePage y
+ * AdminLayout) y el retorno de `onAuthStateChange` nunca se asignaba, así que
+ * cada visita a /perfil apilaba una suscripción más. La bandera vive a nivel de
+ * módulo y no en un ref de componente para que también cubra el doble montaje
+ * del modo estricto de React 19.
+ */
+let escuchaEnganchada = false
+
+/**
+ * Último usuario para el que ya se hizo el trabajo pesado (Dexie + rol + pull).
+ * Evita repetirlo cuando llegan eventos que hablan de la MISMA sesión.
+ * Se limpia al cerrar sesión para que volver a entrar sí rehaga todo.
+ */
+let usuarioAplicado: string | null = null
+
 export const useAuth = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -62,21 +103,39 @@ export const useAuth = create<AuthState>()(
       role: 'user',
       isAdmin: false,
       isRecoveryMode: false,
+      authListo: false,
+      rolListo: false,
       currentProfileId: null,
       currentProfile: null,
       profiles: [],
 
       // ─── INIT: Listen for Supabase auth changes ───
       initAuth: async () => {
-        if (!isSupabaseReady()) return
+        /**
+         * Deja el perfil local publicado y arranca el rol aparte.
+         *
+         * El rol sale de una consulta a `profiles` en la nube, y antes iba en
+         * el MISMO `set` que el perfil: mientras esa consulta viajaba, la app
+         * seguía mostrando el muro de «Acceso Restringido». Ahora el perfil se
+         * publica apenas se tiene y el rol llega cuando llega.
+         */
+        const aplicarSesion = async (user: User) => {
+          /**
+           * Idempotente por usuario, y no por gusto.
+           *
+           * `onAuthStateChange` le emite INITIAL_SESSION a TODO suscriptor nuevo
+           * (auth-js `_emitInitialSession`), con la misma sesión que
+           * `getSession()` acaba de aplicar acá abajo. Sin este corte, cada
+           * arranque en frío hacía DOS veces la consulta de rol y DOS veces
+           * `pullAllFromCloud` —que se baja la colección entera paginada, más de
+           * 2.000 filas—: el doble de datos móviles en cada apertura.
+           */
+          if (usuarioAplicado === user.id) {
+            set({ supabaseUser: user })
+            return
+          }
+          usuarioAplicado = user.id
 
-        // Check existing session
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user) {
-          const user = session.user
-          set({ supabaseUser: user })
-
-          // Ensure local profile exists for this user
           let profile = await db.profiles.get(user.id)
           if (!profile) {
             profile = {
@@ -88,34 +147,141 @@ export const useAuth = create<AuthState>()(
             }
             await db.profiles.put(profile)
           }
-
           const profiles = await db.profiles.toArray()
+          set({ supabaseUser: user, profiles, currentProfile: profile, currentProfileId: profile.id })
 
-          // Check role from Supabase
-          const role = await getUserRole(user.id) as 'user' | 'admin'
+          void (async () => {
+            const role = await getUserRole(user.id)
+            // `null` = no se pudo averiguar (red mala, RLS, timeout). En ese
+            // caso NO se toca el rol: se conserva el persistido, que es el
+            // último dato bueno. Pisarlo con una suposición es lo que echaba
+            // del panel al organizador en medio del torneo.
+            //
+            // `rolListo` se marca IGUAL, con rol o sin él: significa «ya
+            // terminé de averiguar», no «sé la respuesta». Quien decide
+            // expulsar (AdminLayout) necesita distinguir eso de «todavía no
+            // pregunté», o echa al admin en la ventana intermedia.
+            if (role !== null) set({ role: role as 'user' | 'admin', isAdmin: role === 'admin' })
+            set({ rolListo: true })
+          })()
 
-          set({
-            profiles,
-            currentProfile: profile,
-            currentProfileId: profile.id,
-            role,
-            isAdmin: role === 'admin',
-          })
-
-          // Sync from cloud
           pullAllFromCloud(user.id, profile.id).catch(() => {})
         }
 
-        // Listen for future auth changes
-        supabase.auth.onAuthStateChange(async (event, session) => {
-          if (event === 'PASSWORD_RECOVERY' && session?.user) {
-            set({ supabaseUser: session.user, isRecoveryMode: true })
-          } else if (event === 'SIGNED_IN' && session?.user) {
-            set({ supabaseUser: session.user })
-          } else if (event === 'SIGNED_OUT') {
-            set({ supabaseUser: null, currentProfile: null, currentProfileId: null, isRecoveryMode: false })
+        try {
+          /**
+           * Hidratación local ANTES de tocar la red.
+           *
+           * `currentProfileId` sí se persiste; el perfil entero no. Cruzarlos
+           * contra Dexie no cuesta red y quita el muro de encima en el primer
+           * pintado. Es optimista a propósito: si más abajo el servidor
+           * confirma que NO hay sesión, se deshace.
+           *
+           * Va antes del guard de `isSupabaseReady()` — si no, con las env
+           * vars vacías no correría nunca.
+           */
+          const idGuardado = get().currentProfileId
+          if (idGuardado) {
+            const guardado = await db.profiles.get(idGuardado)
+            if (guardado) set({ currentProfile: guardado, profiles: await db.profiles.toArray() })
           }
-        })
+
+          if (!isSupabaseReady()) return
+
+          /**
+           * La escucha se engancha ANTES de sondear la sesión, y a propósito.
+           *
+           * Estaba después del `try/finally`, y ahí tenía un agujero: si
+           * `getSession()` lanzaba —sin señal, por ejemplo—, el `finally`
+           * marcaba `authListo` pero la excepción PROPAGA y el registro de
+           * abajo nunca corría. La app quedaba sin nadie escuchando
+           * `TOKEN_REFRESHED` por el resto de su vida, que es exactamente el
+           * evento con el que se recupera la sesión al volver la red. O sea
+           * que el caso que más necesita el arreglo era el que lo perdía.
+           *
+           * Enganchada primero, el sondeo puede fallar tranquilo: la sesión se
+           * recupera sola cuando vuelva la señal.
+           */
+          if (!escuchaEnganchada) {
+            escuchaEnganchada = true
+            supabase.auth.onAuthStateChange(async (event, session) => {
+              if (event === 'PASSWORD_RECOVERY' && session?.user) {
+                set({ supabaseUser: session.user, isRecoveryMode: true })
+              } else if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
+                await aplicarSesion(session.user)
+              } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+                /**
+                 * El que faltaba, y el que explica el caso feo: sin señal y con
+                 * el token vencido, `getSession()` devuelve null y la app se
+                 * queda con el muro puesto. Cuando vuelve la señal la sesión SÍ
+                 * se recupera sola, pero lo anuncia con TOKEN_REFRESHED —no con
+                 * SIGNED_IN—, y la cadena de antes solo miraba tres eventos. El
+                 * store nunca se enteraba y el muro no se iba hasta reiniciar.
+                 *
+                 * `aplicarSesion` corta solo si ya se aplicó este usuario, así
+                 * que la renovación de cada hora (y la que dispara volver al
+                 * frente con el token vencido) NO rebaja la colección otra vez:
+                 * solo refresca el usuario. El trabajo pesado queda para
+                 * cuando de verdad cambia quién está logueado.
+                 */
+                await aplicarSesion(session.user)
+              } else if (event === 'SIGNED_OUT') {
+                usuarioAplicado = null
+                set({
+                  supabaseUser: null, currentProfile: null, currentProfileId: null,
+                  isRecoveryMode: false, rolListo: false,
+                })
+              }
+            })
+          }
+
+          /**
+           * Con tope de tiempo, porque el `finally` cubre las EXCEPCIONES pero
+           * no los cuelgues.
+           *
+           * `getSession()` espera por dentro a `_recoverAndRefresh()` → un
+           * `fetch` sin timeout. En un portal cautivo o con la conexión a medio
+           * abrir —el wifi de la tienda donde se juega— esa promesa no resuelve
+           * ni rechaza: el `finally` nunca corre, `authListo` se queda en false
+           * y las 38 rutas privadas muestran el cargador para siempre. El muro
+           * viejo era feo pero al menos tenía botón; el cargador no ofrece nada.
+           *
+           * El timeout se trata como `error`, o sea que NO deshace la
+           * hidratación: se sigue con el último dato bueno y la sesión termina
+           * de resolverse por TOKEN_REFRESHED cuando la red se decida.
+           */
+          const { data: { session }, error } = await Promise.race([
+            supabase.auth.getSession(),
+            new Promise<Awaited<ReturnType<typeof supabase.auth.getSession>>>(resolver =>
+              setTimeout(() => resolver({
+                data: { session: null },
+                error: new Error('getSession no respondió a tiempo'),
+              } as Awaited<ReturnType<typeof supabase.auth.getSession>>), 6000)
+            ),
+          ])
+          if (session?.user) {
+            await aplicarSesion(session.user)
+          } else if (!error) {
+            /**
+             * El servidor respondió y NO hay sesión: se deshace la hidratación
+             * optimista de arriba. Este `else if` es lo que hace que hidratar
+             * sea seguro.
+             *
+             * Con `error` (sin señal, token vencido) NO se toca nada: ahí
+             * `getSession()` devuelve null sin borrar la sesión del disco, y
+             * lo hidratado es el último dato bueno que tenemos. La sesión se
+             * recupera sola al volver la señal, vía TOKEN_REFRESHED.
+             */
+            set({ currentProfile: null, currentProfileId: null, supabaseUser: null })
+          }
+        } finally {
+          /**
+           * En `finally` y no al final del `try`: si `getSession()` revienta,
+           * saltarse esto dejaría a AuthGate en un spinner eterno, que es peor
+           * que el muro que vinimos a quitar.
+           */
+          set({ authListo: true })
+        }
       },
 
       loadProfiles: async () => {
@@ -180,7 +346,10 @@ export const useAuth = create<AuthState>()(
         const profiles = await db.profiles.toArray()
 
         // Check role
-        const role = await getUserRole(user.id) as 'user' | 'admin'
+        // Acá venís de autenticarte recién, o sea que la red anda; si aun así
+        // no se pudo leer el rol, `'user'` es el default seguro y el próximo
+        // `initAuth` lo corrige.
+        const role = (await getUserRole(user.id) ?? 'user') as 'user' | 'admin'
 
         set({
           supabaseUser: user,
@@ -252,7 +421,10 @@ export const useAuth = create<AuthState>()(
         const profiles = await db.profiles.toArray()
 
         // Check role from Supabase
-        const role = await getUserRole(user.id) as 'user' | 'admin'
+        // Acá venís de autenticarte recién, o sea que la red anda; si aun así
+        // no se pudo leer el rol, `'user'` es el default seguro y el próximo
+        // `initAuth` lo corrige.
+        const role = (await getUserRole(user.id) ?? 'user') as 'user' | 'admin'
 
         set({
           supabaseUser: user,
@@ -380,9 +552,20 @@ export const useAuth = create<AuthState>()(
 
       logout: async () => {
         if (isSupabaseReady()) {
-          await supabase.auth.signOut().catch(() => {})
+          /**
+           * `scope: 'local'` — sin él, `signOut()` usa `'global'` por defecto
+           * (auth-js 2.99.2) y REVOCA el refresh token de todos los aparatos.
+           * O sea: cerrar sesión en la compu dejaba al teléfono deslogueado sin
+           * que nadie lo tocara, y ése era el único camino que producía un
+           * deslogueo de verdad. Se pierde «cerrar sesión en todas partes»,
+           * que la UI nunca ofreció.
+           */
+          await supabase.auth.signOut({ scope: 'local' }).catch(() => {})
         }
-        set({ currentProfile: null, currentProfileId: null, supabaseUser: null, role: 'user', isAdmin: false, isRecoveryMode: false })
+        // Sin esto, volver a entrar con la misma cuenta sin recargar se saltaría
+        // el trabajo pesado (Dexie + rol + pull) por creerlo ya hecho.
+        usuarioAplicado = null
+        set({ currentProfile: null, currentProfileId: null, supabaseUser: null, role: 'user', isAdmin: false, isRecoveryMode: false, rolListo: false })
       },
 
       setCurrentProfile: (profile) => {

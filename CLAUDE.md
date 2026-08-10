@@ -209,10 +209,16 @@ Si el progreso usara `isCanonical`, TWI daría 258 y un playset completo se qued
 ### 2e. `total_cards` de `/sets` está MAL — no usarlo como denominador
 Verificado contra el export: SOR/SHD/TWI vienen +10 de más, LAW -6, y TWIP/SHDP/SORP llegan en `null`. Por eso el denominador del progreso se cuenta local.
 
-### 2g. La PWA se quedaba con la versión vieja — no volver a romperlo
-`vite.config.ts` declara `registerType: 'autoUpdate'`, pero con **injectManifest** eso no alcanza: el service worker tiene que llamar a `skipWaiting()` y `clientsClaim()` **en el arranque** (no dentro de un listener de mensajes). Sin eso, el SW seguía sirviendo el `index.html` precacheado viejo y **cada deploy quedaba invisible** para quien ya tuviera la PWA instalada. Medido: el navegador cargaba `index-BSkwW_Gc.css` con el servidor sirviendo `index-1H8UJgmK.css`.
+### 2g. Actualización de la PWA: `skipWaiting()` va en el mensaje, NO en el arranque
+El síntoma original fue que **cada deploy quedaba invisible** para quien tuviera la PWA instalada: el SW seguía sirviendo el `index.html` precacheado viejo. Medido: el navegador cargaba `index-BSkwW_Gc.css` con el servidor sirviendo `index-1H8UJgmK.css`.
 
-Está arreglado en [src/sw.ts](src/sw.ts). Al desplegar, la primera carga puede mostrar el build anterior y la **segunda** ya trae el nuevo: es normal, el SW se activa y reclama la pestaña en esa primera visita.
+**Esta sección decía lo contrario de lo que hace el código y hay que leerla con cuidado.** Hoy:
+
+- `vite.config.ts` usa `registerType: 'prompt'` (no `'autoUpdate'`) con `injectRegister: null`; el registro es manual desde [UpdatePrompt.tsx](src/components/UpdatePrompt.tsx).
+- [src/sw.ts](src/sw.ts) llama `clientsClaim()` en el arranque — eso **sí** hace falta.
+- **`skipWaiting()` NO va en el arranque**, va dentro del listener de mensajes, **a propósito**: si se activara sola, nunca existiría una versión «en espera» y el aviso de actualizar no tendría de qué avisar. Peor: la recarga podía caer en medio de un torneo.
+
+Si movés `skipWaiting()` al arranque «para arreglar la caché», rompés el aviso y volvés a las recargas sorpresa. El comentario en [sw.ts](src/sw.ts) lo explica en el sitio.
 
 ### 2h. `isCanonical` ≠ `isCollectible` ≠ oferta de intercambio
 Tres preguntas parecidas con respuestas distintas:
@@ -445,6 +451,32 @@ Perfil nuevo en cada corrida, o los arreglos parecen inútiles y se descartan.
 
 ### 2f. supabase-js NO lanza excepción ante error de PostgREST
 `const { data } = await supabase...` sin mirar `error` deja `data` en `null`, el `try/catch` nunca se activa y el fallo se ve igual que "no hay datos". Así estuvo **100% muerta** la caché de precios en la nube (0 filas de por vida): la tabla tenía 6 columnas y el código leía 9. Siempre desestructurar `error`.
+
+### 2v. La sesión en la PWA: dónde estaba el «se desloguea» y qué NO tocar
+El síntoma que reportaban los jugadores («el logueo no es permanente») casi nunca era una sesión perdida: era el **espejo local del perfil**. [AuthGate](src/components/AuthGate.tsx) cubre 38 rutas y decide con `currentProfile`, que es el único campo de sesión que `partialize` NO persiste ([useAuth.ts](src/hooks/useAuth.ts)). En cada arranque en frío valía `null` y la app pintaba «Acceso Restringido» **con botón de Iniciar Sesión** hasta que respondía la nube.
+
+Lo que hay ahora y por qué, para no deshacerlo sin querer:
+
+- **`authListo`** distingue «todavía no sé» de «no hay cuenta». Se pone en un `try/finally`: si algún camino se lo saltara, el muro se cambia por un **spinner eterno**, que es peor. Nunca se persiste.
+- **La hidratación desde Dexie va ANTES de la red** y es optimista. Es segura solo por su contrapeso: si `getSession()` responde **sin error** y sin sesión, se deshace. Si sacás ese `else if (!error)`, quedás con usuarios «logueados» de mentira cuya sesión ya venció.
+- **NO persistir `currentProfile` en `partialize`** como atajo: nada lo revalidaría. La hidratación tiene que vivir dentro de `initAuth`, donde el mismo flujo puede corregirse.
+- **`onAuthStateChange` se engancha ANTES de sondear la sesión**, con bandera de módulo (no un ref, para cubrir el doble montaje del modo estricto). Si se engancha después, una excepción en `getSession()` deja la app sin nadie escuchando `TOKEN_REFRESHED` — que es el evento con el que la sesión se recupera sola al volver la señal, o sea justo el caso que se quería arreglar.
+- **`signOut({ scope: 'local' })`**: el default de auth-js es `'global'` y revoca el refresh token de TODOS los aparatos. Cerrar sesión en la compu dejaba el teléfono deslogueado.
+- **`getUserRole` devuelve `string | null`**: `null` es «no se pudo averiguar», y en ese caso NO se pisa el rol persistido. Volver a devolver `'user'` ante un error vuelve a expulsar del panel al organizador con mala señal (ver 2u).
+
+### 2w. La ruta se restaura sola, y las cinco guardas son todas necesarias
+Cuando el sistema operativo mata el proceso de la PWA en segundo plano, muere la tarea entera y el siguiente toque al ícono es una navegación nueva a `start_url` (`/`). Eso pasa **antes** de que corra una línea de código nuestro: no se puede evitar, y `start_url` es estático por especificación. Lo único arreglable es restaurar, y de eso se encarga [useRutaPersistente](src/hooks/useRutaPersistente.ts).
+
+Guarda la ruta en **cada navegación** (no en `visibilitychange`: al morir el proceso puede no llegar ningún evento) y en **`localStorage`**, nunca `sessionStorage` — un proceso matado abre un contexto nuevo y `sessionStorage` llegaría vacío justo en el único caso que se quiere cubrir.
+
+Las cinco guardas de la restauración no son decorativas:
+1. **solo desde `/`** — si no, se rompen los deep links que la app declara intencionales (`/rulings?regla=…` que se comparte por WhatsApp, `/events/live/:code`, `/blog/:slug`);
+2. **sin query ni hash** — `detectSessionInUrl` está activo y el hash del correo de recuperación viaja ahí; también protege los `?code=` de un solo uso;
+3. **solo PWA instalada** — en el navegador normal secuestraría una pestaña recién abierta;
+4. **vigencia de 30 min** — si volvés al otro día querés Inicio;
+5. **ruta interna** — se rechaza `//loquesea`, o un valor manipulado en localStorage sería un redirector abierto.
+
+El service worker abre los avisos sin destino en **`/?desde=push`** justamente para caer en la guarda 2. Si algún día quitás ese marcador, un push sin enlace va a reabrir la última pantalla en vez de Inicio.
 
 ### 3. Named exports en rutas lazy
 Algunas features exportan con nombre (`export const GalaxyPage`). Importar lazy requiere:

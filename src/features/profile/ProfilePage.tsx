@@ -158,7 +158,14 @@ export function ProfilePage() {
   const [customCountry, setCustomCountry] = useState(currentProfile?.country || '')
   const [customContinent, setCustomContinent] = useState(currentProfile?.continent || '')
 
-  useEffect(() => { loadProfiles(); auth.initAuth() }, [])
+  /* Acá había también un `auth.initAuth()`. AppLayout —que es ancestro de esta
+     página— ya lo llama al montar, así que este solo repetía `getSession` +
+     el rol + `pullAllFromCloud` en CADA visita, y Perfil es uno de los cinco
+     destinos de la barra de abajo: entrar y salir tres veces eran tres rondas
+     de consultas sobre datos móviles. `loadProfiles()` sí hace falta, y es
+     local. (El de AdminLayout NO es redundante: /admin cuelga fuera de
+     AppLayout.) */
+  useEffect(() => { loadProfiles() }, [])
   useEffect(() => { isPasskeyReady().then(setPasskeySupported) }, [])
 
   // Detect password recovery mode from Supabase link

@@ -187,9 +187,14 @@ function bytesAUuid(b: Uint8Array, off: number): string {
 /**
  * Carga el índice de arte que se despacha con la app.
  *
- * Son ~200 KB, menos de lo que pesa UNA imagen de carta del CDN, y el service
- * worker lo precachea: a diferencia del OCR, esto funciona sin conexión desde
- * el primer escaneo.
+ * Son ~200 KB, menos de lo que pesa UNA imagen de carta del CDN.
+ *
+ * Este comentario decía que el service worker lo PRECACHEA, y era falso: los
+ * `globPatterns` no incluyen `.bin`, así que el archivo nunca entró al
+ * precache y el reconocimiento por arte —el camino que no necesita red— se
+ * caía sin conexión. Ahora lo cubre una regla runtime (`swu-datos-locales` en
+ * sw.ts), o sea que sí funciona sin señal, pero recién DESPUÉS del primer
+ * escaneo con red, no desde el primero.
  */
 export function cargarIndice(): Promise<IndiceArte | null> {
   if (indice) return Promise.resolve(indice)

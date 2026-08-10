@@ -98,20 +98,44 @@ function generateEventCode(): string {
 
 // ─── Admin Check ─────────────────────────────────────────────
 
-export async function getUserRole(userId: string): Promise<string> {
+/**
+ * El rol del usuario, o `null` cuando NO SE PUDO AVERIGUAR.
+ *
+ * Antes esto devolvía `'user'` en los dos casos: cuando efectivamente no sos
+ * admin, y cuando la consulta falló por red mala, timeout o RLS. Como
+ * `initAuth` pisa con el resultado el `isAdmin` que ya venía persistido —el
+ * último dato bueno—, un admin con mala señal se degradaba a usuario normal y
+ * `AdminLayout` lo expulsaba con `navigate('/', { replace: true })`; con
+ * `replace` ni el botón Atrás lo devolvía.
+ *
+ * A quién le pasa: los organizadores. Y por el gotcha 2u organizador ⇒ admin,
+ * o sea que es justo la persona corriendo el torneo en el local con la señal
+ * peor la que perdía el panel del torneo en curso.
+ *
+ * Distinguir «no sé» permite conservar lo persistido. No es escalada de
+ * privilegios: el rol en el cliente es cosmético, el servidor valida por RLS y
+ * por `set_user_role()` / `cerrar_torneo()`.
+ */
+export async function getUserRole(userId: string): Promise<string | null> {
   if (!isSupabaseReady()) return 'user'
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('profiles')
     .select('role')
     .eq('id', userId)
     .single()
+
+  if (error) return null
 
   return data?.role || 'user'
 }
 
 export async function checkIsAdmin(userId: string): Promise<boolean> {
   const role = await getUserRole(userId)
+  // `null === 'admin'` daría false y reintroduciría el bug entero por la puerta
+  // de atrás, así que el «no sé» se trata acá con el mismo criterio que arriba:
+  // no afirmar que NO es admin cuando no se pudo comprobar.
+  if (role === null) return false
   return role === 'admin'
 }
 
