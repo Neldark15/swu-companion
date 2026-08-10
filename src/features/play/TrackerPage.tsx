@@ -87,7 +87,8 @@ export function TrackerPage() {
   const [basePickerFor, setBasePickerFor] = useState<number | null>(null)
   const [baseSearchQuery, setBaseSearchQuery] = useState('')
   const [baseResults, setBaseResults] = useState<Card[]>([])
-  const [baseSearching, setBaseSearching] = useState(false)
+  /** Última consulta cuyos resultados ya llegaron. De acá sale `baseSearching`. */
+  const [ultimaBusqueda, setUltimaBusqueda] = useState('')
   const [initiative, setInitiative] = useState(0)
   const [gameScore, setGameScore] = useState<[number, number]>([0, 0])
   const [currentGame, setCurrentGame] = useState(1)
@@ -95,7 +96,7 @@ export function TrackerPage() {
   const [matchOver, setMatchOver] = useState(false)
   const [saveFlash, setSaveFlash] = useState(false)
   const [editingName, setEditingName] = useState<number | null>(null)
-  const [loaded, setLoaded] = useState(false)
+  const [resumenCargado, setResumenCargado] = useState(false)
 
   const matchState = buildMatchState(matchId, mode, players, gameScore, currentGame, initiative, games, !matchOver)
   const { save, loadMatch, finishMatch } = useMatchPersistence(matchOver ? null : matchState)
@@ -107,7 +108,7 @@ export function TrackerPage() {
 
   // Load resumed match
   useEffect(() => {
-    if (resumeId && !loaded) {
+    if (resumeId && !resumenCargado) {
       loadMatch(resumeId).then((m) => {
         if (m) {
           setMatchId(m.id)
@@ -130,12 +131,20 @@ export function TrackerPage() {
           setMatchOver(!m.isActive)
           setShowPlayerCountPicker(false)
         }
-        setLoaded(true)
+        setResumenCargado(true)
       })
-    } else if (!showPlayerCountPicker) {
-      setLoaded(true)
     }
-  }, [resumeId, loadMatch, loaded, showPlayerCountPicker])
+  }, [resumeId, loadMatch, resumenCargado])
+
+  /* `loaded` pasó a ser DERIVADO en vez de estado.
+   *
+   * La rama sin `resumeId` hacía `setLoaded(true)` dentro del cuerpo del
+   * efecto, o sea un render en cascada solo para pasar de «cargando» a
+   * «listo» en un caso que se sabe de antemano. Sin partida que reanudar no
+   * hay nada que cargar: basta con que el selector de jugadores ya no esté.
+   * El estado queda solo para el camino asíncrono, que es el único que de
+   * verdad espera algo. */
+  const loaded = resumeId ? resumenCargado : !showPlayerCountPicker
 
   // Apply player count for Twin Suns
   const confirmPlayerCount = (count: number) => {
@@ -145,8 +154,8 @@ export function TrackerPage() {
       newPlayers.push(createPlayer(i, startHp))
     }
     setPlayers(newPlayers)
+    // Con `loaded` derivado, cerrar el selector YA lo pone en verdadero.
     setShowPlayerCountPicker(false)
-    setLoaded(true)
   }
 
   // Select deck for a player → auto-set base
@@ -176,35 +185,51 @@ export function TrackerPage() {
     return () => { if (autoSaveRef.current) clearInterval(autoSaveRef.current) }
   }, [matchId, mode, players, gameScore, currentGame, initiative, games, matchOver, save])
 
-  // Save on unmount
-  useEffect(() => {
-    return () => {
-      if (!matchOver) {
-        const ms = buildMatchState(matchId, mode, players, gameScore, currentGame, initiative, games, true)
-        save(ms)
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  /* El guardado al desmontar se borró: `useMatchPersistence` ya lo hace, y bien.
+   *
+   * El efecto que estaba acá tenía `deps: []`, así que su función de limpieza
+   * se quedaba con el `matchOver`, el `matchId` y los `players` del PRIMER
+   * render. Consecuencia: una partida que cerrabas con el botón de finalizar
+   * se volvía a guardar al salir con `matchOver` capturado en `false` —o sea,
+   * como ACTIVA y en blanco— y reaparecía en «guardadas». También machacaba la
+   * partida anterior con el id viejo después de darle a «nueva partida».
+   *
+   * `useMatchPersistence` lee de un ref que sí está fresco. */
 
-  // Base picker search
+  /* Buscador de bases.
+   *
+   * Vaciar los resultados con la caja vacía era un `setState` en el cuerpo del
+   * efecto. No hace falta guardarlo: con la caja vacía no hay nada que mostrar,
+   * y eso se decide al pintar (ver `resultadosVisibles`). El efecto queda solo
+   * para lo que sí es un efecto — pedirle cartas a la base de datos. */
   useEffect(() => {
     if (basePickerFor === null) return
-    if (!baseSearchQuery.trim()) { setBaseResults([]); return }
-    setBaseSearching(true)
+    if (!baseSearchQuery.trim()) return
     const timer = setTimeout(async () => {
       const { cards } = await searchCards({ query: baseSearchQuery, type: 'Base', limit: 20 })
       setBaseResults(cards)
-      setBaseSearching(false)
+      setUltimaBusqueda(baseSearchQuery)
     }, 300)
     return () => clearTimeout(timer)
   }, [baseSearchQuery, basePickerFor])
+
+  /** Con la caja vacía no se muestra nada, aunque queden resultados viejos guardados. */
+  const resultadosVisibles = baseSearchQuery.trim() ? baseResults : []
+
+  /* «Buscando» también es derivado: hay algo escrito y todavía no llegaron los
+   * resultados DE ESO. Antes era un estado que se prendía dentro del efecto. */
+  const baseSearching = !!baseSearchQuery.trim() && baseSearchQuery !== ultimaBusqueda
 
   const selectBase = (card: Card, playerIdx: number) => {
     setPlayers(prev => prev.map((p, i) => i === playerIdx ? { ...p, baseName: card.name, baseImageUrl: card.imageUrl, baseHp: card.hp || p.baseHp } : p))
     setBasePickerFor(null)
     setBaseSearchQuery('')
     setBaseResults([])
+    // `ultimaBusqueda` va junto con los resultados o quedan descoordinados:
+    // volver a escribir el MISMO texto para el otro jugador daría «ya llegó»
+    // con la lista vacía, y la pantalla afirmaría «No se encontraron bases»
+    // sobre una carta que sí existe.
+    setUltimaBusqueda('')
   }
 
   const updatePlayer = useCallback((idx: number, field: keyof PlayerData, value: number | boolean) => {
@@ -248,6 +273,15 @@ export function TrackerPage() {
     setEditingName(null)
   }
 
+  /* PENDIENTE: `PlayerPanel` se define DENTRO del componente, así que React lo
+   * ve como un tipo distinto en cada render y desmonta/remonta todo el panel.
+   * Sacarlo afuera son ~110 líneas y media docena de props (players, initiative,
+   * los manejadores), o sea un refactor de verdad sobre la pantalla que se usa
+   * en torneo — no algo para colar en un arreglo de sesión.
+   *
+   * Esto NO es deuda nueva: estaba desde antes, oculto porque el efecto muerto
+   * que había más arriba hacía que el compilador de React abandonara el
+   * análisis de este archivo y se tragara los diagnósticos. Al borrarlo salió. */
   const PlayerPanel = ({ idx, flipped }: { idx: number; flipped: boolean }) => {
     const p = players[idx]
     const isInit = initiative === idx
@@ -474,12 +508,14 @@ export function TrackerPage() {
 
       {is2Player ? (
         <>
+          {/* eslint-disable-next-line react-hooks/static-components -- ver la nota en la definición de PlayerPanel */}
           <PlayerPanel idx={0} flipped={true} />
           <div className="flex gap-2">
             <button onClick={() => recordWin(0)} className="flex-1 py-1.5 rounded-lg bg-swu-accent/20 border border-swu-accent/40 text-swu-accent-texto font-bold text-xs active:scale-95 transition-transform">J1 Gana</button>
             <button onClick={() => setInitiative(initiative === 0 ? 1 : 0)} className="flex-[2] py-1.5 rounded-xl bg-gradient-to-r from-swu-amber/20 to-swu-amber/10 border-2 border-swu-amber/40 text-swu-amber font-bold text-xs tracking-wide active:scale-95 transition-transform">INICIATIVA</button>
             <button onClick={() => recordWin(1)} className="flex-1 py-1.5 rounded-lg bg-swu-red/20 border border-swu-red/40 text-swu-red-texto font-bold text-xs active:scale-95 transition-transform">J2 Gana</button>
           </div>
+          {/* eslint-disable-next-line react-hooks/static-components -- ver la nota en la definición de PlayerPanel */}
           <PlayerPanel idx={1} flipped={false} />
         </>
       ) : (
@@ -504,7 +540,7 @@ export function TrackerPage() {
           <div className="bg-swu-bg p-4 space-y-3 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-swu-text">Seleccionar Base — {players[basePickerFor].name}</h3>
-              <button onClick={() => { setBasePickerFor(null); setBaseSearchQuery(''); setBaseResults([]) }} className="p-2 text-swu-muted"><X size={20} /></button>
+              <button onClick={() => { setBasePickerFor(null); setBaseSearchQuery(''); setBaseResults([]); setUltimaBusqueda('') }} className="p-2 text-swu-muted"><X size={20} /></button>
             </div>
             <div className="relative">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-swu-muted" />
@@ -518,7 +554,7 @@ export function TrackerPage() {
             </div>
             {baseSearching && <div className="text-center py-4"><div className="animate-pulse text-sm text-swu-muted">Buscando...</div></div>}
             <div className="space-y-1">
-              {baseResults.map((card) => (
+              {resultadosVisibles.map((card) => (
                 <button key={card.id} onClick={() => selectBase(card, basePickerFor)} className="w-full bg-swu-surface rounded-xl p-3 border border-swu-border flex items-center gap-3 text-left active:scale-[0.98] transition-transform">
                   {/* Las bases son SIEMPRE apaisadas (400x286): en una caja
                       vertical de 48x64 se recortaban al centro y quedaba un
@@ -539,7 +575,7 @@ export function TrackerPage() {
                 </button>
               ))}
             </div>
-            {!baseSearching && baseSearchQuery && baseResults.length === 0 && <p className="text-xs text-swu-muted text-center py-4">No se encontraron bases</p>}
+            {!baseSearching && baseSearchQuery && resultadosVisibles.length === 0 && <p className="text-xs text-swu-muted text-center py-4">No se encontraron bases</p>}
             {!baseSearchQuery && <p className="text-xs text-swu-muted text-center py-4">Escriba el nombre de la base para buscar</p>}
           </div>
         </div>
