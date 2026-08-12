@@ -8,6 +8,12 @@ import {
   type OfficialEvent,
 } from '../../services/events'
 import { logAdminAction } from '../../services/adminService'
+import {
+  getTorneosPendientes,
+  repartirPremios,
+  type TorneoPendiente,
+} from '../../services/tournamentCloud'
+import { fechaCortaYHora } from '../../services/horaSV'
 import { useAuth } from '../../hooks/useAuth'
 
 type Filter = 'all' | 'open' | 'active' | 'finished' | 'cancelled'
@@ -18,6 +24,9 @@ export function AdminEventsPage() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<Filter>('all')
   const [actingId, setActingId] = useState<string | null>(null)
+  /** Torneos vencidos que necesitan una mano: ver `TorneoPendiente.motivo`. */
+  const [pendientes, setPendientes] = useState<TorneoPendiente[]>([])
+  const [repartiendo, setRepartiendo] = useState<string | null>(null)
 
   // Cargar al montar.
   //
@@ -28,13 +37,39 @@ export function AdminEventsPage() {
   useEffect(() => {
     let vivo = true
     void (async () => {
-      const datos = await getOfficialEvents()
+      const [datos, pend] = await Promise.all([getOfficialEvents(), getTorneosPendientes()])
       if (!vivo) return
       setEvents(datos)
+      setPendientes(pend)
       setLoading(false)
     })()
     return () => { vivo = false }
   }, [])
+
+  const confirmarReparto = async (t: TorneoPendiente) => {
+    if (!currentProfile) return
+    if (!confirm(
+      `¿Repartir premios de "${t.name}"?\n\n` +
+      `${t.clasificados} jugadores reciben XP, puntos de ranking y posible subida de nivel.\n` +
+      `Esto NO se puede deshacer.`
+    )) return
+    setRepartiendo(t.id)
+    const r = await repartirPremios(t.id)
+    if (r.ok) {
+      logAdminAction('event.rewards', {
+        actorId: currentProfile.id,
+        actorName: currentProfile.name,
+        targetType: 'event',
+        targetId: t.id,
+        metadata: { name: t.name, premiados: r.premiados },
+      })
+      setPendientes(prev => prev.filter(x => x.id !== t.id))
+      alert(`Listo: ${r.premiados} jugadores premiados.`)
+    } else {
+      alert(`Error: ${r.error}`)
+    }
+    setRepartiendo(null)
+  }
 
   const filtered = useMemo(
     () => filter === 'all' ? events : events.filter(e => e.status === filter),
@@ -95,6 +130,73 @@ export function AdminEventsPage() {
           <Plus size={14} /> Nuevo evento
         </Link>
       </header>
+
+      {/* Torneos vencidos que quedaron a medias.
+       *
+       * Va ARRIBA de la lista y de los filtros a propósito: son las dos cosas
+       * que se pierden solas si nadie las mira. Un torneo sin clasificación
+       * cargada no se cierra nunca —el cron lo deja tranquilo justamente para
+       * que aparezca acá— y uno cerrado sin repartir deja a sus jugadores sin
+       * el XP que ganaron. */}
+      {pendientes.length > 0 && (
+        <section className="rounded-xl border border-swu-amber/40 bg-swu-amber/5 p-4 space-y-3">
+          <h2 className="text-sm font-bold text-swu-amber flex items-center gap-2">
+            <Trophy size={15} /> Torneos vencidos que necesitan algo ({pendientes.length})
+          </h2>
+          <ul className="space-y-2">
+            {pendientes.map(t => (
+              <li
+                key={t.id}
+                className="flex flex-wrap items-center gap-3 rounded-lg border border-swu-border bg-swu-bg px-3 py-2.5"
+              >
+                <div className="flex-1 min-w-[180px]">
+                  <p className="text-sm font-semibold text-swu-text">{t.name}</p>
+                  <p className="text-[11px] text-swu-muted">
+                    {fechaCortaYHora(t.date)} · {t.inscritos} inscritos
+                    {t.clasificados > 0 && ` · ${t.clasificados} clasificados`}
+                  </p>
+                </div>
+
+                {t.motivo === 'faltan_resultados' ? (
+                  <>
+                    <span className="text-[11px] text-swu-coral font-semibold">
+                      Sin resultados cargados
+                    </span>
+                    {/* No hay botón de «cerrar»: cerrarlo así lo dejaría en
+                        «Finalizado» sin nada que mostrar y los inscritos
+                        desaparecerían. Lo que hace falta es llevar el torneo
+                        desde el panel para que quede la clasificación. */}
+                    <Link
+                      to={`/events/dashboard/${t.code}`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-swu-border text-xs font-semibold text-swu-text"
+                    >
+                      <ExternalLink size={12} /> Cargar resultados
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[11px] text-swu-amber font-semibold">
+                      Cerrado, falta repartir
+                    </span>
+                    <button
+                      onClick={() => confirmarReparto(t)}
+                      disabled={repartiendo === t.id}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-swu-amber text-black text-xs font-bold disabled:opacity-50"
+                    >
+                      {repartiendo === t.id
+                        ? <><Loader2 size={12} className="animate-spin" /> Repartiendo…</>
+                        : <><Trophy size={12} /> Repartir premios</>}
+                    </button>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+          <p className="text-[11px] text-swu-muted">
+            El cierre por fecha corre solo cada madrugada; el reparto de XP lo confirmás vos.
+          </p>
+        </section>
+      )}
 
       <div className="flex bg-swu-surface rounded-lg p-0.5 border border-swu-border w-fit">
         {(['all', 'open', 'active', 'finished', 'cancelled'] as Filter[]).map(f => (

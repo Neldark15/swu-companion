@@ -1200,6 +1200,66 @@ export async function finishTournament(
   return { ok: true, premiados: r.premiados ?? 0, aviso: r.aviso }
 }
 
+// ─── Torneos que quedaron a medias ──────────────────────────
+
+/** Un torneo vencido que necesita que alguien haga algo. */
+export interface TorneoPendiente {
+  id: string
+  /** El panel del torneo se abre por CÓDIGO (/events/dashboard/:code), no por id. */
+  code: string
+  name: string
+  date: string
+  status: string
+  inscritos: number
+  clasificados: number
+  premios_en: string | null
+  /**
+   * `faltan_resultados` — venció y NADIE cargó la clasificación. El torneo se
+   *   jugó en la mesa y no quedó registro; hay que cargarlo o los inscritos no
+   *   van a ver nada nunca.
+   * `falta_repartir` — el cron ya lo cerró y hay clasificación, pero el XP y
+   *   los puntos de ranking esperan que un admin los confirme.
+   */
+  motivo: 'faltan_resultados' | 'falta_repartir'
+}
+
+/**
+ * Los dos tipos de pendiente, que piden acciones distintas.
+ *
+ * El cron (`/api/torneos-vencidos`) cierra los vencidos que TIENEN
+ * clasificación y deja sin tocar los que no la tienen: cerrar un torneo vacío
+ * lo entierra en «Finalizado» sin nada que mostrar. Esta consulta saca los dos
+ * grupos para que el panel pueda pedir lo que falta en cada caso.
+ */
+export async function getTorneosPendientes(): Promise<TorneoPendiente[]> {
+  if (!isSupabaseReady()) return []
+  const { data, error } = await supabase.rpc('torneos_pendientes')
+  if (error || !data) return []
+  return data as TorneoPendiente[]
+}
+
+/**
+ * Reparte XP, puntos de ranking y niveles de un torneo YA cerrado.
+ *
+ * Existe porque el cron cierra sin premiar: repartir premios es irreversible y
+ * no debería pasar sin que nadie mire la clasificación. `premios_en` es el
+ * cerrojo — la segunda llamada rebota con un motivo, no premia dos veces.
+ */
+export async function repartirPremios(
+  eventId: string
+): Promise<{ ok: boolean; error?: string; premiados?: number }> {
+  if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
+
+  const { data, error } = await supabase.rpc('repartir_premios', { p_evento: eventId })
+  if (error) return { ok: false, error: error.message }
+
+  const r = data as { ok: boolean; error?: string; premiados?: number } | null
+  if (!r) return { ok: false, error: 'El servidor no respondió.' }
+  if (!r.ok) return { ok: false, error: r.error ?? 'No se pudieron repartir los premios.' }
+
+  return { ok: true, premiados: r.premiados ?? 0 }
+}
+
 // ─── Realtime Subscriptions ─────────────────────────────────
 
 export function subscribeToEvent(

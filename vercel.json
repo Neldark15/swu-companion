@@ -9,6 +9,10 @@
     {
       "path": "/api/meta-ingesta",
       "schedule": "7 */6 * * *"
+    },
+    {
+      "path": "/api/torneos-vencidos",
+      "schedule": "23 11 * * *"
     }
   ],
   "functions": {
