@@ -56,6 +56,12 @@ import { RANKS, ACHIEVEMENTS } from './gamification'
 export interface PlanetaJugador {
   id: string
   nombre: string
+  /**
+   * El nombre que el dueño le puso a su mundo. Cadena vacía = sin bautizar,
+   * y quien lo pinte decide el genérico (no se inventa acá: la escena y el
+   * emergente lo muestran distinto).
+   */
+  nombrePlaneta: string
   avatar: string
   nivel: number
   xp: number
@@ -376,6 +382,7 @@ export async function getGalaxia(miId?: string): Promise<Galaxia> {
       return {
         id: j.userId,
         nombre: j.name,
+        nombrePlaneta: (j.planetName ?? '').trim(),
         avatar: j.avatar,
         nivel: j.level,
         xp: j.xp,

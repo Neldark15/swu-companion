@@ -90,6 +90,32 @@ export function PersonalizarPerfil() {
 
   return (
     <div className="space-y-4">
+      {/* ── Mi planeta ──
+          Va primero porque es lo nuevo y lo que más se ve: en /galaxia cada
+          jugador ES un planeta, y hasta ahora ninguno tenía nombre. */}
+      <section>
+        <h3 className="text-[10px] font-mono tracking-wider uppercase text-swu-muted/60 mb-2">
+          Mi planeta · lo ve toda la galaxia
+        </h3>
+        <input
+          value={p.planet_name ?? ''}
+          onChange={e => setP({ ...p, planet_name: e.target.value })}
+          maxLength={24}
+          placeholder="Ponele nombre a tu mundo"
+          aria-label="Nombre de mi planeta"
+          className="w-full rounded-lg border border-swu-border bg-swu-bg px-3 py-2 text-sm
+                     text-swu-text placeholder:text-swu-muted/60
+                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent"
+        />
+        {/* El contador y el aviso de unicidad se dicen ANTES de guardar: el
+            índice de la base rechaza los repetidos, y enterarse recién al
+            recibir el error es peor. `maxLength` corta en 24 igual que el CHECK. */}
+        <p className="mt-1 text-[10px] text-swu-muted">
+          {(p.planet_name ?? '').trim().length}/24 · tiene que ser distinto al de los demás.
+          Dejalo vacío y tu planeta queda sin nombre.
+        </p>
+      </section>
+
       {/* ── Aspectos ── */}
       <section>
         <h3 className="text-[10px] font-mono tracking-wider uppercase text-swu-muted/60 mb-2">

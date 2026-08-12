@@ -41,13 +41,23 @@ export interface Personalizacion {
   favorite_aspects: Aspecto[]
   banner_card_id: string | null
   accent: AcentoPerfil
+  /** Cómo se llama tu planeta en /galaxia. `null` = todavía sin bautizar. */
+  planet_name: string | null
 }
 
 export const VACIA: Personalizacion = {
   showcase_cards: [], favorite_aspects: [], banner_card_id: null, accent: 'cyan',
+  planet_name: null,
 }
 
-const COLUMNAS = 'showcase_cards, favorite_aspects, banner_card_id, accent'
+/**
+ * Columnas NOMBRADAS, nunca `*`.
+ *
+ * `profiles` no tiene grant de tabla: son listas explícitas por columna. Un
+ * `select('*')` pide todas y PostgREST responde «permission denied for table
+ * profiles», tumbando la pantalla entera. Ya pasó una vez.
+ */
+const COLUMNAS = 'showcase_cards, favorite_aspects, banner_card_id, accent, planet_name'
 
 /** Normaliza lo que venga de la base: columnas nuevas pueden llegar nulas. */
 function normalizar(row: Partial<Personalizacion> | null): Personalizacion {
@@ -57,6 +67,7 @@ function normalizar(row: Partial<Personalizacion> | null): Personalizacion {
     favorite_aspects: (row.favorite_aspects ?? []).slice(0, MAX_ASPECTOS) as Aspecto[],
     banner_card_id: row.banner_card_id ?? null,
     accent: (row.accent ?? 'cyan') as AcentoPerfil,
+    planet_name: row.planet_name ?? null,
   }
 }
 
@@ -81,11 +92,24 @@ export async function guardarPersonalizacion(
   if (p.favorite_aspects) datos.favorite_aspects = p.favorite_aspects.slice(0, MAX_ASPECTOS)
   if (p.banner_card_id !== undefined) datos.banner_card_id = p.banner_card_id
   if (p.accent) datos.accent = p.accent
+  // `!== undefined` y no truthy: `null` es un valor legítimo — es como se
+  // borra el nombre del planeta y se vuelve al genérico.
+  if (p.planet_name !== undefined) {
+    const limpio = p.planet_name?.trim() ?? ''
+    datos.planet_name = limpio === '' ? null : limpio
+  }
 
   const { error } = await supabase.from('profiles').update(datos).eq('id', userId)
   if (error) {
     // Los CHECK de la base son el límite real; acá solo se traduce.
-    if (error.code === '23514') return { ok: false, error: 'Máximo 6 cartas y 2 aspectos.' }
+    // Los CHECK y el índice único de la base son el límite real; acá se
+    // traducen a algo que se pueda leer.
+    if (error.code === '23505') {
+      return { ok: false, error: 'Ese nombre de planeta ya lo tiene otro jugador.' }
+    }
+    if (error.code === '23514') {
+      return { ok: false, error: 'Revisá: máximo 6 cartas, 2 aspectos y 24 letras para el planeta.' }
+    }
     return { ok: false, error: error.message }
   }
   return { ok: true }

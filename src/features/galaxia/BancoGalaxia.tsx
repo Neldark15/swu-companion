@@ -21,6 +21,9 @@ function sintetico(i: number): PlanetaJugador {
   return {
     id: `qa-${i}`,
     nombre: `Jugador QA ${i + 1}`,
+    // Uno de cada tres SIN bautizar, a propósito: el banco tiene que enseñar
+    // los dos estados, porque el emergente los dibuja distinto.
+    nombrePlaneta: i % 3 === 0 ? '' : `Mundo QA ${i + 1}`,
     avatar: '🛰️',
     nivel: niveles[i],
     xp: niveles[i] * 400,

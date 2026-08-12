@@ -11,6 +11,8 @@ export interface GalaxyPlayer {
   userId: string
   name: string
   avatar: string
+  /** Cómo bautizó su planeta. `null` = sin bautizar, se usa un nombre genérico. */
+  planetName: string | null
   country: string
   continent: string
   level: number
@@ -119,6 +121,7 @@ async function consultarGalaxyPlayers(limit: number): Promise<GalaxyPlayer[] | n
         name,
         avatar,
         settings,
+        planet_name,
         player_stats!inner(
           level, xp, wins, losses, matches_played,
           tournaments_finished, decks_created, best_streak,
@@ -146,6 +149,9 @@ async function consultarGalaxyPlayers(limit: number): Promise<GalaxyPlayer[] | n
         userId: r.id as string,
         name: sanitizeName(r.name as string),
         avatar: (r.avatar as string) || '🎯',
+        // Tolerante a propósito: si el despliegue del código se adelanta a la
+        // migración, esto llega `undefined` y no rompe la Galaxia entera.
+        planetName: (r.planet_name as string | null) ?? null,
         country: (settings?.country as string) || '',
         continent: (settings?.continent as string) || '',
         level: (stats.level as number) || 1,

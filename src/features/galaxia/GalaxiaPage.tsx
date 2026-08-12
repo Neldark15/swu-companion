@@ -93,7 +93,9 @@ function AvatarGalaxia({ avatar, size = 40 }: { avatar: string; size?: number })
 }
 
 /** El emergente: quién es, en qué rango va y qué hizo de último. */
-function Emergente({ planeta, onPerfil }: { planeta: PlanetaJugador; onPerfil: () => void }) {
+function Emergente({ planeta, onPerfil, onAbrir }: {
+  planeta: PlanetaJugador; onPerfil: () => void; onAbrir: () => void
+}) {
   const rango = rangoDeNivel(planeta.nivel)
   const mov = planeta.ultimoMovimiento
   const { Icono, color, rotulo } = pintaDe(mov?.tipo ?? 'mensaje')
@@ -112,6 +114,16 @@ function Emergente({ planeta, onPerfil }: { planeta: PlanetaJugador; onPerfil: (
                                text-[9px] font-bold text-swu-cyan">TÚ</span>
             )}
           </div>
+          {/* El nombre del mundo, debajo del de la persona.
+              Sin bautizar NO se dibuja nada: un «Sin nombre» repetido en los 19
+              planetas se lee como un campo roto, no como una invitación. El
+              único que recibe la invitación es el dueño, y aparece en su ficha
+              de perfil. */}
+          {planeta.nombrePlaneta && (
+            <div className="truncate text-[11px] font-semibold text-swu-cyan">
+              {planeta.nombrePlaneta}
+            </div>
+          )}
           <div className={`text-[11px] font-medium ${rango.color}`}>
             Nv.{planeta.nivel} · {rango.name}
           </div>
@@ -141,14 +153,27 @@ function Emergente({ planeta, onPerfil }: { planeta: PlanetaJugador; onPerfil: (
             <p className="mt-0.5 truncate text-[10px] italic text-swu-amber/80">«{planeta.titulo}»</p>
           )}
         </div>
-        <button
-          onClick={onPerfil}
-          className="flex-shrink-0 rounded-lg border border-swu-border bg-swu-bg px-2 py-1.5
-                     text-[10px] font-semibold text-swu-text active:scale-95 transition-transform
-                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent"
-        >
-          <span className="flex items-center gap-1">Perfil <ExternalLink size={10} /></span>
-        </button>
+        {/* Dos destinos: la ficha del jugador y SU MUNDO.
+            «Abrir» va primero y resaltado porque es lo nuevo y lo que se
+            entiende solo: el planeta que estás tocando se puede visitar. */}
+        <div className="flex flex-shrink-0 flex-col gap-1.5">
+          <button
+            onClick={onAbrir}
+            className="rounded-lg border border-swu-cyan/50 bg-swu-cyan/15 px-2 py-1.5
+                       text-[10px] font-bold text-swu-cyan active:scale-95 transition-transform
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-cyan"
+          >
+            <span className="flex items-center gap-1">Abrir <Orbit size={10} /></span>
+          </button>
+          <button
+            onClick={onPerfil}
+            className="rounded-lg border border-swu-border bg-swu-bg px-2 py-1.5
+                       text-[10px] font-semibold text-swu-text active:scale-95 transition-transform
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent"
+          >
+            <span className="flex items-center gap-1">Perfil <ExternalLink size={10} /></span>
+          </button>
+        </div>
       </div>
 
       <div className="mt-2 border-t border-swu-border pt-2">
@@ -490,7 +515,11 @@ export function GalaxiaPage() {
                 planeta del borde se sale de la pantalla. El vínculo con el
                 planeta lo hacen el aro ámbar y el rótulo de la escena. */}
             {elegido && (
-              <Emergente planeta={elegido} onPerfil={() => navigate(`/u/${elegido.id}`)} />
+              <Emergente
+                planeta={elegido}
+                onPerfil={() => navigate(`/u/${elegido.id}`)}
+                onAbrir={() => navigate(`/planeta/${elegido.id}`)}
+              />
             )}
 
             {/* ── Controles ──
