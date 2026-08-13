@@ -15,6 +15,7 @@
  * construya una lista nueva desde cero.
  */
 
+import type { FamiliaPlaneta } from '../features/planeta/semilla'
 import { supabase, isSupabaseReady } from './supabase'
 import { db } from './db'
 import type { Card } from '../types'
@@ -43,11 +44,18 @@ export interface Personalizacion {
   accent: AcentoPerfil
   /** Cómo se llama tu planeta en /galaxia. `null` = todavía sin bautizar. */
   planet_name: string | null
+  /* Los tres de abajo admiten `null` a propósito: `null` no es «vacío», es
+     «usá el que corresponda». La familia se hereda del acento del perfil y el
+     resto sale de la semilla del id, así que una cuenta que nunca abrió el
+     panel tiene su mundo igual. */
+  planet_family: FamiliaPlaneta | null
+  planet_seas: number | null
+  planet_craters: number | null
 }
 
 export const VACIA: Personalizacion = {
   showcase_cards: [], favorite_aspects: [], banner_card_id: null, accent: 'cyan',
-  planet_name: null,
+  planet_name: null, planet_family: null, planet_seas: null, planet_craters: null,
 }
 
 /**
@@ -57,7 +65,7 @@ export const VACIA: Personalizacion = {
  * `select('*')` pide todas y PostgREST responde «permission denied for table
  * profiles», tumbando la pantalla entera. Ya pasó una vez.
  */
-const COLUMNAS = 'showcase_cards, favorite_aspects, banner_card_id, accent, planet_name'
+const COLUMNAS = 'showcase_cards, favorite_aspects, banner_card_id, accent, planet_name, planet_family, planet_seas, planet_craters'
 
 /** Normaliza lo que venga de la base: columnas nuevas pueden llegar nulas. */
 function normalizar(row: Partial<Personalizacion> | null): Personalizacion {
@@ -68,6 +76,9 @@ function normalizar(row: Partial<Personalizacion> | null): Personalizacion {
     banner_card_id: row.banner_card_id ?? null,
     accent: (row.accent ?? 'cyan') as AcentoPerfil,
     planet_name: row.planet_name ?? null,
+    planet_family: row.planet_family ?? null,
+    planet_seas: row.planet_seas ?? null,
+    planet_craters: row.planet_craters ?? null,
   }
 }
 
@@ -97,6 +108,16 @@ export async function guardarPersonalizacion(
   if (p.planet_name !== undefined) {
     const limpio = p.planet_name?.trim() ?? ''
     datos.planet_name = limpio === '' ? null : limpio
+  }
+  // `!== undefined` en los tres: `null` es un valor que se guarda —significa
+  // «volvé al automático»— y con un chequeo por verdadero nunca podrías
+  // deshacer una elección.
+  if (p.planet_family !== undefined) datos.planet_family = p.planet_family
+  if (p.planet_seas !== undefined) {
+    datos.planet_seas = p.planet_seas == null ? null : Math.round(Math.min(100, Math.max(0, p.planet_seas)))
+  }
+  if (p.planet_craters !== undefined) {
+    datos.planet_craters = p.planet_craters == null ? null : Math.round(Math.min(100, Math.max(0, p.planet_craters)))
   }
 
   const { error } = await supabase.from('profiles').update(datos).eq('id', userId)

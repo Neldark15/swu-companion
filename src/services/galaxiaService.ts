@@ -62,6 +62,13 @@ export interface PlanetaJugador {
    * emergente lo muestran distinto).
    */
   nombrePlaneta: string
+  /** Lo que su dueño eligió para el mundo. Se lo pasa tal cual a `rasgosDe`. */
+  ajustesPlaneta: {
+    familia: string | null
+    mares: number | null
+    crateres: number | null
+    acento: string | null
+  }
   avatar: string
   nivel: number
   xp: number
@@ -383,6 +390,10 @@ export async function getGalaxia(miId?: string): Promise<Galaxia> {
         id: j.userId,
         nombre: j.name,
         nombrePlaneta: (j.planetName ?? '').trim(),
+        ajustesPlaneta: {
+          familia: j.planetFamily, mares: j.planetSeas,
+          crateres: j.planetCraters, acento: j.accent,
+        },
         avatar: j.avatar,
         nivel: j.level,
         xp: j.xp,

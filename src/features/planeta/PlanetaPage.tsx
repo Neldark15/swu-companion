@@ -34,9 +34,18 @@ export function PlanetaPage() {
   const [cargando, setCargando] = useState(true)
   const [sinWebGL, setSinWebGL] = useState(false)
 
-  // Los rasgos salen del id y NADA MÁS: no esperan a la red. Así el mundo
-  // empieza a dibujarse mientras el nombre y el nivel todavía viajan.
-  const rasgos = useMemo(() => rasgosDe(userId ?? ''), [userId])
+  /**
+   * Los rasgos salen del id, y se AFINAN cuando llegan los ajustes del dueño.
+   *
+   * El primer render no espera a la red: el mundo ya se dibuja con lo que da la
+   * semilla. Cuando llega el perfil —familia elegida, mares, cráteres, acento—
+   * se reconstruye una sola vez con lo suyo. Es un retrabajo de una malla, y a
+   * cambio nadie mira una pantalla vacía mientras viaja la consulta.
+   */
+  const rasgos = useMemo(
+    () => rasgosDe(userId ?? '', planeta?.ajustesPlaneta ?? undefined),
+    [userId, planeta?.ajustesPlaneta],
+  )
 
   useEffect(() => {
     if (!userId) return

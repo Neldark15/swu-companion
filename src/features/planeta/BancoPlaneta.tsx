@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { PlanetaEscena } from './PlanetaEscena'
-import { rasgosDe, nombrePorDefecto } from './semilla'
+import { rasgosDe, nombrePorDefecto, ORDEN_FAMILIAS, FAMILIAS } from './semilla'
 
 /**
  * Banco de pruebas del modo planeta. Solo en desarrollo (`/banco-planeta`).
@@ -32,11 +32,24 @@ const IDS = [
   'qa-mundo-cristal',
 ]
 
+/** Los acentos que existen en el perfil. Se prueban los cinco. */
+const ACENTOS = ['cyan', 'amber', 'green', 'red', 'purple']
+
 export function BancoPlaneta() {
   const [i, setI] = useState(0)
   const [fps, setFps] = useState(0)
+  // Mismos ajustes que el panel de personalización real, para poder MIRAR lo
+  // que hace cada uno: acento heredado, familia elegida a mano y los dos
+  // deslizadores.
+  const [acento, setAcento] = useState<string | null>(null)
+  const [familia, setFamilia] = useState<string | null>(null)
+  const [mares, setMares] = useState<number | null>(null)
+  const [crateres, setCrateres] = useState<number | null>(null)
   const id = IDS[i]
-  const rasgos = useMemo(() => rasgosDe(id), [id])
+  const rasgos = useMemo(
+    () => rasgosDe(id, { familia, mares, crateres, acento }),
+    [id, familia, mares, crateres, acento],
+  )
 
   return (
     <div className="fixed inset-0 flex flex-col bg-[#03040a]">
@@ -58,9 +71,45 @@ export function BancoPlaneta() {
             </button>
           ))}
         </div>
+        <div className="flex flex-wrap gap-1.5">
+          <button onClick={() => setAcento(null)}
+            className={`rounded px-2 py-1 text-[10px] font-bold border ${acento === null ? 'border-swu-cyan text-swu-cyan' : 'border-white/15 text-white/60'}`}>
+            sin acento
+          </button>
+          {ACENTOS.map(a => (
+            <button key={a} onClick={() => { setAcento(a); setFamilia(null) }}
+              className={`rounded px-2 py-1 text-[10px] font-bold border ${acento === a ? 'border-swu-cyan text-swu-cyan' : 'border-white/15 text-white/60'}`}>
+              {a}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <button onClick={() => setFamilia(null)}
+            className={`rounded px-2 py-1 text-[10px] font-bold border ${familia === null ? 'border-swu-amber text-swu-amber' : 'border-white/15 text-white/60'}`}>
+            auto
+          </button>
+          {ORDEN_FAMILIAS.map(f => (
+            <button key={f} onClick={() => setFamilia(f)}
+              className={`rounded px-2 py-1 text-[10px] font-bold border ${familia === f ? 'border-swu-amber text-swu-amber' : 'border-white/15 text-white/60'}`}>
+              {FAMILIAS[f].etiqueta}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/60 px-2 py-1">
+          <span className="w-14 font-mono text-[10px] text-white/70">mares</span>
+          <input type="range" min={0} max={100} value={mares ?? 50}
+            onChange={e => setMares(Number(e.target.value))} className="flex-1 accent-swu-cyan" />
+          <button onClick={() => setMares(null)} className="text-[10px] text-white/50 underline">auto</button>
+        </div>
+        <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/60 px-2 py-1">
+          <span className="w-14 font-mono text-[10px] text-white/70">cráteres</span>
+          <input type="range" min={0} max={100} value={crateres ?? 50}
+            onChange={e => setCrateres(Number(e.target.value))} className="flex-1 accent-swu-cyan" />
+          <button onClick={() => setCrateres(null)} className="text-[10px] text-white/50 underline">auto</button>
+        </div>
         <div className="inline-block rounded-lg border border-white/10 bg-black/60 px-2.5 py-1.5
                         font-mono text-[10px] leading-relaxed text-white/80 backdrop-blur">
-          <div>{nombrePorDefecto(id)} · <b className="text-swu-cyan">{fps} fps</b></div>
+          <div>{nombrePorDefecto(id)} · <b className="text-swu-cyan">{fps} fps</b> · fam <b className="text-swu-amber">{rasgos.familia}</b></div>
           <div>
             mares {rasgos.nivelMares.toFixed(3)} · giro {rasgos.giro.toFixed(2)} ·
             cráteres ×{rasgos.densidadCrateres.toFixed(2)}

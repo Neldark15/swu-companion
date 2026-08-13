@@ -12,7 +12,7 @@
  * buscador en vez de mostrar un cuadro vacío.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import { Check, AlertTriangle, Save, Star } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
@@ -26,6 +26,81 @@ import {
   type Personalizacion, type Aspecto,
 } from '../../services/profileCustomService'
 import type { Card } from '../../types'
+import { rasgosDe, FAMILIAS, ORDEN_FAMILIAS } from '../planeta/semilla'
+
+/**
+ * La escena va en su propio trozo, igual que en /galaxia y /mesa.
+ *
+ * Con un `import` normal, `three` (521 KB) entraría estáticamente en el trozo
+ * del perfil y se lo bajaría cualquiera que abra Personalizar, mire el planeta
+ * o no. Cargándola así, solo la paga quien llega a esta pantalla.
+ */
+const PlanetaEscena = lazy(() =>
+  import('../planeta/PlanetaEscena').then(m => ({ default: m.PlanetaEscena })),
+)
+
+/**
+ * Un deslizador con estado de «automático».
+ *
+ * `null` no es cero: es «dejá que lo decida la semilla de tu id». Sin esa
+ * distinción, abrir el panel y no tocar nada ya te fijaría un valor, y perderías
+ * para siempre el mundo que te tocó. Por eso el botón de volver al automático
+ * está SIEMPRE visible cuando hay un valor puesto.
+ */
+function Deslizador({ etiqueta, valor, onCambio }: {
+  etiqueta: string
+  valor: number | null
+  onCambio: (v: number | null) => void
+}) {
+  const auto = valor === null
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-[10px] font-semibold text-swu-muted">{etiqueta}</span>
+        {auto ? (
+          <span className="text-[10px] text-swu-cyan">automático</span>
+        ) : (
+          <button onClick={() => onCambio(null)} className="text-[10px] text-swu-muted underline">
+            volver al automático
+          </button>
+        )}
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        value={valor ?? 50}
+        onChange={e => onCambio(Number(e.target.value))}
+        aria-label={etiqueta}
+        className="w-full accent-swu-cyan"
+      />
+    </div>
+  )
+}
+
+/** El mundo tal como va a quedar, en chico y girando. */
+function VistaPreviaPlaneta({ userId, familia, mares, crateres, acento }: {
+  userId: string
+  familia: string | null
+  mares: number | null
+  crateres: number | null
+  acento: string | null
+}) {
+  /* Se reconstruye la malla en cada cambio, y eso es a propósito: mover el
+     deslizador tiene que MOSTRAR el mundo nuevo, no una aproximación. La escena
+     elige sola un detalle bajo si el aparato es flojo. */
+  const rasgos = useMemo(
+    () => rasgosDe(userId, { familia, mares, crateres, acento }),
+    [userId, familia, mares, crateres, acento],
+  )
+  return (
+    <div className="overflow-hidden rounded-xl border border-swu-border">
+      <Suspense fallback={<div className="h-44 animate-pulse bg-swu-bg" />}>
+        <PlanetaEscena rasgos={rasgos} className="h-44 w-full" />
+      </Suspense>
+    </div>
+  )
+}
 
 export function PersonalizarPerfil() {
   const { supabaseUser, currentProfile } = useAuth()
@@ -97,6 +172,75 @@ export function PersonalizarPerfil() {
         <h3 className="text-[10px] font-mono tracking-wider uppercase text-swu-muted/60 mb-2">
           Mi planeta · lo ve toda la galaxia
         </h3>
+
+        {/* La vista previa VIVE, y es lo que hace que esto se pueda ajustar:
+            con muestras de color planas nadie sabe cómo va a quedar su mundo.
+            Es la misma escena del modo planeta, en chico. */}
+        <VistaPreviaPlaneta
+          userId={uid ?? ''}
+          familia={p.planet_family}
+          mares={p.planet_seas}
+          crateres={p.planet_craters}
+          acento={p.accent}
+        />
+
+        <div className="mt-2.5 space-y-2.5">
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-[10px] font-semibold text-swu-muted">Tipo de mundo</span>
+              {/* «Automático» no es una familia más: es volver a heredar del
+                  acento del perfil, que es lo que pidió Nel. Se distingue del
+                  resto porque borra la elección en vez de fijar otra. */}
+              <button
+                onClick={() => setP({ ...p, planet_family: null })}
+                className={`text-[10px] font-semibold ${
+                  p.planet_family === null ? 'text-swu-cyan' : 'text-swu-muted underline'
+                }`}
+              >
+                {p.planet_family === null ? '· hereda tu color ·' : 'volver al automático'}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {ORDEN_FAMILIAS.map(f => {
+                const fam = FAMILIAS[f]
+                const activa = p.planet_family === f
+                return (
+                  <button
+                    key={f}
+                    onClick={() => setP({ ...p, planet_family: f })}
+                    aria-pressed={activa}
+                    className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-semibold
+                                transition-colors focus-visible:outline-none focus-visible:ring-2
+                                focus-visible:ring-swu-accent ${
+                      activa ? 'border-swu-cyan text-swu-cyan' : 'border-swu-border text-swu-muted'
+                    }`}
+                  >
+                    <span className="flex">
+                      <span className="h-2.5 w-2.5 rounded-l-sm" style={{ background: fam.altiplano }} />
+                      <span className="h-2.5 w-2.5 rounded-r-sm" style={{ background: fam.mares }} />
+                    </span>
+                    {fam.etiqueta}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <Deslizador
+            etiqueta="Mares"
+            valor={p.planet_seas}
+            onCambio={v => setP({ ...p, planet_seas: v })}
+          />
+          <Deslizador
+            etiqueta="Cráteres"
+            valor={p.planet_craters}
+            onCambio={v => setP({ ...p, planet_craters: v })}
+          />
+        </div>
+
+        <h4 className="mt-3 mb-1.5 text-[10px] font-mono tracking-wider uppercase text-swu-muted/60">
+          Nombre del mundo
+        </h4>
         <input
           value={p.planet_name ?? ''}
           onChange={e => setP({ ...p, planet_name: e.target.value })}

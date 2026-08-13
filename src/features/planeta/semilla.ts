@@ -51,6 +51,25 @@ export function generador(semilla: number): () => number {
   }
 }
 
+/** Lo que el dueño eligió A MANO. Todo opcional: `null` = usá el que corresponda. */
+export interface AjustesPlaneta {
+  /**
+   * Familia elegida. `null` = se hereda del acento del perfil.
+   *
+   * Se tipa como `string` y no como `FamiliaPlaneta` a propósito: este valor
+   * viene de la BASE, y aunque hay un CHECK del lado del servidor, el cliente
+   * no debe CREERLE al dato — se valida acá abajo contra `FAMILIAS`. Tiparlo
+   * estrecho sería fingir una garantía que el borde de la red no da.
+   */
+  familia?: string | null
+  /** 0-100. `null` = el que decidió la semilla. */
+  mares?: number | null
+  /** 0-100. `null` = la que decidió la semilla. */
+  crateres?: number | null
+  /** El acento del perfil, de donde sale la familia por defecto. */
+  acento?: string | null
+}
+
 /** Los rasgos de un mundo: todo lo que lo hace distinto de los demás. */
 export interface RasgosMundo {
   /** 0..1, la semilla normalizada. Alimenta el desplazamiento de dominio del ruido. */
@@ -69,6 +88,8 @@ export interface RasgosMundo {
   inclinacion: number
   /** Cuánto mar tiene: corre el umbral del ruido. Mundos claros y mundos oscuros. */
   nivelMares: number
+  /** Cuál quedó, después de resolver ajuste → acento → semilla. Para la UI. */
+  familia: FamiliaPlaneta
 }
 
 /**
@@ -79,34 +100,97 @@ export interface RasgosMundo {
  * mano y repartidas por la semilla dan variedad SIN salirse del tono. Cada una
  * lleva su propio color de atmósfera, que es lo que más se nota de lejos.
  */
-const FAMILIAS: { altiplano: string; mares: string; atmosfera: string }[] = [
-  { altiplano: '#c8ccd8', mares: '#565c6e', atmosfera: '#7fb2ff' }, // lunar, el original
-  { altiplano: '#d9c3a5', mares: '#7a5c3e', atmosfera: '#ffb066' }, // desierto
-  { altiplano: '#b8d6c4', mares: '#3d6b58', atmosfera: '#66ffc2' }, // jungla
-  { altiplano: '#cfd2e6', mares: '#4a4f7a', atmosfera: '#9d8cff' }, // helado
-  { altiplano: '#e0b9b0', mares: '#8a4438', atmosfera: '#ff7a6b' }, // volcánico
-  { altiplano: '#c6c2a8', mares: '#5f6340', atmosfera: '#d6ff7a' }, // yermo
-  { altiplano: '#aebfd6', mares: '#2f4c6b', atmosfera: '#57c9ff' }, // oceánico
-  { altiplano: '#d8c7dd', mares: '#5b3f6b', atmosfera: '#e08cff' }, // cristal
-]
+export type FamiliaPlaneta =
+  | 'lunar' | 'desierto' | 'jungla' | 'helado'
+  | 'volcanico' | 'yermo' | 'oceanico' | 'cristal'
 
-/** Los rasgos del mundo de un usuario. Mismo id, mismo mundo, siempre. */
-export function rasgosDe(userId: string): RasgosMundo {
+export const FAMILIAS: Record<FamiliaPlaneta, {
+  etiqueta: string; altiplano: string; mares: string; atmosfera: string
+}> = {
+  lunar:     { etiqueta: 'Lunar',     altiplano: '#c8ccd8', mares: '#565c6e', atmosfera: '#7fb2ff' },
+  desierto:  { etiqueta: 'Desierto',  altiplano: '#d9c3a5', mares: '#7a5c3e', atmosfera: '#ffb066' },
+  jungla:    { etiqueta: 'Jungla',    altiplano: '#b8d6c4', mares: '#3d6b58', atmosfera: '#66ffc2' },
+  helado:    { etiqueta: 'Helado',    altiplano: '#cfd2e6', mares: '#4a4f7a', atmosfera: '#9d8cff' },
+  volcanico: { etiqueta: 'Volcánico', altiplano: '#e0b9b0', mares: '#8a4438', atmosfera: '#ff7a6b' },
+  yermo:     { etiqueta: 'Yermo',     altiplano: '#c6c2a8', mares: '#5f6340', atmosfera: '#d6ff7a' },
+  oceanico:  { etiqueta: 'Oceánico',  altiplano: '#aebfd6', mares: '#2f4c6b', atmosfera: '#57c9ff' },
+  cristal:   { etiqueta: 'Cristal',   altiplano: '#d8c7dd', mares: '#5b3f6b', atmosfera: '#e08cff' },
+}
+
+export const ORDEN_FAMILIAS: FamiliaPlaneta[] =
+  ['lunar', 'desierto', 'jungla', 'helado', 'volcanico', 'yermo', 'oceanico', 'cristal']
+
+/**
+ * El acento del perfil decide el mundo, mientras nadie elija otra cosa.
+ *
+ * Es lo que pidió Nel: que el color que uno elige en el perfil se herede. Cada
+ * acento apunta a la familia que MÁS SE LE PARECE, así que tu mundo sale del
+ * color que ya elegiste y no hay que configurar nada para que se sienta tuyo.
+ *
+ * Las tres familias que no aparecen acá —lunar, helado, yermo— solo se
+ * consiguen eligiéndolas a mano. Que existan opciones que el acento no da es a
+ * propósito: premia entrar al panel.
+ */
+const FAMILIA_DE_ACENTO: Record<string, FamiliaPlaneta> = {
+  cyan: 'oceanico',
+  amber: 'desierto',
+  green: 'jungla',
+  red: 'volcanico',
+  purple: 'cristal',
+}
+
+/**
+ * Los rasgos del mundo de un usuario.
+ *
+ * Tres capas, en este orden: lo que el dueño eligió a mano gana sobre el acento
+ * de su perfil, y el acento gana sobre la semilla del id. Todo lo que no se
+ * eligió sigue saliendo del id, así que dos cuentas con el MISMO acento y sin
+ * tocar nada igual tienen mundos distintos — cambia la paleta, no el relieve.
+ */
+export function rasgosDe(userId: string, ajustes?: AjustesPlaneta): RasgosMundo {
   const h = hashCadena(userId || 'sin-id')
   const rnd = generador(h)
-  const fam = FAMILIAS[h % FAMILIAS.length]
+
+  const elegida = ajustes?.familia
+  const familia: FamiliaPlaneta =
+    (elegida && elegida in FAMILIAS ? (elegida as FamiliaPlaneta) : null)
+    ?? FAMILIA_DE_ACENTO[ajustes?.acento ?? '']
+    ?? ORDEN_FAMILIAS[h % ORDEN_FAMILIAS.length]
+  const fam = FAMILIAS[familia]
+
+  // Se consumen SIEMPRE, en el mismo orden, elija el dueño o no: si se saltaran
+  // cuando hay ajuste manual, cambiar la familia también movería la inclinación
+  // y el relieve, y el mundo dejaría de ser el mismo.
+  const giro = rnd() * Math.PI * 2
+  const cratSemilla = 0.7 + rnd() * 0.6
+  const inclinacion = (rnd() - 0.5) * 0.8
+  const maresSemilla = 0.44 + rnd() * 0.18
+
+  /* 0-100 del panel a los rangos que la geometría entiende.
+   *
+   * OJO CON EL SIGNO: `nivelMares` es el UMBRAL del ruido para que un punto
+   * cuente como mar, así que más alto significa MENOS mar. El deslizador dice
+   * «Mares», y subirlo tiene que dar más mar — así que la conversión va
+   * INVERTIDA. Probado a ojo: con el mapeo directo, subir «Mares» al máximo
+   * dejaba el mundo entero del color del altiplano, sin una sola mancha. */
+  const nivelMares = ajustes?.mares == null
+    ? maresSemilla
+    : 0.70 - (Math.min(100, Math.max(0, ajustes.mares)) / 100) * 0.36
+  const densidadCrateres = ajustes?.crateres == null
+    ? cratSemilla
+    : 0.35 + (Math.min(100, Math.max(0, ajustes.crateres)) / 100) * 1.15
+
   return {
     s01: (h >>> 8) / 16777216,
-    giro: rnd() * Math.PI * 2,
-    densidadCrateres: 0.7 + rnd() * 0.6,
+    giro,
+    densidadCrateres,
     altiplano: fam.altiplano,
     mares: fam.mares,
     atmosfera: fam.atmosfera,
     // ±23°, como la Tierra. Más que eso y el sol pega raro.
-    inclinacion: (rnd() - 0.5) * 0.8,
-    // El umbral del fbm para que algo sea «mar». Bajo = mundo oscuro y
-    // manchado; alto = mundo claro y liso.
-    nivelMares: 0.44 + rnd() * 0.18,
+    inclinacion,
+    nivelMares,
+    familia,
   }
 }
 

@@ -13,6 +13,12 @@ export interface GalaxyPlayer {
   avatar: string
   /** Cómo bautizó su planeta. `null` = sin bautizar, se usa un nombre genérico. */
   planetName: string | null
+  /** Lo que eligió a mano para su mundo. `null` = automático. */
+  planetFamily: string | null
+  planetSeas: number | null
+  planetCraters: number | null
+  /** El acento del perfil: de acá sale la familia por defecto. */
+  accent: string | null
   country: string
   continent: string
   level: number
@@ -122,6 +128,10 @@ async function consultarGalaxyPlayers(limit: number): Promise<GalaxyPlayer[] | n
         avatar,
         settings,
         planet_name,
+        planet_family,
+        planet_seas,
+        planet_craters,
+        accent,
         player_stats!inner(
           level, xp, wins, losses, matches_played,
           tournaments_finished, decks_created, best_streak,
@@ -152,6 +162,12 @@ async function consultarGalaxyPlayers(limit: number): Promise<GalaxyPlayer[] | n
         // Tolerante a propósito: si el despliegue del código se adelanta a la
         // migración, esto llega `undefined` y no rompe la Galaxia entera.
         planetName: (r.planet_name as string | null) ?? null,
+        // Los ajustes del planeta viajan con la galaxia para que visitar el
+        // mundo de otro no cueste una consulta extra por planeta.
+        planetFamily: (r.planet_family as string | null) ?? null,
+        planetSeas: (r.planet_seas as number | null) ?? null,
+        planetCraters: (r.planet_craters as number | null) ?? null,
+        accent: (r.accent as string | null) ?? null,
         country: (settings?.country as string) || '',
         continent: (settings?.continent as string) || '',
         level: (stats.level as number) || 1,
