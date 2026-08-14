@@ -272,21 +272,61 @@ export function EstudioPage() {
           <Panel titulo="Escena al aire" denso>
             <Escenas escena={estado.escena} onEscena={e => aplicar({ t: 'escena', escena: e })} />
 
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <BotonEstado
-                activo={estado.tiempoExtra}
-                onClick={() => aplicar({ t: 'tiempoExtra', valor: !estado.tiempoExtra })}
-                tono="rojo"
-                titulo={estado.tiempoExtra ? 'Quitar tiempo' : 'Tiempo'}
-                sub="Acción adicional"
-              />
-              <BotonEstado
-                activo={estado.enRevision}
-                onClick={() => aplicar({ t: 'revision', valor: !estado.enRevision })}
-                tono="ambar"
-                titulo={estado.enRevision ? 'Quitar revisión' : 'En revisión'}
-                sub="Congela el marcador"
-              />
+            {/* Estados y quién tiene la iniciativa: todo lo de «qué está
+                pasando ahora» vive en el mismo bloque que las escenas. */}
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-1.5">
+                <BotonEstado
+                  activo={estado.tiempoExtra}
+                  onClick={() => aplicar({ t: 'tiempoExtra', valor: !estado.tiempoExtra })}
+                  tono="rojo"
+                  titulo={estado.tiempoExtra ? 'Quitar tiempo' : 'Tiempo'}
+                  sub="Acción adicional"
+                />
+                <BotonEstado
+                  activo={estado.enRevision}
+                  onClick={() => aplicar({ t: 'revision', valor: !estado.enRevision })}
+                  tono="ambar"
+                  titulo={estado.enRevision ? 'Quitar revisión' : 'En revisión'}
+                  sub="Congela el marcador"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-1.5">
+                {([0, 1] as Indice[]).map(i => (
+                  <button
+                    key={i}
+                    onClick={() => aplicar({ t: 'iniciativa', lado: estado.iniciativa === i ? null : i })}
+                    className={`flex min-h-[44px] flex-col items-center justify-center gap-0.5 truncate rounded-lg border px-2 transition ${
+                      estado.iniciativa === i
+                        ? 'border-amber-400 bg-amber-400/20 text-amber-200'
+                        : 'border-white/10 bg-black/25 text-swu-muted hover:bg-white/5'
+                    }`}
+                  >
+                    <span className="w-full truncate text-[11px] font-black uppercase tracking-wider">
+                      {estado.lados[i].nombre || `Jugador ${i + 1}`}
+                    </span>
+                    <span className="text-[9px] opacity-70">Iniciativa</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Ronda: chips, la fila más ancha del bloque. */}
+            <div className="mt-2 flex flex-wrap gap-1">
+              {RONDAS.map(r => (
+                <button
+                  key={r}
+                  onClick={() => aplicar({ t: 'ronda', etiqueta: r })}
+                  className={`rounded-md border px-2 py-1.5 text-[11px] font-bold transition ${
+                    estado.etiquetaRonda === r
+                      ? 'border-swu-accent bg-swu-accent/20 text-white'
+                      : 'border-white/10 bg-black/20 text-swu-muted hover:bg-white/5'
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
             </div>
           </Panel>
 
@@ -359,47 +399,8 @@ export function EstudioPage() {
           ))}
         </div>
 
-        {/* ══ Fila 3 · Ronda, partida, textos ══ */}
-        <div className="grid items-start gap-2.5 lg:grid-cols-3">
-          <Panel titulo="Ronda e iniciativa" denso>
-            <div className="flex flex-col gap-2.5">
-              <div className="flex flex-wrap gap-1">
-                {RONDAS.map(r => (
-                  <button
-                    key={r}
-                    onClick={() => aplicar({ t: 'ronda', etiqueta: r })}
-                    className={`rounded-md border px-2 py-1.5 text-[11px] font-bold transition ${
-                      estado.etiquetaRonda === r
-                        ? 'border-swu-accent bg-swu-accent/20 text-white'
-                        : 'border-white/10 bg-black/20 text-swu-muted hover:bg-white/5'
-                    }`}
-                  >
-                    {r}
-                  </button>
-                ))}
-              </div>
-
-              <div>
-                <Rotulo>Iniciativa</Rotulo>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {([0, 1] as Indice[]).map(i => (
-                    <button
-                      key={i}
-                      onClick={() => aplicar({ t: 'iniciativa', lado: estado.iniciativa === i ? null : i })}
-                      className={`min-h-[42px] truncate rounded-lg border px-2 text-xs font-bold transition ${
-                        estado.iniciativa === i
-                          ? 'border-amber-400 bg-amber-400/20 text-amber-200'
-                          : 'border-white/10 bg-black/20 text-swu-muted hover:bg-white/5'
-                      }`}
-                    >
-                      {estado.lados[i].nombre || `Jugador ${i + 1}`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Panel>
-
+        {/* ══ Fila 3 · Partida y textos ══ */}
+        <div className="grid items-start gap-2.5 lg:grid-cols-2">
           <Panel titulo="Partida" denso>
             <div className="flex flex-col gap-1.5">
               <ConConfirmacion
