@@ -22,6 +22,7 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import {
   ESTADO_INICIAL,
   formatearReloj,
+  mensajesTicker,
   restanteReloj,
   type EstadoOverlay,
   type LadoOverlay,
@@ -47,7 +48,14 @@ const POLL_MS = 10_000
 const ESTILOS = `
 @keyframes ovFundido { from { opacity: 0 } to { opacity: 1 } }
 .ov-fundido { animation: ovFundido .4s ease both; }
-@media (prefers-reduced-motion: reduce) { .ov-fundido { animation: none } }
+/* Barra de noticias: el contenido se duplica y se desplaza un 50%, así el
+   bucle es continuo y no se ve el salto. */
+@keyframes ovCorre { from { transform: translateX(0) } to { transform: translateX(-50%) } }
+.ov-corre { display: inline-flex; white-space: nowrap; animation: ovCorre 40s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .ov-fundido { animation: none }
+  .ov-corre { animation: none }
+}
 `
 
 export function OverlayPage() {
@@ -154,6 +162,7 @@ export function OverlayPage() {
     <>
       <style>{ESTILOS}</style>
       <div style={lienzo}>
+        {estado.tickerVisible && <BarraNoticias texto={estado.ticker} />}
         {estado.escena === 'juego' ? (
           <>
             <BarraSuperior estado={estado} restante={restante} />
@@ -511,6 +520,63 @@ function CartaDestacadaVista({ carta }: { carta: NonNullable<EstadoOverlay['cart
         {carta.texto && (
           <span style={{ fontSize: 30, lineHeight: 1.32, color: `${BLANCO}EE` }}>{carta.texto}</span>
         )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Barra de noticias de la comunidad.
+ *
+ * Va JUSTO ENCIMA de la franja legal (que nunca se tapa) y se dibuja por
+ * encima de todas las escenas, así sirve igual en la partida y en los
+ * descansos. El contenido se duplica para que el bucle no tenga costura.
+ */
+function BarraNoticias({ texto }: { texto: string }) {
+  const mensajes = useMemo(() => mensajesTicker(texto), [texto])
+  if (mensajes.length === 0) return null
+
+  const tira = mensajes.join('     ◆     ')
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        bottom: 46,
+        left: 0,
+        right: 0,
+        zIndex: 5,
+        height: 52,
+        display: 'flex',
+        alignItems: 'center',
+        overflow: 'hidden',
+        background: `linear-gradient(90deg, ${COBALTO}F0, ${COBALTO_OSCURO}F0)`,
+        borderTop: `2px solid ${DORADO}99`,
+      }}
+    >
+      <span
+        style={{
+          flex: '0 0 auto',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 22px',
+          background: DORADO,
+          color: COBALTO_OSCURO,
+          fontSize: 20,
+          fontWeight: 900,
+          letterSpacing: '.16em',
+          zIndex: 1,
+        }}
+      >
+        COMUNIDAD
+      </span>
+      <div style={{ flex: 1, overflow: 'hidden' }}>
+        <div className="ov-corre">
+          {/* Dos copias: la animación corre -50% y vuelve a empezar sin salto. */}
+          <span style={{ paddingLeft: 28, fontSize: 26, fontWeight: 600, color: BLANCO }}>{tira}</span>
+          <span style={{ paddingLeft: 28, fontSize: 26, fontWeight: 600, color: BLANCO }}>{tira}</span>
+        </div>
       </div>
     </div>
   )

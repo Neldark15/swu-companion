@@ -62,6 +62,13 @@ export interface EstadoOverlay {
   /** Texto libre de las escenas opacas. */
   mensaje: string
   patrocinio: string
+  /**
+   * Barra de noticias que corre abajo: mensajes de la comunidad, saludos,
+   * avisos del torneo. Un mensaje por línea; el overlay los une con un
+   * separador y los hace rotar en bucle.
+   */
+  ticker: string
+  tickerVisible: boolean
   lados: [LadoOverlay, LadoOverlay]
   carta: CartaDestacada | null
 }
@@ -91,6 +98,8 @@ export const ESTADO_INICIAL: EstadoOverlay = {
   reloj: { duracionMs: 55 * 60 * 1000, iniciadoEn: null, restanteAlPausar: null },
   mensaje: '',
   patrocinio: '',
+  ticker: '',
+  tickerVisible: false,
   lados: [{ ...LADO_VACIO }, { ...LADO_VACIO }],
   carta: null,
 }
@@ -181,9 +190,19 @@ export function normalizarEstado(x: unknown): EstadoOverlay {
     reloj: normalizarReloj(o.reloj),
     mensaje: texto(o.mensaje),
     patrocinio: texto(o.patrocinio),
+    ticker: texto(o.ticker),
+    tickerVisible: booleano(o.tickerVisible),
     lados: [normalizarLado(lados[0]), normalizarLado(lados[1])],
     carta: normalizarCarta(o.carta),
   }
+}
+
+/** Los mensajes del ticker, ya limpios y sin líneas vacías. */
+export function mensajesTicker(ticker: string): string[] {
+  return ticker
+    .split('\n')
+    .map(m => m.trim())
+    .filter(Boolean)
 }
 
 /** Milisegundos restantes del reloj, o `null` si nunca se arrancó. */

@@ -25,6 +25,7 @@ import {
   Heart,
   Lock,
   LockOpen,
+  Radio,
   RotateCcw,
   Search,
   Shield,
@@ -35,6 +36,7 @@ import { useAuth } from '../../hooks/useAuth'
 import {
   ESTADO_INICIAL,
   formatearReloj,
+  mensajesTicker,
   restanteReloj,
   type EstadoOverlay,
 } from '../../types/stream'
@@ -158,6 +160,7 @@ export function EstudioPage() {
   )
 
   const restante = useMemo(() => restanteReloj(estado.reloj, ahora), [estado.reloj, ahora])
+  const cantidadTicker = useMemo(() => mensajesTicker(estado.ticker).length, [estado.ticker])
   const relojCorriendo = estado.reloj.iniciadoEn !== null
   const deshacerVisible = ultimoDano && ultimoDano.hasta > ahora ? ultimoDano : null
   const alAire = estado.escena === 'juego'
@@ -253,8 +256,10 @@ export function EstudioPage() {
           </p>
         )}
 
-        {/* ══ Fila 1 · Monitor + mezclador de escenas ══ */}
-        <div className="mb-4 grid gap-4 xl:grid-cols-[minmax(0,520px)_minmax(0,1fr)]">
+        {/* ══ Fila 1 · Monitor + mezclador de escenas ══
+            El monitor se acota a 380 px en portátiles (lg) y crece a 460 solo
+            en pantallas grandes: en una MacBook, 520 px se comían la fila. */}
+        <div className="mb-3 grid gap-3 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(0,460px)_minmax(0,1fr)]">
           <Monitor code={code} alAire={alAire} />
 
           <Panel titulo="Escena al aire" nota="Lo que ve la gente ahora">
@@ -435,6 +440,30 @@ export function EstudioPage() {
               </div>
             </Panel>
 
+            <Panel titulo="Barra de comunidad" nota={`${cantidadTicker} mensaje${cantidadTicker === 1 ? '' : 's'}`}>
+              <div className="flex flex-col gap-2.5">
+                <button
+                  onClick={() => aplicar({ t: 'tickerVisible', valor: !estado.tickerVisible })}
+                  className={`flex min-h-[52px] items-center justify-center gap-2 rounded-xl border-2 text-xs font-black uppercase tracking-wider transition ${
+                    estado.tickerVisible
+                      ? 'border-emerald-400 bg-emerald-400/20 text-emerald-200'
+                      : 'border-white/10 bg-black/20 text-swu-muted hover:bg-white/5'
+                  }`}
+                >
+                  <Radio size={14} />
+                  {estado.tickerVisible ? 'Barra al aire' : 'Barra oculta'}
+                </button>
+
+                <CampoLargo
+                  etiqueta="Un mensaje por línea"
+                  valor={estado.ticker}
+                  filas={5}
+                  ayuda="Saludos, avisos del torneo, comentarios de la comunidad. Corren en bucle abajo."
+                  onGuardar={v => aplicar({ t: 'ticker', texto: v })}
+                />
+              </div>
+            </Panel>
+
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
               <Rotulo>Fuente para OBS</Rotulo>
               <code className="block break-all rounded-lg bg-black/40 px-3 py-2 font-mono text-[11px] text-swu-muted">
@@ -467,13 +496,14 @@ function Monitor({ code, alAire }: { code: string; alAire: boolean }) {
         </span>
         <span className="text-[10px] uppercase tracking-wider text-swu-muted">lo que ve la gente</span>
       </div>
-      {/* 1920×1080 escalado. No se re-implementa nada: es el MISMO overlay. */}
-      <div className="relative w-full bg-black" style={{ aspectRatio: '16 / 9' }}>
+      {/* 1920×1080 escalado con `zoom`, que refluye la caja: con `transform`
+          había que clavar la escala a mano y en pantallas chicas el iframe se
+          salía del marco. Así el monitor se adapta al ancho que le toque. */}
+      <div className="relative w-full overflow-hidden bg-black" style={{ aspectRatio: '16 / 9' }}>
         <iframe
           title="Monitor de programa"
           src={`/overlay/${code}?fondo=oscuro`}
-          className="absolute left-0 top-0 origin-top-left border-0"
-          style={{ width: 1920, height: 1080, transform: 'scale(0.2708)' }}
+          className="absolute left-0 top-0 h-full w-full border-0"
           sandbox="allow-scripts allow-same-origin"
         />
       </div>
@@ -558,118 +588,21 @@ function TarjetaJugador({
         )}
       </div>
 
-      <div className="flex flex-col gap-4 p-4">
+      <div className="flex flex-col gap-3 p-3">
         <CampoTexto
           etiqueta="Nombre del jugador"
           valor={lado.nombre}
           onGuardar={v => onAccion({ t: 'jugador', lado: indice, campos: { nombre: v } })}
         />
 
-        {/* ── Vida: el número que ve el espectador ── */}
-        <div className="rounded-xl border border-white/10 bg-black/30 p-4">
-          <div className="flex items-end justify-between gap-3">
-            <div className="flex items-baseline gap-2">
-              <Heart size={16} className={critico ? 'text-red-400' : 'text-swu-muted'} />
-              <span
-                className={`font-mono text-6xl font-black leading-none tabular-nums ${
-                  derrotado ? 'text-red-500' : critico ? 'text-amber-300' : 'text-white'
-                }`}
-              >
-                {vida}
-              </span>
-              <span className="text-sm font-bold text-swu-muted">vida</span>
-            </div>
-            <span className="pb-1 text-right text-xs text-swu-muted">
-              <span className="block font-mono text-base font-bold text-swu-text tabular-nums">{lado.dano}</span>
-              daño de {lado.hpMax}
-            </span>
-          </div>
-
-          {/* Barra de vida: se lee de un vistazo, sin contar números. */}
-          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
-            <div
-              className={`h-full rounded-full transition-all duration-300 ${
-                derrotado ? 'bg-red-600' : critico ? 'bg-amber-400' : 'bg-emerald-400'
-              }`}
-              style={{ width: `${porcentaje}%` }}
-            />
-          </div>
-        </div>
-
-        {/* ── Daño: cada botón dice qué hace ── */}
-        <div>
-          <Rotulo>Daño en la base</Rotulo>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-2">
-              <p className="mb-1.5 text-center text-[10px] font-black uppercase tracking-wider text-emerald-400">
-                Quitar daño
-              </p>
-              <div className="grid grid-cols-2 gap-1.5">
-                {[-5, -1].map(d => (
-                  <button
-                    key={d}
-                    onClick={() => onDano(indice, d)}
-                    className="min-h-[58px] rounded-lg bg-emerald-500/20 font-mono text-xl font-black text-emerald-200 transition hover:bg-emerald-500/30 active:scale-95"
-                  >
-                    {d}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-red-500/25 bg-red-500/5 p-2">
-              <p className="mb-1.5 text-center text-[10px] font-black uppercase tracking-wider text-red-400">
-                Más daño
-              </p>
-              <div className="grid grid-cols-2 gap-1.5">
-                {[1, 5].map(d => (
-                  <button
-                    key={d}
-                    onClick={() => onDano(indice, d)}
-                    className="min-h-[58px] rounded-lg bg-red-500/20 font-mono text-xl font-black text-red-200 transition hover:bg-red-500/30 active:scale-95"
-                  >
-                    +{d}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-          <p className="mt-1.5 text-center text-[11px] text-swu-muted">
-            Más daño baja la vida en pantalla.
-          </p>
-
-          {deshacer !== null && (
-            <button
-              onClick={onDeshacer}
-              className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/5 py-2.5 text-xs font-bold text-swu-text transition hover:bg-white/10"
-            >
-              <Undo2 size={14} />
-              Deshacer {deshacer > 0 ? `+${deshacer}` : deshacer} de daño
-            </button>
-          )}
-        </div>
-
-        {/* ── Contadores ── */}
-        <div className="grid grid-cols-2 gap-3">
-          <Contador
-            etiqueta="Recursos"
-            valor={lado.recursos}
-            onDelta={d => onAccion({ t: 'recursos', lado: indice, delta: d })}
-          />
-          <Contador
-            etiqueta="Juegos ganados"
-            valor={lado.juegosGanados}
-            onDelta={d => onAccion({ t: 'juegos', lado: indice, delta: d })}
-          />
-        </div>
-
-        {/* ── Cartas ── */}
+        {/* ── Cartas: arriba, porque se configuran al empezar la partida ── */}
         <div className="flex flex-col gap-2">
           <BuscadorCarta
             tipo="lider"
             etiqueta="Líder"
-            icono={<Crown size={14} />}
+            icono={<Crown size={16} />}
             actual={lado.liderNombre}
+            imgActual={lado.liderImg}
             onElegir={c =>
               onAccion({
                 t: 'jugador',
@@ -677,12 +610,20 @@ function TarjetaJugador({
                 campos: { liderNombre: c.nombre, liderImg: c.img, liderAspectos: c.aspectos },
               })
             }
+            onQuitar={() =>
+              onAccion({
+                t: 'jugador',
+                lado: indice,
+                campos: { liderNombre: '', liderImg: '', liderAspectos: [] },
+              })
+            }
           />
           <BuscadorCarta
             tipo="base"
             etiqueta="Base"
-            icono={<Shield size={14} />}
+            icono={<Shield size={16} />}
             actual={lado.baseNombre}
+            imgActual={lado.baseImg}
             nota={lado.baseNombre ? `${lado.hpMax} HP` : undefined}
             onElegir={c =>
               onAccion({
@@ -693,23 +634,153 @@ function TarjetaJugador({
                 campos: { baseNombre: c.nombre, baseImg: c.img, hpMax: c.hp ?? 30 },
               })
             }
+            onQuitar={() =>
+              onAccion({ t: 'jugador', lado: indice, campos: { baseNombre: '', baseImg: '' } })
+            }
           />
-
-          <label className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-sm font-semibold">
-            <span className="flex items-center gap-2">
-              <Crown size={14} className="text-swu-muted" />
-              Líder desplegado
-            </span>
-            <input
-              type="checkbox"
-              checked={lado.liderDesplegado}
-              onChange={e =>
-                onAccion({ t: 'jugador', lado: indice, campos: { liderDesplegado: e.target.checked } })
-              }
-              className="h-6 w-6 accent-amber-400"
-            />
-          </label>
         </div>
+
+        {/* ── Vida: el número que ve el espectador ── */}
+        <div className="rounded-xl border border-white/10 bg-black/30 p-3">
+          <div className="flex items-end justify-between gap-2">
+            <div className="flex items-baseline gap-1.5">
+              <Heart size={14} className={critico ? 'text-red-400' : 'text-swu-muted'} />
+              <span
+                className={`font-mono text-5xl font-black leading-none tabular-nums ${
+                  derrotado ? 'text-red-500' : critico ? 'text-amber-300' : 'text-white'
+                }`}
+              >
+                {vida}
+              </span>
+              <span className="text-xs font-bold text-swu-muted">vida</span>
+            </div>
+            <span className="pb-1 text-right text-[11px] text-swu-muted">
+              <span className="block font-mono text-sm font-bold text-swu-text tabular-nums">
+                {lado.dano}
+              </span>
+              de daño
+            </span>
+          </div>
+
+          {/* Barra de vida: se lee de un vistazo, sin contar números. */}
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+            <div
+              className={`h-full rounded-full transition-all duration-300 ${
+                derrotado ? 'bg-red-600' : critico ? 'bg-amber-400' : 'bg-emerald-400'
+              }`}
+              style={{ width: `${porcentaje}%` }}
+            />
+          </div>
+
+          {/* HP máximo editable: sale solo de la base, pero se puede corregir a
+              mano (base rara, erratas, o si no se eligió carta). */}
+          <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-white/10 pt-2.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-swu-muted">
+              Vida máxima
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() =>
+                  onAccion({ t: 'jugador', lado: indice, campos: { hpMax: Math.max(1, lado.hpMax - 1) } })
+                }
+                className="h-8 w-8 rounded-md bg-white/5 text-base font-black transition hover:bg-white/10"
+                aria-label="Bajar vida máxima"
+              >
+                −
+              </button>
+              <span className="w-9 text-center font-mono text-lg font-black tabular-nums">
+                {lado.hpMax}
+              </span>
+              <button
+                onClick={() =>
+                  onAccion({ t: 'jugador', lado: indice, campos: { hpMax: Math.min(99, lado.hpMax + 1) } })
+                }
+                className="h-8 w-8 rounded-md bg-white/5 text-base font-black transition hover:bg-white/10"
+                aria-label="Subir vida máxima"
+              >
+                +
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Daño: cada botón dice qué hace ── */}
+        <div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-1.5">
+              <p className="mb-1 text-center text-[9px] font-black uppercase tracking-wider text-emerald-400">
+                Quitar daño
+              </p>
+              <div className="grid grid-cols-2 gap-1">
+                {[-5, -1].map(d => (
+                  <button
+                    key={d}
+                    onClick={() => onDano(indice, d)}
+                    className="min-h-[50px] rounded-lg bg-emerald-500/20 font-mono text-lg font-black text-emerald-200 transition hover:bg-emerald-500/30 active:scale-95"
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-red-500/25 bg-red-500/5 p-1.5">
+              <p className="mb-1 text-center text-[9px] font-black uppercase tracking-wider text-red-400">
+                Más daño
+              </p>
+              <div className="grid grid-cols-2 gap-1">
+                {[1, 5].map(d => (
+                  <button
+                    key={d}
+                    onClick={() => onDano(indice, d)}
+                    className="min-h-[50px] rounded-lg bg-red-500/20 font-mono text-lg font-black text-red-200 transition hover:bg-red-500/30 active:scale-95"
+                  >
+                    +{d}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {deshacer !== null && (
+            <button
+              onClick={onDeshacer}
+              className="mt-1.5 flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/5 py-2 text-[11px] font-bold text-swu-text transition hover:bg-white/10"
+            >
+              <Undo2 size={13} />
+              Deshacer {deshacer > 0 ? `+${deshacer}` : deshacer} de daño
+            </button>
+          )}
+        </div>
+
+        {/* ── Contadores y estado ── */}
+        <div className="grid grid-cols-2 gap-2">
+          <Contador
+            etiqueta="Recursos"
+            valor={lado.recursos}
+            onDelta={d => onAccion({ t: 'recursos', lado: indice, delta: d })}
+          />
+          <Contador
+            etiqueta="Juegos"
+            valor={lado.juegosGanados}
+            onDelta={d => onAccion({ t: 'juegos', lado: indice, delta: d })}
+          />
+        </div>
+
+        <label className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-xs font-semibold">
+          <span className="flex items-center gap-2">
+            <Crown size={13} className="text-swu-muted" />
+            Líder desplegado
+          </span>
+          <input
+            type="checkbox"
+            checked={lado.liderDesplegado}
+            onChange={e =>
+              onAccion({ t: 'jugador', lado: indice, campos: { liderDesplegado: e.target.checked } })
+            }
+            className="h-5 w-5 accent-amber-400"
+          />
+        </label>
       </div>
     </section>
   )
@@ -755,113 +826,205 @@ function BuscadorCarta({
   etiqueta,
   icono,
   actual,
+  imgActual,
   nota,
   onElegir,
+  onQuitar,
 }: {
   tipo: 'lider' | 'base'
   etiqueta: string
   icono: React.ReactNode
   actual: string
+  imgActual?: string
   nota?: string
   onElegir: (c: CartaStream) => void
+  onQuitar: () => void
 }) {
   const [abierto, setAbierto] = useState(false)
+
+  return (
+    <>
+      {/* Disparador: muestra la miniatura de lo elegido, así el operador
+          confirma de un vistazo que puso la carta correcta. */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setAbierto(true)}
+          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-white/10 bg-black/20 px-2.5 py-2.5 text-left text-sm transition hover:border-white/25 hover:bg-white/5"
+        >
+          {imgActual ? (
+            <img
+              src={imgCarta(imgActual, 128)}
+              alt=""
+              className="h-11 w-11 shrink-0 rounded-md object-cover"
+            />
+          ) : (
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-white/5 text-swu-muted">
+              {icono}
+            </span>
+          )}
+          <span className="min-w-0 flex-1">
+            <span className="block text-[10px] font-bold uppercase tracking-wider text-swu-muted">
+              {etiqueta}
+            </span>
+            <span className={`block truncate text-sm ${actual ? 'font-semibold' : 'text-swu-muted'}`}>
+              {actual || 'Tocá para elegir'}
+            </span>
+            {nota && <span className="block text-[11px] text-swu-muted">{nota}</span>}
+          </span>
+          <Search size={16} className="shrink-0 text-swu-muted" />
+        </button>
+
+        {actual && (
+          <button
+            onClick={onQuitar}
+            className="shrink-0 rounded-lg p-2.5 text-swu-muted transition hover:bg-white/5 hover:text-red-300"
+            aria-label={`Quitar ${etiqueta.toLowerCase()}`}
+            title="Quitar"
+          >
+            <X size={16} />
+          </button>
+        )}
+      </div>
+
+      {abierto && (
+        <ModalCartas
+          tipo={tipo}
+          etiqueta={etiqueta}
+          onCerrar={() => setAbierto(false)}
+          onElegir={c => {
+            onElegir(c)
+            setAbierto(false)
+          }}
+        />
+      )}
+    </>
+  )
+}
+
+/**
+ * Ventana de selección a pantalla completa.
+ *
+ * Va FIJA sobre todo (no dentro de la tarjeta): dentro quedaba una lista
+ * diminuta imposible de recorrer con el pulgar. Acá la lista tiene toda la
+ * altura de la pantalla y las cartas se ven grandes.
+ */
+function ModalCartas({
+  tipo,
+  etiqueta,
+  onCerrar,
+  onElegir,
+}: {
+  tipo: 'lider' | 'base'
+  etiqueta: string
+  onCerrar: () => void
+  onElegir: (c: CartaStream) => void
+}) {
   const [termino, setTermino] = useState('')
   const [cartas, setCartas] = useState<CartaStream[]>([])
   const [error, setError] = useState(false)
+  const [cargando, setCargando] = useState(true)
 
   useEffect(() => {
-    if (!abierto) return
     let vivo = true
     cargarCartasStream()
       .then(c => {
-        if (vivo) setCartas(tipo === 'lider' ? c.lideres : c.bases)
+        if (!vivo) return
+        setCartas(tipo === 'lider' ? c.lideres : c.bases)
+        setCargando(false)
       })
       .catch(() => {
-        if (vivo) setError(true)
+        if (!vivo) return
+        setError(true)
+        setCargando(false)
       })
     return () => {
       vivo = false
     }
-  }, [abierto, tipo])
+  }, [tipo])
 
-  const resultados = useMemo(() => buscarCartas(cartas, termino), [cartas, termino])
+  // Escape cierra: es lo que espera cualquiera con teclado.
+  useEffect(() => {
+    const alTeclear = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCerrar()
+    }
+    window.addEventListener('keydown', alTeclear)
+    return () => window.removeEventListener('keydown', alTeclear)
+  }, [onCerrar])
 
-  if (!abierto) {
-    return (
-      <button
-        onClick={() => setAbierto(true)}
-        className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-left text-sm transition hover:bg-white/5"
-      >
-        <span className="text-swu-muted">{icono}</span>
-        <span className="min-w-0 flex-1 truncate">
-          <span className="text-swu-muted">{etiqueta}: </span>
-          <span className={actual ? 'font-semibold' : 'text-swu-muted'}>{actual || 'sin elegir'}</span>
-          {nota && <span className="ml-1.5 text-xs text-swu-muted">· {nota}</span>}
-        </span>
-        <Search size={14} className="shrink-0 text-swu-muted" />
-      </button>
-    )
-  }
+  const resultados = useMemo(() => buscarCartas(cartas, termino, 60), [cartas, termino])
 
   return (
-    <div className="rounded-xl border border-swu-accent/40 bg-black/40 p-3">
-      <div className="flex items-center gap-2">
-        <input
-          autoFocus
-          value={termino}
-          onChange={e => setTermino(e.target.value)}
-          placeholder={`Buscar ${etiqueta.toLowerCase()}…`}
-          className="min-w-0 flex-1 rounded-lg bg-white/5 px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-swu-accent"
-        />
-        <button
-          onClick={() => setAbierto(false)}
-          className="rounded-lg p-2 text-swu-muted transition hover:bg-white/5"
-          aria-label="Cerrar buscador"
-        >
-          <X size={18} />
-        </button>
-      </div>
+    <div className="fixed inset-0 z-50 flex flex-col bg-black/80 backdrop-blur-sm" role="dialog" aria-modal="true">
+      <div className="mx-auto flex h-full w-full max-w-3xl flex-col">
+        {/* Buscador fijo arriba */}
+        <div className="flex items-center gap-2 border-b border-white/10 bg-[#12151c] px-3 py-3">
+          <Search size={18} className="shrink-0 text-swu-muted" />
+          <input
+            autoFocus
+            value={termino}
+            onChange={e => setTermino(e.target.value)}
+            placeholder={`Buscar ${etiqueta.toLowerCase()}…`}
+            className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-swu-muted"
+          />
+          <button
+            onClick={onCerrar}
+            className="shrink-0 rounded-lg px-3 py-2 text-sm font-bold text-swu-muted transition hover:bg-white/5 hover:text-swu-text"
+          >
+            Cerrar
+          </button>
+        </div>
 
-      {error ? (
-        <p className="py-3 text-center text-xs text-red-400">
-          No se pudo cargar el catálogo. Se puede seguir sin imagen.
-        </p>
-      ) : (
-        <ul className="mt-2 flex max-h-72 flex-col gap-1 overflow-y-auto">
-          {resultados.map(c => (
-            <li key={c.id}>
-              <button
-                onClick={() => {
-                  onElegir(c)
-                  setAbierto(false)
-                  setTermino('')
-                }}
-                className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-white/5"
-              >
-                {c.img && (
-                  <img
-                    src={imgCarta(c.img, 128)}
-                    alt=""
-                    loading="lazy"
-                    className="h-12 w-12 shrink-0 rounded object-cover"
-                  />
-                )}
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold">{c.nombre}</span>
-                  <span className="block truncate text-xs text-swu-muted">
-                    {c.subtitulo}
-                    {c.hp !== null && ` · ${c.hp} HP`}
-                  </span>
-                </span>
-              </button>
-            </li>
-          ))}
-          {resultados.length === 0 && (
-            <li className="py-3 text-center text-xs text-swu-muted">Sin resultados</li>
+        {/* Lista con toda la altura disponible */}
+        <div className="flex-1 overflow-y-auto overscroll-contain bg-[#0d0f14] px-3 py-3">
+          {cargando && <p className="py-8 text-center text-sm text-swu-muted">Cargando cartas…</p>}
+
+          {error && (
+            <p className="py-8 text-center text-sm text-red-400">
+              No se pudo cargar el catálogo de cartas. Podés escribir el nombre a mano en el marcador.
+            </p>
           )}
-        </ul>
-      )}
+
+          {!cargando && !error && (
+            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {resultados.map(c => (
+                <li key={c.id}>
+                  <button
+                    onClick={() => onElegir(c)}
+                    className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-[#12151c] p-2.5 text-left transition hover:border-swu-accent/50 hover:bg-white/5 active:scale-[0.99]"
+                  >
+                    {c.img ? (
+                      <img
+                        src={imgCarta(c.img, 128)}
+                        alt=""
+                        loading="lazy"
+                        className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <span className="h-16 w-16 shrink-0 rounded-lg bg-white/5" />
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-bold">{c.nombre}</span>
+                      {c.subtitulo && (
+                        <span className="block truncate text-xs text-swu-muted">{c.subtitulo}</span>
+                      )}
+                      {c.hp !== null && (
+                        <span className="mt-0.5 inline-block rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300">
+                          {c.hp} HP
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                </li>
+              ))}
+              {resultados.length === 0 && (
+                <li className="col-span-full py-8 text-center text-sm text-swu-muted">
+                  Sin resultados para «{termino}»
+                </li>
+              )}
+            </ul>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -956,6 +1119,39 @@ function CampoTexto({
         }}
         className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm outline-none transition focus:border-swu-accent/50 focus:ring-1 focus:ring-swu-accent/30"
       />
+    </label>
+  )
+}
+
+function CampoLargo({
+  etiqueta,
+  valor,
+  filas = 4,
+  ayuda,
+  onGuardar,
+}: {
+  etiqueta: string
+  valor: string
+  filas?: number
+  ayuda?: string
+  onGuardar: (v: string) => void
+}) {
+  /* Mismo patrón que CampoTexto: no controlado con `key`, se guarda al salir
+     del campo. Así se pueden escribir varias líneas sin que cada pulsación
+     viaje a la nube ni el texto se pise a media escritura. */
+  return (
+    <label className="flex min-w-0 flex-col gap-1.5">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-swu-muted">{etiqueta}</span>
+      <textarea
+        key={valor}
+        defaultValue={valor}
+        rows={filas}
+        onBlur={e => {
+          if (e.target.value !== valor) onGuardar(e.target.value)
+        }}
+        className="w-full resize-y rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm leading-relaxed outline-none transition focus:border-swu-accent/50 focus:ring-1 focus:ring-swu-accent/30"
+      />
+      {ayuda && <span className="text-[11px] leading-relaxed text-swu-muted">{ayuda}</span>}
     </label>
   )
 }

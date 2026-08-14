@@ -46,6 +46,8 @@ export type Accion =
   | { t: 'revision'; valor: boolean }
   | { t: 'mensaje'; texto: string }
   | { t: 'patrocinio'; texto: string }
+  | { t: 'ticker'; texto: string }
+  | { t: 'tickerVisible'; valor: boolean }
   | { t: 'carta'; carta: EstadoOverlay['carta'] }
 
 function conLado(e: EstadoOverlay, i: Indice, cambio: Partial<LadoOverlay>): EstadoOverlay {
@@ -182,6 +184,12 @@ export function reducir(e: EstadoOverlay, a: Accion): EstadoOverlay {
 
     case 'patrocinio':
       return { ...e, patrocinio: a.texto }
+
+    case 'ticker':
+      return { ...e, ticker: a.texto }
+
+    case 'tickerVisible':
+      return { ...e, tickerVisible: a.valor }
 
     case 'carta':
       return { ...e, carta: a.carta }
