@@ -207,7 +207,7 @@ export function EstudioPage() {
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#0d0f14] text-swu-text">
       {/* ══ Barra de estado ══ */}
       <header className="shrink-0 border-b border-white/10 bg-[#0d0f14]/95 backdrop-blur">
-        <div className="mx-auto flex max-w-[1400px] items-center gap-3 px-3 py-2.5 sm:px-5">
+        <div className="mx-auto flex w-full max-w-[1800px] items-center gap-3 px-3 py-2.5 sm:px-5">
           <button
             onClick={() => navigate('/')}
             className="rounded-lg p-2 text-swu-muted transition hover:bg-white/5 hover:text-swu-text"
@@ -256,7 +256,7 @@ export function EstudioPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[1400px] flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain px-3 py-4 pb-24 sm:px-5">
+      <main className="mx-auto w-full max-w-[1800px] flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain px-3 py-3 pb-10 sm:px-4">
         {bloqueado && (
           <p className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
             Controles bloqueados. Tocá el candado para volver a operar.
@@ -266,7 +266,7 @@ export function EstudioPage() {
         {/* ══ Fila 1 · Monitor · escenas · reloj ══
             El reloj sube acá porque se consulta seguido; así la fila de arriba
             concentra todo lo que el operador mira sin dejar de ver el aire. */}
-        <div className="mb-2.5 grid gap-2.5 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,200px)] 2xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)_minmax(0,220px)]">
+        <div className="mb-2.5 grid gap-2.5 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,210px)] 2xl:grid-cols-[minmax(0,340px)_minmax(0,1fr)_minmax(0,230px)]">
           <Monitor code={code} alAire={alAire} />
 
           <Panel titulo="Escena al aire" denso>
