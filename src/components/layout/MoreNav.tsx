@@ -30,6 +30,7 @@ const GROUPS: MoreGroup[] = [
       { to: '/events', label: 'Torneo', sub: 'Eventos organizados', icon: MandoTrophyIcon },
       { to: '/arena', label: 'Holocrón', sub: 'Registro de duelos', icon: DatapadIcon },
       // Vive en «Jugar»: se consulta EN la mesa, en medio de una partida.
+      { to: '/envivo', label: 'En Vivo', sub: 'Transmisión de torneos', icon: RadioTower },
       { to: '/rulings', label: 'Rulings', sub: 'Reglamento del juego', icon: Scale },
     ],
   },

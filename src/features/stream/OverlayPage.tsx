@@ -184,47 +184,110 @@ export function OverlayPage() {
 /* ── Barra superior ─────────────────────────────────────────────────── */
 
 function BarraSuperior({ estado, restante }: { estado: EstadoOverlay; restante: number | null }) {
+  const porTerminar = restante !== null && restante <= 5 * 60 * 1000
+  const agotado = restante !== null && restante === 0
+
+  /* El reloj va sobre un bloque sólido, no sobre el mismo fondo que el texto:
+     es el dato que más se consulta y así conserva contraste aunque el stream
+     baje a 480p, donde los grises finos se deshacen con la compresión. */
+  const fondoReloj = agotado || estado.tiempoExtra ? ROJO : porTerminar ? DORADO : BLANCO
+  const textoReloj = agotado || estado.tiempoExtra ? BLANCO : COBALTO_OSCURO
+
   return (
     <div
       className="ov-fundido"
       style={{
         position: 'absolute',
-        top: 28,
+        top: 26,
         left: '50%',
         transform: 'translateX(-50%)',
         display: 'flex',
-        alignItems: 'center',
-        gap: 28,
-        padding: '14px 34px',
-        background: `linear-gradient(180deg, ${COBALTO}F2, ${COBALTO_OSCURO}F2)`,
-        border: `2px solid ${DORADO}66`,
-        borderRadius: 8,
-        boxShadow: '0 8px 32px rgba(0,0,0,.45)',
+        alignItems: 'stretch',
+        height: 78,
+        borderRadius: 10,
+        overflow: 'hidden',
+        border: `2px solid ${DORADO}77`,
+        boxShadow: '0 10px 38px rgba(0,0,0,.55)',
       }}
     >
-      <span style={{ fontSize: 30, fontWeight: 800, letterSpacing: '.08em' }}>
-        {estado.etiquetaRonda}
-      </span>
-      <span style={{ width: 2, height: 34, background: `${BLANCO}33` }} />
-      <span style={{ fontSize: 26, fontWeight: 600, color: `${BLANCO}CC` }}>
-        JUEGO {estado.juego}
-      </span>
+      {/* Ronda — el rótulo del momento del torneo */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          padding: '0 30px',
+          background: `linear-gradient(180deg, ${COBALTO}F5, ${COBALTO_OSCURO}F8)`,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 13,
+            fontWeight: 800,
+            letterSpacing: '.28em',
+            color: DORADO,
+            lineHeight: 1,
+            marginBottom: 5,
+          }}
+        >
+          RONDA
+        </span>
+        <span style={{ fontSize: 30, fontWeight: 900, lineHeight: 1, letterSpacing: '.02em' }}>
+          {estado.etiquetaRonda.replace(/^RONDA\s*/i, '')}
+        </span>
+      </div>
+
+      <span style={{ width: 2, background: `${DORADO}44` }} />
+
+      {/* Juego de la serie */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          padding: '0 26px',
+          background: `linear-gradient(180deg, ${COBALTO}F5, ${COBALTO_OSCURO}F8)`,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 13,
+            fontWeight: 800,
+            letterSpacing: '.28em',
+            color: DORADO,
+            lineHeight: 1,
+            marginBottom: 5,
+          }}
+        >
+          JUEGO
+        </span>
+        <span style={{ fontSize: 30, fontWeight: 900, lineHeight: 1 }}>{estado.juego}</span>
+      </div>
+
       {restante !== null && (
-        <>
-          <span style={{ width: 2, height: 34, background: `${BLANCO}33` }} />
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minWidth: 190,
+            padding: '0 26px',
+            background: fondoReloj,
+            color: textoReloj,
+          }}
+        >
           <span
             style={{
-              fontSize: 40,
-              fontWeight: 800,
+              fontSize: 46,
+              fontWeight: 900,
               fontVariantNumeric: 'tabular-nums',
-              color: restante <= 5 * 60 * 1000 ? DORADO : BLANCO,
-              minWidth: 130,
-              textAlign: 'center',
+              letterSpacing: '.01em',
+              lineHeight: 1,
             }}
           >
             {formatearReloj(restante)}
           </span>
-        </>
+        </div>
       )}
     </div>
   )

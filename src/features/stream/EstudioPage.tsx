@@ -38,6 +38,7 @@ import {
   formatearReloj,
   mensajesTicker,
   restanteReloj,
+  urlIncrustarYoutube,
   type EstadoOverlay,
 } from '../../types/stream'
 import {
@@ -161,6 +162,7 @@ export function EstudioPage() {
 
   const restante = useMemo(() => restanteReloj(estado.reloj, ahora), [estado.reloj, ahora])
   const cantidadTicker = useMemo(() => mensajesTicker(estado.ticker).length, [estado.ticker])
+  const youtubeValido = useMemo(() => urlIncrustarYoutube(estado.youtube) !== null, [estado.youtube])
   const relojCorriendo = estado.reloj.iniciadoEn !== null
   const deshacerVisible = ultimoDano && ultimoDano.hasta > ahora ? ultimoDano : null
   const alAire = estado.escena === 'juego'
@@ -421,7 +423,34 @@ export function EstudioPage() {
                 onConfirmar={() => aplicar({ t: 'reiniciar' })}
               />
 
-              <div className="mt-1 rounded-lg border border-white/10 bg-black/20 p-2.5">
+              {/* ── Transmisión pública en la app ── */}
+              <div className="mt-1 flex flex-col gap-1.5 rounded-lg border border-white/10 bg-black/20 p-2.5">
+                <Rotulo>Verlo en la app (/envivo)</Rotulo>
+                <CampoTexto
+                  etiqueta="Enlace de YouTube (o id del canal)"
+                  valor={estado.youtube}
+                  onGuardar={v => aplicar({ t: 'youtube', texto: v })}
+                />
+                <button
+                  onClick={() => aplicar({ t: 'envivo', valor: !estado.envivo })}
+                  disabled={!youtubeValido && !estado.envivo}
+                  className={`flex min-h-[40px] items-center justify-center gap-2 rounded-lg border text-[11px] font-black uppercase tracking-wider transition disabled:opacity-40 ${
+                    estado.envivo
+                      ? 'border-red-500 bg-red-600/25 text-red-200'
+                      : 'border-white/10 bg-black/20 text-swu-muted hover:bg-white/5'
+                  }`}
+                >
+                  <Radio size={13} />
+                  {estado.envivo ? 'Anunciado en la app' : 'Anunciar en la app'}
+                </button>
+                <p className="text-[10px] leading-relaxed text-swu-muted">
+                  {estado.youtube && !youtubeValido
+                    ? 'No reconozco ese enlace. Pegá el de «Compartir» del directo, o el id del canal (UC…).'
+                    : 'Con el id del canal (UC…) sirve siempre lo que esté al aire y no hay que cambiarlo cada vez.'}
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-white/10 bg-black/20 p-2.5">
                 <Rotulo>Fuente para OBS</Rotulo>
                 <code className="block break-all rounded bg-black/40 px-2 py-1.5 font-mono text-[10px] text-swu-muted">
                   {typeof window !== 'undefined' ? window.location.origin : ''}/overlay/{code}

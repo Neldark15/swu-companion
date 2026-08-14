@@ -69,6 +69,14 @@ export interface EstadoOverlay {
    */
   ticker: string
   tickerVisible: boolean
+  /**
+   * Enlace de YouTube del directo, para que la pantalla pública de la app
+   * (`/envivo`) lo incruste. Admite el enlace completo, el id del video o el
+   * id del canal — se normaliza al construir la URL de incrustación.
+   */
+  youtube: string
+  /** El operador anuncia que hay transmisión: la app la muestra a todos. */
+  envivo: boolean
   lados: [LadoOverlay, LadoOverlay]
   carta: CartaDestacada | null
 }
@@ -100,6 +108,8 @@ export const ESTADO_INICIAL: EstadoOverlay = {
   patrocinio: '',
   ticker: '',
   tickerVisible: false,
+  youtube: '',
+  envivo: false,
   lados: [{ ...LADO_VACIO }, { ...LADO_VACIO }],
   carta: null,
 }
@@ -192,9 +202,41 @@ export function normalizarEstado(x: unknown): EstadoOverlay {
     patrocinio: texto(o.patrocinio),
     ticker: texto(o.ticker),
     tickerVisible: booleano(o.tickerVisible),
+    youtube: texto(o.youtube),
+    envivo: booleano(o.envivo),
     lados: [normalizarLado(lados[0]), normalizarLado(lados[1])],
     carta: normalizarCarta(o.carta),
   }
+}
+
+/**
+ * Convierte lo que pegue el operador en una URL de incrustación de YouTube.
+ *
+ * Acepta las formas que YouTube reparte en la práctica: el enlace de ver, el
+ * corto de youtu.be, el nuevo /live/, el id pelado y el id de canal. Con el
+ * canal se usa `live_stream`, que sirve SIEMPRE lo que esté en directo — así
+ * el enlace no hay que cambiarlo entre transmisión y transmisión.
+ *
+ * Devuelve `null` si no reconoce nada: la pantalla pública prefiere decir
+ * «no hay transmisión» antes que incrustar un iframe roto.
+ */
+export function urlIncrustarYoutube(entrada: string, origen?: string): string | null {
+  const v = entrada.trim()
+  if (!v) return null
+
+  const params = origen ? `?rel=0&modestbranding=1&playsinline=1&origin=${encodeURIComponent(origen)}` : '?rel=0&modestbranding=1&playsinline=1'
+
+  // Id de canal (UC...) suelto o dentro de una URL → el directo del canal.
+  const canal = v.match(/(?:channel\/)?(UC[\w-]{20,})/)
+  if (canal) return `https://www.youtube.com/embed/live_stream${params}&channel=${canal[1]}`
+
+  // Id de video en cualquiera de sus URLs.
+  const video =
+    v.match(/(?:youtu\.be\/|watch\?v=|\/live\/|\/embed\/|\/shorts\/)([\w-]{11})/) ??
+    v.match(/^([\w-]{11})$/)
+  if (video) return `https://www.youtube.com/embed/${video[1]}${params}`
+
+  return null
 }
 
 /** Los mensajes del ticker, ya limpios y sin líneas vacías. */

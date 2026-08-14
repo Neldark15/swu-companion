@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
-import { X, Copy, Check, FileJson, FileText, FileSpreadsheet } from 'lucide-react'
+import { X, Copy, Check, FileJson, FileText, FileSpreadsheet, Image as ImageIcon, Loader2, Share2 } from 'lucide-react'
 import { exportDeckAsSwudbJson, exportDeckAsMeleeText, exportDeckAsSwudbCsv } from '../../services/deckImportExport'
+import { generarImagenMazo, nombreArchivoMazo, entregarImagen } from '../../services/deckImagen'
+import { useAuth } from '../../hooks/useAuth'
 import type { Deck } from '../../types'
 
 interface Props {
@@ -9,16 +11,24 @@ interface Props {
   onClose: () => void
 }
 
-type Format = 'json' | 'csv' | 'melee'
+/* 'imagen' no es un formato de texto como los otros tres: no llena el área de
+   texto, produce un ARCHIVO. Por eso el cuerpo del modal cambia de forma en vez
+   de meter un PNG en un textarea. */
+type Format = 'json' | 'csv' | 'melee' | 'imagen'
 
 export function ExportDeckModal({ open, deck, onClose }: Props) {
   const [format, setFormat] = useState<Format>('json')
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [generandoImg, setGenerandoImg] = useState(false)
+  const [avisoImg, setAvisoImg] = useState<string | null>(null)
+  const { currentProfile } = useAuth()
 
   useEffect(() => {
-    if (!open || !deck) { setText(''); return }
+    // La imagen no se genera sola al elegir la pestaña: son ~30 descargas de
+    // arte y varios MB. Se hace cuando la piden, no por pasar por encima.
+    if (!open || !deck || format === 'imagen') { setText(''); return }
     setLoading(true)
     setCopied(false)
     ;(async () => {
@@ -38,6 +48,20 @@ export function ExportDeckModal({ open, deck, onClose }: Props) {
   }, [open, deck, format])
 
   if (!open || !deck) return null
+
+  const generarImagen = async () => {
+    setGenerandoImg(true)
+    setAvisoImg(null)
+    try {
+      const blob = await generarImagenMazo(deck, currentProfile?.name ?? '')
+      const como = await entregarImagen(blob, nombreArchivoMazo(deck), deck.name)
+      setAvisoImg(como === 'compartida' ? '¡Listo, compartida!' : 'Imagen descargada.')
+    } catch (e) {
+      setAvisoImg(e instanceof Error ? e.message : 'No se pudo generar la imagen.')
+    } finally {
+      setGenerandoImg(false)
+    }
+  }
 
   const handleCopy = async () => {
     try {
@@ -96,15 +120,53 @@ export function ExportDeckModal({ open, deck, onClose }: Props) {
           >
             <FileText size={14} /> Melee
           </button>
+          <button
+            onClick={() => setFormat('imagen')}
+            className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition-all ${
+              format === 'imagen'
+                ? 'bg-swu-cyan/15 border-swu-cyan/40 text-swu-cyan'
+                : 'bg-swu-bg border-swu-border text-swu-muted'
+            }`}
+          >
+            <ImageIcon size={14} /> Imagen
+          </button>
         </div>
 
-        {/* Body — scrollable textarea fills available space */}
+        {/* Body — texto para los tres formatos, o la hoja de mazo para 'imagen' */}
         <div className="p-4 flex-1 min-h-0 overflow-hidden">
-          <textarea
-            readOnly
-            value={loading ? 'Generando...' : text}
-            className="w-full h-full min-h-[200px] p-3 bg-swu-bg border border-swu-border rounded-xl text-xs text-swu-text font-mono resize-none focus:outline-none"
-          />
+          {format === 'imagen' ? (
+            <div className="flex h-full min-h-[200px] flex-col items-center justify-center gap-3 text-center">
+              <ImageIcon size={30} className="text-swu-cyan" />
+              <div>
+                <p className="text-sm font-bold text-swu-text">Una imagen con todo el mazo</p>
+                <p className="mt-1 text-xs text-swu-muted">
+                  Líder, base, mazo principal y banquillo, con las cantidades.
+                  Para mandarlo por WhatsApp sin que el otro tenga la app.
+                </p>
+              </div>
+              <button
+                onClick={generarImagen}
+                disabled={generandoImg}
+                className="flex items-center gap-2 rounded-xl bg-swu-cyan px-4 py-2.5 text-sm font-bold
+                           text-black active:scale-95 disabled:opacity-60"
+              >
+                {generandoImg
+                  ? <><Loader2 size={15} className="animate-spin" /> Armando la hoja…</>
+                  : <><Share2 size={15} /> Generar y compartir</>}
+              </button>
+              {/* Se avisa que tarda: son ~30 imágenes de carta y con datos
+                  móviles se nota. Callarlo hace pensar que se colgó. */}
+              <p className="text-[11px] text-swu-muted">
+                {avisoImg ?? 'Tarda unos segundos: se descarga el arte de cada carta.'}
+              </p>
+            </div>
+          ) : (
+            <textarea
+              readOnly
+              value={loading ? 'Generando...' : text}
+              className="w-full h-full min-h-[200px] p-3 bg-swu-bg border border-swu-border rounded-xl text-xs text-swu-text font-mono resize-none focus:outline-none"
+            />
+          )}
         </div>
 
         {/* Footer */}

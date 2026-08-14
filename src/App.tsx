@@ -85,6 +85,9 @@ const RulingsPage = lazy(() => import('./features/rulings/RulingsPage').then(m =
 // la ruta que consume OBS nunca instala un SW que le sirva el index.html cacheado.
 const OverlayPage = lazy(() => import('./features/stream/OverlayPage').then(m => ({ default: m.OverlayPage })))
 const EstudioPage = lazy(() => import('./features/stream/EstudioPage').then(m => ({ default: m.EstudioPage })))
+// La pantalla pública donde la comunidad ve el directo. Va DENTRO de AppLayout
+// (con su cabecera y navegación) y sin AuthGate: un espectador no se loguea.
+const EnVivoPage = lazy(() => import('./features/stream/EnVivoPage').then(m => ({ default: m.EnVivoPage })))
 
 // Admin panel — separate layout, isAdmin guard inside AdminLayout
 const AdminLayout = lazy(() => import('./features/admin/AdminLayout').then(m => ({ default: m.AdminLayout })))
@@ -168,6 +171,8 @@ export default function App() {
                 no tiene por qué loguearse para leer una cita del reglamento,
                 y el deep-link /rulings?regla=7.4.2 se comparte por WhatsApp. */}
             <Route path="/rulings" element={<RulingsPage />} />
+            {/* Transmisión pública: la ve cualquiera, con o sin cuenta. */}
+            <Route path="/envivo" element={<EnVivoPage />} />
             <Route path="/sedes" element={<SedesPage />} />
             <Route path="/sede/:id" element={<SedePage />} />
             <Route path="/profile" element={<ProfilePage />} />

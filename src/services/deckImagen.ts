@@ -1,5 +1,5 @@
 import { db } from './db'
-import { artUrlOptimizada, listFaceUrl, listFaceIsLandscape } from './cardArt'
+import { listFaceUrl, listFaceIsLandscape } from './cardArt'
 import type { Deck, DeckCard, Card } from '../types'
 
 /**
@@ -12,13 +12,13 @@ import type { Deck, DeckCard, Card } from '../types'
  *
  * Que el arte venga por `/api/img`, que es MISMO ORIGEN. Un lienzo que dibuja
  * una imagen de otro dominio queda «contaminado» y `toBlob()` lanza
- * `SecurityError`: no se puede leer de vuelta lo que se dibujó. Es la misma
- * pared con la que se choca al intentar medir el color del arte de una carta
- * desde el CDN. Como `cardArt.ts` ya manda todo por el proxy propio, el lienzo
- * queda limpio y la imagen se puede sacar.
+ * `SecurityError`: no se puede leer de vuelta lo que se dibujó. Y el CDN del
+ * juego NO manda `access-control-allow-origin` — comprobado —, así que pedirle
+ * el arte directo deja el lienzo inservible para exportar.
  *
- * Si algún día alguien «optimiza» esto apuntando al CDN directo, la exportación
- * deja de funcionar y el error no va a decir nada de CORS.
+ * Por eso la URL se arma acá (ver `urlParaLienzo`) y no con `artUrlOptimizada`:
+ * para ese ayudante el proxy es una mejora de rendimiento y en desarrollo lo
+ * saltea; para esto es la condición de que funcione.
  *
  * ── Por qué las cantidades y no repetir la carta ─────────────────────
  *
@@ -27,8 +27,29 @@ import type { Deck, DeckCard, Card } from '../types'
  * hace cualquier hoja de mazo: se lee mejor y baja a un tercio la descarga.
  */
 
-/** Ancho de cada carta en la imagen final. Coincide con un ancho de `/api/img`. */
+/** Ancho de cada carta en la imagen final. Tiene que ser uno de `ANCHOS_ARTE`. */
 const ANCHO_CARTA = 224
+
+/**
+ * La URL del arte para el LIENZO. A propósito no reusa `artUrlOptimizada`.
+ *
+ * Ese ayudante trata el proxy como una optimización y en desarrollo devuelve la
+ * URL cruda del CDN — razonable para pintar en pantalla, fatal acá: el CDN del
+ * juego NO manda `access-control-allow-origin` (comprobado), así que una imagen
+ * suya contamina el lienzo y `toBlob()` lanza `SecurityError`.
+ *
+ * Para exportar, el mismo origen no es una mejora: es la condición. Por eso la
+ * URL se arma acá, siempre por `/api/img`, y la dependencia queda explícita en
+ * vez de heredada de una función que puede cambiar por otros motivos.
+ *
+ * En `vite dev` el proxy no existe y las cartas salen como su nombre. Es la
+ * degradación correcta: la hoja se arma igual y en producción trae el arte.
+ */
+function urlParaLienzo(url: string | null | undefined): string | null {
+  if (!url) return null
+  if (!url.startsWith('https://cdn.starwarsunlimited.com/')) return null
+  return `/api/img?u=${encodeURIComponent(url)}&w=${ANCHO_CARTA}`
+}
 /** Alto del hueco. Las cartas de SWU son ~1:1,4; las apaisadas se centran adentro. */
 const ALTO_CARTA = Math.round(ANCHO_CARTA * 1.4)
 const HUECO = 14
@@ -79,7 +100,7 @@ async function prepararPiezas(cartas: DeckCard[]): Promise<Pieza[]> {
 
   return Promise.all(cartas.map(async c => {
     const ficha = porId.get(c.cardId)
-    const url = artUrlOptimizada(listFaceUrl(ficha), ANCHO_CARTA)
+    const url = urlParaLienzo(listFaceUrl(ficha))
     return {
       nombre: c.name,
       cantidad: c.quantity,
