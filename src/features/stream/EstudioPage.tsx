@@ -196,10 +196,17 @@ export function EstudioPage() {
   if (!isAdmin) return <Pantalla>Redirigiendo…</Pantalla>
   if (cargando) return <Pantalla>Cargando marcador…</Pantalla>
 
+  /* `h-[100dvh]` + columna con el scroll ADENTRO, igual que AppLayout.
+   *
+   * `index.css` le pone `overflow: hidden` a html y body a propósito (para
+   * que iOS no rebote), así que el documento NO se desplaza: el que scrollea
+   * es el contenedor del caparazón. Esta ruta vive FUERA de AppLayout, así
+   * que sin su propio contenedor de scroll todo lo que pase de la altura de
+   * la pantalla quedaba cortado y era imposible llegar abajo. */
   return (
-    <div className="min-h-screen bg-[#0d0f14] pb-16 text-swu-text">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#0d0f14] text-swu-text">
       {/* ══ Barra de estado ══ */}
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0d0f14]/95 backdrop-blur">
+      <header className="shrink-0 border-b border-white/10 bg-[#0d0f14]/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1400px] items-center gap-3 px-3 py-2.5 sm:px-5">
           <button
             onClick={() => navigate('/')}
@@ -249,7 +256,7 @@ export function EstudioPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1400px] px-3 py-4 sm:px-5">
+      <main className="mx-auto w-full max-w-[1400px] flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain px-3 py-4 pb-24 sm:px-5">
         {bloqueado && (
           <p className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
             Controles bloqueados. Tocá el candado para volver a operar.
