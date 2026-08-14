@@ -15,7 +15,7 @@
 
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, ScanLine, Swords} from 'lucide-react'
+import { ChevronRight, ScanLine, Swords, RadioTower, Radio } from 'lucide-react'
 import {
   DatapadIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
   DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
@@ -41,12 +41,18 @@ interface Sistema {
   tone: HudTone
   to: string
   auth?: boolean
+  /** Solo para administradores. Los demás ni ven la casilla. */
+  admin?: boolean
 }
 
 const mainSystems: Sistema[] = [
   { icon: DatapadIcon,     label: 'Holocrón',    tone: 'green',  to: '/arena',      auth: true },
   { icon: MandoTrophyIcon, label: 'Eventos',   tone: 'amber',  to: '/events',     auth: true },
   { icon: KyberIcon,       label: 'Meta',      tone: 'cyan',   to: '/meta' },
+  // La transmisión, en la cuadrícula y no solo en el cajón lateral: es el sitio
+  // donde la gente busca los módulos, y el cajón hay que abrirlo a propósito.
+  { icon: RadioTower,      label: 'En Vivo',   tone: 'red',    to: '/envivo' },
+  { icon: Radio,           label: 'Transmisión', tone: 'red',  to: '/estudio/SV01', admin: true },
   // PÚBLICO a propósito (sin auth): un juez en torneo consulta una regla
   // sin loguearse. Va arriba, cerca de Meta: los dos son consulta de mesa.
   { icon: HolocronIcon,    label: 'Rulings',   tone: 'cyan',   to: '/rulings' },
@@ -73,7 +79,9 @@ const mainSystems: Sistema[] = [
   { icon: DeathStarIcon,   label: 'Misiones',       tone: 'amber',  to: '/misiones',   auth: true },
   { icon: BeskarIcon,      label: 'Consejo Jedi',   tone: 'amber',  to: '/rank',       auth: true },
   { icon: HolonetIcon,     label: 'Buscar Cartas',         tone: 'cyan',   to: '/cards',      auth: true },
-  { icon: ChanceCubeIcon,  label: 'Utilidades',          tone: 'purple', to: '/utilities' },
+  // Antes decía «Utilidades» y apuntaba a /utilities, que desde que se retiraron
+  // las monedas no hace más que redirigir. Se nombra lo que de verdad abre.
+  { icon: ChanceCubeIcon,  label: 'Contador',            tone: 'purple', to: '/contador' },
 ]
 
 interface Marcador {
@@ -85,7 +93,7 @@ interface Marcador {
 
 export function HomePage() {
   const navigate = useNavigate()
-  const { currentProfile, supabaseUser } = useAuth()
+  const { currentProfile, supabaseUser, isAdmin } = useAuth()
 
   /** Rango y marcador viajan juntos: salen de la misma fila y se pintan a la
    *  vez, así que un solo estado evita un render intermedio a medio llenar. */
@@ -222,7 +230,7 @@ export function HomePage() {
 
       {/* ── Módulos ── */}
       <div className="px-4 pt-2 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-        {mainSystems.filter(s => !s.auth || currentProfile).map(sys => {
+        {mainSystems.filter(s => (!s.auth || currentProfile) && (!s.admin || isAdmin)).map(sys => {
           const Icon = sys.icon
           return (
             <button

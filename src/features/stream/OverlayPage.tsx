@@ -227,7 +227,8 @@ function Chapa({
     >
       <div
         style={{
-          background: METAL,
+          // Textura de microcircuito diagonal, casi imperceptible, sobre el metal.
+          background: `repeating-linear-gradient(115deg, rgba(255,255,255,.028) 0 1px, transparent 1px 26px), ${METAL}`,
           border: `1.5px solid ${DORADO}59`,
           boxShadow: RELIEVE,
           clipPath: chaflan(recorte),
@@ -238,6 +239,20 @@ function Chapa({
         }}
       >
         {children}
+        {/* Filo de la bandera: azul-blanco-azul recorriendo la base del panel. */}
+        <span
+          style={{
+            position: 'absolute',
+            left: recorte,
+            right: recorte,
+            bottom: 0,
+            height: 4,
+            background: 'linear-gradient(90deg, #1E4FB8 0 34%, #F4F7FB 34% 66%, #1E4FB8 66% 100%)',
+            opacity: 0.9,
+            boxShadow: '0 0 8px rgba(63,182,255,.45)',
+            pointerEvents: 'none',
+          }}
+        />
       </div>
     </div>
   )
@@ -271,6 +286,47 @@ function Luces({ lado }: { lado: 'izq' | 'der' }) {
         }}
       />
     </>
+  )
+}
+
+/**
+ * Volcán geométrico con haz de luz en el cráter — el mismo motivo del marco
+ * de fondo. Dos triángulos apilados hacen el filo dorado (un clip-path no
+ * admite borde propio).
+ */
+function Volcan({ tam = 44 }: { tam?: number }) {
+  return (
+    <div style={{ position: 'relative', width: tam, height: tam * 0.74, flex: '0 0 auto' }}>
+      <span
+        className="ov-neon"
+        style={{
+          position: 'absolute',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          bottom: '82%',
+          width: 3,
+          height: tam * 0.46,
+          background: `linear-gradient(180deg, transparent, ${CIAN})`,
+          boxShadow: `0 0 10px ${CIAN}`,
+        }}
+      />
+      <span
+        style={{
+          position: 'absolute',
+          inset: 0,
+          clipPath: 'polygon(50% 0, 100% 100%, 0 100%)',
+          background: `${DORADO}B8`,
+        }}
+      />
+      <span
+        style={{
+          position: 'absolute',
+          inset: '2.5px 3px 1.5px',
+          clipPath: 'polygon(50% 0, 100% 100%, 0 100%)',
+          background: 'linear-gradient(180deg, #2B4F92, #081A3E)',
+        }}
+      />
+    </div>
   )
 }
 
@@ -599,7 +655,14 @@ function BarraArriba({ estado, restante }: { estado: EstadoOverlay; restante: nu
       {/* Bloque de ronda y reloj */}
       <Chapa recorte={16} brillo style={{ flex: '0 0 auto' }}>
         <Luces lado="izq" />
-        <div style={{ display: 'flex', alignItems: 'center', padding: '0 26px 0 30px', gap: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '0 26px 0 24px', gap: 22 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+            <Volcan tam={40} />
+            <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '.28em', color: DORADO, whiteSpace: 'nowrap' }}>
+              EL SALVADOR
+            </span>
+          </div>
+          <span style={{ width: 1, height: 64, background: `${DORADO}35` }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ fontSize: 19, fontWeight: 900, letterSpacing: '.06em', whiteSpace: 'nowrap' }}>
               {estado.etiquetaRonda}
@@ -681,6 +744,22 @@ function BarraAbajo({ estado }: { estado: EstadoOverlay }) {
         />
       </Chapa>
       <div style={{ flex: 1 }} />
+
+      {/* Emblema salvadoreño, espejo del bloque de ronda de arriba. */}
+      <Chapa recorte={14} brillo style={{ flex: '0 0 auto' }}>
+        <Luces lado="der" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '0 30px 0 24px' }}>
+          <Volcan tam={46} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <span style={{ fontSize: 17, fontWeight: 900, letterSpacing: '.24em', color: DORADO, whiteSpace: 'nowrap' }}>
+              EL SALVADOR
+            </span>
+            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.3em', color: `${BLANCO}90`, whiteSpace: 'nowrap' }}>
+              TIERRA DE VOLCANES
+            </span>
+          </div>
+        </div>
+      </Chapa>
     </div>
   )
 }
