@@ -218,19 +218,23 @@ export function EstudioPage() {
         </button>
       </header>
 
-      <div className="mx-auto flex max-w-2xl flex-col gap-5 p-4">
+      <main className="mx-auto max-w-6xl px-3 py-4 sm:px-4">
         {bloqueado && (
-          <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+          <p className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
             Controles bloqueados. Tocá el candado para volver a operar.
           </p>
         )}
 
-        <MiniVista code={code} />
+        {/* ── Zona en vivo: vista + escenas. Pegajosa en escritorio para que el
+            operador no la pierda de vista mientras baja a los controles. ── */}
+        <div className="mb-4 grid gap-3 lg:sticky lg:top-[68px] lg:z-10 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)] lg:rounded-2xl lg:bg-swu-bg/90 lg:p-2 lg:backdrop-blur">
+          <MiniVista code={code} />
+          <Escenas escena={estado.escena} onEscena={e => aplicar({ t: 'escena', escena: e })} />
+        </div>
 
-        <Escenas escena={estado.escena} onEscena={e => aplicar({ t: 'escena', escena: e })} />
-
-        {/* Daño primero: es lo que más se toca. */}
-        <div className="flex flex-col gap-4">
+        {/* ── Jugadores: lado a lado en pantallas medianas y grandes. Es lo que
+            más se toca, así que va grande y arriba. ── */}
+        <div className="grid gap-4 md:grid-cols-2">
           {([0, 1] as Indice[]).map(i => (
             <TarjetaJugador
               key={i}
@@ -248,149 +252,156 @@ export function EstudioPage() {
           ))}
         </div>
 
-        <Bloque titulo="Iniciativa">
-          <div className="grid grid-cols-2 gap-2">
-            {([0, 1] as Indice[]).map(i => (
-              <button
-                key={i}
-                onClick={() => aplicar({ t: 'iniciativa', lado: estado.iniciativa === i ? null : i })}
-                className={`min-h-[64px] rounded-xl border-2 px-4 text-base font-bold transition ${
-                  estado.iniciativa === i
-                    ? 'border-amber-400 bg-amber-400/20 text-amber-300'
-                    : 'border-swu-border bg-swu-surface text-swu-muted'
-                }`}
-              >
-                {estado.lados[i].nombre || `Jugador ${i + 1}`}
-              </button>
-            ))}
-          </div>
-        </Bloque>
+        {/* ── Controles globales en dos columnas ── */}
+        <div className="mt-4 grid items-start gap-4 lg:grid-cols-2">
+          <div className="flex flex-col gap-4">
+            <Bloque titulo="Reloj">
+              <div className="flex flex-col gap-3">
+                <span className="text-center font-mono text-5xl font-black tabular-nums">
+                  {restante !== null ? formatearReloj(restante) : '--:--'}
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() =>
+                      aplicar(relojCorriendo ? { t: 'relojPausar', ahora: Date.now() } : { t: 'relojIniciar', ahora: Date.now() })
+                    }
+                    className="min-h-[60px] rounded-xl bg-swu-accent/20 text-base font-bold text-swu-accent-texto"
+                  >
+                    {relojCorriendo ? 'PAUSA' : 'INICIAR'}
+                  </button>
+                  <button
+                    onClick={() => aplicar({ t: 'relojExtender', minutos: 5, ahora: Date.now() })}
+                    className="min-h-[60px] rounded-xl border border-swu-border bg-swu-surface text-base font-bold"
+                  >
+                    +5 MIN
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {[55, 50, 40].map(m => (
+                    <button
+                      key={m}
+                      onClick={() => aplicar({ t: 'relojDuracion', minutos: m })}
+                      className="min-h-[48px] rounded-lg border border-swu-border bg-swu-surface text-sm font-semibold text-swu-muted"
+                    >
+                      {m} min
+                    </button>
+                  ))}
+                </div>
 
-        <Bloque titulo="Ronda">
-          <div className="flex flex-wrap gap-2">
-            {RONDAS.map(r => (
-              <button
-                key={r}
-                onClick={() => aplicar({ t: 'ronda', etiqueta: r })}
-                className={`rounded-lg border px-3 py-2.5 text-sm font-semibold ${
-                  estado.etiquetaRonda === r
-                    ? 'border-swu-accent bg-swu-accent/15 text-swu-accent-texto'
-                    : 'border-swu-border bg-swu-surface text-swu-muted'
-                }`}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
-        </Bloque>
-
-        <Bloque titulo="Reloj">
-          <div className="flex flex-col gap-3">
-            <span className="text-center font-mono text-5xl font-black tabular-nums">
-              {restante !== null ? formatearReloj(restante) : '--:--'}
-            </span>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() =>
-                  aplicar(relojCorriendo ? { t: 'relojPausar', ahora: Date.now() } : { t: 'relojIniciar', ahora: Date.now() })
-                }
-                className="min-h-[60px] rounded-xl bg-swu-accent/20 text-base font-bold text-swu-accent-texto"
-              >
-                {relojCorriendo ? 'PAUSA' : 'INICIAR'}
-              </button>
-              <button
-                onClick={() => aplicar({ t: 'relojExtender', minutos: 5, ahora: Date.now() })}
-                className="min-h-[60px] rounded-xl border border-swu-border bg-swu-surface text-base font-bold"
-              >
-                +5 MIN
-              </button>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {[55, 50, 40].map(m => (
+                {/* Un solo botón que hace lo correcto de una vez: en eliminación
+                    gana quien tenga más HP restante, y la iniciativa desempata.
+                    Esos dos números SON el resultado del partido en ese momento. */}
                 <button
-                  key={m}
-                  onClick={() => aplicar({ t: 'relojDuracion', minutos: m })}
-                  className="min-h-[48px] rounded-lg border border-swu-border bg-swu-surface text-sm font-semibold text-swu-muted"
+                  onClick={() => aplicar({ t: 'tiempoExtra', valor: !estado.tiempoExtra })}
+                  className={`min-h-[64px] rounded-xl border-2 text-base font-black tracking-wider ${
+                    estado.tiempoExtra
+                      ? 'border-red-500 bg-red-500/25 text-red-300'
+                      : 'border-swu-border bg-swu-surface text-swu-muted'
+                  }`}
                 >
-                  {m} min
+                  {estado.tiempoExtra ? 'QUITAR TIEMPO' : 'TIEMPO'}
                 </button>
-              ))}
+              </div>
+            </Bloque>
+
+            <Bloque titulo="Iniciativa">
+              <div className="grid grid-cols-2 gap-2">
+                {([0, 1] as Indice[]).map(i => (
+                  <button
+                    key={i}
+                    onClick={() => aplicar({ t: 'iniciativa', lado: estado.iniciativa === i ? null : i })}
+                    className={`min-h-[64px] rounded-xl border-2 px-4 text-base font-bold transition ${
+                      estado.iniciativa === i
+                        ? 'border-amber-400 bg-amber-400/20 text-amber-300'
+                        : 'border-swu-border bg-swu-surface text-swu-muted'
+                    }`}
+                  >
+                    {estado.lados[i].nombre || `Jugador ${i + 1}`}
+                  </button>
+                ))}
+              </div>
+            </Bloque>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <Bloque titulo="Ronda">
+              <div className="flex flex-wrap gap-2">
+                {RONDAS.map(r => (
+                  <button
+                    key={r}
+                    onClick={() => aplicar({ t: 'ronda', etiqueta: r })}
+                    className={`rounded-lg border px-3 py-2.5 text-sm font-semibold ${
+                      estado.etiquetaRonda === r
+                        ? 'border-swu-accent bg-swu-accent/15 text-swu-accent-texto'
+                        : 'border-swu-border bg-swu-surface text-swu-muted'
+                    }`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </Bloque>
+
+            <Bloque titulo="Partida">
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => aplicar({ t: 'revision', valor: !estado.enRevision })}
+                  className={`min-h-[60px] rounded-xl border-2 text-base font-bold ${
+                    estado.enRevision
+                      ? 'border-amber-400 bg-amber-400/20 text-amber-300'
+                      : 'border-swu-border bg-swu-surface text-swu-muted'
+                  }`}
+                >
+                  {estado.enRevision ? 'QUITAR REVISIÓN' : 'PARTIDA EN REVISIÓN'}
+                </button>
+
+                <ConConfirmacion
+                  etiqueta="NUEVO JUEGO"
+                  pregunta="¿Nuevo juego? Se pone el daño en cero y se conservan líder, base y HP máximo."
+                  onConfirmar={() => aplicar({ t: 'nuevoJuego' })}
+                />
+
+                <button
+                  onClick={() => aplicar({ t: 'intercambiar' })}
+                  className="min-h-[56px] rounded-xl border border-swu-border bg-swu-surface text-sm font-semibold text-swu-muted"
+                >
+                  INTERCAMBIAR LADOS
+                </button>
+
+                <ConConfirmacion
+                  etiqueta="REINICIAR MARCADOR"
+                  pregunta="¿Reiniciar todo? Se conservan solo los nombres de los jugadores."
+                  peligro
+                  onConfirmar={() => aplicar({ t: 'reiniciar' })}
+                />
+              </div>
+            </Bloque>
+
+            <Bloque titulo="Texto en pantalla">
+              <div className="flex flex-col gap-2">
+                <CampoTexto
+                  etiqueta="Mensaje de las escenas opacas"
+                  valor={estado.mensaje}
+                  onGuardar={v => aplicar({ t: 'mensaje', texto: v })}
+                />
+                <CampoTexto
+                  etiqueta="Patrocinio / tienda anfitriona"
+                  valor={estado.patrocinio}
+                  onGuardar={v => aplicar({ t: 'patrocinio', texto: v })}
+                />
+              </div>
+            </Bloque>
+
+            <div className="rounded-xl border border-swu-border bg-swu-surface p-4 text-sm text-swu-muted">
+              <p className="mb-2 font-semibold text-swu-text">En OBS, como Browser Source:</p>
+              <code className="block break-all rounded-lg bg-swu-bg px-3 py-2 font-mono text-xs">
+                {typeof window !== 'undefined' ? window.location.origin : ''}/overlay/{code}
+              </code>
+              <p className="mt-2 text-xs">1920 × 1080 · «Apagar fuente cuando no esté visible» y «Refrescar al activar la escena» en OFF.</p>
             </div>
-
-            {/* Un solo botón que hace lo correcto de una vez: en eliminación
-                gana quien tenga más HP restante, y la iniciativa desempata.
-                Esos dos números SON el resultado del partido en ese momento. */}
-            <button
-              onClick={() => aplicar({ t: 'tiempoExtra', valor: !estado.tiempoExtra })}
-              className={`min-h-[64px] rounded-xl border-2 text-base font-black tracking-wider ${
-                estado.tiempoExtra
-                  ? 'border-red-500 bg-red-500/25 text-red-300'
-                  : 'border-swu-border bg-swu-surface text-swu-muted'
-              }`}
-            >
-              {estado.tiempoExtra ? 'QUITAR TIEMPO' : 'TIEMPO'}
-            </button>
           </div>
-        </Bloque>
-
-        <Bloque titulo="Partida">
-          <div className="flex flex-col gap-2">
-            <button
-              onClick={() => aplicar({ t: 'revision', valor: !estado.enRevision })}
-              className={`min-h-[60px] rounded-xl border-2 text-base font-bold ${
-                estado.enRevision
-                  ? 'border-amber-400 bg-amber-400/20 text-amber-300'
-                  : 'border-swu-border bg-swu-surface text-swu-muted'
-              }`}
-            >
-              {estado.enRevision ? 'QUITAR REVISIÓN' : 'PARTIDA EN REVISIÓN'}
-            </button>
-
-            <ConConfirmacion
-              etiqueta="NUEVO JUEGO"
-              pregunta="¿Nuevo juego? Se pone el daño en cero y se conservan líder, base y HP máximo."
-              onConfirmar={() => aplicar({ t: 'nuevoJuego' })}
-            />
-
-            <button
-              onClick={() => aplicar({ t: 'intercambiar' })}
-              className="min-h-[56px] rounded-xl border border-swu-border bg-swu-surface text-sm font-semibold text-swu-muted"
-            >
-              INTERCAMBIAR LADOS
-            </button>
-
-            <ConConfirmacion
-              etiqueta="REINICIAR MARCADOR"
-              pregunta="¿Reiniciar todo? Se conservan solo los nombres de los jugadores."
-              peligro
-              onConfirmar={() => aplicar({ t: 'reiniciar' })}
-            />
-          </div>
-        </Bloque>
-
-        <Bloque titulo="Texto en pantalla">
-          <div className="flex flex-col gap-2">
-            <CampoTexto
-              etiqueta="Mensaje de las escenas opacas"
-              valor={estado.mensaje}
-              onGuardar={v => aplicar({ t: 'mensaje', texto: v })}
-            />
-            <CampoTexto
-              etiqueta="Patrocinio / tienda anfitriona"
-              valor={estado.patrocinio}
-              onGuardar={v => aplicar({ t: 'patrocinio', texto: v })}
-            />
-          </div>
-        </Bloque>
-
-        <div className="rounded-xl border border-swu-border bg-swu-surface p-4 text-sm text-swu-muted">
-          <p className="mb-2 font-semibold text-swu-text">En OBS, como Browser Source:</p>
-          <code className="block break-all rounded-lg bg-swu-bg px-3 py-2 font-mono text-xs">
-            {typeof window !== 'undefined' ? window.location.origin : ''}/overlay/{code}
-          </code>
-          <p className="mt-2 text-xs">1920 × 1080 · «Apagar fuente cuando no esté visible» y «Refrescar al activar la escena» en OFF.</p>
         </div>
-      </div>
+      </main>
     </div>
   )
 }

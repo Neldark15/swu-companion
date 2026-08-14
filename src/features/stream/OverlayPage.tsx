@@ -567,7 +567,10 @@ function EscenaOpaca({ estado, restante }: { estado: EstadoOverlay; restante: nu
         alignItems: 'center',
         justifyContent: 'center',
         gap: 34,
-        background: `radial-gradient(circle at 50% 38%, ${COBALTO} 0%, ${COBALTO_OSCURO} 62%, #030A1C 100%)`,
+        // El marco propio (volcán + El Salvador) va de fondo; una capa oscura
+        // sutil encima asegura contraste del texto. El color sólido es el
+        // respaldo si la imagen no cargara: nunca queda una pantalla en blanco.
+        background: `linear-gradient(rgba(3,10,28,.28), rgba(3,10,28,.5)), url('/stream/fondo.jpg') center / cover no-repeat, ${COBALTO_OSCURO}`,
       }}
     >
       <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '.42em', color: DORADO }}>

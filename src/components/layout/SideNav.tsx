@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Hexagon, Swords, ShieldCheck, Megaphone, Newspaper as NewspaperIcon, BarChart3 as MetaIcon, BookOpen, FlaskConical, Scale } from 'lucide-react'
+import { Hexagon, Swords, ShieldCheck, Megaphone, Newspaper as NewspaperIcon, BarChart3 as MetaIcon, BookOpen, FlaskConical, Scale, RadioTower } from 'lucide-react'
 import {
   DatapadIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
   DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
@@ -140,6 +140,24 @@ export function SideNav() {
             <div className="px-3 mt-5 mb-2">
               <span className="text-[9px] text-swu-amber/70 font-mono tracking-[0.25em] uppercase">Cuartel General</span>
             </div>
+            <button
+              onClick={() => navigate('/estudio/SV01')}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 group mb-1 ${
+                location.pathname.startsWith('/estudio')
+                  ? 'bg-swu-accent/15 text-swu-accent-texto border border-swu-accent/30'
+                  : 'text-swu-muted hover:bg-swu-surface-hover hover:text-swu-text border border-transparent'
+              }`}
+            >
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                location.pathname.startsWith('/estudio') ? 'bg-swu-accent/20' : 'bg-swu-surface group-hover:bg-swu-surface-hover'
+              }`}>
+                <RadioTower size={18} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className={`text-sm font-semibold truncate ${location.pathname.startsWith('/estudio') ? 'text-swu-accent-texto' : ''}`}>Transmisión</div>
+                <div className="text-[10px] text-swu-muted font-mono tracking-wider truncate">Centro de mando en vivo</div>
+              </div>
+            </button>
             <button
               onClick={() => navigate('/admin')}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 group ${
