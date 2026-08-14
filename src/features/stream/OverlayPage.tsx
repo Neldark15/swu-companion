@@ -59,7 +59,12 @@ const ESTILOS = `
 `
 
 export function OverlayPage() {
-  const { code = '' } = useParams<{ code: string }>()
+  /* En mayúsculas desde el borde: el servicio ya normaliza antes de tocar la
+     base, pero este `code` también arma la URL que se copia a OBS y el rótulo
+     en pantalla. Sin esto, entrar por `/estudio/sv01` funcionaba pero mostraba
+     y copiaba un enlace en minúsculas — el mismo sitio con dos caras. */
+  const { code: codeCrudo = '' } = useParams<{ code: string }>()
+  const code = codeCrudo.trim().toUpperCase()
   const [params] = useSearchParams()
   const fondoOscuro = params.get('fondo') === 'oscuro'
   const debug = params.get('debug') === '1'

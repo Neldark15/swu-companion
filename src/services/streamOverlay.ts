@@ -205,7 +205,25 @@ export function reducir(e: EstadoOverlay, a: Accion): EstadoOverlay {
 }
 
 /** Lee el estado actual. Si la fila no existe todavía, devuelve el inicial. */
-export async function leerOverlay(code: string): Promise<OverlayLeido> {
+/**
+ * El código de sesión, siempre en mayúsculas.
+ *
+ * `.eq('code', code)` es comparación EXACTA en Postgres, así que una sesión
+ * creada como `SV01` no se encuentra pidiendo `sv01`. La barra lateral navega
+ * siempre en mayúsculas y por ahí nunca falla, pero la URL se comparte a mano y
+ * por WhatsApp: alguien que escriba `/estudio/sv01` veía un estudio vacío, sin
+ * ningún error que explicara por qué.
+ *
+ * Se normaliza ACÁ y no en las dos páginas a propósito: así ningún llamador
+ * futuro —otra pantalla, un enlace, una prueba— se lo puede saltar. Es el único
+ * lugar por donde pasa el código antes de tocar la base.
+ */
+function codigoCanonico(code: string): string {
+  return code.trim().toUpperCase()
+}
+
+export async function leerOverlay(codeCrudo: string): Promise<OverlayLeido> {
+  const code = codigoCanonico(codeCrudo)
   // §2f: supabase-js NO lanza. Sin desestructurar `error`, un fallo se ve
   // idéntico a «no hay datos» y el overlay pintaría un marcador vacío al aire.
   const { data, error } = await supabase
@@ -228,7 +246,8 @@ export async function leerOverlay(code: string): Promise<OverlayLeido> {
 }
 
 /** Crea la fila si no existe. Idempotente. */
-export async function asegurarOverlay(code: string): Promise<void> {
+export async function asegurarOverlay(codeCrudo: string): Promise<void> {
+  const code = codigoCanonico(codeCrudo)
   const { error } = await supabase
     .from('stream_overlay')
     .upsert({ code, estado: ESTADO_INICIAL, version: 0 }, { onConflict: 'code', ignoreDuplicates: true })
@@ -245,7 +264,8 @@ const REINTENTOS = 4
  * más escribió en el medio. En vez de perder el toque, se relee y se re-aplica
  * la misma acción sobre el estado fresco.
  */
-export async function aplicarAccion(code: string, accion: Accion): Promise<EstadoOverlay> {
+export async function aplicarAccion(codeCrudo: string, accion: Accion): Promise<EstadoOverlay> {
+  const code = codigoCanonico(codeCrudo)
   let ultimoError = 'No se pudo guardar'
 
   for (let intento = 0; intento < REINTENTOS; intento++) {
@@ -285,9 +305,12 @@ export async function aplicarAccion(code: string, accion: Accion): Promise<Estad
  * defensa es releer cada tanto.
  */
 export function suscribirOverlay(
-  code: string,
+  codeCrudo: string,
   onEstado: (leido: OverlayLeido) => void
 ): () => void {
+  // También acá: el `filter` del canal de realtime compara igual de exacto, así
+  // que un código en minúsculas se suscribiría a un canal que nunca emite.
+  const code = codigoCanonico(codeCrudo)
   const canal = supabase
     .channel(`overlay-${code}`)
     .on(

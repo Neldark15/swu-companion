@@ -66,7 +66,12 @@ const LADO_UI = [
 ] as const
 
 export function EstudioPage() {
-  const { code = '' } = useParams<{ code: string }>()
+  /* En mayúsculas desde el borde: el servicio ya normaliza antes de tocar la
+     base, pero este `code` también arma la URL que se copia a OBS y el rótulo
+     en pantalla. Sin esto, entrar por `/estudio/sv01` funcionaba pero mostraba
+     y copiaba un enlace en minúsculas — el mismo sitio con dos caras. */
+  const { code: codeCrudo = '' } = useParams<{ code: string }>()
+  const code = codeCrudo.trim().toUpperCase()
   const navigate = useNavigate()
   const { isAdmin, currentProfile, initAuth, authListo, rolListo } = useAuth()
 
