@@ -79,6 +79,13 @@ const BancoMesa = import.meta.env.DEV
   : () => null
 const RulingsPage = lazy(() => import('./features/rulings/RulingsPage').then(m => ({ default: m.RulingsPage })))
 
+// Transmisión: overlay para OBS (anónimo, transparente) + estudio (panel admin).
+// Van FUERA de AppLayout, junto a /admin: sin Header, sin SideNav, sin TabBar y
+// —clave— sin UpdatePrompt, el único sitio que registra el service worker. Así
+// la ruta que consume OBS nunca instala un SW que le sirva el index.html cacheado.
+const OverlayPage = lazy(() => import('./features/stream/OverlayPage').then(m => ({ default: m.OverlayPage })))
+const EstudioPage = lazy(() => import('./features/stream/EstudioPage').then(m => ({ default: m.EstudioPage })))
+
 // Admin panel — separate layout, isAdmin guard inside AdminLayout
 const AdminLayout = lazy(() => import('./features/admin/AdminLayout').then(m => ({ default: m.AdminLayout })))
 const AdminDashboard = lazy(() => import('./features/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })))
@@ -137,6 +144,12 @@ export default function App() {
             <Route path="audit" element={<AdminAuditPage />} />
             <Route path="announcements" element={<AdminAnnouncementsPage />} />
           </Route>
+
+          {/* ── Transmisión — fuera de AppLayout a propósito (ver arriba) ── */}
+          {/* Overlay: lo consume OBS sin sesión. Lienzo transparente 1920×1080. */}
+          <Route path="/overlay/:code" element={<OverlayPage />} />
+          {/* Estudio: panel del operador. AuthGate + guarda de admin adentro. */}
+          <Route path="/estudio/:code" element={<P><EstudioPage /></P>} />
 
           <Route element={<AppLayout />}>
             {/* ── Public routes ── */}

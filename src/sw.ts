@@ -52,6 +52,13 @@ registerRoute(
     denylist: [
       /^\/api\//,
       /^\/assets\//,
+      /* Transmisión: el overlay lo abre el navegador de OBS, y el estudio corre
+       * en el celular del operador. Si el SW estuviera instalado en esa máquina
+       * (p. ej. Nel abre el overlay en su propia Mac con la PWA ya instalada),
+       * el fallback de navegación le serviría el index.html precacheado a TODA
+       * navegación y el overlay nunca cargaría. Van a la red. */
+      /^\/overlay\//,
+      /^\/estudio\//,
       /* Archivos con extensión → a la red, no al index.html.
        *
        * `NavigationRoute` prueba estas regex contra `pathname + search`, no
