@@ -74,6 +74,10 @@ export function EstudioPage() {
   const [cargando, setCargando] = useState(true)
   const [sinGuardar, setSinGuardar] = useState(false)
   const [bloqueado, setBloqueado] = useState(false)
+  /* Dos pestañas: CONTROL es lo que se opera en vivo y cabe entero en una
+     pantalla 1920×1080 sin desplazarse; AJUSTES es lo que se toca antes del
+     torneo (partida, textos, YouTube) y puede scrollear sin molestar. */
+  const [pestana, setPestana] = useState<'control' | 'ajustes'>('control')
   const [ahora, setAhora] = useState(() => Date.now())
   const [ultimoDano, setUltimoDano] = useState<{ lado: Indice; delta: number; hasta: number } | null>(null)
 
@@ -223,6 +227,26 @@ export function EstudioPage() {
             <span className="truncate font-mono text-base font-bold tracking-wider">{code}</span>
           </div>
 
+          {/* Pestañas */}
+          <div className="ml-3 flex rounded-lg border border-white/10 bg-black/30 p-0.5">
+            {(
+              [
+                { id: 'control', texto: 'Control' },
+                { id: 'ajustes', texto: 'Ajustes' },
+              ] as const
+            ).map(t => (
+              <button
+                key={t.id}
+                onClick={() => setPestana(t.id)}
+                className={`rounded-md px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider transition ${
+                  pestana === t.id ? 'bg-white/10 text-swu-text' : 'text-swu-muted hover:text-swu-text'
+                }`}
+              >
+                {t.texto}
+              </button>
+            ))}
+          </div>
+
           {/* Tally: rojo solo cuando la escena JUEGO está al aire. */}
           <span
             className={`ml-auto flex items-center gap-2 rounded-md px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] transition ${
@@ -265,6 +289,8 @@ export function EstudioPage() {
           </p>
         )}
 
+        {pestana === 'control' && (
+        <>
         {/* ══ Fila 1 · Monitor · escenas · reloj ══
             El reloj sube acá porque se consulta seguido; así la fila de arriba
             concentra todo lo que el operador mira sin dejar de ver el aire. */}
@@ -383,7 +409,7 @@ export function EstudioPage() {
         </div>
 
         {/* ══ Fila 2 · Los dos jugadores ══ */}
-        <div className="mb-4 grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-2.5 lg:grid-cols-2">
           {([0, 1] as Indice[]).map(i => (
             <TarjetaJugador
               key={i}
@@ -401,7 +427,11 @@ export function EstudioPage() {
           ))}
         </div>
 
-        {/* ══ Fila 3 · Partida y textos ══ */}
+        </>
+        )}
+
+        {/* ══ Ajustes · Partida y textos ══ */}
+        {pestana === 'ajustes' && (
         <div className="grid items-start gap-2.5 lg:grid-cols-2">
           <Panel titulo="Partida" denso>
             <div className="flex flex-col gap-1.5">
@@ -493,6 +523,7 @@ export function EstudioPage() {
             </div>
           </Panel>
         </div>
+        )}
       </main>
     </div>
   )
@@ -849,6 +880,15 @@ function BuscadorCarta({
 }) {
   const [abierto, setAbierto] = useState(false)
 
+  /* Las bases son cartas APAISADAS: recortarlas a un cuadrado dejaba una
+     franja irreconocible. La miniatura respeta la orientación de cada tipo. */
+  const claseMiniatura =
+    tipo === 'base' ? 'h-10 w-[68px] shrink-0 rounded-md object-cover' : 'h-11 w-11 shrink-0 rounded-md object-cover'
+  const clasePlaceholder =
+    tipo === 'base'
+      ? 'grid h-10 w-[68px] shrink-0 place-items-center rounded-md bg-white/5 text-swu-muted'
+      : 'grid h-11 w-11 shrink-0 place-items-center rounded-md bg-white/5 text-swu-muted'
+
   return (
     <>
       {/* Disparador: muestra la miniatura de lo elegido, así el operador
@@ -859,15 +899,9 @@ function BuscadorCarta({
           className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-white/10 bg-black/20 px-2.5 py-2.5 text-left text-sm transition hover:border-white/25 hover:bg-white/5"
         >
           {imgActual ? (
-            <img
-              src={imgCarta(imgActual, 128)}
-              alt=""
-              className="h-11 w-11 shrink-0 rounded-md object-cover"
-            />
+            <img src={imgCarta(imgActual, 224)} alt="" className={claseMiniatura} />
           ) : (
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-white/5 text-swu-muted">
-              {icono}
-            </span>
+            <span className={clasePlaceholder}>{icono}</span>
           )}
           <span className="min-w-0 flex-1">
             <span className="block text-[10px] font-bold uppercase tracking-wider text-swu-muted">
@@ -1001,13 +1035,23 @@ function ModalCartas({
                   >
                     {c.img ? (
                       <img
-                        src={imgCarta(c.img, 128)}
+                        src={imgCarta(c.img, 224)}
                         alt=""
                         loading="lazy"
-                        className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                        className={
+                          tipo === 'base'
+                            ? 'h-14 w-[96px] shrink-0 rounded-lg object-cover'
+                            : 'h-16 w-16 shrink-0 rounded-lg object-cover'
+                        }
                       />
                     ) : (
-                      <span className="h-16 w-16 shrink-0 rounded-lg bg-white/5" />
+                      <span
+                        className={
+                          tipo === 'base'
+                            ? 'h-14 w-[96px] shrink-0 rounded-lg bg-white/5'
+                            : 'h-16 w-16 shrink-0 rounded-lg bg-white/5'
+                        }
+                      />
                     )}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-bold">{c.nombre}</span>
