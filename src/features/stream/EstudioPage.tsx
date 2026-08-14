@@ -1,12 +1,17 @@
 /**
- * ESTUDIO — el panel que opera el marcador en vivo.
+ * ESTUDIO — la consola que opera el marcador en vivo.
  *
- * Pensado para el pulgar de alguien que además está narrando: botones grandes,
- * lo que más cambia arriba, y una mini-vista de lo que está saliendo al aire.
+ * Pensado para el pulgar de alguien que además está narrando: cada control
+ * dice EXACTAMENTE qué hace, y lo que más se toca está más grande.
+ *
+ * La regla que gobierna el diseño del daño: en SWU el dial físico cuenta DAÑO,
+ * pero el espectador lee VIDA RESTANTE. Un botón «+1» a secas es ambiguo —
+ * ¿suma vida o suma daño? Por eso los botones van rotulados «MÁS DAÑO» /
+ * «MENOS DAÑO», con la vida resultante en vivo debajo del pulgar.
  *
  * Las tres medidas anti-error, en orden de importancia:
- *  1. La mini-vista. Sin ella el operador escribe a ciegas — y si tecleó mal el
- *     código, se ve en dos segundos porque la vista sale vacía.
+ *  1. El monitor de PROGRAMA. Sin él el operador escribe a ciegas — y si tecleó
+ *     mal el código, se ve en dos segundos porque el monitor sale vacío.
  *  2. DESHACER en el daño, que es el control de mayor frecuencia y consecuencia.
  *  3. Valores acotados y estado optimista con aviso de SIN GUARDAR: nada se
  *     pierde en silencio.
@@ -16,10 +21,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   ChevronLeft,
+  Crown,
+  Heart,
   Lock,
   LockOpen,
   RotateCcw,
   Search,
+  Shield,
   Undo2,
   X,
 } from 'lucide-react'
@@ -47,6 +55,12 @@ import {
 type Indice = 0 | 1
 
 const RONDAS = ['RONDA 1', 'RONDA 2', 'RONDA 3', 'RONDA 4', 'RONDA 5', 'TOP 8', 'TOP 4', 'FINAL']
+
+/** Identidad de cada lado, para que el operador no confunda las tarjetas. */
+const LADO_UI = [
+  { etiqueta: 'JUGADOR 1', barra: 'bg-sky-400', texto: 'text-sky-300', borde: 'border-sky-500/40', suave: 'bg-sky-500/10' },
+  { etiqueta: 'JUGADOR 2', barra: 'bg-fuchsia-400', texto: 'text-fuchsia-300', borde: 'border-fuchsia-500/40', suave: 'bg-fuchsia-500/10' },
+] as const
 
 export function EstudioPage() {
   const { code = '' } = useParams<{ code: string }>()
@@ -138,7 +152,7 @@ export function EstudioPage() {
   const cambiarDano = useCallback(
     (lado: Indice, delta: number) => {
       aplicar({ t: 'dano', lado, delta })
-      setUltimoDano({ lado, delta, hasta: Date.now() + 5000 })
+      setUltimoDano({ lado, delta, hasta: Date.now() + 6000 })
     },
     [aplicar]
   )
@@ -146,6 +160,7 @@ export function EstudioPage() {
   const restante = useMemo(() => restanteReloj(estado.reloj, ahora), [estado.reloj, ahora])
   const relojCorriendo = estado.reloj.iniciadoEn !== null
   const deshacerVisible = ultimoDano && ultimoDano.hasta > ahora ? ultimoDano : null
+  const alAire = estado.escena === 'juego'
 
   if (!code) return null
 
@@ -174,67 +189,98 @@ export function EstudioPage() {
     )
   }
 
-  // Logueado pero el rol aún no se confirma, o no es admin (el efecto de arriba
-  // ya redirige a Inicio): no se pinta el panel en ninguno de los dos casos.
   if (!rolListo) return <Pantalla>Verificando acceso…</Pantalla>
   if (!isAdmin) return <Pantalla>Redirigiendo…</Pantalla>
-
   if (cargando) return <Pantalla>Cargando marcador…</Pantalla>
 
   return (
-    <div className="min-h-screen bg-swu-bg pb-24 text-swu-text">
-      {/* ── Barra fija ── */}
-      <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-swu-border bg-swu-surface/95 px-4 py-3 backdrop-blur">
-        <button
-          onClick={() => navigate('/admin')}
-          className="rounded-lg p-2 text-swu-muted hover:bg-swu-surface-hover"
-          aria-label="Volver"
-        >
-          <ChevronLeft size={22} />
-        </button>
+    <div className="min-h-screen bg-[#0d0f14] pb-16 text-swu-text">
+      {/* ══ Barra de estado ══ */}
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0d0f14]/95 backdrop-blur">
+        <div className="mx-auto flex max-w-[1400px] items-center gap-3 px-3 py-2.5 sm:px-5">
+          <button
+            onClick={() => navigate('/')}
+            className="rounded-lg p-2 text-swu-muted transition hover:bg-white/5 hover:text-swu-text"
+            aria-label="Salir del estudio"
+          >
+            <ChevronLeft size={20} />
+          </button>
 
-        <div className="flex min-w-0 flex-col">
-          <span className="text-xs uppercase tracking-widest text-swu-muted">Estudio</span>
-          <span className="truncate font-mono text-lg font-bold">{code}</span>
+          <div className="flex min-w-0 items-baseline gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-swu-muted">Estudio</span>
+            <span className="truncate font-mono text-base font-bold tracking-wider">{code}</span>
+          </div>
+
+          {/* Tally: rojo solo cuando la escena JUEGO está al aire. */}
+          <span
+            className={`ml-auto flex items-center gap-2 rounded-md px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] transition ${
+              alAire
+                ? 'bg-red-600 text-white shadow-[0_0_18px_rgba(220,38,38,.55)]'
+                : 'bg-white/5 text-swu-muted'
+            }`}
+          >
+            <span className={`h-2 w-2 rounded-full ${alAire ? 'animate-pulse bg-white' : 'bg-swu-muted'}`} />
+            {alAire ? 'Al aire' : 'En espera'}
+          </span>
+
+          <span
+            className={`hidden items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wider sm:flex ${
+              sinGuardar ? 'bg-amber-500/15 text-amber-300' : 'bg-emerald-500/10 text-emerald-400'
+            }`}
+            title={sinGuardar ? 'No se pudo guardar el último cambio' : 'Todos los cambios guardados'}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${sinGuardar ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+            {sinGuardar ? 'Sin guardar' : 'Sincronizado'}
+          </span>
+
+          <button
+            onClick={() => setBloqueado(b => !b)}
+            className={`rounded-lg p-2.5 transition ${
+              bloqueado ? 'bg-amber-500/20 text-amber-300' : 'text-swu-muted hover:bg-white/5'
+            }`}
+            aria-label={bloqueado ? 'Desbloquear controles' : 'Bloquear controles'}
+            title={bloqueado ? 'Desbloquear' : 'Bloquear para guardar el aparato'}
+          >
+            {bloqueado ? <Lock size={18} /> : <LockOpen size={18} />}
+          </button>
         </div>
-
-        <span
-          className={`ml-auto flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wider ${
-            sinGuardar ? 'bg-red-500/15 text-red-400' : 'bg-emerald-500/15 text-emerald-400'
-          }`}
-        >
-          <span className={`h-2 w-2 rounded-full ${sinGuardar ? 'bg-red-400' : 'bg-emerald-400'}`} />
-          {sinGuardar ? 'Sin guardar' : 'Al aire'}
-        </span>
-
-        <button
-          onClick={() => setBloqueado(b => !b)}
-          className={`rounded-lg p-2.5 ${
-            bloqueado ? 'bg-amber-500/20 text-amber-400' : 'text-swu-muted hover:bg-swu-surface-hover'
-          }`}
-          aria-label={bloqueado ? 'Desbloquear controles' : 'Bloquear controles'}
-        >
-          {bloqueado ? <Lock size={20} /> : <LockOpen size={20} />}
-        </button>
       </header>
 
-      <main className="mx-auto max-w-6xl px-3 py-4 sm:px-4">
+      <main className="mx-auto max-w-[1400px] px-3 py-4 sm:px-5">
         {bloqueado && (
-          <p className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+          <p className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
             Controles bloqueados. Tocá el candado para volver a operar.
           </p>
         )}
 
-        {/* ── Zona en vivo: vista + escenas. Pegajosa en escritorio para que el
-            operador no la pierda de vista mientras baja a los controles. ── */}
-        <div className="mb-4 grid gap-3 lg:sticky lg:top-[68px] lg:z-10 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)] lg:rounded-2xl lg:bg-swu-bg/90 lg:p-2 lg:backdrop-blur">
-          <MiniVista code={code} />
-          <Escenas escena={estado.escena} onEscena={e => aplicar({ t: 'escena', escena: e })} />
+        {/* ══ Fila 1 · Monitor + mezclador de escenas ══ */}
+        <div className="mb-4 grid gap-4 xl:grid-cols-[minmax(0,520px)_minmax(0,1fr)]">
+          <Monitor code={code} alAire={alAire} />
+
+          <Panel titulo="Escena al aire" nota="Lo que ve la gente ahora">
+            <Escenas escena={estado.escena} onEscena={e => aplicar({ t: 'escena', escena: e })} />
+
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <BotonEstado
+                activo={estado.tiempoExtra}
+                onClick={() => aplicar({ t: 'tiempoExtra', valor: !estado.tiempoExtra })}
+                tono="rojo"
+                titulo={estado.tiempoExtra ? 'Quitar TIEMPO' : 'TIEMPO'}
+                sub="Fase de acción adicional"
+              />
+              <BotonEstado
+                activo={estado.enRevision}
+                onClick={() => aplicar({ t: 'revision', valor: !estado.enRevision })}
+                tono="ambar"
+                titulo={estado.enRevision ? 'Quitar revisión' : 'En revisión'}
+                sub="Congela el marcador"
+              />
+            </div>
+          </Panel>
         </div>
 
-        {/* ── Jugadores: lado a lado en pantallas medianas y grandes. Es lo que
-            más se toca, así que va grande y arriba. ── */}
-        <div className="grid gap-4 md:grid-cols-2">
+        {/* ══ Fila 2 · Los dos jugadores ══ */}
+        <div className="mb-4 grid gap-4 lg:grid-cols-2">
           {([0, 1] as Indice[]).map(i => (
             <TarjetaJugador
               key={i}
@@ -252,152 +298,151 @@ export function EstudioPage() {
           ))}
         </div>
 
-        {/* ── Controles globales en dos columnas ── */}
-        <div className="mt-4 grid items-start gap-4 lg:grid-cols-2">
-          <div className="flex flex-col gap-4">
-            <Bloque titulo="Reloj">
-              <div className="flex flex-col gap-3">
-                <span className="text-center font-mono text-5xl font-black tabular-nums">
+        {/* ══ Fila 3 · Reloj, ronda, partida, textos ══ */}
+        <div className="grid items-start gap-4 lg:grid-cols-3">
+          <Panel titulo="Cronómetro" nota="Se ve arriba en pantalla">
+            <div className="flex flex-col gap-3">
+              <div
+                className={`rounded-xl border py-4 text-center ${
+                  restante !== null && restante <= 5 * 60 * 1000
+                    ? 'border-amber-500/40 bg-amber-500/10'
+                    : 'border-white/10 bg-black/30'
+                }`}
+              >
+                <span className="block font-mono text-5xl font-black tabular-nums leading-none">
                   {restante !== null ? formatearReloj(restante) : '--:--'}
                 </span>
-                <div className="grid grid-cols-2 gap-2">
+                <span className="mt-1.5 block text-[10px] font-bold uppercase tracking-[0.2em] text-swu-muted">
+                  {relojCorriendo ? 'Corriendo' : 'Detenido'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() =>
+                    aplicar(relojCorriendo ? { t: 'relojPausar', ahora: Date.now() } : { t: 'relojIniciar', ahora: Date.now() })
+                  }
+                  className={`min-h-[58px] rounded-xl text-sm font-black uppercase tracking-wider transition ${
+                    relojCorriendo
+                      ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
+                      : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
+                  }`}
+                >
+                  {relojCorriendo ? 'Pausar' : 'Iniciar'}
+                </button>
+                <button
+                  onClick={() => aplicar({ t: 'relojExtender', minutos: 5, ahora: Date.now() })}
+                  className="min-h-[58px] rounded-xl border border-white/10 bg-white/5 text-sm font-black uppercase tracking-wider transition hover:bg-white/10"
+                >
+                  +5 min
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                {[55, 50, 40].map(m => (
                   <button
-                    onClick={() =>
-                      aplicar(relojCorriendo ? { t: 'relojPausar', ahora: Date.now() } : { t: 'relojIniciar', ahora: Date.now() })
-                    }
-                    className="min-h-[60px] rounded-xl bg-swu-accent/20 text-base font-bold text-swu-accent-texto"
+                    key={m}
+                    onClick={() => aplicar({ t: 'relojDuracion', minutos: m })}
+                    className="min-h-[44px] rounded-lg border border-white/10 bg-black/20 text-xs font-bold text-swu-muted transition hover:bg-white/5 hover:text-swu-text"
                   >
-                    {relojCorriendo ? 'PAUSA' : 'INICIAR'}
+                    {m} min
                   </button>
-                  <button
-                    onClick={() => aplicar({ t: 'relojExtender', minutos: 5, ahora: Date.now() })}
-                    className="min-h-[60px] rounded-xl border border-swu-border bg-swu-surface text-base font-bold"
-                  >
-                    +5 MIN
-                  </button>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {[55, 50, 40].map(m => (
+                ))}
+              </div>
+            </div>
+          </Panel>
+
+          <Panel titulo="Ronda e iniciativa">
+            <div className="flex flex-col gap-4">
+              <div>
+                <Rotulo>Ronda</Rotulo>
+                <div className="flex flex-wrap gap-1.5">
+                  {RONDAS.map(r => (
                     <button
-                      key={m}
-                      onClick={() => aplicar({ t: 'relojDuracion', minutos: m })}
-                      className="min-h-[48px] rounded-lg border border-swu-border bg-swu-surface text-sm font-semibold text-swu-muted"
+                      key={r}
+                      onClick={() => aplicar({ t: 'ronda', etiqueta: r })}
+                      className={`rounded-lg border px-2.5 py-2 text-xs font-bold transition ${
+                        estado.etiquetaRonda === r
+                          ? 'border-swu-accent bg-swu-accent/20 text-white'
+                          : 'border-white/10 bg-black/20 text-swu-muted hover:bg-white/5'
+                      }`}
                     >
-                      {m} min
+                      {r}
                     </button>
                   ))}
                 </div>
-
-                {/* Un solo botón que hace lo correcto de una vez: en eliminación
-                    gana quien tenga más HP restante, y la iniciativa desempata.
-                    Esos dos números SON el resultado del partido en ese momento. */}
-                <button
-                  onClick={() => aplicar({ t: 'tiempoExtra', valor: !estado.tiempoExtra })}
-                  className={`min-h-[64px] rounded-xl border-2 text-base font-black tracking-wider ${
-                    estado.tiempoExtra
-                      ? 'border-red-500 bg-red-500/25 text-red-300'
-                      : 'border-swu-border bg-swu-surface text-swu-muted'
-                  }`}
-                >
-                  {estado.tiempoExtra ? 'QUITAR TIEMPO' : 'TIEMPO'}
-                </button>
               </div>
-            </Bloque>
 
-            <Bloque titulo="Iniciativa">
-              <div className="grid grid-cols-2 gap-2">
-                {([0, 1] as Indice[]).map(i => (
-                  <button
-                    key={i}
-                    onClick={() => aplicar({ t: 'iniciativa', lado: estado.iniciativa === i ? null : i })}
-                    className={`min-h-[64px] rounded-xl border-2 px-4 text-base font-bold transition ${
-                      estado.iniciativa === i
-                        ? 'border-amber-400 bg-amber-400/20 text-amber-300'
-                        : 'border-swu-border bg-swu-surface text-swu-muted'
-                    }`}
-                  >
-                    {estado.lados[i].nombre || `Jugador ${i + 1}`}
-                  </button>
-                ))}
+              <div>
+                <Rotulo>¿Quién tiene la iniciativa?</Rotulo>
+                <div className="grid grid-cols-2 gap-2">
+                  {([0, 1] as Indice[]).map(i => (
+                    <button
+                      key={i}
+                      onClick={() => aplicar({ t: 'iniciativa', lado: estado.iniciativa === i ? null : i })}
+                      className={`min-h-[58px] truncate rounded-xl border-2 px-3 text-sm font-bold transition ${
+                        estado.iniciativa === i
+                          ? 'border-amber-400 bg-amber-400/20 text-amber-200'
+                          : 'border-white/10 bg-black/20 text-swu-muted hover:bg-white/5'
+                      }`}
+                    >
+                      {estado.lados[i].nombre || `Jugador ${i + 1}`}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-[11px] text-swu-muted">
+                  Tocá de nuevo al que está activo para quitarla.
+                </p>
               </div>
-            </Bloque>
-          </div>
+            </div>
+          </Panel>
 
           <div className="flex flex-col gap-4">
-            <Bloque titulo="Ronda">
-              <div className="flex flex-wrap gap-2">
-                {RONDAS.map(r => (
-                  <button
-                    key={r}
-                    onClick={() => aplicar({ t: 'ronda', etiqueta: r })}
-                    className={`rounded-lg border px-3 py-2.5 text-sm font-semibold ${
-                      estado.etiquetaRonda === r
-                        ? 'border-swu-accent bg-swu-accent/15 text-swu-accent-texto'
-                        : 'border-swu-border bg-swu-surface text-swu-muted'
-                    }`}
-                  >
-                    {r}
-                  </button>
-                ))}
-              </div>
-            </Bloque>
-
-            <Bloque titulo="Partida">
+            <Panel titulo="Partida">
               <div className="flex flex-col gap-2">
-                <button
-                  onClick={() => aplicar({ t: 'revision', valor: !estado.enRevision })}
-                  className={`min-h-[60px] rounded-xl border-2 text-base font-bold ${
-                    estado.enRevision
-                      ? 'border-amber-400 bg-amber-400/20 text-amber-300'
-                      : 'border-swu-border bg-swu-surface text-swu-muted'
-                  }`}
-                >
-                  {estado.enRevision ? 'QUITAR REVISIÓN' : 'PARTIDA EN REVISIÓN'}
-                </button>
-
                 <ConConfirmacion
-                  etiqueta="NUEVO JUEGO"
-                  pregunta="¿Nuevo juego? Se pone el daño en cero y se conservan líder, base y HP máximo."
+                  etiqueta="Nuevo juego"
+                  pregunta="¿Nuevo juego? El daño vuelve a cero y se conservan líder, base y HP máximo."
                   onConfirmar={() => aplicar({ t: 'nuevoJuego' })}
                 />
-
                 <button
                   onClick={() => aplicar({ t: 'intercambiar' })}
-                  className="min-h-[56px] rounded-xl border border-swu-border bg-swu-surface text-sm font-semibold text-swu-muted"
+                  className="min-h-[52px] rounded-xl border border-white/10 bg-black/20 text-xs font-bold uppercase tracking-wider text-swu-muted transition hover:bg-white/5"
                 >
-                  INTERCAMBIAR LADOS
+                  Intercambiar lados
                 </button>
-
                 <ConConfirmacion
-                  etiqueta="REINICIAR MARCADOR"
+                  etiqueta="Reiniciar marcador"
                   pregunta="¿Reiniciar todo? Se conservan solo los nombres de los jugadores."
                   peligro
                   onConfirmar={() => aplicar({ t: 'reiniciar' })}
                 />
               </div>
-            </Bloque>
+            </Panel>
 
-            <Bloque titulo="Texto en pantalla">
-              <div className="flex flex-col gap-2">
+            <Panel titulo="Textos en pantalla">
+              <div className="flex flex-col gap-3">
                 <CampoTexto
-                  etiqueta="Mensaje de las escenas opacas"
+                  etiqueta="Mensaje (pantallas de espera)"
                   valor={estado.mensaje}
                   onGuardar={v => aplicar({ t: 'mensaje', texto: v })}
                 />
                 <CampoTexto
-                  etiqueta="Patrocinio / tienda anfitriona"
+                  etiqueta="Patrocinio / tienda"
                   valor={estado.patrocinio}
                   onGuardar={v => aplicar({ t: 'patrocinio', texto: v })}
                 />
               </div>
-            </Bloque>
+            </Panel>
 
-            <div className="rounded-xl border border-swu-border bg-swu-surface p-4 text-sm text-swu-muted">
-              <p className="mb-2 font-semibold text-swu-text">En OBS, como Browser Source:</p>
-              <code className="block break-all rounded-lg bg-swu-bg px-3 py-2 font-mono text-xs">
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <Rotulo>Fuente para OBS</Rotulo>
+              <code className="block break-all rounded-lg bg-black/40 px-3 py-2 font-mono text-[11px] text-swu-muted">
                 {typeof window !== 'undefined' ? window.location.origin : ''}/overlay/{code}
               </code>
-              <p className="mt-2 text-xs">1920 × 1080 · «Apagar fuente cuando no esté visible» y «Refrescar al activar la escena» en OFF.</p>
+              <p className="mt-2 text-[11px] leading-relaxed text-swu-muted">
+                1920 × 1080 · CSS: <code className="text-[10px]">body {'{'} background: transparent {'}'}</code>
+              </p>
             </div>
           </div>
         </div>
@@ -406,25 +451,29 @@ export function EstudioPage() {
   )
 }
 
-/* ── Mini-vista ─────────────────────────────────────────────────────── */
+/* ── Monitor de programa ────────────────────────────────────────────── */
 
-function MiniVista({ code }: { code: string }) {
+function Monitor({ code, alAire }: { code: string; alAire: boolean }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-swu-border bg-black">
-      <div className="flex items-center justify-between border-b border-swu-border bg-swu-surface px-3 py-2">
-        <span className="text-xs font-bold uppercase tracking-widest text-swu-muted">Al aire</span>
-        <span className="text-[10px] text-swu-muted">lo que ve la gente</span>
+    <div
+      className={`overflow-hidden rounded-2xl border-2 transition ${
+        alAire ? 'border-red-600/70 shadow-[0_0_28px_rgba(220,38,38,.25)]' : 'border-white/10'
+      }`}
+    >
+      <div className="flex items-center justify-between border-b border-white/10 bg-black/40 px-3 py-2">
+        <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-swu-muted">
+          <span className={`h-2 w-2 rounded-full ${alAire ? 'animate-pulse bg-red-500' : 'bg-swu-muted/50'}`} />
+          Programa
+        </span>
+        <span className="text-[10px] uppercase tracking-wider text-swu-muted">lo que ve la gente</span>
       </div>
-      {/* 1920×1080 al 25% = 480×270. El iframe se escala; no se re-implementa
-          nada, es el MISMO componente del overlay. */}
-      <div className="relative w-full" style={{ aspectRatio: '16 / 9' }}>
+      {/* 1920×1080 escalado. No se re-implementa nada: es el MISMO overlay. */}
+      <div className="relative w-full bg-black" style={{ aspectRatio: '16 / 9' }}>
         <iframe
-          title="Vista del marcador"
+          title="Monitor de programa"
           src={`/overlay/${code}?fondo=oscuro`}
           className="absolute left-0 top-0 origin-top-left border-0"
-          style={{ width: 1920, height: 1080, transform: 'scale(0.25)' }}
-          // Sandbox mínimo: es nuestra propia ruta, pero no necesita
-          // formularios, popups ni navegación de nivel superior.
+          style={{ width: 1920, height: 1080, transform: 'scale(0.2708)' }}
           sandbox="allow-scripts allow-same-origin"
         />
       </div>
@@ -432,13 +481,13 @@ function MiniVista({ code }: { code: string }) {
   )
 }
 
-/* ── Escenas ────────────────────────────────────────────────────────── */
+/* ── Mezclador de escenas ───────────────────────────────────────────── */
 
-const ESCENAS_UI: { id: EstadoOverlay['escena']; texto: string }[] = [
-  { id: 'pronto', texto: 'PRONTO' },
-  { id: 'juego', texto: 'JUEGO' },
-  { id: 'descanso', texto: 'DESCANSO' },
-  { id: 'fin', texto: 'FIN' },
+const ESCENAS_UI: { id: EstadoOverlay['escena']; texto: string; sub: string }[] = [
+  { id: 'pronto', texto: 'Pronto', sub: 'Antes de empezar' },
+  { id: 'juego', texto: 'Juego', sub: 'Cámara + marcador' },
+  { id: 'descanso', texto: 'Descanso', sub: 'Entre rondas' },
+  { id: 'fin', texto: 'Fin', sub: 'Cierre' },
 ]
 
 function Escenas({
@@ -449,23 +498,25 @@ function Escenas({
   onEscena: (e: EstadoOverlay['escena']) => void
 }) {
   return (
-    <Bloque titulo="Escena">
-      <div className="grid grid-cols-4 gap-2">
-        {ESCENAS_UI.map(e => (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {ESCENAS_UI.map(e => {
+        const activo = escena === e.id
+        return (
           <button
             key={e.id}
             onClick={() => onEscena(e.id)}
-            className={`min-h-[64px] rounded-xl border-2 text-sm font-black tracking-wide transition ${
-              escena === e.id
-                ? 'border-swu-accent bg-swu-accent/20 text-swu-accent-texto'
-                : 'border-swu-border bg-swu-surface text-swu-muted'
+            className={`flex min-h-[76px] flex-col items-center justify-center gap-1 rounded-xl border-2 px-2 transition ${
+              activo
+                ? 'border-red-500 bg-red-600/25 text-white shadow-[0_0_20px_rgba(220,38,38,.3)]'
+                : 'border-white/10 bg-black/25 text-swu-muted hover:border-white/25 hover:bg-white/5'
             }`}
           >
-            {e.texto}
+            <span className="text-sm font-black uppercase tracking-wider">{e.texto}</span>
+            <span className="text-[10px] leading-tight opacity-70">{e.sub}</span>
           </button>
-        ))}
-      </div>
-    </Bloque>
+        )
+      })}
+    </div>
   )
 }
 
@@ -487,102 +538,179 @@ function TarjetaJugador({
   onDeshacer: () => void
 }) {
   const lado = estado.lados[indice]
-  const restanteHp = Math.max(0, lado.hpMax - lado.dano)
+  const ui = LADO_UI[indice]
+  const vida = Math.max(0, lado.hpMax - lado.dano)
+  const porcentaje = lado.hpMax > 0 ? (vida / lado.hpMax) * 100 : 0
+  const critico = porcentaje <= 25
+  const derrotado = vida === 0
+  const tieneIniciativa = estado.iniciativa === indice
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-swu-border bg-swu-surface p-4">
-      <div className="flex items-center justify-between gap-2">
+    <section className={`overflow-hidden rounded-2xl border bg-[#12151c] ${ui.borde}`}>
+      {/* Encabezado con color propio del lado */}
+      <div className={`flex items-center gap-2 px-4 py-2 ${ui.suave}`}>
+        <span className={`h-2.5 w-2.5 rounded-full ${ui.barra}`} />
+        <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${ui.texto}`}>{ui.etiqueta}</span>
+        {tieneIniciativa && (
+          <span className="ml-auto rounded bg-amber-400 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-black">
+            Iniciativa
+          </span>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-4 p-4">
         <CampoTexto
-          etiqueta={`Jugador ${indice + 1}`}
+          etiqueta="Nombre del jugador"
           valor={lado.nombre}
           onGuardar={v => onAccion({ t: 'jugador', lado: indice, campos: { nombre: v } })}
-          compacto
         />
-        <span className="shrink-0 text-right">
-          <span className="block font-mono text-3xl font-black tabular-nums">{restanteHp}</span>
-          <span className="block text-[11px] text-swu-muted">
-            {lado.dano} daño / {lado.hpMax}
-          </span>
-        </span>
+
+        {/* ── Vida: el número que ve el espectador ── */}
+        <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+          <div className="flex items-end justify-between gap-3">
+            <div className="flex items-baseline gap-2">
+              <Heart size={16} className={critico ? 'text-red-400' : 'text-swu-muted'} />
+              <span
+                className={`font-mono text-6xl font-black leading-none tabular-nums ${
+                  derrotado ? 'text-red-500' : critico ? 'text-amber-300' : 'text-white'
+                }`}
+              >
+                {vida}
+              </span>
+              <span className="text-sm font-bold text-swu-muted">vida</span>
+            </div>
+            <span className="pb-1 text-right text-xs text-swu-muted">
+              <span className="block font-mono text-base font-bold text-swu-text tabular-nums">{lado.dano}</span>
+              daño de {lado.hpMax}
+            </span>
+          </div>
+
+          {/* Barra de vida: se lee de un vistazo, sin contar números. */}
+          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
+            <div
+              className={`h-full rounded-full transition-all duration-300 ${
+                derrotado ? 'bg-red-600' : critico ? 'bg-amber-400' : 'bg-emerald-400'
+              }`}
+              style={{ width: `${porcentaje}%` }}
+            />
+          </div>
+        </div>
+
+        {/* ── Daño: cada botón dice qué hace ── */}
+        <div>
+          <Rotulo>Daño en la base</Rotulo>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-2">
+              <p className="mb-1.5 text-center text-[10px] font-black uppercase tracking-wider text-emerald-400">
+                Quitar daño
+              </p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {[-5, -1].map(d => (
+                  <button
+                    key={d}
+                    onClick={() => onDano(indice, d)}
+                    className="min-h-[58px] rounded-lg bg-emerald-500/20 font-mono text-xl font-black text-emerald-200 transition hover:bg-emerald-500/30 active:scale-95"
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-red-500/25 bg-red-500/5 p-2">
+              <p className="mb-1.5 text-center text-[10px] font-black uppercase tracking-wider text-red-400">
+                Más daño
+              </p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {[1, 5].map(d => (
+                  <button
+                    key={d}
+                    onClick={() => onDano(indice, d)}
+                    className="min-h-[58px] rounded-lg bg-red-500/20 font-mono text-xl font-black text-red-200 transition hover:bg-red-500/30 active:scale-95"
+                  >
+                    +{d}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <p className="mt-1.5 text-center text-[11px] text-swu-muted">
+            Más daño baja la vida en pantalla.
+          </p>
+
+          {deshacer !== null && (
+            <button
+              onClick={onDeshacer}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/5 py-2.5 text-xs font-bold text-swu-text transition hover:bg-white/10"
+            >
+              <Undo2 size={14} />
+              Deshacer {deshacer > 0 ? `+${deshacer}` : deshacer} de daño
+            </button>
+          )}
+        </div>
+
+        {/* ── Contadores ── */}
+        <div className="grid grid-cols-2 gap-3">
+          <Contador
+            etiqueta="Recursos"
+            valor={lado.recursos}
+            onDelta={d => onAccion({ t: 'recursos', lado: indice, delta: d })}
+          />
+          <Contador
+            etiqueta="Juegos ganados"
+            valor={lado.juegosGanados}
+            onDelta={d => onAccion({ t: 'juegos', lado: indice, delta: d })}
+          />
+        </div>
+
+        {/* ── Cartas ── */}
+        <div className="flex flex-col gap-2">
+          <BuscadorCarta
+            tipo="lider"
+            etiqueta="Líder"
+            icono={<Crown size={14} />}
+            actual={lado.liderNombre}
+            onElegir={c =>
+              onAccion({
+                t: 'jugador',
+                lado: indice,
+                campos: { liderNombre: c.nombre, liderImg: c.img, liderAspectos: c.aspectos },
+              })
+            }
+          />
+          <BuscadorCarta
+            tipo="base"
+            etiqueta="Base"
+            icono={<Shield size={14} />}
+            actual={lado.baseNombre}
+            nota={lado.baseNombre ? `${lado.hpMax} HP` : undefined}
+            onElegir={c =>
+              onAccion({
+                t: 'jugador',
+                lado: indice,
+                // El HP máximo sale de la CARTA, no de un 30 por defecto: las
+                // bases van de 24 a 35 y ese es exactamente el bug del tracker.
+                campos: { baseNombre: c.nombre, baseImg: c.img, hpMax: c.hp ?? 30 },
+              })
+            }
+          />
+
+          <label className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-sm font-semibold">
+            <span className="flex items-center gap-2">
+              <Crown size={14} className="text-swu-muted" />
+              Líder desplegado
+            </span>
+            <input
+              type="checkbox"
+              checked={lado.liderDesplegado}
+              onChange={e =>
+                onAccion({ t: 'jugador', lado: indice, campos: { liderDesplegado: e.target.checked } })
+              }
+              className="h-6 w-6 accent-amber-400"
+            />
+          </label>
+        </div>
       </div>
-
-      {/* Daño: el control de mayor frecuencia, arriba y grande. */}
-      <div className="grid grid-cols-4 gap-2">
-        {[-5, -1, 1, 5].map(d => (
-          <button
-            key={d}
-            onClick={() => onDano(indice, d)}
-            className={`min-h-[64px] rounded-xl text-xl font-black ${
-              d > 0 ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/15 text-emerald-300'
-            }`}
-          >
-            {d > 0 ? `+${d}` : d}
-          </button>
-        ))}
-      </div>
-
-      {deshacer !== null && (
-        <button
-          onClick={onDeshacer}
-          className="flex items-center justify-center gap-2 rounded-lg bg-swu-surface-hover py-2.5 text-sm font-semibold"
-        >
-          <Undo2 size={16} />
-          Deshacer {deshacer > 0 ? `+${deshacer}` : deshacer}
-        </button>
-      )}
-
-      <div className="grid grid-cols-2 gap-3">
-        <Contador
-          etiqueta="Recursos"
-          valor={lado.recursos}
-          onDelta={d => onAccion({ t: 'recursos', lado: indice, delta: d })}
-        />
-        <Contador
-          etiqueta="Juegos"
-          valor={lado.juegosGanados}
-          onDelta={d => onAccion({ t: 'juegos', lado: indice, delta: d })}
-        />
-      </div>
-
-      <label className="flex items-center justify-between rounded-lg bg-swu-bg px-3 py-3 text-sm font-semibold">
-        Líder desplegado
-        <input
-          type="checkbox"
-          checked={lado.liderDesplegado}
-          onChange={e =>
-            onAccion({ t: 'jugador', lado: indice, campos: { liderDesplegado: e.target.checked } })
-          }
-          className="h-6 w-6 accent-amber-400"
-        />
-      </label>
-
-      <BuscadorCarta
-        tipo="lider"
-        etiqueta="Líder"
-        actual={lado.liderNombre}
-        onElegir={c =>
-          onAccion({
-            t: 'jugador',
-            lado: indice,
-            campos: { liderNombre: c.nombre, liderImg: c.img, liderAspectos: c.aspectos },
-          })
-        }
-      />
-
-      <BuscadorCarta
-        tipo="base"
-        etiqueta="Base"
-        actual={lado.baseNombre}
-        onElegir={c =>
-          onAccion({
-            t: 'jugador',
-            lado: indice,
-            // El HP máximo sale de la CARTA, no de un 30 por defecto: las bases
-            // van de 24 a 35 y ese es exactamente el bug del tracker viejo.
-            campos: { baseNombre: c.nombre, baseImg: c.img, hpMax: c.hp ?? 30 },
-          })
-        }
-      />
     </section>
   )
 }
@@ -597,19 +725,21 @@ function Contador({
   onDelta: (d: number) => void
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <span className="text-[11px] uppercase tracking-wider text-swu-muted">{etiqueta}</span>
-      <div className="flex items-center gap-1">
+    <div className="rounded-xl border border-white/10 bg-black/20 p-2.5">
+      <p className="mb-1.5 text-center text-[10px] font-bold uppercase tracking-wider text-swu-muted">
+        {etiqueta}
+      </p>
+      <div className="flex items-center gap-1.5">
         <button
           onClick={() => onDelta(-1)}
-          className="min-h-[52px] flex-1 rounded-lg bg-swu-bg text-xl font-bold"
+          className="min-h-[48px] flex-1 rounded-lg bg-white/5 text-xl font-black transition hover:bg-white/10 active:scale-95"
         >
           −
         </button>
-        <span className="w-10 text-center font-mono text-2xl font-black tabular-nums">{valor}</span>
+        <span className="w-9 text-center font-mono text-2xl font-black tabular-nums">{valor}</span>
         <button
           onClick={() => onDelta(1)}
-          className="min-h-[52px] flex-1 rounded-lg bg-swu-bg text-xl font-bold"
+          className="min-h-[48px] flex-1 rounded-lg bg-white/5 text-xl font-black transition hover:bg-white/10 active:scale-95"
         >
           +
         </button>
@@ -623,12 +753,16 @@ function Contador({
 function BuscadorCarta({
   tipo,
   etiqueta,
+  icono,
   actual,
+  nota,
   onElegir,
 }: {
   tipo: 'lider' | 'base'
   etiqueta: string
+  icono: React.ReactNode
   actual: string
+  nota?: string
   onElegir: (c: CartaStream) => void
 }) {
   const [abierto, setAbierto] = useState(false)
@@ -657,30 +791,32 @@ function BuscadorCarta({
     return (
       <button
         onClick={() => setAbierto(true)}
-        className="flex items-center gap-2 rounded-lg border border-swu-border bg-swu-bg px-3 py-3 text-left text-sm"
+        className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-left text-sm transition hover:bg-white/5"
       >
-        <Search size={16} className="shrink-0 text-swu-muted" />
+        <span className="text-swu-muted">{icono}</span>
         <span className="min-w-0 flex-1 truncate">
           <span className="text-swu-muted">{etiqueta}: </span>
-          {actual || 'sin elegir'}
+          <span className={actual ? 'font-semibold' : 'text-swu-muted'}>{actual || 'sin elegir'}</span>
+          {nota && <span className="ml-1.5 text-xs text-swu-muted">· {nota}</span>}
         </span>
+        <Search size={14} className="shrink-0 text-swu-muted" />
       </button>
     )
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-swu-accent/40 bg-swu-bg p-3">
+    <div className="rounded-xl border border-swu-accent/40 bg-black/40 p-3">
       <div className="flex items-center gap-2">
         <input
           autoFocus
           value={termino}
           onChange={e => setTermino(e.target.value)}
           placeholder={`Buscar ${etiqueta.toLowerCase()}…`}
-          className="min-w-0 flex-1 rounded-lg bg-swu-surface px-3 py-2.5 text-sm outline-none"
+          className="min-w-0 flex-1 rounded-lg bg-white/5 px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-swu-accent"
         />
         <button
           onClick={() => setAbierto(false)}
-          className="rounded-lg p-2 text-swu-muted"
+          className="rounded-lg p-2 text-swu-muted transition hover:bg-white/5"
           aria-label="Cerrar buscador"
         >
           <X size={18} />
@@ -688,11 +824,11 @@ function BuscadorCarta({
       </div>
 
       {error ? (
-        <p className="py-2 text-center text-xs text-red-400">
+        <p className="py-3 text-center text-xs text-red-400">
           No se pudo cargar el catálogo. Se puede seguir sin imagen.
         </p>
       ) : (
-        <ul className="flex max-h-64 flex-col gap-1 overflow-y-auto">
+        <ul className="mt-2 flex max-h-72 flex-col gap-1 overflow-y-auto">
           {resultados.map(c => (
             <li key={c.id}>
               <button
@@ -701,14 +837,14 @@ function BuscadorCarta({
                   setAbierto(false)
                   setTermino('')
                 }}
-                className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-swu-surface-hover"
+                className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-white/5"
               >
                 {c.img && (
                   <img
                     src={imgCarta(c.img, 128)}
                     alt=""
                     loading="lazy"
-                    className="h-11 w-11 shrink-0 rounded object-cover"
+                    className="h-12 w-12 shrink-0 rounded object-cover"
                   />
                 )}
                 <span className="min-w-0 flex-1">
@@ -734,18 +870,64 @@ function BuscadorCarta({
 
 function Pantalla({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid min-h-screen place-items-center bg-swu-bg px-6 text-swu-muted">
-      {children}
-    </div>
+    <div className="grid min-h-screen place-items-center bg-[#0d0f14] px-6 text-swu-muted">{children}</div>
   )
 }
 
-function Bloque({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+function Rotulo({ children }: { children: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-swu-border bg-swu-surface p-4">
-      <h2 className="text-xs font-bold uppercase tracking-widest text-swu-muted">{titulo}</h2>
+    <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-swu-muted">{children}</p>
+  )
+}
+
+function Panel({
+  titulo,
+  nota,
+  children,
+}: {
+  titulo: string
+  nota?: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="rounded-2xl border border-white/10 bg-[#12151c] p-4">
+      <div className="mb-3 flex items-baseline justify-between gap-2">
+        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-swu-muted">{titulo}</h2>
+        {nota && <span className="text-[10px] text-swu-muted/70">{nota}</span>}
+      </div>
       {children}
     </section>
+  )
+}
+
+function BotonEstado({
+  activo,
+  onClick,
+  titulo,
+  sub,
+  tono,
+}: {
+  activo: boolean
+  onClick: () => void
+  titulo: string
+  sub: string
+  tono: 'rojo' | 'ambar'
+}) {
+  const activos =
+    tono === 'rojo'
+      ? 'border-red-500 bg-red-600/25 text-red-200'
+      : 'border-amber-400 bg-amber-400/20 text-amber-200'
+
+  return (
+    <button
+      onClick={onClick}
+      className={`flex min-h-[62px] flex-col items-center justify-center rounded-xl border-2 px-3 transition ${
+        activo ? activos : 'border-white/10 bg-black/25 text-swu-muted hover:bg-white/5'
+      }`}
+    >
+      <span className="text-sm font-black uppercase tracking-wider">{titulo}</span>
+      <span className="text-[10px] opacity-70">{sub}</span>
+    </button>
   )
 }
 
@@ -753,29 +935,26 @@ function CampoTexto({
   etiqueta,
   valor,
   onGuardar,
-  compacto,
 }: {
   etiqueta: string
   valor: string
   onGuardar: (v: string) => void
-  compacto?: boolean
 }) {
   /* Input NO controlado, reseteado con `key={valor}`. No se guarda por
-     pulsación (eso sube al servidor solo en `onBlur`), así que mientras se
-     escribe `valor` no cambia y el campo no se reinicia. Un cambio ajeno que
-     llegue por realtime SÍ cambia `valor` → nueva key → el campo toma el valor
-     nuevo, que es lo correcto cuando otro operador editó el mismo campo. Sin
-     estado ni efecto: nada que pise el texto a media escritura. */
+     pulsación (sube al servidor en `onBlur`), así que mientras se escribe
+     `valor` no cambia y el campo no se reinicia. Un cambio ajeno que llegue
+     por realtime SÍ cambia `valor` → nueva key → el campo toma el valor nuevo.
+     Sin estado ni efecto: nada que pise el texto a media escritura. */
   return (
-    <label className={`flex min-w-0 flex-col gap-1 ${compacto ? 'flex-1' : ''}`}>
-      <span className="text-[11px] uppercase tracking-wider text-swu-muted">{etiqueta}</span>
+    <label className="flex min-w-0 flex-col gap-1.5">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-swu-muted">{etiqueta}</span>
       <input
         key={valor}
         defaultValue={valor}
         onBlur={e => {
           if (e.target.value !== valor) onGuardar(e.target.value)
         }}
-        className="w-full rounded-lg bg-swu-bg px-3 py-2.5 text-sm outline-none"
+        className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm outline-none transition focus:border-swu-accent/50 focus:ring-1 focus:ring-swu-accent/30"
       />
     </label>
   )
@@ -798,10 +977,10 @@ function ConConfirmacion({
     return (
       <button
         onClick={() => setPreguntando(true)}
-        className={`min-h-[56px] rounded-xl border text-sm font-bold ${
+        className={`min-h-[52px] rounded-xl border text-xs font-bold uppercase tracking-wider transition ${
           peligro
-            ? 'border-red-500/40 bg-red-500/10 text-red-300'
-            : 'border-swu-border bg-swu-surface text-swu-text'
+            ? 'border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20'
+            : 'border-white/10 bg-black/20 text-swu-text hover:bg-white/5'
         }`}
       >
         {etiqueta}
@@ -811,11 +990,11 @@ function ConConfirmacion({
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3">
-      <p className="text-sm text-amber-200">{pregunta}</p>
+      <p className="text-xs leading-relaxed text-amber-200">{pregunta}</p>
       <div className="grid grid-cols-2 gap-2">
         <button
           onClick={() => setPreguntando(false)}
-          className="min-h-[48px] rounded-lg bg-swu-surface text-sm font-semibold"
+          className="min-h-[44px] rounded-lg bg-white/5 text-xs font-bold transition hover:bg-white/10"
         >
           Cancelar
         </button>
@@ -824,9 +1003,9 @@ function ConConfirmacion({
             onConfirmar()
             setPreguntando(false)
           }}
-          className="flex min-h-[48px] items-center justify-center gap-2 rounded-lg bg-amber-500 text-sm font-bold text-black"
+          className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg bg-amber-500 text-xs font-black text-black transition hover:bg-amber-400"
         >
-          <RotateCcw size={16} />
+          <RotateCcw size={14} />
           Confirmar
         </button>
       </div>
