@@ -263,22 +263,22 @@ export function EstudioPage() {
           </p>
         )}
 
-        {/* ══ Fila 1 · Monitor + mezclador de escenas ══
-            El monitor se acota a 380 px en portátiles (lg) y crece a 460 solo
-            en pantallas grandes: en una MacBook, 520 px se comían la fila. */}
-        <div className="mb-3 grid gap-3 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(0,460px)_minmax(0,1fr)]">
+        {/* ══ Fila 1 · Monitor · escenas · reloj ══
+            El reloj sube acá porque se consulta seguido; así la fila de arriba
+            concentra todo lo que el operador mira sin dejar de ver el aire. */}
+        <div className="mb-2.5 grid gap-2.5 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,200px)] 2xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)_minmax(0,220px)]">
           <Monitor code={code} alAire={alAire} />
 
-          <Panel titulo="Escena al aire" nota="Lo que ve la gente ahora">
+          <Panel titulo="Escena al aire" denso>
             <Escenas escena={estado.escena} onEscena={e => aplicar({ t: 'escena', escena: e })} />
 
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <div className="mt-2 grid grid-cols-2 gap-2">
               <BotonEstado
                 activo={estado.tiempoExtra}
                 onClick={() => aplicar({ t: 'tiempoExtra', valor: !estado.tiempoExtra })}
                 tono="rojo"
-                titulo={estado.tiempoExtra ? 'Quitar TIEMPO' : 'TIEMPO'}
-                sub="Fase de acción adicional"
+                titulo={estado.tiempoExtra ? 'Quitar tiempo' : 'Tiempo'}
+                sub="Acción adicional"
               />
               <BotonEstado
                 activo={estado.enRevision}
@@ -287,6 +287,55 @@ export function EstudioPage() {
                 titulo={estado.enRevision ? 'Quitar revisión' : 'En revisión'}
                 sub="Congela el marcador"
               />
+            </div>
+          </Panel>
+
+          <Panel titulo="Cronómetro" denso>
+            <div className="flex flex-col gap-1.5">
+              <div
+                className={`rounded-lg border py-2 text-center ${
+                  restante !== null && restante <= 5 * 60 * 1000
+                    ? 'border-amber-500/40 bg-amber-500/10'
+                    : 'border-white/10 bg-black/30'
+                }`}
+              >
+                <span className="block font-mono text-3xl font-black leading-none tabular-nums">
+                  {restante !== null ? formatearReloj(restante) : '--:--'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  onClick={() =>
+                    aplicar(relojCorriendo ? { t: 'relojPausar', ahora: Date.now() } : { t: 'relojIniciar', ahora: Date.now() })
+                  }
+                  className={`min-h-[40px] rounded-lg text-[11px] font-black uppercase tracking-wider transition ${
+                    relojCorriendo
+                      ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
+                      : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
+                  }`}
+                >
+                  {relojCorriendo ? 'Pausar' : 'Iniciar'}
+                </button>
+                <button
+                  onClick={() => aplicar({ t: 'relojExtender', minutos: 5, ahora: Date.now() })}
+                  className="min-h-[40px] rounded-lg border border-white/10 bg-white/5 text-[11px] font-black uppercase tracking-wider transition hover:bg-white/10"
+                >
+                  +5 min
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-1.5">
+                {[55, 50, 40].map(m => (
+                  <button
+                    key={m}
+                    onClick={() => aplicar({ t: 'relojDuracion', minutos: m })}
+                    className="min-h-[32px] rounded-md border border-white/10 bg-black/20 text-[10px] font-bold text-swu-muted transition hover:bg-white/5 hover:text-swu-text"
+                  >
+                    {m}′
+                  </button>
+                ))}
+              </div>
             </div>
           </Panel>
         </div>
@@ -310,89 +359,34 @@ export function EstudioPage() {
           ))}
         </div>
 
-        {/* ══ Fila 3 · Reloj, ronda, partida, textos ══ */}
-        <div className="grid items-start gap-4 lg:grid-cols-3">
-          <Panel titulo="Cronómetro" nota="Se ve arriba en pantalla">
-            <div className="flex flex-col gap-3">
-              <div
-                className={`rounded-xl border py-4 text-center ${
-                  restante !== null && restante <= 5 * 60 * 1000
-                    ? 'border-amber-500/40 bg-amber-500/10'
-                    : 'border-white/10 bg-black/30'
-                }`}
-              >
-                <span className="block font-mono text-5xl font-black tabular-nums leading-none">
-                  {restante !== null ? formatearReloj(restante) : '--:--'}
-                </span>
-                <span className="mt-1.5 block text-[10px] font-bold uppercase tracking-[0.2em] text-swu-muted">
-                  {relojCorriendo ? 'Corriendo' : 'Detenido'}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() =>
-                    aplicar(relojCorriendo ? { t: 'relojPausar', ahora: Date.now() } : { t: 'relojIniciar', ahora: Date.now() })
-                  }
-                  className={`min-h-[58px] rounded-xl text-sm font-black uppercase tracking-wider transition ${
-                    relojCorriendo
-                      ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
-                      : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
-                  }`}
-                >
-                  {relojCorriendo ? 'Pausar' : 'Iniciar'}
-                </button>
-                <button
-                  onClick={() => aplicar({ t: 'relojExtender', minutos: 5, ahora: Date.now() })}
-                  className="min-h-[58px] rounded-xl border border-white/10 bg-white/5 text-sm font-black uppercase tracking-wider transition hover:bg-white/10"
-                >
-                  +5 min
-                </button>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                {[55, 50, 40].map(m => (
+        {/* ══ Fila 3 · Ronda, partida, textos ══ */}
+        <div className="grid items-start gap-2.5 lg:grid-cols-3">
+          <Panel titulo="Ronda e iniciativa" denso>
+            <div className="flex flex-col gap-2.5">
+              <div className="flex flex-wrap gap-1">
+                {RONDAS.map(r => (
                   <button
-                    key={m}
-                    onClick={() => aplicar({ t: 'relojDuracion', minutos: m })}
-                    className="min-h-[44px] rounded-lg border border-white/10 bg-black/20 text-xs font-bold text-swu-muted transition hover:bg-white/5 hover:text-swu-text"
+                    key={r}
+                    onClick={() => aplicar({ t: 'ronda', etiqueta: r })}
+                    className={`rounded-md border px-2 py-1.5 text-[11px] font-bold transition ${
+                      estado.etiquetaRonda === r
+                        ? 'border-swu-accent bg-swu-accent/20 text-white'
+                        : 'border-white/10 bg-black/20 text-swu-muted hover:bg-white/5'
+                    }`}
                   >
-                    {m} min
+                    {r}
                   </button>
                 ))}
               </div>
-            </div>
-          </Panel>
-
-          <Panel titulo="Ronda e iniciativa">
-            <div className="flex flex-col gap-4">
-              <div>
-                <Rotulo>Ronda</Rotulo>
-                <div className="flex flex-wrap gap-1.5">
-                  {RONDAS.map(r => (
-                    <button
-                      key={r}
-                      onClick={() => aplicar({ t: 'ronda', etiqueta: r })}
-                      className={`rounded-lg border px-2.5 py-2 text-xs font-bold transition ${
-                        estado.etiquetaRonda === r
-                          ? 'border-swu-accent bg-swu-accent/20 text-white'
-                          : 'border-white/10 bg-black/20 text-swu-muted hover:bg-white/5'
-                      }`}
-                    >
-                      {r}
-                    </button>
-                  ))}
-                </div>
-              </div>
 
               <div>
-                <Rotulo>¿Quién tiene la iniciativa?</Rotulo>
-                <div className="grid grid-cols-2 gap-2">
+                <Rotulo>Iniciativa</Rotulo>
+                <div className="grid grid-cols-2 gap-1.5">
                   {([0, 1] as Indice[]).map(i => (
                     <button
                       key={i}
                       onClick={() => aplicar({ t: 'iniciativa', lado: estado.iniciativa === i ? null : i })}
-                      className={`min-h-[58px] truncate rounded-xl border-2 px-3 text-sm font-bold transition ${
+                      className={`min-h-[42px] truncate rounded-lg border px-2 text-xs font-bold transition ${
                         estado.iniciativa === i
                           ? 'border-amber-400 bg-amber-400/20 text-amber-200'
                           : 'border-white/10 bg-black/20 text-swu-muted hover:bg-white/5'
@@ -402,85 +396,72 @@ export function EstudioPage() {
                     </button>
                   ))}
                 </div>
-                <p className="mt-1.5 text-[11px] text-swu-muted">
-                  Tocá de nuevo al que está activo para quitarla.
-                </p>
               </div>
             </div>
           </Panel>
 
-          <div className="flex flex-col gap-4">
-            <Panel titulo="Partida">
-              <div className="flex flex-col gap-2">
-                <ConConfirmacion
-                  etiqueta="Nuevo juego"
-                  pregunta="¿Nuevo juego? El daño vuelve a cero y se conservan líder, base y HP máximo."
-                  onConfirmar={() => aplicar({ t: 'nuevoJuego' })}
-                />
-                <button
-                  onClick={() => aplicar({ t: 'intercambiar' })}
-                  className="min-h-[52px] rounded-xl border border-white/10 bg-black/20 text-xs font-bold uppercase tracking-wider text-swu-muted transition hover:bg-white/5"
-                >
-                  Intercambiar lados
-                </button>
-                <ConConfirmacion
-                  etiqueta="Reiniciar marcador"
-                  pregunta="¿Reiniciar todo? Se conservan solo los nombres de los jugadores."
-                  peligro
-                  onConfirmar={() => aplicar({ t: 'reiniciar' })}
-                />
+          <Panel titulo="Partida" denso>
+            <div className="flex flex-col gap-1.5">
+              <ConConfirmacion
+                etiqueta="Nuevo juego"
+                pregunta="¿Nuevo juego? El daño vuelve a cero y se conservan líder, base y HP máximo."
+                onConfirmar={() => aplicar({ t: 'nuevoJuego' })}
+              />
+              <button
+                onClick={() => aplicar({ t: 'intercambiar' })}
+                className="min-h-[40px] rounded-lg border border-white/10 bg-black/20 text-[11px] font-bold uppercase tracking-wider text-swu-muted transition hover:bg-white/5"
+              >
+                Intercambiar lados
+              </button>
+              <ConConfirmacion
+                etiqueta="Reiniciar marcador"
+                pregunta="¿Reiniciar todo? Se conservan solo los nombres de los jugadores."
+                peligro
+                onConfirmar={() => aplicar({ t: 'reiniciar' })}
+              />
+
+              <div className="mt-1 rounded-lg border border-white/10 bg-black/20 p-2.5">
+                <Rotulo>Fuente para OBS</Rotulo>
+                <code className="block break-all rounded bg-black/40 px-2 py-1.5 font-mono text-[10px] text-swu-muted">
+                  {typeof window !== 'undefined' ? window.location.origin : ''}/overlay/{code}
+                </code>
               </div>
-            </Panel>
-
-            <Panel titulo="Textos en pantalla">
-              <div className="flex flex-col gap-3">
-                <CampoTexto
-                  etiqueta="Mensaje (pantallas de espera)"
-                  valor={estado.mensaje}
-                  onGuardar={v => aplicar({ t: 'mensaje', texto: v })}
-                />
-                <CampoTexto
-                  etiqueta="Patrocinio / tienda"
-                  valor={estado.patrocinio}
-                  onGuardar={v => aplicar({ t: 'patrocinio', texto: v })}
-                />
-              </div>
-            </Panel>
-
-            <Panel titulo="Barra de comunidad" nota={`${cantidadTicker} mensaje${cantidadTicker === 1 ? '' : 's'}`}>
-              <div className="flex flex-col gap-2.5">
-                <button
-                  onClick={() => aplicar({ t: 'tickerVisible', valor: !estado.tickerVisible })}
-                  className={`flex min-h-[52px] items-center justify-center gap-2 rounded-xl border-2 text-xs font-black uppercase tracking-wider transition ${
-                    estado.tickerVisible
-                      ? 'border-emerald-400 bg-emerald-400/20 text-emerald-200'
-                      : 'border-white/10 bg-black/20 text-swu-muted hover:bg-white/5'
-                  }`}
-                >
-                  <Radio size={14} />
-                  {estado.tickerVisible ? 'Barra al aire' : 'Barra oculta'}
-                </button>
-
-                <CampoLargo
-                  etiqueta="Un mensaje por línea"
-                  valor={estado.ticker}
-                  filas={5}
-                  ayuda="Saludos, avisos del torneo, comentarios de la comunidad. Corren en bucle abajo."
-                  onGuardar={v => aplicar({ t: 'ticker', texto: v })}
-                />
-              </div>
-            </Panel>
-
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <Rotulo>Fuente para OBS</Rotulo>
-              <code className="block break-all rounded-lg bg-black/40 px-3 py-2 font-mono text-[11px] text-swu-muted">
-                {typeof window !== 'undefined' ? window.location.origin : ''}/overlay/{code}
-              </code>
-              <p className="mt-2 text-[11px] leading-relaxed text-swu-muted">
-                1920 × 1080 · CSS: <code className="text-[10px]">body {'{'} background: transparent {'}'}</code>
-              </p>
             </div>
-          </div>
+          </Panel>
+
+          <Panel titulo="Textos y barra de comunidad" denso>
+            <div className="flex flex-col gap-2">
+              <CampoTexto
+                etiqueta="Mensaje (pantallas de espera)"
+                valor={estado.mensaje}
+                onGuardar={v => aplicar({ t: 'mensaje', texto: v })}
+              />
+              <CampoTexto
+                etiqueta="Patrocinio / tienda"
+                valor={estado.patrocinio}
+                onGuardar={v => aplicar({ t: 'patrocinio', texto: v })}
+              />
+
+              <button
+                onClick={() => aplicar({ t: 'tickerVisible', valor: !estado.tickerVisible })}
+                className={`mt-0.5 flex min-h-[40px] items-center justify-center gap-2 rounded-lg border text-[11px] font-black uppercase tracking-wider transition ${
+                  estado.tickerVisible
+                    ? 'border-emerald-400 bg-emerald-400/20 text-emerald-200'
+                    : 'border-white/10 bg-black/20 text-swu-muted hover:bg-white/5'
+                }`}
+              >
+                <Radio size={13} />
+                {estado.tickerVisible ? `Barra al aire · ${cantidadTicker}` : 'Barra oculta'}
+              </button>
+
+              <CampoLargo
+                etiqueta="Comunidad — un mensaje por línea"
+                valor={estado.ticker}
+                filas={3}
+                onGuardar={v => aplicar({ t: 'ticker', texto: v })}
+              />
+            </div>
+          </Panel>
         </div>
       </main>
     </div>
@@ -542,14 +523,14 @@ function Escenas({
           <button
             key={e.id}
             onClick={() => onEscena(e.id)}
-            className={`flex min-h-[76px] flex-col items-center justify-center gap-1 rounded-xl border-2 px-2 transition ${
+            className={`flex min-h-[54px] flex-col items-center justify-center gap-0.5 rounded-lg border px-1.5 transition ${
               activo
-                ? 'border-red-500 bg-red-600/25 text-white shadow-[0_0_20px_rgba(220,38,38,.3)]'
+                ? 'border-red-500 bg-red-600/25 text-white shadow-[0_0_16px_rgba(220,38,38,.28)]'
                 : 'border-white/10 bg-black/25 text-swu-muted hover:border-white/25 hover:bg-white/5'
             }`}
           >
-            <span className="text-sm font-black uppercase tracking-wider">{e.texto}</span>
-            <span className="text-[10px] leading-tight opacity-70">{e.sub}</span>
+            <span className="text-xs font-black uppercase tracking-wider">{e.texto}</span>
+            <span className="text-[9px] leading-tight opacity-70">{e.sub}</span>
           </button>
         )
       })}
@@ -647,121 +628,108 @@ function TarjetaJugador({
           />
         </div>
 
-        {/* ── Vida: el número que ve el espectador ── */}
-        <div className="rounded-xl border border-white/10 bg-black/30 p-3">
-          <div className="flex items-end justify-between gap-2">
-            <div className="flex items-baseline gap-1.5">
-              <Heart size={14} className={critico ? 'text-red-400' : 'text-swu-muted'} />
+        {/* ── Vida + daño, en una sola fila: el bloque que más se usa ── */}
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,120px)_minmax(0,1fr)]">
+          {/* Vida */}
+          <div className="rounded-lg border border-white/10 bg-black/30 p-2">
+            <div className="flex items-baseline gap-1">
+              <Heart size={12} className={critico ? 'text-red-400' : 'text-swu-muted'} />
               <span
-                className={`font-mono text-5xl font-black leading-none tabular-nums ${
+                className={`font-mono text-4xl font-black leading-none tabular-nums ${
                   derrotado ? 'text-red-500' : critico ? 'text-amber-300' : 'text-white'
                 }`}
               >
                 {vida}
               </span>
-              <span className="text-xs font-bold text-swu-muted">vida</span>
             </div>
-            <span className="pb-1 text-right text-[11px] text-swu-muted">
-              <span className="block font-mono text-sm font-bold text-swu-text tabular-nums">
-                {lado.dano}
-              </span>
-              de daño
-            </span>
-          </div>
-
-          {/* Barra de vida: se lee de un vistazo, sin contar números. */}
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-            <div
-              className={`h-full rounded-full transition-all duration-300 ${
-                derrotado ? 'bg-red-600' : critico ? 'bg-amber-400' : 'bg-emerald-400'
-              }`}
-              style={{ width: `${porcentaje}%` }}
-            />
-          </div>
-
-          {/* HP máximo editable: sale solo de la base, pero se puede corregir a
-              mano (base rara, erratas, o si no se eligió carta). */}
-          <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-white/10 pt-2.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-swu-muted">
-              Vida máxima
-            </span>
-            <div className="flex items-center gap-1">
+            <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-white/10">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${
+                  derrotado ? 'bg-red-600' : critico ? 'bg-amber-400' : 'bg-emerald-400'
+                }`}
+                style={{ width: `${porcentaje}%` }}
+              />
+            </div>
+            {/* Vida máxima editable: sale de la base, pero se corrige a mano. */}
+            <div className="mt-1.5 flex items-center justify-between gap-1 border-t border-white/10 pt-1.5">
               <button
                 onClick={() =>
                   onAccion({ t: 'jugador', lado: indice, campos: { hpMax: Math.max(1, lado.hpMax - 1) } })
                 }
-                className="h-8 w-8 rounded-md bg-white/5 text-base font-black transition hover:bg-white/10"
+                className="h-6 w-6 rounded bg-white/5 text-sm font-black transition hover:bg-white/10"
                 aria-label="Bajar vida máxima"
               >
                 −
               </button>
-              <span className="w-9 text-center font-mono text-lg font-black tabular-nums">
-                {lado.hpMax}
+              <span className="font-mono text-[11px] font-bold tabular-nums text-swu-muted">
+                máx {lado.hpMax}
               </span>
               <button
                 onClick={() =>
                   onAccion({ t: 'jugador', lado: indice, campos: { hpMax: Math.min(99, lado.hpMax + 1) } })
                 }
-                className="h-8 w-8 rounded-md bg-white/5 text-base font-black transition hover:bg-white/10"
+                className="h-6 w-6 rounded bg-white/5 text-sm font-black transition hover:bg-white/10"
                 aria-label="Subir vida máxima"
               >
                 +
               </button>
             </div>
           </div>
-        </div>
 
-        {/* ── Daño: cada botón dice qué hace ── */}
-        <div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-1.5">
-              <p className="mb-1 text-center text-[9px] font-black uppercase tracking-wider text-emerald-400">
-                Quitar daño
-              </p>
-              <div className="grid grid-cols-2 gap-1">
-                {[-5, -1].map(d => (
-                  <button
-                    key={d}
-                    onClick={() => onDano(indice, d)}
-                    className="min-h-[50px] rounded-lg bg-emerald-500/20 font-mono text-lg font-black text-emerald-200 transition hover:bg-emerald-500/30 active:scale-95"
-                  >
-                    {d}
-                  </button>
-                ))}
+          {/* Daño: cada botón dice qué hace */}
+          <div className="flex flex-col gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5">
+              <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 p-1">
+                <p className="mb-0.5 text-center text-[8px] font-black uppercase tracking-wider text-emerald-400">
+                  Quitar daño
+                </p>
+                <div className="grid grid-cols-2 gap-1">
+                  {[-5, -1].map(d => (
+                    <button
+                      key={d}
+                      onClick={() => onDano(indice, d)}
+                      className="min-h-[44px] rounded-md bg-emerald-500/20 font-mono text-base font-black text-emerald-200 transition hover:bg-emerald-500/30 active:scale-95"
+                    >
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-red-500/25 bg-red-500/5 p-1">
+                <p className="mb-0.5 text-center text-[8px] font-black uppercase tracking-wider text-red-400">
+                  Más daño
+                </p>
+                <div className="grid grid-cols-2 gap-1">
+                  {[1, 5].map(d => (
+                    <button
+                      key={d}
+                      onClick={() => onDano(indice, d)}
+                      className="min-h-[44px] rounded-md bg-red-500/20 font-mono text-base font-black text-red-200 transition hover:bg-red-500/30 active:scale-95"
+                    >
+                      +{d}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="rounded-xl border border-red-500/25 bg-red-500/5 p-1.5">
-              <p className="mb-1 text-center text-[9px] font-black uppercase tracking-wider text-red-400">
-                Más daño
-              </p>
-              <div className="grid grid-cols-2 gap-1">
-                {[1, 5].map(d => (
-                  <button
-                    key={d}
-                    onClick={() => onDano(indice, d)}
-                    className="min-h-[50px] rounded-lg bg-red-500/20 font-mono text-lg font-black text-red-200 transition hover:bg-red-500/30 active:scale-95"
-                  >
-                    +{d}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {deshacer !== null ? (
+              <button
+                onClick={onDeshacer}
+                className="flex w-full items-center justify-center gap-1.5 rounded-md border border-white/15 bg-white/5 py-1.5 text-[10px] font-bold transition hover:bg-white/10"
+              >
+                <Undo2 size={12} />
+                Deshacer {deshacer > 0 ? `+${deshacer}` : deshacer}
+              </button>
+            ) : (
+              <p className="text-center text-[10px] text-swu-muted">{lado.dano} de daño acumulado</p>
+            )}
           </div>
-
-          {deshacer !== null && (
-            <button
-              onClick={onDeshacer}
-              className="mt-1.5 flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/5 py-2 text-[11px] font-bold text-swu-text transition hover:bg-white/10"
-            >
-              <Undo2 size={13} />
-              Deshacer {deshacer > 0 ? `+${deshacer}` : deshacer} de daño
-            </button>
-          )}
         </div>
 
         {/* ── Contadores y estado ── */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
           <Contador
             etiqueta="Recursos"
             valor={lado.recursos}
@@ -772,22 +740,24 @@ function TarjetaJugador({
             valor={lado.juegosGanados}
             onDelta={d => onAccion({ t: 'juegos', lado: indice, delta: d })}
           />
-        </div>
-
-        <label className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-xs font-semibold">
-          <span className="flex items-center gap-2">
-            <Crown size={13} className="text-swu-muted" />
-            Líder desplegado
-          </span>
-          <input
-            type="checkbox"
-            checked={lado.liderDesplegado}
-            onChange={e =>
-              onAccion({ t: 'jugador', lado: indice, campos: { liderDesplegado: e.target.checked } })
+          <button
+            onClick={() =>
+              onAccion({
+                t: 'jugador',
+                lado: indice,
+                campos: { liderDesplegado: !lado.liderDesplegado },
+              })
             }
-            className="h-5 w-5 accent-amber-400"
-          />
-        </label>
+            className={`flex w-[86px] flex-col items-center justify-center gap-0.5 rounded-lg border px-1 text-[9px] font-bold uppercase leading-tight tracking-wider transition ${
+              lado.liderDesplegado
+                ? 'border-amber-400 bg-amber-400/20 text-amber-200'
+                : 'border-white/10 bg-black/20 text-swu-muted hover:bg-white/5'
+            }`}
+          >
+            <Crown size={14} />
+            Desplegado
+          </button>
+        </div>
       </div>
     </section>
   )
@@ -803,21 +773,21 @@ function Contador({
   onDelta: (d: number) => void
 }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-black/20 p-2.5">
-      <p className="mb-1.5 text-center text-[10px] font-bold uppercase tracking-wider text-swu-muted">
+    <div className="rounded-lg border border-white/10 bg-black/20 p-1.5">
+      <p className="mb-1 text-center text-[9px] font-bold uppercase tracking-wider text-swu-muted">
         {etiqueta}
       </p>
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1">
         <button
           onClick={() => onDelta(-1)}
-          className="min-h-[48px] flex-1 rounded-lg bg-white/5 text-xl font-black transition hover:bg-white/10 active:scale-95"
+          className="min-h-[36px] flex-1 rounded-md bg-white/5 text-lg font-black transition hover:bg-white/10 active:scale-95"
         >
           −
         </button>
-        <span className="w-9 text-center font-mono text-2xl font-black tabular-nums">{valor}</span>
+        <span className="w-7 text-center font-mono text-xl font-black tabular-nums">{valor}</span>
         <button
           onClick={() => onDelta(1)}
-          className="min-h-[48px] flex-1 rounded-lg bg-white/5 text-xl font-black transition hover:bg-white/10 active:scale-95"
+          className="min-h-[36px] flex-1 rounded-md bg-white/5 text-lg font-black transition hover:bg-white/10 active:scale-95"
         >
           +
         </button>
@@ -1053,16 +1023,18 @@ function Rotulo({ children }: { children: React.ReactNode }) {
 function Panel({
   titulo,
   nota,
+  denso,
   children,
 }: {
   titulo: string
   nota?: string
+  denso?: boolean
   children: React.ReactNode
 }) {
   return (
-    <section className="rounded-2xl border border-white/10 bg-[#12151c] p-4">
-      <div className="mb-3 flex items-baseline justify-between gap-2">
-        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-swu-muted">{titulo}</h2>
+    <section className={`rounded-xl border border-white/10 bg-[#12151c] ${denso ? 'p-2.5' : 'p-4'}`}>
+      <div className={`flex items-baseline justify-between gap-2 ${denso ? 'mb-2' : 'mb-3'}`}>
+        <h2 className="text-[9px] font-black uppercase tracking-[0.18em] text-swu-muted">{titulo}</h2>
         {nota && <span className="text-[10px] text-swu-muted/70">{nota}</span>}
       </div>
       {children}
@@ -1091,12 +1063,12 @@ function BotonEstado({
   return (
     <button
       onClick={onClick}
-      className={`flex min-h-[62px] flex-col items-center justify-center rounded-xl border-2 px-3 transition ${
+      className={`flex min-h-[44px] flex-col items-center justify-center rounded-lg border px-2 transition ${
         activo ? activos : 'border-white/10 bg-black/25 text-swu-muted hover:bg-white/5'
       }`}
     >
-      <span className="text-sm font-black uppercase tracking-wider">{titulo}</span>
-      <span className="text-[10px] opacity-70">{sub}</span>
+      <span className="text-[11px] font-black uppercase tracking-wider">{titulo}</span>
+      <span className="text-[9px] opacity-70">{sub}</span>
     </button>
   )
 }
