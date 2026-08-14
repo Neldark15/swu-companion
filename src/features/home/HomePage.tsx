@@ -15,7 +15,7 @@
 
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, ScanLine, Swords, RadioTower, Radio } from 'lucide-react'
+import { ChevronRight, ScanLine, Swords} from 'lucide-react'
 import {
   DatapadIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
   DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
@@ -51,8 +51,8 @@ const mainSystems: Sistema[] = [
   { icon: KyberIcon,       label: 'Meta',      tone: 'cyan',   to: '/meta' },
   // La transmisión, en la cuadrícula y no solo en el cajón lateral: es el sitio
   // donde la gente busca los módulos, y el cajón hay que abrirlo a propósito.
-  { icon: RadioTower,      label: 'En Vivo',   tone: 'red',    to: '/envivo' },
-  { icon: Radio,           label: 'Transmisión', tone: 'red',  to: '/estudio/SV01', admin: true },
+  { icon: HolonetIcon,     label: 'En Vivo',   tone: 'red',    to: '/envivo' },
+  { icon: DatapadIcon,     label: 'Transmisión', tone: 'red',  to: '/estudio/SV01', admin: true },
   // PÚBLICO a propósito (sin auth): un juez en torneo consulta una regla
   // sin loguearse. Va arriba, cerca de Meta: los dos son consulta de mesa.
   { icon: HolocronIcon,    label: 'Rulings',   tone: 'cyan',   to: '/rulings' },
