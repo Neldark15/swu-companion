@@ -186,6 +186,14 @@ export function OverlayPage() {
       <div style={lienzo}>
         {estado.escena === 'juego' ? (
           <>
+            {/* El marco con la ventana transparente: la cámara de OBS queda
+                DETRÁS y asoma solo por la ventana (421,258 → 1494,859). Las
+                barras del HUD van encima del marco. */}
+            <img
+              src="/stream/marco.webp"
+              alt=""
+              style={{ position: 'absolute', inset: 0, width: 1920, height: 1080, pointerEvents: 'none' }}
+            />
             <BarraArriba estado={estado} restante={restante} />
             <BarraAbajo estado={estado} />
             {estado.tiempoExtra && <BannerTiempo />}
