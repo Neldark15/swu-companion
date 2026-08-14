@@ -585,31 +585,6 @@ function MiniBase({ img }: { img: string }) {
   )
 }
 
-/** Pestañita flotante con el rótulo del lado, como en la plantilla. */
-function Pestania({ texto, arriba }: { texto: string; arriba: boolean }) {
-  return (
-    <span
-      style={{
-        position: 'absolute',
-        [arriba ? 'bottom' : 'top']: -13,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        padding: '4px 22px',
-        background: METAL,
-        border: `1px solid ${DORADO}55`,
-        clipPath: chaflan(7),
-        fontSize: 11,
-        fontWeight: 900,
-        letterSpacing: '.24em',
-        color: `${BLANCO}D5`,
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {texto}
-    </span>
-  )
-}
-
 /* ── Barra superior: ronda + reloj + jugador 2 ──────────────────────── */
 
 function BarraArriba({ estado, restante }: { estado: EstadoOverlay; restante: number | null }) {
@@ -673,7 +648,6 @@ function BarraArriba({ estado, restante }: { estado: EstadoOverlay; restante: nu
       {/* Jugador 2, reflejado hacia el borde derecho */}
       <Chapa recorte={16} brillo style={{ flex: '0 0 auto', position: 'relative' }}>
         <Luces lado="der" />
-        <Pestania texto="JUGADOR 2 · LADO DERECHO" arriba={false} />
         <BloqueJugador
           lado={estado.lados[1]}
           rival={estado.lados[0]}
@@ -699,7 +673,6 @@ function BarraAbajo({ estado }: { estado: EstadoOverlay }) {
     >
       <Chapa recorte={16} brillo style={{ flex: '0 0 auto', position: 'relative' }}>
         <Luces lado="izq" />
-        <Pestania texto="JUGADOR 1 · LADO IZQUIERDO" arriba />
         <BloqueJugador
           lado={estado.lados[0]}
           rival={estado.lados[1]}
