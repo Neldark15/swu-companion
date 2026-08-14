@@ -685,11 +685,11 @@ function TarjetaJugador({
                 lado: indice,
                 // El HP máximo sale de la CARTA, no de un 30 por defecto: las
                 // bases van de 24 a 35 y ese es exactamente el bug del tracker.
-                campos: { baseNombre: c.nombre, baseImg: c.img, hpMax: c.hp ?? 30 },
+                campos: { baseNombre: c.nombre, baseImg: c.img, baseAspectos: c.aspectos, hpMax: c.hp ?? 30 },
               })
             }
             onQuitar={() =>
-              onAccion({ t: 'jugador', lado: indice, campos: { baseNombre: '', baseImg: '' } })
+              onAccion({ t: 'jugador', lado: indice, campos: { baseNombre: '', baseImg: '', baseAspectos: [] } })
             }
           />
         </div>

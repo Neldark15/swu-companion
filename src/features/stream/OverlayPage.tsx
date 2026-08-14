@@ -1,6 +1,11 @@
 /**
  * OVERLAY — lo que ve OBS.
  *
+ * Diseño «HUD holográfico»: barras horizontales arriba (jugador 2 + ronda y
+ * reloj) y abajo (jugador 1), paneles azul metalizado con chaflanes, filos
+ * dorados y luces cian. El CENTRO queda libre para la cámara cenital — las
+ * barras solo pisan los bordes del cuadro, donde no hay cartas.
+ *
  * Reglas que gobiernan este archivo:
  *
  *  · CSS puro. Nada de framer-motion ni three: cada chunk nuevo lo bajan al
@@ -8,10 +13,12 @@
  *  · Lienzo FIJO de 1920×1080 escalado con `transform`. El layout es
  *    pixel-exacto, y funciona igual con un canvas de 1280×720 (plan B de red)
  *    sin tocar una línea.
+ *  · Los chaflanes van con `clip-path`; como el recorte también recorta las
+ *    sombras, cada panel vive dentro de un envoltorio con `filter:
+ *    drop-shadow`, que sí sigue la silueta recortada.
  *  · No consulta ninguna base de cartas. El panel escribe nombre, imagen, HP y
  *    aspectos ya resueltos; acá solo se pintan.
- *  · Tipografía dimensionada para leerse a 720p y sobrevivir a 480p, que es lo
- *    que de verdad ve la gente en el teléfono.
+ *  · Tipografía dimensionada para leerse a 720p y sobrevivir a 480p.
  *
  * La ruta vive FUERA de `AppLayout` (ver App.tsx), así no se monta
  * `UpdatePrompt` — el único sitio del repo que registra el service worker.
@@ -30,14 +37,23 @@ import {
 import { leerOverlay, suscribirOverlay } from '../../services/streamOverlay'
 
 /* ── Identidad ────────────────────────────────────────────────────────
- * Azul cobalto y blanco: la bandera de El Salvador, no el juego. Dorado
- * para la iniciativa, rojo solo para TIEMPO. Cero elementos de marca de
- * FFG, Asmodee o Lucasfilm — la cobertura es de fans y lo dice en pantalla. */
-const COBALTO = '#0A2E6E'
+ * Azul cobalto y dorado con luces cian, sobre la bandera de El Salvador.
+ * Rojo solo para TIEMPO y el punto de EN JUEGO. */
 const COBALTO_OSCURO = '#061B42'
 const DORADO = '#E8B849'
 const ROJO = '#C1332A'
 const BLANCO = '#F4F7FB'
+const CIAN = '#3FB6FF'
+
+/** Gradiente metalizado de los paneles. */
+const METAL = 'linear-gradient(180deg, #2B4F92 0%, #16305F 46%, #081A3E 100%)'
+/** Relieve interior: filo de luz arriba, sombra abajo. */
+const RELIEVE =
+  'inset 0 1px 0 rgba(255,255,255,.22), inset 0 -10px 22px rgba(0,0,0,.4), inset 0 12px 26px rgba(90,150,255,.12)'
+
+/** Chaflán octogonal parametrizado. */
+const chaflan = (px: number) =>
+  `polygon(${px}px 0, calc(100% - ${px}px) 0, 100% ${px}px, 100% calc(100% - ${px}px), calc(100% - ${px}px) 100%, ${px}px 100%, 0 calc(100% - ${px}px), 0 ${px}px)`
 
 const AVISO_LEGAL =
   'COBERTURA COMUNITARIA · HECHA POR FANS · NO OFICIAL · NO AFILIADA A FANTASY FLIGHT GAMES, ASMODEE NI LUCASFILM'
@@ -52,8 +68,12 @@ const ESTILOS = `
    bucle es continuo y no se ve el salto. */
 @keyframes ovCorre { from { transform: translateX(0) } to { transform: translateX(-50%) } }
 .ov-corre { display: inline-flex; white-space: nowrap; animation: ovCorre 40s linear infinite; }
+@keyframes ovLatido { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
+.ov-latido { animation: ovLatido 1.6s ease-in-out infinite; }
+@keyframes ovNeon { 0%,100% { opacity: .9 } 50% { opacity: .45 } }
+.ov-neon { animation: ovNeon 2.8s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .ov-fundido { animation: none }
+  .ov-fundido, .ov-latido, .ov-neon { animation: none }
   .ov-corre { animation: none }
 }
 `
@@ -109,8 +129,7 @@ export function OverlayPage() {
   }, [])
 
   /* ── Reloj local. El tic NUNCA viaja por la red: se guarda
-   * {duracionMs, iniciadoEn} y acá se resta. Una escritura para arrancar,
-   * una para pausar. ── */
+   * {duracionMs, iniciadoEn} y acá se resta. ── */
   useEffect(() => {
     const id = window.setInterval(() => setAhora(Date.now()), 250)
     return () => window.clearInterval(id)
@@ -128,9 +147,7 @@ export function OverlayPage() {
           if (vivo) setEstado(r.estado)
         })
         .catch(() => {
-          /* Silencio a propósito: el overlay conserva lo último bueno.
-             Dejar de pintar por un fallo de red sería peor que quedarse
-             unos segundos con el marcador anterior. */
+          /* Silencio a propósito: el overlay conserva lo último bueno. */
         })
     }
 
@@ -167,12 +184,10 @@ export function OverlayPage() {
     <>
       <style>{ESTILOS}</style>
       <div style={lienzo}>
-        {estado.tickerVisible && <BarraNoticias texto={estado.ticker} />}
         {estado.escena === 'juego' ? (
           <>
-            <BarraSuperior estado={estado} restante={restante} />
-            <PanelJugador lado={estado.lados[0]} alineado="izq" activo={estado.iniciativa === 0} estado={estado} />
-            <PanelJugador lado={estado.lados[1]} alineado="der" activo={estado.iniciativa === 1} estado={estado} />
+            <BarraArriba estado={estado} restante={restante} />
+            <BarraAbajo estado={estado} />
             {estado.tiempoExtra && <BannerTiempo />}
             {estado.enRevision && <BannerRevision />}
             {cartaVisible && <CartaDestacadaVista carta={cartaVisible} />}
@@ -180,259 +195,156 @@ export function OverlayPage() {
         ) : (
           <EscenaOpaca estado={estado} restante={restante} />
         )}
+        {estado.tickerVisible && <BarraNoticias texto={estado.ticker} />}
         <FranjaLegal patrocinio={estado.patrocinio} />
       </div>
     </>
   )
 }
 
-/* ── Barra superior ─────────────────────────────────────────────────── */
+/* ── Piezas del HUD ─────────────────────────────────────────────────── */
 
-function BarraSuperior({ estado, restante }: { estado: EstadoOverlay; restante: number | null }) {
-  const porTerminar = restante !== null && restante <= 5 * 60 * 1000
-  const agotado = restante !== null && restante === 0
-
-  /* El reloj va sobre un bloque sólido, no sobre el mismo fondo que el texto:
-     es el dato que más se consulta y así conserva contraste aunque el stream
-     baje a 480p, donde los grises finos se deshacen con la compresión. */
-  const fondoReloj = agotado || estado.tiempoExtra ? ROJO : porTerminar ? DORADO : BLANCO
-  const textoReloj = agotado || estado.tiempoExtra ? BLANCO : COBALTO_OSCURO
-
+/** Envoltorio con sombra que sigue el chaflán (clip-path recorta box-shadow). */
+function Chapa({
+  recorte = 16,
+  brillo = false,
+  style,
+  children,
+}: {
+  recorte?: number
+  brillo?: boolean
+  style?: React.CSSProperties
+  children: React.ReactNode
+}) {
   return (
     <div
-      className="ov-fundido"
       style={{
-        position: 'absolute',
-        top: 26,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        display: 'flex',
-        alignItems: 'stretch',
-        height: 78,
-        borderRadius: 10,
-        overflow: 'hidden',
-        border: `2px solid ${DORADO}77`,
-        boxShadow: '0 10px 38px rgba(0,0,0,.55)',
+        filter: brillo
+          ? `drop-shadow(0 0 16px rgba(63,182,255,.3)) drop-shadow(0 10px 22px rgba(0,0,0,.55))`
+          : 'drop-shadow(0 10px 22px rgba(0,0,0,.55))',
+        ...style,
       }}
     >
-      {/* Ronda — el rótulo del momento del torneo */}
       <div
         style={{
+          background: METAL,
+          border: `1.5px solid ${DORADO}59`,
+          boxShadow: RELIEVE,
+          clipPath: chaflan(recorte),
+          height: '100%',
           display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          padding: '0 30px',
-          background: `linear-gradient(180deg, ${COBALTO}F5, ${COBALTO_OSCURO}F8)`,
+          alignItems: 'stretch',
+          position: 'relative',
         }}
       >
-        <span
-          style={{
-            fontSize: 13,
-            fontWeight: 800,
-            letterSpacing: '.28em',
-            color: DORADO,
-            lineHeight: 1,
-            marginBottom: 5,
-          }}
-        >
-          RONDA
-        </span>
-        <span style={{ fontSize: 30, fontWeight: 900, lineHeight: 1, letterSpacing: '.02em' }}>
-          {estado.etiquetaRonda.replace(/^RONDA\s*/i, '')}
-        </span>
+        {children}
       </div>
-
-      <span style={{ width: 2, background: `${DORADO}44` }} />
-
-      {/* Juego de la serie */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          padding: '0 26px',
-          background: `linear-gradient(180deg, ${COBALTO}F5, ${COBALTO_OSCURO}F8)`,
-        }}
-      >
-        <span
-          style={{
-            fontSize: 13,
-            fontWeight: 800,
-            letterSpacing: '.28em',
-            color: DORADO,
-            lineHeight: 1,
-            marginBottom: 5,
-          }}
-        >
-          JUEGO
-        </span>
-        <span style={{ fontSize: 30, fontWeight: 900, lineHeight: 1 }}>{estado.juego}</span>
-      </div>
-
-      {restante !== null && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minWidth: 190,
-            padding: '0 26px',
-            background: fondoReloj,
-            color: textoReloj,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 46,
-              fontWeight: 900,
-              fontVariantNumeric: 'tabular-nums',
-              letterSpacing: '.01em',
-              lineHeight: 1,
-            }}
-          >
-            {formatearReloj(restante)}
-          </span>
-        </div>
-      )}
     </div>
   )
 }
 
-/* ── Panel de jugador ───────────────────────────────────────────────── */
+/** Luces de neón en los filos, como la plantilla. */
+function Luces({ lado }: { lado: 'izq' | 'der' }) {
+  const comun: React.CSSProperties = {
+    position: 'absolute',
+    width: 5,
+    height: 44,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    background: `linear-gradient(180deg, transparent, ${CIAN}, transparent)`,
+    boxShadow: `0 0 12px ${CIAN}`,
+    pointerEvents: 'none',
+  }
+  return (
+    <>
+      <span className="ov-neon" style={{ ...comun, [lado === 'izq' ? 'left' : 'right']: 3 }} />
+      <span
+        style={{
+          position: 'absolute',
+          top: 8,
+          [lado === 'izq' ? 'right' : 'left']: 14,
+          width: 7,
+          height: 7,
+          borderRadius: '50%',
+          background: '#FF5A3C',
+          boxShadow: '0 0 8px #FF5A3C',
+        }}
+      />
+    </>
+  )
+}
 
-function PanelJugador({
-  lado,
-  alineado,
-  activo,
-  estado,
-}: {
-  lado: LadoOverlay
-  alineado: 'izq' | 'der'
-  activo: boolean
-  estado: EstadoOverlay
-}) {
-  const restanteHp = Math.max(0, lado.hpMax - lado.dano)
-  const derrotado = restanteHp === 0
-  /* En fase de acción adicional el resultado del partido ES el HP restante
-     (y la iniciativa para desempatar), así que se resalta. */
-  const resaltar = estado.tiempoExtra
+function Etiqueta({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      style={{
+        fontSize: 11,
+        fontWeight: 800,
+        letterSpacing: '.22em',
+        color: DORADO,
+        lineHeight: 1,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {children}
+    </span>
+  )
+}
 
+function Celda({ children, sinBorde }: { children: React.ReactNode; sinBorde?: boolean }) {
   return (
     <div
-      className="ov-fundido"
       style={{
-        position: 'absolute',
-        top: 132,
-        [alineado === 'izq' ? 'left' : 'right']: 30,
-        width: 360,
-        padding: 22,
         display: 'flex',
         flexDirection: 'column',
-        gap: 14,
-        background: `linear-gradient(180deg, ${COBALTO}F0, ${COBALTO_OSCURO}F5)`,
-        border: `2px solid ${activo ? DORADO : `${BLANCO}22`}`,
-        borderRadius: 10,
-        boxShadow: activo
-          ? `0 0 0 3px ${DORADO}44, 0 10px 36px rgba(0,0,0,.5)`
-          : '0 10px 36px rgba(0,0,0,.5)',
-      } as React.CSSProperties}
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 7,
+        padding: '0 20px',
+        borderLeft: sinBorde ? 'none' : `1px solid ${DORADO}30`,
+      }}
     >
-      <RetratoLider lado={lado} />
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <span style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.05 }}>
-          {lado.nombre || '—'}
-        </span>
-        <span style={{ fontSize: 24, fontWeight: 600, color: `${BLANCO}B0`, lineHeight: 1.2 }}>
-          {lado.liderNombre || 'Sin líder'}
-        </span>
-      </div>
-
-      {lado.liderAspectos.length > 0 && (
-        <div style={{ display: 'flex', gap: 8 }}>
-          {lado.liderAspectos.map((a, i) => (
-            <IconoAspecto key={`${a}-${i}`} aspecto={a} />
-          ))}
-        </div>
-      )}
-
-      {/* El HP restante es el número más grande de la pantalla. A 480p sigue
-          midiendo 53 px, que es lo único que se lee sí o sí. */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-        <span
-          style={{
-            fontSize: 118,
-            fontWeight: 900,
-            lineHeight: 0.9,
-            fontVariantNumeric: 'tabular-nums',
-            color: derrotado ? ROJO : resaltar ? DORADO : BLANCO,
-            textShadow: '0 3px 12px rgba(0,0,0,.6)',
-          }}
-        >
-          {restanteHp}
-        </span>
-        <span style={{ fontSize: 22, fontWeight: 600, color: `${BLANCO}99` }}>
-          {lado.dano} daño / {lado.hpMax}
-        </span>
-      </div>
-
-      <span style={{ fontSize: 21, fontWeight: 600, color: `${BLANCO}A0`, lineHeight: 1.2 }}>
-        {lado.baseNombre || 'Sin base'}
-      </span>
-
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 30, fontWeight: 700 }}>
-          <span style={{ color: `${BLANCO}88`, fontSize: 20, fontWeight: 600 }}>RECURSOS </span>
-          {lado.recursos}
-        </span>
-        <PuntosSerie ganados={lado.juegosGanados} />
-      </div>
-
-      {activo && (
-        <div
-          style={{
-            marginTop: 2,
-            padding: '7px 0',
-            textAlign: 'center',
-            background: DORADO,
-            color: COBALTO_OSCURO,
-            fontSize: 20,
-            fontWeight: 800,
-            letterSpacing: '.14em',
-            borderRadius: 5,
-          }}
-        >
-          INICIATIVA
-        </div>
-      )}
+      {children}
     </div>
   )
 }
 
-function RetratoLider({ lado }: { lado: LadoOverlay }) {
+function IconoAspecto({ aspecto, tam = 30 }: { aspecto: string; tam?: number }) {
+  const [falló, setFalló] = useState(false)
+  if (falló) return null
+  return (
+    <img
+      src={`/icons/aspects/${aspecto.toLowerCase()}.webp`}
+      alt={aspecto}
+      onError={() => setFalló(true)}
+      style={{ width: tam, height: tam, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,.6))' }}
+    />
+  )
+}
+
+function Retrato({ lado }: { lado: LadoOverlay }) {
   const [falló, setFalló] = useState(false)
   const src = lado.liderImg ? `/api/img?u=${encodeURIComponent(lado.liderImg)}&w=448` : ''
 
-  const marco: React.CSSProperties = {
-    position: 'relative',
-    width: '100%',
-    height: 190,
-    borderRadius: 7,
-    overflow: 'hidden',
-    background: `${COBALTO_OSCURO}`,
-    border: `2px solid ${lado.liderDesplegado ? DORADO : `${BLANCO}1A`}`,
-  }
-
   return (
-    <div style={marco}>
-      {/* Una silueta de respaldo, no un hueco: un arte que no carga deja un
-          agujero en pantalla y se nota más que una caja con el nombre. */}
+    <div
+      style={{
+        position: 'relative',
+        width: 186,
+        height: '100%',
+        flex: '0 0 auto',
+        clipPath: chaflan(12),
+        border: `2px solid ${lado.liderDesplegado ? DORADO : `${DORADO}55`}`,
+        boxShadow: lado.liderDesplegado ? `inset 0 0 18px ${DORADO}66` : 'none',
+        background: COBALTO_OSCURO,
+      }}
+    >
       {src && !falló ? (
         <img
           src={src}
           alt=""
           onError={() => setFalló(true)}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 22%' }}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 18%' }}
         />
       ) : (
         <div
@@ -441,10 +353,10 @@ function RetratoLider({ lado }: { lado: LadoOverlay }) {
             height: '100%',
             display: 'grid',
             placeItems: 'center',
-            fontSize: 22,
-            fontWeight: 700,
+            fontSize: 14,
+            fontWeight: 800,
+            letterSpacing: '.14em',
             color: `${BLANCO}55`,
-            letterSpacing: '.1em',
           }}
         >
           SIN LÍDER
@@ -454,15 +366,17 @@ function RetratoLider({ lado }: { lado: LadoOverlay }) {
         <span
           style={{
             position: 'absolute',
-            bottom: 8,
-            left: 8,
-            padding: '4px 10px',
-            background: DORADO,
+            bottom: 6,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            padding: '3px 10px',
+            background: `linear-gradient(180deg, ${DORADO}, #C9982F)`,
             color: COBALTO_OSCURO,
-            fontSize: 16,
-            fontWeight: 800,
-            letterSpacing: '.1em',
-            borderRadius: 4,
+            fontSize: 11,
+            fontWeight: 900,
+            letterSpacing: '.12em',
+            clipPath: chaflan(5),
+            whiteSpace: 'nowrap',
           }}
         >
           DESPLEGADO
@@ -472,35 +386,328 @@ function RetratoLider({ lado }: { lado: LadoOverlay }) {
   )
 }
 
-function IconoAspecto({ aspecto }: { aspecto: string }) {
+/** El bloque completo de un jugador. `invertido` lo refleja para la barra de arriba. */
+function BloqueJugador({
+  lado,
+  rival,
+  invertido,
+  conIniciativa,
+}: {
+  lado: LadoOverlay
+  rival: LadoOverlay
+  invertido: boolean
+  conIniciativa: boolean
+}) {
+  const vida = Math.max(0, lado.hpMax - lado.dano)
+  const derrotado = vida === 0
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: invertido ? 'row-reverse' : 'row',
+        alignItems: 'stretch',
+        height: '100%',
+      }}
+    >
+      <Retrato lado={lado} />
+
+      {/* Identidad */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          gap: 5,
+          padding: '0 20px',
+          minWidth: 200,
+          maxWidth: 250,
+        }}
+      >
+        <Etiqueta>LÍDER</Etiqueta>
+        <span
+          style={{
+            fontSize: 28,
+            fontWeight: 900,
+            lineHeight: 1,
+            letterSpacing: '.02em',
+            textTransform: 'uppercase',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            textShadow: '0 2px 8px rgba(0,0,0,.55)',
+          }}
+        >
+          {lado.nombre || '—'}
+        </span>
+        <span
+          style={{
+            fontSize: 15,
+            fontWeight: 700,
+            color: `${BLANCO}B8`,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {lado.liderNombre || 'Sin líder'}
+        </span>
+        {lado.liderAspectos.length > 0 && (
+          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+            {lado.liderAspectos.map((a, i) => (
+              <IconoAspecto key={`${a}-${i}`} aspecto={a} tam={26} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Base */}
+      <Celda>
+        <Etiqueta>BASE</Etiqueta>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <MiniBase img={lado.baseImg} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxWidth: 150 }}>
+            <span
+              style={{
+                fontSize: 13.5,
+                fontWeight: 800,
+                lineHeight: 1.15,
+                textTransform: 'uppercase',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }}
+            >
+              {lado.baseNombre || 'Sin base'}
+            </span>
+            {lado.baseAspectos.length > 0 && (
+              <div style={{ display: 'flex', gap: 4 }}>
+                {lado.baseAspectos.map((a, i) => (
+                  <IconoAspecto key={`${a}-${i}`} aspecto={a} tam={20} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </Celda>
+
+      {/* Vida */}
+      <Celda>
+        <Etiqueta>VIDA BASE</Etiqueta>
+        <span
+          style={{
+            fontSize: 52,
+            fontWeight: 900,
+            lineHeight: 0.9,
+            fontVariantNumeric: 'tabular-nums',
+            color: derrotado ? ROJO : BLANCO,
+            textShadow: derrotado ? `0 0 16px ${ROJO}` : '0 2px 10px rgba(0,0,0,.6)',
+          }}
+        >
+          {vida}
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: `${BLANCO}88`, whiteSpace: 'nowrap' }}>
+          DAÑO {lado.dano} / {lado.hpMax} MÁX
+        </span>
+      </Celda>
+
+      {/* Recursos */}
+      <Celda>
+        <Etiqueta>RECURSOS</Etiqueta>
+        <span style={{ fontSize: 34, fontWeight: 900, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+          {lado.recursos}
+        </span>
+      </Celda>
+
+      {/* Serie */}
+      <Celda>
+        <Etiqueta>SERIE</Etiqueta>
+        <span style={{ fontSize: 30, fontWeight: 900, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+          {lado.juegosGanados}—{rival.juegosGanados}
+        </span>
+      </Celda>
+
+      {conIniciativa && (
+        <div style={{ display: 'flex', alignItems: 'center', padding: '0 18px' }}>
+          <span
+            style={{
+              padding: '14px 30px',
+              background: `linear-gradient(180deg, #F5CF6B, ${DORADO} 55%, #B8862B)`,
+              color: COBALTO_OSCURO,
+              fontSize: 17,
+              fontWeight: 900,
+              letterSpacing: '.2em',
+              clipPath: chaflan(9),
+              boxShadow: `0 0 18px ${DORADO}66`,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            INICIATIVA
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MiniBase({ img }: { img: string }) {
   const [falló, setFalló] = useState(false)
-  const archivo = aspecto.toLowerCase()
-  if (falló) return null
+  const src = img ? `/api/img?u=${encodeURIComponent(img)}&w=224` : ''
+  if (!src || falló) {
+    return (
+      <span
+        style={{
+          width: 96,
+          height: 58,
+          flex: '0 0 auto',
+          clipPath: chaflan(8),
+          background: COBALTO_OSCURO,
+          border: `1.5px solid ${DORADO}44`,
+        }}
+      />
+    )
+  }
   return (
     <img
-      src={`/icons/aspects/${archivo}.webp`}
-      alt={aspecto}
+      src={src}
+      alt=""
       onError={() => setFalló(true)}
-      style={{ width: 44, height: 44, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,.5))' }}
+      style={{
+        width: 96,
+        height: 58,
+        flex: '0 0 auto',
+        objectFit: 'cover',
+        clipPath: chaflan(8),
+        border: `1.5px solid ${DORADO}66`,
+      }}
     />
   )
 }
 
-function PuntosSerie({ ganados }: { ganados: number }) {
+/** Pestañita flotante con el rótulo del lado, como en la plantilla. */
+function Pestania({ texto, arriba }: { texto: string; arriba: boolean }) {
   return (
-    <div style={{ display: 'flex', gap: 7 }}>
-      {[0, 1].map(i => (
-        <span
-          key={i}
-          style={{
-            width: 22,
-            height: 22,
-            borderRadius: '50%',
-            background: i < ganados ? DORADO : 'transparent',
-            border: `2px solid ${i < ganados ? DORADO : `${BLANCO}44`}`,
-          }}
+    <span
+      style={{
+        position: 'absolute',
+        [arriba ? 'bottom' : 'top']: -13,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        padding: '4px 22px',
+        background: METAL,
+        border: `1px solid ${DORADO}55`,
+        clipPath: chaflan(7),
+        fontSize: 11,
+        fontWeight: 900,
+        letterSpacing: '.24em',
+        color: `${BLANCO}D5`,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {texto}
+    </span>
+  )
+}
+
+/* ── Barra superior: ronda + reloj + jugador 2 ──────────────────────── */
+
+function BarraArriba({ estado, restante }: { estado: EstadoOverlay; restante: number | null }) {
+  const porTerminar = restante !== null && restante <= 5 * 60 * 1000
+  const colorReloj = estado.tiempoExtra || restante === 0 ? ROJO : porTerminar ? DORADO : BLANCO
+
+  return (
+    <div
+      className="ov-fundido"
+      style={{ position: 'absolute', top: 16, left: 18, right: 18, height: 128, display: 'flex', gap: 14 }}
+    >
+      {/* Bloque de ronda y reloj */}
+      <Chapa recorte={16} brillo style={{ flex: '0 0 auto' }}>
+        <Luces lado="izq" />
+        <div style={{ display: 'flex', alignItems: 'center', padding: '0 26px 0 30px', gap: 24 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 19, fontWeight: 900, letterSpacing: '.06em', whiteSpace: 'nowrap' }}>
+              {estado.etiquetaRonda}
+            </span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: `${BLANCO}99`, whiteSpace: 'nowrap' }}>
+              JUEGO {estado.juego}
+            </span>
+          </div>
+          <span style={{ width: 1, height: 64, background: `${DORADO}35` }} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <span
+              style={{
+                fontSize: 46,
+                fontWeight: 900,
+                lineHeight: 1,
+                fontVariantNumeric: 'tabular-nums',
+                color: colorReloj,
+                textShadow: colorReloj === BLANCO ? '0 2px 10px rgba(0,0,0,.6)' : `0 0 18px ${colorReloj}88`,
+              }}
+            >
+              {restante !== null ? formatearReloj(restante) : '--:--'}
+            </span>
+            <span
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 7,
+                fontSize: 12,
+                fontWeight: 900,
+                letterSpacing: '.26em',
+                color: `${BLANCO}CC`,
+              }}
+            >
+              EN JUEGO
+              <span
+                className="ov-latido"
+                style={{ width: 9, height: 9, borderRadius: '50%', background: '#FF3B30', boxShadow: '0 0 9px #FF3B30' }}
+              />
+            </span>
+          </div>
+        </div>
+      </Chapa>
+
+      <div style={{ flex: 1 }} />
+
+      {/* Jugador 2, reflejado hacia el borde derecho */}
+      <Chapa recorte={16} brillo style={{ flex: '0 0 auto', position: 'relative' }}>
+        <Luces lado="der" />
+        <Pestania texto="JUGADOR 2 · LADO DERECHO" arriba={false} />
+        <BloqueJugador
+          lado={estado.lados[1]}
+          rival={estado.lados[0]}
+          invertido
+          conIniciativa={estado.iniciativa === 1}
         />
-      ))}
+      </Chapa>
+    </div>
+  )
+}
+
+/* ── Barra inferior: jugador 1 ──────────────────────────────────────── */
+
+function BarraAbajo({ estado }: { estado: EstadoOverlay }) {
+  /* Deja sitio a la barra de comunidad cuando está al aire: legal 46 +
+     ticker 52 + margen. Sin ticker, pegada a la franja legal. */
+  const abajo = estado.tickerVisible ? 108 : 56
+
+  return (
+    <div
+      className="ov-fundido"
+      style={{ position: 'absolute', bottom: abajo, left: 18, right: 18, height: 128, display: 'flex' }}
+    >
+      <Chapa recorte={16} brillo style={{ flex: '0 0 auto', position: 'relative' }}>
+        <Luces lado="izq" />
+        <Pestania texto="JUGADOR 1 · LADO IZQUIERDO" arriba />
+        <BloqueJugador
+          lado={estado.lados[0]}
+          rival={estado.lados[1]}
+          invertido={false}
+          conIniciativa={estado.iniciativa === 0}
+        />
+      </Chapa>
+      <div style={{ flex: 1 }} />
     </div>
   )
 }
@@ -511,20 +718,22 @@ function BannerTiempo() {
   return (
     <div
       className="ov-fundido"
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        padding: '11px 0',
-        textAlign: 'center',
-        background: ROJO,
-        fontSize: 30,
-        fontWeight: 900,
-        letterSpacing: '.16em',
-      }}
+      style={{ position: 'absolute', top: 154, left: '50%', transform: 'translateX(-50%)', filter: `drop-shadow(0 0 22px ${ROJO}AA)` }}
     >
-      TIEMPO — FASE DE ACCIÓN ADICIONAL
+      <span
+        style={{
+          display: 'block',
+          padding: '12px 44px',
+          background: `linear-gradient(180deg, #E04A3F, ${ROJO} 60%, #8F241E)`,
+          fontSize: 26,
+          fontWeight: 900,
+          letterSpacing: '.18em',
+          clipPath: chaflan(12),
+          whiteSpace: 'nowrap',
+        }}
+      >
+        TIEMPO — FASE DE ACCIÓN ADICIONAL
+      </span>
     </div>
   )
 }
@@ -533,21 +742,23 @@ function BannerRevision() {
   return (
     <div
       className="ov-fundido"
-      style={{
-        position: 'absolute',
-        top: 470,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        padding: '16px 46px',
-        background: `${COBALTO_OSCURO}F2`,
-        border: `3px solid ${DORADO}`,
-        borderRadius: 9,
-        fontSize: 34,
-        fontWeight: 800,
-        letterSpacing: '.12em',
-      }}
+      style={{ position: 'absolute', top: 470, left: '50%', transform: 'translateX(-50%)', filter: `drop-shadow(0 0 20px ${DORADO}66)` }}
     >
-      PARTIDA EN REVISIÓN
+      <span
+        style={{
+          display: 'block',
+          padding: '16px 46px',
+          background: METAL,
+          border: `2px solid ${DORADO}`,
+          fontSize: 32,
+          fontWeight: 900,
+          letterSpacing: '.14em',
+          clipPath: chaflan(14),
+          whiteSpace: 'nowrap',
+        }}
+      >
+        PARTIDA EN REVISIÓN
+      </span>
     </div>
   )
 }
@@ -559,47 +770,47 @@ function CartaDestacadaVista({ carta }: { carta: NonNullable<EstadoOverlay['cart
       className="ov-fundido"
       style={{
         position: 'absolute',
-        left: 420,
-        bottom: 96,
-        width: 1080,
-        display: 'flex',
-        gap: 24,
-        padding: 22,
-        background: `linear-gradient(180deg, ${COBALTO}F5, ${COBALTO_OSCURO}FA)`,
-        border: `2px solid ${DORADO}88`,
-        borderRadius: 10,
-        boxShadow: '0 12px 44px rgba(0,0,0,.55)',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        bottom: 250,
+        width: 1000,
+        filter: 'drop-shadow(0 14px 40px rgba(0,0,0,.6)) drop-shadow(0 0 18px rgba(63,182,255,.25))',
       }}
     >
-      {src && (
-        <img
-          src={src}
-          alt=""
-          style={{ width: 200, height: 280, objectFit: 'cover', borderRadius: 7, flex: '0 0 auto' }}
-        />
-      )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
-        <span style={{ fontSize: 38, fontWeight: 800, lineHeight: 1.1 }}>{carta.nombre}</span>
-        {carta.subtitulo && (
-          <span style={{ fontSize: 24, fontWeight: 600, color: `${BLANCO}A0` }}>{carta.subtitulo}</span>
+      <div
+        style={{
+          display: 'flex',
+          gap: 24,
+          padding: 22,
+          background: METAL,
+          border: `1.5px solid ${DORADO}66`,
+          boxShadow: RELIEVE,
+          clipPath: chaflan(16),
+        }}
+      >
+        {src && (
+          <img
+            src={src}
+            alt=""
+            style={{ width: 190, height: 266, objectFit: 'cover', clipPath: chaflan(10), flex: '0 0 auto' }}
+          />
         )}
-        {/* Retipografiado a 30 px: la imagen digital de la carta tiene el mismo
-            problema de escala que la carta física (~10 px de mayúscula). */}
-        {carta.texto && (
-          <span style={{ fontSize: 30, lineHeight: 1.32, color: `${BLANCO}EE` }}>{carta.texto}</span>
-        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
+          <span style={{ fontSize: 36, fontWeight: 900, lineHeight: 1.1 }}>{carta.nombre}</span>
+          {carta.subtitulo && (
+            <span style={{ fontSize: 22, fontWeight: 700, color: `${BLANCO}A0` }}>{carta.subtitulo}</span>
+          )}
+          {carta.texto && (
+            <span style={{ fontSize: 28, lineHeight: 1.32, color: `${BLANCO}EE` }}>{carta.texto}</span>
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
-/**
- * Barra de noticias de la comunidad.
- *
- * Va JUSTO ENCIMA de la franja legal (que nunca se tapa) y se dibuja por
- * encima de todas las escenas, así sirve igual en la partida y en los
- * descansos. El contenido se duplica para que el bucle no tenga costura.
- */
+/* ── Barra de comunidad ─────────────────────────────────────────────── */
+
 function BarraNoticias({ texto }: { texto: string }) {
   const mensajes = useMemo(() => mensajesTicker(texto), [texto])
   if (mensajes.length === 0) return null
@@ -618,8 +829,9 @@ function BarraNoticias({ texto }: { texto: string }) {
         display: 'flex',
         alignItems: 'center',
         overflow: 'hidden',
-        background: `linear-gradient(90deg, ${COBALTO}F0, ${COBALTO_OSCURO}F0)`,
+        background: METAL,
         borderTop: `2px solid ${DORADO}99`,
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,.16)',
       }}
     >
       <span
@@ -628,22 +840,23 @@ function BarraNoticias({ texto }: { texto: string }) {
           height: '100%',
           display: 'flex',
           alignItems: 'center',
-          padding: '0 22px',
-          background: DORADO,
+          padding: '0 24px',
+          background: `linear-gradient(180deg, #F5CF6B, ${DORADO} 55%, #B8862B)`,
           color: COBALTO_OSCURO,
-          fontSize: 20,
+          fontSize: 19,
           fontWeight: 900,
           letterSpacing: '.16em',
           zIndex: 1,
+          clipPath: 'polygon(0 0, 100% 0, calc(100% - 16px) 100%, 0 100%)',
+          paddingRight: 38,
         }}
       >
         COMUNIDAD
       </span>
       <div style={{ flex: 1, overflow: 'hidden' }}>
         <div className="ov-corre">
-          {/* Dos copias: la animación corre -50% y vuelve a empezar sin salto. */}
-          <span style={{ paddingLeft: 28, fontSize: 26, fontWeight: 600, color: BLANCO }}>{tira}</span>
-          <span style={{ paddingLeft: 28, fontSize: 26, fontWeight: 600, color: BLANCO }}>{tira}</span>
+          <span style={{ paddingLeft: 28, fontSize: 25, fontWeight: 600, color: BLANCO }}>{tira}</span>
+          <span style={{ paddingLeft: 28, fontSize: 25, fontWeight: 600, color: BLANCO }}>{tira}</span>
         </div>
       </div>
     </div>
@@ -663,12 +876,13 @@ function FranjaLegal({ patrocinio }: { patrocinio: string }) {
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0 32px',
-        background: `${COBALTO_OSCURO}D9`,
+        background: `${COBALTO_OSCURO}E6`,
         borderTop: `1px solid ${BLANCO}1A`,
         fontSize: 17,
         fontWeight: 600,
         letterSpacing: '.06em',
         color: `${BLANCO}99`,
+        zIndex: 6,
       }}
     >
       <span>{AVISO_LEGAL}</span>
@@ -700,41 +914,65 @@ function EscenaOpaca({ estado, restante }: { estado: EstadoOverlay; restante: nu
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 34,
+        gap: 26,
         // El marco propio (volcán + El Salvador) va de fondo; una capa oscura
-        // sutil encima asegura contraste del texto. El color sólido es el
-        // respaldo si la imagen no cargara: nunca queda una pantalla en blanco.
-        background: `linear-gradient(rgba(3,10,28,.28), rgba(3,10,28,.5)), url('/stream/fondo.jpg') center / cover no-repeat, ${COBALTO_OSCURO}`,
+        // sutil encima asegura contraste. El color sólido es el respaldo si la
+        // imagen no cargara: nunca queda una pantalla en blanco.
+        background: `linear-gradient(rgba(3,10,28,.24), rgba(3,10,28,.46)), url('/stream/fondo.jpg') center / cover no-repeat, ${COBALTO_OSCURO}`,
       }}
     >
-      <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '.42em', color: DORADO }}>
-        HOLOCRON SWU · EL SALVADOR
-      </span>
+      {/* El emblema de la comunidad preside la espera. */}
+      <img
+        src="/stream/logo.webp"
+        alt=""
+        style={{
+          width: 330,
+          height: 330,
+          objectFit: 'contain',
+          filter: `drop-shadow(0 0 34px rgba(63,182,255,.4)) drop-shadow(0 10px 26px rgba(0,0,0,.7))`,
+        }}
+      />
 
-      <span style={{ fontSize: 92, fontWeight: 900, letterSpacing: '.03em', textAlign: 'center' }}>
+      <span
+        style={{
+          fontSize: 78,
+          fontWeight: 900,
+          letterSpacing: '.04em',
+          textAlign: 'center',
+          textShadow: '0 4px 22px rgba(0,0,0,.7)',
+        }}
+      >
         {TITULOS[estado.escena] ?? ''}
       </span>
 
       {estado.escena === 'pronto' && restante !== null && (
-        <span style={{ fontSize: 74, fontWeight: 800, fontVariantNumeric: 'tabular-nums', color: DORADO }}>
+        <span
+          style={{
+            fontSize: 64,
+            fontWeight: 900,
+            fontVariantNumeric: 'tabular-nums',
+            color: DORADO,
+            textShadow: `0 0 26px ${DORADO}66`,
+          }}
+        >
           {formatearReloj(restante)}
         </span>
       )}
 
       {hayMatchup && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 40, marginTop: 8 }}>
-          <span style={{ fontSize: 46, fontWeight: 800 }}>{l0.nombre || '—'}</span>
-          <span style={{ fontSize: 30, fontWeight: 700, color: DORADO, letterSpacing: '.2em' }}>VS</span>
-          <span style={{ fontSize: 46, fontWeight: 800 }}>{l1.nombre || '—'}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 38 }}>
+          <span style={{ fontSize: 42, fontWeight: 900, textTransform: 'uppercase' }}>{l0.nombre || '—'}</span>
+          <span style={{ fontSize: 26, fontWeight: 900, color: DORADO, letterSpacing: '.22em' }}>VS</span>
+          <span style={{ fontSize: 42, fontWeight: 900, textTransform: 'uppercase' }}>{l1.nombre || '—'}</span>
         </div>
       )}
 
       {estado.mensaje && (
         <span
           style={{
-            fontSize: 34,
+            fontSize: 30,
             fontWeight: 600,
-            color: `${BLANCO}C0`,
+            color: `${BLANCO}CC`,
             maxWidth: 1200,
             textAlign: 'center',
             lineHeight: 1.35,
@@ -744,7 +982,18 @@ function EscenaOpaca({ estado, restante }: { estado: EstadoOverlay; restante: nu
         </span>
       )}
 
-      <span style={{ fontSize: 26, fontWeight: 700, letterSpacing: '.1em', color: `${BLANCO}88` }}>
+      <span
+        style={{
+          padding: '8px 26px',
+          background: METAL,
+          border: `1px solid ${DORADO}55`,
+          clipPath: chaflan(8),
+          fontSize: 20,
+          fontWeight: 800,
+          letterSpacing: '.16em',
+          color: `${BLANCO}D5`,
+        }}
+      >
         {estado.etiquetaRonda}
       </span>
     </div>
@@ -759,15 +1008,20 @@ const ESTADO_DEMO: EstadoOverlay = {
   etiquetaRonda: 'RONDA 3',
   juego: 2,
   iniciativa: 0,
+  tickerVisible: true,
+  ticker: 'Bienvenidos al primer torneo de SWU transmitido en vivo desde El Salvador',
   reloj: { duracionMs: 41 * 60 * 1000, iniciadoEn: Date.now(), restanteAlPausar: null },
   patrocinio: 'TIENDA ANFITRIONA',
   lados: [
     {
       ...ESTADO_INICIAL.lados[0],
-      nombre: 'NELSON',
-      liderNombre: 'Grand Admiral Thrawn',
-      liderAspectos: ['Cunning', 'Villainy'],
-      baseNombre: 'Command Center',
+      nombre: 'VARA',
+      liderNombre: 'Lando Calrissian',
+      liderImg: 'https://cdn.starwarsunlimited.com//card_04020265_EN_Lando_Calrissian_Leader_5c8816b151.png',
+      liderAspectos: ['Vigilance', 'Heroism'],
+      baseNombre: 'City in the Clouds',
+      baseImg: 'https://cdn.starwarsunlimited.com//card_04010019_EN_City_in_the_Clouds_Base_08cd3755ae.png',
+      baseAspectos: ['Vigilance'],
       hpMax: 30,
       dano: 12,
       recursos: 7,
@@ -775,11 +1029,14 @@ const ESTADO_DEMO: EstadoOverlay = {
     },
     {
       ...ESTADO_INICIAL.lados[1],
-      nombre: 'RODRIGO',
-      liderNombre: 'Luke Skywalker',
-      liderAspectos: ['Vigilance', 'Heroism'],
-      baseNombre: 'Dagobah Swamp',
-      hpMax: 26,
+      nombre: 'NELSON',
+      liderNombre: 'Cad Bane',
+      liderImg: 'https://cdn.starwarsunlimited.com//card_08010011_EN_Cad_Bane_Leader_ec7bb7f9a7.png',
+      liderAspectos: ['Aggression', 'Villainy'],
+      baseNombre: 'Fortress of the Great Mothers',
+      baseImg: 'https://cdn.starwarsunlimited.com//card_08010019_EN_Fortress_of_the_Great_Mothers_Base_88cb8bca99.png',
+      baseAspectos: ['Vigilance'],
+      hpMax: 30,
       dano: 19,
       recursos: 6,
       juegosGanados: 0,

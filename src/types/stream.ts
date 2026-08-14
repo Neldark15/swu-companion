@@ -20,6 +20,7 @@ export interface LadoOverlay {
   liderDesplegado: boolean
   baseNombre: string
   baseImg: string
+  baseAspectos: string[]
   /** HP impreso de la base. Va de 24 a 35 según la carta — NUNCA 30 fijo. */
   hpMax: number
   /** Se cuenta DAÑO, igual que el dial físico sobre la mesa. */
@@ -89,6 +90,7 @@ const LADO_VACIO: LadoOverlay = {
   liderDesplegado: false,
   baseNombre: '',
   baseImg: '',
+  baseAspectos: [],
   hpMax: 30,
   dano: 0,
   recursos: 0,
@@ -142,6 +144,9 @@ function normalizarLado(x: unknown): LadoOverlay {
     liderDesplegado: booleano(o.liderDesplegado),
     baseNombre: texto(o.baseNombre),
     baseImg: texto(o.baseImg),
+    baseAspectos: Array.isArray(o.baseAspectos)
+      ? o.baseAspectos.filter((a): a is string => typeof a === 'string').slice(0, 2)
+      : [],
     hpMax,
     // El daño se acota al HP máximo: no se puede pintar un imposible aunque
     // la fila venga de una versión vieja con otra base.
