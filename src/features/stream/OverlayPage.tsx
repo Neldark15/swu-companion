@@ -752,22 +752,6 @@ function BarraAbajo({ estado }: { estado: EstadoOverlay }) {
         />
       </Chapa>
       <div style={{ flex: 1 }} />
-
-      {/* Emblema salvadoreño, espejo del bloque de ronda de arriba. */}
-      <Chapa recorte={14} brillo style={{ flex: '0 0 auto' }}>
-        <Luces lado="der" />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '0 30px 0 24px' }}>
-          <Volcan tam={46} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <span style={{ fontSize: 17, fontWeight: 900, letterSpacing: '.24em', color: DORADO, whiteSpace: 'nowrap' }}>
-              EL SALVADOR
-            </span>
-            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.3em', color: `${BLANCO}90`, whiteSpace: 'nowrap' }}>
-              TIERRA DE VOLCANES
-            </span>
-          </div>
-        </div>
-      </Chapa>
     </div>
   )
 }
