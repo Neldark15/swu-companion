@@ -148,8 +148,12 @@ export default function App() {
           {/* ── Transmisión — fuera de AppLayout a propósito (ver arriba) ── */}
           {/* Overlay: lo consume OBS sin sesión. Lienzo transparente 1920×1080. */}
           <Route path="/overlay/:code" element={<OverlayPage />} />
-          {/* Estudio: panel del operador. AuthGate + guarda de admin adentro. */}
-          <Route path="/estudio/:code" element={<P><EstudioPage /></P>} />
+          {/* Estudio: panel del operador. NO usa <P> (AuthGate): está fuera de
+              AppLayout, donde initAuth() no corre, y AuthGate no lo llama —
+              quedaba colgado en «Cargando» para siempre. EstudioPage inicializa
+              su propia sesión y hace la guarda de admin adentro, igual que
+              AdminLayout. */}
+          <Route path="/estudio/:code" element={<EstudioPage />} />
 
           <Route element={<AppLayout />}>
             {/* ── Public routes ── */}

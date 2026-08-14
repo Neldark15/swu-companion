@@ -51,7 +51,7 @@ const RONDAS = ['RONDA 1', 'RONDA 2', 'RONDA 3', 'RONDA 4', 'RONDA 5', 'TOP 8', 
 export function EstudioPage() {
   const { code = '' } = useParams<{ code: string }>()
   const navigate = useNavigate()
-  const { isAdmin, currentProfile, initAuth, rolListo } = useAuth()
+  const { isAdmin, currentProfile, initAuth, authListo, rolListo } = useAuth()
 
   const [estado, setEstado] = useState<EstadoOverlay>(ESTADO_INICIAL)
   const [cargando, setCargando] = useState(true)
@@ -149,13 +149,37 @@ export function EstudioPage() {
 
   if (!code) return null
 
-  if (cargando) {
+  // ── Guardas de sesión (esta ruta NO usa AuthGate; ver App.tsx) ──
+  // El orden importa: para un anónimo, authListo pasa a true pero rolListo se
+  // queda en false. Por eso se pregunta por la sesión ANTES que por el rol —
+  // si no, un visitante sin cuenta giraría en el cargador para siempre.
+  if (!authListo) return <Pantalla>Verificando acceso…</Pantalla>
+
+  if (!currentProfile) {
     return (
-      <div className="grid min-h-screen place-items-center bg-swu-bg text-swu-muted">
-        Cargando marcador…
-      </div>
+      <Pantalla>
+        <div className="flex flex-col items-center gap-4 text-center">
+          <p className="text-lg font-semibold text-swu-text">Panel de transmisión</p>
+          <p className="max-w-xs text-sm text-swu-muted">
+            Iniciá sesión con tu cuenta de administrador para operar el marcador.
+          </p>
+          <button
+            onClick={() => navigate('/profile')}
+            className="rounded-xl bg-swu-accent px-5 py-3 text-sm font-bold text-white"
+          >
+            Iniciar sesión
+          </button>
+        </div>
+      </Pantalla>
     )
   }
+
+  // Logueado pero el rol aún no se confirma, o no es admin (el efecto de arriba
+  // ya redirige a Inicio): no se pinta el panel en ninguno de los dos casos.
+  if (!rolListo) return <Pantalla>Verificando acceso…</Pantalla>
+  if (!isAdmin) return <Pantalla>Redirigiendo…</Pantalla>
+
+  if (cargando) return <Pantalla>Cargando marcador…</Pantalla>
 
   return (
     <div className="min-h-screen bg-swu-bg pb-24 text-swu-text">
@@ -696,6 +720,14 @@ function BuscadorCarta({
 }
 
 /* ── Piezas sueltas ─────────────────────────────────────────────────── */
+
+function Pantalla({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="grid min-h-screen place-items-center bg-swu-bg px-6 text-swu-muted">
+      {children}
+    </div>
+  )
+}
 
 function Bloque({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
