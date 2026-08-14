@@ -30,12 +30,12 @@ Quedan dos escenas:
 - **SWU · EN VIVO** — cámara al centro + marcador encima. Es la del torneo.
 - **SWU · Solo marcador** — solo el arte, para probarlo sin cámara.
 
-La fuente **Marcador** ya apunta a `https://swusv.com/overlay/SV01`, 1920×1080,
+La fuente **Marcador** ya apunta a `https://www.swusv.com/overlay/SV01`, 1920×1080,
 fondo transparente, con «apagar cuando no esté visible» y «refrescar al activar»
 en OFF (así no parpadea).
 
 > Mientras el sitio no esté publicado, para probar el arte cambiá esa URL a
-> `https://swusv.com/overlay/SV01?debug=1` (datos de demo) o a
+> `https://www.swusv.com/overlay/SV01?debug=1` (datos de demo) o a
 > `http://localhost:5173/overlay/SV01?debug=1` si estás corriendo el proyecto local.
 
 ---
