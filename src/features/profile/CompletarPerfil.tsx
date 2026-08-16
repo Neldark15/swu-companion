@@ -18,7 +18,7 @@
 
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, ChevronRight, Globe2, Sparkles, Orbit, PenLine, ImageIcon, LayoutGrid } from 'lucide-react'
+import { Check, ChevronRight, Globe2, Sparkles, Orbit, PenLine, ImageIcon } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase, isSupabaseReady } from '../../services/supabase'
@@ -43,8 +43,7 @@ const ICONO: Record<Faltante, React.ReactNode> = {
   aspectos: <Sparkles size={16} />,
   planeta: <Orbit size={16} />,
   bio: <PenLine size={16} />,
-  banner: <Sparkles size={16} />,
-  vitrina: <Sparkles size={16} />,
+  cartas: <ImageIcon size={16} />,
 }
 
 export function CompletarPerfil({ faltantes, personalizacion, onCerrar, onGuardado }: Props) {
@@ -52,19 +51,19 @@ export function CompletarPerfil({ faltantes, personalizacion, onCerrar, onGuarda
   const navigate = useNavigate()
   const miId = auth.supabaseUser?.id ?? ''
 
-  // Solo los pasos que el asistente sabe resolver. Banner y vitrina necesitan
-  // buscador de cartas y viven en su pantalla; empujarlos acá sería meter media
-  // pantalla de Explorar dentro de una hoja.
+  // Solo los pasos que el asistente sabe resolver. `cartas` (portada o vitrina)
+  // necesita el buscador de cartas y vive en su pantalla; empujarlo acá sería
+  // meter media pantalla de Explorar dentro de una hoja.
   const pasos = useMemo(
-    () => ORDEN.filter(f => faltantes.includes(f) && f !== 'banner' && f !== 'vitrina'),
+    () => ORDEN.filter(f => faltantes.includes(f) && f !== 'cartas'),
     [faltantes],
   )
 
-  // Lo que falta pero NO se resuelve acá (portada, vitrina). Antes el asistente
-  // los saltaba y, si eran lo único que quedaba, decía «ya está listo» — que era
-  // FALSO y dejaba al usuario sin saber qué le faltaba ni cómo completarlo.
+  // Lo que falta pero NO se resuelve acá (elegir una carta destacada). Antes el
+  // asistente lo saltaba y, si era lo único que quedaba, decía «ya está listo» —
+  // que era FALSO y dejaba al usuario sin saber qué le faltaba ni cómo hacerlo.
   const pendientesFuera = useMemo(
-    () => faltantes.filter(f => f === 'banner' || f === 'vitrina'),
+    () => faltantes.filter(f => f === 'cartas'),
     [faltantes],
   )
 
@@ -123,22 +122,19 @@ export function CompletarPerfil({ faltantes, personalizacion, onCerrar, onGuarda
     // dice qué es y se manda al sitio donde se elige (el perfil abre directo en
     // la personalización con `?editar=perfil`).
     if (pendientesFuera.length > 0) {
-      const ICONO_FUERA: Record<'banner' | 'vitrina', React.ReactNode> = {
-        banner: <ImageIcon size={16} />, vitrina: <LayoutGrid size={16} />,
-      }
       return (
         <div className="space-y-4 p-4">
           <div>
             <p className="text-[15px] font-black tracking-tight text-swu-text">Te falta esto</p>
             <p className="mt-0.5 text-[12px] text-swu-muted">
-              Estas dos se eligen con el buscador de cartas, dentro de tu perfil.
+              Se elige con el buscador de cartas, dentro de tu perfil.
             </p>
           </div>
           <ul className="space-y-2">
             {pendientesFuera.map(f => (
               <li key={f} className="flex items-start gap-2.5 rounded-xl border border-swu-border bg-swu-surface p-3">
                 <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-swu-accent/15 text-swu-accent-texto">
-                  {ICONO_FUERA[f as 'banner' | 'vitrina']}
+                  <ImageIcon size={16} />
                 </span>
                 <div className="min-w-0">
                   <p className="text-[13px] font-bold text-swu-text">{CATALOGO[f].label}</p>

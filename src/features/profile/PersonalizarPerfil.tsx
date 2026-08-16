@@ -150,10 +150,21 @@ export function PersonalizarPerfil() {
     })
   }
 
-  /** La portada es UNA sola carta: tocarla de nuevo la quita. */
+  /**
+   * La portada es UNA sola carta: tocarla de nuevo la quita.
+   *
+   * Se guarda AL INSTANTE, no al tocar «Guardar» abajo. Es lo que la gente
+   * espera —«elegí la portada» debería quedar elegida— y evita el caso real que
+   * reportó Nel: eligió la portada, no volvió a tocar Guardar, y no se guardó.
+   */
   const elegirPortada = (id: string) => {
+    const nuevo = p.banner_card_id === id ? null : id
+    setP(prev => ({ ...prev, banner_card_id: nuevo }))
     setOk(false)
-    setP(prev => ({ ...prev, banner_card_id: prev.banner_card_id === id ? null : id }))
+    void guardarPersonalizacion(uid, { banner_card_id: nuevo }).then(r => {
+      if (r.ok) setOk(true)
+      else setError(r.error ?? 'No se pudo guardar la portada.')
+    })
   }
 
   const guardar = async () => {

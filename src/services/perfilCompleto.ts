@@ -42,12 +42,18 @@ export interface FaltanteInfo {
 }
 
 export type Faltante =
-  | 'pais' | 'aspectos' | 'planeta' | 'bio' | 'banner' | 'vitrina'
+  | 'pais' | 'aspectos' | 'planeta' | 'bio' | 'cartas'
 
 /**
  * El catálogo, en el orden en que conviene pedirlo: primero lo que la app usa
  * de verdad, después lo que decora. Si el primer paso es «elegí un banner», la
  * persona abandona antes de dar el dato que sirve para algo.
+ *
+ * `cartas` es UN solo requisito para las dos formas de presumir cartas —la
+ * portada y la vitrina—, y se cumple con CUALQUIERA de las dos. Antes eran dos
+ * requisitos separados, y como los dos salen de las favoritas, pedir ambos para
+ * el 100% era demasiado: quien elegía una portada seguía viendo el perfil
+ * «incompleto» por no haber armado además una vitrina.
  */
 export const CATALOGO: Record<Faltante, Omit<FaltanteInfo, 'id'>> = {
   pais: {
@@ -70,20 +76,15 @@ export const CATALOGO: Record<Faltante, Omit<FaltanteInfo, 'id'>> = {
     porque: 'Es lo que lee quien entra a tu perfil.',
     enElAsistente: true,
   },
-  banner: {
-    label: 'Tu carta de portada',
-    porque: 'El arte grande de tu perfil.',
-    enElAsistente: false,
-  },
-  vitrina: {
-    label: 'Tu vitrina',
-    porque: 'Hasta 6 cartas que quieras presumir.',
+  cartas: {
+    label: 'Una carta destacada',
+    porque: 'Elegí una portada o armá tu vitrina — con cualquiera alcanza.',
     enElAsistente: false,
   },
 }
 
 /** El orden en que se piden. */
-export const ORDEN: Faltante[] = ['pais', 'aspectos', 'planeta', 'bio', 'banner', 'vitrina']
+export const ORDEN: Faltante[] = ['pais', 'aspectos', 'planeta', 'bio', 'cartas']
 
 /** Lo que hace falta saber para decidir. Se arma en la pantalla. */
 export interface EstadoPerfil {
@@ -122,8 +123,8 @@ export function calcularCompletitud(e: EstadoPerfil): Completitud {
   if (!p.favorite_aspects?.length) falta.push('aspectos')
   if (!p.planet_name?.trim()) falta.push('planeta')
   if (!e.bio?.trim()) falta.push('bio')
-  if (!p.banner_card_id) falta.push('banner')
-  if (!p.showcase_cards?.length) falta.push('vitrina')
+  // «cartas» se cumple con la portada O con al menos una carta en vitrina.
+  if (!p.banner_card_id && !p.showcase_cards?.length) falta.push('cartas')
 
   const faltantes = ORDEN.filter(f => falta.includes(f)).map(id => ({ id, ...CATALOGO[id] }))
   const total = ORDEN.length
