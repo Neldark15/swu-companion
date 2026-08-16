@@ -99,7 +99,7 @@ export function MoreNav() {
             Cuartel General
           </h3>
           <div className="grid grid-cols-3 gap-2">
-            {tile({ to: '/estudio/SV01', label: 'Transmisión', sub: 'Centro de mando', icon: RadioTower })}
+            {tile({ to: '/estudio', label: 'Transmisión', sub: 'Centro de mando', icon: RadioTower })}
             {tile({ to: '/admin', label: 'Admin', sub: 'Panel de control', icon: ShieldCheck })}
             {tile({ to: '/admin/announcements', label: 'Anuncios', sub: 'Comunicaciones', icon: Megaphone })}
           </div>

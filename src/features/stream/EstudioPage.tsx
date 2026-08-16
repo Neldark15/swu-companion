@@ -49,6 +49,7 @@ import {
   suscribirOverlay,
   type Accion,
 } from '../../services/streamOverlay'
+import { listarSesiones, misSesiones } from '../../services/streamSesiones'
 import {
   buscarCartas,
   cargarCartasStream,
@@ -75,7 +76,13 @@ export function EstudioPage() {
   const { code: codeCrudo = '' } = useParams<{ code: string }>()
   const code = codeCrudo.trim().toUpperCase()
   const navigate = useNavigate()
-  const { isAdmin, currentProfile, initAuth, authListo, rolListo } = useAuth()
+  const { currentProfile, initAuth, authListo } = useAuth()
+
+  /* El acceso ya NO es «ser admin»: es estar asignado a ESTA cabina.
+     `null` = todavía preguntando; distinguirlo de `false` evita expulsar a
+     alguien en la ventana en que la nube aún no respondió. */
+  const [puedeOperar, setPuedeOperar] = useState<boolean | null>(null)
+  const [nombreSesion, setNombreSesion] = useState('')
 
   const [estado, setEstado] = useState<EstadoOverlay>(ESTADO_INICIAL)
   const [cargando, setCargando] = useState(true)
@@ -92,13 +99,29 @@ export function EstudioPage() {
     initAuth()
   }, [initAuth])
 
-  /* Misma guarda que AdminLayout: solo expulsa cuando YA SE SABE que no es
-     admin. Con `currentProfile && !isAdmin` a secas, un admin recién promovido
-     —o cualquiera con `isAdmin:false` guardado en localStorage— quedaba fuera
-     de su propio panel antes de que la nube respondiera. */
+  /* ¿Esta persona opera esta cabina? Se pregunta a la nube, que es la misma
+     fuente que aplica la RLS: así la pantalla nunca promete lo que la base
+     va a rechazar. */
   useEffect(() => {
-    if (rolListo && currentProfile && !isAdmin) navigate('/', { replace: true })
-  }, [rolListo, currentProfile, isAdmin, navigate])
+    if (!currentProfile || !code) return
+    let vivo = true
+
+    Promise.all([misSesiones(currentProfile.id), listarSesiones()])
+      .then(([propias, todas]) => {
+        if (!vivo) return
+        setPuedeOperar(propias.includes(code))
+        setNombreSesion(todas.find(s => s.code === code)?.nombre ?? '')
+      })
+      .catch(() => {
+        // No se pudo averiguar: NO se expulsa. Se conserva el beneficio de la
+        // duda y la RLS sigue siendo la que manda al escribir.
+        if (vivo) setPuedeOperar(true)
+      })
+
+    return () => {
+      vivo = false
+    }
+  }, [currentProfile, code])
 
   useEffect(() => {
     const id = window.setInterval(() => setAhora(Date.now()), 250)
@@ -205,8 +228,29 @@ export function EstudioPage() {
     )
   }
 
-  if (!rolListo) return <Pantalla>Verificando acceso…</Pantalla>
-  if (!isAdmin) return <Pantalla>Redirigiendo…</Pantalla>
+  if (puedeOperar === null) return <Pantalla>Verificando acceso…</Pantalla>
+
+  if (!puedeOperar) {
+    return (
+      <Pantalla>
+        <div className="flex flex-col items-center gap-4 text-center">
+          <Lock size={30} className="text-swu-muted" />
+          <p className="text-lg font-semibold text-swu-text">Cabina {code}</p>
+          <p className="max-w-xs text-sm text-swu-muted">
+            No estás asignado a esta transmisión. Pedile a un administrador que te agregue como
+            operador.
+          </p>
+          <button
+            onClick={() => navigate('/estudio')}
+            className="rounded-xl bg-swu-accent px-5 py-3 text-sm font-bold text-white"
+          >
+            Ver mis cabinas
+          </button>
+        </div>
+      </Pantalla>
+    )
+  }
+
   if (cargando) return <Pantalla>Cargando marcador…</Pantalla>
 
   /* `h-[100dvh]` + columna con el scroll ADENTRO, igual que AppLayout.
@@ -222,15 +266,17 @@ export function EstudioPage() {
       <header className="shrink-0 border-b border-white/10 bg-[#0d0f14]/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-[1800px] items-center gap-3 px-3 py-2.5 sm:px-5">
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/estudio')}
             className="rounded-lg p-2 text-swu-muted transition hover:bg-white/5 hover:text-swu-text"
-            aria-label="Salir del estudio"
+            aria-label="Volver a las cabinas"
           >
             <ChevronLeft size={20} />
           </button>
 
           <div className="flex min-w-0 items-baseline gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-swu-muted">Estudio</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-swu-muted">
+              {nombreSesion || 'Estudio'}
+            </span>
             <span className="truncate font-mono text-base font-bold tracking-wider">{code}</span>
           </div>
 

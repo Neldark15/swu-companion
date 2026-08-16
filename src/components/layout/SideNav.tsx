@@ -143,7 +143,7 @@ export function SideNav() {
               <span className="text-[9px] text-swu-amber/70 font-mono tracking-[0.25em] uppercase">Cuartel General</span>
             </div>
             <button
-              onClick={() => navigate('/estudio/SV01')}
+              onClick={() => navigate('/estudio')}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 group mb-1 ${
                 location.pathname.startsWith('/estudio')
                   ? 'bg-swu-accent/15 text-swu-accent-texto border border-swu-accent/30'

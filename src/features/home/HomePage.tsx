@@ -52,7 +52,7 @@ const mainSystems: Sistema[] = [
   // La transmisión, en la cuadrícula y no solo en el cajón lateral: es el sitio
   // donde la gente busca los módulos, y el cajón hay que abrirlo a propósito.
   { icon: HolonetIcon,     label: 'En Vivo',   tone: 'red',    to: '/envivo' },
-  { icon: DatapadIcon,     label: 'Transmisión', tone: 'red',  to: '/estudio/SV01', admin: true },
+  { icon: DatapadIcon,     label: 'Transmisión', tone: 'red',  to: '/estudio', admin: true },
   // PÚBLICO a propósito (sin auth): un juez en torneo consulta una regla
   // sin loguearse. Va arriba, cerca de Meta: los dos son consulta de mesa.
   { icon: HolocronIcon,    label: 'Rulings',   tone: 'cyan',   to: '/rulings' },

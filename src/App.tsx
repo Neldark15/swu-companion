@@ -86,6 +86,7 @@ const RulingsPage = lazy(() => import('./features/rulings/RulingsPage').then(m =
 // la ruta que consume OBS nunca instala un SW que le sirva el index.html cacheado.
 const OverlayPage = lazy(() => import('./features/stream/OverlayPage').then(m => ({ default: m.OverlayPage })))
 const EstudioPage = lazy(() => import('./features/stream/EstudioPage').then(m => ({ default: m.EstudioPage })))
+const CabinasPage = lazy(() => import('./features/stream/CabinasPage').then(m => ({ default: m.CabinasPage })))
 // La pantalla pública donde la comunidad ve el directo. Va DENTRO de AppLayout
 // (con su cabecera y navegación) y sin AuthGate: un espectador no se loguea.
 const EnVivoPage = lazy(() => import('./features/stream/EnVivoPage').then(m => ({ default: m.EnVivoPage })))
@@ -157,6 +158,9 @@ export default function App() {
               quedaba colgado en «Cargando» para siempre. EstudioPage inicializa
               su propia sesión y hace la guarda de admin adentro, igual que
               AdminLayout. */}
+          {/* Selector de cabina: con más de una sede, entrar directo a un
+              código deja de tener sentido. Si solo operás una, redirige sola. */}
+          <Route path="/estudio" element={<CabinasPage />} />
           <Route path="/estudio/:code" element={<EstudioPage />} />
 
           <Route element={<AppLayout />}>
