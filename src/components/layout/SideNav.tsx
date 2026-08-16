@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Hexagon, Swords, ShieldCheck, Megaphone, Newspaper as NewspaperIcon, BarChart3 as MetaIcon, BookOpen, FlaskConical, Scale, RadioTower } from 'lucide-react'
+import { Hexagon, Swords, ShieldCheck, Megaphone, Newspaper as NewspaperIcon, BarChart3 as MetaIcon, BookOpen, FlaskConical, Scale, RadioTower, Radar } from 'lucide-react'
 import {
-  DatapadIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
+  MandoTrophyIcon, CargoIcon, BountyIcon,
   DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
   ChanceCubeIcon, RebelIcon, StarfighterIcon,
 } from '../SWIcons'
@@ -18,7 +18,7 @@ type NavItem =
 const mainNav: NavItem[] = [
   { id: '/', label: 'Base', sub: 'Centro de mando', icon: Hexagon },
   { id: '/play', label: 'Duelo', sub: 'Tracker en vivo', icon: Swords },
-  { id: '/arena', label: 'Holocrón', sub: 'Registro de duelos', icon: DatapadIcon },
+  { id: '/galaxia', label: 'La Galaxia', sub: 'Universo 3D', icon: StarfighterIcon },
   { id: '/blog', label: 'Blog', sub: 'Análisis y artículos', icon: BookOpen },
   { id: '/events', label: 'Torneo', sub: 'Eventos organizados', icon: MandoTrophyIcon },
   { id: '/profile', label: 'Mi Perfil', sub: 'Holocrón', img: '/holocron-icon.png' },
@@ -31,7 +31,7 @@ const secondaryNav: NavItem[] = [
   { id: '/misiones', label: 'Misiones', sub: 'Órdenes del Día', icon: DeathStarIcon },
   { id: '/decks', label: 'Mis Decks', sub: 'Constructor', icon: DeckCardsIcon },
   { id: '/laboratorio', label: 'Laboratorio', sub: 'Simulador de mazos', icon: FlaskConical },
-  { id: '/galaxy', label: 'La Galaxia', sub: 'Explorador Global', icon: StarfighterIcon },
+  { id: '/galaxy', label: 'Explorador', sub: 'Buscar comandantes', icon: Radar },
   { id: '/news', label: 'Noticias', sub: 'Agenda de torneos', icon: NewspaperIcon },
   { id: '/meta', label: 'Meta', sub: 'Torneos y matchups', icon: MetaIcon },
   { id: '/community', label: 'Comunidades', sub: 'Galaxia', icon: RebelIcon },
