@@ -86,6 +86,41 @@ Solo quedan dos jugadores con un turno libre cada uno, así que **la partida que
 falta es César vs Erasmo**. No hay otra posibilidad: el script confirma un único
 escenario.
 
+## Rondas
+
+Nel dio cuatro anclas: Erasmo–Marlin y Nelson–Luis fueron **ronda 1**, su ronda
+2 fue contra Erasmo y su ronda 3 contra Vara. Con eso y la restricción de que
+cada jugador juega una vez por ronda, un script de restricciones deja **solo dos
+repartos posibles**.
+
+**Ronda 3 — determinada, sin ambigüedad:**
+
+| Mesa | Partida | Resultado |
+|---|---|---|
+| — | Nelson vs Vara | Vara 2–1 |
+| — | Jaime vs Luis | Jaime 2–0 |
+| — | Christian vs Marlin | Marlin 2–0 |
+| — | **César vs Erasmo** | **?** |
+
+**Ronda 1 y 2 — dos anclas fijas cada una:**
+
+- R1 seguro: Nelson vs Luis (1–1) · Erasmo vs Marlin (Marlin 2–0)
+- R2 seguro: Nelson vs Erasmo (Nelson 2–0) · Luis vs Marlin (Marlin 2–1)
+
+Lo único que falta decidir es dónde van estos dos pares:
+
+- **Opción 1** → R1: Jaime vs Vara + César vs Christian · R2: Christian vs Vara + César vs Jaime
+- **Opción 2** → R1: Christian vs Vara + César vs Jaime · R2: Jaime vs Vara + César vs Christian
+
+**La opción 1 encaja mucho mejor con un suizo**, y esto es un argumento, no un
+dato: tras la ronda 1 de la opción 1 quedarían con 3 pts Vara, Christian y
+Marlin, y la ronda 2 emparejaría Christian–Vara (3 contra 3) y César–Jaime
+(0 contra 0), que es exactamente lo que hace el suizo. En la opción 2, la ronda
+2 tendría **tres** cruces de 3 pts contra 0 pts, que un suizo no produce.
+
+Aun así **no se da por hecha**: basta una respuesta para cerrarlo — *¿en la
+ronda 1 Vara jugó contra Jaime o contra Christian?*
+
 ## Clasificación
 
 Calculada con la regla real de la app (victoria +3, empate +1, derrota +0) y
