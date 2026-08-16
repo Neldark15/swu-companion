@@ -218,7 +218,7 @@ export function EstudioPage() {
         <div className="flex flex-col items-center gap-4 text-center">
           <p className="text-lg font-semibold text-swu-text">Panel de transmisión</p>
           <p className="max-w-xs text-sm text-swu-muted">
-            Iniciá sesión con tu cuenta de administrador para operar el marcador.
+            Iniciá sesión con la cuenta que tiene asignada esta cabina.
           </p>
           <button
             onClick={() => navigate('/profile')}
@@ -486,9 +486,17 @@ export function EstudioPage() {
         </>
         )}
 
-        {/* ══ Ajustes · Partida y textos ══ */}
+        {/* ══ Ajustes · Puesta en marcha, partida y textos ══ */}
         {pestana === 'ajustes' && (
-        <div className="grid items-start gap-2.5 lg:grid-cols-2">
+        <>
+        <PuestaEnMarcha
+          code={code}
+          nombre={nombreSesion || code}
+          youtubeOk={youtubeValido}
+          alAireApp={estado.envivo}
+          tienda={estado.patrocinio}
+        />
+        <div className="mt-2.5 grid items-start gap-2.5 lg:grid-cols-2">
           <Panel titulo="Partida" denso>
             <div className="flex flex-col gap-1.5">
               <ConConfirmacion
@@ -609,9 +617,129 @@ export function EstudioPage() {
             </div>
           </Panel>
         </div>
+        </>
         )}
       </main>
     </div>
+  )
+}
+
+/* ── Puesta en marcha ───────────────────────────────────────────────── */
+
+/**
+ * La lista de lo que hace falta para salir al aire, con el estado real de lo
+ * que la app SÍ puede comprobar.
+ *
+ * Existe para que una cabina nueva no dependa de que alguien explique los
+ * pasos por WhatsApp: se abre esta pestaña y se ve qué falta.
+ *
+ * Deliberadamente NO guarda la clave de transmisión. El estado del marcador es
+ * de lectura pública —OBS lo consume sin sesión— así que una clave ahí la
+ * podría leer cualquiera y emitir en el canal ajeno. La clave vive en OBS, en
+ * la computadora del operador, que es su sitio.
+ */
+function PuestaEnMarcha({
+  code,
+  nombre,
+  youtubeOk,
+  alAireApp,
+  tienda,
+}: {
+  code: string
+  nombre: string
+  youtubeOk: boolean
+  alAireApp: boolean
+  tienda: string
+}) {
+  const pasos = [
+    {
+      hecho: null,
+      titulo: 'Activar el directo en YouTube',
+      detalle:
+        'En el canal de esta sede: YouTube Studio → Crear → Transmitir en vivo. La primera vez tarda hasta 24 horas en habilitarse.',
+      enlace: 'https://studio.youtube.com/channel/UC/livestreaming',
+      enlaceTexto: 'Abrir YouTube Studio',
+    },
+    {
+      hecho: null,
+      titulo: 'Pegar la clave de transmisión en OBS',
+      detalle:
+        'Se copia de YouTube Studio y se pega en OBS → Ajustes → Emisión → Servicio «YouTube - RTMPS». No se guarda acá: es un secreto de la cuenta, y este panel es de lectura pública para que OBS lo consuma.',
+    },
+    {
+      hecho: null,
+      titulo: 'Importar las escenas de OBS',
+      detalle:
+        'Con el botón de abajo se descarga el archivo de ESTA cabina. En OBS: Colección de escenas → Importar. Trae la URL del marcador y la cámara ya encajadas.',
+    },
+    {
+      hecho: youtubeOk,
+      titulo: 'Poner el canal de YouTube acá',
+      detalle:
+        'Para que la comunidad vea el directo dentro de la app. Con el id del canal (UC…) sirve siempre lo que esté al aire.',
+    },
+    {
+      hecho: tienda.trim().length > 0,
+      titulo: 'Poner la tienda anfitriona',
+      detalle: 'Aparece en la franja de abajo del marcador, junto al aviso legal.',
+    },
+    {
+      hecho: alAireApp,
+      titulo: 'Anunciar en la app al salir al aire',
+      detalle: 'El último paso del día: enciende la transmisión en la página pública.',
+    },
+  ]
+
+  const verificables = pasos.filter(p => p.hecho !== null)
+  const listos = verificables.filter(p => p.hecho).length
+
+  return (
+    <Panel titulo={`Puesta en marcha · ${nombre}`} nota={`${listos}/${verificables.length} verificados`} denso>
+      <ol className="flex flex-col gap-1.5">
+        {pasos.map((p, i) => (
+          <li
+            key={i}
+            className={`flex gap-2.5 rounded-lg border p-2.5 ${
+              p.hecho === true
+                ? 'border-emerald-500/30 bg-emerald-500/5'
+                : p.hecho === false
+                  ? 'border-amber-500/30 bg-amber-500/5'
+                  : 'border-white/10 bg-black/20'
+            }`}
+          >
+            <span
+              className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black ${
+                p.hecho === true
+                  ? 'bg-emerald-500 text-black'
+                  : p.hecho === false
+                    ? 'bg-amber-500 text-black'
+                    : 'bg-white/10 text-swu-muted'
+              }`}
+            >
+              {p.hecho === true ? '✓' : i + 1}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold leading-snug">{p.titulo}</p>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-swu-muted">{p.detalle}</p>
+              {p.enlace && (
+                <a
+                  href={p.enlace}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 inline-block text-[11px] font-bold text-swu-accent-texto underline"
+                >
+                  {p.enlaceTexto}
+                </a>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-2 text-[10px] leading-relaxed text-swu-muted">
+        Cabina <span className="font-mono">{code}</span>. Cada sede tiene su propio canal, su propia
+        clave y su propio marcador: lo que se configure acá no afecta a las demás.
+      </p>
+    </Panel>
   )
 }
 
