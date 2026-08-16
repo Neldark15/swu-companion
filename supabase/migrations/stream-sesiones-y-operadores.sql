@@ -132,3 +132,15 @@ grant insert, update, delete on public.stream_operadores to authenticated;
 
 -- ── Realtime para el marcador nuevo ───────────────────────────────────
 -- (stream_overlay ya está en la publicación; SON01 es una fila más.)
+
+-- ── Endurecimiento (aplicado aparte tras el advisor de seguridad) ─────
+--
+-- `es_operador_stream` es SECURITY DEFINER —corre sin RLS para cortar la
+-- recursión— así que NO debe quedar expuesta a visitantes sin sesión: por
+-- /rest/v1/rpc se podría sondear quién opera qué transmisión.
+--
+-- El `revoke ... from public` NO alcanza: el proyecto tiene un grant amplio a
+-- `anon` que sobrevive, y el advisor lo detectó. Hay que quitárselo explícito.
+revoke all on function public.es_operador_stream(text, uuid) from anon;
+revoke all on function public.es_operador_stream(text, uuid) from public;
+grant execute on function public.es_operador_stream(text, uuid) to authenticated;
