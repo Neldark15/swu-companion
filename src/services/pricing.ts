@@ -618,18 +618,55 @@ export function formatPrice(price: number | null | undefined): string {
  * mercado real no arrastra la referencia. Si no hay `low` o `high`, se cae a lo
  * de siempre: market → mid → lo que haya.
  */
-export function precioPromedio(p: PriceInfo | null | undefined): number | null {
-  if (!p) return null
-  const low = p.low
-  let high = p.high
+/** Núcleo del promedio, sobre los campos crudos. Lo usan tanto el precio base
+ *  como cada variante (foil/hyperspace), que tienen los mismos campos. */
+function promedioDe(
+  low: number | null, high: number | null, market: number | null, mid: number | null,
+): number | null {
   if (low != null && high != null) {
+    let h = high
     // Recorta el `high` a lo sumo al doble del `market` real, para que un
     // outlier no distorsione. Si no hay market, se usa el high tal cual.
-    if (p.market != null && p.market > 0) high = Math.min(high, p.market * 2)
-    const prom = (low + high) / 2
+    if (market != null && market > 0) h = Math.min(h, market * 2)
     // Nunca por debajo del piso real: el promedio recortado podría quedar
     // apenas bajo `low` en casos raros.
-    return Math.max(prom, low)
+    return Math.max((low + h) / 2, low)
   }
-  return p.market ?? p.mid ?? p.low ?? p.high ?? null
+  return market ?? mid ?? low ?? high ?? null
+}
+
+export function precioPromedio(p: PriceInfo | null | undefined): number | null {
+  if (!p) return null
+  return promedioDe(p.low, p.high, p.market, p.mid)
+}
+
+/**
+ * El precio promedio PARA UNA IMPRESIÓN concreta: normal, foil o hyperspace.
+ *
+ * TCGplayer separa el precio por subtipo (`variants`): la misma carta vale muy
+ * distinto en Normal que en Foil o Hyperspace. Con el modificador, el precio
+ * aproximado de un mazo se acerca al real según cómo lo tenga armado la persona.
+ *
+ * Si la carta no tiene esa variante (una común quizá solo existe Normal), se cae
+ * al precio base — no se inventa un recargo.
+ */
+export function precioVariante(
+  p: PriceInfo | null | undefined,
+  variante: 'normal' | 'foil' | 'hyperspace',
+): number | null {
+  if (!p) return null
+  if (variante !== 'normal' && p.variants) {
+    const entrada = Object.entries(p.variants).find(([clave]) =>
+      variante === 'hyperspace'
+        ? /hyperspace/i.test(clave)
+        // «Foil» a secas, no «Hyperspace Foil» — esa es hyperspace.
+        : /foil/i.test(clave) && !/hyperspace/i.test(clave),
+    )
+    if (entrada) {
+      const v = entrada[1]
+      const prom = promedioDe(v.low, v.high, v.market, v.mid)
+      if (prom != null) return prom
+    }
+  }
+  return precioPromedio(p)
 }

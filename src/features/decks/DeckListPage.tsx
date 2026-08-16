@@ -2,15 +2,40 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2, BookOpen, AlertTriangle, CheckCircle2, Swords, Eye, EyeOff, Upload, Share2, FlaskConical } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
+import { SegmentedControl } from '../../components/ui/SegmentedControl'
 import { db } from '../../services/db'
 import { getCardById } from '../../services/swuApi'
 import { deleteDeckFromCloud, pullDecksFromCloud, syncDeckToCloud } from '../../services/sync'
 import { validateDeck, getEffectiveMinDeckSize } from '../../services/deckValidator'
+import { getPricesForCards, fetchTCGPrices, formatPrice, precioVariante, type PriceInfo } from '../../services/pricing'
 import { useAuth } from '../../hooks/useAuth'
 import { ImportDeckModal } from './ImportDeckModal'
 import { ExportDeckModal } from './ExportDeckModal'
-import type { Deck } from '../../types'
+import type { Deck, DeckCard } from '../../types'
 import type { DeckImportResult } from '../../services/deckImportExport'
+
+type Variante = 'normal' | 'foil' | 'hyperspace'
+
+/** Todas las cartas que cuestan de un mazo: líderes + base + mazo principal.
+ *  El sideboard queda fuera: es opcional y no es «el mazo que jugás». */
+function cartasDeMazo(deck: Deck): DeckCard[] {
+  const cs = [...deck.leaders, ...deck.mainDeck]
+  if (deck.base) cs.push(deck.base)
+  return cs
+}
+
+/** Precio aproximado del mazo para una impresión, y cuántas cartas no tienen
+ *  precio (para poder avisarlo en vez de mentir con un total bajo). */
+function precioDeMazo(deck: Deck, precios: Map<string, PriceInfo>, variante: Variante): { total: number; faltan: number } {
+  let total = 0
+  let faltan = 0
+  for (const c of cartasDeMazo(deck)) {
+    const v = precioVariante(precios.get(c.cardId), variante)
+    if (v != null && v > 0) total += v * c.quantity
+    else faltan += c.quantity
+  }
+  return { total, faltan }
+}
 
 function timeAgo(ts: number): string {
   const diff = Date.now() - ts
@@ -50,6 +75,9 @@ export function DeckListPage() {
   const [baseTexts, setBaseTexts] = useState<Map<string, string>>(new Map())
   const [showImport, setShowImport] = useState(false)
   const [exportDeck, setExportDeck] = useState<Deck | null>(null)
+  const [precios, setPrecios] = useState<Map<string, PriceInfo>>(new Map())
+  const [variante, setVariante] = useState<Variante>('normal')
+  const [trayendoPrecios, setTrayendoPrecios] = useState(false)
 
   const loadDecks = useCallback(async () => {
     setLoading(true)
@@ -107,7 +135,38 @@ export function DeckListPage() {
 
     setCardImages(newImages)
     setBaseTexts(newBaseTexts)
+
+    // Precios de TODAS las cartas de TODOS los mazos, desde la caché (local +
+    // nube). No dispara descargas: si una carta no tiene precio guardado, su
+    // mazo mostrará «faltan N precios» y el botón «Traer precios» los baja.
+    const idsPrecio = new Set<string>()
+    d.forEach(deck => cartasDeMazo(deck).forEach(c => idsPrecio.add(c.cardId)))
+    if (idsPrecio.size > 0) {
+      const p = await getPricesForCards([...idsPrecio])
+      setPrecios(p)
+    }
   }, [supabaseUser])
+
+  /** Baja de TCGplayer los precios que falten, para todos los mazos. */
+  const traerPrecios = useCallback(async () => {
+    setTrayendoPrecios(true)
+    try {
+      const necesarias = new Map<string, DeckCard>()
+      decks.forEach(deck => cartasDeMazo(deck).forEach(c => {
+        if (!precios.has(c.cardId)) necesarias.set(c.cardId, c)
+      }))
+      if (necesarias.size > 0) {
+        await fetchTCGPrices([...necesarias.values()].map(c => ({
+          id: c.cardId, name: c.name, subtitle: c.subtitle, setCode: c.setCode,
+        })))
+      }
+      const idsPrecio = new Set<string>()
+      decks.forEach(deck => cartasDeMazo(deck).forEach(c => idsPrecio.add(c.cardId)))
+      setPrecios(await getPricesForCards([...idsPrecio]))
+    } finally {
+      setTrayendoPrecios(false)
+    }
+  }, [decks, precios])
 
   // Load on mount and when navigating back
   useEffect(() => {
@@ -222,9 +281,40 @@ export function DeckListPage() {
         </div>
       ) : (
         <div className="space-y-3">
+          {/* Precio aproximado + modificador de impresión. El precio de un mazo
+              cambia MUCHO según si las cartas son normales, foil o hyperspace;
+              el modificador acerca el aproximado al costo real. */}
+          <div className="rounded-2xl border border-swu-border bg-swu-surface p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-black uppercase tracking-widest text-swu-muted">Precio aproximado</span>
+              <button
+                onClick={() => void traerPrecios()}
+                disabled={trayendoPrecios}
+                className="text-[11px] font-bold text-swu-accent-texto disabled:opacity-50"
+              >
+                {trayendoPrecios ? 'Trayendo…' : 'Traer precios'}
+              </button>
+            </div>
+            <SegmentedControl<Variante>
+              label="Impresión de las cartas"
+              value={variante}
+              onChange={setVariante}
+              options={[
+                { value: 'normal', label: 'Normal' },
+                { value: 'foil', label: 'Foil' },
+                { value: 'hyperspace', label: 'Hyperspace' },
+              ]}
+            />
+            <p className="text-[10px] text-swu-muted">
+              El aproximado supone que TODO el mazo es de esa impresión. Si una carta no
+              tiene ese precio, se usa el normal.
+            </p>
+          </div>
+
           {decks.map((deck) => {
             const mainCount = countCards(deck.mainDeck)
             const sideCount = countCards(deck.sideboard)
+            const { total: precioTotal, faltan: precioFaltan } = precioDeMazo(deck, precios, variante)
             const leader = deck.leaders[0]
             const base = deck.base
             const leaderImg = leader ? cardImages.get(leader.cardId) : undefined
@@ -317,6 +407,14 @@ export function DeckListPage() {
                     <div className="flex items-center gap-3 text-[11px] text-swu-muted">
                       <span className="font-mono font-bold text-swu-accent-texto">{mainCount}/{targetSize}</span>
                       {sideCount > 0 && <span>Side: {sideCount}</span>}
+                      {precioTotal > 0 && (
+                        <span
+                          className="font-mono font-bold text-swu-green"
+                          title={precioFaltan > 0 ? `Faltan ${precioFaltan} cartas sin precio` : undefined}
+                        >
+                          ~{formatPrice(precioTotal)}{precioFaltan > 0 && <span className="text-swu-amber">*</span>}
+                        </span>
+                      )}
                       <span>{timeAgo(deck.updatedAt)}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
