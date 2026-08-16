@@ -36,55 +36,75 @@ import { WelcomeHome } from './components/WelcomeHome'
 
 /* Avatar helper: detect image-based avatar vs emoji */
 
+/** Las familias de módulos, en el orden en que se muestran. */
+type Categoria = 'jugar' | 'competir' | 'construir' | 'coleccion' | 'comunidad'
+
+const CATEGORIAS: { id: Categoria; titulo: string }[] = [
+  { id: 'jugar',     titulo: 'Jugar' },
+  { id: 'competir',  titulo: 'Competir' },
+  { id: 'construir', titulo: 'Construir' },
+  { id: 'coleccion', titulo: 'Colección' },
+  { id: 'comunidad', titulo: 'Comunidad' },
+]
+
 interface Sistema {
   icon: typeof DatapadIcon
   label: string
   tone: HudTone
   to: string
+  /** Categoría del grid principal. Los módulos de admin no la llevan: van en
+   *  su propia franja, no en una categoría. */
+  cat?: Categoria
   auth?: boolean
   /** Solo para administradores. Los demás ni ven la casilla. */
   admin?: boolean
 }
 
+/**
+ * Los módulos, agrupados por lo que la persona VIENE A HACER, no por el orden
+ * en que se fueron construyendo. Antes era una cuadrícula plana de 19 casillas
+ * donde Torneos quedaba lejos de Meta y el Contador lejos de Amistosas; con
+ * grupos, cada cosa está donde uno la busca.
+ *
+ * El orden dentro de cada grupo es por uso esperado, no alfabético: lo que más
+ * se toca, primero.
+ */
 const mainSystems: Sistema[] = [
-  { icon: DatapadIcon,     label: 'Holocrón',    tone: 'green',  to: '/arena',      auth: true },
-  { icon: MandoTrophyIcon, label: 'Eventos',   tone: 'amber',  to: '/events',     auth: true },
-  { icon: KyberIcon,       label: 'Meta',      tone: 'cyan',   to: '/meta' },
-  // La transmisión, en la cuadrícula y no solo en el cajón lateral: es el sitio
-  // donde la gente busca los módulos, y el cajón hay que abrirlo a propósito.
-  { icon: HolonetIcon,     label: 'En Vivo',   tone: 'red',    to: '/envivo' },
-  // PÚBLICO a propósito (sin auth): un juez en torneo consulta una regla
-  // sin loguearse. Va arriba, cerca de Meta: los dos son consulta de mesa.
-  { icon: HolocronIcon,    label: 'Rulings',   tone: 'cyan',   to: '/rulings' },
-  { icon: HolonetIcon,     label: 'Blog',      tone: 'amber',  to: '/blog' },
-  { icon: CargoIcon,       label: 'Mi Botín',   tone: 'green',  to: '/collection', auth: true },
-  { icon: DeckCardsIcon,   label: 'Mis Decks',           tone: 'green',  to: '/decks',      auth: true },
-  // Va PEGADO a Mis Decks porque es el paso siguiente del mismo trabajo:
-  // se arma un mazo y se prueba. Estaba solo en el SideNav —que es
-  // `hidden lg:flex`, o sea invisible en el teléfono— y en MoreNav, a dos
-  // toques dentro de Perfil. Un módulo al que no se llega desde el Inicio,
-  // en la práctica, no existe.
-  // La Mesa 3D (/mesa) NO tiene casilla propia a propósito: es el paso final
-  // del Laboratorio —ver UNA partida de la medición— y se abre DESDE ahí. Un
-  // acceso directo aparte duplicaría la entrada a algo que ya se alcanza en un
-  // clic desde donde tiene sentido. La ruta sigue viva.
-  { icon: LabIcon,         label: 'Laboratorio',  tone: 'cyan',   to: '/laboratorio', auth: true },
-  { icon: BountyIcon,      label: 'Contrabando',  tone: 'red',    to: '/explore',    auth: true },
+  // ── Jugar: lo de la mesa, en vivo o para dejar registro ──
+  { icon: ChanceCubeIcon,  label: 'Contador',     tone: 'purple', to: '/contador',   cat: 'jugar' },
+  { icon: MandoTrophyIcon, label: 'Amistosas',    tone: 'green',  to: '/amistosas',  cat: 'jugar' },
+  { icon: DatapadIcon,     label: 'Holocrón',     tone: 'green',  to: '/arena',      cat: 'jugar', auth: true },
+  { icon: DeathStarIcon,   label: 'Misiones',     tone: 'amber',  to: '/misiones',   cat: 'jugar', auth: true },
+
+  // ── Competir: torneos, ranking y meta ──
+  { icon: MandoTrophyIcon, label: 'Torneos',      tone: 'amber',  to: '/torneos',    cat: 'competir' },
+  { icon: MandoTrophyIcon, label: 'Eventos',      tone: 'amber',  to: '/events',     cat: 'competir', auth: true },
+  { icon: KyberIcon,       label: 'Meta',         tone: 'cyan',   to: '/meta',       cat: 'competir' },
+  { icon: BeskarIcon,      label: 'Consejo Jedi', tone: 'amber',  to: '/rank',       cat: 'competir', auth: true },
+  { icon: HolonetIcon,     label: 'En Vivo',      tone: 'red',    to: '/envivo',     cat: 'competir' },
+
+  // ── Construir: mazos y consulta de cartas y reglas ──
+  { icon: DeckCardsIcon,   label: 'Mis Decks',    tone: 'green',  to: '/decks',      cat: 'construir', auth: true },
+  // Laboratorio va PEGADO a Mis Decks: es el paso siguiente del mismo trabajo,
+  // se arma un mazo y se prueba. (La Mesa 3D no tiene casilla propia a
+  // propósito: es el paso final del Laboratorio y se abre desde ahí.)
+  { icon: LabIcon,         label: 'Laboratorio',  tone: 'cyan',   to: '/laboratorio', cat: 'construir', auth: true },
+  { icon: HolonetIcon,     label: 'Buscar Cartas', tone: 'cyan',  to: '/cards',      cat: 'construir', auth: true },
+  // PÚBLICO a propósito (sin auth): un juez en torneo consulta una regla sin
+  // loguearse.
+  { icon: HolocronIcon,    label: 'Rulings',      tone: 'cyan',   to: '/rulings',    cat: 'construir' },
+
+  // ── Colección: lo que uno tiene y lo que se cambia ──
+  { icon: CargoIcon,       label: 'Mi Botín',     tone: 'green',  to: '/collection', cat: 'coleccion', auth: true },
+  { icon: BountyIcon,      label: 'Contrabando',  tone: 'red',    to: '/explore',    cat: 'coleccion', auth: true },
   // Acceso directo al mercado: llegar a comprar/vender exigía entrar a
   // Contrabando y después cambiar de pestaña.
-  { icon: CargoIcon,       label: 'Mercancía',  tone: 'amber',  to: '/explore?tab=market', auth: true },
-  { icon: SpyIcon,         label: 'Espionaje',         tone: 'purple', to: '/espionaje',  auth: true },
-  // Pegada a Espionaje: las dos son mirar a la comunidad. Espionaje va a una
-  // persona que ya se conoce; la Galaxia muestra a todas de un vistazo.
-  { icon: StarfighterIcon, label: 'La Galaxia',   tone: 'cyan',   to: '/galaxia',    auth: true },
-  { icon: DeathStarIcon,   label: 'Misiones',       tone: 'amber',  to: '/misiones',   auth: true },
-  { icon: BeskarIcon,      label: 'Consejo Jedi',   tone: 'amber',  to: '/rank',       auth: true },
-  { icon: HolonetIcon,     label: 'Buscar Cartas',         tone: 'cyan',   to: '/cards',      auth: true },
-  // Antes decía «Utilidades» y apuntaba a /utilities, que desde que se retiraron
-  // las monedas no hace más que redirigir. Se nombra lo que de verdad abre.
-  { icon: ChanceCubeIcon,  label: 'Contador',            tone: 'purple', to: '/contador' },
-  { icon: MandoTrophyIcon, label: 'Amistosas',           tone: 'green',  to: '/amistosas' },
-  { icon: MandoTrophyIcon, label: 'Torneos',             tone: 'amber',  to: '/torneos' },
+  { icon: CargoIcon,       label: 'Mercancía',    tone: 'amber',  to: '/explore?tab=market', cat: 'coleccion', auth: true },
+
+  // ── Comunidad: mirar a los demás ──
+  { icon: StarfighterIcon, label: 'La Galaxia',   tone: 'cyan',   to: '/galaxia',    cat: 'comunidad', auth: true },
+  { icon: SpyIcon,         label: 'Espionaje',    tone: 'purple', to: '/espionaje',  cat: 'comunidad', auth: true },
+  { icon: HolonetIcon,     label: 'Blog',         tone: 'amber',  to: '/blog',       cat: 'comunidad' },
 ]
 
 /**
@@ -156,6 +176,21 @@ export function HomePage() {
   const { marcadores, stats: playerStats } = panel
 
   if (!currentProfile) return <WelcomeHome />
+
+  /** El separador con líneas en degradado y el rótulo al centro, en versalitas.
+   *  Una función para que las cinco categorías y la franja de admin salgan
+   *  todas iguales; el color distingue el bloque de admin del resto. */
+  const renderSeparador = (titulo: string, color: 'cyan' | 'amber') => (
+    <div className="px-4 pt-5 pb-1">
+      <div className="flex items-center gap-2.5">
+        <div className={`h-px flex-1 bg-gradient-to-r from-transparent ${color === 'cyan' ? 'to-swu-cyan/40' : 'to-swu-amber/40'}`} />
+        <span className={`text-[9px] font-mono tracking-[0.35em] uppercase ${color === 'cyan' ? 'text-swu-cyan/70' : 'text-swu-amber/80'}`}>
+          {titulo}
+        </span>
+        <div className={`h-px flex-1 bg-gradient-to-l from-transparent ${color === 'cyan' ? 'to-swu-cyan/40' : 'to-swu-amber/40'}`} />
+      </div>
+    </div>
+  )
 
   /** Una casilla de módulo. Extraída para que la use la cuadrícula general y
    *  también la franja de administración, sin duplicar los 40 renglones de 3D
@@ -273,19 +308,26 @@ export function HomePage() {
         </div>
       )}
 
-      {/* ── Separador ── */}
-      <div className="px-4 pt-5 pb-1">
-        <div className="flex items-center gap-2.5">
-          <div className="h-px flex-1 bg-gradient-to-r from-transparent to-swu-cyan/40" />
-          <span className="text-[9px] text-swu-cyan/70 font-mono tracking-[0.35em]">SISTEMAS</span>
-          <div className="h-px flex-1 bg-gradient-to-l from-transparent to-swu-cyan/40" />
-        </div>
-      </div>
-
-      {/* ── Módulos ── */}
-      <div className="px-4 pt-2 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-        {mainSystems.filter(s => (!s.auth || currentProfile) && (!s.admin || isAdmin)).map(renderModulo)}
-      </div>
+      {/* ── Módulos, por categoría ──
+          Una franja por cada cosa que la persona VIENE A HACER (Jugar,
+          Competir, Construir…), en vez de una sola cuadrícula plana. Cada
+          categoría se dibuja solo si tiene al menos una casilla visible: sin
+          sesión, «Jugar» igual muestra Contador y Amistosas, pero «Colección»
+          —toda con auth— no aparece, y su separador tampoco. */}
+      {CATEGORIAS.map(({ id, titulo }) => {
+        const items = mainSystems.filter(
+          s => s.cat === id && (!s.auth || currentProfile) && (!s.admin || isAdmin),
+        )
+        if (items.length === 0) return null
+        return (
+          <div key={id}>
+            {renderSeparador(titulo, 'cyan')}
+            <div className="px-4 pt-2 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {items.map(renderModulo)}
+            </div>
+          </div>
+        )
+      })}
 
       {/* ── Solo administradores ──
           Franja aparte, y solo para admins: ni el separador aparece para los
@@ -293,13 +335,7 @@ export function HomePage() {
           tenerlo desperdigado entre los módulos de todos. */}
       {isAdmin && (
         <>
-          <div className="px-4 pt-5 pb-1">
-            <div className="flex items-center gap-2.5">
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent to-swu-amber/40" />
-              <span className="text-[9px] text-swu-amber/80 font-mono tracking-[0.35em]">SOLO ADMINISTRADORES</span>
-              <div className="h-px flex-1 bg-gradient-to-l from-transparent to-swu-amber/40" />
-            </div>
-          </div>
+          {renderSeparador('Solo administradores', 'amber')}
           <div className="px-4 pt-2 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {adminSystems.map(renderModulo)}
           </div>
