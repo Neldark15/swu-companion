@@ -72,8 +72,36 @@ const ESTILOS = `
 .ov-latido { animation: ovLatido 1.6s ease-in-out infinite; }
 @keyframes ovNeon { 0%,100% { opacity: .9 } 50% { opacity: .45 } }
 .ov-neon { animation: ovNeon 2.8s ease-in-out infinite; }
+
+/* El número de vida da un «pop» cada vez que cambia: el span se re-monta con
+   key={vida} y la animación corre sola en el montaje. */
+@keyframes ovGolpe { 0% { transform: scale(1.55); filter: brightness(2) } 100% { transform: scale(1); filter: brightness(1) } }
+.ov-golpe { display: inline-block; animation: ovGolpe .45s cubic-bezier(.2,.8,.3,1) both; }
+
+/* Entrada de las barras al pasar a JUEGO: la de arriba baja, la de abajo sube. */
+@keyframes ovEntraArriba { from { transform: translateY(-46px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+.ov-entra-arriba { animation: ovEntraArriba .55s cubic-bezier(.2,.8,.25,1) both; }
+@keyframes ovEntraAbajo { from { transform: translateY(46px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+.ov-entra-abajo { animation: ovEntraAbajo .55s cubic-bezier(.2,.8,.25,1) both; }
+
+/* La carta destacada sube con fundido; termina en el translateX del centrado. */
+@keyframes ovSube { from { transform: translate(-50%, 32px); opacity: 0 } to { transform: translate(-50%, 0); opacity: 1 } }
+.ov-sube { animation: ovSube .5s cubic-bezier(.2,.8,.25,1) both; }
+
+/* Reloj bajo presión: el brillo late. */
+@keyframes ovPulsoReloj { 0%,100% { text-shadow: 0 0 6px currentColor } 50% { text-shadow: 0 0 24px currentColor } }
+.ov-pulso { animation: ovPulsoReloj 1.2s ease-in-out infinite; }
+
+/* Destello que recorre el badge de INICIATIVA. */
+@keyframes ovDestello { 0% { transform: translateX(-140%) skewX(-18deg) } 55%, 100% { transform: translateX(260%) skewX(-18deg) } }
+
+/* El logo flota como holograma en las pantallas de espera. */
+@keyframes ovFlota { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-10px) } }
+.ov-flota { animation: ovFlota 6s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
-  .ov-fundido, .ov-latido, .ov-neon { animation: none }
+  .ov-fundido, .ov-latido, .ov-neon, .ov-golpe, .ov-entra-arriba, .ov-entra-abajo,
+  .ov-sube, .ov-pulso, .ov-flota { animation: none }
   .ov-corre { animation: none }
 }
 `
@@ -464,6 +492,9 @@ function BloqueJugador({
 }) {
   const vida = Math.max(0, lado.hpMax - lado.dano)
   const derrotado = vida === 0
+  const fraccion = lado.hpMax > 0 ? vida / lado.hpMax : 1
+  /* Blanco → dorado (≤50%) → rojo (≤25%): la tensión se ve venir. */
+  const colorVida = derrotado || fraccion <= 0.25 ? ROJO : fraccion <= 0.5 ? DORADO : BLANCO
 
   return (
     <div
@@ -559,14 +590,17 @@ function BloqueJugador({
       {/* Vida */}
       <Celda>
         <Etiqueta>VIDA BASE</Etiqueta>
+        {/* key={vida}: al cambiar, el span se re-monta y ovGolpe corre sola. */}
         <span
+          key={vida}
+          className="ov-golpe"
           style={{
             fontSize: 52,
             fontWeight: 900,
             lineHeight: 0.9,
             fontVariantNumeric: 'tabular-nums',
-            color: derrotado ? ROJO : BLANCO,
-            textShadow: derrotado ? `0 0 16px ${ROJO}` : '0 2px 10px rgba(0,0,0,.6)',
+            color: colorVida,
+            textShadow: colorVida === BLANCO ? '0 2px 10px rgba(0,0,0,.6)' : `0 0 16px ${colorVida}`,
           }}
         >
           {vida}
@@ -596,6 +630,8 @@ function BloqueJugador({
         <div style={{ display: 'flex', alignItems: 'center', padding: '0 18px' }}>
           <span
             style={{
+              position: 'relative',
+              overflow: 'hidden',
               padding: '14px 30px',
               background: `linear-gradient(180deg, #F5CF6B, ${DORADO} 55%, #B8862B)`,
               color: COBALTO_OSCURO,
@@ -608,6 +644,19 @@ function BloqueJugador({
             }}
           >
             INICIATIVA
+            {/* Destello que recorre el badge cada pocos segundos. */}
+            <span
+              style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                left: 0,
+                width: '45%',
+                background: 'linear-gradient(105deg, transparent, rgba(255,255,255,.6), transparent)',
+                animation: 'ovDestello 3.2s ease-in-out infinite',
+                pointerEvents: 'none',
+              }}
+            />
           </span>
         </div>
       )}
@@ -653,11 +702,13 @@ function MiniBase({ img }: { img: string }) {
 
 function BarraArriba({ estado, restante }: { estado: EstadoOverlay; restante: number | null }) {
   const porTerminar = restante !== null && restante <= 5 * 60 * 1000
-  const colorReloj = estado.tiempoExtra || restante === 0 ? ROJO : porTerminar ? DORADO : BLANCO
+  const ultimoMinuto = restante !== null && restante <= 60 * 1000
+  const colorReloj =
+    estado.tiempoExtra || restante === 0 || ultimoMinuto ? ROJO : porTerminar ? DORADO : BLANCO
 
   return (
     <div
-      className="ov-fundido"
+      className="ov-entra-arriba"
       style={{ position: 'absolute', top: 16, left: 18, right: 18, height: 128, display: 'flex', gap: 14 }}
     >
       {/* Bloque de ronda y reloj */}
@@ -682,6 +733,7 @@ function BarraArriba({ estado, restante }: { estado: EstadoOverlay; restante: nu
           <span style={{ width: 1, height: 64, background: `${DORADO}35` }} />
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
             <span
+              className={porTerminar ? 'ov-pulso' : undefined}
               style={{
                 fontSize: 46,
                 fontWeight: 900,
@@ -739,7 +791,7 @@ function BarraAbajo({ estado }: { estado: EstadoOverlay }) {
 
   return (
     <div
-      className="ov-fundido"
+      className="ov-entra-abajo"
       style={{ position: 'absolute', bottom: abajo, left: 18, right: 18, height: 128, display: 'flex' }}
     >
       <Chapa recorte={16} brillo style={{ flex: '0 0 auto', position: 'relative' }}>
@@ -811,7 +863,7 @@ function CartaDestacadaVista({ carta }: { carta: NonNullable<EstadoOverlay['cart
   const src = carta.img ? `/api/img?u=${encodeURIComponent(carta.img)}&w=448` : ''
   return (
     <div
-      className="ov-fundido"
+      className="ov-sube"
       style={{
         position: 'absolute',
         left: '50%',
@@ -897,7 +949,17 @@ function BarraNoticias({ texto }: { texto: string }) {
       >
         COMUNIDAD
       </span>
-      <div style={{ flex: 1, overflow: 'hidden' }}>
+      <div
+        style={{
+          flex: 1,
+          overflow: 'hidden',
+          // El texto se desvanece en los extremos en vez de cortarse seco.
+          WebkitMaskImage:
+            'linear-gradient(90deg, transparent 0, black 30px, black calc(100% - 40px), transparent 100%)',
+          maskImage:
+            'linear-gradient(90deg, transparent 0, black 30px, black calc(100% - 40px), transparent 100%)',
+        }}
+      >
         <div className="ov-corre">
           <span style={{ paddingLeft: 28, fontSize: 25, fontWeight: 600, color: BLANCO }}>{tira}</span>
           <span style={{ paddingLeft: 28, fontSize: 25, fontWeight: 600, color: BLANCO }}>{tira}</span>
@@ -965,10 +1027,11 @@ function EscenaOpaca({ estado, restante }: { estado: EstadoOverlay; restante: nu
         background: `linear-gradient(rgba(3,10,28,.24), rgba(3,10,28,.46)), url('/stream/fondo.jpg') center / cover no-repeat, ${COBALTO_OSCURO}`,
       }}
     >
-      {/* El emblema de la comunidad preside la espera. */}
+      {/* El emblema de la comunidad preside la espera, flotando como holograma. */}
       <img
         src="/stream/logo.webp"
         alt=""
+        className="ov-flota"
         style={{
           width: 330,
           height: 330,
