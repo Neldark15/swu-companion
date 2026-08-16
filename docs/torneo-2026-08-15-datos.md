@@ -118,30 +118,70 @@ Lo único que falta para cerrar las rondas: **¿en la ronda 1 Vara jugó contra
 Jaime o contra Christian?** La lógica del suizo favorece Jaime (ver más abajo),
 pero no está confirmado.
 
-## Clasificación final
+## Clasificación final — OFICIAL
 
-Regla real de la app (victoria +3, empate +1, derrota +0), calculada por script
-sobre las 12 partidas. Control: los 8 jugaron 3 rondas y los juegos cuadran
-28–28.
+Fuente: **Challonge** (`challonge.com/es/tutge…`), que es donde se corrió el
+torneo. Capturada por Nel el 2026-08-16. Esto es lo que vieron los jugadores y
+es la verdad del torneo.
 
-| # | Jugador | Pts | V-D-E | Juegos | OMW% |
-|---|---|---|---|---|---|
-| 1 | **Marlin** 🏆 | 9 | 3-0-0 | 6-1 | 44,4 % |
-| 2 | Christian García | 6 | 2-1-0 | 4-3 | 66,7 % |
-| 3 | Vara | 6 | 2-1-0 | 5-3 | 59,3 % |
-| 4 | Jaime Beltrán | 6 | 2-1-0 | 4-2 | 44,4 % |
-| 5 | Nelson | 4 | 1-1-1 | 4-3 | 44,4 % |
-| 6 | Erasmo Zaldaña | 3 | 1-2-0 | 2-5 | 59,3 % |
-| 7 | Luis Castillo | 1 | 0-2-1 | 2-5 | 70,4 % |
-| 8 | César | 0 | 0-3-0 | 1-6 | 55,6 % |
+| # | Jugador | V-D-E | Puntos |
+|---|---|---|---|
+| 1 | **Marlin** 🏆 | 3-0-0 | 9,0 |
+| 2 | **Vara** | 2-1-0 | 6,0 |
+| 3 | Christian García | 2-1-0 | 6,0 |
+| 4 | Jaime Beltrán | 2-1-0 | 6,0 |
+| 5 | Nelson | 1-1-1 | 4,0 |
+| 6 | Erasmo Zaldaña | 1-2-0 | 3,0 |
+| 7 | Luis Castillo | 0-2-1 | 1,0 |
+| 8 | César | 0-3-0 | 0,0 |
 
-**Marlin campeón invicto**, confirmado por Nel y coincidente con el cálculo
-hecho por separado.
+**Los 8 récords y los 8 puntajes coinciden exactamente con el cálculo hecho por
+script sobre las 12 partidas.** Eso valida de punta a punta los resultados que
+se fueron anotando: no hay ninguna partida mal cargada.
 
-El desempate del 2º al 4º (los tres con 6 pts) sale por OMW%. El orden de arriba
-usa MI cálculo de OMW; al construir el torneo hay que recalcularlo con
-`tournamentCloud.ts`, que es la fórmula que la app muestra. Podría cambiar ese
-orden.
+### El desempate: por qué la app mostraría OTRO orden
+
+Los tres del medio empatan a 6 puntos, y ahí Challonge y la app NO coinciden:
+
+- **Challonge** → Vara, Christian, Jaime.
+- **La app** (`tournamentCloud.ts:1071-1076`, ordena `puntos → omw_pct → gw_pct
+  → nombre`) → **Christian, Vara, Jaime**.
+
+La causa está identificada y es una sola: **el piso del 33 % en el OMW.** La app
+usa la resistencia estándar de MTG, que nunca cuenta a un rival por debajo de
+33,3 %. Christian jugó contra César (0-3):
+
+| | con piso (app) | sin piso |
+|---|---|---|
+| Christian | (66,7 + **33,3** + 100)/3 = **66,7 %** | (66,7 + **0** + 100)/3 = 55,6 % |
+| Vara | (44,4 + 66,7 + 66,7)/3 = 59,3 % | 59,3 % |
+
+Con piso gana Christian; sin piso gana Vara. Challonge además desempata por
+Buchholz (Vara 16, Christian 15) y por juegos ganados (Vara 5, Christian 4) —
+verificado por script: **los tres criterios reproducen el orden oficial**.
+
+### Consecuencia para construir el torneo
+
+`tournament_standings` **no tiene columna de puesto**: la posición es el índice
+del arreglo ya ordenado (`StandingsTable.tsx:50` pinta `idx + 1`). O sea que si
+se cargan estos datos tal cual, la app mostraría a Christian 2º y contradiría lo
+que la gente vio en la pantalla del torneo.
+
+Hay dos salidas, y **solo una es honesta**:
+
+1. ✅ **Agregar una columna de puesto** y guardar el orden oficial. Es lo
+   correcto para un torneo cargado a mano: el puesto lo dictó el software que
+   se usó, no nuestro desempate.
+2. ❌ Escribir un `omw_pct` inventado que fuerce el orden. Descartado: esa
+   columna se MUESTRA como porcentaje en la tabla, así que sería publicar un
+   número falso a toda la comunidad.
+
+### Oportunidad: Challonge tiene API pública
+
+El torneo vive en Challonge, que publica una API documentada. Si Nel pasa el URL
+completo, se podría **importar el torneo entero** —participantes, partidas,
+rondas y clasificación— en vez de dictarlo a mano, y lo mismo con los torneos
+que vengan. Falta comprobar términos de uso y si el torneo es público.
 
 ## Mazos
 
