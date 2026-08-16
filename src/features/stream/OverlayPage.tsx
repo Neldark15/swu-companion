@@ -839,9 +839,11 @@ function CartaJugada({ lado, alineado }: { lado: LadoOverlay; alineado: 'izq' | 
       className="ov-sube-lado"
       style={{
         position: 'absolute',
-        top: 300,
-        [alineado === 'izq' ? 'left' : 'right']: 26,
-        width: 316,
+        top: 232,
+        // Alineado al marco: la ventana de la cámara va de x=421 a x=1494, así
+        // que el panel se apoya justo por fuera y no pisa el borde decorado.
+        [alineado === 'izq' ? 'left' : 'right']: 84,
+        width: 300,
         filter: 'drop-shadow(0 14px 34px rgba(0,0,0,.65)) drop-shadow(0 0 20px rgba(63,182,255,.28))',
       }}
     >
