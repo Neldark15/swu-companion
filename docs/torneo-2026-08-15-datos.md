@@ -39,9 +39,9 @@ Marlin y Erasmo.
 `felipequintanillaguzman@`). Se ven iguales en standings, en el buscador de
 rivales y en el cara a cara. Conviene que Felipe se cambie el nombre.
 
-## Partidas conocidas (9 de 12)
+## Partidas conocidas (11 de 12)
 
-Con 8 jugadores y 3 rondas suizas son 12 partidas. Faltan 3.
+Con 8 jugadores y 3 rondas suizas son 12 partidas. **Falta 1.**
 
 | # | Jugador A | Marcador | Jugador B |
 |---|---|---|---|
@@ -54,6 +54,9 @@ Con 8 jugadores y 3 rondas suizas son 12 partidas. Faltan 3.
 | 7 | Jaime Beltrán | **2–0** | Luis |
 | 8 | Christian García | **2–0** | César |
 | 9 | Marlin | **2–0** | Christian García |
+| 10 | Marlin | **2–0** | Erasmo Zaldaña |
+| 11 | Marlin | **2–1** | Luis Castillo |
+| 12 | **César** | **?** | **Erasmo** ← la única que falta |
 
 Las partidas 3 y 5 vienen del relato de Vara; la 3 la confirma Nelson desde su
 lado («perdí 1-2»), y coinciden. La 4 la confirman los dos (Vara «ganó 2-0»,
@@ -63,20 +66,51 @@ Jaime «perdió 0-2»).
 partidas. Faltan 3, y reparten exactamente lo pendiente: Luis (1),
 César (1), Erasmo (2), Marlin (2). No sobra ni falta nadie.
 
-### Deducción: Erasmo vs Marlin se jugó, seguro
+### La última partida está forzada: César vs Erasmo
 
-Con 8 jugadores, 3 rondas, sin byes y sin repetir rival, las 3 partidas que
-faltan tienen que cubrir los extremos `{Luis, César, Erasmo, Erasmo, Marlin,
-Marlin}`. Solo hay dos repartos posibles:
+Marlin jugó contra Christian, Erasmo y Luis — eso cerró a Luis y descartó el
+escenario en que Luis jugaba contra Erasmo. Recuento verificado por script:
 
-- **A**: Erasmo–Marlin, Erasmo–Luis, Marlin–César
-- **B**: Erasmo–Marlin, Erasmo–César, Marlin–Luis
+| Jugador | Rondas | Contra |
+|---|---|---|
+| Marlin | 3/3 | Christian, Erasmo, Luis |
+| Nelson | 3/3 | Luis, Erasmo, Vara |
+| Vara | 3/3 | Nelson, Jaime, Christian |
+| Jaime | 3/3 | Vara, César, Luis |
+| Christian | 3/3 | Vara, César, Marlin |
+| Luis | 3/3 | Nelson, Jaime, Marlin |
+| **César** | **2/3** | Jaime, Christian |
+| **Erasmo** | **2/3** | Nelson, Marlin |
 
-La tercera combinación (Erasmo–Luis, Erasmo–César) dejaría Marlin contra Marlin,
-que es imposible. **Erasmo–Marlin aparece en las dos**, así que ese
-emparejamiento es seguro aunque no se sepa el resultado.
+Solo quedan dos jugadores con un turno libre cada uno, así que **la partida que
+falta es César vs Erasmo**. No hay otra posibilidad: el script confirma un único
+escenario.
 
-Lo que NO se deduce: quién ganó, ni si el reparto fue A o B.
+## Clasificación
+
+Calculada con la regla real de la app (victoria +3, empate +1, derrota +0) y
+verificada por script sobre las 11 partidas conocidas.
+
+**El resultado de César–Erasmo NO mueve el podio.** Los primeros cinco puestos
+son idénticos en los tres desenlaces posibles; esa partida solo decide entre el
+6º y el 8º.
+
+| # | Jugador | Pts | Récord | Juegos |
+|---|---|---|---|---|
+| 1 | **Marlin** 🏆 | 9 | 3-0-0 | 6-1 |
+| 2 | Christian García | 6 | 2-1-0 | 4-3 |
+| 3 | Vara | 6 | 2-1-0 | 5-3 |
+| 4 | Jaime Beltrán | 6 | 2-1-0 | 4-2 |
+| 5 | Nelson | 4 | 1-1-1 | 4-3 |
+| 6-8 | Luis, César, Erasmo | — | — | depende de la partida que falta |
+
+Nel confirmó que **Marlin quedó top 1**, lo que coincide con el cálculo hecho de
+forma independiente. Es un buen chequeo cruzado de que los resultados están bien
+anotados.
+
+El desempate entre Christian, Vara y Jaime (los tres con 6 pts) sale por OMW%,
+que la app calcula a su manera — el orden de arriba usa mi cálculo y hay que
+recalcularlo con `tournamentCloud.ts` al construir el torneo.
 
 ## Mazos
 
@@ -90,7 +124,8 @@ Todos confirmados por Nel el 2026-08-16 y verificados contra el API de cartas.
 | Erasmo Zaldaña | Luke *(¿cuál?)* | Strangled Cliffs (28, Aggression) |
 | Luis | Luthen Rael — *Don't You Want to Fight For Real?* (SEC) | ? |
 | Christian García | Boba Fett — *Any Methods Necessary* (JTL) | Lake Country (34, sin aspecto) |
-| Vara, Marlin | — | — |
+| Marlin | Luke Skywalker — *Hero of Yavin* (JTL) | Data Vault (33, Command) |
+| Vara | — | — |
 
 **«Lake City» no existe como carta.** La única base que encaja es **Lake
 Country** (34 vidas, JTL, sin aspecto) — la hermana mayor de Data Vault (33).
@@ -110,14 +145,11 @@ roja) pero no la impresión del líder.
 
 ### Lo que NO se sabe
 
-- Las 3 partidas restantes: reparten los turnos pendientes de Luis (1),
-  César (1), Erasmo (2) y Marlin (2). Una de ellas es Erasmo–Marlin, que está
-  probada arriba.
+- **El resultado de César vs Erasmo** — la única partida que falta.
 - Qué partida fue de qué ronda.
-- La clasificación final y el campeón.
 - Fecha del torneo y sede.
-- Los mazos de Vara y Marlin, las bases de Nelson y César, y cuál de los tres
-  Luke jugó Erasmo.
+- El mazo de Vara, las bases de Nelson y César, y cuál de los tres Luke jugó
+  Erasmo.
 - **Qué perfil de la app es César** (o si no tiene cuenta).
 
 **No inventar nada de esto.** Un torneo con puestos deducidos de datos
