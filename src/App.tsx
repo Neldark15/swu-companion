@@ -37,6 +37,8 @@ const ScanPage = lazy(() => import('./features/scan/ScanPage').then(m => ({ defa
 const MetaPage = lazy(() => import('./features/meta/MetaPage').then(m => ({ default: m.MetaPage })))
 const ContadorPage = lazy(() => import('./features/contador/ContadorPage').then(m => ({ default: m.ContadorPage })))
 const AmistosasPage = lazy(() => import('./features/amistosas/AmistosasPage').then(m => ({ default: m.AmistosasPage })))
+const TorneosPage = lazy(() => import('./features/torneos/TorneosPage').then(m => ({ default: m.TorneosPage })))
+const TorneoDetallePage = lazy(() => import('./features/torneos/TorneoDetallePage').then(m => ({ default: m.TorneoDetallePage })))
 const ProfilePage = lazy(() => import('./features/profile/ProfilePage').then(m => ({ default: m.ProfilePage })))
 const SettingsPage = lazy(() => import('./features/settings/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const RankingPage = lazy(() => import('./features/rank/RankingPage').then(m => ({ default: m.RankingPage })))
@@ -169,6 +171,11 @@ export default function App() {
             <Route path="/cards" element={<CardsPage />} />
             <Route path="/cards/:id" element={<CardDetailPage />} />
             <Route path="/contador" element={<ContadorPage />} />
+            {/* Torneos: el archivo de lo que ya se jugó. Público —sin <P>— como
+                /rulings: un torneo terminado es historia de la comunidad, no
+                requiere cuenta para mirarlo. */}
+            <Route path="/torneos" element={<TorneosPage />} />
+            <Route path="/torneos/:code" element={<TorneoDetallePage />} />
             {/* Utilidades se retiró: el dado vive dentro del Contador y la moneda
                 ya no se usa. La ruta vieja redirige para no romper marcadores. */}
             <Route path="/utilities" element={<Navigate to="/contador" replace />} />

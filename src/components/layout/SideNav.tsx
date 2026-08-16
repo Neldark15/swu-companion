@@ -41,6 +41,7 @@ const secondaryNav: NavItem[] = [
   { id: '/rulings', label: 'Rulings', sub: 'Reglamento del juego', icon: Scale },
   { id: '/contador', label: 'Contador', sub: 'Duelo en mesa real', icon: ChanceCubeIcon },
   { id: '/amistosas', label: 'Amistosas', sub: 'Historial cara a cara', icon: Swords },
+  { id: '/torneos', label: 'Torneos', sub: 'Archivo de la comunidad', icon: MandoTrophyIcon },
 ]
 
 export function SideNav() {

@@ -15,11 +15,11 @@
 
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, ScanLine, Swords} from 'lucide-react'
+import { ChevronRight, ScanLine } from 'lucide-react'
 import {
   DatapadIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
   DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
-  ChanceCubeIcon, KyberIcon, LabIcon, HolocronIcon, StarfighterIcon, SaberIcon,
+  ChanceCubeIcon, KyberIcon, LabIcon, HolocronIcon, StarfighterIcon,
 } from '../../components/SWIcons'
 import { HudPanel, HudCorners, HexIcon } from '../../components/Hud'
 import { NoticiasSection } from './NoticiasSection'
@@ -53,7 +53,6 @@ const mainSystems: Sistema[] = [
   // La transmisión, en la cuadrícula y no solo en el cajón lateral: es el sitio
   // donde la gente busca los módulos, y el cajón hay que abrirlo a propósito.
   { icon: HolonetIcon,     label: 'En Vivo',   tone: 'red',    to: '/envivo' },
-  { icon: DatapadIcon,     label: 'Transmisión', tone: 'red',  to: '/estudio', admin: true },
   // PÚBLICO a propósito (sin auth): un juez en torneo consulta una regla
   // sin loguearse. Va arriba, cerca de Meta: los dos son consulta de mesa.
   { icon: HolocronIcon,    label: 'Rulings',   tone: 'cyan',   to: '/rulings' },
@@ -65,10 +64,11 @@ const mainSystems: Sistema[] = [
   // `hidden lg:flex`, o sea invisible en el teléfono— y en MoreNav, a dos
   // toques dentro de Perfil. Un módulo al que no se llega desde el Inicio,
   // en la práctica, no existe.
+  // La Mesa 3D (/mesa) NO tiene casilla propia a propósito: es el paso final
+  // del Laboratorio —ver UNA partida de la medición— y se abre DESDE ahí. Un
+  // acceso directo aparte duplicaría la entrada a algo que ya se alcanza en un
+  // clic desde donde tiene sentido. La ruta sigue viva.
   { icon: LabIcon,         label: 'Laboratorio',  tone: 'cyan',   to: '/laboratorio', auth: true },
-  // Y pegada al Laboratorio, por lo mismo: allí sale un porcentaje y aquí se
-  // ve UNA partida de esa misma medición, carta por carta, sobre una mesa.
-  { icon: SaberIcon,       label: 'Mesa',         tone: 'purple', to: '/mesa',       auth: true },
   { icon: BountyIcon,      label: 'Contrabando',  tone: 'red',    to: '/explore',    auth: true },
   // Acceso directo al mercado: llegar a comprar/vender exigía entrar a
   // Contrabando y después cambiar de pestaña.
@@ -84,6 +84,24 @@ const mainSystems: Sistema[] = [
   // las monedas no hace más que redirigir. Se nombra lo que de verdad abre.
   { icon: ChanceCubeIcon,  label: 'Contador',            tone: 'purple', to: '/contador' },
   { icon: MandoTrophyIcon, label: 'Amistosas',           tone: 'green',  to: '/amistosas' },
+  { icon: MandoTrophyIcon, label: 'Torneos',             tone: 'amber',  to: '/torneos' },
+]
+
+/**
+ * Módulos SOLO de administración, en su propia sección.
+ *
+ * Antes vivían mezclados en la cuadrícula con un `admin: true` que los ocultaba
+ * a los demás — funcionaba, pero para un admin quedaban desperdigados entre los
+ * módulos de todos. Juntándolos en una franja aparte se ve de un vistazo qué es
+ * herramienta de la comunidad y qué es del cuartel general, y no hay que cazar
+ * el botón de Transmisión entre veinte casillas.
+ *
+ * La sección entera solo se dibuja para admins; no es solo que las casillas se
+ * escondan, es que el separador tampoco aparece.
+ */
+const adminSystems: Sistema[] = [
+  { icon: DatapadIcon,     label: 'Transmisión', tone: 'red',    to: '/estudio', admin: true },
+  { icon: MandoTrophyIcon, label: 'Panel Admin', tone: 'cyan',   to: '/admin',   admin: true },
 ]
 
 interface Marcador {
@@ -139,6 +157,37 @@ export function HomePage() {
 
   if (!currentProfile) return <WelcomeHome />
 
+  /** Una casilla de módulo. Extraída para que la use la cuadrícula general y
+   *  también la franja de administración, sin duplicar los 40 renglones de 3D
+   *  y clip-path que quedaron medidos hasta el pixel. */
+  const renderModulo = (sys: Sistema) => {
+    const Icon = sys.icon
+    return (
+      <button key={sys.label} onClick={() => navigate(sys.to)} className="text-left">
+        {/* El mismo 3D de las cartas, con menos ángulo: un panel de interfaz que
+            se inclina como una carta se siente a juguete. Seis grados alcanzan
+            para que responda al dedo. */}
+        <Carta3D brillo intensidad={6} className="h-full">
+          <HudPanel tone={sys.tone} glow className="h-full">
+            <div className="relative h-full flex items-center gap-2 p-2.5">
+              <HudCorners tone={sys.tone} />
+              <HexIcon tone={sys.tone} size={38}><Icon size={18} /></HexIcon>
+              {/* Solo el rótulo, en blanco: el color lo lleva el ícono. A 320 px
+                  la caja queda en 46 px y una palabra sola —«Contrabando» mide
+                  83— no tiene dónde partirse; `break-words` + `text-[11px]` le
+                  devuelven el aire y a partir de 360 vuelve a 13. */}
+              <span className="min-w-0 flex-1 break-words text-[11px] font-bold text-white
+                               leading-tight min-[360px]:text-[13px]">
+                {sys.label}
+              </span>
+              <ChevronRight size={14} className="text-swu-muted flex-shrink-0" aria-hidden />
+            </div>
+          </HudPanel>
+        </Carta3D>
+      </button>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-swu-bg pb-8">
       {/* ── Quién sos ──
@@ -164,21 +213,18 @@ export function HomePage() {
 
       {/* ── Acción principal ── */}
       <div className="px-4 pt-3 flex gap-3">
-        <button onClick={() => navigate('/arena/log')} className="flex-1 min-w-0 active:scale-[0.98] transition-transform">
+        <button onClick={() => navigate('/galaxia')} className="flex-1 min-w-0 active:scale-[0.98] transition-transform">
           <HudPanel tone="cyan" glow fill="bg-swu-cyan/[0.08]">
             <div className="relative flex items-center gap-3 px-3 py-3.5">
               <HudCorners tone="cyan" />
-              <HexIcon tone="cyan" size={38}><Swords size={17} aria-hidden /></HexIcon>
-              {/* `min-w-0` y sin `nowrap`: era esto lo que empujaba la fila.
-                  Un ítem flex arranca en `min-width: auto`, o sea que no se
-                  deja encoger por debajo de su contenido; con el texto sin
-                  poder cortarse, «REGISTRAR DUELO» imponía su ancho intrínseco
-                  y la fila entera se pasaba del teléfono. Medido: a 320 px se
-                  salía 38 px y a 360 px, 10 px. Ahora parte en dos líneas en
-                  las pantallas angostas, que es preferible a recortar la
-                  acción principal de la pantalla de inicio. */}
+              <HexIcon tone="cyan" size={38}><StarfighterIcon size={17} aria-hidden /></HexIcon>
+              {/* `min-w-0` y sin `nowrap`: un ítem flex arranca en
+                  `min-width: auto` y no se deja encoger bajo su contenido; sin
+                  esto el rótulo impone su ancho intrínseco y la fila se pasa del
+                  teléfono (medido con «REGISTRAR DUELO»: +38 px a 320). Se deja
+                  igual por si el rótulo crece. */}
               <span className="flex-1 min-w-0 text-left text-[13px] font-extrabold text-white tracking-wide leading-tight">
-                REGISTRAR DUELO
+                LA GALAXIA
               </span>
               <ChevronRight size={16} className="text-swu-cyan flex-shrink-0" aria-hidden />
             </div>
@@ -238,45 +284,27 @@ export function HomePage() {
 
       {/* ── Módulos ── */}
       <div className="px-4 pt-2 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-        {mainSystems.filter(s => (!s.auth || currentProfile) && (!s.admin || isAdmin)).map(sys => {
-          const Icon = sys.icon
-          return (
-            <button
-              key={sys.label}
-              onClick={() => navigate(sys.to)}
-              className="text-left"
-            >
-              {/* El mismo 3D de las cartas, con menos ángulo: un panel de
-                  interfaz que se inclina como una carta se siente a juguete.
-                  Seis grados alcanzan para que responda al dedo. */}
-              <Carta3D brillo intensidad={6} className="h-full">
-              <HudPanel tone={sys.tone} glow className="h-full">
-                <div className="relative h-full flex items-center gap-2 p-2.5">
-                  <HudCorners tone={sys.tone} />
-                  <HexIcon tone={sys.tone} size={38}><Icon size={18} /></HexIcon>
-                  {/* Solo el rótulo, en blanco: el color lo lleva el ícono. Con
-                      subtítulo debajo, nombres como «Circuito Melee» no entran
-                      en media pantalla de 375 px y se cortaban con puntos.
-
-                      A 320 px la caja se queda en 46 px y una palabra sola
-                      —«Contrabando» mide 83— no tiene dónde partirse: se salía
-                      y la recortaba el clip-path del octágono contra el
-                      chevron. Medido en las 9 tarjetas (83/73/67/64/62/58/58/
-                      52/51 px de contenido en 46 de caja). `break-words` la
-                      parte y `text-[11px]` a 320 px le devuelve el aire; a
-                      partir de 360 vuelve a 13. */}
-                  <span className="min-w-0 flex-1 break-words text-[11px] font-bold text-white
-                                   leading-tight min-[360px]:text-[13px]">
-                    {sys.label}
-                  </span>
-                  <ChevronRight size={14} className="text-swu-muted flex-shrink-0" aria-hidden />
-                </div>
-              </HudPanel>
-              </Carta3D>
-            </button>
-          )
-        })}
+        {mainSystems.filter(s => (!s.auth || currentProfile) && (!s.admin || isAdmin)).map(renderModulo)}
       </div>
+
+      {/* ── Solo administradores ──
+          Franja aparte, y solo para admins: ni el separador aparece para los
+          demás. Junta lo del cuartel general (Transmisión, Panel) para no
+          tenerlo desperdigado entre los módulos de todos. */}
+      {isAdmin && (
+        <>
+          <div className="px-4 pt-5 pb-1">
+            <div className="flex items-center gap-2.5">
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent to-swu-amber/40" />
+              <span className="text-[9px] text-swu-amber/80 font-mono tracking-[0.35em]">SOLO ADMINISTRADORES</span>
+              <div className="h-px flex-1 bg-gradient-to-l from-transparent to-swu-amber/40" />
+            </div>
+          </div>
+          <div className="px-4 pt-2 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {adminSystems.map(renderModulo)}
+          </div>
+        </>
+      )}
 
       {/* ── Próximos eventos ──
           Van PRIMERO de las tres secciones de abajo porque son lo único que

@@ -42,6 +42,7 @@ const GROUPS: MoreGroup[] = [
       { to: '/misiones', label: 'Misiones', sub: 'Órdenes del día', icon: DeathStarIcon },
       { to: '/contador', label: 'Contador', sub: 'Duelo en mesa real', icon: ChanceCubeIcon },
       { to: '/amistosas', label: 'Amistosas', sub: 'Historial cara a cara', icon: Swords },
+      { to: '/torneos', label: 'Torneos', sub: 'Archivo de la comunidad', icon: MandoTrophyIcon },
     ],
   },
   {

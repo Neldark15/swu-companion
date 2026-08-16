@@ -18,6 +18,7 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith('/rank')) return 'Consejo Jedi'
   if (pathname.startsWith('/arena')) return 'Holocrón'
   if (pathname.startsWith('/amistosas')) return 'Amistosas'
+  if (pathname.startsWith('/torneos')) return 'Torneos'
   if (pathname.startsWith('/blog')) return 'Blog'
   if (pathname.startsWith('/events/melee')) return 'Torneos de Melee'
   if (pathname.startsWith('/profile')) return 'Mi Perfil'
