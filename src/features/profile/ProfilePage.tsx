@@ -104,7 +104,28 @@ export function ProfilePage() {
   const auth = useAuth()
   const { currentProfile, profiles, loadProfiles, logout, supabaseUser } = auth
 
-  const [view, setView] = useState<View>(currentProfile ? 'profile' : 'select')
+  // `?editar=perfil` abre directo la personalización (portada, vitrina…). Lo usa
+  // el asistente de «terminá tu perfil» para no dejar al usuario buscando dónde
+  // se elige el banner. Se lee en el inicializador —una sola vez, al montar— en
+  // vez de en un efecto: setear el estado dentro de un efecto dispara la regla
+  // `set-state-in-effect`. Llega acá por navegación DENTRO de la app, con la
+  // sesión ya cargada, así que `currentProfile` existe.
+  const [view, setView] = useState<View>(() => {
+    const editar = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('editar')
+      : null
+    if (currentProfile && editar === 'perfil') return 'customize'
+    return currentProfile ? 'profile' : 'select'
+  })
+  // Limpia el `?editar` para que un refresco no reabra la personalización, y
+  // para no dejar un query que la restauración de ruta (gotcha 2w) rechaza.
+  // Se usa `navigate` y NO un setState, justamente para no volver a chocar con
+  // la regla del efecto.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('editar')) {
+      navigate('/profile', { replace: true })
+    }
+  }, [navigate])
   const [stats, setStats] = useState({ matches: 0, tournaments: 0, decks: 0, favorites: 0 })
   const [passkeySupported, setPasskeySupported] = useState(false)
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null)

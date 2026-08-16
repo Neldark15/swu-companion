@@ -17,7 +17,8 @@
  */
 
 import { useMemo, useState } from 'react'
-import { Check, ChevronRight, Globe2, Sparkles, Orbit, PenLine } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Check, ChevronRight, Globe2, Sparkles, Orbit, PenLine, ImageIcon, LayoutGrid } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase, isSupabaseReady } from '../../services/supabase'
@@ -27,7 +28,7 @@ import {
   type Aspecto, type Personalizacion,
 } from '../../services/profileCustomService'
 import { nombrePorDefecto } from '../planeta/semilla'
-import { ORDEN, type Faltante } from '../../services/perfilCompleto'
+import { ORDEN, CATALOGO, type Faltante } from '../../services/perfilCompleto'
 
 interface Props {
   faltantes: Faltante[]
@@ -48,6 +49,7 @@ const ICONO: Record<Faltante, React.ReactNode> = {
 
 export function CompletarPerfil({ faltantes, personalizacion, onCerrar, onGuardado }: Props) {
   const auth = useAuth()
+  const navigate = useNavigate()
   const miId = auth.supabaseUser?.id ?? ''
 
   // Solo los pasos que el asistente sabe resolver. Banner y vitrina necesitan
@@ -55,6 +57,14 @@ export function CompletarPerfil({ faltantes, personalizacion, onCerrar, onGuarda
   // pantalla de Explorar dentro de una hoja.
   const pasos = useMemo(
     () => ORDEN.filter(f => faltantes.includes(f) && f !== 'banner' && f !== 'vitrina'),
+    [faltantes],
+  )
+
+  // Lo que falta pero NO se resuelve acá (portada, vitrina). Antes el asistente
+  // los saltaba y, si eran lo único que quedaba, decía «ya está listo» — que era
+  // FALSO y dejaba al usuario sin saber qué le faltaba ni cómo completarlo.
+  const pendientesFuera = useMemo(
+    () => faltantes.filter(f => f === 'banner' || f === 'vitrina'),
     [faltantes],
   )
 
@@ -109,13 +119,48 @@ export function CompletarPerfil({ faltantes, personalizacion, onCerrar, onGuarda
   }
 
   if (!paso) {
+    // Si TODAVÍA falta portada o vitrina, no se miente con «ya está listo»: se
+    // dice qué es y se manda al sitio donde se elige (el perfil abre directo en
+    // la personalización con `?editar=perfil`).
+    if (pendientesFuera.length > 0) {
+      const ICONO_FUERA: Record<'banner' | 'vitrina', React.ReactNode> = {
+        banner: <ImageIcon size={16} />, vitrina: <LayoutGrid size={16} />,
+      }
+      return (
+        <div className="space-y-4">
+          <div>
+            <p className="text-[15px] font-black tracking-tight text-swu-text">Te falta esto</p>
+            <p className="mt-0.5 text-[12px] text-swu-muted">
+              Estas dos se eligen con el buscador de cartas, dentro de tu perfil.
+            </p>
+          </div>
+          <ul className="space-y-2">
+            {pendientesFuera.map(f => (
+              <li key={f} className="flex items-start gap-2.5 rounded-xl border border-swu-border bg-swu-surface p-3">
+                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-swu-accent/15 text-swu-accent-texto">
+                  {ICONO_FUERA[f as 'banner' | 'vitrina']}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-bold text-swu-text">{CATALOGO[f].label}</p>
+                  <p className="text-[11px] text-swu-muted">{CATALOGO[f].porque}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="flex gap-2">
+            <Button variant="ghost" block onClick={onCerrar}>Ahora no</Button>
+            <Button variant="primary" block onClick={() => { onCerrar(); navigate('/profile?editar=perfil') }}>
+              Ir a personalizar
+            </Button>
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="space-y-3 text-center">
         <Check size={30} className="mx-auto text-swu-green" />
         <p className="text-base font-bold text-swu-text">Tu perfil ya está listo</p>
-        <p className="text-sm text-swu-muted">
-          La portada y la vitrina se eligen desde tu perfil, con el buscador de cartas.
-        </p>
+        <p className="text-sm text-swu-muted">Está todo completo. ¡Buen trabajo!</p>
         <Button variant="primary" block onClick={onCerrar}>Cerrar</Button>
       </div>
     )
