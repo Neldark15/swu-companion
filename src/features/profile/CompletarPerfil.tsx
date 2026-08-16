@@ -127,7 +127,7 @@ export function CompletarPerfil({ faltantes, personalizacion, onCerrar, onGuarda
         banner: <ImageIcon size={16} />, vitrina: <LayoutGrid size={16} />,
       }
       return (
-        <div className="space-y-4">
+        <div className="space-y-4 p-4">
           <div>
             <p className="text-[15px] font-black tracking-tight text-swu-text">Te falta esto</p>
             <p className="mt-0.5 text-[12px] text-swu-muted">
@@ -157,7 +157,7 @@ export function CompletarPerfil({ faltantes, personalizacion, onCerrar, onGuarda
       )
     }
     return (
-      <div className="space-y-3 text-center">
+      <div className="space-y-3 p-4 text-center">
         <Check size={30} className="mx-auto text-swu-green" />
         <p className="text-base font-bold text-swu-text">Tu perfil ya está listo</p>
         <p className="text-sm text-swu-muted">Está todo completo. ¡Buen trabajo!</p>
@@ -167,7 +167,7 @@ export function CompletarPerfil({ faltantes, personalizacion, onCerrar, onGuarda
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 p-4">
       {/* Progreso: saber cuántos faltan es lo que hace que no se abandone. */}
       <div className="flex items-center gap-1.5">
         {pasos.map((p, k) => (

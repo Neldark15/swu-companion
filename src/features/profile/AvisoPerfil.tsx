@@ -22,6 +22,7 @@
  */
 
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { UserPlus, X } from 'lucide-react'
 import { Sheet } from '../../components/ui/Sheet'
 import { useAuth } from '../../hooks/useAuth'
@@ -33,6 +34,7 @@ import {
 import { CompletarPerfil } from './CompletarPerfil'
 
 export function AvisoPerfil() {
+  const navigate = useNavigate()
   const { currentProfile, supabaseUser } = useAuth()
   const miId = supabaseUser?.id ?? ''
 
@@ -77,6 +79,18 @@ export function AvisoPerfil() {
 
   const cuantos = c.faltantes.length
 
+  // ¿Queda algo que el ASISTENTE sepa resolver (país, aspectos, planeta, bio)?
+  // Si NO —solo faltan portada o vitrina, que se eligen con el buscador de
+  // cartas— abrir la hoja del asistente solo para que diga «andá a
+  // personalizar» es un rodeo. En ese caso el botón lleva DERECHO a la
+  // personalización. Antes esto dejaba una hoja intermedia a media pantalla sin
+  // salida clara.
+  const hayPasosEnAsistente = c.faltantes.some(f => f.enElAsistente)
+  const completar = () => {
+    if (hayPasosEnAsistente) setAbierto(true)
+    else navigate('/profile?editar=perfil')
+  }
+
   return (
     <>
       <div className="px-4 pt-3">
@@ -117,10 +131,10 @@ export function AvisoPerfil() {
 
               <div className="mt-2.5 flex flex-wrap items-center gap-2">
                 <button
-                  onClick={() => setAbierto(true)}
+                  onClick={completar}
                   className="rounded-lg bg-swu-accent px-3 py-1.5 text-[12px] font-bold text-swu-bg"
                 >
-                  Completar ahora
+                  {hayPasosEnAsistente ? 'Completar ahora' : 'Elegir portada'}
                 </button>
                 <button
                   onClick={() => { nuncaMasAviso(); setOculto(true) }}
