@@ -40,6 +40,7 @@ const secondaryNav: NavItem[] = [
   { id: '/envivo', label: 'En Vivo', sub: 'Transmisión de torneos', icon: RadioTower },
   { id: '/rulings', label: 'Rulings', sub: 'Reglamento del juego', icon: Scale },
   { id: '/contador', label: 'Contador', sub: 'Duelo en mesa real', icon: ChanceCubeIcon },
+  { id: '/amistosas', label: 'Amistosas', sub: 'Historial cara a cara', icon: Swords },
 ]
 
 export function SideNav() {

@@ -41,6 +41,7 @@ const GROUPS: MoreGroup[] = [
       { to: '/laboratorio', label: 'Laboratorio', sub: 'Simulador de mazos', icon: FlaskConical },
       { to: '/misiones', label: 'Misiones', sub: 'Órdenes del día', icon: DeathStarIcon },
       { to: '/contador', label: 'Contador', sub: 'Duelo en mesa real', icon: ChanceCubeIcon },
+      { to: '/amistosas', label: 'Amistosas', sub: 'Historial cara a cara', icon: Swords },
     ],
   },
   {

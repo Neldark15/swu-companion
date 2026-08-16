@@ -82,6 +82,7 @@ const mainSystems: Sistema[] = [
   // Antes decía «Utilidades» y apuntaba a /utilities, que desde que se retiraron
   // las monedas no hace más que redirigir. Se nombra lo que de verdad abre.
   { icon: ChanceCubeIcon,  label: 'Contador',            tone: 'purple', to: '/contador' },
+  { icon: MandoTrophyIcon, label: 'Amistosas',           tone: 'green',  to: '/amistosas' },
 ]
 
 interface Marcador {

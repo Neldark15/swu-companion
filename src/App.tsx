@@ -36,6 +36,7 @@ const AdminVenuePage = lazy(() => import('./features/admin/AdminVenuePage').then
 const ScanPage = lazy(() => import('./features/scan/ScanPage').then(m => ({ default: m.ScanPage })))
 const MetaPage = lazy(() => import('./features/meta/MetaPage').then(m => ({ default: m.MetaPage })))
 const ContadorPage = lazy(() => import('./features/contador/ContadorPage').then(m => ({ default: m.ContadorPage })))
+const AmistosasPage = lazy(() => import('./features/amistosas/AmistosasPage').then(m => ({ default: m.AmistosasPage })))
 const ProfilePage = lazy(() => import('./features/profile/ProfilePage').then(m => ({ default: m.ProfilePage })))
 const SettingsPage = lazy(() => import('./features/settings/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const RankingPage = lazy(() => import('./features/rank/RankingPage').then(m => ({ default: m.RankingPage })))
@@ -183,6 +184,11 @@ export default function App() {
 
             {/* ── Protected routes (require login) ── */}
             <Route path="/play" element={<P><PlayPage /></P>} />
+            {/* Amistosas va con <P> a propósito: la RLS de `duelos_amistosos`
+                devuelve 0 filas SIN error cuando no hay sesión, así que sin el
+                muro la pantalla diría «todavía no jugaste» a quien simplemente
+                no está logueado. */}
+            <Route path="/amistosas" element={<P><AmistosasPage /></P>} />
             <Route path="/laboratorio" element={<P><LabPage /></P>} />
             {/* Pegada al Laboratorio porque es su continuación: allí se MIDE un
                 emparejamiento y aquí se VE una partida de esa misma medición. */}
