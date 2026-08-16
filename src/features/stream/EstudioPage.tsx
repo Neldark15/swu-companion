@@ -22,6 +22,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   ChevronLeft,
   Crown,
+  Download,
   Heart,
   Lock,
   LockOpen,
@@ -50,6 +51,7 @@ import {
   type Accion,
 } from '../../services/streamOverlay'
 import { listarSesiones, misSesiones } from '../../services/streamSesiones'
+import { descargarEscenasOBS } from '../../services/obsEscenas'
 import {
   buscarCartas,
   cargarCartasStream,
@@ -200,6 +202,7 @@ export function EstudioPage() {
   const relojCorriendo = estado.reloj.iniciadoEn !== null
   const deshacerVisible = ultimoDano && ultimoDano.hasta > ahora ? ultimoDano : null
   const alAire = estado.escena === 'juego'
+  const origen = typeof window !== 'undefined' ? window.location.origin : ''
 
   if (!code) return null
 
@@ -506,11 +509,39 @@ export function EstudioPage() {
                 onConfirmar={() => aplicar({ t: 'reiniciar' })}
               />
 
-              {/* ── Transmisión pública en la app ── */}
-              <div className="mt-1 flex flex-col gap-1.5 rounded-lg border border-white/10 bg-black/20 p-2.5">
-                <Rotulo>Verlo en la app (/envivo)</Rotulo>
+              {/* ── Paso 1 · OBS ── */}
+              <div className="mt-1 flex flex-col gap-2 rounded-lg border border-white/10 bg-black/20 p-2.5">
+                <Rotulo>1 · OBS en la computadora</Rotulo>
+                <p className="text-[11px] leading-relaxed text-swu-muted">
+                  OBS no se conecta con la app: es un programa aparte. Solo necesita esta URL como
+                  <strong className="text-swu-text"> Browser Source</strong>.
+                </p>
+
+                <CopiarUrl valor={`${origen}/overlay/${code}`} etiqueta="URL del marcador" />
+
+                <button
+                  onClick={() => descargarEscenasOBS(code, nombreSesion || code)}
+                  className="flex min-h-[40px] items-center justify-center gap-2 rounded-lg border border-swu-accent/40 bg-swu-accent/10 text-[11px] font-black uppercase tracking-wider text-swu-accent-texto transition hover:bg-swu-accent/20"
+                >
+                  <Download size={13} />
+                  Descargar escenas de OBS
+                </button>
+                <p className="text-[10px] leading-relaxed text-swu-muted">
+                  Trae la URL y la cámara ya encajadas en el marco. En OBS:
+                  Colección de escenas → Importar.
+                </p>
+              </div>
+
+              {/* ── Paso 2 · YouTube ── */}
+              <div className="flex flex-col gap-1.5 rounded-lg border border-white/10 bg-black/20 p-2.5">
+                <Rotulo>2 · YouTube</Rotulo>
+                <p className="text-[11px] leading-relaxed text-swu-muted">
+                  La <strong className="text-swu-text">clave de transmisión</strong> se pega en OBS
+                  (Ajustes → Emisión), no acá: es un secreto de la cuenta.
+                  Acá va solo el enlace para que la comunidad lo vea en la app.
+                </p>
                 <CampoTexto
-                  etiqueta="Enlace de YouTube (o id del canal)"
+                  etiqueta="Enlace del directo o id del canal (UC…)"
                   valor={estado.youtube}
                   onGuardar={v => aplicar({ t: 'youtube', texto: v })}
                 />
@@ -528,16 +559,18 @@ export function EstudioPage() {
                 </button>
                 <p className="text-[10px] leading-relaxed text-swu-muted">
                   {estado.youtube && !youtubeValido
-                    ? 'No reconozco ese enlace. Pegá el de «Compartir» del directo, o el id del canal (UC…).'
-                    : 'Con el id del canal (UC…) sirve siempre lo que esté al aire y no hay que cambiarlo cada vez.'}
+                    ? '⚠ No reconozco ese enlace. Pegá el de «Compartir» del directo, o el id del canal (UC…).'
+                    : youtubeValido
+                      ? '✓ Enlace reconocido. Cada cabina tiene el suyo.'
+                      : 'Con el id del canal (UC…) sirve siempre lo que esté al aire y no hay que cambiarlo cada vez.'}
                 </p>
               </div>
 
-              <div className="rounded-lg border border-white/10 bg-black/20 p-2.5">
-                <Rotulo>Fuente para OBS</Rotulo>
-                <code className="block break-all rounded bg-black/40 px-2 py-1.5 font-mono text-[10px] text-swu-muted">
-                  {typeof window !== 'undefined' ? window.location.origin : ''}/overlay/{code}
-                </code>
+              {/* ── Paso 3 · verlo ── */}
+              <div className="flex flex-col gap-2 rounded-lg border border-white/10 bg-black/20 p-2.5">
+                <Rotulo>3 · Dónde se ve</Rotulo>
+                <CopiarUrl valor={`${origen}/envivo`} etiqueta="Página pública" />
+                <CopiarUrl valor={`${origen}/estudio/${code}`} etiqueta="Este panel" />
               </div>
             </div>
           </Panel>
@@ -1165,6 +1198,43 @@ function ModalCartas({
 }
 
 /* ── Piezas sueltas ─────────────────────────────────────────────────── */
+
+/** URL con botón de copiar: en una tienda nadie dicta una URL a mano. */
+function CopiarUrl({ valor, etiqueta }: { valor: string; etiqueta: string }) {
+  const [copiado, setCopiado] = useState(false)
+
+  const copiar = () => {
+    navigator.clipboard
+      .writeText(valor)
+      .then(() => {
+        setCopiado(true)
+        window.setTimeout(() => setCopiado(false), 1800)
+      })
+      .catch(() => {
+        /* Sin permiso de portapapeles el texto sigue a la vista para copiarlo
+           a mano; peor sería tragarse el error y no mostrar nada. */
+      })
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-swu-muted">{etiqueta}</span>
+      <div className="flex items-stretch gap-1.5">
+        <code className="min-w-0 flex-1 truncate rounded bg-black/40 px-2 py-2 font-mono text-[10px] text-swu-muted">
+          {valor}
+        </code>
+        <button
+          onClick={copiar}
+          className={`shrink-0 rounded px-2.5 text-[10px] font-black uppercase tracking-wider transition ${
+            copiado ? 'bg-emerald-500/25 text-emerald-300' : 'bg-white/5 text-swu-muted hover:bg-white/10'
+          }`}
+        >
+          {copiado ? '✓' : 'Copiar'}
+        </button>
+      </div>
+    </div>
+  )
+}
 
 function Pantalla({ children }: { children: React.ReactNode }) {
   return (
