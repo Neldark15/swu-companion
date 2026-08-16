@@ -14,10 +14,11 @@
 
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, AlertTriangle, Save, Star } from 'lucide-react'
+import { Check, AlertTriangle, Save, Star, Image as ImageIcon } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { CardImage } from '../../components/CardImage'
+import { BannerPortada } from './BannerPortada'
 import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import { useAuth } from '../../hooks/useAuth'
 import {
@@ -147,6 +148,12 @@ export function PersonalizarPerfil() {
       if (prev.showcase_cards.length >= MAX_VITRINA) return prev
       return { ...prev, showcase_cards: [...prev.showcase_cards, id] }
     })
+  }
+
+  /** La portada es UNA sola carta: tocarla de nuevo la quita. */
+  const elegirPortada = (id: string) => {
+    setOk(false)
+    setP(prev => ({ ...prev, banner_card_id: prev.banner_card_id === id ? null : id }))
   }
 
   const guardar = async () => {
@@ -283,6 +290,73 @@ export function PersonalizarPerfil() {
             )
           })}
         </div>
+      </section>
+
+      {/* ── Portada ── */}
+      <section>
+        <h3 className="text-[10px] font-mono tracking-wider uppercase text-swu-muted/60 mb-2">
+          Portada · el arte grande de tu perfil
+        </h3>
+
+        {/* Vista previa: así se ve la carta elegida detrás de tu nombre. Cambia
+            en el acto al tocar una carta abajo. */}
+        {p.banner_card_id ? (
+          <div className="relative mb-2 h-28 w-full overflow-hidden rounded-xl border border-swu-border">
+            <BannerPortada cardId={p.banner_card_id} className="h-full w-full" />
+            <div className="absolute bottom-2 left-3 flex items-center gap-2">
+              <span className="text-sm font-black text-white drop-shadow">{currentProfile?.name ?? 'Tu nombre'}</span>
+            </div>
+            <button
+              onClick={() => elegirPortada(p.banner_card_id!)}
+              className="absolute right-2 top-2 rounded-full bg-black/50 px-2 py-1 text-[10px] font-bold text-white"
+            >
+              Quitar
+            </button>
+          </div>
+        ) : (
+          <p className="mb-2 text-[11px] text-swu-muted">
+            Elegí una carta de tus favoritas para que sea el fondo de tu perfil.
+          </p>
+        )}
+
+        {favoritas.length === 0 ? (
+          <EmptyState
+            icon={<ImageIcon size={26} aria-hidden />}
+            title="Todavía no tenés favoritas"
+            hint="Marcá cartas con la estrella y después elegí una como portada."
+            action={<Link to="/cards"><Button size="sm" variant="secondary">Buscar cartas</Button></Link>}
+          />
+        ) : (
+          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+            {favoritas.map(c => {
+              const elegida = p.banner_card_id === c.id
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => elegirPortada(c.id)}
+                  aria-pressed={elegida}
+                  aria-label={`${elegida ? 'Quitar de portada' : 'Usar de portada'} ${c.name}`}
+                  className={`relative rounded-lg overflow-hidden border-2 transition-all ${
+                    elegida ? 'border-swu-amber scale-[0.97]' : 'border-transparent'
+                  }`}
+                >
+                  <CardImage
+                    src={listFaceUrl(c)}
+                    orientacion={listFaceIsLandscape(c) ? 'apaisada' : 'vertical'}
+                    fit="cover"
+                    alt={c.name}
+                    className={`w-full ${listFaceIsLandscape(c) ? 'aspect-[400/286]' : 'aspect-[286/400]'}`}
+                  />
+                  {elegida && (
+                    <span className="absolute top-1 right-1 w-5 h-5 rounded-full bg-swu-amber flex items-center justify-center">
+                      <Check size={12} className="text-swu-bg" aria-hidden />
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        )}
       </section>
 
       {/* ── Vitrina ── */}

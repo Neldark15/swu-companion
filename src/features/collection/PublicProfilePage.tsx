@@ -9,6 +9,7 @@ import {
 import { getPricesForCards, fetchTCGPrices, formatPrice, type PriceInfo } from '../../services/pricing'
 import { getPersonalizacion, VACIA, type Personalizacion } from '../../services/profileCustomService'
 import { PerfilPersonalizado } from '../profile/PerfilVitrina'
+import { BannerPortada } from '../profile/BannerPortada'
 import { MeleeRecordDeUsuario } from '../profile/MeleeRecord'
 import { CardImage } from '../../components/CardImage'
 import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
@@ -337,15 +338,16 @@ export function PublicProfilePage() {
         {/* Profile loaded */}
         {!loading && profile && !isPrivate && (
           <>
-            {/* Profile header */}
-            <div className="bg-swu-surface rounded-xl p-4 border border-swu-border text-center">
+            {/* Profile header — con la portada elegida de fondo, si la hay */}
+            <div className="relative overflow-hidden bg-swu-surface rounded-xl p-4 border border-swu-border text-center">
+              <BannerPortada cardId={custom.banner_card_id} className="absolute inset-0 h-full w-full opacity-50" />
               {/* emoji de 36px (text-4xl) en una caja de 64 */}
-              <Avatar avatar={profile.avatar} size={64} escalaEmoji={36 / 64} className="mx-auto mb-2" />
-              <div className="text-lg font-bold text-swu-text">{profile.name}</div>
+              <Avatar avatar={profile.avatar} size={64} escalaEmoji={36 / 64} className="relative mx-auto mb-2" />
+              <div className="relative text-lg font-bold text-swu-text">{profile.name}</div>
               {profile.bio && (
-                <div className="text-sm text-swu-muted mt-1">{profile.bio}</div>
+                <div className="relative text-sm text-swu-muted mt-1">{profile.bio}</div>
               )}
-              <div className="mt-2 flex justify-center">
+              <div className="relative mt-2 flex justify-center">
                 <PerfilPersonalizado p={{ ...custom, showcase_cards: [] }} />
               </div>
             </div>

@@ -16,6 +16,7 @@ import { createDefaultStats, getAspectBars, checkAchievements, calculateLevel, t
 import { announceProgression, takeProgressionSnapshot } from '../../services/progressionService'
 import { LightsaberXpBar } from './components/LightsaberXpBar'
 import { ProfileFrame } from './components/ProfileFrame'
+import { BannerPortadaUsuario } from './BannerPortada'
 import { AspectBars } from './components/AspectBars'
 import { AchievementGrid } from './components/AchievementGrid'
 import { TriviaSection } from './components/TriviaSection'
@@ -981,9 +982,12 @@ export function ProfilePage() {
 
   return (
     <div className="p-4 lg:p-6 space-y-4 pb-8 lg:pb-8 max-w-5xl mx-auto">
-      {/* Header with level frame */}
-      <div className="bg-gradient-to-br from-swu-accent/15 to-amber-500/10 rounded-2xl p-4 border border-swu-accent/20">
-        <div className="flex items-center gap-3 mb-3">
+      {/* Header with level frame + portada de fondo (si eligió una) */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-swu-accent/15 to-amber-500/10 rounded-2xl p-4 border border-swu-accent/20">
+        {/* La portada elegida en Personalizar, detrás del contenido. Si no hay,
+            no dibuja nada y el header se ve como siempre. */}
+        <BannerPortadaUsuario userId={supabaseUser?.id} className="absolute inset-0 h-full w-full opacity-60" />
+        <div className="relative flex items-center gap-3 mb-3">
           <ProfileFrame level={levelInfo?.level || 1} size={72} marcoId={marcoElegido}>
             <div className="w-full h-full flex items-center justify-center overflow-hidden">
               <AvatarDisplay avatar={currentProfile?.avatar || 'darth-vader'} size="lg" />
@@ -1005,7 +1009,7 @@ export function ProfilePage() {
             </div>
           </div>
         </div>
-        {playerStats && <LightsaberXpBar xp={playerStats.xp} />}
+        <div className="relative">{playerStats && <LightsaberXpBar xp={playerStats.xp} />}</div>
       </div>
 
       {/* Country nudge — only if not set; unlocks Comunidades feed */}
