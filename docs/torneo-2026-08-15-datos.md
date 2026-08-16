@@ -39,9 +39,9 @@ Marlin y Erasmo.
 `felipequintanillaguzman@`). Se ven iguales en standings, en el buscador de
 rivales y en el cara a cara. Conviene que Felipe se cambie el nombre.
 
-## Partidas conocidas (11 de 12)
+## Partidas — COMPLETO (12 de 12)
 
-Con 8 jugadores y 3 rondas suizas son 12 partidas. **Falta 1.**
+Con 8 jugadores y 3 rondas suizas son 12 partidas. **Están las 12.**
 
 | # | Jugador A | Marcador | Jugador B |
 |---|---|---|---|
@@ -56,7 +56,7 @@ Con 8 jugadores y 3 rondas suizas son 12 partidas. **Falta 1.**
 | 9 | Marlin | **2–0** | Christian García |
 | 10 | Marlin | **2–0** | Erasmo Zaldaña |
 | 11 | Marlin | **2–1** | Luis Castillo |
-| 12 | **César** | **?** | **Erasmo** ← la única que falta |
+| 12 | Erasmo Zaldaña | **2–1** | César |
 
 Las partidas 3 y 5 vienen del relato de Vara; la 3 la confirma Nelson desde su
 lado («perdí 1-2»), y coinciden. La 4 la confirman los dos (Vara «ganó 2-0»,
@@ -88,64 +88,60 @@ escenario.
 
 ## Rondas
 
-Nel dio cuatro anclas: Erasmo–Marlin y Nelson–Luis fueron **ronda 1**, su ronda
-2 fue contra Erasmo y su ronda 3 contra Vara. Con eso y la restricción de que
-cada jugador juega una vez por ronda, un script de restricciones deja **solo dos
-repartos posibles**.
+Anclas dadas por Nel + resolución por restricciones. **La ronda 3 está completa
+y confirmada**; en la 1 y la 2 quedan dos partidas sin ubicar.
 
-**Ronda 3 — determinada, sin ambigüedad:**
+**Ronda 1**
+| Partida | Resultado |
+|---|---|
+| Nelson vs Luis | 1–1 |
+| Erasmo vs Marlin | Marlin 2–0 |
+| *(Jaime vs Vara **o** Christian vs Vara)* | *sin ubicar* |
+| *(César vs Christian **o** César vs Jaime)* | *sin ubicar* |
 
-| Mesa | Partida | Resultado |
-|---|---|---|
-| — | Nelson vs Vara | Vara 2–1 |
-| — | Jaime vs Luis | Jaime 2–0 |
-| — | Christian vs Marlin | Marlin 2–0 |
-| — | **César vs Erasmo** | **?** |
+**Ronda 2**
+| Partida | Resultado |
+|---|---|
+| Nelson vs Erasmo | Nelson 2–0 |
+| Luis vs Marlin | Marlin 2–1 |
+| *(las dos que no fueron a la ronda 1)* | |
 
-**Ronda 1 y 2 — dos anclas fijas cada una:**
+**Ronda 3 — confirmada**
+| Partida | Resultado |
+|---|---|
+| Nelson vs Vara | Vara 2–1 |
+| Jaime vs Luis | Jaime 2–0 |
+| Christian vs Marlin | Marlin 2–0 |
+| César vs Erasmo | **Erasmo 2–1** |
 
-- R1 seguro: Nelson vs Luis (1–1) · Erasmo vs Marlin (Marlin 2–0)
-- R2 seguro: Nelson vs Erasmo (Nelson 2–0) · Luis vs Marlin (Marlin 2–1)
+Lo único que falta para cerrar las rondas: **¿en la ronda 1 Vara jugó contra
+Jaime o contra Christian?** La lógica del suizo favorece Jaime (ver más abajo),
+pero no está confirmado.
 
-Lo único que falta decidir es dónde van estos dos pares:
+## Clasificación final
 
-- **Opción 1** → R1: Jaime vs Vara + César vs Christian · R2: Christian vs Vara + César vs Jaime
-- **Opción 2** → R1: Christian vs Vara + César vs Jaime · R2: Jaime vs Vara + César vs Christian
+Regla real de la app (victoria +3, empate +1, derrota +0), calculada por script
+sobre las 12 partidas. Control: los 8 jugaron 3 rondas y los juegos cuadran
+28–28.
 
-**La opción 1 encaja mucho mejor con un suizo**, y esto es un argumento, no un
-dato: tras la ronda 1 de la opción 1 quedarían con 3 pts Vara, Christian y
-Marlin, y la ronda 2 emparejaría Christian–Vara (3 contra 3) y César–Jaime
-(0 contra 0), que es exactamente lo que hace el suizo. En la opción 2, la ronda
-2 tendría **tres** cruces de 3 pts contra 0 pts, que un suizo no produce.
+| # | Jugador | Pts | V-D-E | Juegos | OMW% |
+|---|---|---|---|---|---|
+| 1 | **Marlin** 🏆 | 9 | 3-0-0 | 6-1 | 44,4 % |
+| 2 | Christian García | 6 | 2-1-0 | 4-3 | 66,7 % |
+| 3 | Vara | 6 | 2-1-0 | 5-3 | 59,3 % |
+| 4 | Jaime Beltrán | 6 | 2-1-0 | 4-2 | 44,4 % |
+| 5 | Nelson | 4 | 1-1-1 | 4-3 | 44,4 % |
+| 6 | Erasmo Zaldaña | 3 | 1-2-0 | 2-5 | 59,3 % |
+| 7 | Luis Castillo | 1 | 0-2-1 | 2-5 | 70,4 % |
+| 8 | César | 0 | 0-3-0 | 1-6 | 55,6 % |
 
-Aun así **no se da por hecha**: basta una respuesta para cerrarlo — *¿en la
-ronda 1 Vara jugó contra Jaime o contra Christian?*
+**Marlin campeón invicto**, confirmado por Nel y coincidente con el cálculo
+hecho por separado.
 
-## Clasificación
-
-Calculada con la regla real de la app (victoria +3, empate +1, derrota +0) y
-verificada por script sobre las 11 partidas conocidas.
-
-**El resultado de César–Erasmo NO mueve el podio.** Los primeros cinco puestos
-son idénticos en los tres desenlaces posibles; esa partida solo decide entre el
-6º y el 8º.
-
-| # | Jugador | Pts | Récord | Juegos |
-|---|---|---|---|---|
-| 1 | **Marlin** 🏆 | 9 | 3-0-0 | 6-1 |
-| 2 | Christian García | 6 | 2-1-0 | 4-3 |
-| 3 | Vara | 6 | 2-1-0 | 5-3 |
-| 4 | Jaime Beltrán | 6 | 2-1-0 | 4-2 |
-| 5 | Nelson | 4 | 1-1-1 | 4-3 |
-| 6-8 | Luis, César, Erasmo | — | — | depende de la partida que falta |
-
-Nel confirmó que **Marlin quedó top 1**, lo que coincide con el cálculo hecho de
-forma independiente. Es un buen chequeo cruzado de que los resultados están bien
-anotados.
-
-El desempate entre Christian, Vara y Jaime (los tres con 6 pts) sale por OMW%,
-que la app calcula a su manera — el orden de arriba usa mi cálculo y hay que
-recalcularlo con `tournamentCloud.ts` al construir el torneo.
+El desempate del 2º al 4º (los tres con 6 pts) sale por OMW%. El orden de arriba
+usa MI cálculo de OMW; al construir el torneo hay que recalcularlo con
+`tournamentCloud.ts`, que es la fórmula que la app muestra. Podría cambiar ese
+orden.
 
 ## Mazos
 
@@ -180,8 +176,8 @@ roja) pero no la impresión del líder.
 
 ### Lo que NO se sabe
 
-- **El resultado de César vs Erasmo** — la única partida que falta.
-- Qué partida fue de qué ronda.
+- Si en la ronda 1 Vara jugó contra Jaime o contra Christian (lo único que
+  falta para ubicar las 12 partidas en su ronda).
 - Fecha del torneo y sede.
 - El mazo de Vara, las bases de Nelson y César, y cuál de los tres Luke jugó
   Erasmo.
