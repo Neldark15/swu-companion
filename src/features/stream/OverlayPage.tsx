@@ -95,13 +95,17 @@ const ESTILOS = `
 /* Destello que recorre el badge de INICIATIVA. */
 @keyframes ovDestello { 0% { transform: translateX(-140%) skewX(-18deg) } 55%, 100% { transform: translateX(260%) skewX(-18deg) } }
 
+/* La carta jugada entra desde su costado. */
+@keyframes ovSubeLado { from { transform: translateY(26px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+.ov-sube-lado { animation: ovSubeLado .5s cubic-bezier(.2,.8,.25,1) both; }
+
 /* El logo flota como holograma en las pantallas de espera. */
 @keyframes ovFlota { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-10px) } }
 .ov-flota { animation: ovFlota 6s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
   .ov-fundido, .ov-latido, .ov-neon, .ov-golpe, .ov-entra-arriba, .ov-entra-abajo,
-  .ov-sube, .ov-pulso, .ov-flota { animation: none }
+  .ov-sube, .ov-sube-lado, .ov-pulso, .ov-flota { animation: none }
   .ov-corre { animation: none }
 }
 `
@@ -223,6 +227,8 @@ export function OverlayPage() {
               style={{ position: 'absolute', inset: 0, width: 1920, height: 1080, pointerEvents: 'none' }}
             />
             <BarraArriba estado={estado} restante={restante} />
+            <CartaJugada lado={estado.lados[0]} alineado="izq" />
+            <CartaJugada lado={estado.lados[1]} alineado="der" />
             <BarraAbajo estado={estado} />
             {estado.tiempoExtra && <BannerTiempo />}
             {estado.enRevision && <BannerRevision />}
@@ -808,6 +814,93 @@ function BarraAbajo({ estado }: { estado: EstadoOverlay }) {
   )
 }
 
+/* ── Carta jugada (panel lateral) ───────────────────────────────────── */
+
+/**
+ * La última carta jugada, en grande, a un costado.
+ *
+ * Es la pieza que de verdad resuelve la legibilidad: en la mesa una carta mide
+ * 96×134 px y su texto 2,3 px — imposible. Acá el arte va a 300 px de ancho y
+ * el nombre retipografiado, así el espectador SÍ ve qué se jugó.
+ *
+ * Ocupa la franja vertical entre las dos barras, que estaba vacía.
+ */
+function CartaJugada({ lado, alineado }: { lado: LadoOverlay; alineado: 'izq' | 'der' }) {
+  const [falló, setFalló] = useState(false)
+  const src = lado.jugadaImg ? `/api/img?u=${encodeURIComponent(lado.jugadaImg)}&w=448` : ''
+
+  // Sin carta puesta el panel no existe: nada de marcos vacíos al aire.
+  if (!src || falló) return null
+
+  return (
+    <div
+      // key: al cambiar de carta el panel se re-monta y vuelve a entrar.
+      key={lado.jugadaImg}
+      className="ov-sube-lado"
+      style={{
+        position: 'absolute',
+        top: 300,
+        [alineado === 'izq' ? 'left' : 'right']: 26,
+        width: 316,
+        filter: 'drop-shadow(0 14px 34px rgba(0,0,0,.65)) drop-shadow(0 0 20px rgba(63,182,255,.28))',
+      }}
+    >
+      <div
+        style={{
+          background: `repeating-linear-gradient(115deg, rgba(255,255,255,.028) 0 1px, transparent 1px 26px), ${METAL}`,
+          border: `1.5px solid ${DORADO}66`,
+          boxShadow: RELIEVE,
+          clipPath: chaflan(14),
+          padding: 12,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 9,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 900,
+            letterSpacing: '.24em',
+            color: DORADO,
+            textAlign: 'center',
+          }}
+        >
+          ÚLTIMA JUGADA
+        </span>
+
+        <img
+          src={src}
+          alt=""
+          onError={() => setFalló(true)}
+          style={{ width: '100%', display: 'block', clipPath: chaflan(9) }}
+        />
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, textAlign: 'center' }}>
+          <span style={{ fontSize: 21, fontWeight: 900, lineHeight: 1.1, textTransform: 'uppercase' }}>
+            {lado.jugadaNombre}
+          </span>
+          {lado.jugadaSub && (
+            <span style={{ fontSize: 14, fontWeight: 700, color: `${BLANCO}A0`, lineHeight: 1.2 }}>
+              {lado.jugadaSub}
+            </span>
+          )}
+        </div>
+
+        {/* Filo de bandera, igual que en las barras. */}
+        <span
+          style={{
+            height: 3,
+            marginTop: 1,
+            background: 'linear-gradient(90deg, #1E4FB8 0 34%, #F4F7FB 34% 66%, #1E4FB8 66% 100%)',
+            opacity: 0.9,
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
 /* ── Capas ──────────────────────────────────────────────────────────── */
 
 function BannerTiempo() {
@@ -1133,6 +1226,9 @@ const ESTADO_DEMO: EstadoOverlay = {
       dano: 12,
       recursos: 7,
       juegosGanados: 1,
+      jugadaNombre: 'Koska Reeves',
+      jugadaSub: 'Warrior of Mandalore',
+      jugadaImg: 'https://cdn.starwarsunlimited.com//card_08020343_EN_Koska_Reeves_734c3ee543.png',
     },
     {
       ...ESTADO_INICIAL.lados[1],

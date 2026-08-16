@@ -29,6 +29,7 @@ import {
   RotateCcw,
   Search,
   Shield,
+  Sparkles,
   Undo2,
   X,
 } from 'lucide-react'
@@ -51,6 +52,7 @@ import {
 import {
   buscarCartas,
   cargarCartasStream,
+  cargarTodasLasCartas,
   imgCarta,
   type CartaStream,
 } from '../../services/streamCartas'
@@ -794,6 +796,30 @@ function TarjetaJugador({
           </div>
         </div>
 
+        {/* ── Última carta jugada: se ve EN GRANDE en el panel lateral ── */}
+        <BuscadorCarta
+          tipo="jugada"
+          etiqueta="Última jugada"
+          icono={<Sparkles size={16} />}
+          actual={lado.jugadaNombre}
+          imgActual={lado.jugadaImg}
+          nota={lado.jugadaSub || undefined}
+          onElegir={c =>
+            onAccion({
+              t: 'jugador',
+              lado: indice,
+              campos: { jugadaNombre: c.nombre, jugadaImg: c.img, jugadaSub: c.subtitulo },
+            })
+          }
+          onQuitar={() =>
+            onAccion({
+              t: 'jugador',
+              lado: indice,
+              campos: { jugadaNombre: '', jugadaImg: '', jugadaSub: '' },
+            })
+          }
+        />
+
         {/* ── Contadores y estado ── */}
         <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
           <Contador
@@ -874,7 +900,7 @@ function BuscadorCarta({
   onElegir,
   onQuitar,
 }: {
-  tipo: 'lider' | 'base'
+  tipo: 'lider' | 'base' | 'jugada'
   etiqueta: string
   icono: React.ReactNode
   actual: string
@@ -960,7 +986,7 @@ function ModalCartas({
   onCerrar,
   onElegir,
 }: {
-  tipo: 'lider' | 'base'
+  tipo: 'lider' | 'base' | 'jugada'
   etiqueta: string
   onCerrar: () => void
   onElegir: (c: CartaStream) => void
@@ -972,10 +998,17 @@ function ModalCartas({
 
   useEffect(() => {
     let vivo = true
-    cargarCartasStream()
+    // La carta jugada puede ser CUALQUIERA, así que usa el catálogo completo
+    // (2.190 únicas, 313 KB) y no el de líderes y bases.
+    const promesa =
+      tipo === 'jugada'
+        ? cargarTodasLasCartas()
+        : cargarCartasStream().then(c => (tipo === 'lider' ? c.lideres : c.bases))
+
+    promesa
       .then(c => {
         if (!vivo) return
-        setCartas(tipo === 'lider' ? c.lideres : c.bases)
+        setCartas(c)
         setCargando(false)
       })
       .catch(() => {

@@ -86,6 +86,58 @@ function deduplicar(filas: Cruda[]): CartaStream[] {
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
 }
 
+/**
+ * Catálogo COMPLETO para la carta jugada — cualquier tipo, no solo líderes y
+ * bases. Va por `/export/all` (el mismo bulk que usa la app) porque el API
+ * ignora los filtros de nombre: hay que traerlo todo y buscar en local.
+ *
+ * Medido: 9.185 filas → 2.190 únicas con imagen → 313 KB en localStorage.
+ * Se guarda aparte de líderes/bases para no reconstruir ese caché, que es el
+ * que se usa al empezar cada partida y tiene que estar siempre listo.
+ */
+const CLAVE_TODAS = 'swu_stream_todas_v1'
+
+interface CacheTodas {
+  guardado: number
+  cartas: CartaStream[]
+}
+
+let enVueloTodas: Promise<CartaStream[]> | null = null
+
+export async function cargarTodasLasCartas(): Promise<CartaStream[]> {
+  try {
+    const crudo = localStorage.getItem(CLAVE_TODAS)
+    if (crudo) {
+      const c = JSON.parse(crudo) as CacheTodas
+      if (c && Array.isArray(c.cartas) && Date.now() - c.guardado <= VIGENCIA_MS) return c.cartas
+    }
+  } catch {
+    /* caché ilegible: se vuelve a bajar */
+  }
+
+  if (!enVueloTodas) {
+    enVueloTodas = (async () => {
+      const resp = await fetch(`${API}/export/all`)
+      if (!resp.ok) throw new Error(`API de cartas: ${resp.status}`)
+      const json: unknown = await resp.json()
+      const datos = (json ?? {}) as Record<string, unknown>
+      const filas = datos.data ?? datos.cards ?? json
+      const cartas = deduplicar(Array.isArray(filas) ? (filas as Cruda[]) : [])
+
+      try {
+        localStorage.setItem(CLAVE_TODAS, JSON.stringify({ guardado: Date.now(), cartas }))
+      } catch {
+        /* Cuota llena: se sigue igual, solo que la próxima vez se vuelve a bajar. */
+      }
+      return cartas
+    })().finally(() => {
+      enVueloTodas = null
+    })
+  }
+
+  return enVueloTodas
+}
+
 async function bajarTipo(tipo: 'Leader' | 'Base'): Promise<Cruda[]> {
   // `type` es uno de los tres filtros que el API SÍ respeta (§2b: aspect, trait
   // y los demás los ignora en silencio). Con `limit` alto alcanza en una sola

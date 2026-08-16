@@ -28,6 +28,16 @@ export interface LadoOverlay {
   /** Total de recursos. No se separa listo/exhausto a propósito. */
   recursos: number
   juegosGanados: number
+  /**
+   * Última carta jugada, mostrada EN GRANDE en el panel lateral.
+   *
+   * Es la única forma real de que el espectador lea una carta: en la mesa una
+   * carta mide 96×134 px y su texto 2,3 px — ocho veces por debajo del umbral
+   * de lectura. Acá se muestra el arte a tamaño legible.
+   */
+  jugadaNombre: string
+  jugadaImg: string
+  jugadaSub: string
 }
 
 export interface RelojOverlay {
@@ -95,6 +105,9 @@ const LADO_VACIO: LadoOverlay = {
   dano: 0,
   recursos: 0,
   juegosGanados: 0,
+  jugadaNombre: '',
+  jugadaImg: '',
+  jugadaSub: '',
 }
 
 export const ESTADO_INICIAL: EstadoOverlay = {
@@ -153,6 +166,9 @@ function normalizarLado(x: unknown): LadoOverlay {
     dano: entero(o.dano, 0, 0, hpMax),
     recursos: entero(o.recursos, 0, 0, 30),
     juegosGanados: entero(o.juegosGanados, 0, 0, 3),
+    jugadaNombre: texto(o.jugadaNombre),
+    jugadaImg: texto(o.jugadaImg),
+    jugadaSub: texto(o.jugadaSub),
   }
 }
 
