@@ -22,20 +22,26 @@ Cuando estén las 12, el orden de trabajo es: migración → INSERT del evento c
 | Vara | Vara | `445f1119-af59-4583-b1b2-7354cc2f2ba0` |
 | Jaime Beltrán | Jbeltramirez | `e91c6998-9ccc-4ebc-af61-2cd10291e76a` |
 | Christian García | iNelo | `f36db540-51d4-441a-9053-052201fc2494` |
-| Luis | LuisG05 | `a5f00ea2-a90a-44f7-9a84-bef2e450ef01` |
-| César Felipe Quintanilla | «Allister Yashiro» ⚠️ | `c643f7b9-54d2-4ec8-8014-4dee2ab442b7` |
+| Luis Castillo | LuisG05 | `a5f00ea2-a90a-44f7-9a84-bef2e450ef01` |
+| César | **sin identificar** ⚠️ | — |
 | Marlin José Ardón Martínez | — sin cuenta — | — |
 | Erasmo Zaldaña | — sin cuenta — | — |
 
-⚠️ **Ojo con Felipe.** Su perfil se llama «Allister Yashiro» pero el correo es
-`felipequintanillaguzman@`. Y existe OTRO perfil, llamado «Allister», cuyo
-correo sí es `allisteryashiro@`. Dos cuentas que se ven casi iguales en toda la
-app: en standings, en el buscador de rivales y en el cara a cara. Conviene que
-Felipe se cambie el nombre antes de que esto se muestre en público.
+⚠️ **El octavo jugador es CÉSAR, no Felipe.** La lista inicial decía «Felipe»
+y sobre esa base le asigné el perfil «Allister Yashiro» (correo
+`felipequintanillaguzman@`). Nel corrigió el 2026-08-16: **el nombre es César**,
+así que ese perfil queda descartado y César está **sin identificar**. No hay
+ningún perfil obviamente suyo entre los 23 — puede que no tenga cuenta, como
+Marlin y Erasmo.
 
-## Partidas conocidas (7 de 12)
+⚠️ Aparte, sin relación con el torneo: hay DOS cuentas casi idénticas —
+«Allister» (correo `allisteryashiro@`) y «Allister Yashiro» (correo
+`felipequintanillaguzman@`). Se ven iguales en standings, en el buscador de
+rivales y en el cara a cara. Conviene que Felipe se cambie el nombre.
 
-Con 8 jugadores y 3 rondas suizas son 12 partidas. Faltan 5.
+## Partidas conocidas (9 de 12)
+
+Con 8 jugadores y 3 rondas suizas son 12 partidas. Faltan 3.
 
 | # | Jugador A | Marcador | Jugador B |
 |---|---|---|---|
@@ -44,9 +50,9 @@ Con 8 jugadores y 3 rondas suizas son 12 partidas. Faltan 5.
 | 3 | Vara | **2–1** | Nelson |
 | 4 | Vara | **2–0** | Jaime Beltrán |
 | 5 | Christian García | **2–1** | Vara |
-| 6 | Jaime Beltrán | **2–0** | César / Felipe |
+| 6 | Jaime Beltrán | **2–0** | César |
 | 7 | Jaime Beltrán | **2–0** | Luis |
-| 8 | Christian García | **2–0** | César / Felipe |
+| 8 | Christian García | **2–0** | César |
 | 9 | Marlin | **2–0** | Christian García |
 
 Las partidas 3 y 5 vienen del relato de Vara; la 3 la confirma Nelson desde su
@@ -55,7 +61,7 @@ Jaime «perdió 0-2»).
 
 **Los conteos cierran.** Nelson, Vara, Jaime y Christian ya tienen sus 3
 partidas. Faltan 3, y reparten exactamente lo pendiente: Luis (1),
-César/Felipe (1), Erasmo (2), Marlin (2). No sobra ni falta nadie.
+César (1), Erasmo (2), Marlin (2). No sobra ni falta nadie.
 
 ### Deducción: Erasmo vs Marlin se jugó, seguro
 
@@ -80,7 +86,7 @@ Todos confirmados por Nel el 2026-08-16 y verificados contra el API de cartas.
 |---|---|---|
 | Nelson | Cad Bane — *Still Faster than You* (ASH) | ? |
 | Jaime Beltrán | Mother Talzin — *Power Through Magick* (LOF) | Starlight Temple (28, Command) |
-| César / Felipe | Luke Skywalker — *I Can Save Him* (ASH) | ? |
+| César | Luke Skywalker — *I Can Save Him* (ASH) | ? |
 | Erasmo Zaldaña | Luke *(¿cuál?)* | Strangled Cliffs (28, Aggression) |
 | Luis | Luthen Rael — *Don't You Want to Fight For Real?* (SEC) | ? |
 | Christian García | Boba Fett — *Any Methods Necessary* (JTL) | Lake Country (34, sin aspecto) |
@@ -97,20 +103,22 @@ ambiguos. De Luke hay tres (SOR, JTL, ASH).
 
 Hubo dos relatos incompatibles — «Luis jugó Luke de ASH» y «el deck de Luis es
 Luthen Rael». **Nel confirmó: Luthen Rael.** El «Luke de ASH» del primer relato
-era el de César/Felipe, que sí está confirmado con ese líder.
+era el de César, que sí está confirmado con ese líder.
 
 Queda pendiente **cuál Luke jugó Erasmo**: se sabe la base (Strangled Cliffs,
 roja) pero no la impresión del líder.
 
 ### Lo que NO se sabe
 
-- Las 5 partidas restantes: reparten los turnos pendientes de Luis (1),
-  Christian (2), Erasmo (2), César/Felipe (2) y Marlin (3).
+- Las 3 partidas restantes: reparten los turnos pendientes de Luis (1),
+  César (1), Erasmo (2) y Marlin (2). Una de ellas es Erasmo–Marlin, que está
+  probada arriba.
 - Qué partida fue de qué ronda.
 - La clasificación final y el campeón.
 - Fecha del torneo y sede.
-- Los mazos de Vara, Christian y Marlin, las bases de Nelson y César/Felipe, y
-  cuál de los tres Luke jugó Erasmo.
+- Los mazos de Vara y Marlin, las bases de Nelson y César, y cuál de los tres
+  Luke jugó Erasmo.
+- **Qué perfil de la app es César** (o si no tiene cuenta).
 
 **No inventar nada de esto.** Un torneo con puestos deducidos de datos
 parciales sería un ranking falso con aire de oficial.
