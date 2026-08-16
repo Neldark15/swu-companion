@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Lock } from 'lucide-react'
+import { Lock, ChevronDown } from 'lucide-react'
 import { ACHIEVEMENTS, ASPECT_CONFIG, type Aspect } from '../../../services/gamification'
 import { IconLocked } from '../../../components/icons/SWUIcons'
 import { SWU_ICON_MAP } from '../../../components/icons/swuIconMap'
@@ -16,6 +16,10 @@ const ASPECTS: Aspect[] = ['Vigilance', 'Command', 'Aggression', 'Cunning', 'Her
 export function AchievementGrid({ unlockedIds, achievementDates }: AchievementGridProps) {
   const [selectedAspect, setSelectedAspect] = useState<Aspect | 'all'>('all')
   const [selectedAch, setSelectedAch] = useState<string | null>(null)
+  // Cerrado por defecto: la reja completa son decenas de casillas y se comía
+  // media pantalla del perfil. Colapsada muestra solo una tira de los ganados
+  // y el conteo; se abre a la reja completa con un toque.
+  const [expandido, setExpandido] = useState(false)
 
   // Regular achievements (non-hidden)
   const regularAchievements = ACHIEVEMENTS.filter(a => !a.isHidden)
@@ -32,18 +36,60 @@ export function AchievementGrid({ unlockedIds, achievementDates }: AchievementGr
   const totalCount = regularAchievements.length
   const secretCount = hiddenUnlocked.length
 
+  // Los ganados, para la tira compacta cuando la sección está cerrada.
+  const desbloqueados = [...regularAchievements, ...hiddenUnlocked].filter(a => unlockedIds.includes(a.id))
+
   return (
     <div className="space-y-3">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      {/* Header — es el botón que abre y cierra la sección */}
+      <button
+        onClick={() => setExpandido(v => !v)}
+        aria-expanded={expandido}
+        className="flex w-full items-center justify-between"
+      >
         <p className="text-xs font-bold text-swu-muted uppercase tracking-widest">Logros</p>
         <div className="flex items-center gap-2">
           {secretCount > 0 && (
             <span className="text-[10px] text-yellow-400 font-bold">+{secretCount} secretos</span>
           )}
           <span className="text-[11px] text-swu-muted font-mono">{unlockedCount}/{totalCount}</span>
+          <ChevronDown size={16} className={`text-swu-muted transition-transform ${expandido ? 'rotate-180' : ''}`} />
         </div>
-      </div>
+      </button>
+
+      {/* Cerrado: una tira compacta de los logros ganados. Da la sensación de
+          logro sin ocupar la pantalla; si no hay ninguno, invita a empezar. */}
+      {!expandido && (
+        desbloqueados.length > 0 ? (
+          <button
+            onClick={() => setExpandido(true)}
+            className="flex w-full items-center gap-1.5 overflow-x-auto rounded-xl border border-swu-border bg-swu-surface/40 p-2 scrollbar-hide"
+          >
+            {desbloqueados.map(ach => {
+              const config = ASPECT_CONFIG[ach.aspect]
+              const AchIcon = SWU_ICON_MAP[ach.svgIcon]
+              return (
+                <span
+                  key={ach.id}
+                  title={ach.name}
+                  className={`flex h-8 w-8 shrink-0 rotate-45 items-center justify-center rounded-md border ${config.bgColor} ${config.borderColor}`}
+                >
+                  <span className="-rotate-45">
+                    {AchIcon ? <AchIcon size={15} className={config.textColor} /> : <span className="text-sm">{ach.icon}</span>}
+                  </span>
+                </span>
+              )
+            })}
+            <span className="ml-auto shrink-0 pl-1 pr-1 text-[10px] font-bold text-swu-accent-texto">Ver todos</span>
+          </button>
+        ) : (
+          <p className="rounded-xl border border-swu-border bg-swu-surface/40 px-3 py-2 text-[11px] text-swu-muted">
+            Todavía no ganaste logros. Jugá, registrá duelos y explorá para desbloquearlos.
+          </p>
+        )
+      )}
+
+      {expandido && <>
 
       {/* Aspect filter tabs — uses the SWU aspect icons */}
       <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
@@ -192,6 +238,8 @@ export function AchievementGrid({ unlockedIds, achievementDates }: AchievementGr
           </div>
         )
       })()}
+
+      </>}
     </div>
   )
 }
