@@ -25,6 +25,7 @@ import { HudPanel, HudCorners, HexIcon } from '../../components/Hud'
 import { NoticiasSection } from './NoticiasSection'
 import { DondeJugar } from './DondeJugar'
 import { ProximosEventos } from './ProximosEventos'
+import { AvisoPerfil } from '../profile/AvisoPerfil'
 import { TarjetaJugador } from '../profile/TarjetaJugador'
 import { Carta3D } from '../../components/Carta3D'
 import { HUD_TEXTO, type HudTone } from '../../components/hudTones'
@@ -154,6 +155,12 @@ export function HomePage() {
           alTocar="perfil"
         />
       </div>
+
+      {/* Terminá tu perfil. Se dibuja solo si de verdad falta algo, y se calla
+          solo si la persona lo pide. Va acá arriba —justo bajo la tarjeta que
+          muestra el perfil incompleto— y no en /perfil: quien no encuentra la
+          personalización tampoco va a entrar a buscarla. */}
+      <AvisoPerfil />
 
       {/* ── Acción principal ── */}
       <div className="px-4 pt-3 flex gap-3">
