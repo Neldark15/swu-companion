@@ -55,6 +55,10 @@ export interface ClasificadoTorneo {
   juegosPerdidos: number
   omw: number
   gw: number
+  /** «Nombre — Subtítulo» del líder, o '' si no se sabe con qué jugó. */
+  leader: string
+  /** Nombre de la base, o '' si no se sabe. */
+  base: string
 }
 
 export interface PartidaTorneo {
@@ -66,6 +70,9 @@ export interface PartidaTorneo {
   jugadorB: string
   perfilA: string | null
   perfilB: string | null
+  /** El mazo de cada lado, resuelto contra la clasificación por nombre. */
+  leaderA: string
+  leaderB: string
   marcador: string | null
   ganadorId: string | null
 }
@@ -99,6 +106,23 @@ interface FilaEvento {
   fuente: string | null
   fuente_url: string | null
   desempate: string | null
+}
+
+/** Forma cruda de una fila de clasificación, con `leader`/`base` migradas. */
+interface FilaStanding {
+  user_id: string | null
+  player_name: string
+  puesto: number | null
+  points: number
+  match_wins: number
+  match_losses: number
+  match_draws: number
+  game_wins: number
+  game_losses: number
+  omw_pct: number
+  gw_pct: number
+  leader: string | null
+  base: string | null
 }
 
 /**
@@ -140,29 +164,36 @@ export async function listarTorneos(): Promise<Resultado<TorneoResumen[]>> {
 
   return {
     ok: true,
-    datos: eventos.map(e => {
-      const lista = porEvento.get(e.id) ?? []
-      // El campeón sale del puesto anunciado; si no hay, del que más puntos
-      // hizo. Nunca se inventa: sin filas, queda en null.
-      const orden = [...lista].sort((a, b) =>
-        (a.puesto ?? 99) - (b.puesto ?? 99) || b.puntos - a.puntos)
-      return {
-        id: e.id,
-        code: e.code,
-        nombre: e.name,
-        descripcion: e.description,
-        fecha: e.date,
-        lugar: e.location,
-        formato: e.format,
-        tipo: e.tournament_type,
-        rondas: e.max_rounds,
-        jugadores: lista.length,
-        campeon: orden[0]?.nombre ?? null,
-        fuente: e.fuente,
-        fuenteUrl: e.fuente_url,
-        desempate: e.desempate,
-      }
-    }),
+    // Solo los torneos que YA tienen clasificación cargada. Un evento marcado
+    // `finished` sin standings —como el de Sonsonate que se cerró para sacarlo
+    // de «abierto» antes de tener los resultados— sería una tarjeta vacía de
+    // «0 jugadores» en el archivo. Cuando se le carguen los resultados, aparece
+    // solo.
+    datos: eventos
+      .filter(e => (porEvento.get(e.id)?.length ?? 0) > 0)
+      .map(e => {
+        const lista = porEvento.get(e.id) ?? []
+        // El campeón sale del puesto anunciado; si no hay, del que más puntos
+        // hizo. Nunca se inventa.
+        const orden = [...lista].sort((a, b) =>
+          (a.puesto ?? 99) - (b.puesto ?? 99) || b.puntos - a.puntos)
+        return {
+          id: e.id,
+          code: e.code,
+          nombre: e.name,
+          descripcion: e.description,
+          fecha: e.date,
+          lugar: e.location,
+          formato: e.format,
+          tipo: e.tournament_type,
+          rondas: e.max_rounds,
+          jugadores: lista.length,
+          campeon: orden[0]?.nombre ?? null,
+          fuente: e.fuente,
+          fuenteUrl: e.fuente_url,
+          desempate: e.desempate,
+        }
+      }),
   }
 }
 
@@ -188,7 +219,7 @@ export async function verTorneo(code: string): Promise<Resultado<TorneoCompleto>
 
   const [{ data: clas, error: e2 }, { data: rondas, error: e3 }] = await Promise.all([
     supabase.from('tournament_standings')
-      .select('user_id, player_name, puesto, points, match_wins, match_losses, match_draws, game_wins, game_losses, omw_pct, gw_pct')
+      .select('user_id, player_name, puesto, points, match_wins, match_losses, match_draws, game_wins, game_losses, omw_pct, gw_pct, leader, base')
       .eq('event_id', evento.id),
     supabase.from('tournament_rounds').select('id, round_number').eq('event_id', evento.id),
   ])
@@ -205,14 +236,25 @@ export async function verTorneo(code: string): Promise<Resultado<TorneoCompleto>
     .eq('event_id', evento.id)
   if (e4) console.warn('[torneos] no se pudieron leer las partidas:', e4.message)
 
+  // `leader`/`base` son recién migradas y los tipos generados no las conocen,
+  // así que PostgREST tipa la fila como error. Se castea (patrón de arriba).
+  const filas = (clas ?? []) as unknown as FilaStanding[]
+
   // Los nombres de quienes SÍ tienen cuenta no viajan en la fila de partidas:
   // se resuelven contra la clasificación, que ya los trae. Una consulta menos.
   const nombrePorPerfil = new Map<string, string>()
-  for (const c of clas ?? []) if (c.user_id) nombrePorPerfil.set(c.user_id, c.player_name)
-  const resolver = (id: string | null, suelto: string | null) =>
+  // El mazo de cada jugador vive en su fila de clasificación; para las partidas
+  // se busca por NOMBRE (que es lo único que comparten pairing y standing en un
+  // jugador sin cuenta).
+  const leaderPorNombre = new Map<string, string>()
+  for (const c of filas) {
+    if (c.user_id) nombrePorPerfil.set(c.user_id, c.player_name)
+    if (c.leader) leaderPorNombre.set(c.player_name, c.leader)
+  }
+  const resolverNombre = (id: string | null, suelto: string | null) =>
     (id ? nombrePorPerfil.get(id) : null) ?? suelto ?? 'Sin rival'
 
-  const clasificacion: ClasificadoTorneo[] = (clas ?? [])
+  const clasificacion: ClasificadoTorneo[] = filas
     .map((c, i) => ({
       puesto: c.puesto ?? i + 1,
       perfilId: c.user_id,
@@ -225,21 +267,29 @@ export async function verTorneo(code: string): Promise<Resultado<TorneoCompleto>
       juegosPerdidos: c.game_losses,
       omw: c.omw_pct,
       gw: c.gw_pct,
+      leader: c.leader ?? '',
+      base: c.base ?? '',
     }))
     .sort((a, b) => a.puesto - b.puesto)
 
   const partidas: PartidaTorneo[] = (pares ?? [])
-    .map(p => ({
-      id: p.id,
-      ronda: numeroDeRonda.get(p.round_id) ?? 0,
-      mesa: p.table_number,
-      jugadorA: resolver(p.player1_id, p.player1_nombre),
-      jugadorB: resolver(p.player2_id, p.player2_nombre),
-      perfilA: p.player1_id,
-      perfilB: p.player2_id,
-      marcador: p.score,
-      ganadorId: p.winner_id,
-    }))
+    .map(p => {
+      const nombreA = resolverNombre(p.player1_id, p.player1_nombre)
+      const nombreB = resolverNombre(p.player2_id, p.player2_nombre)
+      return {
+        id: p.id,
+        ronda: numeroDeRonda.get(p.round_id) ?? 0,
+        mesa: p.table_number,
+        jugadorA: nombreA,
+        jugadorB: nombreB,
+        perfilA: p.player1_id,
+        perfilB: p.player2_id,
+        leaderA: leaderPorNombre.get(nombreA) ?? '',
+        leaderB: leaderPorNombre.get(nombreB) ?? '',
+        marcador: p.score,
+        ganadorId: p.winner_id,
+      }
+    })
     .sort((a, b) => a.ronda - b.ronda || (a.mesa ?? 99) - (b.mesa ?? 99))
 
   return {
