@@ -4,8 +4,15 @@ Datos dictados por Nel el 2026-08-16. **Incompletos a propósito**: se irán
 completando. Este archivo existe para que no se pierdan mientras se decide
 dónde viven en la base.
 
-Decisión tomada por Nel: **este torneo NO reparte puntos ni XP.** Es registro
-histórico.
+## Decisiones tomadas por Nel
+
+1. **Este torneo NO reparte puntos ni XP.** Es registro histórico.
+2. **No se construye en la base hasta tener las 12 partidas** (2026-08-16). Hoy
+   hay 9. Mientras tanto, los datos se acumulan en este archivo y **no se toca
+   Supabase**: ni la migración de jugadores sin cuenta ni el INSERT del evento.
+
+Cuando estén las 12, el orden de trabajo es: migración → INSERT del evento con
+`premios_en = now()` → arreglos de la vista (ver el final del archivo).
 
 ## Jugadores
 
@@ -39,15 +46,31 @@ Con 8 jugadores y 3 rondas suizas son 12 partidas. Faltan 5.
 | 5 | Christian García | **2–1** | Vara |
 | 6 | Jaime Beltrán | **2–0** | César / Felipe |
 | 7 | Jaime Beltrán | **2–0** | Luis |
+| 8 | Christian García | **2–0** | César / Felipe |
+| 9 | Marlin | **2–0** | Christian García |
 
 Las partidas 3 y 5 vienen del relato de Vara; la 3 la confirma Nelson desde su
 lado («perdí 1-2»), y coinciden. La 4 la confirman los dos (Vara «ganó 2-0»,
 Jaime «perdió 0-2»).
 
-**Los conteos cierran**: Nelson, Vara y Jaime tienen sus 3 partidas cada uno, y
-las 5 que faltan reparten exactamente los turnos pendientes de Luis (1),
-Christian (2), Erasmo (2), César/Felipe (2) y Marlin (3). No sobra ni falta
-nadie.
+**Los conteos cierran.** Nelson, Vara, Jaime y Christian ya tienen sus 3
+partidas. Faltan 3, y reparten exactamente lo pendiente: Luis (1),
+César/Felipe (1), Erasmo (2), Marlin (2). No sobra ni falta nadie.
+
+### Deducción: Erasmo vs Marlin se jugó, seguro
+
+Con 8 jugadores, 3 rondas, sin byes y sin repetir rival, las 3 partidas que
+faltan tienen que cubrir los extremos `{Luis, César, Erasmo, Erasmo, Marlin,
+Marlin}`. Solo hay dos repartos posibles:
+
+- **A**: Erasmo–Marlin, Erasmo–Luis, Marlin–César
+- **B**: Erasmo–Marlin, Erasmo–César, Marlin–Luis
+
+La tercera combinación (Erasmo–Luis, Erasmo–César) dejaría Marlin contra Marlin,
+que es imposible. **Erasmo–Marlin aparece en las dos**, así que ese
+emparejamiento es seguro aunque no se sepa el resultado.
+
+Lo que NO se deduce: quién ganó, ni si el reparto fue A o B.
 
 ## Mazos
 
@@ -60,7 +83,11 @@ Todos confirmados por Nel el 2026-08-16 y verificados contra el API de cartas.
 | César / Felipe | Luke Skywalker — *I Can Save Him* (ASH) | ? |
 | Erasmo Zaldaña | Luke *(¿cuál?)* | Strangled Cliffs (28, Aggression) |
 | Luis | Luthen Rael — *Don't You Want to Fight For Real?* (SEC) | ? |
-| Vara, Christian, Marlin | — | — |
+| Christian García | Boba Fett — *Any Methods Necessary* (JTL) | Lake Country (34, sin aspecto) |
+| Vara, Marlin | — | — |
+
+**«Lake City» no existe como carta.** La única base que encaja es **Lake
+Country** (34 vidas, JTL, sin aspecto) — la hermana mayor de Data Vault (33).
 
 Líderes verificados: hay **una sola** Mother Talzin (LOF, Vigilance/Villainy) y
 **un solo** Luthen Rael (SEC, Aggression/Heroism), así que esos nombres no son
