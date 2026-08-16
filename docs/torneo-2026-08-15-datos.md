@@ -16,7 +16,7 @@ histórico.
 | Jaime Beltrán | Jbeltramirez | `e91c6998-9ccc-4ebc-af61-2cd10291e76a` |
 | Christian García | iNelo | `f36db540-51d4-441a-9053-052201fc2494` |
 | Luis | LuisG05 | `a5f00ea2-a90a-44f7-9a84-bef2e450ef01` |
-| Felipe Quintanilla | «Allister Yashiro» ⚠️ | `c643f7b9-54d2-4ec8-8014-4dee2ab442b7` |
+| César Felipe Quintanilla | «Allister Yashiro» ⚠️ | `c643f7b9-54d2-4ec8-8014-4dee2ab442b7` |
 | Marlin José Ardón Martínez | — sin cuenta — | — |
 | Erasmo Zaldaña | — sin cuenta — | — |
 
@@ -26,32 +26,67 @@ correo sí es `allisteryashiro@`. Dos cuentas que se ven casi iguales en toda la
 app: en standings, en el buscador de rivales y en el cara a cara. Conviene que
 Felipe se cambie el nombre antes de que esto se muestre en público.
 
-## Partidas conocidas (5 de ~12)
+## Partidas conocidas (7 de 12)
 
-Con 8 jugadores y 3 rondas suizas serían 12 partidas. Faltan 7.
+Con 8 jugadores y 3 rondas suizas son 12 partidas. Faltan 5.
 
-| # | Jugador A | Marcador | Jugador B | Detalle de mazos |
-|---|---|---|---|---|
-| 1 | Nelson | **1–1** | Luis | Nelson: Cad Bane · Luis: Luke de ASH |
-| 2 | Nelson | **2–0** | Erasmo | Erasmo: Luke con base roja de 28 vidas |
-| 3 | Vara | **2–1** | Nelson | — |
-| 4 | Vara | **2–0** | Jaime Beltrán | — |
-| 5 | Christian García | **2–1** | Vara | — |
+| # | Jugador A | Marcador | Jugador B |
+|---|---|---|---|
+| 1 | Nelson | **1–1** | Luis |
+| 2 | Nelson | **2–0** | Erasmo |
+| 3 | Vara | **2–1** | Nelson |
+| 4 | Vara | **2–0** | Jaime Beltrán |
+| 5 | Christian García | **2–1** | Vara |
+| 6 | Jaime Beltrán | **2–0** | César / Felipe |
+| 7 | Jaime Beltrán | **2–0** | Luis |
 
 Las partidas 3 y 5 vienen del relato de Vara; la 3 la confirma Nelson desde su
-lado («perdí 1-2»), y coinciden. La 5 está dicha como «Vara perdió 1-2», o sea
-Christian 2 – Vara 1.
+lado («perdí 1-2»), y coinciden. La 4 la confirman los dos (Vara «ganó 2-0»,
+Jaime «perdió 0-2»).
+
+**Los conteos cierran**: Nelson, Vara y Jaime tienen sus 3 partidas cada uno, y
+las 5 que faltan reparten exactamente los turnos pendientes de Luis (1),
+Christian (2), Erasmo (2), César/Felipe (2) y Marlin (3). No sobra ni falta
+nadie.
+
+## Mazos
+
+Todos confirmados por Nel el 2026-08-16 y verificados contra el API de cartas.
+
+| Jugador | Líder | Base |
+|---|---|---|
+| Nelson | Cad Bane — *Still Faster than You* (ASH) | ? |
+| Jaime Beltrán | Mother Talzin — *Power Through Magick* (LOF) | Starlight Temple (28, Command) |
+| César / Felipe | Luke Skywalker — *I Can Save Him* (ASH) | ? |
+| Erasmo Zaldaña | Luke *(¿cuál?)* | Strangled Cliffs (28, Aggression) |
+| Luis | Luthen Rael — *Don't You Want to Fight For Real?* (SEC) | ? |
+| Vara, Christian, Marlin | — | — |
+
+Líderes verificados: hay **una sola** Mother Talzin (LOF, Vigilance/Villainy) y
+**un solo** Luthen Rael (SEC, Aggression/Heroism), así que esos nombres no son
+ambiguos. De Luke hay tres (SOR, JTL, ASH).
+
+### Contradicción resuelta: el mazo de Luis
+
+Hubo dos relatos incompatibles — «Luis jugó Luke de ASH» y «el deck de Luis es
+Luthen Rael». **Nel confirmó: Luthen Rael.** El «Luke de ASH» del primer relato
+era el de César/Felipe, que sí está confirmado con ese líder.
+
+Queda pendiente **cuál Luke jugó Erasmo**: se sabe la base (Strangled Cliffs,
+roja) pero no la impresión del líder.
 
 ### Lo que NO se sabe
 
-- Las 7 partidas restantes.
-- El emparejamiento por ronda: no se sabe qué partida fue de qué ronda.
+- Las 5 partidas restantes: reparten los turnos pendientes de Luis (1),
+  Christian (2), Erasmo (2), César/Felipe (2) y Marlin (3).
+- Qué partida fue de qué ronda.
 - La clasificación final y el campeón.
-- Fecha exacta del torneo, sede y formato.
-- Los mazos de Vara, Jaime, Christian, Felipe y Marlin.
+- Fecha del torneo y sede.
+- Los mazos de Vara, Christian y Marlin, las bases de Nelson y César/Felipe, y
+  cuál de los tres Luke jugó Erasmo.
 
-**No inventar nada de esto.** Un torneo con puestos deducidos de 5 de 12
-partidas sería un ranking falso con aire de oficial.
+**No inventar nada de esto.** Un torneo con puestos deducidos de datos
+parciales sería un ranking falso con aire de oficial.
 
 ## Por qué todavía no está en la base
 
