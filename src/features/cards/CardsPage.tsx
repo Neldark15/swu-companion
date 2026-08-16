@@ -16,7 +16,7 @@ import {
   subscribeDbLoadProgress, MAIN_SET_MIN_CARDS, COST_MAX_BUCKET, PLAYSET_SIZE,
   type SearchParams, type DbLoadProgress, type OwnedFilter,
 } from '../../services/swuApi'
-import { getPricesForCards, fetchTCGPrices, formatPrice, type PriceInfo } from '../../services/pricing'
+import { getPricesForCards, fetchTCGPrices, formatPrice, precioPromedio, type PriceInfo } from '../../services/pricing'
 import { getMyCollection, updateCollectionQuantity } from '../../services/collectionService'
 import { db } from '../../services/db'
 import { useAuth } from '../../hooks/useAuth'
@@ -811,9 +811,12 @@ export function CardsPage() {
                     {c.power !== null && c.hp !== null && (
                       <p className="text-xs text-swu-muted">{c.power}/{c.hp}</p>
                     )}
-                    {prices.get(c.id)?.market != null && prices.get(c.id)!.market! > 0 && (
-                      <p className="text-[11px] font-bold text-swu-green mt-0.5">{formatPrice(prices.get(c.id)!.market)}</p>
-                    )}
+                    {(() => {
+                      const prom = precioPromedio(prices.get(c.id))
+                      return prom != null && prom > 0 ? (
+                        <p className="text-[11px] font-bold text-swu-green mt-0.5">{formatPrice(prom)}</p>
+                      ) : null
+                    })()}
                   </div>
                   {/* Collection +/- */}
                   <div className="flex flex-col items-center gap-0.5" onClick={e => e.stopPropagation()}>

@@ -6,7 +6,7 @@ import {
   getPublicCollection,
   type PublicProfile,
 } from '../../services/collectionService'
-import { getPricesForCards, fetchTCGPrices, formatPrice, type PriceInfo } from '../../services/pricing'
+import { getPricesForCards, fetchTCGPrices, formatPrice, precioPromedio, type PriceInfo } from '../../services/pricing'
 import { getPersonalizacion, VACIA, type Personalizacion } from '../../services/profileCustomService'
 import { PerfilPersonalizado } from '../profile/PerfilVitrina'
 import { BannerPortada } from '../profile/BannerPortada'
@@ -201,7 +201,9 @@ export function PublicProfilePage() {
     let value = 0
     for (const item of items) {
       total += item.quantity
-      if (item.price?.market) value += item.price.market * item.quantity
+      // Valor con el promedio (bajo–alto), igual que en Mi Botín.
+      const prom = precioPromedio(item.price)
+      if (prom) value += prom * item.quantity
     }
     return { unique: items.length, total, value }
   }, [items])
@@ -626,11 +628,12 @@ export function PublicProfilePage() {
                           <span className="text-[10px] text-swu-muted">{item.card.setCode}</span>
                         )}
                       </div>
-                      {item.price?.market != null && item.price.market > 0 && (
-                        <div className="text-xs text-swu-green mt-0.5">
-                          {formatPrice(item.price.market)}
-                        </div>
-                      )}
+                      {(() => {
+                        const prom = precioPromedio(item.price)
+                        return prom != null && prom > 0 ? (
+                          <div className="text-xs text-swu-green mt-0.5">{formatPrice(prom)}</div>
+                        ) : null
+                      })()}
                     </div>
 
                     <div className="text-sm font-bold text-swu-accent-texto flex-shrink-0">

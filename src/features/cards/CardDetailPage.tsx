@@ -12,7 +12,7 @@ import { db } from '../../services/db'
 import { syncFavoriteToCloud } from '../../services/sync'
 import { useAuth } from '../../hooks/useAuth'
 import { getCardQuantity, updateCollectionQuantity } from '../../services/collectionService'
-import { formatPrice, getLocalPrice, type PriceInfo } from '../../services/pricing'
+import { formatPrice, getLocalPrice, precioPromedio, type PriceInfo } from '../../services/pricing'
 import { getPricesForCards, fetchTCGPrices } from '../../services/pricing'
 import { translateType, translateRarity, translateArena, translateAspect, translateKeyword, translateTrait, translateCardText } from '../../services/translations'
 import type { Card } from '../../types'
@@ -390,6 +390,16 @@ export function CardDetailPage() {
             <span className="text-sm font-bold text-swu-green">Precios TCGPlayer</span>
             {priceLoading && <Loader2 size={12} className="text-swu-green animate-spin" />}
           </div>
+
+          {/* El PROMEDIO (entre el más bajo y el más alto) como cifra principal:
+              es el mismo número que se ve en las listas. El desglabaje de abajo
+              queda para quien quiera el detalle. */}
+          {priceInfo && precioPromedio(priceInfo) != null && (
+            <div className="mb-3 rounded-lg bg-swu-green/15 border border-swu-green/30 p-2.5 text-center">
+              <p className="text-[10px] text-swu-muted uppercase tracking-wide">Precio promedio (bajo–alto)</p>
+              <p className="text-xl font-black text-swu-green">{formatPrice(precioPromedio(priceInfo))}</p>
+            </div>
+          )}
 
           {priceInfo && priceInfo.variants && Object.keys(priceInfo.variants).length > 0 ? (
             <div className="space-y-3">

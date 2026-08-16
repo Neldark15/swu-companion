@@ -9,7 +9,7 @@
 
 import { useState, useEffect } from 'react'
 import { Tag, DollarSign, Loader2, Minus, Plus, Users } from 'lucide-react'
-import { getPricesForCards } from '../../services/pricing'
+import { getPricesForCards, precioPromedio } from '../../services/pricing'
 import type { MyListingSummary } from '../../services/collectionService'
 
 export function SaleModal({
@@ -40,10 +40,10 @@ export function SaleModal({
     void getPricesForCards([cardId]).then(m => {
       if (!vivo) return
       const p = m.get(cardId)
-      // `market` es el precio al que se está vendiendo de verdad; `mid` es el
-      // punto medio de las ofertas. Se prefiere el primero y se cae al
-      // segundo, que es lo que hace la propia TCGplayer.
-      const ref = p?.market ?? p?.mid ?? null
+      // El sugerido es el PROMEDIO (bajo–alto), el mismo número que se ve en el
+      // resto de la app. Antes usaba `market`, que quedaba pegado al piso y
+      // hacía que la gente publicara barato sin querer.
+      const ref = precioPromedio(p)
       setSugerido(ref)
       // El relleno va acá dentro y no en otro efecto: encadenar efectos por
       // estado provoca renders en cascada. Y solo si no había precio puesto —

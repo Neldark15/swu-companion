@@ -31,7 +31,7 @@ import {
   type CollectionCardWithPrice,
   type MyListingSummary,
 } from '../../services/collectionService'
-import { formatPrice, fetchTCGPrices } from '../../services/pricing'
+import { formatPrice, fetchTCGPrices, precioPromedio } from '../../services/pricing'
 import { importCollectionFromFile, type ImportResult } from '../../services/collectionImport'
 import { exportCollection, downloadFile, EXPORT_FORMATS, type ExportFormat } from '../../services/collectionExport'
 import { db } from '../../services/db'
@@ -1278,14 +1278,21 @@ export function CollectionPage() {
                         </span>
                       )}
                     </div>
-                    <div className={`text-xs mt-0.5 ${item.price?.market ? 'text-swu-green' : 'text-swu-muted/50'}`}>
-                      {formatPrice(item.price?.market)}
-                      {item.price?.market && item.quantity > 1 && (
-                        <span className="text-swu-muted ml-1">
-                          (×{item.quantity} = {formatPrice(item.price.market * item.quantity)})
-                        </span>
-                      )}
-                    </div>
+                    {(() => {
+                      // Precio promedio (bajo–alto) en vez del market, que se
+                      // leía como «el más barato». Pedido de Nel.
+                      const prom = precioPromedio(item.price)
+                      return (
+                        <div className={`text-xs mt-0.5 ${prom ? 'text-swu-green' : 'text-swu-muted/50'}`}>
+                          {formatPrice(prom)}
+                          {prom != null && item.quantity > 1 && (
+                            <span className="text-swu-muted ml-1">
+                              (×{item.quantity} = {formatPrice(prom * item.quantity)})
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })()}
                     {isListed && listing?.notes && (
                       <p className="text-[10px] text-swu-muted/80 italic mt-0.5 truncate">"{listing.notes}"</p>
                     )}

@@ -11,7 +11,7 @@
 
 import { db } from './db'
 import { supabase, isSupabaseReady } from './supabase'
-import { getPricesForCards, type PriceInfo, formatPrice } from './pricing'
+import { getPricesForCards, type PriceInfo, formatPrice, precioPromedio } from './pricing'
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -141,9 +141,10 @@ export function calculateCollectionStats(
 
   for (const item of items) {
     totalCopies += item.quantity
-    if (item.price?.market) {
-      estimatedValue += item.price.market * item.quantity
-    }
+    // El valor usa el PROMEDIO (bajo–alto), el mismo número que se muestra por
+    // carta, para que el total cuadre con lo que ve la persona sumando.
+    const prom = precioPromedio(item.price)
+    if (prom) estimatedValue += prom * item.quantity
   }
 
   return {

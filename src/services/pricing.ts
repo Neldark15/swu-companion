@@ -602,3 +602,34 @@ export function formatPrice(price: number | null | undefined): string {
   if (price == null || price === 0) return '—'
   return `$${price.toFixed(2)}`
 }
+
+/**
+ * El precio de referencia que se MUESTRA: el promedio entre el más bajo y el
+ * más alto de TCGplayer.
+ *
+ * Antes se mostraba el `market` (el precio al que se vende de verdad), que en
+ * SWU suele quedar pegado al piso y se leía como «el más barato». Pedido de
+ * Nel: mostrar el punto medio entre `low` y `high`, que refleja mejor cuánto
+ * vale una carta y no solo la oferta más agresiva.
+ *
+ * Cuidado con el sesgo: si `high` es un anuncio disparatado (alguien lista una
+ * común a $999) el promedio se infla. Por eso, cuando existe `market`, se usa
+ * como TECHO del `high` que entra al promedio — un anuncio muy por encima del
+ * mercado real no arrastra la referencia. Si no hay `low` o `high`, se cae a lo
+ * de siempre: market → mid → lo que haya.
+ */
+export function precioPromedio(p: PriceInfo | null | undefined): number | null {
+  if (!p) return null
+  const low = p.low
+  let high = p.high
+  if (low != null && high != null) {
+    // Recorta el `high` a lo sumo al doble del `market` real, para que un
+    // outlier no distorsione. Si no hay market, se usa el high tal cual.
+    if (p.market != null && p.market > 0) high = Math.min(high, p.market * 2)
+    const prom = (low + high) / 2
+    // Nunca por debajo del piso real: el promedio recortado podría quedar
+    // apenas bajo `low` en casos raros.
+    return Math.max(prom, low)
+  }
+  return p.market ?? p.mid ?? p.low ?? p.high ?? null
+}
