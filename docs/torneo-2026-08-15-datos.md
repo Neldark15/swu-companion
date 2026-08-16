@@ -75,3 +75,45 @@ Además, medido contra producción:
   pero deja el torneo listado por `torneos_pendientes()` como «falta repartir»,
   o sea a un clic de premiar. Y con `status='open'`/`'active'` el cron de las
   5:23 lo puede cerrar solo.
+
+## El cerrojo del reparto es UNA columna: `premios_en`
+
+Leído de `pg_proc.prosrc` en producción, no supuesto:
+
+- `_repartir_premios()` sale de entrada con `if v_evento.premios_en is not null
+  then return … 'ya repartio sus premios'`, **antes de tocar nada**.
+- `cerrar_torneo()` **no** protege sola: su `update … where status <> 'finished'`
+  no aborta cuando no toca filas, y cae igual en `_repartir_premios()`. El
+  único muro real es `premios_en`.
+- `torneos_pendientes()` exige `premios_en is null`, así que con la columna
+  puesta el torneo **nunca aparece** en `/admin` y el botón «Repartir premios»
+  ni se dibuja.
+- `vencer_torneos()` (cron 5:23 SV) excluye `status <> 'finished'`, así que un
+  torneo insertado ya cerrado queda fuera para siempre.
+- Red de seguridad: `monthly_xp.user_id` es NOT NULL. Si alguien forzara el
+  reparto, las filas de Marlin y Erasmo lo harían explotar y revertir.
+
+O sea: **insertar con `status='finished'` Y `premios_en = now()` da cero
+reparto de forma estructural**, no por promesa. Es la diferencia entre «nadie
+va a tocar el botón» y «el botón no existe».
+
+## Para admitir jugadores sin cuenta
+
+El repo YA resolvió esto en otra tabla: `duelos_amistosos` usa `rival_id uuid
+NULL` + `rival_nombre text NOT NULL default ''`. El mismo patrón acá:
+
+```sql
+alter table public.tournament_standings alter column user_id drop not null;
+alter table public.tournament_standings alter column player_name set not null;
+create unique index if not exists tournament_standings_invitado_uk
+  on public.tournament_standings (event_id, lower(player_name))
+  where user_id is null;
+alter table public.tournament_pairings
+  add column if not exists player1_invitado text,
+  add column if not exists player2_invitado text;
+```
+
+El índice parcial repone lo que `UNIQUE(event_id, user_id)` deja de cubrir: en
+Postgres dos NULL no colisionan, así que sin él dos «Erasmo» entrarían dos
+veces. `player_name set not null` sale gratis hoy (0 filas) y evita que
+`getStandings` reviente en `a.player_name.localeCompare(...)`.
