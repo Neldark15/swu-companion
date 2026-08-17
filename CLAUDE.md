@@ -519,6 +519,41 @@ Banco de pruebas en **`/banco-avatares`** (solo desarrollo, se poda del bundle):
 las tres formas × 6 tamaños × las 3 cajas × dentro del marco. Si alguna celda
 sale como texto, alguien volvió a saltarse el componente.
 
+### 2y. El Mercado no tiene tabla propia, y su orden le da la portada a uno solo
+
+No existe tabla de publicaciones: el mercado son **5 columnas colgadas de
+`collection`** (`for_sale`, `sale_price`, `sale_notes`, `listed_at`,
+`sale_quantity`). La PK es `(user_id, card_id)`, así que **nadie puede publicar
+dos veces la misma carta** ni publicar algo que no tenga en su colección — eso
+no es un límite accidental, es lo que mantiene honesto el inventario.
+
+Tres cosas medidas que hay que tener presentes al tocar esta pantalla:
+
+- **El orden por `listed_at desc` con tope de render 24 le regala la portada a
+  quien publicó de último.** Medido dos veces con días de diferencia: las 24
+  que se ven al abrir eran las 24 de una sola persona, y al publicar otra, el
+  monopolio se mudó entero. No es de alguien: es del orden. Por eso el filtro
+  por vendedor no es un adorno.
+- **Nada de topes fijos al leer el mercado.** Estuvo en `limit: 200` y se pasó
+  en silencio: con 207 publicaciones, 7 dejaron de existir para todos y el
+  encabezado seguía afirmando un total ya recortado. Se pagina con `.range()`.
+  Y filtrar sobre un conjunto truncado es peor que perder filas: da respuestas
+  que **parecen** completas.
+- **Postgres no sabe qué es un Líder.** No hay tabla `cards` en Supabase — el
+  catálogo vive solo en Dexie, en el navegador. Filtrar por tipo o aspecto se
+  resuelve en el cliente contra el `Map` hidratado, y el vocabulario compartido
+  está en [filtrosCarta.ts](src/services/filtrosCarta.ts). Para poder filtrar
+  en el servidor algún día habría que copiar el metadato a la fila **en el
+  momento de publicar**; después ya no se puede sin un navegador que resuelva
+  los ids contra Dexie.
+
+Y la trampa de la hidratación: una publicación cuya carta todavía no llegó de
+Dexie **no se puede juzgar** por tipo ni aspecto. Se excluye si hay un filtro de
+carta activo (mostrarla afirmaría que cumple algo que no se sabe) y se conserva
+si no lo hay (o se pierden filas por una carrera de carga). Eso dura
+milisegundos en pantalla y no se comprueba mirando: por eso el predicado es una
+función pura en `filtrosCarta.ts` y no vive dentro del componente.
+
 ### 3. Named exports en rutas lazy
 Algunas features exportan con nombre (`export const GalaxyPage`). Importar lazy requiere:
 ```tsx
@@ -590,7 +625,7 @@ No hay CI separado. Si el build falla en Vercel:
 | `profiles` | Perfil de usuario (name, avatar, country, settings JSON) |
 | `player_stats` | XP, wins, losses, level, achievements |
 | `monthly_xp` | XP ganado por mes (rankings mensuales) |
-| `collection_items` | Cartas en colección personal (userId, cardId, qty) |
+| `collection` | Cartas en colección personal. PK `(user_id, card_id)` — no hay columna `id`. Lleva colgado el MERCADO en 5 columnas: `for_sale`, `sale_price`, `sale_notes`, `listed_at`, `sale_quantity` |
 | `community_posts` | Feed de actividad / comunidad |
 | `leaderboard_entries` | Rankings globales |
 
