@@ -25,7 +25,8 @@
  */
 
 import type { ReactNode } from 'react'
-import { esMarcoElegido, resolverMarco } from '../../../services/personalizacion'
+import { esMarcoElegido, resolverMarco, MARCOS } from '../../../services/personalizacion'
+import { MarcoHud, RECORTE_HUD } from './MarcoHud'
 
 interface ProfileFrameProps {
   level: number
@@ -43,64 +44,55 @@ interface ProfileFrameProps {
 export function ProfileFrame({ level, children, size = 80, marcoId }: ProfileFrameProps) {
   const marco = resolverMarco(esMarcoElegido(marcoId) ? marcoId : 'auto', level)
 
-  // Los marcos con esquinas llevan borde más grueso; el glow estático solo
-  // aparece de ahí hacia arriba y crece con el tier.
+  // El nivel del panel (1..7) sale del ORDEN del catálogo: es la misma escala
+  // que ya define qué marco se gana con qué nivel, así que no hay una segunda
+  // fuente de verdad que se pueda desincronizar.
+  const tier = Math.max(1, MARCOS.findIndex(m => m.id === marco.id) + 1)
+
   const grosor = marco.esquinas ? 3 : 2
   const exterior = size + grosor * 2
-  const glow = marco.animado
-    ? `0 0 14px ${marco.brillo}66`
-    : marco.esquinas
-      ? `0 0 9px ${marco.brillo}44`
-      : undefined
 
   return (
     <div
-      className="relative inline-flex items-center justify-center rounded-xl"
+      className="relative inline-flex items-center justify-center"
       style={{
         width: exterior,
         height: exterior,
         padding: grosor,
-        // El gradiente ES el borde: el hijo opaco deja ver solo el anillo.
-        background: `linear-gradient(135deg, ${marco.borde}, ${marco.brillo}, ${marco.borde})`,
-        boxShadow: glow,
+        /* Ojo: acá NO va `clip-path`.
+         *
+         * Recortar este contenedor parecía lo correcto para que la sombra
+         * siguiera la silueta, pero `clip-path` recorta TODO lo que hay dentro
+         * —incluido el SVG del marco— y además elimina el `box-shadow` por
+         * completo. Se veía: el eco exterior del marco máximo y el resplandor
+         * desaparecían contra el borde de la caja.
+         *
+         * El halo lo hace ahora el propio SVG con un trazo ancho translúcido,
+         * que sigue la silueta de verdad y no cuesta un desenfoque. */
       }}
       title={`Marco «${marco.nombre}»`}
     >
-      {/* La foto/ícono, recortada al cuadrado siguiendo el radio del marco */}
+      {/* La foto/ícono toma la MISMA silueta del panel: es lo que hace que el
+          marco se sienta parte de la pieza y no una calcomanía encima. */}
       <div
-        className="relative rounded-[10px] overflow-hidden bg-swu-bg z-10"
-        style={{ width: size, height: size }}
+        className="relative overflow-hidden bg-swu-bg z-10"
+        style={{ width: size, height: size, clipPath: RECORTE_HUD }}
       >
         {children}
       </div>
 
-      {/* Esquinas dobles decorativas de los marcos altos — estáticas */}
-      {marco.esquinas && (
-        <>
-          <span aria-hidden className="absolute -top-px -left-px w-2.5 h-2.5 border-t-2 border-l-2 rounded-tl-xl" style={{ borderColor: marco.brillo }} />
-          <span aria-hidden className="absolute -top-px -right-px w-2.5 h-2.5 border-t-2 border-r-2 rounded-tr-xl" style={{ borderColor: marco.brillo }} />
-          <span aria-hidden className="absolute -bottom-px -left-px w-2.5 h-2.5 border-b-2 border-l-2 rounded-bl-xl" style={{ borderColor: marco.brillo }} />
-          <span aria-hidden className="absolute -bottom-px -right-px w-2.5 h-2.5 border-b-2 border-r-2 rounded-br-xl" style={{ borderColor: marco.brillo }} />
-        </>
-      )}
+      {/* El panel HUD, por encima de la foto */}
+      <MarcoHud
+        tier={tier}
+        borde={marco.borde}
+        brillo={marco.brillo}
+        lado={exterior}
+        animado={marco.animado}
+      />
 
-      {/* Respiración sutil de los marcos altos — SOLO opacity */}
-      {marco.animado && (
-        <div
-          aria-hidden
-          className="absolute inset-0 rounded-xl border-2 animate-pulse motion-reduce:animate-none pointer-events-none"
-          style={{ borderColor: `${marco.brillo}55` }}
-        />
-      )}
-
-      {/* El eco expansivo queda reservado al marco máximo — transform+opacity */}
-      {marco.id === 'galactico' && (
-        <div
-          aria-hidden
-          className="absolute inset-0 rounded-xl border-2 animate-ping motion-reduce:animate-none opacity-10 pointer-events-none"
-          style={{ borderColor: marco.brillo, animationDuration: '3s' }}
-        />
-      )}
+      {/* Las esquinas, la respiración y el eco los dibuja ahora MarcoHud dentro
+          del propio SVG: viven con la silueta octogonal en vez de pelearse con
+          un `rounded-xl` que ya no existe. */}
     </div>
   )
 }
