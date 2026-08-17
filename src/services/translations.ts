@@ -5,6 +5,8 @@
  * aspects, keywords, traits, and card ability text.
  */
 
+import { getIdioma } from './i18n'
+
 // ─── Static Term Dictionaries ────────────────────────────
 
 const typeMap: Record<string, string> = {
@@ -226,28 +228,39 @@ const textTerms: [RegExp, Replacer][] = [
 ]
 
 // ─── Public Translation Functions ────────────────────────
+//
+// El DATO de las cartas viene en inglés del API; estas funciones lo pasan a
+// español. Con el idioma en inglés se devuelve la fuente tal cual: el inglés
+// no se «traduce», es lo que ya trae la carta. Así el selector de idioma hace
+// bilingüe TODO el contenido de cartas sin una tabla inglés aparte.
 
 export function translateType(type: string): string {
+  if (getIdioma() === 'en') return type
   return typeMap[type] || type
 }
 
 export function translateRarity(rarity: string): string {
+  if (getIdioma() === 'en') return rarity
   return rarityMap[rarity] || rarity
 }
 
 export function translateArena(arena: string): string {
+  if (getIdioma() === 'en') return arena
   return arenaMap[arena] || arena
 }
 
 export function translateAspect(aspect: string): string {
+  if (getIdioma() === 'en') return aspect
   return aspectMap[aspect] || aspect
 }
 
 export function translateKeyword(keyword: string): string {
+  if (getIdioma() === 'en') return keyword
   return keywordMap[keyword] || keyword
 }
 
 export function translateTrait(trait: string): string {
+  if (getIdioma() === 'en') return trait
   return traitMap[trait] || trait
 }
 
@@ -258,6 +271,7 @@ export function translateTrait(trait: string): string {
  */
 export function translateCardText(text: string): string {
   if (!text) return text
+  if (getIdioma() === 'en') return text
   let result = text
   for (const [pattern, replacement] of textTerms) {
     if (typeof replacement === 'string') {

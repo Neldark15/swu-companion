@@ -13,6 +13,7 @@
  *    la tira no se dibuja en vez de mostrar tres ceros.
  */
 
+import { useT } from '../../services/i18n'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, ScanLine } from 'lucide-react'
@@ -131,9 +132,24 @@ interface Marcador {
   icon: typeof DatapadIcon
 }
 
+/** Traducción de los rótulos de módulo y categoría al inglés (Fase i18n). */
+const MOD_EN: Record<string, string> = {
+  'Contador': 'Counter', 'Amistosas': 'Friendlies', 'Holocrón': 'Holocron', 'Misiones': 'Missions',
+  'Torneos': 'Tournaments', 'Eventos': 'Events', 'Meta': 'Meta', 'Consejo Jedi': 'Jedi Council', 'En Vivo': 'Live',
+  'Mis Decks': 'My Decks', 'Laboratorio': 'Lab', 'Buscar Cartas': 'Search Cards', 'Rulings': 'Rulings',
+  'Mi Botín': 'My Loot', 'Contrabando': 'Smuggling', 'Mercancía': 'Market',
+  'La Galaxia': 'The Galaxy', 'Espionaje': 'Espionage', 'Blog': 'Blog',
+  'Transmisión': 'Broadcast', 'Panel Admin': 'Admin Panel',
+}
+const CAT_EN: Record<string, string> = {
+  'Jugar': 'Play', 'Competir': 'Compete', 'Construir': 'Build', 'Colección': 'Collection', 'Comunidad': 'Community',
+  'Solo administradores': 'Administrators only',
+}
+
 export function HomePage() {
   const navigate = useNavigate()
   const { currentProfile, supabaseUser, isAdmin } = useAuth()
+  const tI = useT()
 
   /** Rango y marcador viajan juntos: salen de la misma fila y se pintan a la
    *  vez, así que un solo estado evita un render intermedio a medio llenar. */
@@ -185,7 +201,7 @@ export function HomePage() {
       <div className="flex items-center gap-2.5">
         <div className={`h-px flex-1 bg-gradient-to-r from-transparent ${color === 'cyan' ? 'to-swu-cyan/40' : 'to-swu-amber/40'}`} />
         <span className={`text-[9px] font-mono tracking-[0.35em] uppercase ${color === 'cyan' ? 'text-swu-cyan/70' : 'text-swu-amber/80'}`}>
-          {titulo}
+          {tI(titulo, CAT_EN[titulo] ?? titulo)}
         </span>
         <div className={`h-px flex-1 bg-gradient-to-l from-transparent ${color === 'cyan' ? 'to-swu-cyan/40' : 'to-swu-amber/40'}`} />
       </div>
@@ -213,7 +229,7 @@ export function HomePage() {
                   devuelven el aire y a partir de 360 vuelve a 13. */}
               <span className="min-w-0 flex-1 break-words text-[11px] font-bold text-white
                                leading-tight min-[360px]:text-[13px]">
-                {sys.label}
+                {tI(sys.label, MOD_EN[sys.label] ?? sys.label)}
               </span>
               <ChevronRight size={14} className="text-swu-muted flex-shrink-0" aria-hidden />
             </div>

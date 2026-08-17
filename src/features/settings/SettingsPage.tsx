@@ -16,9 +16,11 @@
 import { useState, useEffect } from 'react'
 import {
   ChevronLeft, Palette, Type, Vibrate, MessageSquare, Shield, Info,
-  Smartphone, Check, KeyRound, Eye, EyeOff, Zap, Layers, Brush, Frame, Lock,
+  Smartphone, Check, KeyRound, Eye, EyeOff, Zap, Layers, Brush, Frame, Lock, Languages,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { SegmentedControl } from '../../components/ui/SegmentedControl'
+import { useIdioma, useT, type Idioma } from '../../services/i18n'
 import { useSettings, ACCENT_COLORS, ACCENT_LABELS, SABER_COLORS } from '../../hooks/useSettings'
 import type { AccentColor, SaberColor } from '../../hooks/useSettings'
 import {
@@ -97,6 +99,9 @@ export function SettingsPage() {
     temaFondo, setTemaFondo, tinteTarjeta, setTinteTarjeta, marcoElegido, setMarcoElegido,
   } = useSettings()
   const auth = useAuth()
+  const t = useT()
+  const idioma = useIdioma((s) => s.idioma)
+  const cambiarIdioma = useIdioma((s) => s.cambiarIdioma)
   const [showAbout, setShowAbout] = useState(false)
 
   // ── Stats reales para la vista previa y el nivel de los marcos ──
@@ -157,14 +162,40 @@ export function SettingsPage() {
   return (
     <div className="p-4 lg:p-6 space-y-5 pb-8 lg:pb-8 max-w-5xl mx-auto">
       <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-swu-muted">
-        <ChevronLeft size={18} /> Volver
+        <ChevronLeft size={18} /> {t('Volver', 'Back')}
       </button>
 
-      <h2 className="text-lg font-bold text-swu-text">Configuración</h2>
+      <h2 className="text-lg font-bold text-swu-text">{t('Configuración', 'Settings')}</h2>
+
+      {/* ── Idioma — lo primero: cambia TODA la app ── */}
+      <div>
+        <p className="text-[10px] text-swu-muted uppercase tracking-wider font-bold mb-2 px-1">{t('Idioma', 'Language')}</p>
+        <div className="bg-swu-surface rounded-2xl p-3 space-y-2">
+          <div className="flex items-center gap-3">
+            <Languages size={20} className="text-swu-accent-texto" />
+            <span className="text-sm font-medium text-swu-text">{t('Idioma de la app', 'App language')}</span>
+          </div>
+          <SegmentedControl<Idioma>
+            label={t('Idioma', 'Language')}
+            value={idioma}
+            onChange={cambiarIdioma}
+            options={[
+              { value: 'es', label: 'Español' },
+              { value: 'en', label: 'English' },
+            ]}
+          />
+          <p className="text-[10px] text-swu-muted">
+            {t(
+              'La app se recarga para aplicar el idioma. La traducción avanza por partes: el contenido de las cartas ya es bilingüe.',
+              'The app reloads to apply the language. Translation is rolling out in phases: card content is already bilingual.',
+            )}
+          </p>
+        </div>
+      </div>
 
       {/* Notifications */}
       <div>
-        <p className="text-[10px] text-swu-muted uppercase tracking-wider font-bold mb-2 px-1">Notificaciones</p>
+        <p className="text-[10px] text-swu-muted uppercase tracking-wider font-bold mb-2 px-1">{t('Notificaciones', 'Notifications')}</p>
         <PushNotificationToggle />
       </div>
 

@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Hexagon, type LucideIcon } from 'lucide-react'
 import { CargoIcon, BountyIcon, HolonetIcon } from '../SWIcons'
+import { useT } from '../../services/i18n'
 import { useUIStore } from '../../hooks/useUIStore'
 import type { ComponentType } from 'react'
 
@@ -34,10 +35,15 @@ const tabs: TabDef[] = [
   { id: '/profile', label: 'Perfil', img: '/holocron-icon.png' },
 ]
 
+const TAB_EN: Record<string, string> = {
+  'Inicio': 'Home', 'Explorar': 'Explore', 'Binder': 'Binder', 'Mercado': 'Market', 'Perfil': 'Profile',
+}
+
 export function TabBar() {
   const location = useLocation()
   const navigate = useNavigate()
   const hideTabBar = useUIStore((s) => s.hideTabBar)
+  const t = useT()
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/'
@@ -98,7 +104,7 @@ export function TabBar() {
                 <tab.icon size={22} strokeWidth={active ? 2.5 : 2} />
               ) : null}
               <span className={`text-[10px] leading-none ${active ? 'font-bold' : 'font-medium'}`}>
-                {tab.label}
+                {t(tab.label, TAB_EN[tab.label] ?? tab.label)}
               </span>
             </button>
           )
