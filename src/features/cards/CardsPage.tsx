@@ -146,6 +146,18 @@ export function CardsPage() {
   /** Toda la colección en memoria: el cruce "me falta" necesita el set completo. */
   const [collectionQtys, setCollectionQtys] = useState<Map<string, number>>(new Map())
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
+  /**
+   * Pasa a `true` cuando la colección terminó de leerse, y ya no vuelve atrás.
+   * Es lo que deja que «Me falta» espere el dato UNA vez sin re-buscar después
+   * con cada carta que agregás. Ver `ownedDepKey`.
+   */
+  const [coleccionLista, setColeccionLista] = useState(false)
+  /**
+   * La colección tal como estaba cuando se armó la lista que estás viendo.
+   * No es estado: cambiarla no debe repintar nada — solo la usa `doSearch`
+   * para que la paginación sea coherente consigo misma.
+   */
+  const criterioColeccionRef = useRef<Map<string, number>>(new Map())
 
   const [dbProgress, setDbProgress] = useState<DbLoadProgress>({ phase: 'idle', message: '' })
 
@@ -189,6 +201,10 @@ export function CardsPage() {
       const favs = await db.favoriteCards.toArray()
       setFavoriteIds(new Set(favs.map(f => f.cardId)))
     } catch { /* sin favoritos */ }
+    // Se marca en cualquier caso, incluso si falló: «no tengo nada» también es
+    // una respuesta, y dejarlo en false colgaría la primera búsqueda de
+    // «Me falta» esperando un dato que no va a llegar.
+    setColeccionLista(true)
   }, [currentProfileId])
 
   useEffect(() => { reloadCollection() }, [reloadCollection])
@@ -217,6 +233,23 @@ export function CardsPage() {
 
   const doSearch = useCallback(
     async (reset = true) => {
+      // El criterio de pertenencia se CONGELA al empezar una búsqueda y no se
+      // vuelve a tocar hasta la siguiente. Dos razones, las dos medidas:
+      //
+      // 1. Con «Me falta» puesto, agregar una carta cambiaba `collectionQtys`,
+      //    eso re-buscaba desde cero y las 120 filas cargadas volvían a 30.
+      //    Había que bajar y pulsar «Cargar más» cuatro veces para volver a
+      //    donde estabas — por cada carta que agregabas.
+      // 2. Y aunque no se reseteara, la paginación quedaría MAL: el servicio
+      //    filtra por pertenencia sobre todo el conjunto y recién después
+      //    pagina, así que si la colección cambia entre página y página, un
+      //    `offset` de 120 apunta a otra fila y se salta o repite cartas.
+      //
+      // Los resultados son la foto de un instante; tus ediciones se ven en la
+      // fila (el contador es estado aparte y sigue vivo) pero no mueven el
+      // conjunto bajo el dedo.
+      if (reset) criterioColeccionRef.current = collectionQtys
+
       const params: SearchParams = {
         query: query || undefined,
         type: selectedType || undefined,
@@ -227,7 +260,7 @@ export function CardsPage() {
         cost: selectedCost,
         canonicalOnly: !allPrintings,
         owned,
-        ownedQuantities: collectionQtys,
+        ownedQuantities: criterioColeccionRef.current,
         // Va al servicio, NO se recorta acá: filtrando después de paginar,
         // "Mis favoritas" solo miraba las 30 filas de la primera página.
         favoriteIds: favoritesOnly ? favoriteIds : undefined,
@@ -249,8 +282,11 @@ export function CardsPage() {
         setLoadingMore(false)
       }
     },
+    // `collectionQtys` NO va acá: se lee por ref y solo en un reset. Estando en
+    // las deps, cada carta agregada recreaba `doSearch` y con él el efecto de
+    // búsqueda — que es justo el ciclo que reseteaba la lista.
     [query, selectedType, selectedAspect, selectedSet, selectedArena, selectedRarity,
-     selectedCost, allPrintings, owned, collectionQtys, favoritesOnly, favoriteIds, cards.length],
+     selectedCost, allPrintings, owned, favoritesOnly, favoriteIds, cards.length],
   )
 
   // `refreshDb` tiene que ser estable (lo usan botones que no deben recrearse),
@@ -331,11 +367,20 @@ export function CardsPage() {
   }
 
   /**
-   * La colección solo tiene que disparar una búsqueda nueva si hay un filtro
-   * de pertenencia activo. Sin esto, terminar de cargar la colección al montar
-   * re-buscaba y borraba los resultados y el scroll recién restaurados.
+   * La colección dispara UNA búsqueda: la del momento en que termina de
+   * cargarse. Ni una más.
+   *
+   * Antes acá iba `collectionQtys.size`, y eso hacía dos cosas a la vez. La
+   * buena: con «Me falta» puesto, esperar a que la colección llegue antes de
+   * decidir qué falta (sin eso, al montar se listan las 2.316 cartas como si
+   * no tuvieras ninguna). La mala: CADA carta que agregabas cambiaba el
+   * tamaño y volvía a buscar desde cero.
+   *
+   * `coleccionLista` separa las dos: es un booleano que pasa de false a true
+   * una sola vez, así que la primera búsqueda espera el dato y las ediciones
+   * posteriores no mueven nada.
    */
-  const ownedDepKey = owned === 'all' ? '' : `${owned}:${collectionQtys.size}`
+  const ownedDepKey = owned === 'all' ? '' : `${owned}:${coleccionLista}`
 
   // Búsqueda con retardo SOLO para lo que se teclea.
   useEffect(() => {
@@ -748,6 +793,16 @@ export function CardsPage() {
         <div className="space-y-1.5 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0">
           {cards.map((c) => {
             const { qty } = collectionEntry(c, collectionQtys)
+            // Con un filtro de pertenencia puesto, la lista ya NO se rehace al
+            // editar la colección (perdías las 120 filas y el scroll por cada
+            // carta). El precio de esa estabilidad es que la carta que acabás
+            // de resolver se queda en su sitio hasta la próxima búsqueda: se
+            // atenúa para que se lea de un vistazo, en vez de desaparecer y
+            // hacer saltar la lista bajo el dedo.
+            const resuelta =
+              (owned === 'missing' && qty > 0) ||
+              (owned === 'owned' && qty === 0) ||
+              (owned === 'duplicates' && qty <= PLAYSET_SIZE)
             return (
               // Contenedor con rol de botón y no un <button>: adentro van los
               // controles +/- y ×3, y un <button> dentro de otro es HTML
@@ -768,7 +823,9 @@ export function CardsPage() {
                     navigate(`/cards/${c.id}`)
                   }
                 }}
-                className="w-full bg-swu-surface rounded-xl p-3 border border-swu-border flex items-center gap-3 text-left cursor-pointer active:scale-[0.99] transition-transform"
+                className={`w-full bg-swu-surface rounded-xl p-3 border border-swu-border flex items-center gap-3 text-left cursor-pointer active:scale-[0.99] transition-transform ${
+                  resuelta ? 'opacity-50' : ''
+                }`}
               >
                 {/* La caja toma la forma de la carta. Con `w-14 h-20` fijo, una base
                     apaisada se dibujaba a 56x40 dentro de 56x80: la mitad de área
