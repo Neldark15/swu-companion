@@ -478,6 +478,47 @@ Las cinco guardas de la restauración no son decorativas:
 
 El service worker abre los avisos sin destino en **`/?desde=push`** justamente para caer en la guarda 2. Si algún día quitás ese marcador, un push sin enlace va a reabrir la última pantalla en vez de Inicio.
 
+### 2x. `profiles.avatar` NO es un emoji — se pinta con `<Avatar>`, nunca crudo
+
+El campo guarda **tres** cosas en la misma columna de texto: una foto subida
+(`data:image/…`), el id de uno de los 24 íconos del juego (`boba-fett`, que
+resuelve a `/avatars/<id>.png`), o un emoji suelto. Escribir `{perfil.avatar}`
+en el JSX solo funciona para el tercer caso.
+
+Medido en producción: **22 perfiles con id de ícono, 1 con foto, CERO emojis**.
+O sea que el caso «emoji» —el único que el código crudo dibujaba bien— no lo usa
+nadie. La Galaxia, el ranking mensual y la línea «Org:» de `/events` mostraban
+«boba-fett» en letras enormes y, para quien tiene foto, un chorro de base64
+desbordando la fila. No era un caso raro: eran las 23 filas.
+
+Todo avatar va por [`components/ui/Avatar.tsx`](src/components/ui/Avatar.tsx),
+que despacha las tres ramas. Reglas que ya costaron un bug cada una:
+
+- **No hacer una copia local del despacho.** Había tres (`ProfilePage`,
+  `TarjetaJugador`, y la lógica inline de `/galaxy`) y las tres se habían
+  separado. La lista de ids vive en `data/avatars.ts` y la resolución en
+  `services/avatars.ts`; agregar un ícono no debe obligar a tocar pantallas.
+- **Dentro de un `ProfileFrame` va `caja="marco"`, no un tamaño propio.** Las
+  copias pintaban `w-20 h-20` (80 px) dentro de un marco de 72: el
+  `overflow-hidden` del marco le comía el borde a toda foto.
+- **`caja="ninguna"` IGNORA `className`** — devuelve el contenido pelado, sin
+  caja donde colgar clases. Si necesitás margen o centrado, envolvé.
+- **El anillo de color se deriva con FNV-1a + la avalancha de murmur3**, no con
+  un `h*31 % 8`. La semilla real es un UUID y los 23 UUIDs de producción
+  comparten tanta estructura que los 3 bits bajos amontonaban 5 y 8 personas en
+  dos colores; con la avalancha se usan los 8 y el máximo baja a 5. El color
+  tiene que ser **estable por persona en toda la app** — es información, no
+  decoración.
+- **Y el avatar puede faltar por el SERVICIO, no por el dibujo.** Dos bugs así:
+  `listarAmistosas()` resolvía el perfil del creador y no el del rival (el
+  círculo negro de `/amistosas`), y el podio de `/torneos/:code` tenía
+  `avatar={null}` cableado teniendo `user_id` a mano. Antes de culpar a la UI,
+  mirá si el `select(...)` trae `avatar`.
+
+Banco de pruebas en **`/banco-avatares`** (solo desarrollo, se poda del bundle):
+las tres formas × 6 tamaños × las 3 cajas × dentro del marco. Si alguna celda
+sale como texto, alguien volvió a saltarse el componente.
+
 ### 3. Named exports en rutas lazy
 Algunas features exportan con nombre (`export const GalaxyPage`). Importar lazy requiere:
 ```tsx
