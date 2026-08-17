@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 export interface SheetProps {
@@ -69,9 +70,23 @@ export function Sheet({ open, onClose, title, children, bare = false }: SheetPro
 
   if (!open) return null
 
-  return (
+  // Va por PORTAL a <body>, y no donde se monte el componente.
+  //
+  // Medido en móvil (375x812): la TabBar es `z-50` igual que este panel y es
+  // un hermano POSTERIOR del contenido en el DOM, así que con el mismo
+  // z-index ganaba ella y se comía los últimos 57 px del panel — justo donde
+  // caen los botones. Se veía en las 10 pantallas que usan Sheet, pero dolía
+  // sobre todo en el asistente de «Terminá tu perfil», donde lo tapado era el
+  // botón de continuar y el asistente quedaba sin salida.
+  //
+  // Subir el z-index a mano lo tapaba a medias: el panel seguiría dependiendo
+  // de en qué árbol lo monten y de si algún ancestro futuro trae un
+  // `transform` (que convertiría el `fixed` en relativo a ese ancestro).
+  // Sacándolo a <body> el diálogo es independiente de su sitio de montaje,
+  // que es lo que un modal tiene que ser.
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
@@ -81,15 +96,20 @@ export function Sheet({ open, onClose, title, children, bare = false }: SheetPro
         aria-label={title}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
+        /* `sheet-alto` es `88dvh` con `88vh` de respaldo. En el navegador de un
+           teléfono, `vh` mide la ventana COMO SI la barra de direcciones
+           estuviera oculta, así que 88vh puede ser más alto que lo que de
+           verdad se ve y el final del panel queda fuera de la pantalla. El
+           caparazón de la app ya usa `100dvh`; esto lo pone de acuerdo. */
         className="
-          w-full sm:max-w-md max-h-[88vh] overflow-y-auto overscroll-contain
+          sheet-alto w-full sm:max-w-md flex flex-col overflow-hidden
           bg-swu-surface border border-swu-border
           rounded-t-2xl sm:rounded-2xl animate-slide-up sm:animate-none
-          focus-visible:outline-none pb-safe
+          focus-visible:outline-none
         "
       >
         {!bare && (
-          <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-3 bg-swu-surface border-b border-swu-border">
+          <div className="relative flex flex-shrink-0 items-center gap-2 px-4 py-3 bg-swu-surface border-b border-swu-border">
             {/* Asa visual del panel en móvil */}
             <span className="absolute left-1/2 -translate-x-1/2 -top-0 h-1 w-10 rounded-full bg-swu-border sm:hidden" aria-hidden />
             <h2 className="flex-1 text-sm font-bold text-swu-text truncate">{title}</h2>
@@ -102,8 +122,15 @@ export function Sheet({ open, onClose, title, children, bare = false }: SheetPro
             </button>
           </div>
         )}
-        {children}
+        {/* El que scrollea es el CUERPO, no el panel: así el título se queda
+            quieto y el contenido largo nunca empuja el panel más allá de su
+            alto máximo. El `pb-safe` va acá para que la última línea no quede
+            bajo la barra de gestos del teléfono. */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-safe">
+          {children}
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

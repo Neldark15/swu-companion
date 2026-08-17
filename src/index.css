@@ -219,6 +219,18 @@ input:focus, textarea:focus, select:focus {
   animation: slide-up 0.3s ease-out;
 }
 
+/* Alto máximo de un Sheet.
+ *
+ * Las dos declaraciones son a propósito: `dvh` descuenta la barra de
+ * direcciones del navegador móvil y `vh` NO —`vh` mide la ventana como si esa
+ * barra estuviera oculta—, así que con `88vh` el final del panel podía quedar
+ * fuera de la pantalla en un teléfono. La primera línea es el respaldo para
+ * quien no entienda `dvh`; la segunda la pisa en todo navegador actual. */
+.sheet-alto {
+  max-height: 88vh;
+  max-height: 88dvh;
+}
+
 @keyframes slide-in-top {
   from { transform: translateX(-50%) translateY(-120%); opacity: 0; }
   to { transform: translateX(-50%) translateY(0); opacity: 1; }
