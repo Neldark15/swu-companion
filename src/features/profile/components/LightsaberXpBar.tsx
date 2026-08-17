@@ -29,30 +29,40 @@ export function LightsaberXpBar({ xp }: LightsaberXpBarProps) {
         <span className="text-[11px] text-swu-muted font-mono">{xpCurrent}/{xpNeeded} XP</span>
       </div>
 
-      {/* Lightsaber bar */}
-      <div className="relative flex items-center h-6">
-        {/* Hilt (left side) */}
+      {/* El sable.
+          
+          La hoja medía 16 px de grosor, y a lo ancho de una tarjeta de móvil
+          eso daba una proporción de ~11:1: se leía como una pastilla luminosa
+          con un adorno a la izquierda, no como una hoja. Un sable de verdad
+          ronda 30:1 —larguísimo y delgado— y esa proporción es TODA la
+          diferencia entre las dos lecturas.
+
+          Por eso la hoja baja a 8 px y la empuñadura se encoge con ella: si la
+          empuñadura se quedaba en 24 px de alto, pasaba a ser tres veces más
+          gruesa que la hoja y parecía un martillo. Los colores no se tocan. */}
+      <div className="relative flex items-center h-5">
+        {/* Empuñadura */}
         <div className="relative z-20 flex-shrink-0">
-          <svg width="28" height="24" viewBox="0 0 28 24" fill="none">
-            {/* Main hilt body */}
-            <rect x="4" y="4" width="20" height="16" rx="2" fill="#2A2A2E" stroke="#555" strokeWidth="1" />
-            {/* Grip lines */}
-            <line x1="10" y1="5" x2="10" y2="19" stroke="#444" strokeWidth="1" />
-            <line x1="14" y1="5" x2="14" y2="19" stroke="#444" strokeWidth="1" />
-            <line x1="18" y1="5" x2="18" y2="19" stroke="#444" strokeWidth="1" />
-            {/* Emitter */}
-            <rect x="22" y="6" width="6" height="12" rx="1" fill="#3A3A3E" stroke="#666" strokeWidth="0.5" />
-            {/* Power button */}
-            <circle cx="8" cy="12" r="2" fill={core} opacity="0.8">
+          <svg width="30" height="14" viewBox="0 0 30 14" fill="none" aria-hidden>
+            {/* Cuerpo */}
+            <rect x="5" y="2.5" width="19" height="9" rx="1.5" fill="#2A2A2E" stroke="#555" strokeWidth="0.8" />
+            {/* Estrías del mango */}
+            <line x1="11" y1="3.2" x2="11" y2="10.8" stroke="#444" strokeWidth="0.8" />
+            <line x1="14" y1="3.2" x2="14" y2="10.8" stroke="#444" strokeWidth="0.8" />
+            <line x1="17" y1="3.2" x2="17" y2="10.8" stroke="#444" strokeWidth="0.8" />
+            {/* Emisor: se estrecha hacia la hoja, que es de donde sale */}
+            <rect x="23" y="3.8" width="7" height="6.4" rx="0.8" fill="#3A3A3E" stroke="#666" strokeWidth="0.5" />
+            {/* Botón de encendido, del color del sable elegido */}
+            <circle cx="8" cy="7" r="1.5" fill={core} opacity="0.85">
               <animate attributeName="opacity" values="0.5;1;0.5" dur="2s" repeatCount="indefinite" />
             </circle>
-            {/* Pommel */}
-            <rect x="0" y="6" width="5" height="12" rx="1.5" fill="#222" stroke="#555" strokeWidth="0.5" />
+            {/* Pomo */}
+            <rect x="0" y="4" width="4.5" height="6" rx="1" fill="#222" stroke="#555" strokeWidth="0.5" />
           </svg>
         </div>
 
-        {/* Blade track */}
-        <div className="flex-1 relative h-4 -ml-1">
+        {/* La hoja */}
+        <div className="flex-1 relative h-2 -ml-1.5">
           {/* Background track */}
           <div className="absolute inset-0 rounded-r-full bg-black/60 border border-white/5" />
 
@@ -65,11 +75,13 @@ export function LightsaberXpBar({ xp }: LightsaberXpBarProps) {
               boxShadow: `0 0 8px ${core}, 0 0 16px ${core}80, 0 0 32px ${glow}40, inset 0 1px 2px rgba(255,255,255,0.3)`,
             }}
           >
-            {/* Inner white core glow */}
+            {/* El núcleo blanco. En una hoja de 8 px no cabe un `inset-y-0.5`
+                por lado: quedaba una línea de 1 px que no se veía. Va como una
+                banda central, que es donde de verdad está el núcleo caliente. */}
             <div
-              className="absolute inset-y-0.5 left-0 right-0 rounded-r-full"
+              className="absolute inset-x-0 top-0 h-1/2 rounded-tr-full"
               style={{
-                background: `linear-gradient(180deg, rgba(255,255,255,0.35) 0%, transparent 50%, rgba(255,255,255,0.1) 100%)`,
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.45) 0%, transparent 100%)',
               }}
             />
             {/* Animated shimmer */}
@@ -78,20 +90,22 @@ export function LightsaberXpBar({ xp }: LightsaberXpBarProps) {
               style={{ opacity: 0.3 }}
             >
               <div
-                className="xp-shimmer w-8 h-full bg-gradient-to-r from-transparent via-white to-transparent"
+                className="xp-shimmer w-6 h-full bg-gradient-to-r from-transparent via-white to-transparent"
                 style={{
                   animation: 'shimmer 3s ease-in-out infinite',
                 }}
               />
             </div>
-            {/* Blade tip glow */}
+            {/* La punta. Una hoja de sable no termina en un corte plano:
+                termina en un punto blanco incandescente. Con la hoja delgada,
+                una bola de 12 px la deformaba — ahora es proporcional. */}
             {pct > 5 && (
               <div
-                className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full"
+                className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full"
                 style={{
                   background: 'white',
-                  boxShadow: `0 0 6px white, 0 0 12px ${core}`,
-                  opacity: 0.7,
+                  boxShadow: `0 0 5px white, 0 0 11px ${core}`,
+                  opacity: 0.85,
                 }}
               />
             )}

@@ -77,6 +77,9 @@ const BancoGalaxia = import.meta.env.DEV
 const BancoAvatares = import.meta.env.DEV
   ? lazy(() => import('./components/ui/BancoAvatares').then(m => ({ default: m.BancoAvatares })))
   : () => null
+const BancoSable = import.meta.env.DEV
+  ? lazy(() => import('./features/profile/components/BancoSable').then(m => ({ default: m.BancoSable })))
+  : () => null
 const BancoMarcos = import.meta.env.DEV
   ? lazy(() => import('./features/profile/components/BancoMarcos').then(m => ({ default: m.BancoMarcos })))
   : () => null
@@ -215,6 +218,7 @@ export default function App() {
             {import.meta.env.DEV && <Route path="/banco-planeta" element={<BancoPlaneta />} />}
             {import.meta.env.DEV && <Route path="/banco-marcos" element={<BancoMarcos />} />}
             {import.meta.env.DEV && <Route path="/banco-avatares" element={<BancoAvatares />} />}
+            {import.meta.env.DEV && <Route path="/banco-sable" element={<BancoSable />} />}
             <Route path="/play/tracker/:mode" element={<P><TrackerPage /></P>} />
             <Route path="/play/saved" element={<P><SavedMatchesPage /></P>} />
             <Route path="/events" element={<P><EventsPage /></P>} />
