@@ -17,6 +17,7 @@ import { getCardsByIds, MAIN_SET_LABELS } from '../../services/swuApi'
 import { byCanonicalCard, compareCardsBySetNumber } from '../../services/cardSort'
 import type { Card } from '../../types'
 import { Avatar } from '../../components/ui/Avatar'
+import { getUserListings, type MarketplaceListing } from '../../services/collectionService'
 
 
 type SortKey = 'canonical' | 'name' | 'price' | 'quantity' | 'rarity' | 'set'
@@ -54,6 +55,16 @@ export function PublicProfilePage() {
   const [showFilters, setShowFilters] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [refreshMsg, setRefreshMsg] = useState('')
+  /**
+   * Lo que esta persona tiene en venta.
+   *
+   * `getUserListings` existía desde que se hizo el mercado y NO la llamaba
+   * nadie: el mercado te deja tocar el nombre del vendedor, te trae acá, y acá
+   * no se veía ni una de sus publicaciones. Era el final del camino más obvio
+   * de la pantalla, y estaba roto por omisión.
+   */
+  const [enVenta, setEnVenta] = useState<MarketplaceListing[]>([])
+  const [cartasVenta, setCartasVenta] = useState<Map<string, Card>>(new Map())
 
   const handleRefreshPrices = async () => {
     if (refreshing || items.length === 0) return
@@ -143,6 +154,27 @@ export function PublicProfilePage() {
     }
     loadShell()
     return () => { cancelled = true }
+  }, [userId])
+
+  // Lo que vende, aparte del resto: es una consulta chica y no debe retrasar
+  // el perfil. Si falla, la sección simplemente no aparece.
+  useEffect(() => {
+    if (!userId) return
+    let vivo = true
+    ;(async () => {
+      try {
+        const list = await getUserListings(userId)
+        if (!vivo) return
+        setEnVenta(list)
+        if (list.length > 0) {
+          const mapa = await getCardsByIds([...new Set(list.map(l => l.cardId))])
+          if (vivo) setCartasVenta(mapa)
+        }
+      } catch (e) {
+        console.warn('[PublicProfile] no se pudo leer lo que vende:', e)
+      }
+    })()
+    return () => { vivo = false }
   }, [userId])
 
   // Stage 2: hydrate card details in background once we have IDs
@@ -383,6 +415,56 @@ export function PublicProfilePage() {
                 <div className="text-[10px] text-swu-muted">Valor</div>
               </div>
             </div>
+
+            {/* Lo que vende — antes del binder completo, porque es lo
+                accionable: de acá salís a escribirle. */}
+            {enVenta.length > 0 && (
+              <section className="rounded-xl border border-swu-amber/25 bg-swu-amber/5 p-3">
+                <div className="mb-2 flex items-baseline justify-between gap-2">
+                  <h3 className="text-sm font-bold text-swu-amber">
+                    En venta · {enVenta.length}
+                  </h3>
+                  <button
+                    onClick={() => navigate('/explore')}
+                    className="text-[11px] text-swu-muted underline underline-offset-2"
+                  >
+                    Ver el mercado
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {enVenta.slice(0, 8).map(l => {
+                    const c = cartasVenta.get(l.cardId)
+                    return (
+                      <button
+                        key={l.cardId}
+                        onClick={() => navigate(`/cards/${l.cardId}`)}
+                        className="text-left"
+                        title={c?.name ?? 'Carta'}
+                      >
+                        <CardImage
+                          src={listFaceUrl(c)}
+                          orientacion={listFaceIsLandscape(c) ? 'apaisada' : 'vertical'}
+                          alt={c?.name ?? ''}
+                          className="w-full"
+                        />
+                        <p className="mt-1 truncate text-[10px] font-semibold text-swu-text">
+                          {c?.name ?? '…'}
+                        </p>
+                        {/* Sin precio NO se inventa uno: se dice que se acuerda. */}
+                        <p className="font-mono text-[10px] text-swu-green">
+                          {l.price !== null ? formatPrice(l.price) : 'a convenir'}
+                        </p>
+                      </button>
+                    )
+                  })}
+                </div>
+                {enVenta.length > 8 && (
+                  <p className="mt-2 text-[11px] text-swu-muted">
+                    y {enVenta.length - 8} más en el mercado
+                  </p>
+                )}
+              </section>
+            )}
 
             {/* Refresh Prices Button */}
             {items.length > 0 && (

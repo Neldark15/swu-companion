@@ -595,44 +595,76 @@ export async function getMyListings(userId: string): Promise<MyListingSummary[]>
  */
 export async function getMarketplaceListings(opts?: { limit?: number; cardId?: string }): Promise<MarketplaceListing[]> {
   if (!isSupabaseReady()) return []
-  const limit = opts?.limit ?? 100
 
-  let query = supabase
-    .from('collection')
-    .select('user_id, card_id, quantity, sale_quantity, sale_price, sale_notes, listed_at')
-    .eq('for_sale', true)
-    .order('listed_at', { ascending: false })
-    .limit(limit)
+  /**
+   * Se traen TODAS las publicaciones, paginando.
+   *
+   * Antes se pedían 200 de una y el mercado ya tenía 179: al 90 % de un techo
+   * que no avisa. La tanda siguiente habría hecho desaparecer las
+   * publicaciones más viejas para todo el mundo, en silencio y con el
+   * encabezado afirmando un total que ya estaba recortado.
+   *
+   * Y con filtros encima es peor que perder filas: filtrar un conjunto
+   * truncado da respuestas que PARECEN completas. Buscar «Líder» y ver 3 no
+   * significaría que hay 3.
+   *
+   * PostgREST corta cualquier SELECT en 1000 filas, así que hay que paginar de
+   * verdad — mismo patrón que `fetchAll` de tradeService.ts.
+   */
+  const PAGINA = 1000
+  const tope = opts?.limit ?? Infinity
+  const rows: Array<Record<string, unknown>> = []
 
-  if (opts?.cardId) query = query.eq('card_id', opts.cardId)
+  for (let desde = 0; rows.length < tope; desde += PAGINA) {
+    let query = supabase
+      .from('collection')
+      .select('user_id, card_id, quantity, sale_quantity, sale_price, sale_notes, listed_at')
+      .eq('for_sale', true)
+      .order('listed_at', { ascending: false })
+      .range(desde, desde + PAGINA - 1)
 
-  // **LANZA si falla** (gotcha 2f). Con `[]`, el Mercado decía «todavía no hay
-  // nadie vendiendo cartas» ante un error de RLS o de red, y encima el
-  // encabezado afirmaba «0 listings». Su único llamador ya lo atrapa.
-  const { data: rows, error } = await query
-  if (error) throw new Error(error.message)
-  if (!rows || rows.length === 0) return []
+    if (opts?.cardId) query = query.eq('card_id', opts.cardId)
+
+    // **LANZA si falla** (gotcha 2f). Con `[]`, el Mercado decía «todavía no hay
+    // nadie vendiendo cartas» ante un error de RLS o de red, y encima el
+    // encabezado afirmaba «0 listings». Su único llamador ya lo atrapa.
+    const { data, error } = await query
+    if (error) throw new Error(error.message)
+
+    const tanda = data ?? []
+    rows.push(...(tanda as unknown as Array<Record<string, unknown>>))
+    // Una tanda incompleta es el final: no hay más filas que pedir.
+    if (tanda.length < PAGINA) break
+  }
+
+  if (rows.length === 0) return []
 
   // Hydrate sellers in one batch
-  const userIds = Array.from(new Set(rows.map(r => r.user_id)))
-  const { data: profiles } = await supabase
+  const userIds = Array.from(new Set(rows.map(r => r.user_id as string)))
+  const { data: profiles, error: errPerfiles } = await supabase
     .from('profiles')
     .select('id, name, avatar, whatsapp')
     .in('id', userIds)
+  // Gotcha 2f otra vez: sin mirar el error, un fallo acá pintaba TODO el
+  // mercado con «Vendedor» y un avatar de relleno, sin ninguna señal. Con el
+  // filtro por vendedor sería peor todavía: un solo vendedor llamado
+  // «Vendedor» con las 179 publicaciones. Se avisa y se sigue — los nombres
+  // son secundarios frente a no mostrar el mercado.
+  if (errPerfiles) console.warn('[Contrabando] no se pudieron resolver los vendedores:', errPerfiles.message)
   const sellerMap = new Map((profiles || []).map(p => [p.id, p]))
 
   return rows.map(r => {
-    const seller = sellerMap.get(r.user_id) as
+    const seller = sellerMap.get(r.user_id as string) as
       { name?: string; avatar?: string; whatsapp?: string | null } | undefined
     return {
-      userId: r.user_id,
-      cardId: r.card_id,
+      userId: r.user_id as string,
+      cardId: r.card_id as string,
       // Lo que se OFRECE. Si nunca se eligió cantidad, son todas.
-      quantity: (r as { sale_quantity?: number | null }).sale_quantity ?? r.quantity ?? 0,
-      owned: r.quantity ?? 0,
+      quantity: (r.sale_quantity as number | null) ?? (r.quantity as number | null) ?? 0,
+      owned: (r.quantity as number | null) ?? 0,
       price: r.sale_price !== null ? Number(r.sale_price) : null,
-      notes: r.sale_notes,
-      listedAt: r.listed_at,
+      notes: r.sale_notes as string | null,
+      listedAt: r.listed_at as string,
       sellerName: seller?.name ?? 'Vendedor',
       sellerAvatar: seller?.avatar ?? '👤',
       sellerWhatsapp: seller?.whatsapp ?? null,

@@ -10,7 +10,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, Search, Users, Skull, Package, Eye, EyeOff, Tag,
-  ShoppingBag, Loader2, RefreshCw, MessageCircle, Pencil} from 'lucide-react'
+  ShoppingBag, Loader2, RefreshCw, MessageCircle, Pencil, SlidersHorizontal } from 'lucide-react'
 import {
   searchPublicProfiles,
   getExploreProfiles,
@@ -31,6 +31,11 @@ import { useAuth } from '../../hooks/useAuth'
 import { db } from '../../services/db'
 import type { Card } from '../../types'
 import { Avatar } from '../../components/ui/Avatar'
+import { Chip } from '../../components/ui/Chip'
+import {
+  TIPOS_CARTA, ASPECTOS, TONO_CHIP_POR_TIPO, pasaFiltros, hayFiltrosPuestos,
+} from '../../services/filtrosCarta'
+import { translateType, translateAspect } from '../../services/translations'
 
 /**
  * Sección de coincidencias de intercambio, arriba del catálogo.
@@ -331,7 +336,20 @@ function MarketTab() {
   const [listings, setListings] = useState<MarketplaceListing[]>([])
   const [cards, setCards] = useState<Map<string, Card>>(new Map())
   const [loading, setLoading] = useState(true)
+  /** Lo que se teclea. Se aplica con retardo — ver `busqueda`. */
   const [filter, setFilter] = useState('')
+  /** El texto YA estabilizado. Filtrar en cada tecla sobre cientos de
+   *  publicaciones hacía trabajo de más en cada pulsación; el buscador de
+   *  cartas ya espera 300 ms y el mercado no lo hacía. */
+  const [busqueda, setBusqueda] = useState('')
+  /** Filtro por vendedor, por `userId`. Por id y NO por nombre: dos personas
+   *  pueden llamarse igual, y el nombre además puede cambiar. */
+  const [vendedorSel, setVendedorSel] = useState<string | null>(null)
+  /** Filtro por tipo de carta ('Leader', 'Unit'…). */
+  const [tipoSel, setTipoSel] = useState<string | null>(null)
+  /** Filtro por aspecto. Sale gratis: el objeto Card ya está hidratado. */
+  const [aspectoSel, setAspectoSel] = useState<string | null>(null)
+  const [panelFiltros, setPanelFiltros] = useState(false)
   /** Igual que en «Para vos»: un fallo de red no puede verse como un vacío. */
   const [failed, setFailed] = useState(false)
 
@@ -357,25 +375,97 @@ function MarketTab() {
 
   useEffect(() => { load() }, [load])
 
+  // El retardo es SOLO del texto: tocar un chip tiene que responder al
+  // instante, y por eso los chips escriben su propio estado y no pasan por acá.
+  useEffect(() => {
+    const t = setTimeout(() => setBusqueda(filter), 300)
+    return () => clearTimeout(t)
+  }, [filter])
+
+  // Al cambiar cualquier filtro se vuelve al tope de render inicial. Sin esto,
+  // filtrar con «Ver más» ya pulsado dejaba un tope alto sobre un conjunto
+  // chico: la lista se veía completa pero el botón seguía ahí, mintiendo.
+  useEffect(() => { setTope(24) }, [busqueda, vendedorSel, tipoSel, aspectoSel])
+
+  /**
+   * Los vendedores se DERIVAN de lo publicado, no se consultan aparte.
+   *
+   * Así la lista contiene exactamente a quien tiene algo en venta —ni un
+   * perfil de más— y no cuesta ninguna consulta. Van ordenados por cantidad
+   * descendente y con el conteo a la vista: es la señal que hace evidente de
+   * un vistazo que la portada puede ser de una sola persona.
+   */
+  const vendedores = useMemo(() => {
+    const m = new Map<string, { id: string; nombre: string; avatar: string; n: number }>()
+    for (const l of listings) {
+      const e = m.get(l.userId)
+      if (e) e.n++
+      else m.set(l.userId, { id: l.userId, nombre: l.sellerName, avatar: l.sellerAvatar, n: 1 })
+    }
+    return [...m.values()].sort((a, b) => b.n - a.n || a.nombre.localeCompare(b.nombre))
+  }, [listings])
+
+  /**
+   * Los tipos de carta que DE VERDAD hay publicados, con su conteo.
+   *
+   * Ofrecer los cinco siempre daría botones que llevan a cero resultados. Se
+   * respeta el orden canónico del juego (`TIPOS_CARTA`) en vez de ordenar por
+   * cantidad: el tipo es una lista fija y que salte de sitio al publicar algo
+   * es peor que un botón más abajo.
+   */
+  const tiposPresentes = useMemo(() => {
+    const cuenta = new Map<string, number>()
+    for (const l of listings) {
+      const t = cards.get(l.cardId)?.type
+      if (t) cuenta.set(t, (cuenta.get(t) ?? 0) + 1)
+    }
+    return TIPOS_CARTA.filter(t => cuenta.has(t)).map(t => ({ tipo: t as string, n: cuenta.get(t)! }))
+  }, [listings, cards])
+
+  /** Lo mismo para los aspectos. Una carta puede tener dos, y cuenta en ambos. */
+  const aspectosPresentes = useMemo(() => {
+    const cuenta = new Map<string, number>()
+    for (const l of listings) {
+      for (const a of cards.get(l.cardId)?.aspects ?? []) {
+        cuenta.set(a, (cuenta.get(a) ?? 0) + 1)
+      }
+    }
+    return ASPECTOS.filter(a => cuenta.has(a)).map(a => ({ aspecto: a as string, n: cuenta.get(a)! }))
+  }, [listings, cards])
+
+  /** El estado de los filtros, en la forma que espera `pasaFiltros`. */
+  const filtros = useMemo(
+    () => ({ texto: busqueda, vendedor: vendedorSel, tipo: tipoSel, aspecto: aspectoSel }),
+    [busqueda, vendedorSel, tipoSel, aspectoSel],
+  )
+
+  /** ¿Hay algún filtro puesto? Decide el vacío que se muestra y el botón de limpiar. */
+  const hayFiltros = hayFiltrosPuestos(filtros)
+
+  const limpiarFiltros = () => {
+    setFilter(''); setBusqueda(''); setVendedorSel(null); setTipoSel(null); setAspectoSel(null)
+  }
+
+  // El predicado vive en `filtrosCarta.ts` y no acá: la regla de qué hacer con
+  // una carta que todavía no se hidrató dura milisegundos en pantalla, no se
+  // puede comprobar mirando, y es justo la que se equivoca sola. Fuera del
+  // componente se puede probar.
   const filtered = useMemo(() => {
-    if (!filter.trim()) return listings
-    const q = filter.toLowerCase()
-    return listings.filter(l => {
-      const card = cards.get(l.cardId)
-      if (!card) return l.cardId.toLowerCase().includes(q)
-      return card.name.toLowerCase().includes(q)
-          || (card.subtitle?.toLowerCase().includes(q))
-          || l.sellerName.toLowerCase().includes(q)
-          || (l.notes?.toLowerCase().includes(q) ?? false)
-    })
-  }, [listings, cards, filter])
+    if (!hayFiltros) return listings
+    return listings.filter(l => pasaFiltros(l, cards.get(l.cardId) ?? null, filtros))
+  }, [listings, cards, filtros, hayFiltros])
 
   return (
     <div className="space-y-3">
-      {/* «0 listings» con la consulta caída es un número inventado. */}
+      {/* «0 listings» con la consulta caída es un número inventado. Y con
+          filtros puestos, el total solo confunde: manda lo que estás viendo. */}
       <p className="text-xs text-swu-amber/80 font-mono text-center bg-swu-amber/5 rounded-lg border border-swu-amber/20 p-2">
-        Cartas marcadas en venta por los jugadores
-        {!failed && ` · ${listings.length} listings`}
+        Cartas en venta de la comunidad
+        {!failed && (
+          hayFiltros
+            ? ` · ${filtered.length} de ${listings.length}`
+            : ` · ${listings.length} publicacion${listings.length === 1 ? '' : 'es'} de ${vendedores.length} vendedor${vendedores.length === 1 ? '' : 'es'}`
+        )}
       </p>
 
       <div className="flex gap-2">
@@ -390,6 +480,26 @@ function MarketTab() {
                        text-sm text-swu-text placeholder:text-swu-muted focus:border-swu-amber outline-none"
           />
         </div>
+        {/* El contador del botón hace visible que hay filtros aunque el panel
+            esté cerrado — si no, se te olvida por qué ves tan poco. */}
+        <button
+          onClick={() => setPanelFiltros(v => !v)}
+          aria-expanded={panelFiltros}
+          className={`relative px-3 rounded-xl border transition-colors ${
+            hayFiltros
+              ? 'border-swu-amber/50 bg-swu-amber/10 text-swu-amber'
+              : 'border-swu-border bg-swu-surface text-swu-muted hover:text-swu-text'
+          }`}
+          title="Filtros"
+        >
+          <SlidersHorizontal size={14} />
+          {hayFiltros && (
+            <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-swu-amber
+                             text-[9px] font-black text-swu-bg grid place-items-center">
+              {[vendedorSel, tipoSel, aspectoSel].filter(Boolean).length + (busqueda.trim() ? 1 : 0)}
+            </span>
+          )}
+        </button>
         <button
           onClick={load}
           className="px-3 rounded-xl border border-swu-border bg-swu-surface text-swu-muted hover:text-swu-text"
@@ -398,6 +508,105 @@ function MarketTab() {
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>
       </div>
+
+      {/* Chips de lo que está aplicado, SIEMPRE visibles (no dentro del panel).
+          Es lo que evita mirar un mercado casi vacío sin saber por qué. */}
+      {hayFiltros && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {busqueda.trim() && (
+            <Chip tone="cyan" active onRemove={() => { setFilter(''); setBusqueda('') }}>
+              «{busqueda.trim()}»
+            </Chip>
+          )}
+          {vendedorSel && (
+            <Chip tone="amber" active onRemove={() => setVendedorSel(null)}>
+              {vendedores.find(v => v.id === vendedorSel)?.nombre ?? 'Vendedor'}
+            </Chip>
+          )}
+          {tipoSel && (
+            <Chip tone={TONO_CHIP_POR_TIPO[tipoSel] ?? 'neutral'} active onRemove={() => setTipoSel(null)}>
+              {translateType(tipoSel)}
+            </Chip>
+          )}
+          {aspectoSel && (
+            <Chip tone="green" active onRemove={() => setAspectoSel(null)}>
+              {translateAspect(aspectoSel)}
+            </Chip>
+          )}
+          <button onClick={limpiarFiltros} className="text-[11px] text-swu-muted underline underline-offset-2 px-1">
+            Limpiar
+          </button>
+        </div>
+      )}
+
+      {panelFiltros && (
+        <div className="bg-swu-surface rounded-xl border border-swu-border p-3 space-y-3">
+          {/* VENDEDOR — el filtro que de verdad hacía falta. Con el orden por
+              fecha, quien publica cien cartas seguidas se queda con toda la
+              portada y los demás vendedores quedan invisibles. El conteo al
+              lado de cada nombre lo hace evidente sin explicarlo. */}
+          <div>
+            <p className="text-[11px] text-swu-muted mb-1.5">Vendedor</p>
+            <div className="flex flex-wrap gap-1.5">
+              {vendedores.map(v => (
+                <button
+                  key={v.id}
+                  onClick={() => setVendedorSel(vendedorSel === v.id ? null : v.id)}
+                  aria-pressed={vendedorSel === v.id}
+                  className={`flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-full border text-[12px] font-semibold transition-colors ${
+                    vendedorSel === v.id
+                      ? 'border-swu-amber/50 bg-swu-amber/15 text-swu-amber'
+                      : 'border-swu-border bg-swu-bg text-swu-text hover:border-swu-amber/30'
+                  }`}
+                >
+                  {/* Gotcha §2x: el avatar es polimórfico, va por <Avatar>. */}
+                  <Avatar avatar={v.avatar} size={22} anillo={v.id} />
+                  <span className="truncate max-w-[9rem]">{v.nombre}</span>
+                  <span className="font-mono text-[10px] text-swu-muted">{v.n}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* TIPO — solo los que existen publicados. Ofrecer los cinco siempre
+              daría botones que llevan a cero resultados. */}
+          {tiposPresentes.length > 1 && (
+            <div>
+              <p className="text-[11px] text-swu-muted mb-1.5">Tipo de carta</p>
+              <div className="flex flex-wrap gap-1.5">
+                {tiposPresentes.map(({ tipo, n }) => (
+                  <Chip
+                    key={tipo}
+                    tone={TONO_CHIP_POR_TIPO[tipo] ?? 'neutral'}
+                    active={tipoSel === tipo}
+                    onClick={() => setTipoSel(tipoSel === tipo ? null : tipo)}
+                  >
+                    {translateType(tipo)} <span className="font-mono opacity-60">{n}</span>
+                  </Chip>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {aspectosPresentes.length > 1 && (
+            <div>
+              <p className="text-[11px] text-swu-muted mb-1.5">Aspecto</p>
+              <div className="flex flex-wrap gap-1.5">
+                {aspectosPresentes.map(({ aspecto, n }) => (
+                  <Chip
+                    key={aspecto}
+                    tone="green"
+                    active={aspectoSel === aspecto}
+                    onClick={() => setAspectoSel(aspectoSel === aspecto ? null : aspecto)}
+                  >
+                    {translateAspect(aspecto)} <span className="font-mono opacity-60">{n}</span>
+                  </Chip>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {loading && (
         <div className="text-center py-12 text-swu-muted">
@@ -421,12 +630,20 @@ function MarketTab() {
       {!loading && !failed && filtered.length === 0 && (
         <div className="text-center py-12">
           <ShoppingBag size={48} className="mx-auto text-swu-muted/30 mb-4" />
+          {/* Un vacío por filtros NO es un mercado vacío. Antes los dos casos
+              decían «todavía no hay nadie vendiendo cartas», que con 179
+              publicaciones en la base es sencillamente falso, y encima ofrecía
+              ir a vender en vez de la salida útil: soltar el filtro. */}
           <p className="text-swu-muted text-sm">
-            {filter.trim()
-              ? 'No se encontraron cartas con esa búsqueda'
+            {hayFiltros
+              ? 'Ninguna publicación coincide con estos filtros'
               : 'Todavía no hay nadie vendiendo cartas'}
           </p>
-          {!filter.trim() && (
+          {hayFiltros ? (
+            <button onClick={limpiarFiltros} className="mt-3 text-xs text-swu-amber underline">
+              Quitar los filtros y ver las {listings.length}
+            </button>
+          ) : (
             <button
               onClick={() => navigate('/collection')}
               className="mt-3 text-xs text-swu-amber underline"

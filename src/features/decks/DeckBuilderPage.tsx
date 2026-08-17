@@ -17,8 +17,8 @@ import { CardPreviewSheet } from '../../components/CardPreviewSheet'
 import { listFaceUrl, listFaceFit } from '../../services/cardArt'
 import { translateType, translateAspect } from '../../services/translations'
 import type { Deck, DeckCard, Card, TournamentFormat } from '../../types'
+import { ASPECTOS } from '../../services/filtrosCarta'
 
-const BUILDER_ASPECTS = ['Vigilance', 'Command', 'Aggression', 'Cunning', 'Heroism', 'Villainy']
 const BUILDER_COSTS = [0, 1, 2, 3, 4, 5, 6, COST_MAX_BUCKET]
 
 function generateId() {
@@ -611,7 +611,7 @@ export function DeckBuilderPage() {
               armar un mazo. Esta pantalla no tenía NINGÚN filtro. */}
           <div className="space-y-1.5">
             <div className="flex flex-wrap gap-1">
-              {BUILDER_ASPECTS.map(a => (
+              {ASPECTOS.map(a => (
                 <button
                   key={a}
                   onClick={() => setSearchAspect(searchAspect === a ? null : a)}
