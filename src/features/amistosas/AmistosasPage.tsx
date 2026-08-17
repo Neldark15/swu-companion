@@ -99,7 +99,15 @@ function TarjetaDuelo({ d, indice }: { d: DueloVisto; indice: IndiceCartas | nul
       </div>
 
       <div className="mb-2 flex items-center gap-2">
-        <Avatar avatar={d.rival.avatar} size={24} />
+        {/* 24 px era demasiado chico para reconocer a nadie de un vistazo, y
+            sin anillo la fila era un círculo negro más. El anillo sale del id
+            del rival —o de su nombre si no tiene cuenta— así que es el MISMO
+            color en todas las pantallas. */}
+        <Avatar
+          avatar={d.rival.avatar}
+          size={40}
+          anillo={d.rival.perfilId ?? d.rival.nombre}
+        />
         {d.rival.perfilId
           ? (
             <Link to={`/u/${d.rival.perfilId}`} className="truncate text-[12px] font-bold text-swu-accent-texto">
@@ -122,7 +130,7 @@ function TarjetaDuelo({ d, indice }: { d: DueloVisto; indice: IndiceCartas | nul
 function FilaCaraACara({ c }: { c: CaraACara }) {
   return (
     <li className="flex items-center gap-3 rounded-xl border border-swu-border bg-swu-surface p-3">
-      <Avatar avatar={c.avatar} size={34} />
+      <Avatar avatar={c.avatar} size={48} anillo={c.rivalId ?? c.nombre} />
       <div className="min-w-0 flex-1">
         {c.rivalId
           ? <Link to={`/u/${c.rivalId}`} className="truncate text-[13px] font-bold text-swu-accent-texto">{c.nombre}</Link>

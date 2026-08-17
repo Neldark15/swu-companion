@@ -120,7 +120,7 @@ export function EspionajePage() {
                              flex items-center gap-3 text-left active:scale-[0.99] transition-transform"
                 >
                   {/* Avatar — emoji de 18px en una caja de 40, como ya venía */}
-                  <Avatar avatar={p.avatar} size={40} escalaIcono={0.8} escalaEmoji={18 / 40} />
+                  <Avatar avatar={p.avatar} size={44} escalaIcono={0.8} escalaEmoji={18 / 44} anillo={p.id} />
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">

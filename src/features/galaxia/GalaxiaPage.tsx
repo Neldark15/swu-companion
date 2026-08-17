@@ -88,8 +88,8 @@ function pintaDe(tipo: string) {
 // ─── Piezas ──────────────────────────────────────────────
 
 /** El avatar con la forma de esta pantalla: caja de esquinas suaves, no burbuja. */
-function AvatarGalaxia({ avatar, size = 40 }: { avatar: string; size?: number }) {
-  return <Avatar avatar={avatar} size={size} caja="redondeada" escalaIcono={0.78} />
+function AvatarGalaxia({ avatar, size = 40, anillo }: { avatar: string; size?: number; anillo?: string }) {
+  return <Avatar avatar={avatar} size={size} caja="redondeada" escalaIcono={0.78} anillo={anillo} />
 }
 
 /** El emergente: quién es, en qué rango va y qué hizo de último. */
@@ -105,7 +105,7 @@ function Emergente({ planeta, onPerfil, onAbrir }: {
     <div className="rounded-2xl border border-swu-border bg-swu-surface/95 backdrop-blur p-3
                     shadow-[0_8px_30px_-8px_rgba(0,0,0,0.8)]">
       <div className="flex items-start gap-2.5">
-        <AvatarGalaxia avatar={planeta.avatar} />
+        <AvatarGalaxia avatar={planeta.avatar} size={48} anillo={planeta.id} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span className="truncate text-sm font-bold text-swu-text">{planeta.nombre}</span>
@@ -216,7 +216,7 @@ function ListaPlanetas({
                 <span className="mt-1 w-5 flex-shrink-0 text-right font-mono text-[10px] text-swu-muted">
                   {p.orbita + 1}
                 </span>
-                <AvatarGalaxia avatar={p.avatar} size={32} />
+                <AvatarGalaxia avatar={p.avatar} size={36} anillo={p.id} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="truncate text-xs font-semibold text-swu-text">{p.nombre}</span>

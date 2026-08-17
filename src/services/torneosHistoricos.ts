@@ -47,6 +47,12 @@ export interface ClasificadoTorneo {
   puesto: number
   perfilId: string | null
   nombre: string
+  /**
+   * El avatar de quien tiene cuenta. Es `null` para los invitados anotados a
+   * mano, que es la mitad de un torneo presencial: la fila de clasificación
+   * guarda su NOMBRE y nada más, y la app no sabe nada más de ellos.
+   */
+  avatar: string | null
   puntos: number
   victorias: number
   derrotas: number
@@ -230,6 +236,20 @@ export async function verTorneo(code: string): Promise<Resultado<TorneoCompleto>
 
   const numeroDeRonda = new Map((rondas ?? []).map(r => [r.id, r.round_number]))
 
+  // El podio pintaba `avatar={null}` a mano, así que estaba vacío SIEMPRE,
+  // también para quienes tienen cuenta y foto. `user_id` ya venía en la fila;
+  // solo faltaba usarlo.
+  const avatarPorPerfil = new Map<string, string | null>()
+  const conCuenta = [...new Set(
+    ((clas ?? []) as unknown as FilaStanding[]).map(c => c.user_id).filter((x): x is string => !!x),
+  )]
+  if (conCuenta.length) {
+    const { data: perfiles, error: e5 } = await supabase
+      .from('profiles').select('id, avatar').in('id', conCuenta)
+    if (e5) console.warn('[torneos] no se pudieron resolver los avatares:', e5.message)
+    for (const p of perfiles ?? []) avatarPorPerfil.set(p.id, p.avatar)
+  }
+
   const { data: pares, error: e4 } = await supabase
     .from('tournament_pairings')
     .select('id, round_id, table_number, player1_id, player2_id, player1_nombre, player2_nombre, winner_id, score')
@@ -259,6 +279,7 @@ export async function verTorneo(code: string): Promise<Resultado<TorneoCompleto>
       puesto: c.puesto ?? i + 1,
       perfilId: c.user_id,
       nombre: c.player_name,
+      avatar: c.user_id ? avatarPorPerfil.get(c.user_id) ?? null : null,
       puntos: c.points,
       victorias: c.match_wins,
       derrotas: c.match_losses,

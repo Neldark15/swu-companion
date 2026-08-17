@@ -1076,7 +1076,7 @@ export function ContadorPage() {
         <p className="text-sm font-bold text-swu-text">Contrincante</p>
         {rival ? (
           <div className="flex items-center gap-2">
-            <Avatar avatar={rival.avatar} size={36} caja="redondeada" />
+            <Avatar avatar={rival.avatar} size={40} caja="redondeada" anillo={rival.id} />
             <div className="min-w-0 flex-1">
               <p className="text-[13px] font-semibold text-swu-text truncate">{rival.name}</p>
               {caraACara && caraACara.rivalId === rival.id && (
@@ -1107,7 +1107,7 @@ export function ContadorPage() {
                   <button key={c.id}
                     onClick={() => { setRival(c); setBusqueda(''); setCandidatos([]) }}
                     className="flex w-full items-center gap-2 rounded-lg border border-swu-border bg-swu-bg px-2 py-1.5 text-left">
-                    <Avatar avatar={c.avatar} size={28} caja="redondeada" />
+                    <Avatar avatar={c.avatar} size={32} caja="redondeada" anillo={c.id} />
                     <span className="text-[13px] text-swu-text truncate">{c.name}</span>
                   </button>
                 ))}

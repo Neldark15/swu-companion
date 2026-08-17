@@ -107,21 +107,27 @@ function vistaDe(
   const mias = yoCree ? f.victorias_creador : f.victorias_rival
   const suyas = yoCree ? f.victorias_rival : f.victorias_creador
 
-  const otro = yoCree ? null : nombres.get(f.creador_id)
+  // Quién es «el otro» depende de quién abrió el duelo. Si lo abriste vos, el
+  // otro está en `rival_id` —que puede ser nulo si era alguien sin cuenta—; si
+  // lo abrió él, está en `creador_id`, que nunca es nulo.
+  const otroId = yoCree ? f.rival_id : f.creador_id
+  const otro = otroId ? nombres.get(otroId) ?? null : null
 
   const yo: LadoAmistoso = {
     perfilId: miId,
     nombre: 'Vos',
-    avatar: null,
+    avatar: nombres.get(miId)?.avatar ?? null,
     lider: yoCree ? f.lider_creador : f.lider_rival,
     base: yoCree ? f.base_creador : f.base_rival,
     victorias: mias,
   }
 
   const rival: LadoAmistoso = {
-    perfilId: yoCree ? f.rival_id : f.creador_id,
-    nombre: yoCree ? (f.rival_nombre || 'Invitado') : (otro?.name ?? 'Alguien'),
-    avatar: yoCree ? null : (otro?.avatar ?? null),
+    perfilId: otroId,
+    // El nombre guardado en la fila es una foto del momento; si el rival tiene
+    // cuenta, su nombre actual manda.
+    nombre: otro?.name ?? (yoCree ? (f.rival_nombre || 'Invitado') : 'Alguien'),
+    avatar: otro?.avatar ?? null,
     lider: yoCree ? f.lider_rival : f.lider_creador,
     base: yoCree ? f.base_rival : f.base_creador,
     victorias: suyas,
@@ -179,15 +185,24 @@ export async function listarAmistosas(miId: string, tope = 100): Promise<Resulta
 
   const filas = data as unknown as FilaDuelo[]
 
-  // El nombre y el avatar de quien creó el duelo no viajan en la fila. Se
-  // resuelven de una sola vez para todos los creadores ajenos.
-  const ajenos = [...new Set(filas.filter(f => f.creador_id !== miId).map(f => f.creador_id))]
+  // Ni el nombre ni el avatar del OTRO viajan en la fila, y el «otro» está en
+  // una punta distinta según quién abrió el duelo. Antes solo se resolvía el
+  // lado `creador_id`, así que en los duelos que abriste VOS el rival salía sin
+  // foto —el círculo negro— aunque tuviera cuenta y avatar puestos.
+  //
+  // `rival_id` es NULO a propósito cuando se anota a alguien sin cuenta: esos
+  // se quedan con `rival_nombre`, que es todo lo que la app sabe de ellos.
+  // Va también `miId`: el lado «Vos» quiere su propia foto, y pedirla acá
+  // cuesta cero (ya es la misma consulta) en vez de una segunda.
+  const otros = [...new Set(
+    [miId, ...filas.flatMap(f => [f.creador_id, f.rival_id])].filter((id): id is string => !!id),
+  )]
   const nombres = new Map<string, { name: string; avatar: string | null }>()
-  if (ajenos.length) {
+  if (otros.length) {
     const { data: perfiles, error: e2 } = await supabase
       .from('profiles')
       .select('id, name, avatar')
-      .in('id', ajenos)
+      .in('id', otros)
     if (e2) console.warn('[amistosas] no se pudieron resolver los perfiles:', e2.message)
     for (const p of perfiles ?? []) nombres.set(p.id, { name: p.name, avatar: p.avatar })
   }
@@ -223,8 +238,8 @@ export function agruparCaraACara(duelos: DueloVisto[]): CaraACara[] {
     else if (d.resultado === 'perdi') e.perdidos++
     else if (d.resultado === 'empate') e.empatados++
     else e.sinMarcador++
-    // El avatar puede faltar en un duelo y venir en otro (solo llega cuando el
-    // rival fue el CREADOR). Se queda con el primero que aparezca.
+    // El avatar puede faltar en un duelo y venir en otro: los invitados sin
+    // cuenta nunca traen uno. Se queda con el primero que aparezca.
     if (!e.avatar && d.rival.avatar) e.avatar = d.rival.avatar
   }
 

@@ -17,7 +17,7 @@
  * alrededor.
  */
 
-import { getAvatarSrc, isPhotoAvatar } from '../../services/avatars'
+import { getAvatarSrc, isPhotoAvatar, colorDePersona } from '../../services/avatars'
 
 /** Qué pinta el componente alrededor del avatar. */
 type CajaAvatar =
@@ -42,6 +42,15 @@ interface AvatarProps {
   /** El ícono del juego se dibuja más chico que la caja para que respire. */
   escalaIcono?: number
   escalaEmoji?: number
+  /**
+   * Semilla del anillo de color: el id del perfil, o el nombre si no tiene
+   * cuenta. Sin esto el avatar va sin anillo (cabeceras, marcos, sitios donde
+   * ya hay otra cosa alrededor).
+   *
+   * No va con `caja="marco"`: ahí el ProfileFrame ya dibuja el borde y dos
+   * anillos concéntricos se pelean.
+   */
+  anillo?: string | null
   /** Clases extra para la caja (posicionamiento del sitio que llama). */
   className?: string
 }
@@ -52,6 +61,7 @@ export function Avatar({
   caja = 'circulo',
   escalaIcono = 0.75,
   escalaEmoji = 0.5,
+  anillo = null,
   className = '',
 }: AvatarProps) {
   // Un perfil viejo puede no tener avatar guardado; sin caer, se pinta vacío.
@@ -75,11 +85,25 @@ export function Avatar({
   if (caja === 'ninguna') return contenido
 
   const forma = caja === 'circulo' ? 'rounded-full' : caja === 'redondeada' ? 'rounded-xl' : ''
+
+  // El anillo va por `box-shadow` y no por `border`: un borde se come píxeles
+  // de la caja y encoge la imagen; la sombra se dibuja por fuera y deja el
+  // avatar del tamaño que pidió quien llama. El segundo anillo, más ancho y
+  // translúcido, es el halo — el mismo truco barato que usan los marcos, sin
+  // pagar un `filter`, que en una lista de 23 filas sí se nota.
+  const color = anillo && caja !== 'marco' ? colorDePersona(anillo) : null
+  const grosor = size >= 44 ? 2 : 1.5
+
   return (
     <div
       className={`flex items-center justify-center flex-shrink-0 overflow-hidden bg-swu-bg
                   ${forma} ${caja === 'marco' ? 'w-full h-full' : ''} ${className}`}
-      style={caja === 'marco' ? undefined : { width: size, height: size }}
+      style={{
+        ...(caja === 'marco' ? {} : { width: size, height: size }),
+        ...(color
+          ? { boxShadow: `0 0 0 ${grosor}px ${color}, 0 0 ${grosor * 5}px ${color}55` }
+          : {}),
+      }}
     >
       {contenido}
     </div>

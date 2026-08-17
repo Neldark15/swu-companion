@@ -19,8 +19,11 @@ import { ChevronLeft, Trophy, ExternalLink, Info, CalendarDays, MapPin, Users } 
 import { Button } from '../../components/ui/Button'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Avatar } from '../../components/ui/Avatar'
+import { CardImage } from '../../components/CardImage'
 import { Tablero, FilaTablero } from '../../components/ui/Tablero'
 import { fechaConDiaLarga, hora } from '../../services/horaSV'
+import { ensureCards } from '../../services/swuApi'
+import { cargarIndice, resolver, nombreCorto, type IndiceCartas } from '../amistosas/cartasAmistosas'
 import {
   verTorneo, type TorneoCompleto, type ClasificadoTorneo, type PartidaTorneo,
 } from '../../services/torneosHistoricos'
@@ -39,7 +42,28 @@ const NUMERO_PODIO: Record<number, string> = {
   3: 'text-orange-400',
 }
 
-function FilaClasificacion({ c }: { c: ClasificadoTorneo }) {
+/** El mazo de un jugador: arte del líder + nombre de la base. */
+function Mazo({ indice, leader, base, compacto }: {
+  indice: IndiceCartas | null; leader: string; base: string; compacto?: boolean
+}) {
+  const carta = resolver(indice, leader)
+  if (!leader && !base) return null
+  return (
+    <div className="flex items-center gap-1.5">
+      {carta
+        ? <CardImage src={carta.imageUrl} alt="" className={compacto ? 'h-6 w-8 shrink-0 rounded' : 'h-8 w-11 shrink-0 rounded'} orientacion="apaisada" />
+        : <div className={`${compacto ? 'h-6 w-8' : 'h-8 w-11'} shrink-0 rounded border border-white/10 bg-white/5`} />}
+      {!compacto && (
+        <div className="min-w-0">
+          <p className="truncate text-[10px] font-bold text-white/80">{leader ? nombreCorto(leader) : '—'}</p>
+          {base && <p className="truncate text-[9px] text-white/45">{base}</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FilaClasificacion({ c, indice }: { c: ClasificadoTorneo; indice: IndiceCartas | null }) {
   const contenido = (
     <FilaTablero acento={ACENTO_PODIO[c.puesto]} cebra={c.puesto % 2 === 0} onClick={c.perfilId ? () => {} : undefined}>
       {/* El número de puesto, grande, como en el marcador de pantalla. */}
@@ -51,6 +75,8 @@ function FilaClasificacion({ c }: { c: ClasificadoTorneo }) {
         <p className="font-mono text-[10px] italic text-white/45">
           {c.victorias}-{c.derrotas}-{c.empates} · juegos {c.juegosGanados}-{c.juegosPerdidos}
         </p>
+        {/* El mazo, debajo del nombre: es lo que Nel quiere ver de un vistazo. */}
+        <div className="mt-1"><Mazo indice={indice} leader={c.leader} base={c.base} /></div>
       </div>
       {/* OMW/GW: los porcentajes reales, en su columna, como COPIES/% del broadcast. */}
       <div className="hidden shrink-0 text-right sm:block">
@@ -67,7 +93,7 @@ function FilaClasificacion({ c }: { c: ClasificadoTorneo }) {
   return c.perfilId ? <Link to={`/u/${c.perfilId}`} className="block">{contenido}</Link> : contenido
 }
 
-function Ronda({ n, partidas }: { n: number; partidas: PartidaTorneo[] }) {
+function Ronda({ n, partidas, indice }: { n: number; partidas: PartidaTorneo[]; indice: IndiceCartas | null }) {
   return (
     <Tablero titulo={`Ronda ${n}`}>
       {partidas.map((p, i) => {
@@ -78,15 +104,23 @@ function Ronda({ n, partidas }: { n: number; partidas: PartidaTorneo[] }) {
         const ganoB = !!p.ganadorId && p.perfilB === p.ganadorId
         return (
           <FilaTablero key={p.id} cebra={i % 2 === 1}>
-            <span className={`min-w-0 flex-1 truncate text-right text-[13px] ${ganoA ? 'font-black text-white' : 'text-white/55'}`}>
-              {p.jugadorA}
-            </span>
+            {/* Lado A: nombre + mini-arte del líder, alineado a la derecha. */}
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5">
+              <span className={`min-w-0 truncate text-right text-[13px] ${ganoA ? 'font-black text-white' : 'text-white/55'}`}>
+                {p.jugadorA}
+              </span>
+              <Mazo indice={indice} leader={p.leaderA} base="" compacto />
+            </div>
             <span className="shrink-0 rounded border border-swu-cyan/20 bg-swu-cyan/[0.08] px-2.5 py-1 font-mono text-[13px] font-black tabular-nums text-swu-cyan">
               {p.marcador ?? '—'}
             </span>
-            <span className={`min-w-0 flex-1 truncate text-[13px] ${ganoB ? 'font-black text-white' : 'text-white/55'}`}>
-              {p.jugadorB}
-            </span>
+            {/* Lado B: mini-arte + nombre. */}
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
+              <Mazo indice={indice} leader={p.leaderB} base="" compacto />
+              <span className={`min-w-0 truncate text-[13px] ${ganoB ? 'font-black text-white' : 'text-white/55'}`}>
+                {p.jugadorB}
+              </span>
+            </div>
           </FilaTablero>
         )
       })}
@@ -98,6 +132,7 @@ export function TorneoDetallePage() {
   const { code } = useParams<{ code: string }>()
   const navigate = useNavigate()
   const [data, setData] = useState<TorneoCompleto | null>(null)
+  const [indice, setIndice] = useState<IndiceCartas | null>(null)
   const [fallo, setFallo] = useState<string | null>(null)
   // `cargando` se DERIVA, no se setea dentro del efecto: mientras no haya ni
   // datos ni fallo para el código actual, se está cargando. Setearlo síncrono
@@ -117,6 +152,18 @@ export function TorneoDetallePage() {
     })()
     return () => { vivo = false }
   }, [code])
+
+  // El arte de los mazos se resuelve contra la base local de cartas. Va aparte:
+  // si todavía no bajó, el torneo se lee igual, solo que sin miniaturas.
+  useEffect(() => {
+    let vivo = true
+    void (async () => {
+      await ensureCards()
+      const ix = await cargarIndice()
+      if (vivo) setIndice(ix)
+    })()
+    return () => { vivo = false }
+  }, [])
 
   if (cargando) {
     return (
@@ -173,7 +220,11 @@ export function TorneoDetallePage() {
             const alto = pos === 1 ? 'pt-2' : 'pt-5'
             return (
               <div key={pos} className={`flex flex-col items-center ${alto}`}>
-                <Avatar avatar={null} size={pos === 1 ? 52 : 42} />
+                <Avatar
+                  avatar={c.avatar}
+                  size={pos === 1 ? 64 : 52}
+                  anillo={c.perfilId ?? c.nombre}
+                />
                 <div className={`mt-1 flex h-7 w-7 items-center justify-center rounded-full border border-current font-mono text-xs font-black ${NUMERO_PODIO[pos]}`}>
                   {pos}
                 </div>
@@ -208,7 +259,7 @@ export function TorneoDetallePage() {
 
       {/* Clasificación completa, con el estilo del tablero de transmisión */}
       <Tablero titulo="Clasificación" extra={`${torneo.jugadores} jugadores`}>
-        {clasificacion.map(c => <FilaClasificacion key={c.puesto} c={c} />)}
+        {clasificacion.map(c => <FilaClasificacion key={c.puesto} c={c} indice={indice} />)}
       </Tablero>
 
       {/* Partidas por ronda */}
@@ -216,7 +267,7 @@ export function TorneoDetallePage() {
         <section className="space-y-3">
           <h3 className="text-[13px] font-black uppercase tracking-widest text-swu-text">Partidas</h3>
           {rondas.map(n => (
-            <Ronda key={n} n={n} partidas={partidas.filter(p => p.ronda === n)} />
+            <Ronda key={n} n={n} partidas={partidas.filter(p => p.ronda === n)} indice={indice} />
           ))}
         </section>
       )}

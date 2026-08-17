@@ -16,6 +16,7 @@ import {
 } from '../../services/galaxyService'
 import { RANKS } from '../../services/gamification'
 import { getCountryByCode } from '../../data/regions'
+import { Avatar } from '../../components/ui/Avatar'
 
 // ─── Helpers ─────────────────────────────────────────────
 
@@ -108,10 +109,13 @@ function PlayerCard({ player, rank, onView }: PlayerCardProps) {
           </div>
         )}
 
-        {/* Avatar */}
-        <div className="text-2xl flex-shrink-0 w-10 h-10 bg-swu-bg rounded-xl flex items-center justify-center">
-          {player.avatar}
-        </div>
+        {/* Avatar.
+            Antes acá iba `{player.avatar}` a pelo. Eso solo funciona si el
+            avatar es un emoji, y en esta app casi nunca lo es: son ids de ícono
+            («boba-fett», «starfighter») o una FOTO en data URI. El resultado en
+            producción era el id escrito como texto gigante, y para quien tiene
+            foto, un chorro de base64 desbordando la fila. */}
+        <Avatar avatar={player.avatar} size={44} caja="redondeada" anillo={player.userId} className="flex-shrink-0" />
 
         {/* Info */}
         <div className="flex-1 min-w-0">
@@ -197,10 +201,8 @@ function RankingRow({ entry, category, onView }: RankingRowProps) {
         {entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : entry.rank}
       </div>
 
-      {/* Avatar */}
-      <div className="text-xl w-8 h-8 bg-swu-bg rounded-lg flex items-center justify-center flex-shrink-0">
-        {entry.avatar}
-      </div>
+      {/* Avatar — mismo arreglo que arriba: el valor crudo no es un emoji. */}
+      <Avatar avatar={entry.avatar} size={36} caja="redondeada" anillo={entry.userId} className="flex-shrink-0" />
 
       {/* Name + rank */}
       <div className="flex-1 min-w-0">
@@ -230,9 +232,7 @@ interface ActivityItemProps {
 function ActivityItem({ item }: ActivityItemProps) {
   return (
     <div className="flex items-start gap-3 px-3 py-2.5 bg-swu-surface rounded-xl border border-swu-border">
-      <div className="text-xl w-9 h-9 bg-swu-bg rounded-lg flex items-center justify-center flex-shrink-0">
-        {item.userAvatar}
-      </div>
+      <Avatar avatar={item.userAvatar} size={40} caja="redondeada" anillo={item.userId} className="flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-xs font-semibold text-swu-text">{item.userName}</span>

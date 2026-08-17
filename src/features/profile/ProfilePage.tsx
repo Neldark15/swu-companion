@@ -24,36 +24,11 @@ import { CONTINENTS, getCountryByCode } from '../../data/regions'
 import { MoreNav } from '../../components/layout/MoreNav'
 import { WhatsappSetting } from './WhatsappSetting'
 import { swAvatars } from '../../data/avatars'
-import { getAvatarSrc, isPhotoAvatar, urlAvatarSW } from '../../services/avatars'
+import { isPhotoAvatar, urlAvatarSW } from '../../services/avatars'
 import { MeleeSetting } from './MeleeSetting'
 import { MeleeRecord } from './MeleeRecord'
 import { leerEnlaceMelee } from '../../services/meleeProfileService'
-
-/** Render avatar: photo, icon image, or emoji fallback */
-function AvatarDisplay({ avatar, size = 'md' }: { avatar: string; size?: 'sm' | 'md' | 'lg' | 'xl' }) {
-  const src = getAvatarSrc(avatar)
-  const sizeClasses = {
-    sm: 'w-10 h-10',
-    md: 'w-14 h-14',
-    lg: 'w-20 h-20',
-    xl: 'w-24 h-24',
-  }
-  const textSizes = { sm: 'text-xl', md: 'text-3xl', lg: 'text-5xl', xl: 'text-6xl' }
-
-  if (src) {
-    return (
-      <img
-        src={src}
-        alt={isPhotoAvatar(avatar) ? 'Foto de perfil' : avatar}
-        // Las fotos ya no llevan `rounded-full`: siempre viven dentro de un
-        // ProfileFrame, que ahora recorta al cuadrado del marco (el registro
-        // solo ofrece íconos, así que ahí nunca hay foto).
-        className={`${sizeClasses[size]} ${isPhotoAvatar(avatar) ? 'object-cover' : 'object-contain'}`}
-      />
-    )
-  }
-  return <span className={textSizes[size]}>{avatar}</span>
-}
+import { Avatar } from '../../components/ui/Avatar'
 
 /** Compress and resize image to a max dimension, returns data URI */
 async function compressImage(file: File, maxSize = 200, quality = 0.7): Promise<string> {
@@ -481,7 +456,7 @@ export function ProfilePage() {
         <BackButton to="select" onIr={setView} />
         <div className="text-center">
           <div className="flex justify-center mb-2">
-            <AvatarDisplay avatar={regAvatar} size="xl" />
+            <Avatar avatar={regAvatar} size={96} caja="circulo" escalaIcono={0.82} />
           </div>
           <h2 className="text-lg font-bold text-swu-text">Crear Cuenta</h2>
           <p className="text-xs text-swu-muted mt-0.5">Su cuenta se sincroniza en todos sus dispositivos</p>
@@ -766,9 +741,9 @@ export function ProfilePage() {
         <div className="text-center">
           <div className="flex justify-center mb-2">
             <ProfileFrame level={customizeLevelInfo?.level || 1} size={88} marcoId={marcoElegido}>
-              <div className="w-full h-full flex items-center justify-center overflow-hidden">
-                <AvatarDisplay avatar={customAvatar} size="xl" />
-              </div>
+              {/* El tamaño lo manda el MARCO. La copia vieja pintaba 96 px
+                  dentro de un marco de 88 y el recorte se comía el borde. */}
+              <Avatar avatar={customAvatar} size={88} caja="marco" escalaIcono={1} />
             </ProfileFrame>
           </div>
           <h2 className="text-lg font-bold text-swu-text">Personalizar Perfil</h2>
@@ -989,9 +964,7 @@ export function ProfilePage() {
         <BannerPortadaUsuario userId={supabaseUser?.id} className="absolute inset-0 h-full w-full opacity-60" />
         <div className="relative flex items-center gap-3 mb-3">
           <ProfileFrame level={levelInfo?.level || 1} size={72} marcoId={marcoElegido}>
-            <div className="w-full h-full flex items-center justify-center overflow-hidden">
-              <AvatarDisplay avatar={currentProfile?.avatar || 'darth-vader'} size="lg" />
-            </div>
+            <Avatar avatar={currentProfile?.avatar || 'darth-vader'} size={72} caja="marco" escalaIcono={1} />
           </ProfileFrame>
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-extrabold text-swu-text truncate">{currentProfile?.name || 'Jugador'}</h2>

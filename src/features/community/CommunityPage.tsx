@@ -42,9 +42,9 @@ function MemberAvatar({ avatar, level, size = 40 }: { avatar: string; level?: nu
   )
 }
 
-function PostAvatar({ avatar }: { avatar: string }) {
-  // emoji de 18px (text-lg) para una caja de 32
-  return <Avatar avatar={avatar} size={32} caja="ninguna" escalaEmoji={18 / 32} />
+function PostAvatar({ avatar, anillo }: { avatar: string; anillo?: string }) {
+  // emoji de 18px (text-lg) para una caja de 36
+  return <Avatar avatar={avatar} size={36} caja="circulo" escalaEmoji={18 / 36} anillo={anillo} />
 }
 
 /** Estilo por tipo de post — el feed se lee de un vistazo por color/icono. */
@@ -248,7 +248,7 @@ export function CommunityPage() {
             onClick={() => setComposerOpen(true)}
             className="w-full flex items-center gap-2.5 bg-swu-surface/60 rounded-xl border border-swu-border px-3 py-2.5 text-left"
           >
-            <PostAvatar avatar={currentProfile.avatar} />
+            <PostAvatar avatar={currentProfile.avatar} anillo={currentProfile.id} />
             <span className="text-xs text-swu-muted flex-1">Escribir al grupo…</span>
             <Send size={13} className="text-swu-muted" />
           </button>
@@ -293,9 +293,9 @@ export function CommunityPage() {
               <div className="flex items-start gap-2.5">
                 <button
                   onClick={() => navigate(`/u/${post.userId}`)}
-                  className="w-8 h-8 rounded-full bg-swu-bg flex items-center justify-center flex-shrink-0 overflow-hidden"
+                  className="flex-shrink-0"
                 >
-                  <PostAvatar avatar={post.userAvatar} />
+                  <PostAvatar avatar={post.userAvatar} anillo={post.userId} />
                 </button>
 
                 <div className="flex-1 min-w-0">

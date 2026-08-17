@@ -17,7 +17,7 @@ import { ProfileFrame } from './components/ProfileFrame'
 import { LightsaberXpBar } from './components/LightsaberXpBar'
 import { useSettings } from '../../hooks/useSettings'
 import { TINTES_TARJETA } from '../../services/personalizacion'
-import { getAvatarSrc, isPhotoAvatar } from '../../services/avatars'
+import { Avatar } from '../../components/ui/Avatar'
 import { getCountryByCode } from '../../data/regions'
 import { calculateLevel, type PlayerStats } from '../../services/gamification'
 import type { UserProfile } from '../../services/db'
@@ -32,20 +32,6 @@ interface Props {
   size?: number
 }
 
-/** El avatar puede ser una foto subida, un ícono del juego o un emoji. */
-function Avatar({ avatar }: { avatar: string }) {
-  const src = getAvatarSrc(avatar)
-  if (!src) return <span className="text-5xl">{avatar}</span>
-  return (
-    <img
-      src={src}
-      alt={isPhotoAvatar(avatar) ? 'Foto de perfil' : ''}
-      // La foto ya no es redonda: el ProfileFrame recorta al cuadrado del
-      // marco, así que acá basta con cubrir el hueco.
-      className={`w-20 h-20 ${isPhotoAvatar(avatar) ? 'object-cover' : 'object-contain'}`}
-    />
-  )
-}
 
 export function TarjetaJugador({
   perfil, stats, enLinea = false, alTocar = 'nada', size = 72,
@@ -68,9 +54,11 @@ export function TarjetaJugador({
     <>
       <div className="flex items-center gap-3 mb-3">
         <ProfileFrame level={nivel?.level || 1} size={size} marcoId={marcoElegido}>
-          <div className="w-full h-full flex items-center justify-center overflow-hidden">
-            <Avatar avatar={perfil.avatar || 'darth-vader'} />
-          </div>
+          {/* `caja="marco"` llena el hueco que deja el ProfileFrame en vez de
+              imponer un tamaño propio. Antes el <img> era `w-20 h-20` (80 px)
+              fijo dentro de un marco de `size` (72 por defecto), así que el
+              `overflow-hidden` del marco le comía el borde a toda foto. */}
+          <Avatar avatar={perfil.avatar || 'darth-vader'} size={size} caja="marco" escalaIcono={1} />
         </ProfileFrame>
         <div className="flex-1 min-w-0">
           <h2

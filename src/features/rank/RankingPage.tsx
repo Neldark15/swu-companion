@@ -16,15 +16,18 @@ import { Avatar } from '../../components/ui/Avatar'
 const AVATAR_PX = { sm: 32, md: 48, lg: 64, xl: 80 }
 const AVATAR_EMOJI_PX = { sm: 18, md: 24, lg: 36, xl: 48 }
 
-function AvatarImg({ avatar, size = 'md' }: { avatar: string; size?: 'sm' | 'md' | 'lg' | 'xl' }) {
+function AvatarImg({ avatar, size = 'md', anillo }: { avatar: string; size?: 'sm' | 'md' | 'lg' | 'xl'; anillo?: string }) {
   const px = AVATAR_PX[size]
   return (
     <Avatar
       avatar={avatar || '🎯'}
       size={px}
-      caja="ninguna"
-      escalaIcono={1}
+      // Con anillo hace falta una caja donde dibujarlo; sin él se conserva el
+      // avatar suelto de siempre, que es como lo pide el podio.
+      caja={anillo ? 'circulo' : 'ninguna'}
+      escalaIcono={anillo ? 0.86 : 1}
       escalaEmoji={AVATAR_EMOJI_PX[size] / px}
+      anillo={anillo}
     />
   )
 }
@@ -284,7 +287,7 @@ export function RankingPage() {
         {/* Avatar */}
         <div className="shrink-0 rounded-full ring-1 ring-gray-600 p-0.5 bg-gray-900">
           <div className="rounded-full bg-gray-800 flex items-center justify-center overflow-hidden p-0.5">
-            <AvatarImg avatar={entry.avatar} size="sm" />
+            <AvatarImg avatar={entry.avatar} size="sm" anillo={entry.userId} />
           </div>
         </div>
 
@@ -333,7 +336,7 @@ export function RankingPage() {
         <span className="text-sm font-extrabold text-red-500/70 font-mono w-8 text-center">#{rank}</span>
         <div className="shrink-0 rounded-full ring-1 ring-gray-600 p-0.5 bg-gray-900">
           <div className="rounded-full bg-gray-800 flex items-center justify-center overflow-hidden p-0.5">
-            <AvatarImg avatar={entry.avatar} size="sm" />
+            <AvatarImg avatar={entry.avatar} size="sm" anillo={entry.userId} />
           </div>
         </div>
         <div className="flex-1 min-w-0">

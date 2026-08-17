@@ -11,6 +11,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { getOfficialEvents, joinOfficialEvent, leaveOfficialEvent, deleteOfficialEvent, updateOfficialEvent, type OfficialEvent } from '../../services/events'
 import { aISOdesdeSV, aInputsSV, fechaCorta, hora } from '../../services/horaSV'
 import type { Tournament } from '../../types'
+import { Avatar } from '../../components/ui/Avatar'
 
 export function EventsPage() {
   const navigate = useNavigate()
@@ -334,8 +335,19 @@ export function EventsPage() {
 
                 {/* Organizer + Code + Admin Actions */}
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-swu-muted">
-                    Org: <span className="text-swu-text font-medium">{event.organizer_avatar} {event.organizer_name}</span>
+                  {/* `organizer_avatar` NO es un emoji: guarda el id de un
+                      ícono del juego o una foto en data URI, así que escrito a
+                      pelo salía «boba-fett Nelson» —o un chorro de base64— en
+                      una línea de 11 px. */}
+                  <span className="flex items-center gap-1.5 text-[11px] text-swu-muted">
+                    Org:
+                    <Avatar
+                      avatar={event.organizer_avatar}
+                      size={20}
+                      escalaEmoji={0.7}
+                      anillo={event.organizer_id ?? event.organizer_name}
+                    />
+                    <span className="text-swu-text font-medium">{event.organizer_name}</span>
                   </span>
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-xs font-bold text-swu-accent-texto bg-swu-accent/10 px-2 py-0.5 rounded">

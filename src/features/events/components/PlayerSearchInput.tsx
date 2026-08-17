@@ -111,7 +111,7 @@ export function PlayerSearchInput({ value, linkedUserId, placeholder, onChange }
             >
               {/* Le faltaba la rama del ícono del juego: a quien tuviera uno se
                   le pintaba el id crudo («chewbacca») como si fuera un emoji. */}
-              <Avatar avatar={profile.avatar} size={32} caja="ninguna" escalaEmoji={18 / 32} />
+              <Avatar avatar={profile.avatar} size={36} caja="circulo" escalaEmoji={18 / 36} anillo={profile.id} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-swu-text truncate">{profile.name}</p>
                 <p className="text-[10px] text-swu-green">Cuenta registrada</p>

@@ -3,6 +3,7 @@ import { Trophy, ChevronLeft, ChevronRight, Crown, Medal, Award } from 'lucide-r
 import { getMonthlyLeaderboard, getMyMonthlyXp, type LeaderboardEntry } from '../../../services/sync'
 import { IconXp } from '../../../components/icons/SWUIcons'
 import { mesCalendarioSV, mesAnterior, mesSiguiente } from '../../../services/horaSV'
+import { Avatar } from '../../../components/ui/Avatar'
 
 interface MonthlyRankProps {
   userId: string | null
@@ -109,7 +110,7 @@ export function MonthlyRank({ userId }: MonthlyRankProps) {
               {/* 2nd place */}
               {leaderboard[1] && (
                 <div className={`flex-1 max-w-[90px] rounded-xl p-2 border ${podiumIcons[1].bg} ${podiumIcons[1].border} text-center`}>
-                  <div className="text-2xl mb-0.5">{leaderboard[1].avatar}</div>
+                  <div className="mb-0.5 flex justify-center"><Avatar avatar={leaderboard[1].avatar} size={48} caja="ninguna" /></div>
                   <p className="text-[10px] font-bold text-swu-text truncate">{leaderboard[1].name}</p>
                   <div className="flex items-center justify-center gap-0.5 mt-0.5">
                     <IconXp size={10} className={podiumIcons[1].color} />
@@ -122,7 +123,7 @@ export function MonthlyRank({ userId }: MonthlyRankProps) {
               {/* 1st place (taller) */}
               <div className={`flex-1 max-w-[100px] rounded-xl p-3 border-2 ${podiumIcons[0].bg} ${podiumIcons[0].border} text-center relative`}>
                 <Crown size={16} className="text-amber-400 mx-auto mb-1" />
-                <div className="text-3xl mb-0.5">{leaderboard[0].avatar}</div>
+                <div className="mb-0.5 flex justify-center"><Avatar avatar={leaderboard[0].avatar} size={60} caja="ninguna" /></div>
                 <p className="text-[11px] font-bold text-swu-text truncate">{leaderboard[0].name}</p>
                 <div className="flex items-center justify-center gap-0.5 mt-0.5">
                   <IconXp size={12} className="text-amber-400" />
@@ -134,7 +135,7 @@ export function MonthlyRank({ userId }: MonthlyRankProps) {
               {/* 3rd place */}
               {leaderboard[2] && (
                 <div className={`flex-1 max-w-[90px] rounded-xl p-2 border ${podiumIcons[2].bg} ${podiumIcons[2].border} text-center`}>
-                  <div className="text-2xl mb-0.5">{leaderboard[2].avatar}</div>
+                  <div className="mb-0.5 flex justify-center"><Avatar avatar={leaderboard[2].avatar} size={48} caja="ninguna" /></div>
                   <p className="text-[10px] font-bold text-swu-text truncate">{leaderboard[2].name}</p>
                   <div className="flex items-center justify-center gap-0.5 mt-0.5">
                     <IconXp size={10} className={podiumIcons[2].color} />
@@ -156,7 +157,7 @@ export function MonthlyRank({ userId }: MonthlyRankProps) {
                     className={`flex items-center gap-2.5 rounded-lg px-3 py-2 ${isMe ? 'bg-swu-accent/10 border border-swu-accent/30' : 'bg-swu-bg/50'}`}
                   >
                     <span className="text-[11px] font-mono text-swu-muted w-5 text-right">{entry.rank}</span>
-                    <span className="text-lg">{entry.avatar}</span>
+                    <Avatar avatar={entry.avatar} size={36} caja="redondeada" />
                     <div className="flex-1 min-w-0">
                       <p className={`text-[11px] font-bold truncate ${isMe ? 'text-swu-accent-texto' : 'text-swu-text'}`}>
                         {entry.name} {isMe && '(Tú)'}
