@@ -3,7 +3,7 @@
  * Browse players worldwide, category rankings, and activity feed.
  */
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Search, Users, Trophy, Zap, Swords,
@@ -17,6 +17,14 @@ import {
 import { RANKS } from '../../services/gamification'
 import { getCountryByCode } from '../../data/regions'
 import { Avatar } from '../../components/ui/Avatar'
+import { MessageSquare } from 'lucide-react'
+import { useAuth } from '../../hooks/useAuth'
+import { SalaChat } from './SalaChat'
+import {
+  salasDe, claveSala, estadoDeSalas, silenciar,
+  type Sala, type EstadoSala,
+} from '../../services/galaxiaChat'
+import { misSedes } from '../../services/galaxiaSedes'
 
 // ─── Helpers ─────────────────────────────────────────────
 
@@ -46,7 +54,13 @@ function timeAgo(iso: string): string {
 
 // ─── Sub-components ───────────────────────────────────────
 
-type TabId = 'explorer' | 'rankings' | 'activity' | 'map'
+/**
+ * Las vistas del módulo.
+ *
+ * `sala` va primera a propósito: es lo único de acá a lo que se vuelve todos
+ * los días. Explorar quién existe se hace una vez; hablar con ellos, siempre.
+ */
+type TabId = 'sala' | 'explorer' | 'rankings' | 'activity' | 'map'
 
 interface TabButtonProps {
   id: TabId
@@ -354,7 +368,21 @@ const RANKING_TABS: { id: RankingCategory; label: string; icon: React.ReactNode;
 export function GalaxyPage() {
   const navigate = useNavigate()
 
-  const [activeTab, setActiveTab] = useState<TabId>('explorer')
+  const [activeTab, setActiveTab] = useState<TabId>('sala')
+  const { supabaseUser, isAdmin } = useAuth()
+
+  /**
+   * Las salas de esta persona, de la más cercana a la más lejana.
+   *
+   * Salen del PERFIL, no de una tabla de salas: tu sala de país es tu país. Una
+   * tabla aparte sería un segundo sitio donde la verdad puede separarse de lo
+   * que dice el perfil.
+   */
+  const [misTiendas, setMisTiendas] = useState<Array<{ id: string; nombre: string }>>([])
+  const [salaSel, setSalaSel] = useState<string | null>(null)
+  const [estadoSalas, setEstadoSalas] = useState<Map<string, EstadoSala>>(new Map())
+
+
   const [rankingCategory, setRankingCategory] = useState<RankingCategory>('xp')
 
   const [players, setPlayers] = useState<GalaxyPlayer[]>([])
@@ -447,6 +475,90 @@ export function GalaxyPage() {
     return Array.from(set).sort()
   }, [players])
 
+  /**
+   * Mi país y mi continente salen de la LISTA de jugadores, que ya está
+   * cargada, y no del perfil de sesión: `UserProfile` no persiste `settings`
+   * (gotcha §2v) y hacer que lo persista para esto sería tocar la hidratación
+   * de la sesión —el sitio más delicado de la app— por un dato que ya tengo
+   * a mano.
+   */
+  const misSalas = useMemo(() => {
+    const yo = players.find(p => p.userId === supabaseUser?.id)
+    return salasDe(yo?.country ?? null, yo?.continent ?? null, misTiendas)
+  }, [players, supabaseUser?.id, misTiendas])
+
+  // Las tiendas donde jugaste. Aparte del resto: si falla, el chat sigue con
+  // las otras tres salas en vez de no abrir.
+  useEffect(() => {
+    if (!supabaseUser?.id) return
+    let vivo = true
+    void misSedes(supabaseUser.id).then(t => { if (vivo) setMisTiendas(t) })
+    return () => { vivo = false }
+  }, [supabaseUser?.id])
+
+  /**
+   * La sala abierta. Por defecto, la PRIMERA de la lista —la más cercana— que
+   * es la tienda si jugaste en alguna, y si no, tu país.
+   */
+  const salaActiva: Sala | null =
+    misSalas.find(x => claveSala(x.alcance, x.ambito) === salaSel) ?? misSalas[0] ?? null
+
+  // Los no leídos. Se recalculan al entrar a la pestaña y al cambiar de sala:
+  // un contador que solo se actualiza al recargar la app no sirve de nada.
+  /**
+   * Recalcular los no leídos.
+   *
+   * Es un ref y no un `useCallback` porque lo llaman DOS sitios con vidas
+   * distintas: el efecto de abajo (al entrar a la pestaña) y el botón de
+   * silenciar. Como `useCallback`, su identidad cambiaba con `misSalas` y
+   * arrastraba al efecto a recalcular en cada render.
+   */
+  const refrescarRef = useRef<() => Promise<void>>(async () => {})
+  // La asignación va en un EFECTO, no en el render: tocar `.current` mientras
+  // se renderiza es lo que el lint del repo corta. Mismo patrón que
+  // `doSearchRef` en CardsPage y `onCloseRef` en Sheet.
+  useEffect(() => {
+    refrescarRef.current = async () => {
+      if (!supabaseUser?.id || misSalas.length === 0) return
+      setEstadoSalas(await estadoDeSalas(supabaseUser.id, misSalas))
+    }
+  })
+  const refrescarEstado = useCallback(() => refrescarRef.current(), [])
+
+  // La llamada va DENTRO de un async: `setState` sincrónico dentro de un
+  // efecto dispara renders en cascada, y el lint del repo lo corta.
+  useEffect(() => {
+    if (activeTab !== 'sala') return
+    let vivo = true
+    void (async () => {
+      await refrescarRef.current()
+      if (!vivo) return
+    })()
+    return () => { vivo = false }
+  }, [activeTab, salaSel, misSalas.length])
+
+  /**
+   * Cuánta gente puede leer cada sala. Sirve para que un vacío tenga contexto:
+   * «nadie ha escrito» con 23 personas del otro lado invita a escribir; sin el
+   * número, parece un pueblo fantasma.
+   */
+  const genteEnSala = useCallback((s: Sala): number => {
+    if (s.alcance === 'global') return stats.totalPlayers
+    if (s.alcance === 'pais') return players.filter(p => p.country === s.ambito).length
+    if (s.alcance === 'continente') return players.filter(p => p.continent === s.ambito).length
+    return 0
+  }, [players, stats.totalPlayers])
+
+  /** Lo no leído de TODAS las salas que no silenciaste. */
+  const sinLeerTotal = useMemo(() => {
+    let n = 0
+    for (const sala of misSalas) {
+      const e = estadoSalas.get(claveSala(sala.alcance, sala.ambito))
+      if (e && !e.silenciada) n += e.sinLeer
+    }
+    return n
+  }, [misSalas, estadoSalas])
+
   const currentRanking = rankings.get(rankingCategory) || []
 
   return (
@@ -458,18 +570,36 @@ export function GalaxyPage() {
             <button onClick={() => navigate(-1)} className="text-swu-muted">
               <ArrowLeft size={20} />
             </button>
-            <div className="flex-1">
-              <h1 className="text-lg font-bold text-swu-text">
-                🌌 La Galaxia
-              </h1>
-              <p className="text-[10px] text-swu-muted font-mono tracking-wider">
-                {stats.totalPlayers > 0 ? `${stats.totalPlayers} Comandantes · ${stats.countriesRepresented} Planetas` : 'Explorador Global'}
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg font-black text-swu-text leading-none">La Galaxia</h1>
+              {/* Antes decía «Explorador Global» mientras cargaba y luego el
+                  conteo. Ahora dice SIEMPRE lo mismo —dónde estás parado— y el
+                  número aparece cuando existe, en vez de que el subtítulo
+                  cambie de tema debajo del dedo. */}
+              <p className="mt-0.5 truncate font-mono text-[10px] tracking-wider text-swu-muted">
+                {salaActiva ? salaActiva.titulo : 'Tu comunidad'}
+                {stats.totalPlayers > 0 && ` · ${stats.totalPlayers} en la app`}
               </p>
             </div>
           </div>
 
           {/* Tabs */}
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+            <TabButton id="sala" label="Salas" icon={
+              <span className="relative">
+                <MessageSquare size={15} />
+                {/* El punto de no leídos va en la PESTAÑA, no dentro: si hay
+                    que entrar para enterarse de que hay algo nuevo, el aviso
+                    no avisa. Se suma lo de todas las salas no silenciadas. */}
+                {sinLeerTotal > 0 && (
+                  <span className="absolute -top-1.5 -right-2 min-w-3.5 h-3.5 px-1 rounded-full
+                                   bg-swu-accent text-[8px] font-black text-swu-accent-fg
+                                   grid place-items-center">
+                    {sinLeerTotal > 9 ? '9+' : sinLeerTotal}
+                  </span>
+                )}
+              </span>
+            } active={activeTab === 'sala'} onClick={() => setActiveTab('sala')} />
             <TabButton id="explorer" label="Explorador" icon={<Users size={15} />}
               active={activeTab === 'explorer'} onClick={() => setActiveTab('explorer')} />
             <TabButton id="rankings" label="Rankings" icon={<Trophy size={15} />}
@@ -483,6 +613,69 @@ export function GalaxyPage() {
       </div>
 
       <div className="max-w-lg lg:max-w-5xl mx-auto px-4 lg:px-6 py-4">
+
+        {/* ── SALAS ──
+            El módulo se ordena por ALCANCE: tienda → país → continente →
+            galaxia. Ese eje es el que pidió el chat, y es el mismo con el que
+            se mira todo lo demás de esta pantalla. */}
+        {activeTab === 'sala' && (
+          <div className="space-y-3">
+            {/* Selector de sala. Cada una dice cuánta gente hay y cuánto no
+                leíste; una sala silenciada se ve apagada. */}
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
+              {misSalas.map(sala => {
+                const clave = claveSala(sala.alcance, sala.ambito)
+                const est = estadoSalas.get(clave)
+                const activa = salaActiva ? claveSala(salaActiva.alcance, salaActiva.ambito) === clave : false
+                return (
+                  <button
+                    key={clave}
+                    onClick={() => setSalaSel(clave)}
+                    aria-pressed={activa}
+                    className={`relative flex-shrink-0 rounded-xl border px-3 py-2 text-left transition-colors ${
+                      activa
+                        ? 'border-swu-accent/40 bg-swu-accent/10'
+                        : 'border-swu-border bg-swu-surface hover:border-swu-accent/25'
+                    } ${est?.silenciada ? 'opacity-60' : ''}`}
+                  >
+                    <p className={`text-[12px] font-bold ${activa ? 'text-swu-accent-texto' : 'text-swu-text'}`}>
+                      {sala.titulo}
+                    </p>
+                    <p className="text-[9px] text-swu-muted">
+                      {genteEnSala(sala) > 0 ? `${genteEnSala(sala)} aquí` : 'sin gente todavía'}
+                    </p>
+                    {!!est?.sinLeer && !est.silenciada && (
+                      <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full
+                                       bg-swu-accent text-[9px] font-black text-swu-accent-fg
+                                       grid place-items-center">
+                        {est.sinLeer > 99 ? '99+' : est.sinLeer}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+
+            {salaActiva && supabaseUser?.id ? (
+              <SalaChat
+                key={claveSala(salaActiva.alcance, salaActiva.ambito)}
+                sala={salaActiva}
+                miId={supabaseUser.id}
+                soyAdmin={isAdmin}
+                alcanceGente={genteEnSala(salaActiva)}
+                silenciada={!!estadoSalas.get(claveSala(salaActiva.alcance, salaActiva.ambito))?.silenciada}
+                onSilenciar={async v => {
+                  await silenciar(supabaseUser.id, salaActiva.alcance, salaActiva.ambito, v)
+                  await refrescarEstado()
+                }}
+              />
+            ) : (
+              <p className="py-10 text-center text-sm text-swu-muted">
+                Cargando tus salas…
+              </p>
+            )}
+          </div>
+        )}
 
         {/* ── EXPLORER TAB ── */}
         {activeTab === 'explorer' && (
