@@ -181,7 +181,7 @@ export const useSettings = create<SettingsState>()(
       tinteTarjeta: 'auto',
       marcoElegido: 'auto',
       credencialTema: 'jedi',
-      credencialEmblema: 'holocron',
+      credencialEmblema: 'jedi-order',
       credencialApodo: '',
       credencialUbicacion: '',
       credencialMazoId: '',

@@ -97,7 +97,7 @@ export function CredencialSVG({ datos, tema, emblema, className }: Props) {
   const uid = useId()
   const clipFoto = `cred-foto-${uid}`
 
-  const { Icono } = EMBLEMAS_CREDENCIAL[emblema]
+  const { url: urlEmblema } = EMBLEMAS_CREDENCIAL[emblema]
   const srcAvatar = getAvatarSrc(datos.avatar)
 
   const nombre = datos.nombre.toUpperCase()
@@ -137,20 +137,82 @@ export function CredencialSVG({ datos, tema, emblema, className }: Props) {
         <clipPath id={clipFoto}>
           <rect x="64" y="84" width="108" height="108" rx="5" />
         </clipPath>
+
+        {/* ── El relieve ──
+            Una placa de verdad tiene VOLUMEN: la luz le pega desde arriba a la
+            izquierda, así que los bordes de arriba brillan y los de abajo caen
+            en sombra, y lo hundido invierte esa relación. Todo se hace con
+            degradados y desenfoques: cuesta poco y, a diferencia de un PNG con
+            el relieve pintado, escala y se imprime nítido a cualquier tamaño. */}
+
+        {/* Barniz de la placa: claro arriba, oscuro abajo. */}
+        <linearGradient id={`${uid}-lustre`} x1="0" y1="0" x2="0.35" y2="1">
+          <stop offset="0%" stopColor="#fff" stopOpacity="0.16" />
+          <stop offset="42%" stopColor="#fff" stopOpacity="0.03" />
+          <stop offset="60%" stopColor="#000" stopOpacity="0.06" />
+          <stop offset="100%" stopColor="#000" stopOpacity="0.28" />
+        </linearGradient>
+
+        {/* Brillo diagonal: la lamida de luz que tiene todo lo laminado. */}
+        <linearGradient id={`${uid}-destello`} x1="0" y1="0" x2="1" y2="0.9">
+          <stop offset="0%" stopColor="#fff" stopOpacity="0" />
+          <stop offset="38%" stopColor="#fff" stopOpacity="0" />
+          <stop offset="47%" stopColor="#fff" stopOpacity="0.13" />
+          <stop offset="55%" stopColor="#fff" stopOpacity="0" />
+          <stop offset="100%" stopColor="#fff" stopOpacity="0" />
+        </linearGradient>
+
+        {/* El panel interior va HUNDIDO: sombra arriba, luz abajo. Es la
+            inversión de la placa, y es lo que hace que se lea como rebaje. */}
+        <linearGradient id={`${uid}-hundido`} x1="0" y1="0" x2="0.2" y2="1">
+          <stop offset="0%" stopColor="#000" stopOpacity="0.4" />
+          <stop offset="30%" stopColor="#000" stopOpacity="0.08" />
+          <stop offset="100%" stopColor="#fff" stopOpacity="0.05" />
+        </linearGradient>
+
+        {/* Bisel: desenfoca la silueta y la desplaza, para tener un labio de
+            luz arriba y otro de sombra abajo sin dibujar cada borde a mano. */}
+        <filter id={`${uid}-bisel`} x="-10%" y="-10%" width="120%" height="120%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="1.4" result="b" />
+          <feOffset in="b" dx="0.9" dy="1.4" result="abajo" />
+          <feFlood floodColor="#000" floodOpacity="0.5" result="oscuro" />
+          <feComposite in="oscuro" in2="abajo" operator="in" result="sombra" />
+          <feOffset in="b" dx="-0.7" dy="-1.1" result="arriba" />
+          <feFlood floodColor="#fff" floodOpacity="0.42" result="claro" />
+          <feComposite in="claro" in2="arriba" operator="in" result="luz" />
+          <feMerge>
+            <feMergeNode in="sombra" />
+            <feMergeNode in="luz" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+
+        {/* El emblema, a escala de grises: el color se lo pone la placa. */}
+        <filter id={`${uid}-grabado`} x="0" y="0" width="100%" height="100%">
+          <feColorMatrix type="saturate" values="0" />
+        </filter>
       </defs>
 
       {/* ── Base: el material de la placa, con el agujero recortado ── */}
       <path d={SILUETA_BASE} fill={tema.base} fillRule="evenodd" />
+      {/* Barniz y destello sobre la placa, recortados a su silueta. */}
+      <path d={SILUETA_BASE} fill={`url(#${uid}-lustre)`} fillRule="evenodd" />
+      <path d={SILUETA_BASE} fill={`url(#${uid}-destello)`} fillRule="evenodd" />
       {/* Filo grabado del canto, para que la silueta se lea sobre cualquier fondo. */}
       <path d={SILUETA_BASE} fill="none" fillRule="evenodd" stroke={tema.grabado} strokeWidth="1" opacity="0.45" />
 
       {/* ── Panel oscuro interior ── */}
-      <path d={SILUETA_PANEL} fill={tema.panel} />
+      {/* El panel, HUNDIDO en la placa. El bisel le da el canto. */}
+      <path d={SILUETA_PANEL} fill={tema.panel} filter={`url(#${uid}-bisel)`} />
+      <path d={SILUETA_PANEL} fill={`url(#${uid}-hundido)`} />
       <path d={SILUETA_PANEL} fill="none" stroke={tema.grabado} strokeWidth="0.75" opacity="0.3" />
 
-      {/* ── Emblema grabado en el material ── */}
-      <g transform="translate(372 54)" style={{ color: tema.grabado }} opacity="0.16">
-        <Icono size={118} />
+      {/* ── Emblema, grabado en el material ──
+          Es el ícono de perfil (PNG en public/avatars). Va con `filter` de
+          escala de grises + el color del tema encima en `multiply`, para que
+          se lea como grabado y no como una calcomanía a color pegada. */}
+      <g transform="translate(372 54)" opacity="0.2">
+        <image href={urlEmblema} width="118" height="118" filter={`url(#${uid}-grabado)`} />
       </g>
 
       {/* ── Código de barras del borde izquierdo ── */}

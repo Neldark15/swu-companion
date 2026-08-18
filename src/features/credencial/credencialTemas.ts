@@ -13,7 +13,7 @@
  * Este archivo es SOLO datos + validadores (sin React) a propósito: lo
  * importa useSettings para validar lo que llega de la nube, y meter acá
  * componentes arrastraría los íconos al bundle principal. El mapa
- * id→componente de emblemas vive en `emblemasCredencial.tsx`.
+ * id→componente de emblemas vive en `emblemasCredencial.ts`.
  */
 
 export type TemaCredencialId =
@@ -63,12 +63,24 @@ export function temaCredencial(id: TemaCredencialId): TemaCredencial {
   return TEMAS_CREDENCIAL.find((t) => t.id === id) ?? TEMAS_CREDENCIAL[0]
 }
 
-// ─── EMBLEMAS (solo los ids: el dibujo vive en emblemasCredencial.tsx) ──
+// ─── EMBLEMAS (solo los ids: el dibujo vive en emblemasCredencial.ts) ──
 
+/**
+ * Los emblemas de la credencial son los MISMOS íconos que la app usa como
+ * avatar de perfil (`public/avatars/<id>.png`, catalogados en
+ * `data/avatars.ts`).
+ *
+ * Antes acá había un juego distinto sacado de SWIcons: iconografía nueva para
+ * una pantalla nueva, cuando la app ya tenía la suya y la comunidad ya la
+ * reconoce. Reusar la que ya se habla es lo que hace que la credencial se
+ * sienta parte de la app y no una pieza pegada.
+ */
 export const EMBLEMAS_CREDENCIAL_IDS = [
-  'rebelde', 'imperio', 'mandaloriano', 'sable', 'holocron', 'caza',
-  'kyber', 'blaster', 'mazo', 'carga', 'estrella', 'espia', 'beskar',
-  'trofeo', 'datapad', 'medalla', 'dado', 'holored', 'calavera', 'matraz',
+  'chewbacca', 'r2d2', 'c3po', 'bb8', 'pilot', 'boba-fett', 'stormtrooper',
+  'darth-vader', 'phasma', 'kylo-ren', 'jedi-order', 'phoenix',
+  'rebel-alliance', 'galactic-empire', 'first-order', 'first-order-2',
+  'starfighter', 'sith-empire', 'rebel-alliance-2', 'jedi-order-2',
+  'new-republic', 'empire-gear', 'separatist', 'galactic-republic',
 ] as const
 
 export type EmblemaCredencialId = (typeof EMBLEMAS_CREDENCIAL_IDS)[number]

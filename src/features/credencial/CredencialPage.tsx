@@ -47,49 +47,70 @@ function fechaDespliegue(cuando: number | string): string {
  * index.css: solo existen mientras la pantalla está montada, y así la regla
  * «ocultá TODO el body» no puede afectar la impresión de otra pantalla.
  */
-const CSS_IMPRESION = `
-@media print {
-  /* Márgenes de la hoja, no del contenido: sin esto el navegador mete los
-     suyos y la tarjeta deja de medir 85,6 mm en el papel. */
-  @page { margin: 12mm; }
+/**
+ * Imprime la credencial en un DOCUMENTO APARTE.
+ *
+ * Imprimir esta pantalla no funcionaba, y no por el CSS: el caparazón de la
+ * app es `h-[100dvh] overflow-hidden` con el contenido dentro de un `<main>`
+ * que scrollea. Al imprimir, el navegador recorta TODO a una pantalla, y
+ * `overflow: hidden` en un ancestro recorta pase lo que pase con la
+ * `visibility` de los hijos. No hay regla `@media print` que salve eso desde
+ * adentro.
+ *
+ * Así que se abre una ventana nueva con SOLO la credencial. Es el mismo
+ * principio que sacar un modal a `<body>` por portal: cuando un ancestro te
+ * pelea, salís del ancestro.
+ *
+ * Se toma el `outerHTML` del SVG que está EN PANTALLA, no se reconstruye: lo
+ * que se imprime es exactamente lo que ves, sin una segunda implementación que
+ * pueda separarse de la primera.
+ */
+function imprimirCredencial(): { ok: boolean; motivo?: string } {
+  const svg = document.querySelector('#zona-credencial svg')
+  if (!svg) return { ok: false, motivo: 'No se encontró la credencial.' }
 
-  /* «visibility: hidden» esconde pero CONSERVA la altura, así que la pantalla
-     entera seguía ocupando su largo y empujaba páginas en blanco. Se apaga el
-     flujo del body y se le da altura cero: lo único con tamaño va a ser la
-     credencial. */
-  html, body {
-    height: auto !important;
-    overflow: visible !important;
-    background: #fff !important;
-  }
-  body * { visibility: hidden !important; }
-  #zona-credencial, #zona-credencial * { visibility: visible !important; }
+  // Las rutas relativas (/avatars/x.png) no existen en una ventana en blanco:
+  // se vuelven absolutas. Las fotos van en data URI y viajan solas.
+  const clon = svg.cloneNode(true) as SVGElement
+  clon.querySelectorAll('image').forEach(img => {
+    const href = img.getAttribute('href') ?? img.getAttribute('xlink:href')
+    if (href && href.startsWith('/')) {
+      img.setAttribute('href', window.location.origin + href)
+      img.removeAttribute('xlink:href')
+    }
+  })
+  clon.removeAttribute('class')
+  clon.setAttribute('width', '85.6mm')
+  clon.removeAttribute('height')
 
-  /* «static» y NO «fixed». Un elemento fijo se repite en CADA página impresa:
-     con el layout de la app detrás, salían dos hojas con la misma credencial.
-     En estático fluye como cualquier bloque y ocupa una sola página. */
-  #zona-credencial {
-    position: static !important;
-    display: block !important;
-    margin: 0 auto !important;
-    padding: 0 !important;
-    width: 85.6mm !important;
-    break-inside: avoid;
-    page-break-inside: avoid;
+  const ventana = window.open('', '_blank', 'width=900,height=650')
+  if (!ventana) {
+    return { ok: false, motivo: 'El navegador bloqueó la ventana. Permití las ventanas emergentes y volvé a intentar.' }
   }
-  /* 85.6mm = ancho de una tarjeta CR80 de verdad. */
-  #zona-credencial svg {
-    width: 85.6mm !important;
-    height: auto !important;
-    filter: none !important;
-    /* El fondo de la placa TIENE que imprimirse: por defecto los navegadores
-       descartan los fondos para ahorrar tinta, y sin él la credencial sale
-       como un contorno vacío. */
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
+
+  ventana.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8">
+<title>Credencial</title>
+<style>
+  /* 85,6 mm es el ancho real de una tarjeta CR80. El margen es de la HOJA. */
+  @page { margin: 14mm; }
+  html, body { margin: 0; padding: 0; background: #fff; }
+  body { display: flex; justify-content: center; padding: 8mm 0; }
+  svg { width: 85.6mm; height: auto; display: block;
+        /* Sin esto el navegador descarta los fondos para ahorrar tinta y la
+           placa sale como un contorno vacío. */
+        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @media print { body { padding: 0; } }
+</style></head><body>${clon.outerHTML}</body></html>`)
+  ventana.document.close()
+
+  // Se espera a que la ventana termine de cargar sus imágenes: llamar a
+  // print() antes deja la foto y el emblema en blanco.
+  const lanzar = () => { ventana.focus(); ventana.print() }
+  if (ventana.document.readyState === 'complete') window.setTimeout(lanzar, 250)
+  else ventana.addEventListener('load', () => window.setTimeout(lanzar, 250))
+
+  return { ok: true }
 }
-`
 
 export function CredencialPage() {
   const navigate = useNavigate()
@@ -100,6 +121,8 @@ export function CredencialPage() {
   } = useSettings()
 
   const [stats, setStats] = useState<PlayerStats | null>(null)
+  /** Si la impresión no pudo arrancar (ventana bloqueada), se dice por qué. */
+  const [avisoImpresion, setAvisoImpresion] = useState<string | null>(null)
   const [mazos, setMazos] = useState<MazoCompartible[]>([])
   const [liderNombre, setLiderNombre] = useState<string | null>(null)
   /** Fecha de alta REAL de la cuenta (profiles.created_at). */
@@ -174,14 +197,16 @@ export function CredencialPage() {
 
   return (
     <div className="p-4 lg:p-6 pb-24 max-w-3xl mx-auto space-y-5">
-      <style>{CSS_IMPRESION}</style>
 
       <div className="flex items-center justify-between">
         <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-swu-muted">
           <ChevronLeft size={18} /> Volver
         </button>
         <button
-          onClick={() => window.print()}
+          onClick={() => {
+            const r = imprimirCredencial()
+            if (!r.ok) setAvisoImpresion(r.motivo ?? 'No se pudo imprimir.')
+          }}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-swu-accent text-swu-accent-fg font-bold text-sm active:scale-[0.98] transition-transform"
         >
           <Printer size={16} /> Imprimir / PDF
@@ -193,7 +218,16 @@ export function CredencialPage() {
         <p className="text-xs text-swu-muted">Tu placa de identificación galáctica — personalizala e imprimila a tamaño real.</p>
       </div>
 
-      {/* La credencial, grande y con sombra. El id es el ancla del CSS de impresión. */}
+      {/* Si la impresión no pudo ni arrancar, se dice POR QUÉ. Un botón que no
+          hace nada y no explica nada es lo que hace que la gente reporte «no
+          funciona» sin más dato. */}
+      {avisoImpresion && (
+        <p className="rounded-xl border border-swu-amber/40 bg-swu-amber/10 px-3 py-2 text-[12px] text-swu-amber">
+          {avisoImpresion}
+        </p>
+      )}
+
+      {/* La credencial. El id es de dónde la toma la impresión. */}
       <div id="zona-credencial" className="flex justify-center">
         <CredencialSVG
           datos={datos}
@@ -232,7 +266,7 @@ export function CredencialPage() {
           <p className="text-xs text-swu-muted mb-2">Emblema grabado</p>
           <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5 justify-items-center">
             {EMBLEMAS_CREDENCIAL_IDS.map((id) => {
-              const { etiqueta, Icono } = EMBLEMAS_CREDENCIAL[id]
+              const { etiqueta, url } = EMBLEMAS_CREDENCIAL[id]
               return (
                 <button
                   key={id}
@@ -245,7 +279,8 @@ export function CredencialPage() {
                       : 'border-swu-border bg-swu-bg text-swu-muted'
                   }`}
                 >
-                  <Icono size={22} />
+                  {/* El mismo PNG que ya usa el selector de avatar del perfil. */}
+                  <img src={url} alt="" className="w-7 h-7 object-contain" />
                 </button>
               )
             })}

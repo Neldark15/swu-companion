@@ -100,11 +100,11 @@ export function BancoCredencial() {
 
       <div>
         <p className="text-xs font-mono tracking-wider text-swu-muted mb-2">CASO EMOJI + SIN MAZO</p>
-        <CredencialSVG datos={DATOS_EMOJI} tema={TEMAS_CREDENCIAL[0]} emblema="dado" className="w-full max-w-xl" />
+        <CredencialSVG datos={DATOS_EMOJI} tema={TEMAS_CREDENCIAL[0]} emblema="r2d2" className="w-full max-w-xl" />
       </div>
       <div>
         <p className="text-xs font-mono tracking-wider text-swu-muted mb-2">CASO TEXTOS LARGOS</p>
-        <CredencialSVG datos={DATOS_LARGOS} tema={TEMAS_CREDENCIAL[5]} emblema="datapad" className="w-full max-w-xl" />
+        <CredencialSVG datos={DATOS_LARGOS} tema={TEMAS_CREDENCIAL[5]} emblema="jedi-order" className="w-full max-w-xl" />
       </div>
     </div>
   )
