@@ -3,6 +3,10 @@ import { persist } from 'zustand/middleware'
 import { syncSettingsToCloud } from '../services/sync'
 import { aplicarTemaFondo, esTemaFondo, esTinteTarjeta, esMarcoElegido } from '../services/personalizacion'
 import type { TemaFondoId, TinteTarjetaId, MarcoElegido } from '../services/personalizacion'
+// Solo tipos y validadores (datos puros, sin React): el dibujo de la
+// credencial NO entra al bundle principal por esta importación.
+import { esTemaCredencial, esEmblemaCredencial } from '../features/credencial/credencialTemas'
+import type { TemaCredencialId, EmblemaCredencialId } from '../features/credencial/credencialTemas'
 import { useAuth } from './useAuth'
 
 // ── Accent Color System ──
@@ -82,7 +86,25 @@ export const SABER_COLORS: Record<SaberColor, { core: string; glow: string; labe
   orange: { core: '#FFB74D', glow: '#E65100', label: 'Naranja' },
 }
 
-interface SettingsState {
+/**
+ * La credencial de jugador (/credencial), personalizable de punta a punta.
+ * Viaja en el MISMO JSON de profiles.settings que el resto de ajustes —
+ * cero cambios de base de datos — y con la misma regla: lo que llega de la
+ * nube se valida campo por campo antes de entrar al estado.
+ */
+export interface AjustesCredencial {
+  credencialTema: TemaCredencialId
+  credencialEmblema: EmblemaCredencialId
+  /** Vacío = usar el título activo del perfil como apodo. */
+  credencialApodo: string
+  /** Vacío = usar el país de la cuenta. */
+  credencialUbicacion: string
+  /** Id del mazo favorito en la tabla decks; vacío = ninguno elegido. */
+  credencialMazoId: string
+  credencialMostrarMazo: boolean
+}
+
+interface SettingsState extends AjustesCredencial {
   theme: 'dark' | 'light'
   fontSize: 'sm' | 'md' | 'lg' | 'xl'
   hapticFeedback: boolean
@@ -107,6 +129,8 @@ interface SettingsState {
   setTemaFondo: (t: TemaFondoId) => void
   setTinteTarjeta: (t: TinteTarjetaId) => void
   setMarcoElegido: (m: MarcoElegido) => void
+  /** Un solo setter con parche: la pantalla edita varios campos a la vez. */
+  setCredencial: (parche: Partial<AjustesCredencial>) => void
 }
 
 /** Debounced cloud sync for settings */
@@ -130,6 +154,12 @@ function debouncedSyncSettings() {
       temaFondo: state.temaFondo,
       tinteTarjeta: state.tinteTarjeta,
       marcoElegido: state.marcoElegido,
+      credencialTema: state.credencialTema,
+      credencialEmblema: state.credencialEmblema,
+      credencialApodo: state.credencialApodo,
+      credencialUbicacion: state.credencialUbicacion,
+      credencialMazoId: state.credencialMazoId,
+      credencialMostrarMazo: state.credencialMostrarMazo,
     }
     syncSettingsToCloud(supabaseUser.id, settingsData).catch(() => {})
   }, 1500)
@@ -150,6 +180,12 @@ export const useSettings = create<SettingsState>()(
       temaFondo: 'holocron',
       tinteTarjeta: 'auto',
       marcoElegido: 'auto',
+      credencialTema: 'jedi',
+      credencialEmblema: 'holocron',
+      credencialApodo: '',
+      credencialUbicacion: '',
+      credencialMazoId: '',
+      credencialMostrarMazo: false,
 
       setTheme: (theme) => { set({ theme }); debouncedSyncSettings() },
       setFontSize: (fontSize) => { set({ fontSize }); debouncedSyncSettings() },
@@ -161,6 +197,7 @@ export const useSettings = create<SettingsState>()(
       setTemaFondo: (temaFondo) => { set({ temaFondo }); aplicarTemaFondo(temaFondo); debouncedSyncSettings() },
       setTinteTarjeta: (tinteTarjeta) => { set({ tinteTarjeta }); debouncedSyncSettings() },
       setMarcoElegido: (marcoElegido) => { set({ marcoElegido }); debouncedSyncSettings() },
+      setCredencial: (parche) => { set(parche); debouncedSyncSettings() },
     }),
     { name: 'swu-settings' }
   )
@@ -194,6 +231,12 @@ export function aplicarSettingsDeNube(nube: Record<string, unknown>): void {
   if (esTemaFondo(nube.temaFondo)) parche.temaFondo = nube.temaFondo
   if (esTinteTarjeta(nube.tinteTarjeta)) parche.tinteTarjeta = nube.tinteTarjeta
   if (esMarcoElegido(nube.marcoElegido)) parche.marcoElegido = nube.marcoElegido
+  if (esTemaCredencial(nube.credencialTema)) parche.credencialTema = nube.credencialTema
+  if (esEmblemaCredencial(nube.credencialEmblema)) parche.credencialEmblema = nube.credencialEmblema
+  if (typeof nube.credencialApodo === 'string') parche.credencialApodo = nube.credencialApodo
+  if (typeof nube.credencialUbicacion === 'string') parche.credencialUbicacion = nube.credencialUbicacion
+  if (typeof nube.credencialMazoId === 'string') parche.credencialMazoId = nube.credencialMazoId
+  if (typeof nube.credencialMostrarMazo === 'boolean') parche.credencialMostrarMazo = nube.credencialMostrarMazo
   if (Object.keys(parche).length === 0) return
   useSettings.setState(parche)
   if (parche.accentColor) applyAccentColor(parche.accentColor)

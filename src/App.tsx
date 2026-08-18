@@ -90,6 +90,11 @@ const BancoMesa = import.meta.env.DEV
   ? lazy(() => import('./features/mesa/BancoMesa').then(m => ({ default: m.BancoMesa })))
   : () => null
 const RulingsPage = lazy(() => import('./features/rulings/RulingsPage').then(m => ({ default: m.RulingsPage })))
+// La credencial de jugador: placa de identificación imprimible, personalizable.
+const CredencialPage = lazy(() => import('./features/credencial/CredencialPage').then(m => ({ default: m.CredencialPage })))
+const BancoCredencial = import.meta.env.DEV
+  ? lazy(() => import('./features/credencial/BancoCredencial').then(m => ({ default: m.BancoCredencial })))
+  : () => null
 
 // Transmisión: overlay para OBS (anónimo, transparente) + estudio (panel admin).
 // Van FUERA de AppLayout, junto a /admin: sin Header, sin SideNav, sin TabBar y
@@ -213,6 +218,9 @@ export default function App() {
             {/* Pegada al Laboratorio porque es su continuación: allí se MIDE un
                 emparejamiento y aquí se VE una partida de esa misma medición. */}
             <Route path="/mesa" element={<P><MesaPage /></P>} />
+            {/* La credencial exige sesión: se arma con el perfil de quien mira. */}
+            <Route path="/credencial" element={<P><CredencialPage /></P>} />
+            {import.meta.env.DEV && <Route path="/banco-credencial" element={<BancoCredencial />} />}
             {import.meta.env.DEV && <Route path="/banco-mesa" element={<BancoMesa />} />}
             {import.meta.env.DEV && <Route path="/banco-galaxia" element={<BancoGalaxia />} />}
             {import.meta.env.DEV && <Route path="/banco-planeta" element={<BancoPlaneta />} />}

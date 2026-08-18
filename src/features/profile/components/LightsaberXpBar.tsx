@@ -41,28 +41,37 @@ export function LightsaberXpBar({ xp }: LightsaberXpBarProps) {
           empuñadura se quedaba en 24 px de alto, pasaba a ser tres veces más
           gruesa que la hoja y parecía un martillo. Los colores no se tocan. */}
       <div className="relative flex items-center h-5">
-        {/* Empuñadura */}
+        {/* Empuñadura.
+            Más LARGA que alta (46×14): una empuñadura real es un cilindro
+            alargado, y la versión corta se leía como un botón cuadrado pegado
+            a la hoja. El largo extra va en el cuerpo del mango — más estrías,
+            más zona de agarre — no en el emisor. */}
         <div className="relative z-20 flex-shrink-0">
-          <svg width="30" height="14" viewBox="0 0 30 14" fill="none" aria-hidden>
-            {/* Cuerpo */}
-            <rect x="5" y="2.5" width="19" height="9" rx="1.5" fill="#2A2A2E" stroke="#555" strokeWidth="0.8" />
-            {/* Estrías del mango */}
-            <line x1="11" y1="3.2" x2="11" y2="10.8" stroke="#444" strokeWidth="0.8" />
+          <svg width="46" height="14" viewBox="0 0 46 14" fill="none" aria-hidden>
+            {/* Pomo, con su anillo */}
+            <rect x="0" y="4" width="5" height="6" rx="1" fill="#222" stroke="#555" strokeWidth="0.5" />
+            <line x1="6.5" y1="3.5" x2="6.5" y2="10.5" stroke="#555" strokeWidth="1" />
+            {/* Cuerpo largo */}
+            <rect x="8" y="2.5" width="28" height="9" rx="1.5" fill="#2A2A2E" stroke="#555" strokeWidth="0.8" />
+            {/* Estrías del agarre */}
             <line x1="14" y1="3.2" x2="14" y2="10.8" stroke="#444" strokeWidth="0.8" />
             <line x1="17" y1="3.2" x2="17" y2="10.8" stroke="#444" strokeWidth="0.8" />
-            {/* Emisor: se estrecha hacia la hoja, que es de donde sale */}
-            <rect x="23" y="3.8" width="7" height="6.4" rx="0.8" fill="#3A3A3E" stroke="#666" strokeWidth="0.5" />
+            <line x1="20" y1="3.2" x2="20" y2="10.8" stroke="#444" strokeWidth="0.8" />
+            <line x1="23" y1="3.2" x2="23" y2="10.8" stroke="#444" strokeWidth="0.8" />
+            <line x1="26" y1="3.2" x2="26" y2="10.8" stroke="#444" strokeWidth="0.8" />
             {/* Botón de encendido, del color del sable elegido */}
-            <circle cx="8" cy="7" r="1.5" fill={core} opacity="0.85">
+            <circle cx="11" cy="7" r="1.5" fill={core} opacity="0.85">
               <animate attributeName="opacity" values="0.5;1;0.5" dur="2s" repeatCount="indefinite" />
             </circle>
-            {/* Pomo */}
-            <rect x="0" y="4" width="4.5" height="6" rx="1" fill="#222" stroke="#555" strokeWidth="0.5" />
+            {/* Guarda entre agarre y emisor */}
+            <rect x="36" y="3" width="2.5" height="8" rx="0.5" fill="#1c1c20" stroke="#555" strokeWidth="0.5" />
+            {/* Emisor: se estrecha hacia la hoja, que es de donde sale */}
+            <rect x="39" y="3.8" width="7" height="6.4" rx="0.8" fill="#3A3A3E" stroke="#666" strokeWidth="0.5" />
           </svg>
         </div>
 
         {/* La hoja */}
-        <div className="flex-1 relative h-2 -ml-1.5">
+        <div className="flex-1 relative h-2 -ml-2">
           {/* Background track */}
           <div className="absolute inset-0 rounded-r-full bg-black/60 border border-white/5" />
 

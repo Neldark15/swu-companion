@@ -795,6 +795,18 @@ export function ProfilePage() {
             <PersonalizarPerfil />
           </div>
 
+          {/* La credencial vive en su propia pantalla: tiene demasiada
+              personalización (tema, emblema, mazo, impresión) para caber acá. */}
+          <button
+            onClick={() => navigate('/credencial')}
+            className="w-full flex items-center justify-between py-3 px-4 rounded-xl border border-swu-border bg-swu-bg hover:border-swu-accent/50 transition-colors active:scale-[0.98]"
+          >
+            <span className="flex items-center gap-2 text-sm font-medium text-swu-accent-texto">
+              <Fingerprint size={16} /> Mi Credencial
+            </span>
+            <ChevronRight size={16} className="text-swu-muted" />
+          </button>
+
           {/* Region selector: Continent → Country */}
           <div>
             <p className="text-xs text-swu-muted mb-1.5 flex items-center gap-1.5">
