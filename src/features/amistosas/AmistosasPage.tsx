@@ -39,6 +39,7 @@ import {
   type DueloVisto, type CaraACara,
 } from '../../services/amistosas'
 import { RegistrarAmistosa } from './RegistrarAmistosa'
+import { PorConfirmar } from './PorConfirmar'
 import { cargarIndice, resolver, nombreCorto, type IndiceCartas } from './cartasAmistosas'
 
 type Pestana = 'historial' | 'cara'
@@ -212,6 +213,11 @@ export function AmistosasPage() {
           </p>
         </div>
       </header>
+
+      {/* Lo que ESPERA MI RESPUESTA va arriba de todo: es lo único de esta
+          pantalla donde alguien más está esperando algo mío. Se dibuja sola
+          solo si hay algo; con la bandeja vacía no ocupa ni un píxel. */}
+      <PorConfirmar miId={miId} alCambiar={() => setRecarga(n => n + 1)} />
 
       <Button variant="primary" block onClick={() => setRegistrando(true)}>
         <Plus size={15} /> Registrar partida

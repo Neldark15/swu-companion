@@ -742,3 +742,38 @@ Cuatro trampas del propio detector, todas ya pagadas:
 Marcá `data-deco` en cada grupo decorativo nuevo y `data-fondo` en cada fondo
 legítimo de texto, o el detector no los ve — y no verlos se parece mucho a que
 no haya problema.
+
+### 3a. Amistosas: nadie publica la partida de otro
+
+Una amistosa la anota UNA persona pero la jugaron DOS. La tabla
+`duelos_amistosos` tiene por eso una máquina de estados chica y una regla que
+no se negocia: el creador anota, al rival le cae **pendiente**, y solo si él
+acepta la fila pasa a `confirmada` — que es el único estado público y el único
+que cuenta para el meta.
+
+- `pendiente` · `confirmada` · `rechazada` · `sin_rival`. La última es para el
+  invitado sin cuenta: no hay a quién preguntarle, así que nunca se publica.
+  Hay un CHECK que impide que una fila sin `rival_id` quede pendiente, porque
+  una pendiente que nadie puede resolver es basura que ensucia el contador.
+- **La confirmación va por RPC, no por policy.** RLS es por FILA, no por
+  columna: una policy de UPDATE para el rival lo dejaría cambiar también el
+  marcador y el mazo del creador. `confirmar_amistosa` es SECURITY DEFINER,
+  comprueba `auth.uid() = rival_id` y toca exactamente cuatro campos.
+- **El mazo se adjunta cada uno el suyo.** El creador el propio al anotar; el
+  rival el propio al confirmar. La función verifica que el `deck` sea de quien
+  llama. Probado: adjuntar un mazo ajeno devuelve `insufficient_privilege`.
+- **`decks.id` es TEXT, no uuid.** Una foreign key declarada `uuid` ni se puede
+  crear («Key columns are of incompatible types»). Se descubrió probando la
+  migración en una transacción revertida antes de aplicarla, que es como se
+  hacen acá.
+- **`meta_amistoso` agrega los DOS lados** de cada duelo con un `union all`.
+  Con un solo lado el meta saldría sesgado hacia los mazos de quien lleva el
+  teléfono a la mesa, que siempre es la misma persona.
+- **El winrate se calla cuando no tiene con qué.** 8 de los 10 duelos de
+  producción están 0-0: se usó el Contador para llevar la vida y nadie marcó
+  quién ganó. El denominador son las partidas CON marcador; si son cero, no se
+  muestra porcentaje. Un «0%» ahí es una mentira con cara de dato.
+
+Las cinco reglas de seguridad están probadas contra la base real dentro de una
+transacción revertida: tercero rechazado, creador no puede autoconfirmar, mazo
+ajeno rechazado, rival confirma, segunda confirmación rechazada.

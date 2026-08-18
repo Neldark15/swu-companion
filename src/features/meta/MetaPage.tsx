@@ -28,7 +28,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Swords, BarChart3, Info,
-  ExternalLink, AlertTriangle, ChevronRight, Trophy, Flag,
+  ExternalLink, AlertTriangle, ChevronRight, Trophy, Flag, Handshake,
 } from 'lucide-react'
 import { TournamentsView } from './TournamentsView'
 import { MetaLiveView } from './MetaLiveView'
@@ -36,6 +36,7 @@ import { MetaNacionalView } from './MetaNacionalView'
 import { Button } from '../../components/ui/Button'
 import { Chip } from '../../components/ui/Chip'
 import { SegmentedControl } from '../../components/ui/SegmentedControl'
+import { MetaAmistosoView } from './MetaAmistosoView'
 import { Sheet } from '../../components/ui/Sheet'
 import {
   tournament, archetypes, findings, notes, sources,
@@ -59,7 +60,7 @@ function WinRate({ value }: { value: number | null | undefined }) {
 
 export function MetaPage() {
   const navigate = useNavigate()
-  const [view, setView] = useState<'torneos' | 'meta' | 'matchups' | 'nacional'>('torneos')
+  const [view, setView] = useState<'torneos' | 'meta' | 'matchups' | 'nacional' | 'amistosas'>('torneos')
   const [selected, setSelected] = useState<string | null>(archetypes[0]?.id ?? null)
   const [detail, setDetail] = useState<MetaArchetype | null>(null)
   const [showInfo, setShowInfo] = useState(false)
@@ -126,6 +127,9 @@ export function MetaPage() {
             // El control ya no desborda —recorta— pero «Nacio…» no dice más que
             // «SV», así que la etiqueta corta se queda por legible, no por miedo.
             { value: 'nacional', label: 'SV', icon: <Flag size={13} aria-hidden /> },
+            // Lo que se juega FUERA de torneo. Es la única pestaña alimentada
+            // por la propia comunidad en vez de por una ingesta externa.
+            { value: 'amistosas', label: 'Mesa', icon: <Handshake size={13} aria-hidden /> },
           ]}
         />
 
@@ -137,6 +141,7 @@ export function MetaPage() {
         {/* El meta de acá. Es la única de las cuatro que habla de nosotros: las
             otras tres describen el mundo. */}
         {view === 'nacional' && <MetaNacionalView />}
+        {view === 'amistosas' && <MetaAmistosoView />}
         {view === 'matchups' && (
           <>
             <div>

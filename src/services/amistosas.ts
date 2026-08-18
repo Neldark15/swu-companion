@@ -30,7 +30,7 @@ import { supabase, isSupabaseReady } from './supabase'
 const COLUMNAS =
   'id, creador_id, rival_id, rival_nombre, lider_creador, base_creador, ' +
   'lider_rival, base_rival, victorias_creador, victorias_rival, rondas, ' +
-  'terminado, created_at'
+  'terminado, created_at, estado, mazo_creador_id, mazo_rival_id'
 
 interface FilaDuelo {
   id: string
@@ -46,7 +46,22 @@ interface FilaDuelo {
   rondas: number
   terminado: boolean
   created_at: string
+  estado: EstadoAmistosa
+  mazo_creador_id: string | null
+  mazo_rival_id: string | null
 }
+
+/**
+ * Dónde está la partida en el camino a publicarse.
+ *
+ * - `pendiente`  el creador la anotó, el rival todavía no dijo nada.
+ * - `confirmada` el rival aceptó: es pública y cuenta para el meta.
+ * - `rechazada`  el rival dijo que no. Se queda, privada, en el historial de
+ *                los dos: negarse a publicar no es negar que se jugó.
+ * - `sin_rival`  se jugó contra alguien sin cuenta. No hay a quién preguntarle,
+ *                así que nunca se publica.
+ */
+export type EstadoAmistosa = 'pendiente' | 'confirmada' | 'rechazada' | 'sin_rival'
 
 /** Un lado del duelo, ya resuelto desde el punto de vista de quien mira. */
 export interface LadoAmistoso {
@@ -54,6 +69,8 @@ export interface LadoAmistoso {
   perfilId: string | null
   nombre: string
   avatar: string | null
+  /** Id del mazo que este lado adjuntó, si adjuntó alguno. */
+  mazoId: string | null
   /** «Nombre — Subtítulo». Vacío en los duelos viejos: la columna no existía. */
   lider: string
   base: string
@@ -77,6 +94,9 @@ export interface DueloVisto {
   resultado: 'gane' | 'perdi' | 'empate' | 'sin-marcador'
   /** De dónde salió: el Contador solo sube duelos que llegaron a `terminado`. */
   rondas: number
+  estado: EstadoAmistosa
+  /** `true` si soy YO quien la anotó. Decide quién puede confirmar. */
+  laAnoteYo: boolean
 }
 
 /** El acumulado contra una persona. */
@@ -120,6 +140,7 @@ function vistaDe(
     lider: yoCree ? f.lider_creador : f.lider_rival,
     base: yoCree ? f.base_creador : f.base_rival,
     victorias: mias,
+    mazoId: yoCree ? f.mazo_creador_id : f.mazo_rival_id,
   }
 
   const rival: LadoAmistoso = {
@@ -131,6 +152,7 @@ function vistaDe(
     lider: yoCree ? f.lider_rival : f.lider_creador,
     base: yoCree ? f.base_rival : f.base_creador,
     victorias: suyas,
+    mazoId: yoCree ? f.mazo_rival_id : f.mazo_creador_id,
   }
 
   // 0-0 es «nadie anotó», no un empate. Ver el comentario del tipo.
@@ -140,7 +162,10 @@ function vistaDe(
         : suyas > mias ? 'perdi'
           : 'empate'
 
-  return { id: f.id, cuando: f.created_at, yo, rival, resultado, rondas: f.rondas }
+  return {
+    id: f.id, cuando: f.created_at, yo, rival, resultado, rondas: f.rondas,
+    estado: f.estado, laAnoteYo: yoCree,
+  }
 }
 
 /**
@@ -154,6 +179,24 @@ function vistaDe(
  * red caída.
  */
 export type Resultado<T> = { ok: true; datos: T } | { ok: false; mensaje: string }
+
+/**
+ * Nombre y avatar de un puñado de perfiles, en un solo viaje.
+ *
+ * Lo usan el historial y las pendientes. Un fallo acá NO tumba la pantalla: se
+ * pierde la foto, no el duelo — por eso avisa por consola y devuelve el mapa
+ * a medias en vez de propagar el error.
+ */
+async function nombresDe(ids: string[]): Promise<Map<string, { name: string; avatar: string | null }>> {
+  const mapa = new Map<string, { name: string; avatar: string | null }>()
+  const limpios = [...new Set(ids.filter(Boolean))]
+  if (limpios.length === 0) return mapa
+  const { data, error } = await supabase
+    .from('profiles').select('id, name, avatar').in('id', limpios)
+  if (error) console.warn('[amistosas] no se pudieron resolver los perfiles:', error.message)
+  for (const p of data ?? []) mapa.set(p.id, { name: p.name, avatar: p.avatar })
+  return mapa
+}
 
 /**
  * Los duelos terminados de `miId`, en LAS DOS direcciones.
@@ -197,15 +240,7 @@ export async function listarAmistosas(miId: string, tope = 100): Promise<Resulta
   const otros = [...new Set(
     [miId, ...filas.flatMap(f => [f.creador_id, f.rival_id])].filter((id): id is string => !!id),
   )]
-  const nombres = new Map<string, { name: string; avatar: string | null }>()
-  if (otros.length) {
-    const { data: perfiles, error: e2 } = await supabase
-      .from('profiles')
-      .select('id, name, avatar')
-      .in('id', otros)
-    if (e2) console.warn('[amistosas] no se pudieron resolver los perfiles:', e2.message)
-    for (const p of perfiles ?? []) nombres.set(p.id, { name: p.name, avatar: p.avatar })
-  }
+  const nombres = await nombresDe(otros)
 
   return { ok: true, datos: filas.map(f => vistaDe(f, miId, nombres)) }
 }
@@ -259,6 +294,11 @@ export interface NuevaAmistosa {
   susVictorias: number
   /** Fecha de la partida. Si no viene, ahora. */
   cuando?: Date | null
+  /**
+   * Mi mazo de esa partida, si lo quiero adjuntar. El del rival NO se elige
+   * acá: se lo adjunta él mismo al confirmar. Nadie publica el mazo de otro.
+   */
+  miMazoId?: string | null
 }
 
 /**
@@ -300,6 +340,11 @@ export async function registrarAmistosa(miId: string, d: NuevaAmistosa): Promise
     // lo único que se sabe de una partida ya terminada.
     rondas: Math.max(1, mias + suyas),
     terminado: true,
+    mazo_creador_id: d.miMazoId || null,
+    // Con rival con cuenta nace PENDIENTE: hasta que él acepte, la partida es
+    // privada. Contra un invitado sin cuenta no hay a quién preguntarle, así
+    // que nace `sin_rival` y se queda en el historial personal.
+    estado: d.rivalId ? 'pendiente' : 'sin_rival',
     created_at: (d.cuando ?? new Date()).toISOString(),
     updated_at: new Date().toISOString(),
   }
@@ -310,4 +355,136 @@ export async function registrarAmistosa(miId: string, d: NuevaAmistosa): Promise
     return { ok: false, error: error.message }
   }
   return { ok: true }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONSENTIMIENTO
+//
+// Una amistosa la anota una persona pero la jugaron DOS. Publicarla sin
+// preguntarle al otro sería contar su mazo, su resultado y con quién juega sin
+// que él haya dicho que sí. Así que el creador anota, al rival le cae
+// pendiente, y recién si acepta la partida es pública y cuenta para el meta.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Las partidas que alguien anotó CONTRA MÍ y esperan mi respuesta.
+ *
+ * Se consultan con la policy `duelos_select` (`creador OR rival`), que ya
+ * existía: no hace falta abrir nada nuevo para que el rival vea lo suyo.
+ */
+export async function pendientesDeConfirmar(miId: string): Promise<Resultado<DueloVisto[]>> {
+  if (!isSupabaseReady()) return { ok: false, mensaje: 'Sin conexión con la nube.' }
+  if (!miId) return { ok: true, datos: [] }
+
+  const { data, error } = await supabase
+    .from('duelos_amistosos')
+    .select(COLUMNAS)
+    .eq('rival_id', miId)
+    .eq('estado', 'pendiente')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.warn('[amistosas] no se pudieron leer las pendientes:', error.message)
+    return { ok: false, mensaje: 'No se pudieron leer las partidas por confirmar.' }
+  }
+
+  const filas = (data ?? []) as unknown as FilaDuelo[]
+  if (filas.length === 0) return { ok: true, datos: [] }
+
+  // Los nombres de quienes las anotaron: la fila guarda `rival_nombre` (o sea
+  // el MÍO) pero nunca el nombre del creador.
+  const ids = [...new Set(filas.map((f) => f.creador_id))]
+  const nombres = await nombresDe([...ids, miId])
+  return { ok: true, datos: filas.map((f) => vistaDe(f, miId, nombres)) }
+}
+
+/** Lo que el rival puede agregar de su lado al aceptar. */
+export interface AlConfirmar {
+  /** Corrige el líder que anotó el creador, si se equivocó o lo dejó vacío. */
+  lider?: string | null
+  base?: string | null
+  /** Mi mazo. Solo se puede adjuntar uno propio: la función lo verifica. */
+  mazoId?: string | null
+}
+
+/**
+ * Acepta o rechaza que una partida se publique.
+ *
+ * Va por RPC y no por un `update` directo, y la razón no es de estilo: RLS es
+ * por FILA, no por columna. Una policy que dejara al rival escribir esta fila
+ * lo dejaría cambiar también el marcador y el mazo del creador. La función
+ * `confirmar_amistosa` es SECURITY DEFINER, comprueba que quien llama sea el
+ * rival, y toca exactamente cuatro campos.
+ */
+export async function confirmarAmistosa(
+  dueloId: string,
+  acepta: boolean,
+  extra: AlConfirmar = {},
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión con la nube.' }
+
+  const { error } = await supabase.rpc('confirmar_amistosa', {
+    p_duelo: dueloId,
+    p_acepta: acepta,
+    p_lider: extra.lider?.trim() || null,
+    p_base: extra.base?.trim() || null,
+    p_mazo: extra.mazoId || null,
+  })
+
+  if (error) {
+    console.warn('[amistosas] no se pudo confirmar:', error.message)
+    return { ok: false, error: error.message }
+  }
+  return { ok: true }
+}
+
+/** Una fila del meta amistoso: un arquetipo y cómo le fue fuera de torneo. */
+export interface MetaAmistoso {
+  lider: string
+  base: string
+  partidas: number
+  ganadas: number
+  perdidas: number
+  /** Sobre las partidas CON marcador. Null si ninguna lo tuvo. */
+  winrate: number | null
+}
+
+/**
+ * Qué se está jugando de verdad fuera de torneo.
+ *
+ * Agrega los DOS lados de cada duelo, no solo el de quien anotó. Sin eso el
+ * meta saldría sesgado hacia los mazos de la gente que lleva el teléfono a la
+ * mesa, que siempre es la misma.
+ *
+ * Solo entra lo `confirmada`. Es la diferencia entre un meta y un chisme.
+ */
+export async function metaAmistoso(dias = 90): Promise<Resultado<MetaAmistoso[]>> {
+  if (!isSupabaseReady()) return { ok: false, mensaje: 'Sin conexión con la nube.' }
+
+  const desde = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString()
+  const { data, error } = await supabase.rpc('meta_amistoso', { p_desde: desde })
+
+  if (error) {
+    console.warn('[amistosas] no se pudo leer el meta amistoso:', error.message)
+    return { ok: false, mensaje: 'No se pudo leer el meta de amistosas.' }
+  }
+
+  const filas = (data ?? []) as Array<{
+    lider: string; base: string; partidas: number; ganadas: number; perdidas: number
+  }>
+  return {
+    ok: true,
+    datos: filas.map((f) => {
+      // El denominador son las partidas CON marcador, no todas: hoy 8 de 10
+      // duelos en producción están 0-0 porque se usó el Contador para llevar
+      // la vida y nadie marcó quién ganó. Meterlas al denominador daría un
+      // winrate del 0% para todo el mundo.
+      const conMarcador = f.ganadas + f.perdidas
+      return {
+        ...f,
+        winrate: conMarcador > 0 ? Math.round((f.ganadas / conMarcador) * 100) : null,
+      }
+    }),
+  }
 }

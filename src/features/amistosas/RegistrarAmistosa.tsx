@@ -17,6 +17,7 @@ import { CardImage } from '../../components/CardImage'
 import { PlayerSearchInput } from '../events/components/PlayerSearchInput'
 import { ensureCards } from '../../services/swuApi'
 import { registrarAmistosa } from '../../services/amistosas'
+import { misMazos, type MazoCompartible } from '../../services/galaxiaCompartir'
 import { aISOdesdeSV, diaCalendarioSV } from '../../services/horaSV'
 import { cargarIndice, claveDeCarta, type IndiceCartas } from './cartasAmistosas'
 import type { Card } from '../../types'
@@ -154,6 +155,8 @@ export function RegistrarAmistosa({ miId, onListo, onCancelar }: Props) {
   // Hoy EN EL SALVADOR, no en la zona del aparato: si alguien anota un duelo a
   // las 11 de la noche, la fecha por defecto tiene que ser la de hoy acá.
   const [fecha, setFecha] = useState(() => diaCalendarioSV(new Date()))
+  const [mazos, setMazos] = useState<MazoCompartible[]>([])
+  const [miMazoId, setMiMazoId] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -165,9 +168,13 @@ export function RegistrarAmistosa({ miId, onListo, onCancelar }: Props) {
       await ensureCards()
       const ix = await cargarIndice()
       if (vivo) setIndice(ix)
+      // Mis mazos, para poder adjuntar el que usé. El del RIVAL no se ofrece:
+      // se lo adjunta él mismo al confirmar. Nadie publica el mazo de otro.
+      const lista = await misMazos(miId)
+      if (vivo) setMazos(lista)
     })()
     return () => { vivo = false }
-  }, [])
+  }, [miId])
 
   const puedeGuardar = rivalNombre.trim().length > 0 && !guardando
 
@@ -183,6 +190,7 @@ export function RegistrarAmistosa({ miId, onListo, onCancelar }: Props) {
       suBase: suBase?.name ?? '',
       misVictorias: mias,
       susVictorias: suyas,
+      miMazoId: miMazoId || null,
       // La fecha se ancla en hora de El Salvador; sin esto se guardaría en la
       // zona del aparato y un duelo de la noche saltaría al día siguiente.
       cuando: (() => {
@@ -207,9 +215,38 @@ export function RegistrarAmistosa({ miId, onListo, onCancelar }: Props) {
         />
         {rivalNombre.trim() && !rivalId && (
           <p className="mt-1 text-[10px] text-swu-muted">
-            Sin cuenta enlazada: el duelo se guarda igual, pero no le va a aparecer a esa persona.
+            Sin cuenta enlazada: el duelo se guarda igual, queda solo en tu historial y no cuenta para el meta.
           </p>
         )}
+        {rivalId && (
+          <p className="mt-1 text-[10px] text-swu-accent-texto">
+            Le va a llegar para que confirme. Hasta que acepte, la partida es privada.
+          </p>
+        )}
+      </div>
+
+      {/* ── Mi mazo ──
+          Solo el MÍO. El del rival se lo adjunta él al confirmar: adjuntar el
+          mazo de otro sería publicar su lista sin preguntarle. */}
+      <div>
+        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-swu-muted">
+          Mi mazo (opcional)
+        </p>
+        <select
+          value={miMazoId}
+          onChange={(e) => setMiMazoId(e.target.value)}
+          className="w-full rounded-xl border border-swu-border bg-swu-bg p-3 text-sm text-swu-text outline-none focus:border-swu-accent"
+        >
+          <option value="">Sin adjuntar</option>
+          {mazos.map((m) => (
+            <option key={m.id} value={m.id}>{m.nombre}</option>
+          ))}
+        </select>
+        <p className="mt-1 text-[10px] text-swu-muted">
+          {mazos.length === 0
+            ? 'Todavía no tenés mazos guardados en la nube.'
+            : 'Si la partida se publica, se va a poder ver esta lista desde ahí.'}
+        </p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
