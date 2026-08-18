@@ -381,7 +381,25 @@ export function GalaxyPage() {
     const validas: TabId[] = ['sala', 'explorer', 'rankings', 'activity', 'map']
     return (validas as string[]).includes(v ?? '') ? (v as TabId) : 'sala'
   })
-  const { supabaseUser, isAdmin } = useAuth()
+
+  /**
+   * Qué sala abrir, si el enlace la nombra (`?sala=pais:SV`).
+   *
+   * Se lee UNA vez, con inicializador perezoso, y no se vuelve a mirar: si se
+   * releyera en cada render, cambiar de sala con el selector y volver a
+   * renderizar te devolvería a la del enlace, y el selector parecería roto.
+   *
+   * No se valida contra una lista acá: se compara contra las salas que la
+   * persona REALMENTE tiene, así que un valor inventado no abre nada — cae en
+   * el `?? salas[0]` de más abajo.
+   */
+  // Inicializador perezoso y NO un ref: leer `.current` durante el render es
+  // justo lo que la regla de React prohíbe, y acá además no hacía falta —
+  // `useState` con función ya evalúa una sola vez, en el primer render.
+  const [salaPedida] = useState<string | null>(
+    () => new URLSearchParams(window.location.search).get('sala'),
+  )
+  const { supabaseUser, isAdmin, currentProfile } = useAuth()
 
   /**
    * Las salas de esta persona, de la más cercana a la más lejana.
@@ -391,7 +409,10 @@ export function GalaxyPage() {
    * que dice el perfil.
    */
   const [misTiendas, setMisTiendas] = useState<Array<{ id: string; nombre: string }>>([])
-  const [salaSel, setSalaSel] = useState<string | null>(null)
+  // Arranca en la sala que pida el enlace. Si no pide ninguna —o pide una que
+  // no existe para esta persona— cae en la primera de sus salas, que por el
+  // orden de `salasDe` es la más cercana: su tienda, o su país.
+  const [salaSel, setSalaSel] = useState<string | null>(salaPedida)
   const [estadoSalas, setEstadoSalas] = useState<Map<string, EstadoSala>>(new Map())
 
 
@@ -680,6 +701,8 @@ export function GalaxyPage() {
                 key={claveSala(salaActiva.alcance, salaActiva.ambito)}
                 sala={salaActiva}
                 miId={supabaseUser.id}
+                miNombre={currentProfile?.name ?? 'Alguien'}
+                miAvatar={currentProfile?.avatar ?? ''}
                 soyAdmin={isAdmin}
                 alcanceGente={genteEnSala(salaActiva)}
                 silenciada={!!estadoSalas.get(claveSala(salaActiva.alcance, salaActiva.ambito))?.silenciada}

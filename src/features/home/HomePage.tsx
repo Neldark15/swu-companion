@@ -34,6 +34,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { type PlayerStats, calculateLevel } from '../../services/gamification'
 import { db } from '../../services/db'
 import { WelcomeHome } from './components/WelcomeHome'
+import { ChatRegion } from './ChatRegion'
 
 /* Avatar helper: detect image-based avatar vs emoji */
 
@@ -339,6 +340,10 @@ export function HomePage() {
           <div key={id}>
             {renderSeparador(titulo, 'cyan')}
             <div className="px-4 pt-2 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {/* El chat de tu región va PRIMERO de Comunidad: es lo único de
+                  esa franja que cambia solo y que tiene algo que decirte hoy.
+                  Se dibuja únicamente con sesión — sin cuenta no hay región. */}
+              {id === 'comunidad' && <ChatRegion userId={supabaseUser?.id} />}
               {items.map(renderModulo)}
             </div>
           </div>

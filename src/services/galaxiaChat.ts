@@ -319,3 +319,44 @@ export async function misSalas(
   const ajustes = (data?.settings ?? {}) as { country?: string; continent?: string }
   return salasDe(ajustes.country ?? null, ajustes.continent ?? null, tiendas)
 }
+
+/**
+ * Quién está mirando esta sala AHORA.
+ *
+ * Usa la PRESENCIA de Realtime, no una tabla: el estado se va con quien lo
+ * puso —al cerrar la pestaña, al perder la señal— y eso es exactamente lo que
+ * significa «en línea». Con una tabla habría que escribir un latido, limpiar
+ * los muertos por cron, y aun así alguien que cierra el navegador de golpe se
+ * quedaría «en línea» hasta que pase el barrido.
+ *
+ * Devuelve la función para dejar de escuchar.
+ */
+export function escucharPresencia(
+  alcance: AlcanceSala,
+  ambito: string | null,
+  miId: string,
+  miNombre: string,
+  miAvatar: string,
+  alCambiar: (ids: string[]) => void,
+): () => void {
+  if (!isSupabaseReady() || !miId) return () => {}
+
+  const canal = supabase.channel(`presencia-${claveSala(alcance, ambito)}`, {
+    config: { presence: { key: miId } },
+  })
+
+  canal
+    .on('presence', { event: 'sync' }, () => {
+      alCambiar(Object.keys(canal.presenceState()))
+    })
+    .subscribe(estado => {
+      // El `track` va DENTRO del callback de suscripción: mandarlo antes de
+      // que el canal esté unido lo pierde en silencio y aparecés como
+      // desconectado para todos menos para vos.
+      if (estado === 'SUBSCRIBED') {
+        void canal.track({ nombre: miNombre, avatar: miAvatar, desde: new Date().toISOString() })
+      }
+    })
+
+  return () => { void supabase.removeChannel(canal) }
+}
