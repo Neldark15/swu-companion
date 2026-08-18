@@ -44,7 +44,12 @@ export const BANCO_TRIVIA: PreguntaTrivia[] = [
   { id: 'u15', question: '¿Quién creó el Ejército Clon?', options: ['Palpatine', 'Sifo-Dyas', 'Dooku', 'Jango Fett'], correctIndex: 1, category: 'universe', funFact: 'Sifo-Dyas encargó el ejército en secreto, luego fue asesinado por orden de Dooku.', tema: 'jedi' },
   { id: 'u17', question: '¿Quién es el líder de los Mandalorianos en la serie?', options: ['Boba Fett', 'Din Djarin', 'Bo-Katan Kryze', 'Pre Vizsla'], correctIndex: 1, category: 'universe', funFact: 'Din Djarin, "El Mandaloriano", es interpretado por Pedro Pascal.', tema: 'jedi' },
   { id: 'u25', question: '¿Quién interpreta a Han Solo en las películas originales?', options: ['Mark Hamill', 'Harrison Ford', 'Alden Ehrenreich', 'Oscar Isaac'], correctIndex: 1, category: 'universe', funFact: 'Harrison Ford casi no obtiene el papel; el estudio quería a Christopher Walken.', tema: 'jedi' },
-  { id: 'u32', question: '¿Qué poder permite a los Jedi mover objetos?', options: ['Fuerza Push', 'Telequinesis', 'Force Grip', 'Mind Trick'], correctIndex: 1, category: 'universe', funFact: 'La telequinesis es una de las habilidades más básicas enseñadas a los Jedi.', tema: 'jedi' },
+  // Reescrita: la versión vieja preguntaba «¿qué poder permite mover objetos?»
+  // y ofrecía Fuerza Push, Telequinesis, Force Grip y Mind Trick — TRES de las
+  // cuatro son mover cosas con la Fuerza, así que había tres respuestas
+  // defendibles y una sola marcada como buena. Ahora los distractores no
+  // tienen nada que ver con mover objetos.
+  { id: 'u32', question: '¿Qué es lo que permite a los Jedi mover objetos con la mente?', options: ['La Fuerza', 'Los cristales kyber', 'Un campo magnético', 'La tecnología del sable'], correctIndex: 0, category: 'universe', funFact: 'Mover objetos es telequinesis, una de las aplicaciones más básicas de la Fuerza. Los cristales kyber, en cambio, son lo que alimenta un sable de luz.', tema: 'jedi' },
   { id: 'u34', question: '¿Quién es Cal Kestis?', options: ['Un Sith', 'Un Padawan sobreviviente de la Orden 66', 'Un Mandaloriano', 'Un piloto rebelde'], correctIndex: 1, category: 'universe', funFact: 'Cal Kestis es el protagonista de los videojuegos Jedi: Fallen Order y Survivor.', tema: 'jedi' },
 
   // — nuevas —

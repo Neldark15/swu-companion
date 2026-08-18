@@ -33,6 +33,7 @@ import { db } from '../../services/db'
 import { calculateLevel, type PlayerStats } from '../../services/gamification'
 import { TarjetaJugador } from '../profile/TarjetaJugador'
 import { PushNotificationToggle } from './components/PushNotificationToggle'
+import { BotonActualizar } from './components/BotonActualizar'
 
 /**
  * El swatch de 'auto' no es un color: es «el color de tu RANGO decide».
@@ -197,6 +198,12 @@ export function SettingsPage() {
       <div>
         <p className="text-[10px] text-swu-muted uppercase tracking-wider font-bold mb-2 px-1">{t('Notificaciones', 'Notifications')}</p>
         <PushNotificationToggle />
+        {/* Actualizar la app. Va junto a las notificaciones y no enterrado
+            abajo: quien sospecha que está viendo la versión vieja —el síntoma
+            que más se reporta— tiene que encontrarlo sin buscar. */}
+        <div className="mt-2">
+          <BotonActualizar />
+        </div>
       </div>
 
       {/* ── Apariencia: lo que repinta la app ENTERA ── */}

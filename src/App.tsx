@@ -77,6 +77,11 @@ const BancoGalaxia = import.meta.env.DEV
 const BancoAvatares = import.meta.env.DEV
   ? lazy(() => import('./components/ui/BancoAvatares').then(m => ({ default: m.BancoAvatares })))
   : () => null
+// Traductor de Aurebesh. PÚBLICO: un traductor con muro de registro no lo usa
+// nadie, y es lo más compartible que tiene la app.
+const TraductorPage = lazy(() =>
+  import('./features/aurebesh/TraductorPage').then(m => ({ default: m.TraductorPage })),
+)
 const BancoSable = import.meta.env.DEV
   ? lazy(() => import('./features/profile/components/BancoSable').then(m => ({ default: m.BancoSable })))
   : () => null
@@ -183,6 +188,7 @@ export default function App() {
             {/* ── Public routes ── */}
             <Route path="/" element={<HomePage />} />
             <Route path="/cards" element={<CardsPage />} />
+            <Route path="/aurebesh" element={<TraductorPage />} />
             <Route path="/cards/:id" element={<CardDetailPage />} />
             <Route path="/contador" element={<ContadorPage />} />
             {/* Torneos: el archivo de lo que ya se jugó. Público —sin <P>— como

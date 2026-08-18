@@ -22,6 +22,7 @@
 import { useEffect, useState } from 'react'
 import { registerSW } from 'virtual:pwa-register'
 import { RefreshCw, X } from 'lucide-react'
+import { useActualizacion } from '../services/actualizacion'
 
 export function UpdatePrompt() {
   const [needRefresh, setNeedRefresh] = useState(false)
@@ -34,6 +35,9 @@ export function UpdatePrompt() {
       onNeedRefresh() {
         setNeedRefresh(true)
         setDismissed(false) // una versión NUEVA vuelve a mostrar el aviso
+        // Y se avisa al store, para que Ajustes lo sepa aunque este aviso se
+        // haya cerrado con «Después».
+        useActualizacion.getState()._setVersionNueva(true)
       },
       onRegisteredSW(_url, registration) {
         // El navegador solo revisa el sw.js al navegar o cada 24 h. En una
@@ -41,6 +45,13 @@ export function UpdatePrompt() {
         // busca actualización cada hora estando la app abierta.
         if (!registration) return
         setInterval(() => { registration.update().catch(() => {}) }, 60 * 60 * 1000)
+        // Y se deja la comprobación MANUAL al alcance de Ajustes. Es el mismo
+        // `registration` que detectó la versión: registrar otro desde Ajustes
+        // dejaría dos compitiendo, y el que aplicara no sería el que detectó.
+        useActualizacion.getState()._setFunciones({
+          aplicar: () => updateSW(true),
+          comprobar: async () => { await registration.update() },
+        })
       },
     })
     // `registerSW` devuelve la función que aplica la actualización. Se
@@ -53,12 +64,21 @@ export function UpdatePrompt() {
   if (!needRefresh || dismissed) return null
 
   return (
+    // CENTRADO, no pegado abajo.
+    //
+    // Abajo competía con la barra de pestañas y con la barra del navegador
+    // móvil, que es donde ya se apilan tres cosas; encima, un aviso ahí se lee
+    // como una notificación pasajera y se descarta sin leer. En el centro,
+    // sobre un velo, es lo único que hay en pantalla y se decide una vez.
+    //
+    // El velo NO cierra al tocarlo: la decisión es «ahora» o «después», y un
+    // toque perdido no debería contar como ninguna de las dos.
     <div
       role="status"
       aria-live="polite"
-      className="fixed inset-x-0 bottom-0 z-[70] pb-safe lg:inset-x-auto lg:right-4 lg:bottom-4 lg:max-w-sm"
+      className="fixed inset-0 z-[70] grid place-items-center bg-black/60 p-4 backdrop-blur-sm"
     >
-      <div className="m-3 rounded-xl border border-swu-accent/40 bg-swu-surface p-3 shadow-xl shadow-black/40">
+      <div className="w-full max-w-sm rounded-2xl border border-swu-accent/40 bg-swu-surface p-4 shadow-2xl shadow-black/60">
         <div className="flex items-start gap-2.5">
           <RefreshCw
             size={16}
