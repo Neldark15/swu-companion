@@ -20,7 +20,7 @@
 import { useId } from 'react'
 import { getAvatarSrc } from '../../services/avatars'
 import { SublineaAurebesh } from './aurebesh'
-import { EMBLEMAS_CREDENCIAL } from './emblemasCredencial'
+import { emblemaDe } from './emblemasCredencial'
 import type { TemaCredencial, EmblemaCredencialId } from './credencialTemas'
 
 export interface DatosCredencial {
@@ -97,7 +97,9 @@ export function CredencialSVG({ datos, tema, emblema, className }: Props) {
   const uid = useId()
   const clipFoto = `cred-foto-${uid}`
 
-  const { url: urlEmblema } = EMBLEMAS_CREDENCIAL[emblema]
+  // `emblemaDe` y no un acceso directo: un id retirado no puede tumbar la
+  // pantalla (ver el comentario en emblemasCredencial.ts).
+  const { url: urlEmblema } = emblemaDe(emblema)
   const srcAvatar = getAvatarSrc(datos.avatar)
 
   const nombre = datos.nombre.toUpperCase()

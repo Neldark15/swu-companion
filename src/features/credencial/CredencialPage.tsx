@@ -25,7 +25,7 @@ import { getCountryByCode } from '../../data/regions'
 import { misMazos, type MazoCompartible } from '../../services/galaxiaCompartir'
 import { CredencialSVG, type DatosCredencial } from './CredencialSVG'
 import { TEMAS_CREDENCIAL, EMBLEMAS_CREDENCIAL_IDS, temaCredencial } from './credencialTemas'
-import { EMBLEMAS_CREDENCIAL } from './emblemasCredencial'
+import { emblemaDe } from './emblemasCredencial'
 import { supabase } from '../../services/supabase'
 
 /**
@@ -266,7 +266,7 @@ export function CredencialPage() {
           <p className="text-xs text-swu-muted mb-2">Emblema grabado</p>
           <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5 justify-items-center">
             {EMBLEMAS_CREDENCIAL_IDS.map((id) => {
-              const { etiqueta, url } = EMBLEMAS_CREDENCIAL[id]
+              const { etiqueta, url } = emblemaDe(id)
               return (
                 <button
                   key={id}

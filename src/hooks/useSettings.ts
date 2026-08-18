@@ -199,7 +199,34 @@ export const useSettings = create<SettingsState>()(
       setMarcoElegido: (marcoElegido) => { set({ marcoElegido }); debouncedSyncSettings() },
       setCredencial: (parche) => { set(parche); debouncedSyncSettings() },
     }),
-    { name: 'swu-settings' }
+    {
+      name: 'swu-settings',
+      /**
+       * Sanea lo que vuelve de localStorage.
+       *
+       * Los valores que llegan de la NUBE ya se validan uno por uno en
+       * `aplicarSettingsDeNube`, pero los que restaura `persist` entraban
+       * crudos — y un catálogo puede cambiar entre dos versiones de la app.
+       * Pasó: la credencial nació con un juego de emblemas propio, después se
+       * cambió por los íconos del perfil, y las cuentas que ya habían elegido
+       * quedaron con ids como `calavera`. Al restaurarlos, la pantalla se caía
+       * con «Cannot destructure property 'url'».
+       *
+       * Un catálogo que evoluciona es normal. Que un valor viejo tumbe una
+       * pantalla, no: acá se cambia por el de por defecto y se sigue.
+       */
+      merge: (persistido, actual) => {
+        const guardado = (persistido ?? {}) as Partial<SettingsState>
+        return {
+          ...actual,
+          ...guardado,
+          credencialTema: esTemaCredencial(guardado.credencialTema)
+            ? guardado.credencialTema : actual.credencialTema,
+          credencialEmblema: esEmblemaCredencial(guardado.credencialEmblema)
+            ? guardado.credencialEmblema : actual.credencialEmblema,
+        }
+      },
+    }
   )
 )
 
