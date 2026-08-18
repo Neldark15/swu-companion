@@ -27,8 +27,13 @@ interface SublineaProps {
  * La sublínea en Aurebesh que va DEBAJO de cada texto legible de la credencial.
  * Va como grupo de <path> con trazo, no como <text>: no hay fuente que cargar.
  */
-export function SublineaAurebesh({ texto, x, y, alto = 6, color, opacidad = 0.35, maxAncho }: SublineaProps) {
+export function SublineaAurebesh({ texto, x, y, alto = 6, color, opacidad = 0.45, maxAncho }: SublineaProps) {
   const escala = alto / GLIFO_ALTO
+  // El trazo no se escala con el glifo (`vectorEffect`), así que a tamaños
+  // grandes el mismo 1,1 px se ve DEBILUCHO: letras el doble de altas con el
+  // mismo hilo. Se engorda un poco con la altura para que el renglón conserve
+  // su peso, sin llegar a emborronarse en pantallas chicas.
+  const grosor = GROSOR * (1 + Math.max(0, alto - 4.5) * 0.055)
   // Avance fijo: 10 de glifo + 3 de aire. Un carácter sin glifo avanza menos,
   // pero AVANZA — si no, «S. Vera» pegaría la S con la V y quedaría ilegible.
   const avance = (GLIFO_ANCHO + 3) * escala
@@ -53,7 +58,7 @@ export function SublineaAurebesh({ texto, x, y, alto = 6, color, opacidad = 0.35
         transform={`translate(${cursor} 0) scale(${escala})`}
         fill="none"
         stroke={color}
-        strokeWidth={GROSOR}
+        strokeWidth={grosor}
         strokeLinecap="square"
         strokeLinejoin="miter"
         // El trazo NO se escala con el glifo: a 5px de alto, un trazo escalado

@@ -24,8 +24,8 @@ import { useIdioma, useT, type Idioma } from '../../services/i18n'
 import { useSettings, ACCENT_COLORS, ACCENT_LABELS, SABER_COLORS } from '../../hooks/useSettings'
 import type { AccentColor, SaberColor } from '../../hooks/useSettings'
 import {
-  TEMAS_FONDO, TINTES_TARJETA, ORDEN_TINTES, MARCOS,
-  marcoGanado, resolverMarco, esTemaFondo, esTinteTarjeta,
+  TEMAS_FONDO, MARCOS,
+  marcoGanado, resolverMarco, esTemaFondo,
 } from '../../services/personalizacion'
 import type { MarcoPerfil } from '../../services/personalizacion'
 import { useAuth } from '../../hooks/useAuth'
@@ -34,17 +34,6 @@ import { calculateLevel, type PlayerStats } from '../../services/gamification'
 import { TarjetaJugador } from '../profile/TarjetaJugador'
 import { PushNotificationToggle } from './components/PushNotificationToggle'
 import { BotonActualizar } from './components/BotonActualizar'
-
-/**
- * El swatch de 'auto' no es un color: es «el color de tu RANGO decide».
- * Se pinta como una vuelta por los colores reales de los 7 rangos (los de
- * RANKS en gamification.ts, en orden; el último repite el primero para
- * cerrar el cónico), para que se entienda que va cambiando con vos.
- * OJO: son colores de rango, no de marco — el marco 'auto' tiene su propio
- * swatch (la MiniMarco del más alto ganado) y su paleta es otra.
- */
-const GRADIENTE_AUTO =
-  'conic-gradient(from 45deg, #9CA3AF, #60A5FA, #4ADE80, #FACC15, #FBBF24, #FCD34D, #FDE047, #9CA3AF)'
 
 /** Las cuatro esquinas decorativas de los marcos ricos, como clases de posición. */
 const ESQUINAS_MINI = [
@@ -97,7 +86,7 @@ export function SettingsPage() {
   const {
     accentColor, setAccentColor, fontSize, setFontSize, hapticFeedback, toggleHaptic,
     saberColor, setSaberColor,
-    temaFondo, setTemaFondo, tinteTarjeta, setTinteTarjeta, marcoElegido, setMarcoElegido,
+    temaFondo, setTemaFondo, marcoElegido, setMarcoElegido,
   } = useSettings()
   const auth = useAuth()
   const t = useT()
@@ -127,7 +116,6 @@ export function SettingsPage() {
   // no quedarse sin ninguna opción activa. Misma regla que ya tenía el de
   // marcos, extendida a tema y tinte.
   const temaActivo = esTemaFondo(temaFondo) ? temaFondo : 'holocron'
-  const tinteActivo = esTinteTarjeta(tinteTarjeta) ? tinteTarjeta : 'auto'
 
   // El marco que la cuadrícula marca como activo. Si lo guardado no está
   // ganado (datos viejos), lo efectivo es 'auto' — misma regla que
@@ -354,47 +342,30 @@ export function SettingsPage() {
             </div>
           )}
 
-          {/* Tinte del nombre y el rango */}
+          {/* Acceso a la personalización de la placa.
+
+              ACÁ HABÍA UN SELECTOR DE «TINTE DEL NOMBRE». Se quitó cuando la
+              tarjeta de jugador pasó a ser la credencial: el tinte pintaba el
+              nombre y el rango de la tarjeta VIEJA, y con la nueva no quedaba
+              nada que pintar. Un selector que no cambia nada es peor que no
+              tenerlo — se toca, no pasa nada, y uno cree que la app está rota.
+              El color ahora se elige con el TEMA de la placa, que son catorce
+              paletas completas y vive en su propia pantalla junto al emblema,
+              el apodo y el mazo. */}
           <div className="p-4">
             <div className="flex items-center gap-3 mb-1">
               <Brush size={20} className="text-swu-accent-texto" />
-              <span className="text-sm font-medium text-swu-text">Tinte del nombre</span>
+              <span className="text-sm font-medium text-swu-text">Personalizar la credencial</span>
             </div>
             <p className="text-[10px] text-swu-muted mb-3 pl-8">
-              Auto: el color de tu rango decide.
+              Tema, emblema, apodo, ubicación y mazo. El acabado del metal se gana subiendo de nivel.
             </p>
-            <div className="flex gap-2 justify-center flex-wrap">
-              {ORDEN_TINTES.map((id) => {
-                const tinte = id === 'auto' ? null : TINTES_TARJETA[id]
-                const activo = tinteActivo === id
-                return (
-                  <button
-                    key={id}
-                    onClick={() => setTinteTarjeta(id)}
-                    className="flex flex-col items-center gap-1"
-                  >
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${
-                        activo ? 'scale-110' : 'opacity-70 hover:opacity-100'
-                      }`}
-                      style={{
-                        background: tinte
-                          ? `radial-gradient(circle, ${tinte.nucleo} 40%, ${tinte.brillo} 100%)`
-                          : GRADIENTE_AUTO,
-                        boxShadow: activo
-                          ? `0 0 16px ${tinte ? tinte.nucleo : 'var(--color-swu-accent)'}, 0 0 0 2px var(--color-swu-surface), 0 0 0 4px ${tinte ? tinte.nucleo : 'var(--color-swu-accent)'}`
-                          : tinte ? `0 0 8px ${tinte.nucleo}30` : 'var(--neu-shadow-sm)',
-                      }}
-                    >
-                      {activo && <Check size={16} className="text-white" strokeWidth={3} style={{ filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.5))' }} />}
-                    </div>
-                    <span className={`text-[9px] font-mono ${activo ? 'text-swu-text font-bold' : 'text-swu-muted'}`}>
-                      {tinte ? tinte.etiqueta : 'Auto'}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
+            <button
+              onClick={() => navigate('/credencial')}
+              className="w-full rounded-xl bg-swu-accent px-4 py-2.5 text-sm font-bold text-swu-accent-fg active:scale-[0.98] transition-transform"
+            >
+              Abrir mi credencial
+            </button>
           </div>
 
           {/* Saber Color Picker — vive acá porque el sable ES parte de la

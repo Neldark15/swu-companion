@@ -102,6 +102,16 @@ export interface AjustesCredencial {
   /** Id del mazo favorito en la tabla decks; vacío = ninguno elegido. */
   credencialMazoId: string
   credencialMostrarMazo: boolean
+  /**
+   * El NOMBRE del líder del mazo elegido, ya resuelto y guardado.
+   *
+   * Resolverlo cuesta una consulta a Supabase (los mazos) más una lectura de
+   * Dexie (la carta del líder). En /credencial eso está bien porque es la
+   * pantalla del tema; en Inicio, donde la placa es un módulo más, sería
+   * cargar la red para pintar un renglón. Así que /credencial lo deja
+   * resuelto acá y las demás pantallas lo leen de una.
+   */
+  credencialMazoLider: string
 }
 
 interface SettingsState extends AjustesCredencial {
@@ -160,6 +170,7 @@ function debouncedSyncSettings() {
       credencialUbicacion: state.credencialUbicacion,
       credencialMazoId: state.credencialMazoId,
       credencialMostrarMazo: state.credencialMostrarMazo,
+      credencialMazoLider: state.credencialMazoLider,
     }
     syncSettingsToCloud(supabaseUser.id, settingsData).catch(() => {})
   }, 1500)
@@ -186,6 +197,7 @@ export const useSettings = create<SettingsState>()(
       credencialUbicacion: '',
       credencialMazoId: '',
       credencialMostrarMazo: false,
+      credencialMazoLider: '',
 
       setTheme: (theme) => { set({ theme }); debouncedSyncSettings() },
       setFontSize: (fontSize) => { set({ fontSize }); debouncedSyncSettings() },

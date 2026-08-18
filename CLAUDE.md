@@ -664,3 +664,45 @@ Migraciones en `supabase/migrations/`. Aplicarlas vía SQL Editor en Supabase da
 ---
 
 *Última actualización: 2026-08-07*
+
+### 2y. La credencial ES la tarjeta de jugador, y se gira en 3D
+
+`TarjetaJugador` ya no dibuja una fila con el avatar y el nombre: dibuja la
+**credencial** (`features/credencial/`). Antes había dos identidades del mismo
+jugador compitiendo —la tarjeta de Inicio y la placa de `/credencial`— y la
+segunda estaba escondida en una pantalla a la que había que ir a propósito.
+
+Lo que hay que saber antes de tocarla:
+
+- **Los datos salen de un solo lugar**: `useDatosCredencial(perfil, stats)`.
+  Inicio, Perfil, Ajustes y `/credencial` lo llaman todos. Armar el objeto
+  `DatosCredencial` a mano en una pantalla nueva es cómo la tarjeta vieja se
+  fue separando de sí misma.
+- **La fecha de despliegue NO es `perfil.createdAt`** (ese lo estampa Dexie con
+  `Date.now()` la primera vez que abrís la cuenta EN ESE APARATO: cambia por
+  aparato y se resetea al borrar los datos del sitio). Es `profiles.created_at`,
+  y el hook la cachea en un mapa de módulo para no pedirla por pantalla.
+- **El acabado del metal se GANA por nivel** (`acabadosCredencial.ts`, siete
+  acabados atados a los siete RANKS). Cada uno agrega algo *identificable*
+  —veta, filo, cromo, tinte, barrido, halo— y no solo «más brillo»: la placa se
+  imprime en blanco y negro y ahí un brillo extra no existe.
+- **El giro**: `CredencialInteractiva` mueve el nodo escribiendo `style` a mano
+  en cada `pointermove`, sin `setState` (60 renders/segundo arrastrando se
+  siente pegajoso en el teléfono). Va con `touch-action: pan-y` para no comerse
+  el scroll vertical de la página, y el gesto se descarta si el dedo va más en
+  vertical que en horizontal.
+- **Al soltar se acomoda a la media vuelta MÁS CERCANA conservando el signo**
+  (`Math.round(y/180) * 180`), y la cara visible sale de la PARIDAD. Normalizar
+  a «0 o 180» a secas hacía que soltar en −162° se fuera a +180: 342 grados de
+  viaje para corregir 18, o sea un tirón hacia el lado contrario al que
+  arrastraste.
+- **La impresión toma `svg[data-cara="frente"]`**, no el primer `svg` de la
+  zona: desde que hay dorso hay dos, y depender del orden del DOM es apostar a
+  que nadie los reordene.
+- **`geometriaCredencial.ts` y `DefsCredencial.tsx`** los comparten anverso y
+  reverso. Si el dorso deja de parecer la misma tarjeta, es porque alguien
+  duplicó un degradado en vez de usarlos.
+
+Banco visual en `/banco-credencial` (solo desarrollo): los siete acabados sobre
+el mismo tema, el dorso, los catorce temas y los casos límite (emoji, textos
+largos). Si dos acabados se ven iguales, uno de los dos no existe.

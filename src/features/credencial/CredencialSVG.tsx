@@ -22,6 +22,9 @@ import { getAvatarSrc } from '../../services/avatars'
 import { SublineaAurebesh } from './aurebesh'
 import { emblemaDe } from './emblemasCredencial'
 import type { TemaCredencial, EmblemaCredencialId } from './credencialTemas'
+import { ACABADOS, type AcabadoCredencial } from './acabadosCredencial'
+import { DefsCredencial } from './DefsCredencial'
+import { BANDA, FUENTE, SILUETA_BASE, SILUETA_PANEL, barrasDe, hashCadena, idPlacaDe } from './geometriaCredencial'
 
 export interface DatosCredencial {
   nombre: string
@@ -45,53 +48,17 @@ interface Props {
   datos: DatosCredencial
   tema: TemaCredencial
   emblema: EmblemaCredencialId
+  /** El acabado ganado por nivel. Sin él, la placa va mate. */
+  acabado?: AcabadoCredencial
   className?: string
 }
 
-/**
- * Hash chiquito y determinista: alimenta el «código de barras» del borde y
- * el ID corto de la placa. Determinista a propósito — la credencial de una
- * persona tiene que imprimirse IGUAL hoy y el mes que viene.
- */
-function hashCadena(s: string): number {
-  let h = 0x811c9dc5
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i)
-    h = Math.imul(h, 0x01000193)
-  }
-  return h >>> 0
-}
 
-/** Silueta exterior: escalonada, biselada, con el agujero de llavero. */
-const SILUETA_BASE = [
-  'M 24 0',
-  'L 148 0 L 156 10 L 244 10 L 252 0', // muesca escalonada superior
-  'L 416 0 L 428 14 L 512 14',         // escalón hacia la esquina derecha
-  'L 512 118 L 504 126 L 504 192 L 512 200', // muesca del borde derecho
-  'L 512 298 L 490 320',               // bisel inferior derecho
-  'L 328 320 L 320 310 L 212 310 L 204 320', // muesca inferior
-  'L 18 320 L 0 302',
-  'L 0 24 Z',
-  // Subcamino del agujero de llavero (evenodd lo convierte en recorte).
-  'M 42 30 A 10 10 0 1 0 22 30 A 10 10 0 1 0 42 30 Z',
-].join(' ')
 
-/** Panel interior oscuro, con su propia silueta escalonada (esquiva el agujero). */
-const SILUETA_PANEL = [
-  'M 76 24 L 408 24 L 420 38 L 496 38',
-  'L 496 114 L 488 122 L 488 196 L 496 204',
-  'L 496 286 L 478 304',
-  'L 332 304 L 324 294 L 216 294 L 208 304',
-  'L 30 304 L 14 288',
-  'L 14 82 L 28 68 L 60 68 L 76 52 Z',
-].join(' ')
-
-/** Banda del nombre: cruza la placa entera y sobresale del panel. */
-const BANDA = 'M 4 206 L 508 206 L 508 244 L 496 252 L 18 252 L 4 240 Z'
-
-const FUENTE = 'var(--font-mono)'
-
-export function CredencialSVG({ datos, tema, emblema, className }: Props) {
+export function CredencialSVG({ datos, tema, emblema, acabado, className }: Props) {
+  // Sin acabado explícito, mate: la placa se ve igual que siempre y ninguna
+  // pantalla que todavía no lo pase se rompe.
+  const fin = acabado ?? ACABADOS[0]
   // Ids únicos por instancia: el banco pinta 8 credenciales en la misma
   // página y un clipPath con id repetido recorta la foto equivocada.
   const uid = useId()
@@ -109,21 +76,8 @@ export function CredencialSVG({ datos, tema, emblema, className }: Props) {
   const mazo = datos.mazo ? datos.mazo.toUpperCase() : null
 
   const semilla = hashCadena(datos.nombre)
-  // ID corto de la placa, derivado del nombre: decorativo pero estable.
-  const idPlaca = `ID-${(semilla % 0x10000).toString(16).toUpperCase().padStart(4, '0')}`
-
-  // Código de barras del borde izquierdo: anchos pseudoaleatorios pero
-  // deterministas (mismo nombre = mismas barras, también en papel).
-  //
-  // `>>>` y NO `>>`. El corrimiento con signo convierte el hash a int32, y con
-  // el bit alto prendido el resultado es NEGATIVO: `6 + (neg % 13)` daba anchos
-  // de hasta -6, y un `<rect>` de ancho ≤ 0 sencillamente no se dibuja. Medido
-  // con los nombres reales de la comunidad: Vara perdía 5 de 13 barras, ElDaigo
-  // 8, Marlin 7. Se veía como una credencial a medio grabar, y solo para
-  // algunas personas — que es la peor clase de bug, porque el que lo prueba con
-  // su propio nombre puede no verlo nunca.
-  const barras: number[] = []
-  for (let i = 0; i < 13; i++) barras.push(6 + (((semilla >>> (i % 27)) * (i + 3)) >>> 0) % 13)
+  const idPlaca = idPlacaDe(semilla)
+  const barras = barrasDe(semilla)
 
   // Un nombre largo no puede desbordar la banda: se achica el cuerpo.
   const cuerpoNombre = nombre.length > 16 ? (nombre.length > 24 ? 15 : 19) : 26
@@ -133,73 +87,62 @@ export function CredencialSVG({ datos, tema, emblema, className }: Props) {
       viewBox="0 0 512 320"
       className={className}
       role="img"
+      data-cara="frente"
       aria-label={`Credencial de jugador de ${datos.nombre}`}
     >
       <defs>
+        <DefsCredencial uid={uid} tema={tema} />
         <clipPath id={clipFoto}>
           <rect x="64" y="84" width="108" height="108" rx="5" />
         </clipPath>
-
-        {/* ── El relieve ──
-            Una placa de verdad tiene VOLUMEN: la luz le pega desde arriba a la
-            izquierda, así que los bordes de arriba brillan y los de abajo caen
-            en sombra, y lo hundido invierte esa relación. Todo se hace con
-            degradados y desenfoques: cuesta poco y, a diferencia de un PNG con
-            el relieve pintado, escala y se imprime nítido a cualquier tamaño. */}
-
-        {/* Barniz de la placa: claro arriba, oscuro abajo. */}
-        <linearGradient id={`${uid}-lustre`} x1="0" y1="0" x2="0.35" y2="1">
-          <stop offset="0%" stopColor="#fff" stopOpacity="0.16" />
-          <stop offset="42%" stopColor="#fff" stopOpacity="0.03" />
-          <stop offset="60%" stopColor="#000" stopOpacity="0.06" />
-          <stop offset="100%" stopColor="#000" stopOpacity="0.28" />
-        </linearGradient>
-
-        {/* Brillo diagonal: la lamida de luz que tiene todo lo laminado. */}
-        <linearGradient id={`${uid}-destello`} x1="0" y1="0" x2="1" y2="0.9">
-          <stop offset="0%" stopColor="#fff" stopOpacity="0" />
-          <stop offset="38%" stopColor="#fff" stopOpacity="0" />
-          <stop offset="47%" stopColor="#fff" stopOpacity="0.13" />
-          <stop offset="55%" stopColor="#fff" stopOpacity="0" />
-          <stop offset="100%" stopColor="#fff" stopOpacity="0" />
-        </linearGradient>
-
-        {/* El panel interior va HUNDIDO: sombra arriba, luz abajo. Es la
-            inversión de la placa, y es lo que hace que se lea como rebaje. */}
-        <linearGradient id={`${uid}-hundido`} x1="0" y1="0" x2="0.2" y2="1">
-          <stop offset="0%" stopColor="#000" stopOpacity="0.4" />
-          <stop offset="30%" stopColor="#000" stopOpacity="0.08" />
-          <stop offset="100%" stopColor="#fff" stopOpacity="0.05" />
-        </linearGradient>
-
-        {/* Bisel: desenfoca la silueta y la desplaza, para tener un labio de
-            luz arriba y otro de sombra abajo sin dibujar cada borde a mano. */}
-        <filter id={`${uid}-bisel`} x="-10%" y="-10%" width="120%" height="120%">
-          <feGaussianBlur in="SourceAlpha" stdDeviation="1.4" result="b" />
-          <feOffset in="b" dx="0.9" dy="1.4" result="abajo" />
-          <feFlood floodColor="#000" floodOpacity="0.5" result="oscuro" />
-          <feComposite in="oscuro" in2="abajo" operator="in" result="sombra" />
-          <feOffset in="b" dx="-0.7" dy="-1.1" result="arriba" />
-          <feFlood floodColor="#fff" floodOpacity="0.42" result="claro" />
-          <feComposite in="claro" in2="arriba" operator="in" result="luz" />
-          <feMerge>
-            <feMergeNode in="sombra" />
-            <feMergeNode in="luz" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-
-        {/* El emblema, a escala de grises: el color se lo pone la placa. */}
-        <filter id={`${uid}-grabado`} x="0" y="0" width="100%" height="100%">
-          <feColorMatrix type="saturate" values="0" />
-        </filter>
       </defs>
 
       {/* ── Base: el material de la placa, con el agujero recortado ── */}
+      {/* El halo va DEBAJO de todo: es luz que la placa proyecta hacia atrás.
+          Encima taparía el resto. */}
+      {fin.halo && (
+        <path d={SILUETA_BASE} fill={tema.base} fillRule="evenodd" filter={`url(#${uid}-halo)`} />
+      )}
       <path d={SILUETA_BASE} fill={tema.base} fillRule="evenodd" />
+      {/* ── Acabados ganados por nivel ──
+          Cada capa va recortada a la silueta de la placa y en este orden:
+          primero la textura del material (cepillado), después los tintes
+          (prisma), y al final la luz (lustre, destello, barrido). Al revés,
+          el brillo quedaría debajo de la textura y no se vería. */}
+      {fin.cepillado && (
+        <path d={SILUETA_BASE} fillRule="evenodd" fill="#fff" filter={`url(#${uid}-cepillo)`} opacity="0.9" />
+      )}
+      {fin.prisma && (
+        <path d={SILUETA_BASE} fill={`url(#${uid}-prisma)`} fillRule="evenodd" />
+      )}
+
       {/* Barniz y destello sobre la placa, recortados a su silueta. */}
       <path d={SILUETA_BASE} fill={`url(#${uid}-lustre)`} fillRule="evenodd" />
       <path d={SILUETA_BASE} fill={`url(#${uid}-destello)`} fillRule="evenodd" />
+
+      {fin.barrido && (
+        // El barrido se apaga con `prefers-reduced-motion` desde el CSS de la
+        // app (`.animate-*` ya están cubiertos); acá la clase lo engancha.
+        <path
+          d={SILUETA_BASE}
+          fill={`url(#${uid}-barrido)`}
+          fillRule="evenodd"
+          className="motion-reduce:hidden"
+        />
+      )}
+      {fin.cantoLuz && (
+        // Un filo de color en el borde de ARRIBA. Es donde pega la luz en el
+        // resto de la placa, así que es donde un canto pulido brillaría.
+        <path
+          d={SILUETA_BASE}
+          fill="none"
+          fillRule="evenodd"
+          stroke={tema.acento}
+          strokeWidth="1.6"
+          opacity="0.75"
+          clipPath={`url(#${uid}-mitadArriba)`}
+        />
+      )}
       {/* Filo grabado del canto, para que la silueta se lea sobre cualquier fondo. */}
       <path d={SILUETA_BASE} fill="none" fillRule="evenodd" stroke={tema.grabado} strokeWidth="1" opacity="0.45" />
 
@@ -235,6 +178,51 @@ export function CredencialSVG({ datos, tema, emblema, className }: Props) {
         <circle cx="488" cy="176" r="2" />
       </g>
 
+      {/* ── Remaches ──
+          Cuatro tornillos hundidos en las esquinas del panel. Son el detalle
+          que más barato compra la lectura de «placa atornillada»: un anillo
+          claro arriba y uno oscuro abajo bastan para que el ojo lea un hueco.
+          Van con el `filter` de bisel para que compartan la misma luz que
+          el resto de la placa y no parezcan pegatinas. */}
+      <g opacity="0.9">
+        {[[36, 60], [36, 292], [478, 292], [402, 44]].map(([cx, cy]) => (
+          <g key={`${cx}-${cy}`}>
+            <circle cx={cx} cy={cy} r="4.6" fill="#000" opacity="0.42" />
+            <circle cx={cx} cy={cy - 0.6} r="3.6" fill={tema.grabado} opacity="0.55" />
+            <circle cx={cx} cy={cy - 1.1} r="1.7" fill="#fff" opacity="0.28" />
+            <path
+              d={`M ${cx - 2.4} ${cy} H ${cx + 2.4}`}
+              stroke={tema.base} strokeWidth="1.1" opacity="0.8"
+            />
+          </g>
+        ))}
+      </g>
+
+      {/* ── Sello holográfico ──
+          El disco de seguridad que llevan las identificaciones de verdad. Los
+          anillos concéntricos y la retícula son lo que se ve al inclinarlas;
+          acá quedan grabados, así que también sobreviven a la impresión en
+          blanco y negro.
+
+          Va arriba a la derecha y no abajo: abajo lo tapaba la banda del
+          nombre, que se pinta después. Este hueco (x 420-480, y 30-75) es el
+          único aire grande que le queda a la placa.
+
+          ANTES ACÁ HABÍA UNA REGLILLA DE TICS en el borde inferior. Se quitó:
+          la silueta tiene una MUESCA entre x 212 y x 320 —el borde sube a
+          y 310— así que las marcas se salían de la placa justo en el medio. */}
+      <g transform="translate(450 52)" opacity="0.7">
+        <circle r="15" fill={tema.panel} opacity="0.5" />
+        <circle r="15" fill="none" stroke={tema.acento} strokeWidth="1.1" />
+        <circle r="10" fill="none" stroke={tema.acento} strokeWidth="0.6" opacity="0.8" />
+        <circle r="5.5" fill="none" stroke={tema.acento} strokeWidth="0.6" opacity="0.6" />
+        {[0, 45, 90, 135].map((g) => (
+          <path key={g} d="M -15 0 H 15" stroke={tema.grabado} strokeWidth="0.5"
+                opacity="0.5" transform={`rotate(${g})`} />
+        ))}
+        <circle r="2" fill={tema.acento} />
+      </g>
+
       {/* ── Cabecera ── */}
       <text x="84" y="46" fontFamily={FUENTE} fontSize="13" fontWeight="700" letterSpacing="3" fill={tema.acento}>
         HOLOCRON SWU
@@ -242,7 +230,7 @@ export function CredencialSVG({ datos, tema, emblema, className }: Props) {
       <text x="84" y="59" fontFamily={FUENTE} fontSize="7" letterSpacing="2.4" fill={tema.texto} opacity="0.7">
         CREDENCIAL DE JUGADOR
       </text>
-      <SublineaAurebesh texto="CREDENCIAL DE JUGADOR" x={84} y={63} alto={4.5} color={tema.grabado} maxAncho={250} />
+      <SublineaAurebesh texto="CREDENCIAL DE JUGADOR" x={84} y={62} alto={7} color={tema.grabado} maxAncho={260} />
 
       {/* ── Ventana de la foto: doble marco + avatar recortado ── */}
       <rect x="56" y="76" width="124" height="124" fill="none" stroke={tema.grabado} strokeWidth="1" opacity="0.4" />
@@ -261,34 +249,48 @@ export function CredencialSVG({ datos, tema, emblema, className }: Props) {
         <text x="118" y="157" fontSize="56" textAnchor="middle">{datos.avatar}</text>
       )}
 
+      {/* Escuadras en las esquinas de la ventana: el encuadre de cámara que
+          llevan las fotos de identificación. Cuatro trazos y la ventana deja
+          de ser un rectángulo genérico. */}
+      <g stroke={tema.acento} strokeWidth="2" fill="none" opacity="0.9">
+        <path d="M 60 96 V 80 H 76" />
+        <path d="M 160 80 H 176 V 96" />
+        <path d="M 176 180 V 196 H 160" />
+        <path d="M 76 196 H 60 V 180" />
+      </g>
+
       {/* ── Columna de datos, a la derecha de la foto ── */}
       <text x="196" y="100" fontFamily={FUENTE} fontSize="7" letterSpacing="2" fill={tema.grabado}>APODO</text>
       <text x="196" y="118" fontFamily={FUENTE} fontSize="13" fontStyle="italic" fill={tema.texto}>{apodo}</text>
-      <SublineaAurebesh texto={datos.apodo} x={196} y={124} alto={5} color={tema.grabado} maxAncho={168} />
+      <SublineaAurebesh texto={datos.apodo} x={196} y={124} alto={8} color={tema.grabado} maxAncho={172} />
 
       <text x="196" y="150" fontFamily={FUENTE} fontSize="7" letterSpacing="2" fill={tema.grabado}>UBICACION</text>
       <text x="196" y="166" fontFamily={FUENTE} fontSize="11" fill={tema.texto}>{ubicacion}</text>
-      <SublineaAurebesh texto={datos.ubicacion} x={196} y={172} alto={5} color={tema.grabado} maxAncho={168} />
+      <SublineaAurebesh texto={datos.ubicacion} x={196} y={172} alto={8} color={tema.grabado} maxAncho={172} />
 
       {/* ── Banda del nombre (sobresale del panel) ── */}
       <path d={BANDA} fill={tema.acento} />
+      {/* La banda pasa a chapa de cromo. Va ENCIMA del color del tema, no en
+          su lugar: el cromo refleja lo que tiene debajo, así que conserva el
+          tinte de la facción en vez de volver todo gris. */}
+      {fin.cromo && <path d={BANDA} fill={`url(#${uid}-cromo)`} />}
       <text x="24" y="233" fontFamily={FUENTE} fontSize="9" letterSpacing="1.5" fill={tema.panel} opacity="0.75">
         {idPlaca}
       </text>
-      <SublineaAurebesh texto={idPlaca} x={24} y={238} alto={4.5} color={tema.panel} opacidad={0.5} maxAncho={120} />
+      <SublineaAurebesh texto={idPlaca} x={24} y={238} alto={7} color={tema.panel} opacidad={0.55} maxAncho={140} />
       <text x="196" y={228 + (26 - cuerpoNombre) / 3} fontFamily={FUENTE} fontSize={cuerpoNombre} fontWeight="800" letterSpacing="1.5" fill={tema.panel}>
         {nombre}
       </text>
-      <SublineaAurebesh texto={datos.nombre} x={196} y={240} alto={6} color={tema.panel} opacidad={0.5} maxAncho={290} />
+      <SublineaAurebesh texto={datos.nombre} x={196} y={238} alto={8} color={tema.panel} opacidad={0.55} maxAncho={290} />
 
       {/* ── Fila inferior: rango, despliegue y mazo ── */}
       <text x="24" y="272" fontFamily={FUENTE} fontSize="7" letterSpacing="2" fill={tema.grabado}>RANGO</text>
       <text x="24" y="286" fontFamily={FUENTE} fontSize="10" fontWeight="700" fill={tema.texto}>{rango}</text>
-      <SublineaAurebesh texto={datos.rango} x={24} y={292} alto={4.5} color={tema.grabado} maxAncho={190} />
+      <SublineaAurebesh texto={datos.rango} x={24} y={292} alto={8} color={tema.grabado} maxAncho={200} />
 
       <text x="236" y="272" fontFamily={FUENTE} fontSize="7" letterSpacing="2" fill={tema.grabado}>DESPLEGADO</text>
       <text x="236" y="286" fontFamily={FUENTE} fontSize="10" fill={tema.texto}>{datos.desplegado.toUpperCase()}</text>
-      <SublineaAurebesh texto={datos.desplegado} x={236} y={292} alto={4.5} color={tema.grabado} maxAncho={110} />
+      <SublineaAurebesh texto={datos.desplegado} x={236} y={292} alto={8} color={tema.grabado} maxAncho={122} />
 
       {mazo && (
         <>
@@ -296,7 +298,7 @@ export function CredencialSVG({ datos, tema, emblema, className }: Props) {
           <text x="366" y="286" fontFamily={FUENTE} fontSize="9" fill={tema.texto}>
             {mazo.length > 22 ? `${mazo.slice(0, 21)}…` : mazo}
           </text>
-          <SublineaAurebesh texto={mazo} x={366} y={292} alto={4.5} color={tema.grabado} maxAncho={116} />
+          <SublineaAurebesh texto={mazo} x={366} y={292} alto={8} color={tema.grabado} maxAncho={118} />
         </>
       )}
     </svg>

@@ -13,34 +13,20 @@
  * CR80). El PDF sale del diálogo nativo — cero dependencias nuevas.
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, Printer } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useSettings } from '../../hooks/useSettings'
-import { db } from '../../services/db'
-import { calculateLevel, type PlayerStats } from '../../services/gamification'
-import { getTitleById } from '../../services/cosmeticsService'
-import { getCountryByCode } from '../../data/regions'
+import { db, type UserProfile } from '../../services/db'
+import { type PlayerStats } from '../../services/gamification'
 import { misMazos, type MazoCompartible } from '../../services/galaxiaCompartir'
-import { CredencialSVG, type DatosCredencial } from './CredencialSVG'
+import { CredencialInteractiva } from './CredencialInteractiva'
+import { useDatosCredencial } from './useDatosCredencial'
+import { ACABADOS, proximoAcabado } from './acabadosCredencial'
 import { TEMAS_CREDENCIAL, EMBLEMAS_CREDENCIAL_IDS, temaCredencial } from './credencialTemas'
 import { emblemaDe } from './emblemasCredencial'
-import { supabase } from '../../services/supabase'
 
-/**
- * «12 ENE 2026» — el formato de sello de despliegue, sin depender de locale.
- *
- * Acepta los dos formatos que llegan: los milisegundos del espejo local y el
- * ISO de `profiles.created_at`. Un `new Date` con el ISO ya trae su zona, así
- * que no hay que agregarle ninguna.
- */
-function fechaDespliegue(cuando: number | string): string {
-  const meses = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC']
-  const f = new Date(cuando)
-  if (Number.isNaN(f.getTime())) return '—'
-  return `${String(f.getDate()).padStart(2, '0')} ${meses[f.getMonth()]} ${f.getFullYear()}`
-}
 
 /**
  * Reglas de impresión. Van en un <style> del propio componente y no en
@@ -66,7 +52,12 @@ function fechaDespliegue(cuando: number | string): string {
  * pueda separarse de la primera.
  */
 function imprimirCredencial(): { ok: boolean; motivo?: string } {
-  const svg = document.querySelector('#zona-credencial svg')
+  // `[data-cara="frente"]` y no el primer `svg` a secas: desde que la placa
+  // se puede girar hay DOS svg en la zona (frente y dorso), y depender del
+  // orden del DOM es apostar a que nadie los reordene nunca.
+  const svg =
+    document.querySelector('#zona-credencial svg[data-cara="frente"]') ??
+    document.querySelector('#zona-credencial svg')
   if (!svg) return { ok: false, motivo: 'No se encontró la credencial.' }
 
   // Las rutas relativas (/avatars/x.png) no existen en una ventana en blanco:
@@ -112,88 +103,76 @@ function imprimirCredencial(): { ok: boolean; motivo?: string } {
   return { ok: true }
 }
 
+/**
+ * Portero. El hook `useDatosCredencial` no puede colgar de un `if`, así que la
+ * comprobación de sesión vive acá afuera y adentro el perfil ya es un hecho.
+ */
 export function CredencialPage() {
+  const { currentProfile } = useAuth()
+  // AuthGate ya exige sesión; esto solo cubre el instante de hidratación.
+  if (!currentProfile) return null
+  return <CredencialInterna perfil={currentProfile} />
+}
+
+function CredencialInterna({ perfil }: { perfil: UserProfile }) {
   const navigate = useNavigate()
-  const { currentProfile, supabaseUser } = useAuth()
+  const { supabaseUser } = useAuth()
   const {
     credencialTema, credencialEmblema, credencialApodo, credencialUbicacion,
-    credencialMazoId, credencialMostrarMazo, setCredencial,
+    credencialMazoId, credencialMostrarMazo, credencialMazoLider, setCredencial,
   } = useSettings()
 
   const [stats, setStats] = useState<PlayerStats | null>(null)
   /** Si la impresión no pudo arrancar (ventana bloqueada), se dice por qué. */
   const [avisoImpresion, setAvisoImpresion] = useState<string | null>(null)
   const [mazos, setMazos] = useState<MazoCompartible[]>([])
-  const [liderNombre, setLiderNombre] = useState<string | null>(null)
-  /** Fecha de alta REAL de la cuenta (profiles.created_at). */
-  const [altaCuenta, setAltaCuenta] = useState<string | null>(null)
-  // «Hoy», congelado al montar (inicializador perezoso): Date.now() en el
-  // cuerpo del render es impuro y el lint del compilador de React lo veta.
-  const [hoy] = useState(() => Date.now())
+  /** Último líder escrito en ajustes: evita que el efecto se re-dispare solo. */
+  const liderRef = useRef(credencialMazoLider)
 
-  // Stats (rango + título activo) desde Dexie, mazos desde Supabase.
+  // Stats (rango + título activo) desde Dexie, mazos desde Supabase. La fecha
+  // de alta la resuelve `useDatosCredencial`, que la cachea entre pantallas.
   useEffect(() => {
     let vivo = true
     void (async () => {
-      if (currentProfile) {
-        const ps = await db.playerStats.get(currentProfile.id)
-        if (vivo && ps) setStats(ps)
-      }
+      const ps = await db.playerStats.get(perfil.id)
+      if (vivo && ps) setStats(ps)
       if (supabaseUser) {
         const lista = await misMazos(supabaseUser.id)
         if (vivo) setMazos(lista)
-
-        // La fecha de DESPLIEGUE sale de la CUENTA, no del aparato.
-        //
-        // `currentProfile.createdAt` lo estampa el espejo local de Dexie con
-        // `Date.now()` la primera vez que esta cuenta se abre EN ESTE APARATO.
-        // O sea que en el teléfono decía una fecha y en la compu otra, y
-        // borrar los datos del sitio la reseteaba a hoy — en una credencial que
-        // se imprime, eso es un dato inventado. `profiles.created_at` es la
-        // fecha de verdad, es legible por `authenticated` y las 25 cuentas la
-        // tienen (verificado).
-        const { data, error } = await supabase
-          .from('profiles').select('created_at').eq('id', supabaseUser.id).maybeSingle()
-        if (error) console.warn('[credencial] no se pudo leer la fecha de alta:', error.message)
-        if (vivo && data?.created_at) setAltaCuenta(data.created_at)
       }
     })()
     return () => { vivo = false }
-  }, [currentProfile, supabaseUser])
+  }, [perfil.id, supabaseUser])
 
   // El renglón del mazo muestra el NOMBRE DEL LÍDER, no el apodo del mazo:
   // el líder identifica un mazo de un vistazo; el nombre suele ser broma
-  // interna. El cardId del líder se resuelve contra el catálogo local.
+  // interna. El cardId del líder se resuelve contra el catálogo local y el
+  // resultado se GUARDA en ajustes: así la placa de Inicio y la del perfil
+  // muestran el mismo renglón sin repetir la consulta a la nube.
   useEffect(() => {
     let vivo = true
     void (async () => {
       const mazo = mazos.find((m) => m.id === credencialMazoId)
-      if (!mazo) { setLiderNombre(null); return }
+      if (!mazo) {
+        if (vivo && liderRef.current) { liderRef.current = ''; setCredencial({ credencialMazoLider: '' }) }
+        return
+      }
       const carta = mazo.lider ? await db.cards.get(mazo.lider) : undefined
-      if (vivo) setLiderNombre(carta?.name ?? mazo.nombre)
+      const nombre = carta?.name ?? mazo.nombre
+      // Solo se escribe si CAMBIÓ: `setCredencial` dispara la sincronización
+      // con la nube, y un efecto que se reescribe a sí mismo es un bucle.
+      if (vivo && nombre !== liderRef.current) {
+        liderRef.current = nombre
+        setCredencial({ credencialMazoLider: nombre })
+      }
     })()
     return () => { vivo = false }
-  }, [mazos, credencialMazoId])
+  }, [mazos, credencialMazoId, setCredencial])
 
-  if (!currentProfile) {
-    // AuthGate ya exige sesión; esto solo cubre el instante de hidratación.
-    return null
-  }
+  const { datos, nivel, acabado } = useDatosCredencial(perfil, stats)
+  const siguiente = proximoAcabado(nivel)
 
   const tema = temaCredencial(credencialTema)
-  const titulo = stats ? getTitleById(stats.activeTitle)?.name : undefined
-  const pais = currentProfile.country ? getCountryByCode(currentProfile.country)?.name : undefined
-
-  const datos: DatosCredencial = {
-    nombre: currentProfile.name || 'Jugador',
-    apodo: credencialApodo.trim() || titulo || 'Recluta',
-    ubicacion: credencialUbicacion.trim() || pais || 'Borde Exterior',
-    rango: stats ? calculateLevel(stats.xp).rank.name : 'Iniciado del Borde Exterior',
-    // Si el perfil no trae fecha de registro (datos viejos), va la de hoy.
-    desplegado: fechaDespliegue(altaCuenta ?? currentProfile.createdAt ?? hoy),
-    avatar: currentProfile.avatar,
-    mazo: credencialMostrarMazo ? liderNombre : null,
-  }
 
   return (
     <div className="p-4 lg:p-6 pb-24 max-w-3xl mx-auto space-y-5">
@@ -229,12 +208,52 @@ export function CredencialPage() {
 
       {/* La credencial. El id es de dónde la toma la impresión. */}
       <div id="zona-credencial" className="flex justify-center">
-        <CredencialSVG
+        <CredencialInteractiva
           datos={datos}
           tema={tema}
           emblema={credencialEmblema}
-          className="w-full max-w-xl drop-shadow-[0_12px_28px_rgba(0,0,0,0.55)]"
+          acabado={acabado}
         />
+      </div>
+
+      {/* ── Acabados ganados por nivel ── */}
+      <div className="bg-swu-surface rounded-2xl p-4 border border-swu-border">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-xs text-swu-muted">Acabado de la placa</p>
+          <p className="text-[11px] font-bold text-swu-accent-texto">{acabado.nombre}</p>
+        </div>
+        <p className="mt-1 text-[11px] text-swu-muted">{acabado.detalle}</p>
+
+        <div className="mt-3 grid grid-cols-4 gap-1.5">
+          {ACABADOS.map((ac) => {
+            const ganado = nivel >= ac.desde
+            const puesto = ac.id === acabado.id
+            return (
+              <div
+                key={ac.id}
+                className={`rounded-lg border px-1.5 py-2 text-center ${
+                  puesto
+                    ? 'border-swu-accent bg-swu-accent/10'
+                    : ganado
+                      ? 'border-swu-border bg-swu-bg/40'
+                      : 'border-swu-border/50 bg-swu-bg/20 opacity-45'
+                }`}
+              >
+                <p className={`text-[10px] font-bold leading-tight ${ganado ? 'text-swu-text' : 'text-swu-muted'}`}>
+                  {ac.nombre}
+                </p>
+                <p className="text-[9px] text-swu-muted">Nv {ac.desde}</p>
+              </div>
+            )
+          })}
+        </div>
+
+        {siguiente && (
+          <p className="mt-2.5 text-[11px] text-swu-muted">
+            En el nivel <span className="font-bold text-swu-text">{siguiente.desde}</span> se desbloquea{' '}
+            <span className="font-bold text-swu-accent-texto">{siguiente.nombre}</span> — {siguiente.detalle.toLowerCase()}
+          </p>
+        )}
       </div>
 
       {/* ── Personalización ── */}
@@ -295,7 +314,7 @@ export function CredencialPage() {
               value={credencialApodo}
               onChange={(e) => setCredencial({ credencialApodo: e.target.value })}
               maxLength={24}
-              placeholder={titulo || 'Recluta'}
+              placeholder={datos.apodo}
               className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 text-sm text-swu-text outline-none focus:border-swu-accent"
             />
             <p className="text-[10px] text-swu-muted mt-1">Vacío = tu título activo del perfil.</p>
@@ -306,7 +325,7 @@ export function CredencialPage() {
               value={credencialUbicacion}
               onChange={(e) => setCredencial({ credencialUbicacion: e.target.value })}
               maxLength={28}
-              placeholder={pais || 'Borde Exterior'}
+              placeholder={datos.ubicacion}
               className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 text-sm text-swu-text outline-none focus:border-swu-accent"
             />
             <p className="text-[10px] text-swu-muted mt-1">Vacío = el país de tu cuenta.</p>

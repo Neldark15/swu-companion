@@ -25,6 +25,12 @@ export type TemaCredencialId =
   | 'imperial'
   | 'republica'
   | 'cazarrecompensas'
+  | 'inquisidor'
+  | 'contrabandista'
+  | 'hutt'
+  | 'kyber'
+  | 'nabu'
+  | 'hoth'
 
 export interface TemaCredencial {
   id: TemaCredencialId
@@ -51,6 +57,15 @@ export const TEMAS_CREDENCIAL: TemaCredencial[] = [
   { id: 'imperial',         etiqueta: 'Imperial',         base: '#33373C', panel: '#17191C', texto: '#DCDEE1', acento: '#9AA3AB', grabado: '#6A7178' },
   { id: 'republica',        etiqueta: 'República',        base: '#4A1622', panel: '#1E0A10', texto: '#F0E3D0', acento: '#CFA349', grabado: '#A66B5A' },
   { id: 'cazarrecompensas', etiqueta: 'Cazarrecompensas', base: '#2A3A2E', panel: '#141C16', texto: '#E4E9DD', acento: '#D9772F', grabado: '#7E9B72' },
+  // Seis más. Se eligieron por CONTRASTE entre ellas —dos rojos oscuros no
+  // suman una opción, suman una duda— y todas se probaron con el texto encima:
+  // el `texto` sobre `panel` pasa el contraste AA en las catorce.
+  { id: 'inquisidor',       etiqueta: 'Inquisidor',       base: '#1A1013', panel: '#0C0709', texto: '#F0DADC', acento: '#E03B3B', grabado: '#9B5F63' },
+  { id: 'contrabandista',   etiqueta: 'Contrabandista',   base: '#3A2A1C', panel: '#1B1410', texto: '#F2E4CE', acento: '#C9922F', grabado: '#9C7A4E' },
+  { id: 'hutt',             etiqueta: 'Cartel Hutt',      base: '#2E2A16', panel: '#16140A', texto: '#EDE7C4', acento: '#A8B534', grabado: '#8A8C4E' },
+  { id: 'kyber',            etiqueta: 'Cristal Kyber',    base: '#141C22', panel: '#0A1014', texto: '#DDF2F5', acento: '#39C7D6', grabado: '#5E8E99' },
+  { id: 'nabu',             etiqueta: 'Naboo',            base: '#2B2136', panel: '#150F1C', texto: '#EDE2F5', acento: '#A374D9', grabado: '#8A72A6' },
+  { id: 'hoth',             etiqueta: 'Hoth',             base: '#D7DEE4', panel: '#1C242B', texto: '#EDF3F7', acento: '#4E7FA6', grabado: '#7C8B98' },
 ]
 
 /** ¿Es un id de tema válido? Para validar lo que venga de localStorage/nube. */
