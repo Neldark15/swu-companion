@@ -706,3 +706,39 @@ Lo que hay que saber antes de tocarla:
 Banco visual en `/banco-credencial` (solo desarrollo): los siete acabados sobre
 el mismo tema, el dorso, los catorce temas y los casos límite (emoji, textos
 largos). Si dos acabados se ven iguales, uno de los dos no existe.
+
+### 2z. Antes de mover algo en la credencial, MEDÍ: `/banco-credencial`
+
+«Hay textos encima del diseño» no se puede verificar leyendo el código. Dónde
+termina una caja depende de la fuente, del `letterSpacing`, del escalado del
+glifo y de las MUESCAS de las siluetas — y las siluetas de esta placa tienen
+tres. El `DetectorChoques` del banco mide las placas ya pintadas con tres
+reglas, y cada una nació de un choque que las otras dos no veían:
+
+1. **Ningún texto pisa decoración** (remaches, sello, circuitos, barras,
+   emblema). Cazó los remaches pintados sobre las letras Aurebesh.
+2. **Ningún texto pisa a otro texto.** Cazó dos sublíneas de la fila inferior
+   que, estando las dos sobre el panel y sin tocar decoración, se leían como
+   una sola palabra corrida.
+3. **Todo texto cae dentro de su fondo** (`[data-fondo]`). Cazó el peor: la
+   sublínea de DESPLEGADO caía por la muesca del panel y quedaba partida a
+   media altura, mitad sobre el panel oscuro y mitad sobre la chapa clara.
+
+Cuatro trampas del propio detector, todas ya pagadas:
+
+- **Un verde puede no haber medido nada.** La primera versión saltaba las
+  placas sin ancho y devolvía «limpio» habiendo medido cero. Ahora informa
+  cuántas midió y cuántas saltó.
+- **`getBBox()` no sirve**: devuelve coordenadas locales, antes del
+  `transform`. Las sublíneas son grupos trasladados y salían todas apiladas en
+  el origen.
+- **`isPointInFill` interpreta el punto en el sistema LOCAL del elemento**, o
+  sea antes de su propio `transform`. Hay que llevar el punto con
+  `getScreenCTM().inverse()` o los fondos transformados mienten.
+- **Los filtros inflan `getBoundingClientRect`**: devuelve la región del
+  filtro, no la tinta. El nombre repujado declaraba 160% de su alto. El
+  detector los apaga mientras mide y los repone.
+
+Marcá `data-deco` en cada grupo decorativo nuevo y `data-fondo` en cada fondo
+legítimo de texto, o el detector no los ve — y no verlos se parece mucho a que
+no haya problema.
