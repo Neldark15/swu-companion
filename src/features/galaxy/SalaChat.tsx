@@ -204,7 +204,9 @@ export function SalaChat({
     claveExistente?: string,
   ) => {
     const limpio = texto.trim()
-    if (!limpio) return
+    // Sin texto Y sin adjunto no hay nada que mandar. Con adjunto, el texto
+    // sobra: compartir una carta sin comentario es un mensaje completo.
+    if (!limpio && !adj) return
     const clave = claveExistente ?? `${Date.now()}-${Math.min(limpio.length, 99)}`
 
     setEnVuelo(v =>
@@ -317,7 +319,9 @@ export function SalaChat({
                       </p>
                     )}
                     <div
-                      className={`group relative rounded-2xl px-3 py-1.5 text-[13px] leading-snug ${
+                      /* `max-w-full min-w-0` para que un adjunto ancho no
+                         estire la burbuja más allá del 78% que le toca. */
+                      className={`group relative max-w-full min-w-0 rounded-2xl px-3 py-1.5 text-[13px] leading-snug ${
                         m.borrado
                           ? 'border border-dashed border-swu-border italic text-swu-muted'
                           : mio
@@ -325,9 +329,14 @@ export function SalaChat({
                             : 'bg-swu-bg text-swu-text'
                       }`}
                     >
-                      <span className="whitespace-pre-wrap break-words">
-                        {m.borrado ? 'Mensaje retirado' : conEnlaces(m.cuerpo)}
-                      </span>
+                      {/* Un mensaje puede ser SOLO el adjunto. Pintar un
+                          `<span>` vacío deja una línea de aire arriba de la
+                          tarjeta que se ve como un error. */}
+                      {(m.borrado || m.cuerpo.trim()) && (
+                        <span className="whitespace-pre-wrap break-words">
+                          {m.borrado ? 'Mensaje retirado' : conEnlaces(m.cuerpo)}
+                        </span>
+                      )}
                       {m.adjunto && <AdjuntoBurbuja adjunto={m.adjunto} />}
                       {!m.borrado && (mio || soyAdmin) && (
                         <button
@@ -459,7 +468,7 @@ export function SalaChat({
             requestAnimationFrame(ajustarAlto)
             void mandar(t, a)
           }}
-          disabled={!borrador.trim()}
+          disabled={!borrador.trim() && !adjunto}
           aria-label="Enviar"
           className="rounded-xl bg-swu-accent p-2.5 text-swu-accent-fg transition-opacity disabled:opacity-30"
         >
@@ -471,14 +480,14 @@ export function SalaChat({
         abierto={abriendoCompartir}
         miId={miId}
         onCerrar={() => setAbriendoCompartir(false)}
-        onElegir={(adj, sugerido) => {
+        onElegir={adj => {
           setAdjunto(adj)
           setAbriendoCompartir(false)
-          // Si no habías escrito nada, se propone el nombre de lo que
-          // compartís: la base exige cuerpo, y «Director Krennic» dice más que
-          // un texto de relleno. Si YA habías escrito, no se te pisa.
-          setBorrador(b => (b.trim() ? b : sugerido))
-          requestAnimationFrame(ajustarAlto)
+          // El cuerpo NO se autocompleta con el nombre. Se hacía porque la base
+          // exigía texto, y el resultado era el nombre del mazo dos veces —una
+          // como mensaje y otra en la tarjeta— que además, siendo largo,
+          // desbordaba la burbuja. Ahora la base acepta un mensaje que es solo
+          // el adjunto, así que el comentario es tuyo o no hay.
         }}
       />
     </div>

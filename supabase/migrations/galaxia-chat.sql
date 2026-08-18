@@ -150,3 +150,31 @@ alter publication supabase_realtime add table public.galaxia_mensajes;
 -- mover la propia fila a otra persona sigue bloqueado.
 grant update (user_id, alcance, ambito, leido_en, silenciada)
   on public.galaxia_lecturas to authenticated;
+
+-- ── Adjuntos (aplicado después) ───────────────────────────────────────
+alter table public.galaxia_mensajes
+  add column if not exists adjunto_tipo text
+    check (adjunto_tipo is null or adjunto_tipo in ('carta','deck')),
+  add column if not exists adjunto_id text
+    check (adjunto_id is null or length(adjunto_id) between 1 and 64);
+
+alter table public.galaxia_mensajes drop constraint if exists adjunto_completo;
+alter table public.galaxia_mensajes add constraint adjunto_completo check (
+  (adjunto_tipo is null and adjunto_id is null)
+  or (adjunto_tipo is not null and adjunto_id is not null)
+);
+
+grant select (adjunto_tipo, adjunto_id) on public.galaxia_mensajes to authenticated;
+grant insert (adjunto_tipo, adjunto_id) on public.galaxia_mensajes to authenticated;
+-- UPDATE no: un adjunto no se cambia después de mandarlo, igual que el cuerpo.
+
+-- Un mensaje que es SOLO una carta o un mazo es un mensaje completo. El CHECK
+-- original exigía cuerpo siempre, así que compartir obligaba a inventar un
+-- texto — y lo que se inventaba era el nombre del mazo, que la tarjeta del
+-- adjunto ya muestra: salía dos veces y desbordaba la burbuja.
+alter table public.galaxia_mensajes drop constraint if exists galaxia_mensajes_cuerpo_check;
+alter table public.galaxia_mensajes drop constraint if exists cuerpo_o_adjunto;
+alter table public.galaxia_mensajes add constraint cuerpo_o_adjunto check (
+  length(cuerpo) <= 1000
+  and (length(btrim(cuerpo)) >= 1 or adjunto_tipo is not null)
+);

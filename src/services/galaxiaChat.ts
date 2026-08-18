@@ -182,9 +182,8 @@ export async function enviar(
   if (!isSupabaseReady()) return { ok: false, mensaje: 'Sin conexión.' }
   const texto = cuerpo.trim()
   // Con adjunto el texto puede ir vacío: compartir una carta sin comentario es
-  // un mensaje completo. La base exige cuerpo, así que se pone el nombre de lo
-  // que se comparte —lo resuelve quien llama, que es quien lo tiene a mano.
-  if (!texto) return { ok: false, mensaje: 'El mensaje está vacío.' }
+  // un mensaje completo, y la base lo acepta (CHECK `cuerpo_o_adjunto`).
+  if (!texto && !adjunto) return { ok: false, mensaje: 'El mensaje está vacío.' }
   if (texto.length > 1000) return { ok: false, mensaje: 'Máximo 1000 caracteres.' }
 
   const { error } = await supabase

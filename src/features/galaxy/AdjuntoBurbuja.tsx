@@ -26,6 +26,9 @@ export function AdjuntoBurbuja({ adjunto }: { adjunto: AdjuntoMensaje }) {
   const navigate = useNavigate()
   const [carta, setCarta] = useState<Card | null>(null)
   const [mazo, setMazo] = useState<MazoCompartible | null>(null)
+  /** El líder y la base del mazo, resueltos contra el catálogo local. */
+  const [lider, setLider] = useState<Card | null>(null)
+  const [base, setBase] = useState<Card | null>(null)
   const [cargando, setCargando] = useState(true)
 
   useEffect(() => {
@@ -36,7 +39,17 @@ export function AdjuntoBurbuja({ adjunto }: { adjunto: AdjuntoMensaje }) {
         if (vivo) setCarta(m.get(adjunto.id) ?? null)
       } else {
         const d = await verMazoCompartido(adjunto.id)
-        if (vivo) setMazo(d)
+        if (!vivo) return
+        setMazo(d)
+        // Una sola consulta a Dexie para los dos: son ids de carta como
+        // cualquier otro, y el catálogo ya está en el aparato.
+        const ids = [d?.lider, d?.base].filter((x): x is string => !!x)
+        if (ids.length > 0) {
+          const m = await getCardsByIds(ids)
+          if (!vivo) return
+          if (d?.lider) setLider(m.get(d.lider) ?? null)
+          if (d?.base) setBase(m.get(d.base) ?? null)
+        }
       }
       if (vivo) setCargando(false)
     })()
@@ -94,14 +107,57 @@ export function AdjuntoBurbuja({ adjunto }: { adjunto: AdjuntoMensaje }) {
   return (
     <button
       onClick={e => { e.stopPropagation(); navigate(`/decks/${mazo.id}`) }}
-      className="mt-1.5 flex w-full items-center gap-2 rounded-lg border border-swu-border
-                 bg-black/20 px-2 py-1.5 text-left"
+      /* `w-[210px] max-w-full` y NO `w-full`.
+         Con `w-full` la tarjeta se estiraba a lo que midiera su contenido más
+         largo —el nombre del mazo— y arrastraba la burbuja con ella hasta
+         salirse de la pantalla; en un teléfono el texto quedaba cortado por
+         los dos lados. Un ancho fijo que se rinde ante el contenedor deja que
+         el nombre se parta en vez de empujar. */
+      className="mt-1.5 block w-[210px] max-w-full overflow-hidden rounded-lg
+                 border border-swu-border bg-black/25 p-2 text-left"
     >
-      <Layers size={14} className="flex-shrink-0 text-swu-accent-texto" />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[11px] font-bold text-swu-text">{mazo.nombre}</span>
-        <span className="block text-[9px] text-swu-muted">{mazo.cartas} cartas · ver mazo</span>
-      </span>
+      {/* Líder y base: es lo que identifica un mazo de un vistazo. El nombre
+          que la gente le pone suele ser una broma interna o el resultado de un
+          torneo — informativo, pero no dice con qué se juega. */}
+      <div className="flex items-center gap-2">
+        <div className="flex flex-shrink-0 gap-1">
+          {lider ? (
+            <CardImage
+              src={listFaceUrl(lider)}
+              orientacion={listFaceIsLandscape(lider) ? 'apaisada' : 'vertical'}
+              alt={lider.name}
+              className="w-9"
+            />
+          ) : (
+            <div className="grid h-12 w-9 place-items-center rounded bg-swu-bg">
+              <Layers size={12} className="text-swu-muted" />
+            </div>
+          )}
+          {base && (
+            <CardImage
+              src={listFaceUrl(base)}
+              orientacion={listFaceIsLandscape(base) ? 'apaisada' : 'vertical'}
+              alt={base.name}
+              className="w-9"
+            />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          {/* Los nombres del líder y la base van ARRIBA del nombre del mazo:
+              son el dato, y el nombre propio es la etiqueta. */}
+          <p className="truncate text-[11px] font-bold text-swu-text">
+            {lider?.name ?? 'Mazo'}
+          </p>
+          {base && <p className="truncate text-[9px] text-swu-muted">{base.name}</p>}
+          <p className="mt-0.5 text-[9px] text-swu-muted">{mazo.cartas} cartas · ver mazo</p>
+        </div>
+      </div>
+      {/* El nombre del mazo, completo y partido en dos líneas si hace falta.
+          `break-words` porque hay nombres de una sola palabra larguísima. */}
+      <p className="mt-1.5 line-clamp-2 break-words border-t border-swu-border/60 pt-1.5
+                    text-[10px] leading-snug text-swu-muted">
+        {mazo.nombre}
+      </p>
     </button>
   )
 }

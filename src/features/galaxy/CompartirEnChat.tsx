@@ -23,8 +23,8 @@ interface Props {
   abierto: boolean
   miId: string
   onCerrar: () => void
-  /** Devuelve el adjunto y un texto por defecto para el cuerpo. */
-  onElegir: (adjunto: AdjuntoMensaje, textoSugerido: string) => void
+  /** Devuelve lo elegido. El cuerpo del mensaje lo escribe la persona, si quiere. */
+  onElegir: (adjunto: AdjuntoMensaje) => void
 }
 
 export function CompartirEnChat({ abierto, miId, onCerrar, onElegir }: Props) {
@@ -106,7 +106,7 @@ function BuscarCarta({ onElegir }: { onElegir: Props['onElegir'] }) {
         {resultados.map(c => (
           <button
             key={c.id}
-            onClick={() => onElegir({ tipo: 'carta', id: c.id }, c.name)}
+            onClick={() => onElegir({ tipo: 'carta', id: c.id })}
             className="text-left"
             title={c.name}
           >
@@ -149,7 +149,7 @@ function ElegirMazo({ miId, onElegir }: { miId: string; onElegir: Props['onElegi
       if (!publicado) { alert('No se pudo publicar el mazo.'); return }
       setMazos(xs => (xs ?? []).map(x => (x.id === m.id ? { ...x, publico: true } : x)))
     }
-    onElegir({ tipo: 'deck', id: m.id }, m.nombre)
+    onElegir({ tipo: 'deck', id: m.id })
   }
 
   if (mazos === null) {
