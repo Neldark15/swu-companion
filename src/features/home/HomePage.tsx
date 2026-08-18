@@ -105,6 +105,10 @@ const mainSystems: Sistema[] = [
 
   // ── Comunidad: mirar a los demás ──
   { icon: StarfighterIcon, label: 'La Galaxia',   tone: 'cyan',   to: '/galaxia',    cat: 'comunidad', auth: true },
+  // La credencial estaba SOLO dentro de Perfil → Personalizar: en móvil son
+  // cuatro toques y nadie la encontraba. Acá se ve al abrir la app.
+  { icon: KyberIcon,       label: 'Mi Credencial', tone: 'amber', to: '/credencial', cat: 'comunidad', auth: true },
+  { icon: HolonetIcon,     label: 'Aurebesh',    tone: 'cyan',   to: '/aurebesh',   cat: 'comunidad' },
   { icon: SpyIcon,         label: 'Espionaje',    tone: 'purple', to: '/espionaje',  cat: 'comunidad', auth: true },
   { icon: HolonetIcon,     label: 'Blog',         tone: 'amber',  to: '/blog',       cat: 'comunidad' },
 ]

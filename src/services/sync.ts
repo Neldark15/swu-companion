@@ -619,15 +619,34 @@ export async function syncAllFavoritesToCloud(userId: string) {
 
 // ─── SETTINGS SYNC ──────────────────────────────────────────────
 
-export async function syncSettingsToCloud(userId: string, settings: Record<string, unknown>) {
+/**
+ * Guarda ajustes FUSIONANDO, nunca reemplazando.
+ *
+ * Antes hacía `update({ settings })`, que sustituye el jsonb ENTERO por lo que
+ * traiga el store local — y toda clave que ese store no conozca desaparece.
+ * Medido en producción: al abrir la credencial por primera vez se guardaron sus
+ * 6 campos y se llevaron por delante `country` y `continent`, que viven en
+ * `settings` pero no en ese store. La consecuencia visible fue que la sala de
+ * chat del país dejó de existir para esa cuenta, porque la pertenencia se
+ * decide con `settings->>'country'`. Se perdieron en 2 cuentas.
+ *
+ * La mina era vieja —cualquier guardado de ajustes podía dispararla— pero
+ * recién con una pantalla que la pisaba seguido se hizo visible.
+ *
+ * La RPC hace `settings || parche` del lado del servidor: fusión superficial,
+ * en UNA sentencia. Dos aparatos guardando a la vez no se pisan, cosa que un
+ * leer-modificar-escribir desde el cliente no puede garantizar.
+ *
+ * Y ahora SÍ se mira el `error` (gotcha 2f): antes un fallo de guardado era
+ * completamente invisible.
+ */
+export async function syncSettingsToCloud(_userId: string, settings: Record<string, unknown>) {
+  // `_userId` ya no se usa: la RPC saca la cuenta de `auth.uid()`, que es más
+  // seguro que confiar en el id que mande el cliente. Se conserva en la firma
+  // para no tocar a quienes la llaman.
   if (!isSupabaseReady()) return
-  try {
-    await supabase.from('profiles').update({
-      settings,
-    }).eq('id', userId)
-  } catch (e) {
-    console.warn('[Sync] Failed to sync settings:', e)
-  }
+  const { error } = await supabase.rpc('fusionar_settings', { p_parche: settings })
+  if (error) console.warn('[Sync] no se pudieron guardar los ajustes:', error.message)
 }
 
 export async function pullSettingsFromCloud(userId: string): Promise<Record<string, unknown> | null> {
