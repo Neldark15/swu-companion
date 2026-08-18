@@ -287,3 +287,35 @@ export async function silenciar(
     user_id: userId, alcance, ambito: ambito ?? '', silenciada: valor,
   }, { onConflict: 'user_id,alcance,ambito' })
 }
+
+/**
+ * Las salas de una persona, resolviendo su país contra `profiles`.
+ *
+ * Existe porque las dos pantallas que muestran el chat tienen datos distintos
+ * a mano: el Explorador ya trae la lista de jugadores con su país, y la
+ * Galaxia 3D solo trae planetas de un sistema. En vez de que cada una se las
+ * arregle —una leyendo una lista, la otra sin poder— la pregunta se hace una
+ * vez y en un solo sitio.
+ *
+ * NO se lee de la sesión: `UserProfile` no persiste `settings` (gotcha §2v), y
+ * hacer que lo persista por esto sería tocar la hidratación de la sesión, que
+ * es el sitio más delicado de la app.
+ */
+export async function misSalas(
+  userId: string,
+  tiendas: Array<{ id: string; nombre: string }> = [],
+): Promise<Sala[]> {
+  if (!isSupabaseReady() || !userId) return salasDe(null, null, tiendas)
+
+  const { data, error } = await supabase
+    .from('profiles').select('settings').eq('id', userId).maybeSingle()
+  if (error) {
+    console.warn('[galaxia] no se pudo resolver el país:', error.message)
+    // Sin país se pierden dos salas, pero global sigue existiendo: es mejor
+    // un chat con una sala que ninguna pantalla.
+    return salasDe(null, null, tiendas)
+  }
+
+  const ajustes = (data?.settings ?? {}) as { country?: string; continent?: string }
+  return salasDe(ajustes.country ?? null, ajustes.continent ?? null, tiendas)
+}

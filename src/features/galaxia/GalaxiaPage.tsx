@@ -43,6 +43,7 @@ import { RANKS } from '../../services/gamification'
 import { useAuth } from '../../hooks/useAuth'
 import { fechaCorta } from '../../services/horaSV'
 import { Avatar } from '../../components/ui/Avatar'
+import { misSalas, estadoDeSalas } from '../../services/galaxiaChat'
 
 /* Los avatares de la app: id conocido → imagen, `data:` → foto, si no emoji. */
 
@@ -281,6 +282,27 @@ export function GalaxiaPage() {
   const [lente, setLente] = useState<Lente>('nivel')
 
   /**
+   * Lo no leído de TODAS las salas, para el botón de arriba.
+   *
+   * Se calcula acá y no dentro del chat porque el objetivo es justamente que
+   * se vea SIN entrar: un aviso que solo aparece adentro no avisa de nada.
+   */
+  const [sinLeer, setSinLeer] = useState(0)
+  useEffect(() => {
+    if (!currentProfileId) return
+    let vivo = true
+    void (async () => {
+      const salas = await misSalas(currentProfileId)
+      const estado = await estadoDeSalas(currentProfileId, salas)
+      if (!vivo) return
+      let n = 0
+      for (const e of estado.values()) if (!e.silenciada) n += e.sinLeer
+      setSinLeer(n)
+    })()
+    return () => { vivo = false }
+  }, [currentProfileId])
+
+  /**
    * La lista que ve TODO lo demás (escena, lista, emergente, recorrido) ya
    * viene re-ordenada por la lente: órbita = puesto en la magnitud elegida,
    * desempate por nivel y después por id — el mismo desempate estable del
@@ -395,6 +417,27 @@ export function GalaxiaPage() {
               <span className="flex-shrink-0">· {totalTexto}</span>
             </p>
           </div>
+          {/* Entrada al chat.
+              Va ACÁ porque acá es donde la gente cree que está: en el menú, la
+              entrada que dice «La Galaxia» apunta a esta pantalla, y el chat
+              vivía en la de al lado —«Explorador»— donde nadie iba a buscarlo.
+              El contador de no leídos es lo que lo hace visible sin explicarlo. */}
+          <button
+            onClick={() => navigate('/galaxy?vista=sala')}
+            aria-label="Salas de chat"
+            className="relative flex flex-shrink-0 items-center gap-1 rounded-lg border
+                       border-swu-accent/30 bg-swu-accent/10 px-2 py-1.5 text-[10px]
+                       font-semibold text-swu-accent-texto focus-visible:outline-none
+                       focus-visible:ring-2 focus-visible:ring-swu-accent"
+          >
+            <MessageSquare size={12} /> Salas
+            {sinLeer > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 grid h-4 min-w-4 place-items-center
+                               rounded-full bg-swu-accent px-1 text-[9px] font-black text-swu-accent-fg">
+                {sinLeer > 99 ? '99+' : sinLeer}
+              </span>
+            )}
+          </button>
           {!sin3D && (
             <button
               onClick={() => setVista(v => (v === 'orbital' ? 'lista' : 'orbital'))}

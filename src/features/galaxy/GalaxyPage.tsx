@@ -21,7 +21,7 @@ import { MessageSquare } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { SalaChat } from './SalaChat'
 import {
-  salasDe, claveSala, estadoDeSalas, silenciar,
+  misSalas as misSalasDe, claveSala, estadoDeSalas, silenciar,
   type Sala, type EstadoSala,
 } from '../../services/galaxiaChat'
 import { misSedes } from '../../services/galaxiaSedes'
@@ -368,7 +368,19 @@ const RANKING_TABS: { id: RankingCategory; label: string; icon: React.ReactNode;
 export function GalaxyPage() {
   const navigate = useNavigate()
 
-  const [activeTab, setActiveTab] = useState<TabId>('sala')
+  /**
+   * La pestaña inicial puede venir por enlace (`/galaxy?vista=sala`).
+   *
+   * Lo usa el botón «Salas» de la Galaxia 3D: en el menú, la entrada que dice
+   * «La Galaxia» lleva a la OTRA pantalla, así que sin este puente el chat
+   * quedaba a dos toques de donde la gente lo busca — y encontrarlo dependía
+   * de adivinar que «Explorador» lo contenía.
+   */
+  const [activeTab, setActiveTab] = useState<TabId>(() => {
+    const v = new URLSearchParams(window.location.search).get('vista')
+    const validas: TabId[] = ['sala', 'explorer', 'rankings', 'activity', 'map']
+    return (validas as string[]).includes(v ?? '') ? (v as TabId) : 'sala'
+  })
   const { supabaseUser, isAdmin } = useAuth()
 
   /**
@@ -476,16 +488,23 @@ export function GalaxyPage() {
   }, [players])
 
   /**
-   * Mi país y mi continente salen de la LISTA de jugadores, que ya está
-   * cargada, y no del perfil de sesión: `UserProfile` no persiste `settings`
-   * (gotcha §2v) y hacer que lo persista para esto sería tocar la hidratación
-   * de la sesión —el sitio más delicado de la app— por un dato que ya tengo
-   * a mano.
+   * Mis salas.
+   *
+   * Se preguntan al servidor y NO se sacan de la lista de jugadores: esa lista
+   * trae 150 y puede no incluirme, y además llega después, así que las salas
+   * habrían nacido mal y se habrían corregido solas a los dos segundos —o no.
+   * `UserProfile` tampoco sirve: no persiste `settings` (gotcha §2v).
    */
-  const misSalas = useMemo(() => {
-    const yo = players.find(p => p.userId === supabaseUser?.id)
-    return salasDe(yo?.country ?? null, yo?.continent ?? null, misTiendas)
-  }, [players, supabaseUser?.id, misTiendas])
+  const [misSalas, setMisSalas] = useState<Sala[]>([])
+  useEffect(() => {
+    if (!supabaseUser?.id) return
+    let vivo = true
+    void (async () => {
+      const s = await misSalasDe(supabaseUser.id, misTiendas)
+      if (vivo) setMisSalas(s)
+    })()
+    return () => { vivo = false }
+  }, [supabaseUser?.id, misTiendas])
 
   // Las tiendas donde jugaste. Aparte del resto: si falla, el chat sigue con
   // las otras tres salas en vez de no abrir.

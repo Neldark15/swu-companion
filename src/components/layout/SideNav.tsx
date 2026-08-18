@@ -31,7 +31,7 @@ const secondaryNav: NavItem[] = [
   { id: '/misiones', label: 'Misiones', sub: 'Órdenes del Día', icon: DeathStarIcon },
   { id: '/decks', label: 'Mis Decks', sub: 'Constructor', icon: DeckCardsIcon },
   { id: '/laboratorio', label: 'Laboratorio', sub: 'Simulador de mazos', icon: FlaskConical },
-  { id: '/galaxy', label: 'Explorador', sub: 'Buscar comandantes', icon: Radar },
+  { id: '/galaxy', label: 'Salas', sub: 'Chat y comandantes', icon: Radar },
   { id: '/news', label: 'Noticias', sub: 'Agenda de torneos', icon: NewspaperIcon },
   { id: '/meta', label: 'Meta', sub: 'Torneos y matchups', icon: MetaIcon },
   { id: '/community', label: 'Comunidades', sub: 'Galaxia', icon: RebelIcon },

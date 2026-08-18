@@ -56,7 +56,7 @@ const GROUPS: MoreGroup[] = [
       // comunidad (quién es quién, qué hizo de último) y el Explorador es
       // BUSCAR dentro de ella (nombre, país, rankings).
       { to: '/galaxia', label: 'La Galaxia', sub: 'Universo 3D', icon: StarfighterIcon },
-      { to: '/galaxy', label: 'Explorador', sub: 'Buscar comandantes', icon: Radar },
+      { to: '/galaxy', label: 'Salas', sub: 'Chat y comandantes', icon: Radar },
             { to: '/blog', label: 'Blog', sub: 'Análisis y artículos', icon: BookOpen },
 { to: '/espionaje', label: 'Espionaje', sub: 'Transmisiones', icon: SpyIcon },
     ],
