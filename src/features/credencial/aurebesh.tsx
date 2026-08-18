@@ -10,6 +10,13 @@
 
 import { GLIFOS, GLIFO_ALTO, GLIFO_ANCHO, GROSOR, sinAcentos } from './aurebeshGlifos'
 
+/**
+ * Por debajo de esto el renglón deja de leerse y encoger más no sirve de nada:
+ * ahí sí se recorta. En unidades del viewBox de la credencial (512×320), 5
+ * equivalen a ~3,4 px en un teléfono de 390 px de ancho.
+ */
+const ALTO_MINIMO = 5
+
 interface SublineaProps {
   /** El texto en latino: acá se translitera letra por letra a Aurebesh. */
   texto: string
@@ -19,7 +26,10 @@ interface SublineaProps {
   alto?: number
   color: string
   opacidad?: number
-  /** Ancho máximo: los glifos que no quepan se omiten (no se encogen). */
+  /**
+   * Ancho máximo. La línea se ENCOGE para caber; solo si tuviera que bajar del
+   * piso legible se recorta.
+   */
   maxAncho?: number
 }
 
@@ -28,12 +38,33 @@ interface SublineaProps {
  * Va como grupo de <path> con trazo, no como <text>: no hay fuente que cargar.
  */
 export function SublineaAurebesh({ texto, x, y, alto = 6, color, opacidad = 0.45, maxAncho }: SublineaProps) {
-  const escala = alto / GLIFO_ALTO
+  // ── Encoger antes que recortar ──
+  //
+  // Antes esto cortaba en seco: `if (cursor + avance > maxAncho) break`, sin
+  // aviso ninguno. Medido sobre los rangos reales, «Iniciado del Borde
+  // Exterior» perdía 7 de sus 24 glifos — y como los glifos que quedan son
+  // Aurebesh legítimo, no se leía como un texto cortado sino como OTRA
+  // palabra. Quien sabe leer Aurebesh (que es justamente para quien está la
+  // sublínea) veía un error, no una abreviatura.
+  //
+  // Ahora se mide el ancho natural y, si no cabe, se reduce la altura del
+  // glifo hasta que entre. Solo cuando haría falta bajar de ALTO_MINIMO —donde
+  // el renglón dejaría de leerse— se vuelve a recortar.
+  const limpio = sinAcentos(texto).toUpperCase()
+  const nLetras = [...limpio].filter((c) => GLIFOS[c] !== undefined).length
+  const nHuecos = [...limpio].length - nLetras
+  const natural = nLetras * (GLIFO_ANCHO + 3) + nHuecos * GLIFO_ANCHO * 0.7
+  const altoUtil =
+    maxAncho !== undefined && natural > 0 && (natural * alto) / GLIFO_ALTO > maxAncho
+      ? Math.max(ALTO_MINIMO, (maxAncho * GLIFO_ALTO) / natural)
+      : alto
+
+  const escala = altoUtil / GLIFO_ALTO
   // El trazo no se escala con el glifo (`vectorEffect`), así que a tamaños
   // grandes el mismo 1,1 px se ve DEBILUCHO: letras el doble de altas con el
   // mismo hilo. Se engorda un poco con la altura para que el renglón conserve
   // su peso, sin llegar a emborronarse en pantallas chicas.
-  const grosor = GROSOR * (1 + Math.max(0, alto - 4.5) * 0.055)
+  const grosor = GROSOR * (1 + Math.max(0, altoUtil - 4.5) * 0.055)
   // Avance fijo: 10 de glifo + 3 de aire. Un carácter sin glifo avanza menos,
   // pero AVANZA — si no, «S. Vera» pegaría la S con la V y quedaría ilegible.
   const avance = (GLIFO_ANCHO + 3) * escala
@@ -42,7 +73,7 @@ export function SublineaAurebesh({ texto, x, y, alto = 6, color, opacidad = 0.45
   const elementos: React.ReactElement[] = []
   let cursor = 0
   let i = 0
-  for (const crudo of sinAcentos(texto).toUpperCase()) {
+  for (const crudo of limpio) {
     const camino = GLIFOS[crudo]
     if (camino === undefined) {
       // Espacio, coma, guion, apóstrofo: no se dibujan (la lámina tiene sus

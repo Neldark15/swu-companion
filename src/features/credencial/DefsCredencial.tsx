@@ -138,6 +138,73 @@ export function DefsCredencial({ uid, tema }: Props) {
         <feMerge><feMergeNode in="glow" /><feMergeNode in="SourceGraphic" /></feMerge>
       </filter>
 
+      {/* ── Texto GRABADO ──
+          Un texto grabado en metal no es un texto con sombra: es un surco. La
+          luz entra desde arriba a la izquierda —la misma dirección que usa el
+          bisel de la placa— así que la pared de arriba del surco queda en
+          sombra y la de abajo devuelve luz. Se hace con DOS copias
+          desplazadas del alfa, media unidad cada una, compuestas por debajo
+          del glifo original.
+
+          `stdDeviation="0"`: sin desenfoque. A cuerpo 9 sobre una placa de
+          85,6 mm, medio milímetro de desenfoque se come la letra. Y un
+          desplazamiento duro SOBREVIVE a la impresión en blanco y negro, que
+          es la regla de toda esta placa: un relieve hecho solo de luz
+          desaparece en escala de grises. */}
+      <filter id={`${uid}-grabadoTexto`} x="-8%" y="-20%" width="116%" height="150%">
+        <feOffset in="SourceAlpha" dx="-0.5" dy="-0.5" result="arriba" />
+        <feFlood floodColor="#000" floodOpacity="0.55" result="tintaSombra" />
+        <feComposite in="tintaSombra" in2="arriba" operator="in" result="surcoSombra" />
+        <feOffset in="SourceAlpha" dx="0.5" dy="0.6" result="abajo" />
+        <feFlood floodColor="#fff" floodOpacity="0.30" result="tintaLuz" />
+        <feComposite in="tintaLuz" in2="abajo" operator="in" result="surcoLuz" />
+        <feMerge>
+          <feMergeNode in="surcoSombra" />
+          <feMergeNode in="surcoLuz" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+
+      {/* ── Texto REPUJADO ──
+          Lo contrario del grabado: el glifo SALE de la placa, como el número
+          en relieve de una tarjeta de crédito. La sombra cae abajo a la
+          derecha y el filo de luz queda arriba a la izquierda. Solo para el
+          nombre, que es el único texto lo bastante grande (cuerpo 26) para
+          que el relieve se lea en vez de ensuciarlo. */}
+      <filter id={`${uid}-repujado`} x="-10%" y="-25%" width="125%" height="160%">
+        <feOffset in="SourceAlpha" dx="1.1" dy="1.3" result="cae" />
+        <feGaussianBlur in="cae" stdDeviation="0.5" result="caeSuave" />
+        <feFlood floodColor="#000" floodOpacity="0.42" result="negro" />
+        <feComposite in="negro" in2="caeSuave" operator="in" result="sombra" />
+        <feOffset in="SourceAlpha" dx="-0.7" dy="-0.8" result="sube" />
+        <feFlood floodColor="#fff" floodOpacity="0.5" result="blanco" />
+        <feComposite in="blanco" in2="sube" operator="in" result="filo" />
+        <feMerge>
+          <feMergeNode in="sombra" />
+          <feMergeNode in="filo" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+
+      {/* ── Sombra de contacto ──
+          Lo que convierte una forma pegada en una pieza APOYADA sobre otra.
+          La usa la banda del nombre, que es una chapa distinta atornillada
+          encima del panel. Sin esto la banda es un rectángulo de color; con
+          esto tiene grosor. */}
+      <filter id={`${uid}-apoyado`} x="-6%" y="-30%" width="112%" height="170%">
+        <feDropShadow dx="0" dy="1.8" stdDeviation="1.3" floodColor="#000" floodOpacity="0.5" />
+      </filter>
+
+      {/* ── Pozo ──
+          Oclusión ambiental de un rebaje: oscuro pegado al borde, aclarándose
+          hacia el centro. Es lo que hace que la ventana de la foto se lea como
+          un hueco y no como un cuadrado pintado. */}
+      <radialGradient id={`${uid}-pozo`} cx="0.5" cy="0.45" r="0.72">
+        <stop offset="55%" stopColor="#000" stopOpacity="0" />
+        <stop offset="88%" stopColor="#000" stopOpacity="0.28" />
+        <stop offset="100%" stopColor="#000" stopOpacity="0.55" />
+      </radialGradient>
+
       {/* El emblema, a escala de grises: el color se lo pone la placa. */}
       <filter id={`${uid}-grabado`} x="0" y="0" width="100%" height="100%">
         <feColorMatrix type="saturate" values="0" />

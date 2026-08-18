@@ -41,7 +41,7 @@ export function TarjetaJugador({ perfil, stats, enLinea = false, alTocar = 'nada
   const navigate = useNavigate()
   const credencialTema = useSettings((s) => s.credencialTema)
   const credencialEmblema = useSettings((s) => s.credencialEmblema)
-  const { datos, acabado } = useDatosCredencial(perfil, stats)
+  const { datos, acabado, nivel } = useDatosCredencial(perfil, stats)
 
   return (
     <div className="flex flex-col items-center">
@@ -50,6 +50,7 @@ export function TarjetaJugador({ perfil, stats, enLinea = false, alTocar = 'nada
         tema={temaCredencial(credencialTema)}
         emblema={credencialEmblema}
         acabado={acabado}
+        nivel={nivel}
         // La pista de arrastre se muestra donde la placa es el tema (el
         // perfil). En Inicio, rodeada de otros seis módulos, sería una línea
         // de instrucciones más que nadie pidió.

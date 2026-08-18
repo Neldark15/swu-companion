@@ -213,6 +213,7 @@ function CredencialInterna({ perfil }: { perfil: UserProfile }) {
           tema={tema}
           emblema={credencialEmblema}
           acabado={acabado}
+          nivel={nivel}
         />
       </div>
 

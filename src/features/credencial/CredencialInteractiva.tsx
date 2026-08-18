@@ -33,6 +33,8 @@ interface Props {
   tema: TemaCredencial
   emblema: EmblemaCredencialId
   acabado?: AcabadoCredencial
+  /** El nivel del jugador: lo muestra el riel de identidad del anverso. */
+  nivel?: number
   /** Ancho máximo del bloque (la altura sale de la proporción 512×320). */
   className?: string
   /** Muestra la pista «arrastrá para girar». En listas conviene apagarla. */
@@ -55,7 +57,7 @@ const TOPE_X = 16
 const GRADOS_POR_PX = 0.95
 
 export function CredencialInteractiva({
-  datos, tema, emblema, acabado, className, conPista = true, onTocar, etiquetaToque = 'Abrir',
+  datos, tema, emblema, acabado, nivel, className, conPista = true, onTocar, etiquetaToque = 'Abrir',
 }: Props) {
   const uid = useId()
   const escenaRef = useRef<HTMLDivElement>(null)
@@ -162,7 +164,7 @@ export function CredencialInteractiva({
               svg de la zona (ver `imprimirCredencial`). */}
           <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden' }}>
             <CredencialSVG
-              datos={datos} tema={tema} emblema={emblema} acabado={acabado}
+              datos={datos} tema={tema} emblema={emblema} acabado={acabado} nivel={nivel}
               className="w-full drop-shadow-[0_14px_30px_rgba(0,0,0,0.6)]"
             />
           </div>

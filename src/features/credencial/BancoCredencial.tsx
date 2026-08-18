@@ -12,6 +12,7 @@ import { CredencialSVG, type DatosCredencial } from './CredencialSVG'
 import { CredencialReverso } from './CredencialReverso'
 import { ACABADOS } from './acabadosCredencial'
 import { CredencialInteractiva } from './CredencialInteractiva'
+import { DetectorChoques } from './DetectorChoques'
 import { SublineaAurebesh } from './aurebesh'
 import { TEMAS_CREDENCIAL, EMBLEMAS_CREDENCIAL_IDS } from './credencialTemas'
 
@@ -85,13 +86,15 @@ export function BancoCredencial() {
         </p>
       </div>
 
+      <DetectorChoques />
+
       {/* La placa VIVA: es la que se usa en Inicio, Perfil y /credencial.
           Acá se puede arrastrar y girar sin necesidad de tener sesión, que es
           lo que hace posible probar el giro. */}
       <div>
         <p className="text-xs font-mono tracking-wider text-swu-muted mb-2">INTERACTIVA (arrastrar / girar)</p>
         <CredencialInteractiva
-          datos={DATOS_FALSOS} tema={TEMAS_CREDENCIAL[1]} emblema="jedi-order" acabado={ACABADOS[5]}
+          datos={DATOS_FALSOS} tema={TEMAS_CREDENCIAL[1]} emblema="jedi-order" acabado={ACABADOS[5]} nivel={23}
         />
       </div>
 
@@ -108,7 +111,7 @@ export function BancoCredencial() {
               {ac.nombre.toUpperCase()} · NV {ac.desde} — {ac.detalle}
             </p>
             <CredencialSVG
-              datos={DATOS_FALSOS} tema={TEMAS_CREDENCIAL[1]} emblema="jedi-order" acabado={ac}
+              datos={DATOS_FALSOS} tema={TEMAS_CREDENCIAL[1]} emblema="jedi-order" acabado={ac} nivel={ac.desde}
               className="w-full max-w-xl drop-shadow-[0_12px_28px_rgba(0,0,0,0.55)]"
             />
           </div>
@@ -118,7 +121,7 @@ export function BancoCredencial() {
       <div>
         <p className="text-xs font-mono tracking-wider text-swu-muted mb-2">REVERSO (frente y dorso)</p>
         <div className="space-y-3">
-          <CredencialSVG datos={DATOS_FALSOS} tema={TEMAS_CREDENCIAL[2]} emblema="boba-fett" acabado={ACABADOS[3]} className="w-full max-w-xl" />
+          <CredencialSVG datos={DATOS_FALSOS} tema={TEMAS_CREDENCIAL[2]} emblema="boba-fett" acabado={ACABADOS[3]} nivel={13} className="w-full max-w-xl" />
           <CredencialReverso datos={DATOS_FALSOS} tema={TEMAS_CREDENCIAL[2]} emblema="boba-fett" acabado={ACABADOS[3]} className="w-full max-w-xl" />
         </div>
       </div>
