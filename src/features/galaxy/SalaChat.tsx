@@ -20,13 +20,15 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Send, Loader2, MessageSquare, BellOff, Bell, Trash2, ArrowDown, RotateCw } from 'lucide-react'
+import { Send, Loader2, MessageSquare, BellOff, Bell, Trash2, ArrowDown, RotateCw, Paperclip, X } from 'lucide-react'
 import { Avatar } from '../../components/ui/Avatar'
 import { hora, diaCalendarioSV } from '../../services/horaSV'
 import {
   leerSala, enviar, retirar, escucharSala, escucharPresencia, marcarLeida,
-  type Sala, type MensajeGalaxia,
+  type Sala, type MensajeGalaxia, type AdjuntoMensaje,
 } from '../../services/galaxiaChat'
+import { CompartirEnChat } from './CompartirEnChat'
+import { AdjuntoBurbuja } from './AdjuntoBurbuja'
 
 interface Props {
   sala: Sala
@@ -44,6 +46,8 @@ interface Props {
 interface EnVuelo {
   clave: string
   cuerpo: string
+  /** Se guarda con el mensaje en vuelo para que un reintento no lo pierda. */
+  adjunto: AdjuntoMensaje | null
   estado: 'enviando' | 'falló'
 }
 
@@ -97,6 +101,9 @@ export function SalaChat({
   const [borrador, setBorrador] = useState('')
   const [enVuelo, setEnVuelo] = useState<EnVuelo[]>([])
   const [enLinea, setEnLinea] = useState<string[]>([])
+  /** Lo que se va a mandar pegado al próximo mensaje, si hay algo. */
+  const [adjunto, setAdjunto] = useState<AdjuntoMensaje | null>(null)
+  const [abriendoCompartir, setAbriendoCompartir] = useState(false)
   const [alFondo, setAlFondo] = useState(true)
   const [nuevosAbajo, setNuevosAbajo] = useState(0)
 
@@ -191,7 +198,11 @@ export function SalaChat({
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`
   }
 
-  const mandar = useCallback(async (texto: string, claveExistente?: string) => {
+  const mandar = useCallback(async (
+    texto: string,
+    adj: AdjuntoMensaje | null,
+    claveExistente?: string,
+  ) => {
     const limpio = texto.trim()
     if (!limpio) return
     const clave = claveExistente ?? `${Date.now()}-${Math.min(limpio.length, 99)}`
@@ -199,10 +210,10 @@ export function SalaChat({
     setEnVuelo(v =>
       claveExistente
         ? v.map(m => (m.clave === clave ? { ...m, estado: 'enviando' } : m))
-        : [...v, { clave, cuerpo: limpio, estado: 'enviando' }],
+        : [...v, { clave, cuerpo: limpio, adjunto: adj, estado: 'enviando' }],
     )
 
-    const r = await enviar(sala.alcance, sala.ambito, miId, limpio)
+    const r = await enviar(sala.alcance, sala.ambito, miId, limpio, adj)
     if (r.ok) {
       setEnVuelo(v => v.filter(m => m.clave !== clave))
       setError(null)
@@ -317,6 +328,7 @@ export function SalaChat({
                       <span className="whitespace-pre-wrap break-words">
                         {m.borrado ? 'Mensaje retirado' : conEnlaces(m.cuerpo)}
                       </span>
+                      {m.adjunto && <AdjuntoBurbuja adjunto={m.adjunto} />}
                       {!m.borrado && (mio || soyAdmin) && (
                         <button
                           onClick={async () => {
@@ -352,7 +364,7 @@ export function SalaChat({
                 </div>
                 {m.estado === 'falló' ? (
                   <button
-                    onClick={() => void mandar(m.cuerpo, m.clave)}
+                    onClick={() => void mandar(m.cuerpo, m.adjunto, m.clave)}
                     className="mt-0.5 flex items-center gap-1 px-1 text-[9px] text-swu-red-texto underline"
                   >
                     <RotateCw size={9} /> No se envió · reintentar
@@ -389,7 +401,34 @@ export function SalaChat({
       )}
 
       {/* ── Escribir ── */}
+      {/* Lo que se va a mandar pegado, con su aspa. Va ARRIBA del área de
+          texto y no dentro: adentro competiría con el cursor y en un teléfono
+          es donde cae el teclado. */}
+      {adjunto && (
+        <div className="flex items-center gap-2 border-t border-swu-border bg-swu-bg/50 px-3 py-2">
+          {adjunto.tipo === 'carta'
+            ? <MessageSquare size={13} className="text-swu-accent-texto" />
+            : <MessageSquare size={13} className="text-swu-accent-texto" />}
+          <span className="flex-1 truncate text-[11px] text-swu-muted">
+            Vas a compartir {adjunto.tipo === 'carta' ? 'una carta' : 'un mazo'}
+          </span>
+          <button onClick={() => setAdjunto(null)} aria-label="Quitar lo adjunto"
+                  className="rounded p-1 text-swu-muted hover:text-swu-text">
+            <X size={13} />
+          </button>
+        </div>
+      )}
+
       <div className="flex items-end gap-2 border-t border-swu-border p-2">
+        <button
+          onClick={() => setAbriendoCompartir(true)}
+          aria-label="Compartir una carta o un mazo"
+          title="Compartir una carta o un mazo"
+          className="rounded-xl border border-swu-border bg-swu-bg p-2.5 text-swu-muted
+                     transition-colors hover:text-swu-accent-texto"
+        >
+          <Paperclip size={16} />
+        </button>
         <textarea
           ref={areaRef}
           value={borrador}
@@ -400,9 +439,10 @@ export function SalaChat({
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault()
               const t = borrador
-              setBorrador('')
+              const a = adjunto
+              setBorrador(''); setAdjunto(null)
               requestAnimationFrame(ajustarAlto)
-              void mandar(t)
+              void mandar(t, a)
             }
           }}
           rows={1}
@@ -413,7 +453,12 @@ export function SalaChat({
                      focus:border-swu-accent focus:outline-none"
         />
         <button
-          onClick={() => { const t = borrador; setBorrador(''); requestAnimationFrame(ajustarAlto); void mandar(t) }}
+          onClick={() => {
+            const t = borrador; const a = adjunto
+            setBorrador(''); setAdjunto(null)
+            requestAnimationFrame(ajustarAlto)
+            void mandar(t, a)
+          }}
           disabled={!borrador.trim()}
           aria-label="Enviar"
           className="rounded-xl bg-swu-accent p-2.5 text-swu-accent-fg transition-opacity disabled:opacity-30"
@@ -421,6 +466,21 @@ export function SalaChat({
           <Send size={16} />
         </button>
       </div>
+
+      <CompartirEnChat
+        abierto={abriendoCompartir}
+        miId={miId}
+        onCerrar={() => setAbriendoCompartir(false)}
+        onElegir={(adj, sugerido) => {
+          setAdjunto(adj)
+          setAbriendoCompartir(false)
+          // Si no habías escrito nada, se propone el nombre de lo que
+          // compartís: la base exige cuerpo, y «Director Krennic» dice más que
+          // un texto de relleno. Si YA habías escrito, no se te pisa.
+          setBorrador(b => (b.trim() ? b : sugerido))
+          requestAnimationFrame(ajustarAlto)
+        }}
+      />
     </div>
   )
 }

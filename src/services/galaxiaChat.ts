@@ -28,12 +28,25 @@ export interface Sala {
   detalle: string
 }
 
+/**
+ * Lo que un mensaje puede llevar pegado.
+ *
+ * El id NO se resuelve acá: una carta se resuelve contra Dexie (que es donde
+ * vive el catálogo) y un mazo contra su tabla. Este servicio solo transporta
+ * la referencia; quien pinta decide cómo mostrarla y qué decir si ya no existe.
+ */
+export interface AdjuntoMensaje {
+  tipo: 'carta' | 'deck'
+  id: string
+}
+
 export interface MensajeGalaxia {
   id: string
   autorId: string
   cuerpo: string
   creadoEn: string
   borrado: boolean
+  adjunto: AdjuntoMensaje | null
   /** Se resuelven aparte, contra `profiles`. */
   autorNombre: string
   autorAvatar: string
@@ -95,7 +108,7 @@ export function salasDe(
   return salas
 }
 
-const COLUMNAS = 'id, autor_id, cuerpo, creado_en, borrado_en'
+const COLUMNAS = 'id, autor_id, cuerpo, creado_en, borrado_en, adjunto_tipo, adjunto_id'
 
 /** Los últimos mensajes de una sala, del más viejo al más nuevo (orden de lectura). */
 export async function leerSala(
@@ -146,6 +159,11 @@ export async function leerSala(
         cuerpo: f.borrado_en ? '' : f.cuerpo,
         creadoEn: f.creado_en,
         borrado: !!f.borrado_en,
+        // Un mensaje retirado pierde también su adjunto: retirar tiene que
+        // quitar TODO lo que se compartió, no solo el texto.
+        adjunto: !f.borrado_en && f.adjunto_tipo && f.adjunto_id
+          ? { tipo: f.adjunto_tipo as 'carta' | 'deck', id: f.adjunto_id }
+          : null,
         autorNombre: p?.name ?? 'Alguien',
         autorAvatar: p?.avatar ?? '',
       }
@@ -159,15 +177,23 @@ export async function enviar(
   ambito: string | null,
   autorId: string,
   cuerpo: string,
+  adjunto?: AdjuntoMensaje | null,
 ): Promise<Resultado<null>> {
   if (!isSupabaseReady()) return { ok: false, mensaje: 'Sin conexión.' }
   const texto = cuerpo.trim()
+  // Con adjunto el texto puede ir vacío: compartir una carta sin comentario es
+  // un mensaje completo. La base exige cuerpo, así que se pone el nombre de lo
+  // que se comparte —lo resuelve quien llama, que es quien lo tiene a mano.
   if (!texto) return { ok: false, mensaje: 'El mensaje está vacío.' }
   if (texto.length > 1000) return { ok: false, mensaje: 'Máximo 1000 caracteres.' }
 
   const { error } = await supabase
     .from('galaxia_mensajes')
-    .insert({ autor_id: autorId, alcance, ambito, cuerpo: texto })
+    .insert({
+      autor_id: autorId, alcance, ambito, cuerpo: texto,
+      adjunto_tipo: adjunto?.tipo ?? null,
+      adjunto_id: adjunto?.id ?? null,
+    })
   if (error) {
     console.warn('[galaxia] no se pudo enviar:', error.message)
     // El 42501 de RLS aquí significa una cosa concreta y decible.
@@ -267,25 +293,48 @@ export async function estadoDeSalas(
   return salida
 }
 
-/** Marca la sala como leída hasta ahora. */
+/**
+ * Marca la sala como leída hasta ahora.
+ *
+ * OJO con el `upsert` y los GRANT por columna. PostgREST manda
+ * `INSERT ... ON CONFLICT DO UPDATE` reescribiendo TODAS las columnas del
+ * payload, incluidas las de la clave. Con un `grant update` que solo cubría
+ * `leido_en` y `silenciada`, la PRIMERA marca de una sala pasaba (es un insert
+ * puro) y la SEGUNDA rebotaba con «permission denied» — o sea que el globo de
+ * no leídos se limpiaba una vez y nunca más.
+ *
+ * Se descubrió porque el error no se miraba (gotcha 2f, en este mismo
+ * archivo): fallaba en silencio y desde fuera parecía un problema de la
+ * interfaz. Por eso ahora los dos upserts devuelven si funcionaron.
+ */
 export async function marcarLeida(
   userId: string, alcance: AlcanceSala, ambito: string | null,
-): Promise<void> {
-  if (!isSupabaseReady()) return
-  await supabase.from('galaxia_lecturas').upsert({
+): Promise<boolean> {
+  if (!isSupabaseReady()) return false
+  const { error } = await supabase.from('galaxia_lecturas').upsert({
     user_id: userId, alcance, ambito: ambito ?? '',
     leido_en: new Date().toISOString(),
   }, { onConflict: 'user_id,alcance,ambito' })
+  if (error) {
+    console.warn('[galaxia] no se pudo marcar la sala como leída:', error.message)
+    return false
+  }
+  return true
 }
 
-/** Silencia o desilencia una sala. */
+/** Silencia o desilencia una sala. Mismo cuidado con el upsert que arriba. */
 export async function silenciar(
   userId: string, alcance: AlcanceSala, ambito: string | null, valor: boolean,
-): Promise<void> {
-  if (!isSupabaseReady()) return
-  await supabase.from('galaxia_lecturas').upsert({
+): Promise<boolean> {
+  if (!isSupabaseReady()) return false
+  const { error } = await supabase.from('galaxia_lecturas').upsert({
     user_id: userId, alcance, ambito: ambito ?? '', silenciada: valor,
   }, { onConflict: 'user_id,alcance,ambito' })
+  if (error) {
+    console.warn('[galaxia] no se pudo silenciar la sala:', error.message)
+    return false
+  }
+  return true
 }
 
 /**

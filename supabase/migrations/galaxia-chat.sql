@@ -136,3 +136,17 @@ grant delete on public.galaxia_lecturas to authenticated;
 
 -- Realtime: el chat sin esto es un botón de refrescar.
 alter publication supabase_realtime add table public.galaxia_mensajes;
+
+-- ── Corrección aplicada después: el upsert de la marca de lectura ──────
+--
+-- PostgREST manda `INSERT ... ON CONFLICT DO UPDATE` reescribiendo TODAS las
+-- columnas del payload, también las de la clave. Con el grant de arriba (solo
+-- `leido_en, silenciada`) la PRIMERA marca de una sala pasaba —es un insert
+-- puro— y la SEGUNDA rebotaba con «permission denied»: el globo de no leídos
+-- se limpiaba una vez y nunca más.
+--
+-- Conceder UPDATE sobre las columnas de la clave no afloja nada: la política
+-- sigue exigiendo `user_id = auth.uid()` en USING y en WITH CHECK. Verificado:
+-- mover la propia fila a otra persona sigue bloqueado.
+grant update (user_id, alcance, ambito, leido_en, silenciada)
+  on public.galaxia_lecturas to authenticated;
