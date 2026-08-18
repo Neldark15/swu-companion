@@ -6,7 +6,7 @@
  *  - Mercancía: feed global de cartas marcadas en venta (con vendedor + precio + notas)
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, Search, Users, Skull, Package, Eye, EyeOff, Tag,
@@ -36,6 +36,7 @@ import {
   TIPOS_CARTA, ASPECTOS, TONO_CHIP_POR_TIPO, pasaFiltros, hayFiltrosPuestos,
 } from '../../services/filtrosCarta'
 import { translateType, translateAspect } from '../../services/translations'
+import { irA, posicion } from '../../services/scrollApp'
 
 /**
  * Sección de coincidencias de intercambio, arriba del catálogo.
@@ -321,34 +322,75 @@ function CollectionsTab() {
 
 // ─── Marketplace tab (cards for sale across users) ───────
 
+/**
+ * Instantánea del Mercado, FUERA del componente para que sobreviva a la
+ * navegación.
+ *
+ * Abrir una carta y volver desmonta esta pestaña, y con ella se iba TODO: las
+ * publicaciones traídas, los filtros puestos, cuántas se habían desplegado con
+ * «Ver más» y dónde estabas mirando. Volvías al principio de una lista de 207 y
+ * había que rehacer el camino a mano — el mismo problema que ya tenía el
+ * buscador de cartas y que allá se resolvió con esta misma pieza.
+ *
+ * Vive a nivel de módulo y no en un store: es memoria de una sesión de
+ * navegación, no un dato de la app. Se descarta sola al recargar la página.
+ */
+interface InstantaneaMercado {
+  listings: MarketplaceListing[]
+  filter: string
+  busqueda: string
+  vendedorSel: string | null
+  tipoSel: string | null
+  aspectoSel: string | null
+  tope: number
+  scrollY: number
+  /** De quién es. Con otra cuenta, «lo mío» y los precios cambian de dueño. */
+  perfilId: string | null
+}
+let _instMercado: InstantaneaMercado | null = null
+
+/** Se llama antes de leerla: si no es de este perfil, no sirve. */
+function instantaneaDe(perfilId: string | null): InstantaneaMercado | null {
+  if (_instMercado && _instMercado.perfilId !== perfilId) _instMercado = null
+  return _instMercado
+}
+
 function MarketTab() {
   const navigate = useNavigate()
   // Para distinguir lo propio de lo ajeno: sobre lo propio se edita, no se
   // escribe uno mismo por WhatsApp.
   const { supabaseUser } = useAuth()
+
+  // Se resuelve UNA vez, antes de sembrar el estado, y con inicializador
+  // perezoso: leerla en cada render devolvería a la instantánea cada vez que
+  // tocás un filtro.
+  const guardada = useRef(instantaneaDe(supabaseUser?.id ?? null)).current
+
   /** La publicación propia que se está corrigiendo, si hay alguna. */
   const [editando, setEditando] = useState<MarketplaceListing | null>(null)
   /** Mismo freno que la vitrina: cada carta suma una capa de mezcla, y con
    *  cien a la vez el teléfono se queda sin memoria de GPU. */
-  const [tope, setTope] = useState(24)
+  const [tope, setTope] = useState(guardada?.tope ?? 24)
   const [guardando, setGuardando] = useState(false)
 
-  const [listings, setListings] = useState<MarketplaceListing[]>([])
+  const [listings, setListings] = useState<MarketplaceListing[]>(guardada?.listings ?? [])
   const [cards, setCards] = useState<Map<string, Card>>(new Map())
-  const [loading, setLoading] = useState(true)
+  // Con instantánea NO se arranca cargando: ya hay qué mostrar, y un spinner
+  // encima de datos buenos es una pantalla que parpadea sin razón.
+  const [loading, setLoading] = useState(!guardada)
   /** Lo que se teclea. Se aplica con retardo — ver `busqueda`. */
-  const [filter, setFilter] = useState('')
+  const [filter, setFilter] = useState(guardada?.filter ?? '')
   /** El texto YA estabilizado. Filtrar en cada tecla sobre cientos de
    *  publicaciones hacía trabajo de más en cada pulsación; el buscador de
    *  cartas ya espera 300 ms y el mercado no lo hacía. */
-  const [busqueda, setBusqueda] = useState('')
+  const [busqueda, setBusqueda] = useState(guardada?.busqueda ?? '')
   /** Filtro por vendedor, por `userId`. Por id y NO por nombre: dos personas
    *  pueden llamarse igual, y el nombre además puede cambiar. */
-  const [vendedorSel, setVendedorSel] = useState<string | null>(null)
+  const [vendedorSel, setVendedorSel] = useState<string | null>(guardada?.vendedorSel ?? null)
   /** Filtro por tipo de carta ('Leader', 'Unit'…). */
-  const [tipoSel, setTipoSel] = useState<string | null>(null)
+  const [tipoSel, setTipoSel] = useState<string | null>(guardada?.tipoSel ?? null)
   /** Filtro por aspecto. Sale gratis: el objeto Card ya está hidratado. */
-  const [aspectoSel, setAspectoSel] = useState<string | null>(null)
+  const [aspectoSel, setAspectoSel] = useState<string | null>(guardada?.aspectoSel ?? null)
   const [panelFiltros, setPanelFiltros] = useState(false)
   /** Igual que en «Para vos»: un fallo de red no puede verse como un vacío. */
   const [failed, setFailed] = useState(false)
@@ -356,7 +398,10 @@ function MarketTab() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const list = await getMarketplaceListings({ limit: 200 })
+      // SIN `limit`. El servicio ya pagina y trae todo; dejar el `limit: 200`
+      // que había acá era arrastrar el techo viejo del lado del cliente — el
+      // mismo que ya se había pasado (207 publicaciones contra un tope de 200).
+      const list = await getMarketplaceListings()
       setListings(list)
       setFailed(false)
       // Hydrate card details
@@ -373,7 +418,24 @@ function MarketTab() {
     }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  // Al montar CON instantánea no se recarga: los datos ya están y una consulta
+  // que tarda medio segundo reemplazaría la lista justo cuando estás volviendo
+  // a ella, moviéndote lo que mirabas. Se refresca con el botón, o al entrar
+  // sin instantánea.
+  useEffect(() => {
+    if (guardada) return
+    void load()
+  }, [load, guardada])
+
+  // Devolver el scroll a donde estabas, una sola vez y DESPUÉS de pintar las
+  // filas recuperadas — si no, se scrollea sobre una lista que todavía mide
+  // cero.
+  useEffect(() => {
+    const y = guardada?.scrollY
+    if (!y) return
+    requestAnimationFrame(() => irA(y))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // El retardo es SOLO del texto: tocar un chip tiene que responder al
   // instante, y por eso los chips escriben su propio estado y no pasan por acá.
@@ -438,6 +500,24 @@ function MarketTab() {
     () => ({ texto: busqueda, vendedor: vendedorSel, tipo: tipoSel, aspecto: aspectoSel }),
     [busqueda, vendedorSel, tipoSel, aspectoSel],
   )
+
+  // Valores VIVOS para la instantánea. Este bloque corre en cada pintada pero
+  // SOLO escribe un ref — no toca `_instMercado`. Guardar en cada commit es lo
+  // que hacía que la instantánea del buscador naciera con datos a medio cargar.
+  const vivoRef = useRef<InstantaneaMercado | null>(null)
+  vivoRef.current = {
+    listings, filter, busqueda, vendedorSel, tipoSel, aspectoSel, tope,
+    scrollY: 0,
+    perfilId: supabaseUser?.id ?? null,
+  }
+
+  // Y se escribe UNA sola vez, al desmontar de verdad — que es exactamente
+  // cuando tocás una carta y la app te lleva a su ficha.
+  useEffect(() => {
+    return () => {
+      if (vivoRef.current) _instMercado = { ...vivoRef.current, scrollY: posicion() }
+    }
+  }, [])
 
   /** ¿Hay algún filtro puesto? Decide el vacío que se muestra y el botón de limpiar. */
   const hayFiltros = hayFiltrosPuestos(filtros)
@@ -809,7 +889,7 @@ function MarketTab() {
 
       {!loading && filtered.length > tope && (
         <button
-          onClick={() => setTope(t => t + 24)}
+          onClick={() => setTope((t: number) => t + 24)}
           className="w-full py-3 rounded-xl bg-swu-surface border border-swu-border
                      text-sm font-semibold text-swu-cyan active:scale-[0.99] transition-transform"
         >
