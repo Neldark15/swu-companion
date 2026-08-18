@@ -29,27 +29,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Copy, Download, Check, Type } from 'lucide-react'
-import { GLIFOS, GLIFO_ALTO, GLIFO_ANCHO, sinAcentos } from '../credencial/aurebeshGlifos'
+import {
+  GLIFOS, DIGRAFOS, PUNTUACION, GLIFO_ALTO, GLIFO_ANCHO, sinAcentos, aGlifos,
+  type UnidadAurebesh,
+} from '../credencial/aurebeshGlifos'
 
 /** Cuánto respira entre glifo y glifo, en unidades de la caja del glifo. */
 const AIRE = 3
 /** Ancho del espacio entre palabras. */
 const ESPACIO = GLIFO_ANCHO * 0.8
 
-interface Unidad {
-  /** El carácter latino, para el rótulo de abajo. */
-  latino: string
-  /** El trazo, o `null` si no tiene glifo (espacio, signo). */
-  path: string | null
-}
-
-/** Parte el texto en unidades dibujables. */
-function aUnidades(texto: string): Unidad[] {
-  return [...sinAcentos(texto).toUpperCase()].map(c => ({
-    latino: c,
-    path: GLIFOS[c] ?? null,
-  }))
-}
+// La partición del texto vive en `aurebeshGlifos.ts` (`aGlifos`), no acá.
+// Antes esta pantalla tenía su propia versión que solo miraba `GLIFOS`, así que
+// los DÍGRAFOS y la PUNTUACIÓN existían en el módulo y no los dibujaba nadie —
+// código muerto que compilaba y pasaba lint justamente porque nadie lo usaba.
+type Unidad = UnidadAurebesh
 
 /** Arma el SVG entero como cadena — sirve para pintarlo Y para descargarlo. */
 function construirSVG(
@@ -106,8 +100,16 @@ export function TraductorPage() {
   const [color, setColor] = useState<string>(COLORES[0].valor)
   const [copiado, setCopiado] = useState<'no' | 'enlace' | 'svg'>('no')
   const [rotulos, setRotulos] = useState(true)
+  /**
+   * Usar las ligaduras (CH, SH, TH…).
+   *
+   * Encendido por defecto porque es como se escribe el Aurebesh cuando alguien
+   * lo escribe en serio. Se puede apagar porque el canon dice que NUNCA son
+   * obligatorias: quien esté aprendiendo a leerlo prefiere ver letra por letra.
+   */
+  const [digrafos, setDigrafos] = useState(true)
 
-  const unidades = useMemo(() => aUnidades(texto), [texto])
+  const unidades = useMemo(() => aGlifos(texto, digrafos), [texto, digrafos])
   const conGlifo = unidades.filter(u => u.path !== null).length
 
   // El enlace se mantiene al día SIN apilar historial: cada tecla sería un paso
@@ -233,6 +235,17 @@ export function TraductorPage() {
               />
             ))}
             <button
+              onClick={() => setDigrafos(v => !v)}
+              title="CH, SH, TH… se escriben con un glifo propio"
+              className={`rounded-lg border px-3 text-[11px] font-semibold transition-colors ${
+                digrafos
+                  ? 'border-swu-amber/40 bg-swu-amber/10 text-swu-amber'
+                  : 'border-swu-border text-swu-muted'
+              }`}
+            >
+              {digrafos ? 'Con ligaduras' : 'Letra por letra'}
+            </button>
+            <button
               onClick={() => setRotulos(v => !v)}
               className={`rounded-lg border px-3 text-[11px] font-semibold transition-colors ${
                 rotulos
@@ -271,7 +284,7 @@ export function TraductorPage() {
             El alfabeto
           </p>
           <div className="grid grid-cols-6 gap-2 sm:grid-cols-9">
-            {Object.keys(GLIFOS).map(letra => (
+            {[...Object.keys(GLIFOS), ...Object.keys(DIGRAFOS), ...Object.keys(PUNTUACION)].map(letra => (
               <button
                 key={letra}
                 onClick={() => setTexto(t => (t + letra).slice(0, 200))}
@@ -281,7 +294,7 @@ export function TraductorPage() {
               >
                 <svg viewBox={`0 0 ${GLIFO_ANCHO} ${GLIFO_ALTO}`} className="h-6 w-6">
                   <path
-                    d={GLIFOS[letra]}
+                    d={GLIFOS[letra] ?? DIGRAFOS[letra] ?? PUNTUACION[letra]}
                     fill="none"
                     stroke="currentColor"
                     strokeWidth={0.6}
@@ -295,8 +308,10 @@ export function TraductorPage() {
           </div>
           <p className="mt-3 text-[10px] leading-relaxed text-swu-muted">
             El Aurebesh sustituye letra por letra al alfabeto latino, así que lo que
-            escribas se lee igual — solo cambia cómo se ve. Los trazos están dibujados
-            a mano contra la lámina de referencia, no son una fuente.
+            escribas se lee igual — solo cambia cómo se ve. CH, AE, EO, KH, NG, OO, SH
+            y TH tienen glifo propio (las ligaduras), pero en el canon nunca son
+            obligatorias: podés apagarlas arriba. Los trazos están dibujados a mano
+            contra la lámina de referencia, no son una fuente.
           </p>
         </section>
       </div>
