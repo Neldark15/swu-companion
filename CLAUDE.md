@@ -777,3 +777,42 @@ que cuenta para el meta.
 Las cinco reglas de seguridad están probadas contra la base real dentro de una
 transacción revertida: tercero rechazado, creador no puede autoconfirmar, mazo
 ajeno rechazado, rival confirma, segunda confirmación rechazada.
+
+### 3b. Exportar la credencial a PNG: tres trampas medidas
+
+`exportarCredencial` clona el SVG que está EN PANTALLA y lo pasa por un canvas.
+Las tres cosas que rompen esto ya se midieron en el navegador, no se supusieron:
+
+1. **Las imágenes con `href` relativo NO se dibujan.** El SVG se pinta metido
+   en un `data:` URL, y un `data:` no tiene base contra la cual resolver
+   `/avatars/boba-fett.png`. Medido: con href relativo la ventana de la foto
+   sale con **0 píxeles de color**; con las imágenes en data URI, **7646**. Y
+   lo peor es que `toDataURL` **no falla** en el primer caso: devuelve un PNG
+   impecable con la foto vacía. Un error que se ve como éxito.
+2. **`var(--font-mono)` no existe dentro del SVG suelto**, y poner
+   `font-family:'JetBrains Mono'` tampoco alcanza: el SVG serializado no tiene
+   acceso a las `@font-face` de la página. Hay que **empotrar la fuente en
+   base64** (75 KB, solo los subconjuntos latinos). Comprobado que cambia el
+   dibujo: 7347 píxeles de tinta con la mono de reserva contra 6635 con la de
+   verdad. Las URLs de los .woff2 se descubren leyendo `document.styleSheets`
+   EN VIVO, porque el empaquetador les cambia el hash en cada build.
+3. **El canvas queda limpio** justamente porque todo va en data URI: no hay
+   recurso de otro origen, así que `toBlob` no lanza `SecurityError`.
+
+Y dos de producto:
+
+- **`navigator.share` con archivos es el único camino que llega a las cinco
+  redes.** WhatsApp, Telegram y Facebook tienen intent web pero solo llevan
+  TEXTO; Instagram y Discord no tienen ninguno. Los botones por red dicen
+  explícitamente que mandan texto — prometer que mandan la imagen es el bug
+  clásico de esta pantalla.
+- **Se genera y se ve ANTES de compartir, en dos clics.** Safari exige que
+  `navigator.share()` salga de una activación del usuario, y generar el PNG
+  lleva `await`. Encadenado en un botón, Safari tira `NotAllowedError` justo en
+  el teléfono donde la hoja del sistema es el único camino. Misma lección que
+  ya estaba escrita en `CompartirArticulo`.
+
+La firma `swusv.com` va DENTRO de la placa, sobre su propia plaquita oscura: un
+texto blanco al 45% desaparece en los dos temas de chapa clara, y una imagen
+reenviada pierde el texto que la acompañaba — sin la firma, la tarjeta no puede
+traer a nadie de vuelta.

@@ -13,6 +13,7 @@ import { CredencialReverso } from './CredencialReverso'
 import { ACABADOS } from './acabadosCredencial'
 import { CredencialInteractiva } from './CredencialInteractiva'
 import { DetectorChoques } from './DetectorChoques'
+import { CompartirCredencial } from './CompartirCredencial'
 import { SublineaAurebesh } from './aurebesh'
 import { TEMAS_CREDENCIAL, EMBLEMAS_CREDENCIAL_IDS } from './credencialTemas'
 
@@ -87,6 +88,15 @@ export function BancoCredencial() {
       </div>
 
       <DetectorChoques />
+
+      {/* El exportador, contra la placa interactiva de abajo. Acá se prueba
+          sin necesidad de tener sesión. */}
+      <CompartirCredencial
+        contenedor={() => document.querySelector('svg[data-cara="frente"]')}
+        nombre="Vara Antillos"
+        rango="Comandante del Sector"
+        nivel={23}
+      />
 
       {/* La placa VIVA: es la que se usa en Inicio, Perfil y /credencial.
           Acá se puede arrastrar y girar sin necesidad de tener sesión, que es

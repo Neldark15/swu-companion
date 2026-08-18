@@ -23,6 +23,7 @@ import { type PlayerStats } from '../../services/gamification'
 import { misMazos, type MazoCompartible } from '../../services/galaxiaCompartir'
 import { CredencialInteractiva } from './CredencialInteractiva'
 import { useDatosCredencial } from './useDatosCredencial'
+import { CompartirCredencial } from './CompartirCredencial'
 import { ACABADOS, proximoAcabado } from './acabadosCredencial'
 import { TEMAS_CREDENCIAL, EMBLEMAS_CREDENCIAL_IDS, temaCredencial } from './credencialTemas'
 import { emblemaDe } from './emblemasCredencial'
@@ -216,6 +217,17 @@ function CredencialInterna({ perfil }: { perfil: UserProfile }) {
           nivel={nivel}
         />
       </div>
+
+      <CompartirCredencial
+        // El SVG se busca en el momento del clic y no se pasa por ref: la
+        // placa vive dentro del envoltorio 3D y se vuelve a montar cuando
+        // cambia el tema, así que una ref capturada al montar apuntaría a un
+        // nodo viejo.
+        contenedor={() => document.querySelector('#zona-credencial svg[data-cara="frente"]')}
+        nombre={datos.nombre}
+        rango={datos.rango}
+        nivel={nivel}
+      />
 
       {/* ── Acabados ganados por nivel ── */}
       <div className="bg-swu-surface rounded-2xl p-4 border border-swu-border">
