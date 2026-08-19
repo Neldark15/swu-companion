@@ -38,47 +38,49 @@ export interface Receta {
 }
 
 export const RECETA: Record<Rareza, Receta> = {
-  comun: {
-    color: '#8fa3b8',
-    rayos: 0,
-    chispas: 0,
-    suspenso: 0,
-    fogonazo: false,
-    latido: false,
-    grito: '',
-    nota: 392.0, // sol
-  },
-  brillante: {
+  // La base del sobre YA es foil: brilla, pero sin fanfarria. Si las cuatro
+  // primeras hicieran ruido, la quinta no significaria nada.
+  hiper: {
     color: '#4fc3f7',
-    rayos: 6,
-    chispas: 10,
-    suspenso: 140,
+    rayos: 5,
+    chispas: 8,
+    suspenso: 100,
     fogonazo: false,
     latido: false,
     grito: 'FOIL',
     nota: 523.25, // do
   },
-  rara: {
-    color: '#a78bfa',
-    rayos: 10,
-    chispas: 18,
-    suspenso: 420,
+  prestigio: {
+    color: '#cbd5e1',
+    rayos: 12,
+    chispas: 20,
+    suspenso: 520,
     fogonazo: false,
     latido: true,
-    grito: 'SHOWCASE',
+    grito: 'PRESTIGE',
     nota: 659.25, // mi
   },
-  epica: {
+  prestigioFoil: {
     color: '#fbbf24',
-    rayos: 16,
+    rayos: 17,
     chispas: 30,
     suspenso: 900,
     fogonazo: true,
     latido: true,
-    grito: 'PRESTIGE',
+    grito: 'PRESTIGE FOIL',
     nota: 783.99, // sol alto
   },
-  unica: {
+  showcase: {
+    color: '#a78bfa',
+    rayos: 20,
+    chispas: 38,
+    suspenso: 1200,
+    fogonazo: true,
+    latido: true,
+    grito: 'SHOWCASE',
+    nota: 880.0, // la alto
+  },
+  serializada: {
     color: '#ff4d6d',
     rayos: 24,
     chispas: 48,

@@ -1,5 +1,5 @@
 /**
- * BINDER DIGITAL — las cartas que salieron de los sobres.
+ * BINDER DIGITAL — el álbum de las impresiones brillantes.
  *
  * ── Por qué está separado del binder de verdad ───────────────────────
  *
@@ -9,80 +9,109 @@
  * se cambia. Mezclarlos haría que la colección real dejara de ser confiable —
  * que es justamente para lo que sirve.
  *
- * ── Nueve por página, y los huecos se ven ────────────────────────────
+ * ── La estructura: sección → página → casilla ────────────────────────
  *
- * Un binder de verdad tiene nueve bolsillos por hoja, y lo que engancha de
- * coleccionar no es ver lo que se tiene: es ver el HUECO al lado. Por eso los
- * espacios vacíos de la última página se dibujan como bolsillos: la página a
- * medio llenar es la que hace volver.
+ * Medido sobre el pool: 33 SECCIONES (set + variante), 311 PÁGINAS de nueve,
+ * 2.669 CASILLAS. La sección es set+variante y no solo el set porque cada
+ * variante ocupa su propia banda de números, disjunta de las demás (cero
+ * números compartidos entre variantes de un mismo set).
+ *
+ * ── Y por qué la casilla NO es el número impreso ─────────────────────
+ *
+ * Es lo que uno haría primero, y está mal por dos motivos medidos:
+ *
+ *   · Un álbum indexado por número tendría 2.930 casillas para 2.669 cartas:
+ *     305 bolsillos IMPOSIBLES de llenar. Y están casi todos en una sola
+ *     sección — TWI Hyperspace Foil va del #3 al #517 con 220 cartas, o sea
+ *     295 huecos muertos: 33 páginas de puro vacío inalcanzable.
+ *   · Y el número tampoco es llave: 22 tripletas (set, variante, número)
+ *     tienen 2 o 3 cartas DISTINTAS. SEC Serialized Prestige tiene 85 cartas
+ *     para 43 números — tres tiradas por número.
+ *
+ * Así que la casilla es la posición ordinal (la calcula `album_seccion()` con
+ * `row_number()` en Postgres) y el número impreso va de etiqueta. En 29 de las
+ * 33 secciones las dos cosas coinciden exactamente, así que no se pierde nada.
+ *
+ * ── El orden de las secciones ────────────────────────────────────────
+ *
+ * Por ESCALA de rareza, nunca por número: medido, en TWI la Hyperspace Foil
+ * arranca en el #3 y en SOR/SHD arranca antes la Showcase, o sea que el mismo
+ * criterio pondría familias distintas primero según el set.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Library, X, Hash } from 'lucide-react'
-import { CardImage } from '../../components/CardImage'
+import { ChevronLeft, ChevronRight, Library } from 'lucide-react'
 import { EmptyState } from '../../components/ui/EmptyState'
-import { SegmentedControl } from '../../components/ui/SegmentedControl'
 import { useAuth } from '../../hooks/useAuth'
 import { ensureCards } from '../../services/swuApi'
 import {
-  miBinder, totalColeccionable,
-  COLOR_RAREZA, NOMBRE_RAREZA, ESCALA,
-  type CartaDelBinder, type Rareza,
+  seccionesAlbum, casillasDeSeccion,
+  COLOR_RAREZA, NOMBRE_RAREZA, ACABADO,
+  type SeccionAlbum, type CasillaAlbum,
 } from '../../services/sobres'
-import { CartaGirable } from './CartaGirable'
-import { ReversoCarta } from './ReversoCarta'
-
-/** Bolsillos por hoja, como en un binder de verdad. */
-const POR_HOJA = 9
-
-type Filtro = 'todo' | Rareza
+import { PaginaAlbum, POR_HOJA } from './PaginaAlbum'
+import { LupaCarta } from './LupaCarta'
+import { Acabado } from './Acabado'
 
 export function BinderDigital() {
   const usuario = useAuth(s => s.supabaseUser)
-  const [cartas, setCartas] = useState<CartaDelBinder[] | null>(null)
-  const [total, setTotal] = useState(0)
-  const [hoja, setHoja] = useState(0)
-  const [filtro, setFiltro] = useState<Filtro>('todo')
-  const [abierta, setAbierta] = useState<CartaDelBinder | null>(null)
-
   const miId = usuario?.id ?? ''
 
-  /* La carga va DENTRO del efecto y con guarda `vivo`: una respuesta lenta que
-   * llega después de cerrar la pantalla escribiría estado sobre un componente
-   * ya desmontado. Es el mismo patrón del resto de la app. */
+  const [secciones, setSecciones] = useState<SeccionAlbum[] | null>(null)
+  const [abierta, setAbierta] = useState<SeccionAlbum | null>(null)
+  const [casillas, setCasillas] = useState<CasillaAlbum[] | null>(null)
+  const [hoja, setHoja] = useState(0)
+  const [mirando, setMirando] = useState<CasillaAlbum | null>(null)
+
+  /* Carga DENTRO del efecto y con guarda `vivo`: una respuesta lenta que llega
+   * después de cerrar la pantalla escribiría estado sobre un componente ya
+   * desmontado. Es el patrón del resto de la app. */
   useEffect(() => {
     if (!miId) return
     let vivo = true
     void (async () => {
       await ensureCards()
-      const [b, t] = await Promise.all([miBinder(miId), totalColeccionable()])
-      if (!vivo) return
-      setCartas(b)
-      setTotal(t)
+      const s = await seccionesAlbum()
+      if (vivo) setSecciones(s)
     })()
     return () => {
       vivo = false
     }
   }, [miId])
 
-  const visibles = useMemo(
-    () => (cartas ?? []).filter(c => filtro === 'todo' || c.rareza === filtro),
-    [cartas, filtro],
-  )
+  // Las casillas de la sección abierta. Se piden de a una sección: son 2.669
+  // en total y bajárselas todas para enseñar nueve es el mismo error que ya
+  // costó caro con las imágenes (§2t: 45 MB para pintar 1,4).
+  useEffect(() => {
+    if (!abierta) return
+    let vivo = true
+    void (async () => {
+      const c = await casillasDeSeccion(abierta.setCode, abierta.variante)
+      if (vivo) setCasillas(c)
+    })()
+    return () => {
+      vivo = false
+    }
+  }, [abierta])
 
-  const hojas = Math.max(1, Math.ceil(visibles.length / POR_HOJA))
-  // El filtro puede dejar la hoja actual fuera de rango; se corrige al pintar
-  // en vez de con un efecto, que provocaría un render de más.
-  const hojaReal = Math.min(hoja, hojas - 1)
-  const enHoja = visibles.slice(hojaReal * POR_HOJA, hojaReal * POR_HOJA + POR_HOJA)
-  const huecos = POR_HOJA - enHoja.length
+  /* Abrir una sección limpia lo de la anterior ACÁ y no dentro del efecto.
+   * Vaciar desde el efecto es una escritura síncrona de estado que provoca un
+   * render en cascada — y además el sitio correcto es donde está la acción de
+   * la persona, no donde se reacciona a ella. */
+  const abrirSeccion = useCallback((s: SeccionAlbum) => {
+    setCasillas(null)
+    setHoja(0)
+    setAbierta(s)
+  }, [])
 
-  const porRareza = useMemo(() => {
-    const m = new Map<Rareza, number>()
-    for (const c of cartas ?? []) m.set(c.rareza, (m.get(c.rareza) ?? 0) + 1)
-    return m
-  }, [cartas])
+  const totales = useMemo(() => {
+    const s = secciones ?? []
+    return {
+      tenidas: s.reduce((a, x) => a + x.tenidas, 0),
+      total: s.reduce((a, x) => a + x.total, 0),
+    }
+  }, [secciones])
 
   if (!usuario) {
     return (
@@ -92,6 +121,61 @@ export function BinderDigital() {
     )
   }
 
+  // ── Una sección abierta: las páginas de nueve ────────────────────────
+  if (abierta) {
+    const color = COLOR_RAREZA[abierta.rareza]
+
+    return (
+      <div className="mx-auto max-w-3xl px-4 pt-3 pb-24">
+        <button
+          type="button"
+          onClick={() => setAbierta(null)}
+          className="-ml-1 mb-3 flex items-center gap-1 p-1 text-sm text-swu-muted hover:text-swu-text"
+        >
+          <ChevronLeft size={18} />
+          Todas las secciones
+        </button>
+
+        <div className="mb-4 text-center">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-swu-muted">{abierta.setCode}</p>
+          <h1 className="text-xl font-black tracking-tight" style={{ color }}>
+            {NOMBRE_RAREZA[abierta.rareza]}
+          </h1>
+          <p className="mt-0.5 text-sm text-swu-muted">
+            {abierta.tenidas} de {abierta.total}
+          </p>
+          <div className="mx-auto mt-2 h-1 w-40 overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full transition-[width] duration-500"
+              style={{
+                width: `${abierta.total ? (abierta.tenidas / abierta.total) * 100 : 0}%`,
+                background: color,
+              }}
+            />
+          </div>
+        </div>
+
+        <PaginaAlbum
+          seccion={abierta}
+          casillas={casillas}
+          hoja={Math.min(hoja, Math.max(0, Math.ceil(abierta.total / POR_HOJA) - 1))}
+          alCambiarHoja={setHoja}
+          alAbrir={setMirando}
+        />
+
+        {mirando && (
+          <LupaCarta
+            casilla={mirando}
+            color={color}
+            acabado={mirando.tenida ? <Acabado acabado={ACABADO[abierta.rareza]} /> : undefined}
+            alCerrar={() => setMirando(null)}
+          />
+        )}
+      </div>
+    )
+  }
+
+  // ── El índice: todas las secciones ───────────────────────────────────
   return (
     <div className="mx-auto max-w-3xl px-4 pt-3 pb-24">
       <div className="mb-3 flex items-center justify-between">
@@ -100,201 +184,79 @@ export function BinderDigital() {
           La bóveda
         </Link>
         <span className="text-xs text-swu-muted">
-          {(cartas?.length ?? 0)} de {total || '—'}
+          {totales.tenidas} de {totales.total || '—'}
         </span>
       </div>
 
-      <h1 className="text-center text-2xl font-black tracking-tight text-swu-text">BINDER DIGITAL</h1>
+      <h1 className="text-center text-2xl font-black tracking-tight text-swu-text">EL ÁLBUM</h1>
       <p className="mt-1 mb-5 text-center text-sm text-swu-muted">
-        Solo lo que salió de los sobres. No es tu colección física.
+        Cada carta cae en su casilla. Solo lo que sale de los sobres.
       </p>
 
-      {/* Cuánto llevás de cada cosa */}
-      <div className="mb-4 flex flex-wrap justify-center gap-1.5">
-        {ESCALA.map(r => (
-          <span
-            key={r}
-            className="rounded-full px-2.5 py-1 text-[11px] font-bold"
-            style={{
-              color: COLOR_RAREZA[r],
-              background: `${COLOR_RAREZA[r]}1f`,
-            }}
-          >
-            {NOMBRE_RAREZA[r]} {porRareza.get(r) ?? 0}
-          </span>
-        ))}
-      </div>
-
-      <div className="mb-4">
-        <SegmentedControl<Filtro>
-          label="Filtrar por rareza"
-          value={filtro}
-          onChange={v => {
-            setFiltro(v)
-            setHoja(0)
-          }}
-          options={[
-            { value: 'todo' as Filtro, label: 'Todo' },
-            ...ESCALA.map(r => ({ value: r as Filtro, label: NOMBRE_RAREZA[r] })),
-          ]}
-        />
-      </div>
-
-      {cartas === null ? (
-        <div className="grid grid-cols-3 gap-2.5">
-          {Array.from({ length: 9 }, (_, i) => (
-            <div key={i} className="carta-esqueleto aspect-[286/400] rounded-lg" />
+      {secciones === null ? (
+        <div className="space-y-2">
+          {Array.from({ length: 6 }, (_, i) => (
+            <div key={i} className="carta-esqueleto h-14 rounded-lg" />
           ))}
         </div>
-      ) : visibles.length === 0 ? (
-        <EmptyState
-          icon={<Library size={26} />}
-          title={filtro === 'todo' ? 'Todavía no abriste nada' : 'Nada de esa rareza'}
-          hint={
-            filtro === 'todo'
-              ? 'Abrí tu primer sobre y lo que salga aparece acá.'
-              : 'Seguí abriendo: esa impresión todavía no te salió.'
-          }
-        />
+      ) : secciones.length === 0 ? (
+        <EmptyState icon={<Library size={26} />} title="El álbum todavía no cargó" hint="Volvé a entrar en un momento." />
       ) : (
-        <>
-          {/* La hoja */}
-          <div className="grid grid-cols-3 gap-2.5">
-            {enHoja.map(c => (
-              <button
-                key={c.cardId}
-                type="button"
-                onClick={() => setAbierta(c)}
-                className="group relative block rounded-lg text-left
-                           focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-swu-cyan"
-                aria-label={`Ver ${c.carta?.name ?? 'carta'}`}
-              >
-                <div
-                  className="rounded-lg transition-transform duration-200 group-active:scale-95"
-                  style={{
-                    boxShadow: c.rareza === 'comun' ? 'none' : `0 0 12px ${COLOR_RAREZA[c.rareza]}45`,
-                  }}
-                >
-                  {c.carta ? (
-                    <CardImage
-                      src={c.carta.imageUrl}
-                      alt={c.carta.name}
-                      orientacion={c.carta.isLeader || c.carta.isBase ? 'apaisada' : 'vertical'}
-                      className="w-full"
-                    />
-                  ) : (
-                    <div className="aspect-[286/400] rounded-lg bg-swu-surface" />
-                  )}
-                </div>
-
-                {c.cantidad > 1 && (
-                  <span className="absolute top-1 right-1 rounded bg-black/75 px-1.5 py-0.5 text-[10px] font-black text-white">
-                    ×{c.cantidad}
-                  </span>
-                )}
-                {c.serializada && (
-                  <span
-                    className="absolute bottom-1 left-1 flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-black"
-                    style={{ background: COLOR_RAREZA.unica, color: '#fff' }}
+        <div className="space-y-4">
+          {agrupadoPorSet(secciones).map(([setCode, lista]) => (
+            <section key={setCode}>
+              <h2 className="mb-1.5 px-1 text-[10px] font-black uppercase tracking-[0.22em] text-swu-muted/70">
+                {setCode}
+              </h2>
+              <div className="clip-hud divide-y divide-swu-border bg-swu-surface">
+                {lista.map(s => (
+                  <button
+                    key={s.variante}
+                    type="button"
+                    onClick={() => abrirSeccion(s)}
+                    className="flex w-full items-center gap-3 px-3.5 py-3 text-left active:bg-swu-surface-hover"
                   >
-                    <Hash size={9} />
-                    ÚNICA
-                  </span>
-                )}
-              </button>
-            ))}
-
-            {/* Bolsillos vacíos: el hueco es parte del juego. */}
-            {Array.from({ length: huecos }, (_, i) => (
-              <div
-                key={`hueco-${i}`}
-                aria-hidden
-                className="aspect-[286/400] rounded-lg border border-dashed border-swu-border bg-swu-surface/25"
-              />
-            ))}
-          </div>
-
-          {/* Pasar hoja */}
-          {hojas > 1 && (
-            <div className="mt-5 flex items-center justify-center gap-4">
-              <button
-                type="button"
-                onClick={() => setHoja(h => Math.max(0, h - 1))}
-                disabled={hojaReal === 0}
-                className="rounded-lg p-2 text-swu-muted disabled:opacity-30"
-                aria-label="Hoja anterior"
-              >
-                <ChevronLeft size={20} />
-              </button>
-              <span className="text-sm text-swu-muted">
-                Hoja {hojaReal + 1} de {hojas}
-              </span>
-              <button
-                type="button"
-                onClick={() => setHoja(h => Math.min(hojas - 1, h + 1))}
-                disabled={hojaReal >= hojas - 1}
-                className="rounded-lg p-2 text-swu-muted disabled:opacity-30"
-                aria-label="Hoja siguiente"
-              >
-                <ChevronRight size={20} />
-              </button>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* La carta abierta, para girarla en la mano */}
-      {abierta && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/85 p-5"
-          role="dialog"
-          aria-modal="true"
-          aria-label={abierta.carta?.name ?? 'Carta'}
-        >
-          <button
-            type="button"
-            onClick={() => setAbierta(null)}
-            className="absolute top-4 right-4 rounded-full bg-white/10 p-2.5 text-white"
-            aria-label="Cerrar"
-          >
-            <X size={20} />
-          </button>
-
-          <div className="w-full max-w-[300px]">
-            <CartaGirable
-              ratio={abierta.carta?.isLeader || abierta.carta?.isBase ? 400 / 286 : 286 / 400}
-              frente={
-                abierta.carta ? (
-                  <CardImage
-                    src={abierta.carta.imageUrl}
-                    alt={abierta.carta.name}
-                    orientacion={abierta.carta.isLeader || abierta.carta.isBase ? 'apaisada' : 'vertical'}
-                    className="w-full"
-                  />
-                ) : (
-                  <div className="h-full w-full rounded-xl bg-swu-surface" />
-                )
-              }
-              dorso={<ReversoCarta color={COLOR_RAREZA[abierta.rareza]} />}
-            />
-          </div>
-
-          <div className="mt-4 text-center">
-            <p
-              className="text-[11px] font-black uppercase tracking-[0.24em]"
-              style={{ color: COLOR_RAREZA[abierta.rareza] }}
-            >
-              {abierta.serializada ? 'ÚNICA EN LA COMUNIDAD' : abierta.variante}
-            </p>
-            <p className="mt-0.5 text-lg font-bold text-white">{abierta.carta?.name ?? '—'}</p>
-            <p className="text-xs text-white/55">
-              {abierta.carta ? `${abierta.carta.setCode} ${abierta.carta.setNumber}` : ''}
-              {abierta.cantidad > 1 ? ` · tenés ${abierta.cantidad}` : ''}
-            </p>
-            <p className="mt-2 text-[11px] text-white/40">Arrastrá para girarla</p>
-          </div>
+                    <span
+                      className="h-8 w-1 shrink-0 rounded-full"
+                      style={{ background: COLOR_RAREZA[s.rareza] }}
+                      aria-hidden
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-bold text-swu-text">
+                        {NOMBRE_RAREZA[s.rareza]}
+                      </span>
+                      <span className="mt-1 block h-1 w-full overflow-hidden rounded-full bg-white/8">
+                        <span
+                          className="block h-full rounded-full"
+                          style={{
+                            width: `${s.total ? (s.tenidas / s.total) * 100 : 0}%`,
+                            background: COLOR_RAREZA[s.rareza],
+                          }}
+                        />
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-xs tabular-nums text-swu-muted">
+                      {s.tenidas}/{s.total}
+                    </span>
+                    <ChevronRight size={16} className="shrink-0 text-swu-muted/50" />
+                  </button>
+                ))}
+              </div>
+            </section>
+          ))}
         </div>
       )}
     </div>
   )
+}
+
+/** Las secciones agrupadas por set, conservando el orden que ya trae la lista. */
+function agrupadoPorSet(secciones: SeccionAlbum[]): [string, SeccionAlbum[]][] {
+  const mapa = new Map<string, SeccionAlbum[]>()
+  for (const s of secciones) {
+    const lista = mapa.get(s.setCode)
+    if (lista) lista.push(s)
+    else mapa.set(s.setCode, [s])
+  }
+  return [...mapa.entries()]
 }

@@ -31,59 +31,95 @@
  */
 
 import { supabase, isSupabaseReady } from './supabase'
-import { getCardsByIds } from './swuApi'
+import { getCardsByIds, MAIN_SET_LABELS } from './swuApi'
+import { artesDeVariantes } from './sobresArte'
 import type { Card } from '../types'
 
-/** Las impresiones que puede traer un sobre. No hay Standard: esa se compra. */
+/**
+ * Las cinco impresiones de la colección. TODAS brillan: es lo que hace que el
+ * álbum valga la pena de mirar.
+ *
+ * La Hyperspace pelada y la Standard Foil se sacaron del pool el 2026-08-19
+ * (ver `sobres-coleccion-solo-foil.sql`). Se dejan en el tipo porque una
+ * apertura vieja guardada en `sobres_aperturas` todavía las nombra, y
+ * `rarezaDe` tiene que saber qué hacer con ellas sin romperse.
+ */
 export type Variante =
-  | 'Hyperspace'
   | 'Hyperspace Foil'
-  | 'Standard Foil'
   | 'Standard Prestige'
   | 'Foil Prestige'
   | 'Serialized Prestige'
   | 'Showcase'
-
-/** Cuán rara es cada impresión, para decidir cuánta fanfarria merece. */
-export type Rareza = 'comun' | 'brillante' | 'rara' | 'epica' | 'unica'
+  /** @deprecated fuera del pool desde el 2026-08-19; solo en aperturas viejas. */
+  | 'Hyperspace'
+  /** @deprecated fuera del pool desde el 2026-08-19; solo en aperturas viejas. */
+  | 'Standard Foil'
 
 /**
- * De impresión a fanfarria.
+ * El escalón de cada impresión.
  *
- * Esto NO son las probabilidades (esas viven en el servidor y solo ahí): es
- * cuánto ruido hace la carta al salir. Se separa porque son dos preguntas
- * distintas — una Showcase es más rara que una Standard Prestige en el sorteo,
- * pero la Prestige se ve más impresionante, y quien abre el sobre juzga por lo
- * que ve.
+ * Ahora hay exactamente cinco variantes en el pool, así que cada una ES su
+ * propio escalón: no hace falta una capa de «rareza» que agrupe dos cosas
+ * distintas bajo el mismo nombre. Antes Showcase y Prestige compartían tramo y
+ * eso obligaba a decidir cuál «se ve más», que era una discusión inventada.
+ *
+ * El orden es el de ESCASEZ MEDIDA en la ranura de premio (62 / 16 / 11 / 8 /
+ * 3 %), no el de gusto personal. Showcase va por encima de las dos Prestige
+ * porque de verdad sale menos —y además es la familia más chica del pool: 144
+ * cartas contra 211.
  */
+export type Rareza = 'hiper' | 'prestigio' | 'prestigioFoil' | 'showcase' | 'serializada'
+
 export const RAREZA: Record<Variante, Rareza> = {
-  Hyperspace: 'comun',
-  'Standard Foil': 'brillante',
-  'Hyperspace Foil': 'brillante',
-  Showcase: 'rara',
-  'Standard Prestige': 'epica',
-  'Foil Prestige': 'epica',
-  'Serialized Prestige': 'unica',
+  'Hyperspace Foil': 'hiper',
+  'Standard Prestige': 'prestigio',
+  'Foil Prestige': 'prestigioFoil',
+  Showcase: 'showcase',
+  'Serialized Prestige': 'serializada',
+  // Las dos retiradas caen al escalón de base: sin esto, una apertura vieja
+  // pintaría con el color de relleno y se vería como un fallo.
+  Hyperspace: 'hiper',
+  'Standard Foil': 'hiper',
 }
 
 /** El orden en que se revelan: de menos a más, para que el sobre suba. */
-export const ESCALA: Rareza[] = ['comun', 'brillante', 'rara', 'epica', 'unica']
+export const ESCALA: Rareza[] = ['hiper', 'prestigio', 'prestigioFoil', 'showcase', 'serializada']
 
-/** Los colores de cada rareza. Un solo sitio, para que el binder y la apertura no se separen. */
+/**
+ * El ACABADO de cada escalón: cómo brilla, que es distinto de cuán raro es.
+ *
+ * - `foil`   arcoíris que barre con el ángulo, el brillo clásico de la foil.
+ * - `metal`  plateado duro y espejado, el de las Prestige.
+ * - `oro`    el metal pero dorado, para la Prestige foil y la serializada.
+ *
+ * Va separado de la rareza porque son dos preguntas: una decide la fanfarria y
+ * el orden, la otra decide qué material se pinta encima del arte.
+ */
+export type Acabado = 'foil' | 'metal' | 'oro'
+
+export const ACABADO: Record<Rareza, Acabado> = {
+  hiper: 'foil',
+  prestigio: 'metal',
+  prestigioFoil: 'oro',
+  showcase: 'foil',
+  serializada: 'oro',
+}
+
+/** Los colores de cada escalón. Un solo sitio, para que el binder y la apertura no se separen. */
 export const COLOR_RAREZA: Record<Rareza, string> = {
-  comun: '#8fa3b8',
-  brillante: '#4fc3f7',
-  rara: '#a78bfa',
-  epica: '#fbbf24',
-  unica: '#ff4d6d',
+  hiper: '#4fc3f7',
+  prestigio: '#cbd5e1',
+  prestigioFoil: '#fbbf24',
+  showcase: '#a78bfa',
+  serializada: '#ff4d6d',
 }
 
 export const NOMBRE_RAREZA: Record<Rareza, string> = {
-  comun: 'Hiperespacio',
-  brillante: 'Foil',
-  rara: 'Showcase',
-  epica: 'Prestige',
-  unica: 'Serializada',
+  hiper: 'Hiperespacio Foil',
+  prestigio: 'Prestige',
+  prestigioFoil: 'Prestige Foil',
+  showcase: 'Showcase',
+  serializada: 'Serializada',
 }
 
 /** Una carta ya sacada del sobre, con su ficha del catálogo resuelta. */
@@ -97,6 +133,15 @@ export interface CartaSacada {
   serializada: boolean
   /** La ficha del catálogo. `null` si el catálogo local todavía no la tiene. */
   carta: Card | null
+  /**
+   * La imagen a pintar — que NO es siempre la de esta impresión.
+   *
+   * Medido: la lámina «foil» del API es la misma imagen con tres destellos
+   * blancos QUEMADOS en el archivo. Ese brillo está pintado, no reacciona al
+   * gesto y encima tapa el arte. Así que se usa la lámina sin foil y el brillo
+   * lo pone la app, que sí puede seguir al dedo. Ver `sobresArte.ts`.
+   */
+  arte: string
 }
 
 export interface SobreAbierto {
@@ -128,9 +173,12 @@ interface FilaCruda {
   serializada?: boolean
 }
 
-/** Toda variante desconocida cae a 'comun': mejor sosa que reventada. */
+/**
+ * Toda variante desconocida cae al escalón de base: mejor sosa que reventada.
+ * Pasa de verdad con las aperturas guardadas antes del recorte del pool.
+ */
 function rarezaDe(v: string): Rareza {
-  return RAREZA[v as Variante] ?? 'comun'
+  return RAREZA[v as Variante] ?? 'hiper'
 }
 
 /**
@@ -155,16 +203,28 @@ export async function abrirSobre(): Promise<SobreAbierto> {
   const crudas = (data.cartas ?? []) as FilaCruda[]
   const fichas = await getCardsByIds(crudas.map(c => c.card_id))
 
+  // La lámina sin destellos quemados. Se resuelve de a montón (una lectura por
+  // índice de Dexie para las cinco) y no una por carta.
+  const artes = await artesDeVariantes(
+    crudas
+      .map(c => ({ carta: fichas.get(c.card_id), variante: c.variante as Variante }))
+      .filter((x): x is { carta: Card; variante: Variante } => x.carta !== undefined),
+  )
+
   return {
     saldo: Number(data.saldo ?? 0),
-    cartas: crudas.map(c => ({
-      cardId: c.card_id,
-      variante: c.variante as Variante,
-      rareza: rarezaDe(c.variante),
-      premio: c.premio === true,
-      serializada: c.serializada === true,
-      carta: fichas.get(c.card_id) ?? null,
-    })),
+    cartas: crudas.map(c => {
+      const ficha = fichas.get(c.card_id) ?? null
+      return {
+        cardId: c.card_id,
+        variante: c.variante as Variante,
+        rareza: rarezaDe(c.variante),
+        premio: c.premio === true,
+        serializada: c.serializada === true,
+        carta: ficha,
+        arte: artes.get(c.card_id) ?? ficha?.imageUrl ?? '',
+      }
+    }),
   }
 }
 
@@ -289,4 +349,175 @@ export async function serializadasDeLaComunidad(limite = 50): Promise<DuenoSeria
     cuando: String(d.sacada_at ?? ''),
     carta: fichas.get(d.card_id as string) ?? null,
   }))
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ * EL ÁLBUM
+ *
+ * ── Por qué la casilla NO es el número de la carta ───────────────────
+ *
+ * Parece lo obvio: casilla 1, casilla 2… con el número impreso. Pero medido
+ * sobre el pool real eso se rompe de dos maneras distintas:
+ *
+ *   · TWI Hyperspace Foil tiene 220 cartas repartidas en un rango de 515
+ *     números: 295 huecos. Un álbum indexado por número mostraría 295 casillas
+ *     que NUNCA se pueden llenar — una colección que arranca imposible.
+ *   · SEC Serialized Prestige repite CADA número tres veces (1125 ×3, 1128 ×3,
+ *     1133 ×3…): son tiradas distintas de la misma carta. Tres cartas
+ *     peleando por la misma casilla.
+ *
+ * Así que la casilla es la POSICIÓN ORDINAL dentro del bloque (set, variante)
+ * y el número real va de etiqueta. Lo calcula `album_seccion()` en Postgres
+ * con `row_number()`, no el cliente: que la posición dependa del orden en que
+ * llegaron las filas sería un álbum que se reordena solo.
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/** Una sección del álbum: un set y una impresión. */
+export interface SeccionAlbum {
+  setCode: string
+  variante: Variante
+  rareza: Rareza
+  /** Cuántas casillas tiene en total. */
+  total: number
+  /** Cuántas tenés. */
+  tenidas: number
+}
+
+/** Una casilla, tengas la carta o no. */
+export interface CasillaAlbum {
+  /** 1..total. Es lo que ordena las páginas de nueve. */
+  posicion: number
+  /** El número impreso en la carta. Puede repetirse: es etiqueta, no llave. */
+  numero: number
+  cardId: string
+  cantidad: number
+  tenida: boolean
+  serializada: boolean
+  /**
+   * La ficha del catálogo. Viene resuelta TAMBIÉN para las casillas vacías:
+   * el bolsillo vacío lleva el nombre de la carta que falta, que es lo que lo
+   * convierte en una invitación en vez de un hueco gris. `null` solo si el
+   * catálogo local todavía no la tiene.
+   */
+  carta: Card | null
+  /**
+   * La lámina SIN los destellos quemados; el brillo lo pone la app.
+   * Cadena vacía cuando no la tenés: de un hueco no se pinta ninguna.
+   */
+  arte: string
+}
+
+/**
+ * Las secciones del álbum con el progreso de quien pregunta.
+ *
+ * Dentro de cada set van ordenadas por ESCALA, no por número ni alfabéticas.
+ * Por número sería inestable: medido, en TWI la Hyperspace Foil arranca en el
+ * #3 (tiene 4 cartas fuera de banda: 3, 4, 294 y 297) mientras que en SOR y
+ * SHD la Showcase arranca antes que ella — o sea que el mismo criterio pone
+ * familias distintas primero según el set. Alfabético es peor todavía: dejaría
+ * «Foil Prestige» antes que «Hyperspace Foil».
+ */
+export async function seccionesAlbum(): Promise<SeccionAlbum[]> {
+  if (!isSupabaseReady()) return []
+  const { data, error } = await supabase.rpc('album_secciones')
+  if (error || !data) return []
+  return (data as { set_code: string; variante: string; total: number; tenidas: number }[])
+    .map(s => ({
+      setCode: s.set_code,
+      variante: s.variante as Variante,
+      rareza: rarezaDe(s.variante),
+      total: Number(s.total ?? 0),
+      tenidas: Number(s.tenidas ?? 0),
+    }))
+    .sort((a, b) =>
+      a.setCode === b.setCode
+        ? ESCALA.indexOf(a.rareza) - ESCALA.indexOf(b.rareza)
+        : ordenDeSet(a.setCode) - ordenDeSet(b.setCode) ||
+          a.setCode.localeCompare(b.setCode),
+    )
+}
+
+/**
+ * El puesto de un set en el álbum: por orden de SALIDA, no alfabético.
+ *
+ * Alfabético mete los promos en medio de las expansiones — hoy el pool tiene
+ * 10 sets y dos son promos (GG con 6 casillas y P25 con 2), que alfabéticamente
+ * caen entre ASH y JTL, y entre LOF y SEC. Un álbum de verdad los pone al
+ * final, y así además ninguna sección de 2 casillas abre el índice.
+ *
+ * `MAIN_SET_LABELS` ya declara las ocho expansiones en orden de salida (SOR,
+ * SHD, TWI, JTL, LOF, SEC, LAW, ASH) y a propósito NO incluye los promos, así
+ * que sirve de tabla de orden sin inventar una segunda lista que se desincronice.
+ */
+function ordenDeSet(setCode: string): number {
+  const i = Object.keys(MAIN_SET_LABELS).indexOf(setCode)
+  return i === -1 ? Number.MAX_SAFE_INTEGER : i
+}
+
+/**
+ * Una sección entera, casilla por casilla.
+ *
+ * Se pide de a una sección y no el álbum completo: son 2.669 casillas en 33
+ * secciones, y bajárselas todas para enseñar nueve es exactamente el error que
+ * ya costó caro con las imágenes (§2t de CLAUDE.md: 45 MB para pintar 1,4).
+ */
+export async function casillasDeSeccion(setCode: string, variante: Variante): Promise<CasillaAlbum[]> {
+  if (!isSupabaseReady()) return []
+  const { data, error } = await supabase.rpc('album_seccion', {
+    p_set: setCode,
+    p_variante: variante,
+  })
+  if (error || !data) return []
+
+  const filas = data as {
+    posicion: number; numero: number; card_id: string
+    cantidad: number; tenida: boolean; serializada: boolean
+  }[]
+
+  /* La ficha se resuelve para TODAS las casillas, no solo para las que tenés.
+   *
+   * Antes se pedían solo las tenidas, con el argumento de que resolver 238 para
+   * tapar 230 con una silueta era trabajo tirado. El argumento se cae cuando el
+   * bolsillo vacío deja de ser una silueta y pasa a llevar el NOMBRE de la
+   * carta que falta: «te falta Darth Vader» es la invitación, y sin la ficha no
+   * hay nombre que poner. Y hoy importa el doble, porque con población 0 la
+   * sección entera son huecos.
+   *
+   * No cuesta una petición: `getCardsByIds` resuelve primero contra la caché de
+   * memoria y después con un `where('id').anyOf(...)` sobre la PRIMARY KEY de
+   * Dexie, todo local. `BinderDigital` ya espera a `ensureCards()` antes de
+   * abrir nada, así que el catálogo está completo y nunca cae al respaldo de
+   * red. */
+  const fichas = await getCardsByIds(filas.map(f => f.card_id))
+
+  /* El ARTE, en cambio, sigue resolviéndose solo para las tenidas — y no por
+   * ahorrar: el bolsillo vacío NO pinta la carta a propósito (enseñar el arte
+   * de la que no tenés le quita el sentido a abrir el sobre). Además
+   * `artesDeVariantes` busca por el índice `name`, que trae todas las
+   * impresiones de cada nombre: pedirlo para las 238 de una sección es ~1.200
+   * filas para dibujar las 8 que tenés. */
+  const artes = await artesDeVariantes(
+    filas
+      .filter(f => f.tenida)
+      .map(f => ({ carta: fichas.get(f.card_id), variante }))
+      .filter((x): x is { carta: Card; variante: Variante } => x.carta !== undefined),
+  )
+
+  return filas.map(f => {
+    const ficha = fichas.get(f.card_id) ?? null
+    const tenida = f.tenida === true
+    return {
+      posicion: Number(f.posicion),
+      numero: Number(f.numero),
+      cardId: f.card_id,
+      cantidad: Number(f.cantidad ?? 0),
+      tenida,
+      serializada: f.serializada === true,
+      carta: ficha,
+      // Cadena vacía si no la tenés: el contrato es «la lámina que se pinta», y
+      // de un hueco no se pinta ninguna. Así el bolsillo vacío no puede
+      // filtrar el arte por descuido de quien lo dibuje.
+      arte: tenida ? (artes.get(f.card_id) ?? ficha?.imageUrl ?? '') : '',
+    }
+  })
 }

@@ -15,8 +15,14 @@ import { CajaDeSobres } from './CajaDeSobres'
 import { AperturaSobre } from './AperturaSobre'
 import { CartaGirable } from './CartaGirable'
 import { ReversoCarta } from './ReversoCarta'
-import { ESCALA, NOMBRE_RAREZA, COLOR_RAREZA, type CartaSacada, type Rareza, type Variante } from '../../services/sobres'
+import { Acabado } from './Acabado'
+import { CardImage } from '../../components/CardImage'
+import { ESCALA, NOMBRE_RAREZA, COLOR_RAREZA, ACABADO, type CartaSacada, type Rareza, type Variante } from '../../services/sobres'
 import type { Card } from '../../types'
+
+/** Arte real, para poder juzgar el brillo sobre una lámina de verdad. */
+const ARTE_PRUEBA =
+  'https://cdn.starwarsunlimited.com/card_SWH_01_101_Rogue_Squadron_Skirmisher_e5659ca239.png'
 
 /** Una carta de mentira, con lo justo para que la pantalla la sepa pintar. */
 function cartaFalsa(nombre: string, n: number): Card {
@@ -51,44 +57,40 @@ function cartaFalsa(nombre: string, n: number): Card {
 }
 
 const VARIANTE_DE: Record<Rareza, Variante> = {
-  comun: 'Hyperspace',
-  brillante: 'Hyperspace Foil',
-  rara: 'Showcase',
-  epica: 'Foil Prestige',
-  unica: 'Serialized Prestige',
+  hiper: 'Hyperspace Foil',
+  prestigio: 'Standard Prestige',
+  prestigioFoil: 'Foil Prestige',
+  showcase: 'Showcase',
+  serializada: 'Serialized Prestige',
 }
 
 /** Un sobre con cuatro comunes y un premio de la rareza pedida. */
 function sobreDePrueba(premio: Rareza): CartaSacada[] {
-  const base: CartaSacada[] = [0, 1, 2].map(i => ({
+  // Cuatro Hyperspace Foil de base, que es como es el sobre desde el recorte
+  // del pool: la coleccion entera brilla.
+  const base: CartaSacada[] = [0, 1, 2, 3].map(i => ({
     cardId: `c${i}`,
-    variante: 'Hyperspace' as Variante,
-    rareza: 'comun' as Rareza,
+    variante: 'Hyperspace Foil' as Variante,
+    rareza: 'hiper' as Rareza,
     premio: false,
     serializada: false,
-    carta: cartaFalsa(`Común ${i + 1}`, 100 + i),
+    carta: cartaFalsa(`Base ${i + 1}`, 100 + i),
+    arte: '',
   }))
-  base.push({
-    cardId: 'foil',
-    variante: 'Standard Foil',
-    rareza: 'brillante',
-    premio: false,
-    serializada: false,
-    carta: cartaFalsa('El foil', 200),
-  })
   base.push({
     cardId: 'premio',
     variante: VARIANTE_DE[premio],
     rareza: premio,
     premio: true,
-    serializada: premio === 'unica',
+    serializada: premio === 'serializada',
     carta: cartaFalsa(`Premio ${NOMBRE_RAREZA[premio]}`, 300),
+    arte: '',
   })
   return base
 }
 
 export function BancoSobres() {
-  const [premio, setPremio] = useState<Rareza>('unica')
+  const [premio, setPremio] = useState<Rareza>('serializada')
   const [abriendo, setAbriendo] = useState<number | null>(null)
   const [cartas, setCartas] = useState<CartaSacada[] | null>(null)
   const [demora, setDemora] = useState(400)
@@ -146,22 +148,44 @@ export function BancoSobres() {
         <>
           <CajaDeSobres alElegir={elegir} />
 
-          {/* La carta girable del binder. Va acá porque el gesto —arrastrar con
-              inercia y pasar de los 90° para ver el dorso— solo se puede juzgar
-              probándolo, y en el binder de verdad hace falta tener cartas. */}
+          {/* La carta girable con su acabado. Va acá porque ni el gesto
+              —arrastrar con inercia y pasar de los 90°— ni el brillo se pueden
+              juzgar leyendo el código: hay que girarla y mirar. */}
           <div className="mt-10 border-t border-swu-border pt-6">
             <p className="mb-3 text-center text-sm text-swu-muted">
-              Carta girable del binder — arrastrala
+              Carta girable — arrastrala y mirá cómo barre el brillo
             </p>
             <div className="mx-auto max-w-[260px]">
               <CartaGirable
-                frente={
-                  <div className="flex h-full w-full items-center justify-center rounded-xl bg-swu-surface text-sm text-swu-muted">
-                    FRENTE
-                  </div>
-                }
+                frente={<CardImage src={ARTE_PRUEBA} alt="Carta de prueba" orientacion="vertical" className="w-full" />}
+                acabado={<Acabado acabado={ACABADO[premio]} />}
                 dorso={<ReversoCarta color={COLOR_RAREZA[premio]} />}
               />
+            </div>
+          </div>
+
+          {/* Los tres acabados uno al lado del otro, moviéndose solos: es la
+              única forma de ver si de verdad se distinguen entre sí. */}
+          <div className="mt-10 border-t border-swu-border pt-6">
+            <p className="mb-3 text-center text-sm text-swu-muted">Los tres acabados</p>
+            <div className="grid grid-cols-3 gap-3">
+              {(['foil', 'metal', 'oro'] as const).map(a => (
+                <div key={a}>
+                  <div className="relative overflow-hidden rounded-lg">
+                    <CardImage src={ARTE_PRUEBA} alt={a} orientacion="vertical" className="w-full" />
+                    <Acabado acabado={a} movimiento="solo" />
+                  </div>
+                  <p className="mt-1 text-center text-[11px] text-swu-muted">{a}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Y el dorso redibujado, solo. */}
+          <div className="mt-10 border-t border-swu-border pt-6">
+            <p className="mb-3 text-center text-sm text-swu-muted">El dorso</p>
+            <div className="mx-auto w-[200px]">
+              <ReversoCarta color={COLOR_RAREZA[premio]} misterio />
             </div>
           </div>
         </>

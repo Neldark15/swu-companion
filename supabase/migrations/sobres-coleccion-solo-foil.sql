@@ -1,0 +1,50 @@
+-- La coleccion pasa a ser SOLO impresiones brillantes.
+--
+-- Se van del pool la Hyperspace pelada (2.095) y la Standard Foil (1.368);
+-- quedan 2.669 en cinco familias:
+--
+--   Hyperspace Foil     1.850   la base del sobre
+--   Serialized Prestige   253   una por persona en toda la comunidad
+--   Foil Prestige         211
+--   Standard Prestige     211
+--   Showcase              144   la mas escasa de las que se repiten
+--
+-- Decision del dueno del proyecto: "esta coleccion solo sera hyperspace foil,
+-- prestige y showcase todo foil para que sea algo bonito de ver". Y ademas
+-- hace posible el album numerado: menos familias, paginas que se llenan.
+--
+-- ── Por que se hizo EXACTAMENTE en este momento ──────────────────────
+--
+-- Porque la clave foranea de `cartas_desbloqueadas` es ON DELETE CASCADE.
+-- Con colecciones vivas, este DELETE le habria borrado cartas a la gente sin
+-- avisar. Se comprobo antes de tocar nada que las tres tablas dependientes
+-- estaban en cero (cartas_desbloqueadas, serializadas_dueno, sobres_aperturas).
+-- Si esto se vuelve a necesitar con gente jugando, NO se borra: se marca la
+-- variante como retirada y se deja de sortear.
+--
+-- ── El sobre ─────────────────────────────────────────────────────────
+--
+-- Ya no puede ser 3 Hyperspace + 1 foil: esas dos variantes no existen. Pasa a
+-- 4 Hyperspace Foil + la ranura de premio. Las probabilidades del premio NO
+-- cambian.
+--
+-- Medido con el pool nuevo, 300 aperturas seguidas: ninguna fallo, 5 cartas
+-- por sobre, y el premio salio 65,7 / 16,7 / 9,7 / 6,0 / 2,0 %
+-- (esperado 62 / 15,96 / 11,02 / 8,04 / 2,98).
+
+delete from public.sobres_pool where variante in ('Hyperspace', 'Standard Foil');
+
+-- El cuerpo completo de abrir_sobre() quedo en la migracion
+-- `sobres_coleccion_solo_foil` aplicada el 2026-08-19. Cambia solo el paso de
+-- la base del sobre:
+--
+--   for r in
+--     select card_id, variante from public.sobres_pool
+--     where variante = 'Hyperspace Foil' order by random() limit 4
+--   loop ... end loop;
+--
+-- y desaparece el paso que sacaba 1 foil de ('Standard Foil','Hyperspace Foil').
+--
+-- El `group by` antes del ON CONFLICT se vuelve MAS importante que antes: las
+-- cuatro de base y el premio (Hyperspace Foil el 62% de las veces) salen ahora
+-- del mismo pool, asi que un sobre con la carta repetida es mas probable.

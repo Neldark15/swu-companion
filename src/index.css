@@ -933,3 +933,227 @@ input:focus, textarea:focus, select:focus {
   .fogonazo    { animation: none; opacity: 0; }
   .grito-entra { animation: none; }
 }
+
+
+/* ─────────────────────────────────────────────────────────────
+ * ACABADOS DE LA COLECCIÓN — foil, metal y oro
+ *
+ * La colección de sobres es SOLO impresiones brillantes, así que el brillo
+ * dejó de ser un adorno y pasó a ser la mitad del producto. El `carta-foil`
+ * que ya existía se declara «muy tenue» en su propio comentario y anima
+ * `background-position` (que repinta); esto es otra cosa.
+ *
+ * ── Las tres reglas ──────────────────────────────────────────────────
+ *
+ * 1. **Se mueve con `transform`, nunca con `background-position`.** Una capa
+ *    sobredimensionada que se desplaza es trabajo del compositor; mover el
+ *    origen del degradado obliga a repintar el degradado entero en cada
+ *    fotograma.
+ *
+ * 2. **Paralaje entre capas.** El arcoíris, el brillo especular y la trama se
+ *    corren a velocidades distintas. Eso es lo que hace leer una LÁMINA con
+ *    grosor encima del arte; a la misma velocidad se ve como una calcomanía.
+ *
+ * 3. **Un solo acabado caro por PANTALLA.** En la rejilla del binder hay nueve
+ *    cartas a la vez y `mix-blend-mode` obliga a leer el fondo: ahí va
+ *    `foil-plano`, que es UN degradado sin mezcla. El acabado completo es para
+ *    la carta abierta y para el revelado, donde hay una sola.
+ *
+ * Las variables `--px`/`--py` (de -1 a 1) las escribe quien mueve la carta
+ * —`Carta3D` al inclinar, `CartaGirable` al girar— directamente sobre el nodo
+ * y sin pasar por React.
+ * ───────────────────────────────────────────────────────────── */
+
+/* La caja que recorta. Va como HERMANA de la imagen, nunca dentro: CardImage
+   lleva `overflow-hidden` y un `drop-shadow`, y las dos son propiedades de
+   agrupamiento que aplanarían lo de adentro. */
+.foil-caja {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* ── Arcoíris: el foil clásico ── */
+.foil-arcoiris {
+  position: absolute;
+  inset: -75%;
+  background: repeating-linear-gradient(
+    102deg,
+    #ff0f66 0%,
+    #ffc800 3.2%,
+    #00f2a0 6.4%,
+    #00b4ff 9.6%,
+    #b02bff 12.8%,
+    #ff0f66 16%
+  );
+  opacity: 0.82;
+  mix-blend-mode: overlay;
+  transform: translate3d(calc(var(--px, 0) * 30%), calc(var(--py, 0) * 16%), 0);
+  transition: transform 120ms linear;
+}
+
+/* ── Metal: plateado duro, sin tintes. Escalones ABRUPTOS a propósito: un
+   degradado suave se lee como plástico, y lo que hace «metal» es el salto
+   entre la cresta y el valle. ── */
+.foil-metal {
+  position: absolute;
+  inset: -75%;
+  background: repeating-linear-gradient(
+    100deg,
+    #0e1520 0%,
+    #93a3ba 2.6%,
+    #ffffff 4.5%,
+    #9fadc2 6.4%,
+    #16202e 9.6%,
+    #0e1520 12.8%
+  );
+  opacity: 0.72;
+  mix-blend-mode: overlay;
+  transform: translate3d(calc(var(--px, 0) * 26%), calc(var(--py, 0) * 14%), 0);
+  transition: transform 120ms linear;
+}
+
+/* ── Oro: el mismo metal, con la paleta corrida al ámbar. ── */
+.foil-oro {
+  position: absolute;
+  inset: -75%;
+  background: repeating-linear-gradient(
+    100deg,
+    #2a1a00 0%,
+    #e0a51e 2.6%,
+    #fff6cc 4.5%,
+    #f0c445 6.4%,
+    #33200a 9.6%,
+    #2a1a00 12.8%
+  );
+  opacity: 0.8;
+  mix-blend-mode: overlay;
+  transform: translate3d(calc(var(--px, 0) * 26%), calc(var(--py, 0) * 14%), 0);
+  transition: transform 120ms linear;
+}
+
+/* ── La trama fina: microlíneas. Es la capa que hace que el arcoíris se lea
+   como FOIL y no como una mancha de color. Se mueve al REVÉS que el arcoíris
+   para que el paralaje sea evidente. ── */
+.foil-trama {
+  position: absolute;
+  inset: -40%;
+  background: repeating-linear-gradient(
+    12deg,
+    rgb(255 255 255 / 0.13) 0px,
+    rgb(255 255 255 / 0.13) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  mix-blend-mode: overlay;
+  transform: translate3d(calc(var(--px, 0) * -12%), 0, 0);
+  transition: transform 120ms linear;
+}
+
+/* ── El brillo especular: la banda blanca que cruza. Es la que de verdad se
+   ve moverse, así que va con el paralaje MÁS fuerte. ── */
+.foil-lustre {
+  position: absolute;
+  inset: -60%;
+  background: linear-gradient(
+    100deg,
+    transparent 44%,
+    rgb(255 255 255 / 0.10) 48%,
+    rgb(255 255 255 / 0.34) 50%,
+    rgb(255 255 255 / 0.10) 52%,
+    transparent 56%
+  );
+  mix-blend-mode: screen;
+  transform: translate3d(calc(var(--px, 0) * 52%), calc(var(--py, 0) * 22%), 0);
+  transition: transform 120ms linear;
+}
+
+/* ── El acabado BARATO, para las rejillas ──
+   Un solo degradado, sin `mix-blend-mode` y sin capas: se puede repetir nueve
+   veces (o más) sin que el teléfono lo note. Insinúa que la carta brilla; el
+   brillo de verdad se ve al abrirla. */
+.foil-plano {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(
+    108deg,
+    transparent 34%,
+    rgb(255 255 255 / 0.13) 46%,
+    rgb(255 255 255 / 0.30) 50%,
+    rgb(255 255 255 / 0.13) 54%,
+    transparent 66%
+  );
+}
+
+.foil-plano-oro {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(
+    108deg,
+    transparent 34%,
+    rgb(255 226 150 / 0.16) 46%,
+    rgb(255 240 200 / 0.38) 50%,
+    rgb(255 226 150 / 0.16) 54%,
+    transparent 66%
+  );
+}
+
+/* El brillo especular: la banda blanca que cruza. Es la capa que de verdad se
+   ve moverse, así que lleva el paralaje MÁS fuerte. */
+/* Menos movimiento: el acabado se queda QUIETO en su posición de reposo, pero
+   no desaparece. Que una carta sea foil es información sobre lo que tenés, no
+   una animación decorativa. */
+@media (prefers-reduced-motion: reduce) {
+  .foil-arcoiris,
+  .foil-metal,
+  .foil-oro,
+  .foil-trama,
+  .foil-lustre {
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ── El acabado moviéndose SOLO ──
+ *
+ * La carta del revelado no se arrastra: se toca para girarla y para pasarla.
+ * Sin un gesto que mueva `--px`, el brillo quedaría clavado y la carta se
+ * vería mate justo en el momento que tiene que impresionar.
+ *
+ * Se anima el `transform` de cada capa directamente —nunca la variable— para
+ * que siga siendo trabajo del compositor. Cada capa lleva su propia amplitud:
+ * ESE desfase es el paralaje, y es lo que hace que se lea como una lámina con
+ * grosor y no como una mancha que se desliza. */
+.foil-solo .foil-arcoiris {
+  position: absolute;
+  inset: -75%;
+  background: repeating-linear-gradient(
+    102deg,
+    #7a1038 0%,
+    #7a5c10 6%,
+    #0a5a42 12%,
+    #14425e 18%,
+    #4a1a68 24%,
+    #7a1038 30%
+  );
+  opacity: 0.62;
+  mix-blend-mode: color-dodge;
+  transform: translate3d(calc(var(--px, 0) * 30%), calc(var(--py, 0) * 16%), 0);
+  transition: transform 120ms linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .foil-solo .foil-arcoiris,
+  .foil-solo .foil-metal,
+  .foil-solo .foil-oro,
+  .foil-solo .foil-trama,
+  .foil-solo .foil-lustre {
+    animation: none;
+  }
+}

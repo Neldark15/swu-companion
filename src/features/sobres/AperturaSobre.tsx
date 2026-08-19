@@ -34,9 +34,10 @@ import { Carta3D } from '../../components/Carta3D'
 import { Button } from '../../components/ui/Button'
 import { SobreArte } from './SobreArte'
 import { ReversoCarta } from './ReversoCarta'
+import { Acabado } from './Acabado'
 import { sonar } from './sonido'
 import { RECETA, chispas, useMenosMovimiento } from './efectos'
-import { ESCALA, NOMBRE_RAREZA, type CartaSacada } from '../../services/sobres'
+import { ESCALA, NOMBRE_RAREZA, ACABADO, type CartaSacada } from '../../services/sobres'
 
 type Fase = 'sellado' | 'rasgando' | 'revelando' | 'resumen'
 
@@ -264,10 +265,10 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir 
               className="absolute inset-0 flex items-center justify-center"
               style={{ backfaceVisibility: 'hidden' }}
             >
-              {actual.carta ? (
+              {actual.arte || actual.carta ? (
                 <CardImage
-                  src={actual.carta.imageUrl}
-                  alt={actual.carta.name}
+                  src={actual.arte || actual.carta?.imageUrl}
+                  alt={actual.carta?.name ?? 'Carta'}
                   orientacion={vertical ? 'vertical' : 'apaisada'}
                   className="w-full"
                 />
@@ -276,6 +277,10 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir 
                   Carta sin arte local
                 </span>
               )}
+              {/* El brillo, hermano de la imagen y no hijo: CardImage lleva
+                  `overflow-hidden` y `drop-shadow`, que aplanarían el 3D. Solo
+                  se pinta una vez girada — antes taparía el dorso. */}
+              {girada && <Acabado acabado={ACABADO[actual.rareza]} movimiento="solo" />}
             </span>
 
             {/* Reverso */}
@@ -378,27 +383,29 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir 
           <div key={`${c.cardId}-${i}`} className="carta3d-escena">
             <Carta3D
               intensidad={9}
-              brillo={c.rareza !== 'comun'}
-              iridiscente={c.rareza === 'epica' || c.rareza === 'unica'}
+              brillo={c.rareza !== 'hiper'}
+              iridiscente={ACABADO[c.rareza] !== 'foil'}
               alAbrir
             >
               <div
-                className="rounded-lg"
+                className="relative rounded-lg"
                 style={{
                   boxShadow:
-                    c.rareza === 'comun' ? 'none' : `0 0 14px ${RECETA[c.rareza].color}55`,
+                    c.rareza === 'hiper' ? 'none' : `0 0 14px ${RECETA[c.rareza].color}55`,
                 }}
               >
-                {c.carta ? (
+                {c.arte || c.carta ? (
                   <CardImage
-                    src={c.carta.imageUrl}
-                    alt={c.carta.name}
-                    orientacion={c.carta.isLeader || c.carta.isBase ? 'apaisada' : 'vertical'}
+                    src={c.arte || c.carta?.imageUrl}
+                    alt={c.carta?.name ?? 'Carta'}
+                    orientacion={c.carta?.isLeader || c.carta?.isBase ? 'apaisada' : 'vertical'}
                     className="w-full"
                   />
                 ) : (
                   <div className="aspect-[286/400] rounded-lg bg-swu-surface" />
                 )}
+                {/* Cinco a la vez: acabado barato. */}
+                <Acabado acabado={ACABADO[c.rareza]} calidad="plano" />
               </div>
             </Carta3D>
             <p className="mt-1 truncate text-[10px] text-swu-muted" title={c.carta?.name}>

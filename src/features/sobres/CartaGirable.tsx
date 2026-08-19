@@ -37,6 +37,11 @@ interface Props {
   dorso: ReactNode
   /** Proporción de la caja, para que no salte al cargar el arte. */
   ratio?: number
+  /**
+   * El brillo que se pinta sobre la CARA. Va acá y no afuera porque tiene que
+   * seguir al ángulo, y el ángulo solo lo conoce este componente.
+   */
+  acabado?: ReactNode
   className?: string
 }
 
@@ -45,7 +50,7 @@ const ROCE = 0.94
 /** Por debajo de esto se considera quieta y se corta el bucle. */
 const QUIETA = 0.02
 
-export function CartaGirable({ frente, dorso, ratio = 286 / 400, className = '' }: Props) {
+export function CartaGirable({ frente, dorso, acabado, ratio = 286 / 400, className = '' }: Props) {
   const caja = useRef<HTMLDivElement>(null)
   const giro = useRef({ x: -6, y: 0 })
   const vel = useRef({ x: 0, y: 0 })
@@ -58,6 +63,12 @@ export function CartaGirable({ frente, dorso, ratio = 286 / 400, className = '' 
     if (!el) return
     const { x, y } = giro.current
     el.style.transform = `rotateX(${x.toFixed(2)}deg) rotateY(${y.toFixed(2)}deg)`
+    // Y las variables que mueven el brillo. `sin` del ángulo va y viene entre
+    // -1 y 1 mientras la carta gira, así que el reflejo BARRE la lámina en vez
+    // de quedarse pegado a un lado — que es justamente lo que da ganas de
+    // seguir girándola. Se escriben en el nodo, sin pasar por React.
+    el.style.setProperty('--px', Math.sin((y * Math.PI) / 180).toFixed(3))
+    el.style.setProperty('--py', (x / 55).toFixed(3))
   }, [])
 
   /** El bucle de inercia. Solo corre mientras de verdad se mueve. */
@@ -111,20 +122,23 @@ export function CartaGirable({ frente, dorso, ratio = 286 / 400, className = '' 
     }
   }, [rodar])
 
-  /** Voltearla de un toque, para quien no quiera arrastrar. */
+  /**
+   * Voltearla de un toque, para quien no quiera arrastrar.
+   *
+   * Se hace con la MISMA inercia que el arrastre, no con una transición CSS.
+   * Con transición, el navegador interpola el `transform` solo por dentro y
+   * `pintar()` no corre en esos 520 ms — o sea que `--px` daría un salto seco
+   * mientras la carta gira suave, y el brillo se despegaría de la lámina.
+   *
+   * Con roce 0,94 la distancia total de un empujón es v/(1−0,94) = v/0,06, así
+   * que 10,8 °/f recorre ~180°. No cae exacto, y da igual: la cara cambia a los
+   * 90°, así que hay ±90° de margen.
+   */
   const voltear = useCallback(() => {
-    vel.current = { x: 0, y: 0 }
-    // Se suma media vuelta al ángulo ACTUAL en vez de fijar 0 o 180: así gira
-    // desde donde está y siempre por el camino corto.
-    giro.current.y += 180
-    const el = caja.current
-    if (!el) return
-    el.style.transition = 'transform 520ms cubic-bezier(0.22,1,0.36,1)'
-    pintar()
-    window.setTimeout(() => {
-      if (el) el.style.transition = ''
-    }, 540)
-  }, [pintar])
+    vel.current = { x: 0, y: 10.8 }
+    arrastrando.current = false
+    if (!bucle.current) bucle.current = requestAnimationFrame(rodar)
+  }, [rodar])
 
   useEffect(() => {
     pintar()
@@ -154,6 +168,10 @@ export function CartaGirable({ frente, dorso, ratio = 286 / 400, className = '' 
             style={{ backfaceVisibility: 'hidden' }}
           >
             {frente}
+            {/* HERMANO de la imagen, nunca hijo: CardImage lleva
+                `overflow-hidden` y un `drop-shadow`, y las dos son propiedades
+                de agrupamiento que aplanarían el 3D de lo que tenga dentro. */}
+            {acabado}
           </div>
           <div
             className="absolute inset-0 flex items-center justify-center"
