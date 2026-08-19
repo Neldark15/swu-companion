@@ -1041,3 +1041,85 @@ Reglas heredadas de las otras dos pantallas, y que acá también costaron:
 - **Nada de degradado cromado detrás de un texto**: en la credencial se midió
   que deja la tinta entre 1,13:1 y 1,74:1 en la franja del medio. La banda del
   titular va con lustre.
+
+### 3i. Sobres y álbum: la colección es SOLO brillante, y el brillo lo pone la app
+
+`/sobres` (La Bóveda) y `/binder-digital` (El Álbum). El sorteo vive ENTERO en
+`abrir_sobre()`, SECURITY DEFINER: el cliente no escribe ni una fila en las
+cinco tablas. Las serializadas son de UNA persona en toda la comunidad y los
+sobres son la moneda, así que un INSERT desde el navegador sería el juego
+entero regalado.
+
+**Dos trampas de permisos, y son DISTINTAS:**
+- **Tablas**: Supabase concede ALL por defecto a `anon`/`authenticated` en toda
+  tabla nueva de `public` (§2j). Conceder SELECT no basta — hay que REVOCAR.
+- **Funciones**: Postgres concede EXECUTE a **PUBLIC** en toda función nueva, y
+  `anon` es miembro de PUBLIC. `revoke ... from anon` NO lo quita. Se ve en el
+  ACL como una entrada con beneficiario vacío (`=X/postgres`). Los dos RPC del
+  álbum quedaron abiertos a `anon` por esto, con la migración de revoke ya
+  aplicada.
+
+**El pool son 2.669 filas en CINCO familias** (Hyperspace Foil 1.850,
+Serializada 253, Foil Prestige 211, Standard Prestige 211, Showcase 144). La
+Hyperspace pelada y la Standard Foil se BORRARON el 2026-08-19. El sobre es
+4 Hyperspace Foil + la ranura de premio (62 / 16 / 11 / 8 / 3 %, medido sobre
+300 aperturas). **Si hay que retirar otra variante con gente jugando, NO se
+borra**: `cartas_desbloqueadas.card_id` es ON DELETE CASCADE y le arrancaría
+cartas a todo el mundo. Se marca como retirada y se deja de sortear.
+
+**El «foil» del API está QUEMADO en el PNG.** Medido bajando las imágenes y
+comparándolas píxel a píxel: Standard vs Standard Foil da MAE 5,62 — son tres
+estrellitas blancas arriba a la derecha y otro número de coleccionista. Igual
+Hyperspace Foil vs Hyperspace (6,00) y Foil Prestige vs Standard Prestige
+(4,49). Por eso `sobresArte.ts` resuelve la lámina SIN foil (por nombre +
+subtítulo + **mismo setCode**) y el brillo lo pinta `Acabado.tsx`, que sí sigue
+al dedo. Showcase y Prestige SÍ son arte propio (MAE 81-109): esas usan su
+imagen. Y **nunca caer a la lámina de otro set**: las 6 Hyperspace Foil de GG
+son exclusivas con otro ilustrador (MAE 53,8 contra la de SOR).
+
+**`backImageUrl` NO es el dorso**: es la SEGUNDA CARA. En el pool la tienen 144
+cartas, que son exactamente los 144 líderes Showcase. Sus dos caras miden al
+revés (frente 400×286, reverso 286×400, medido 6/6), así que el bolsillo se
+queda en 286/400 SIEMPRE y la cara acostada se acomoda dentro. No existe imagen
+usable del dorso oficial (CDN 403, sitio oficial sin referencia, Strapi cerrado,
+Wikipedia marcada fair use): `ReversoCarta.tsx` lo redibuja, y el logotipo de
+Lucasfilm a propósito NO se copia.
+
+**La casilla del álbum NO es el número impreso.** Por número serían 2.930
+casillas para 2.669 cartas: **305 imposibles de llenar** —TWI Hyperspace Foil
+sola aporta 295, o sea 33 hojas de vacío inalcanzable— y 22 casillas con 2 o 3
+cartas distintas peleando (SEC Serialized repite CADA número tres veces). Es la
+posición ordinal que calcula `album_seccion()` con `row_number()`, y el número
+va de etiqueta; en 29 de las 33 secciones coinciden. Las secciones se ordenan
+por ESCALA, nunca por `min(set_number)`: en TWI la Hyperspace Foil arranca en
+el #3 y en SOR/SHD arranca antes la Showcase.
+
+**La hoja SIEMPRE dibuja nueve celdas.** 13 secciones terminan con 1 a 3
+casillas y tres con UNA: sin celdas de cierre, pasar de la hoja 5 a la 6
+encogía la página de 471,8 a 150,6 px — 321 px de brinco a mitad del gesto.
+
+**Un solo acabado caro por PANTALLA** (§3f). Las cuatro capas con
+`mix-blend-mode` van en la carta protagonista; en las rejillas va `foil-plano`,
+un degradado sin mezcla.
+
+**Dos trampas del CSS, las dos pagadas:**
+- **`@utility` solo emite la regla si Tailwind DETECTA la clase en el código.**
+  Los 8 bloques `@utility foil-*` no llegaron nunca a la hoja de estilos:
+  medido en el navegador, `foil-caja` salía `position: static` con `overflow:
+  visible` y las capas de -75% bañaban la página entera. Los estilos de
+  COMPONENTE van como CSS plano, igual que `.dorso-barrido`.
+- **Nunca reemplazar reglas de este archivo con regex de selector.** El patrón
+  `\.foil-arcoiris \{` también casa dentro de `.foil-solo .foil-arcoiris {`, y
+  `\.foil-lustre \{` es el último selector de dos listas dentro de bloques
+  `@media` — se comió sus llaves de cierre. Reemplazos por cadena literal
+  completa, y **verificar contra el CSS CONSTRUIDO**, no contra el fuente: así
+  se descubrió que `@keyframes foil-barre` había desaparecido y la carta del
+  revelado salía con el brillo clavado.
+
+`ReversoCarta` lleva ids SVG con `useId`: con ids fijos, dos dorsos en pantalla
+resuelven sus `url(#…)` contra el primero y el segundo sale negro plano, sin
+un solo error en consola.
+
+Banco en **`/banco-sobres`** (solo desarrollo): se elige qué premio sale, los
+tres acabados uno al lado del otro y el dorso. Sin él, revisar cómo se ve una
+serializada es esperar 1 de cada 33 sobres.
