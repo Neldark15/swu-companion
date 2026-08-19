@@ -42,6 +42,7 @@ const TorneoDetallePage = lazy(() => import('./features/torneos/TorneoDetallePag
 const ProfilePage = lazy(() => import('./features/profile/ProfilePage').then(m => ({ default: m.ProfilePage })))
 const SettingsPage = lazy(() => import('./features/settings/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const RankingPage = lazy(() => import('./features/rank/RankingPage').then(m => ({ default: m.RankingPage })))
+const BancoRanking = lazy(() => import('./features/rank/RankingPage').then(m => ({ default: m.BancoRanking })))
 const CommunityPage = lazy(() => import('./features/community/CommunityPage').then(m => ({ default: m.CommunityPage })))
 const CollectionPage = lazy(() => import('./features/collection/CollectionPage').then(m => ({ default: m.CollectionPage })))
 const PublicProfilePage = lazy(() => import('./features/collection/PublicProfilePage').then(m => ({ default: m.PublicProfilePage })))
@@ -227,6 +228,7 @@ export default function App() {
             {/* La credencial exige sesión: se arma con el perfil de quien mira. */}
             <Route path="/credencial" element={<P><CredencialPage /></P>} />
             {import.meta.env.DEV && <Route path="/banco-credencial" element={<BancoCredencial />} />}
+            {import.meta.env.DEV && <Route path="/banco-ranking" element={<BancoRanking />} />}
             {import.meta.env.DEV && <Route path="/banco-mesa" element={<BancoMesa />} />}
             {import.meta.env.DEV && <Route path="/banco-galaxia" element={<BancoGalaxia />} />}
             {import.meta.env.DEV && <Route path="/banco-planeta" element={<BancoPlaneta />} />}

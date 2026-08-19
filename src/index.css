@@ -263,6 +263,71 @@ input:focus, textarea:focus, select:focus {
   );
 }
 
+/* ── La gramática de la credencial, a escala de una lista ────────────────
+   La placa de /credencial es un path en un viewBox de 512×320. A la altura de
+   una fila el factor es 0,175: una muesca de 10 unidades mide 1,7 px y
+   desaparece. Así que NO se encoge el path — se conserva la REGLA: ninguna
+   esquina de 90°, todo escalón entre 5 y 14 px REALES. Por eso las siluetas
+   van en px y no en %, o los escalones se estirarían con el ancho.
+
+   `clip-path` y no un <svg> por fila: un polígono es una máscara de pintura,
+   admite formas cóncavas —las muescas salen gratis— y NO crea capa de
+   composición (a diferencia de `filter`), que es lo que importa con 25 filas.
+   Sí crea contexto de apilado, así que nada dentro de una fila puede asomar
+   por encima de otra con z-index.
+
+   LO QUE clip-path SE COME, y hay que saberlo: el `border`, la sombra
+   EXTERIOR y el `outline` de foco del propio elemento. De ahí que el canto se
+   haga con un div de `p-px` por debajo, y que el foco vaya en un envoltorio
+   SIN recorte (ver `.chapa-foco`). */
+
+/** La fila: chaflán arriba a la izquierda, escalón a la derecha, chaflanes
+ *  abajo y la muesca del canto izquierdo. Pide ~50 px de alto. */
+@utility clip-placa {
+  clip-path: polygon(
+    0 9px, 9px 0, calc(100% - 30px) 0, calc(100% - 22px) 8px, 100% 8px,
+    100% calc(100% - 11px), calc(100% - 11px) 100%, 12px 100%,
+    0 calc(100% - 12px), 0 36px, 5px 31px, 5px 25px, 0 20px
+  );
+}
+
+/** El podio: lleva la MUESCA SUPERIOR CENTRAL, que es el gesto más
+ *  reconocible de la credencial. */
+@utility clip-placa-podio {
+  clip-path: polygon(
+    0 10px, 10px 0, calc(50% - 17px) 0, calc(50% - 9px) 7px,
+    calc(50% + 9px) 7px, calc(50% + 17px) 0, calc(100% - 10px) 0, 100% 10px,
+    100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%,
+    0 calc(100% - 14px)
+  );
+}
+
+/** La chapita del ID: dos esquinas cortadas en diagonal opuesta. */
+@utility clip-chapa {
+  clip-path: polygon(
+    0 5px, 5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%
+  );
+}
+
+/** Texto grabado en metal: sombra arriba, filo de luz abajo. SIN desenfoque
+ *  —es pintura directa, no promueve capa— y SOLO de 14 px para arriba: por
+ *  debajo, el filo claro engorda el glifo en vez de hundirlo y le come el
+ *  contraste al borde. */
+@utility grabado {
+  text-shadow: 0 -1px 0 rgb(0 0 0 / 0.55), 0 1px 0 rgb(255 255 255 / 0.07);
+}
+
+/** Foco de teclado sobre una chapa recortada.
+ *
+ *  Va en el ENVOLTORIO y no en el botón, y no es un capricho: `clip-path`
+ *  recorta el `outline` del propio elemento, así que cualquier anillo dibujado
+ *  sobre la chapa sencillamente no existe. El envoltorio no lleva recorte, así
+ *  que su outline sí se ve. */
+@utility chapa-foco {
+  display: inline-flex;
+  border-radius: 4px;
+}
+
 /* Octágono para los íconos de módulo. */
 @utility clip-oct {
   clip-path: polygon(

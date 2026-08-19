@@ -30,13 +30,14 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { Trophy, RefreshCw, Swords, Medal, Info, TrendingUp } from 'lucide-react'
+import { Trophy, RefreshCw, Swords, Info, TrendingUp } from 'lucide-react'
 import {
   getRankingUnificado, recordDe, miPosicion, REGLA_PUNTOS, type FilaRanking,
 } from '../../services/rankingUnificado'
 import { getGlobalLeaderboard, type GlobalLeaderboardEntry } from '../../services/sync'
 import { useAuth } from '../../hooks/useAuth'
 import { Avatar } from '../../components/ui/Avatar'
+import { colorDePersona } from '../../services/avatars'
 import { IconXp } from '../../components/icons/SWUIcons'
 
 /** Nombres que en realidad son un uid perdido. */
@@ -46,12 +47,67 @@ function nombreLimpio(nombre: string): string {
   return nombre
 }
 
-const ANILLO_PODIO = ['ring-2 ring-amber-400', 'ring-2 ring-slate-300', 'ring-2 ring-amber-700']
-const CHAPA_PODIO = [
-  'bg-amber-400/20 text-amber-300',
-  'bg-slate-300/20 text-slate-200',
-  'bg-amber-700/20 text-amber-500',
-]
+/* ══════════════════════════════════════════════════════════════════════════
+   EL MATERIAL — la credencial traducida a CSS
+
+   Los degradados están copiados parada por parada de DefsCredencial, pero como
+   `background-image` en vez de filtros SVG. Un degradado es pintura directa:
+   no promueve capa de composición. Un filtro sí, y acá hay hasta 25 filas —
+   en la credencial el especular está limitado al nivel 11+ justamente por lo
+   que cuesta, y ahí hay UNA placa en pantalla.
+
+   Regla que gobierna todo esto: UN solo efecto caro por PANTALLA, nunca por
+   fila.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/** El barniz de toda chapa: claro arriba, oscuro abajo. */
+const LUSTRE =
+  'linear-gradient(160deg, rgba(255,255,255,.16), rgba(255,255,255,.03) 42%,' +
+  ' rgba(0,0,0,.06) 60%, rgba(0,0,0,.28))'
+
+/** El sustituto honesto del filtro `cepillo`. feTurbulence se genera en CPU
+ *  sobre toda la superficie; esto es una veta REGULAR en vez de aleatoria, y a
+ *  50 px de alto nadie nota la diferencia. Cuesta cero. */
+const VETA = 'repeating-linear-gradient(0deg, rgba(255,255,255,.035) 0 1px, transparent 1px 3px)'
+
+/** El tinte irisado del laminado. Opacidades bajas a propósito: un tinte que
+ *  cambia, no un arcoíris. Solo la placa del primero. */
+const PRISMA =
+  'linear-gradient(115deg, rgba(255,77,109,.12), rgba(255,209,102,.12) 22%,' +
+  ' rgba(76,201,240,.12) 44%, rgba(138,201,38,.10) 62%, rgba(184,146,255,.14) 80%,' +
+  ' rgba(255,77,109,.12))'
+
+/** Cara de una placa cualquiera. */
+const CARA: React.CSSProperties = {
+  backgroundColor: 'var(--color-swu-surface)',
+  backgroundImage: `${LUSTRE}, ${VETA}`,
+}
+
+/** Tu propia fila. Lleva TINTE, no destello: el destello del laminado es una
+ *  franja diagonal que cae justo encima del nombre —medido: en una fila de
+ *  341 px el eje de 100° pone la banda clara en x≈131-189, que es donde vive
+ *  el nombre— y le come el contraste. */
+const CARA_YO: React.CSSProperties = {
+  backgroundColor: 'color-mix(in srgb, var(--color-swu-accent) 12%, var(--color-swu-surface))',
+  backgroundImage: `${LUSTRE}, ${VETA}`,
+}
+
+/** La del primero. */
+const CARA_ORO: React.CSSProperties = {
+  backgroundColor: 'var(--color-swu-surface)',
+  backgroundImage: `${PRISMA}, ${LUSTRE}, ${VETA}`,
+}
+
+/**
+ * El canto de la placa: el div de abajo del sándwich, que asoma 1 px.
+ *
+ * Tiene que llegar a 3:1 contra el fondo de página o la placa no se ve como
+ * placa. Medido contra #181825: #2A2A3C da 1,25 · #454560 da 1,90 · #62628F
+ * da 3,06. Por eso el canto neutro es una mezcla al 55% con `muted` y no un
+ * borde tenue como el resto de la app.
+ */
+const CANTO_NEUTRO = 'color-mix(in srgb, var(--color-swu-muted) 55%, var(--color-swu-bg))'
+const CANTO_PODIO = ['var(--color-swu-amber)', 'var(--color-swu-muted)', 'var(--color-swu-accent)']
 
 const VENTANAS = [
   { dias: null as number | null, etiqueta: 'Siempre' },
@@ -108,7 +164,7 @@ export function RankingPage() {
         <button
           onClick={() => void cargar()}
           aria-label="Actualizar"
-          className="rounded-xl border border-swu-border p-2 text-swu-muted active:scale-95"
+          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-swu-border text-swu-muted active:scale-95"
         >
           <RefreshCw size={15} className={cargando ? 'animate-spin' : ''} />
         </button>
@@ -131,7 +187,7 @@ export function RankingPage() {
               <button
                 key={v.etiqueta}
                 onClick={() => setDias(v.dias)}
-                className={`flex-1 rounded-xl px-2 py-1.5 text-[11px] font-bold transition-colors ${
+                className={`min-h-[44px] flex-1 rounded-xl px-2 text-[12px] font-bold transition-colors ${
                   dias === v.dias
                     ? 'bg-swu-accent text-swu-accent-fg'
                     : 'border border-swu-border text-swu-muted'
@@ -246,7 +302,7 @@ function Pestana({ activa, onClick, icono, texto }: {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold transition-colors ${
+      className={`flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-bold transition-colors ${
         activa ? 'bg-swu-accent text-swu-accent-fg' : 'border border-swu-border text-swu-muted'
       }`}
     >
@@ -255,13 +311,105 @@ function Pestana({ activa, onClick, icono, texto }: {
   )
 }
 
-/** La etiqueta de quien jugó pero no tiene cuenta. No es un error: es la
- *  mitad del torneo real, y esconderlos dejaría al campeón fuera. */
-function SinCuenta() {
+/**
+ * Sello de quien jugó pero no tiene cuenta.
+ *
+ * NO cambia el MATERIAL de la placa, y esa fue la corrección más importante
+ * del diseño: el acabado se gana por PUESTO, nunca por estar registrado. Hoy
+ * el campeón real del torneo no tiene cuenta — degradarle la placa por eso
+ * diría exactamente lo contrario de lo que el ranking quiere decir.
+ */
+function SelloSinCuenta() {
   return (
-    <span className="rounded-full bg-swu-bg px-1.5 py-0.5 text-[8px] font-bold text-swu-muted">
+    <span
+      className="clip-chapa shrink-0 px-1.5 py-0.5 text-[11px] font-bold tracking-wide text-swu-muted"
+      style={{ backgroundColor: 'var(--color-swu-bg)' }}
+    >
       sin cuenta
     </span>
+  )
+}
+
+/** «Sos vos», con PALABRAS y no solo con color: una fila teñida no dice nada
+ *  a un lector de pantalla ni a quien no distingue ese tono. */
+function SelloVos() {
+  return (
+    <span
+      // Tinta de acento sobre fondo oscuro, y NO al revés: medido, el texto
+      // `accent-fg` sobre `accent` da 3,92:1 a 11 px, por debajo del 4,5
+      // que pide un texto normal. Así se va a 7 y pico.
+      className="clip-chapa shrink-0 px-1.5 py-0.5 text-[11px] font-bold tracking-wide text-swu-accent-texto"
+      style={{ backgroundColor: 'var(--color-swu-bg)' }}
+    >
+      vos
+    </span>
+  )
+}
+
+/**
+ * El sándwich de la placa: el div de afuera es el CANTO —asoma 1 px— y el de
+ * adentro la cara. Hacen falta los dos porque `clip-path` se come el `border`
+ * y la sombra exterior del propio elemento: un borde normal sencillamente no
+ * se dibujaría.
+ */
+function Placa({ canto, cara, forma, children, marcada }: {
+  canto: string
+  cara: React.CSSProperties
+  forma: 'clip-placa' | 'clip-placa-podio'
+  children: React.ReactNode
+  marcada?: boolean
+}) {
+  return (
+    <div className={`${forma} p-px`} style={{ backgroundColor: canto }} aria-current={marcada ? 'true' : undefined}>
+      <div className={`${forma} h-full w-full`} style={cara}>{children}</div>
+    </div>
+  )
+}
+
+/** El avatar con su anillo de identidad. El anillo va POR DENTRO (`inset`):
+ *  uno exterior lo recortaría el clip-path. Sigue siendo el mismo
+ *  `colorDePersona` con que se reconoce a alguien en el resto de la app. */
+function Retrato({ fila, size }: { fila: FilaRanking; size: number }) {
+  const anillo = colorDePersona(fila.clave)
+  return (
+    <div
+      className="flex shrink-0 items-center justify-center overflow-hidden rounded-full"
+      style={{ width: size, height: size, boxShadow: `inset 0 0 0 2px ${anillo}` }}
+    >
+      {fila.avatar ? (
+        <Avatar avatar={fila.avatar} size={size} caja="circulo" />
+      ) : (
+        /* Quien no tiene cuenta no tiene avatar, y son 3 de cada 10 filas: sin
+           esto la ventana queda como un agujero negro y parece que faltó
+           cargar algo. Va la inicial grabada, con el mismo anillo de color que
+           todos —el color sale de la clave, no del perfil— así que sigue
+           siendo la misma persona reconocible. */
+        <span
+          className="grabado font-mono font-bold text-swu-muted"
+          style={{ fontSize: Math.round(size * 0.45) }}
+          aria-hidden
+        >
+          {nombreLimpio(fila.nombre).charAt(0).toUpperCase()}
+        </span>
+      )}
+    </div>
+  )
+}
+
+/** La banda de la credencial, acá bajo los puntos. Va con LUSTRE y nunca con
+ *  el degradado cromado: medido parada por parada, el cromo deja el texto
+ *  entre 1,13:1 y 1,74:1 en la franja del medio, que es justo donde cae un
+ *  número grande. */
+function Puntos({ valor, grande }: { valor: number; grande?: boolean }) {
+  return (
+    <div
+      className={`clip-chapa shrink-0 ${grande ? 'w-full py-0.5 text-center' : 'px-2.5 py-1'}`}
+      style={{ backgroundColor: 'var(--color-swu-bg)', backgroundImage: LUSTRE }}
+    >
+      <span className={`grabado font-mono font-bold leading-none text-swu-text ${grande ? 'text-[17px]' : 'text-[15px]'}`}>
+        {valor}
+      </span>
+    </div>
   )
 }
 
@@ -269,51 +417,103 @@ function Podio({ fila, puesto, grande, soyYo }: {
   fila: FilaRanking; puesto: number; grande: boolean; soyYo: boolean
 }) {
   return (
-    <div className="flex flex-col items-center gap-1">
-      <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${CHAPA_PODIO[puesto]}`}>
-        #{puesto + 1}
-      </span>
-      <div className={`rounded-full ${ANILLO_PODIO[puesto]} bg-swu-bg p-0.5`}>
-        <Avatar avatar={fila.avatar || ''} size={grande ? 64 : 48} caja="circulo" anillo={fila.clave} />
+    <Placa canto={CANTO_PODIO[puesto]} cara={puesto === 0 ? CARA_ORO : CARA}
+           forma="clip-placa-podio" marcada={soyYo}>
+      <div className={`flex flex-col items-center gap-1 px-2 pb-2 ${grande ? 'pt-4' : 'pt-3'}`}>
+        <span className="grabado font-mono text-[11px] font-extrabold text-swu-muted">{puesto + 1}</span>
+        <Retrato fila={fila} size={grande ? 60 : 46} />
+        <p className="max-w-[92px] truncate text-center text-[12px] font-bold text-swu-text">
+          {nombreLimpio(fila.nombre)}
+        </p>
+        <div className="w-full px-1"><Puntos valor={fila.puntos} grande /></div>
+        <span className="font-mono text-[11px] text-swu-muted">{recordDe(fila)}</span>
+        {!fila.userId && <SelloSinCuenta />}
+        {soyYo && <SelloVos />}
       </div>
-      <p className={`max-w-[92px] truncate text-center text-[11px] font-bold ${soyYo ? 'text-swu-accent-texto' : 'text-swu-text'}`}>
-        {nombreLimpio(fila.nombre)}
-      </p>
-      <div className="flex items-center gap-0.5">
-        <Medal size={10} className="text-swu-accent-texto" />
-        <span className="text-[10px] font-bold text-swu-accent-texto">{fila.puntos} pts</span>
-      </div>
-      <span className="font-mono text-[9px] text-swu-muted">{recordDe(fila)}</span>
-      {!fila.userId && <SinCuenta />}
-    </div>
+    </Placa>
   )
 }
 
 function Fila({ fila, puesto, soyYo }: { fila: FilaRanking; puesto: number; soyYo: boolean }) {
   return (
-    <div
-      className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 ${
-        soyYo ? 'border border-swu-accent/30 bg-swu-accent/10' : 'border border-swu-border bg-swu-surface/60'
-      }`}
-    >
-      <span className="w-7 text-center font-mono text-sm font-extrabold text-swu-muted">{puesto}</span>
-      <Avatar avatar={fila.avatar || ''} size={32} caja="circulo" anillo={fila.clave} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <p className={`truncate text-xs font-bold ${soyYo ? 'text-swu-accent-texto' : 'text-swu-text'}`}>
-            {nombreLimpio(fila.nombre)}
+    <Placa canto={soyYo ? 'var(--color-swu-accent)' : CANTO_NEUTRO}
+           cara={soyYo ? CARA_YO : CARA} forma="clip-placa" marcada={soyYo}>
+      <div className="flex min-h-[50px] items-center gap-3 py-2 pl-4 pr-3">
+        <span className="grabado w-7 shrink-0 text-center font-mono text-sm font-extrabold text-swu-muted">
+          {puesto}
+        </span>
+        <Retrato fila={fila} size={32} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            {/* En caja baja a propósito. La credencial va en versalitas porque
+                son seis datos cortos; 25 nombres en mayúsculas son un muro que
+                cuesta escanear, y el ranking se consulta, no se contempla. */}
+            <p className={`truncate text-[13px] font-bold ${soyYo ? 'text-swu-accent-texto' : 'text-swu-text'}`}>
+              {nombreLimpio(fila.nombre)}
+            </p>
+            {!fila.userId && <SelloSinCuenta />}
+            {soyYo && <SelloVos />}
+          </div>
+          <p className="font-mono text-[11px] text-swu-muted">
+            {recordDe(fila)}
+            {fila.torneos > 0 && ` · ${fila.torneos} torneo${fila.torneos > 1 ? 's' : ''}`}
+            {fila.amistosas > 0 && ` · ${fila.amistosas} amistosa${fila.amistosas > 1 ? 's' : ''}`}
           </p>
-          {!fila.userId && <SinCuenta />}
         </div>
-        {/* De dónde salen sus puntos, en una línea. Es lo que faltaba: antes
-            el número no decía de qué era. */}
-        <p className="font-mono text-[9px] text-swu-muted">
-          {recordDe(fila)}
-          {fila.torneos > 0 && ` · ${fila.torneos} torneo${fila.torneos > 1 ? 's' : ''}`}
-          {fila.amistosas > 0 && ` · ${fila.amistosas} amistosa${fila.amistosas > 1 ? 's' : ''}`}
-        </p>
+        <Puntos valor={fila.puntos} />
       </div>
-      <span className="font-mono text-sm font-extrabold text-swu-accent-texto">{fila.puntos}</span>
+    </Placa>
+  )
+}
+
+/**
+ * Banco del ranking. Solo desarrollo (`/banco-ranking`).
+ *
+ * La pantalla real vive detrás de la sesión, así que no había forma de mirarla
+ * ni de medirle el contraste sin una cuenta. Acá se pinta con los datos REALES
+ * de producción —incluido el caso que rompe cualquier diseño ingenuo: el
+ * primero no tiene cuenta— para poder verificar en el navegador.
+ *
+ * Se cae del bundle de producción: `import.meta.env.DEV` es un literal y el
+ * empaquetador poda la rama entera (mismo patrón que BancoCredencial).
+ */
+const BANCO: FilaRanking[] = [
+  { clave: 'nombre:marlin', nombre: 'Marlin', userId: null, avatar: null, puntos: 9, victorias: 3, derrotas: 0, empates: 0, torneos: 1, amistosas: 0 },
+  { clave: 'u2', nombre: 'iNelo', userId: 'u2', avatar: 'boba-fett', puntos: 6, victorias: 2, derrotas: 1, empates: 0, torneos: 1, amistosas: 0 },
+  { clave: 'u3', nombre: 'Jbeltramirez', userId: 'u3', avatar: 'darth-vader', puntos: 6, victorias: 2, derrotas: 1, empates: 0, torneos: 1, amistosas: 0 },
+  { clave: 'u4', nombre: 'Vara', userId: 'u4', avatar: 'r2d2', puntos: 6, victorias: 2, derrotas: 1, empates: 0, torneos: 1, amistosas: 0 },
+  { clave: 'u5', nombre: 'Nelson', userId: 'u5', avatar: 'jedi-order', puntos: 4, victorias: 1, derrotas: 1, empates: 1, torneos: 1, amistosas: 0 },
+  { clave: 'nombre:erasmo', nombre: 'Erasmo', userId: null, avatar: null, puntos: 3, victorias: 1, derrotas: 2, empates: 0, torneos: 1, amistosas: 0 },
+  { clave: 'u7', nombre: 'Satou02', userId: 'u7', avatar: 'stormtrooper', puntos: 1, victorias: 1, derrotas: 0, empates: 0, torneos: 0, amistosas: 1 },
+  { clave: 'u8', nombre: 'LuisG05', userId: 'u8', avatar: 'phasma', puntos: 1, victorias: 0, derrotas: 2, empates: 1, torneos: 1, amistosas: 0 },
+  { clave: 'nombre:cesar', nombre: 'Cesar', userId: null, avatar: null, puntos: 0, victorias: 0, derrotas: 3, empates: 0, torneos: 1, amistosas: 0 },
+  { clave: 'u10', nombre: 'WayoMendoza', userId: 'u10', avatar: 'c3po', puntos: 0, victorias: 0, derrotas: 1, empates: 0, torneos: 0, amistosas: 1 },
+]
+
+export function BancoRanking() {
+  const podio = BANCO.slice(0, 3)
+  const resto = BANCO.slice(3)
+  // «Yo» es el quinto: así se ve la fila propia en medio de la lista.
+  const miClave = 'u5'
+  return (
+    <div className="mx-auto max-w-3xl space-y-4 p-4 pb-24">
+      <p className="text-xs font-mono tracking-wider text-swu-muted">BANCO DEL RANKING · datos reales</p>
+      <div className="rounded-2xl border border-swu-accent/20 bg-gradient-to-br from-swu-accent/10 to-transparent p-4">
+        <p className="mb-3 text-center text-[10px] font-black uppercase tracking-[0.2em] text-swu-accent-texto">
+          Consejo Jedi
+        </p>
+        <div className="flex items-end justify-center gap-3">
+          {[1, 0, 2].map((i) => podio[i] && (
+            <Podio key={podio[i].clave} fila={podio[i]} puesto={i}
+                   grande={i === 0} soyYo={podio[i].clave === miClave} />
+          ))}
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        {resto.map((f, i) => (
+          <Fila key={f.clave} fila={f} puesto={i + 4} soyYo={f.clave === miClave} />
+        ))}
+      </div>
     </div>
   )
 }

@@ -84,6 +84,10 @@ export function esStandalone(): boolean {
  *   pared delante mata la cadena que queremos que corra.
  */
 const RUTAS_LIBRES = [
+  // Los bancos son solo de desarrollo y se podan del bundle de producción.
+  // Van libres porque la puerta hacía imposible revisar un diseño MÓVIL en un
+  // teléfono: tapaba justo la pantalla que hay que mirar.
+  /^\/banco-/,
   /^\/overlay\//,
   /^\/estudio/,
   /^\/events\/live\//,

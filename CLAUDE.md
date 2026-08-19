@@ -941,3 +941,49 @@ capas) y es de una sola vez.
 `getBoundingClientRect`, que bajo una rotación 3D devuelve la caja
 **proyectada**. Si inclinás la tarjeta a mano y medís, salen siete choques
 falsos. Hay que medir con la placa de frente.
+
+### 3f. El ranking con el lenguaje de la placa: qué se traslada y qué NO
+
+La gramática de la credencial se REDIBUJA, no se encoge. La placa es un path en
+un viewBox de 512×320; a la altura de una fila el factor es 0,175 y una muesca
+de 10 unidades mide 1,7 px, o sea nada. Se conserva la REGLA —ninguna esquina
+de 90°, todo escalón entre 5 y 14 px REALES— y por eso las siluetas
+(`clip-placa`, `clip-placa-podio`, `clip-chapa` en index.css) van en px y no
+en %: un % estira los escalones con el ancho.
+
+**Cero filtros SVG por fila.** Los materiales son `background-image` con
+degradados copiados parada por parada de `DefsCredencial`. Un degradado es
+pintura directa; un filtro promueve capa de composición, y acá hay hasta 25
+filas — en la credencial el especular está limitado al nivel 11+ justamente
+por lo que cuesta, y ahí hay UNA placa en pantalla. Regla: **un solo efecto
+caro por PANTALLA, nunca por fila**.
+
+**`clip-path` se come el `border`, la sombra EXTERIOR y el `outline` de foco
+del propio elemento.** De ahí el sándwich de dos divs (`p-px`: el de abajo es
+el canto) y que el foco tenga que ir en un envoltorio sin recorte. Sí crea
+contexto de apilado, aunque no capa de composición.
+
+**El acabado se gana por PUESTO, nunca por tener cuenta.** Es la corrección
+más importante del diseño: hoy el campeón real del torneo no está registrado.
+Quien no tiene cuenta lleva su INICIAL grabada en el retrato, con el mismo
+anillo `colorDePersona` que todos —son 3 de cada 10 filas y sin eso la ventana
+queda como un agujero negro.
+
+Lo que se descartó y por qué:
+- **Texto sobre el degradado cromado.** Medido parada por parada, deja la tinta
+  entre 1,13:1 y 1,74:1 en la franja del medio, que es justo donde cae un
+  número grande. Las bandas de puntos van con LUSTRE.
+- **El destello diagonal en la fila propia.** En una fila de 341 px el eje de
+  100° pone la banda clara en x≈131-189: exactamente encima del nombre.
+- **Los nombres en versalitas.** La credencial va en caja alta porque son seis
+  datos cortos; 25 nombres en mayúsculas son un muro que cuesta escanear.
+- **La sublínea Aurebesh y el código de barras por fila.** ~250 `<path>` de 5 px
+  de alto es pelusa gris.
+- **Reusar el vocabulario de acabados del nivel** (prisma, kyber, halo) para el
+  puesto: las mismas palabras significarían dos cosas en dos pantallas.
+
+Medido en el banco (`/banco-ranking`, solo desarrollo, con los datos reales):
+**41 textos, ninguno por debajo de 11 px y ninguno por debajo del mínimo de
+contraste; el peor es 5,8:1.** Los bancos están en `rutaLibre` porque la puerta
+de instalación tapaba justo la pantalla que hay que mirar para revisar un
+diseño móvil.
