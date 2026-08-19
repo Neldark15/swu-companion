@@ -377,7 +377,15 @@ export function Articulo({ contenido }: { contenido: string }) {
       if (src) {
         bloques.push(
           <figure key={`f${i}`} className="my-7 -mx-4 sm:mx-0">
-            <img src={src} alt={img[1]} loading="lazy" className="w-full sm:rounded-xl" />
+            {/* `max-w-full` y NO `w-full`: con `w-full` toda imagen se estira
+                al ancho del artículo, y una que sea más chica —un logo de 170
+                px, un ícono, un recorte— se agranda 3 o 4 veces y sale
+                borrosa. Así una imagen grande sigue encogiéndose para caber y
+                una chica se queda en su tamaño real, centrada. */}
+            <img
+              src={src} alt={img[1]} loading="lazy"
+              className="mx-auto block h-auto max-w-full sm:rounded-xl"
+            />
             {img[1] && (
               <figcaption className="text-[11px] text-swu-muted text-center mt-2 px-4">{img[1]}</figcaption>
             )}
