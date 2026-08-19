@@ -35,7 +35,7 @@ const secondaryNav: NavItem[] = [
   { id: '/news', label: 'Noticias', sub: 'Agenda de torneos', icon: NewspaperIcon },
   { id: '/meta', label: 'Meta', sub: 'Torneos y matchups', icon: MetaIcon },
   { id: '/community', label: 'Comunidades', sub: 'Galaxia', icon: RebelIcon },
-  { id: '/rank', label: 'Consejo Jedi', sub: 'Leaderboard', icon: BeskarIcon },
+  { id: '/rank', label: 'Ranking', sub: 'Quién gana partidas', icon: BeskarIcon },
   { id: '/cards', label: 'Buscar Cartas', sub: 'Base de datos', icon: HolonetIcon },
   { id: '/envivo', label: 'En Vivo', sub: 'Transmisión de torneos', icon: RadioTower },
   { id: '/rulings', label: 'Rulings', sub: 'Reglamento del juego', icon: Scale },

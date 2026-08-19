@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { getRankingUnificado, recordDe, REGLA_PUNTOS, type FilaRanking } from '../../services/rankingUnificado'
 import { useNavigate } from 'react-router-dom'
 import {
   Users, Send, Heart, Trash2, Trophy, Award, Tag, Sparkles,
@@ -28,7 +29,6 @@ import {
   type PostType,
 } from '../../services/communityService'
 import { ProfileFrame } from '../profile/components/ProfileFrame'
-import { calculateLevel } from '../../services/gamification'
 import { diaMes } from '../../services/horaSV'
 import { Avatar } from '../../components/ui/Avatar'
 
@@ -76,6 +76,8 @@ export function CommunityPage() {
   const { currentProfile, supabaseUser } = useAuth()
 
   const [members, setMembers] = useState<CommunityMember[]>([])
+  /** El top del ranking REAL, la misma fuente que /rank. */
+  const [ranking, setRanking] = useState<FilaRanking[]>([])
   const [posts, setPosts] = useState<CommunityPost[]>([])
   const [loading, setLoading] = useState(true)
   const [composerOpen, setComposerOpen] = useState(false)
@@ -100,6 +102,16 @@ export function CommunityPage() {
     // el cuerpo del efecto encadena un render antes de que React pinte.
     void (async () => { await load() })()
   }, [load])
+
+  // El top del ranking, de la misma fuente que /rank.
+  useEffect(() => {
+    let vivo = true
+    void (async () => {
+      const r = await getRankingUnificado(null)
+      if (vivo && r.ok) setRanking(r.datos)
+    })()
+    return () => { vivo = false }
+  }, [])
 
   // Realtime: los posts nuevos entran solos, sin recargar
   useEffect(() => {
@@ -153,7 +165,7 @@ export function CommunityPage() {
     if (ok) setPosts(prev => prev.filter(p => p.id !== postId))
   }
 
-  const topMembers = members.slice(0, 5)
+  const topRanking = ranking.slice(0, 5)
 
   return (
     <div className="p-4 lg:p-6 space-y-4 pb-8 max-w-5xl mx-auto">
@@ -168,8 +180,13 @@ export function CommunityPage() {
         </p>
       </header>
 
-      {/* ── Ranking compacto ── */}
-      {topMembers.length > 0 && (
+      {/* ── Top del ranking ──
+          ANTES ACÁ HABÍA OTRO «CONSEJO JEDI» y ordenaba por XP, mientras que
+          el «Consejo Jedi» del menú (/rank) ordenaba por torneos. Mismo
+          nombre, mismos jugadores, distinto orden — y un botón «Ranking
+          completo» que hacía creer que uno era la versión larga del otro.
+          Ahora los dos leen la MISMA fuente: `ranking_unificado()`. */}
+      {topRanking.length > 0 && (
         <section className="bg-swu-surface rounded-2xl border border-swu-border p-3">
           <div className="flex items-center justify-between mb-2.5">
             <span className="text-[10px] uppercase tracking-wider text-swu-muted font-bold flex items-center gap-1.5">
@@ -183,32 +200,33 @@ export function CommunityPage() {
             </button>
           </div>
           <div className="space-y-1">
-            {topMembers.map((m, i) => {
-              const lvl = m.level ?? (m.xp ? calculateLevel(m.xp).level : 1)
-              const isMe = m.id === supabaseUser?.id
+            {topRanking.map((f, i) => {
+              const isMe = f.userId != null && f.userId === supabaseUser?.id
               return (
                 <button
-                  key={m.id}
-                  onClick={() => navigate(`/u/${m.id}`)}
+                  key={f.clave}
+                  onClick={() => { if (f.userId) navigate(`/u/${f.userId}`) }}
+                  disabled={!f.userId}
                   className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-left transition-colors ${
                     isMe ? 'bg-swu-accent/10 border border-swu-accent/25' : 'hover:bg-swu-bg/60'
-                  }`}
+                  } ${f.userId ? '' : 'cursor-default'}`}
                 >
                   <span className={`w-5 text-center text-xs font-extrabold font-mono ${
                     i === 0 ? 'text-swu-amber' : i === 1 ? 'text-swu-muted' : i === 2 ? 'text-orange-400' : 'text-swu-muted/50'
                   }`}>{i + 1}</span>
-                  <MemberAvatar avatar={m.avatar} level={lvl} size={28} />
+                  <MemberAvatar avatar={f.avatar ?? ''} level={1} size={28} />
                   <span className="flex-1 min-w-0 text-sm text-swu-text truncate">
-                    {m.name}{isMe && <span className="text-[10px] text-swu-accent-texto ml-1">(vos)</span>}
+                    {f.nombre}{isMe && <span className="text-[10px] text-swu-accent-texto ml-1">(vos)</span>}
                   </span>
-                  <span className="text-[10px] text-swu-muted font-mono">Nv{lvl}</span>
-                  <span className="text-xs font-bold text-swu-accent-texto font-mono w-14 text-right">
-                    {(m.xp ?? 0).toLocaleString()}
+                  <span className="text-[10px] text-swu-muted font-mono">{recordDe(f)}</span>
+                  <span className="text-xs font-bold text-swu-accent-texto font-mono w-10 text-right">
+                    {f.puntos}
                   </span>
                 </button>
               )
             })}
           </div>
+          <p className="mt-2 text-[9px] text-swu-muted">{REGLA_PUNTOS}</p>
         </section>
       )}
 

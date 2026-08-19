@@ -15,7 +15,7 @@ function getPageTitle(pathname: string): string {
   if (pathname === '/') return 'Base'
   if (pathname.startsWith('/play')) return 'Duelo'
   if (pathname.startsWith('/events')) return 'Torneos'
-  if (pathname.startsWith('/rank')) return 'Consejo Jedi'
+  if (pathname.startsWith('/rank')) return 'Ranking'
   if (pathname.startsWith('/arena')) return 'Holocrón'
   if (pathname.startsWith('/amistosas')) return 'Amistosas'
   if (pathname.startsWith('/torneos')) return 'Torneos'

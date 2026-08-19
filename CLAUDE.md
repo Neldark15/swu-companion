@@ -816,3 +816,44 @@ La firma `swusv.com` va DENTRO de la placa, sobre su propia plaquita oscura: un
 texto blanco al 45% desaparece en los dos temas de chapa clara, y una imagen
 reenviada pierde el texto que la acompañaba — sin la firma, la tarjeta no puede
 traer a nadie de vuelta.
+
+### 3c. El ranking es UNO, y mide jugar
+
+Había **14 tablas de posiciones** y **6 sistemas de puntos** que no hablaban
+entre sí. Medido en producción antes de tocar nada:
+
+- El primero del «ranking» tenía **3180 puntos con CERO partidas jugadas** —le
+  venían de 2900 cartas registradas y 8 logros—, y el que ganó el torneo real
+  3-0 **no aparecía en el top 6**. La suma de `matches_played` de los 25
+  perfiles era **2**. O sea que la tabla titulada «Mejores Jugadores del Juego»
+  ordenaba por coleccionar.
+- El número grande de la lista era `torneos*1000 + victorias*100 + xp`: una
+  fórmula que **no existía en ninguna tabla ni en ningún servicio**, inventada
+  en la línea que la pintaba.
+- **«Consejo Jedi» nombraba DOS tablas distintas**: la de `/community` ordenaba
+  por XP y la de `/rank` por torneos. Mismos jugadores, distinto orden, y un
+  botón «Ranking completo» que hacía creer que una era la versión larga de la
+  otra.
+- `MonthlyRank` (194 líneas) era un TERCER nombre para la pestaña Mensual y **no
+  estaba montado en ninguna ruta**.
+
+Ahora: `ranking_unificado()` es la única fuente. Sale de `tournament_standings`
+y de las amistosas en estado `confirmada` — las dos únicas tablas donde hay
+partidas de verdad. **3 por victoria en torneo, 1 por empate, 1 por victoria en
+amistosa**; la amistosa vale menos porque la anota el propio jugador, y vale
+algo porque el rival tiene que confirmarla.
+
+**Los jugadores sin cuenta entran.** En el torneo real 3 de 8 no estaban
+enlazados a un perfil, entre ellos el ganador; se agrupan por nombre
+normalizado (`'nombre:'||lower(trim(player_name))`) y el día que se registren su
+historial se une solo. Un ranking que se come al campeón no lo cree nadie.
+
+Reglas que quedan, para no volver atrás:
+- El XP **no es un ranking**. Vive en la pestaña «Progreso» de `/rank` con un
+  cartel que dice literalmente «Esto no es el ranking».
+- Las seis listas de `/galaxy` se llaman **«Estadísticas»**, no «Rankings».
+- El número de puesto del «Explorador» va **sin oro/plata/bronce**:
+  `consultarGalaxyPlayers()` no tiene `.order()`, así que ese número es el orden
+  que devolvió la base y cambia al escribir en el buscador.
+- «Consejo Jedi» sobrevive **solo** como el título del podio de los tres
+  primeros de esa única tabla.

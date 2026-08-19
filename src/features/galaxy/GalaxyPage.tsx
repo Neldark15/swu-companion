@@ -111,14 +111,14 @@ function PlayerCard({ player, rank, onView }: PlayerCardProps) {
                  transition-all text-left w-full group"
     >
       <div className="flex items-start gap-3">
-        {/* Rank badge */}
+        {/* Número de puesto. Va SIN oro/plata/bronce a propósito: en el
+            Explorador este número no es un puesto —`consultarGalaxyPlayers()`
+            no tiene `.order()`, así que es el orden que devolvió la base y
+            cambia al escribir en el buscador—. Pintarlo de dorado hacía creer
+            que el primero era el mejor de la comunidad. El ranking de verdad
+            está en /rank. */}
         {rank !== undefined && (
-          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-1
-            ${rank === 1 ? 'bg-yellow-500/20 text-yellow-400' :
-              rank === 2 ? 'bg-gray-400/20 text-gray-300' :
-              rank === 3 ? 'bg-amber-600/20 text-amber-500' :
-              'bg-swu-bg text-swu-muted'}`}
-          >
+          <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-1 bg-swu-bg text-swu-muted">
             {rank}
           </div>
         )}
@@ -356,8 +356,17 @@ function MapTab({ players, stats }: MapTabProps) {
 
 // ─── Main Page ────────────────────────────────────────────
 
+/**
+ * Las seis listas de la pestaña «Estadísticas».
+ *
+ * ANTES ESTO SE LLAMABA «Rankings», y ese era medio problema: seis tablas con
+ * seis criterios, ninguna era EL ranking, y cuatro de las seis ordenaban por
+ * usar la app (XP, colección, logros) y no por jugar. Ahora son estadísticas
+ * de la comunidad, que es lo que siempre fueron; el ranking está en /rank y
+ * es uno solo.
+ */
 const RANKING_TABS: { id: RankingCategory; label: string; icon: React.ReactNode; description: string }[] = [
-  { id: 'xp', label: 'XP Total', icon: <Zap size={13} />, description: 'Experiencia acumulada' },
+  { id: 'xp', label: 'XP Total', icon: <Zap size={13} />, description: 'Experiencia por usar la app' },
   { id: 'wins', label: 'Victorias', icon: <Swords size={13} />, description: 'Duelos ganados' },
   { id: 'tournaments', label: 'Torneos', icon: <Trophy size={13} />, description: 'Torneos completados' },
   { id: 'streak', label: 'Racha', icon: <Flame size={13} />, description: 'Mejor racha de victorias' },
@@ -642,7 +651,7 @@ export function GalaxyPage() {
             } active={activeTab === 'sala'} onClick={() => setActiveTab('sala')} />
             <TabButton id="explorer" label="Explorador" icon={<Users size={15} />}
               active={activeTab === 'explorer'} onClick={() => setActiveTab('explorer')} />
-            <TabButton id="rankings" label="Rankings" icon={<Trophy size={15} />}
+            <TabButton id="rankings" label="Estadísticas" icon={<Trophy size={15} />}
               active={activeTab === 'rankings'} onClick={() => setActiveTab('rankings')} />
             <TabButton id="activity" label="Actividad" icon={<Activity size={15} />}
               active={activeTab === 'activity'} onClick={() => setActiveTab('activity')} />
@@ -770,11 +779,10 @@ export function GalaxyPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-                {filteredPlayers.map((player, i) => (
+                {filteredPlayers.map((player) => (
                   <PlayerCard
                     key={player.userId}
                     player={player}
-                    rank={i + 1}
                     onView={handleView}
                   />
                 ))}

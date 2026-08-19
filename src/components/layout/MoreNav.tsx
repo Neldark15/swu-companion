@@ -51,7 +51,7 @@ const GROUPS: MoreGroup[] = [
       { to: '/news', label: 'Noticias', sub: 'Agenda de torneos', icon: Newspaper },
       { to: '/meta', label: 'Meta', sub: 'Torneos y matchups', icon: BarChart3 },
       { to: '/community', label: 'Comunidades', sub: 'El Salvador', icon: RebelIcon },
-      { to: '/rank', label: 'Consejo Jedi', sub: 'Clasificación', icon: BeskarIcon },
+      { to: '/rank', label: 'Ranking', sub: 'Quién gana partidas', icon: BeskarIcon },
       // Dos entradas porque son dos trabajos: la Galaxia es MIRAR a la
       // comunidad (quién es quién, qué hizo de último) y el Explorador es
       // BUSCAR dentro de ella (nombre, país, rankings).
