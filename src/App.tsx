@@ -27,7 +27,8 @@ const TournamentPublicView = lazy(() => import('./features/events/TournamentPubl
 const TournamentPlayerView = lazy(() => import('./features/events/TournamentPlayerView').then(m => ({ default: m.TournamentPlayerView })))
 const BlogPage = lazy(() => import('./features/blog/BlogPage').then(m => ({ default: m.BlogPage })))
 const BlogPostPage = lazy(() => import('./features/blog/BlogPostPage').then(m => ({ default: m.BlogPostPage })))
-const BlogEditorPage = lazy(() => import('./features/blog/BlogEditorPage').then(m => ({ default: m.BlogEditorPage })))
+const EstudioBlogPage = lazy(() => import('./features/blog/estudio/EstudioBlogPage').then(m => ({ default: m.EstudioBlogPage })))
+const PreviaArticuloPage = lazy(() => import('./features/blog/estudio/PreviaArticuloPage').then(m => ({ default: m.PreviaArticuloPage })))
 const ManageNewsPage = lazy(() => import('./features/home/ManageNewsPage').then(m => ({ default: m.ManageNewsPage })))
 const NewsPage = lazy(() => import('./features/home/NewsPage').then(m => ({ default: m.NewsPage })))
 const SedesPage = lazy(() => import('./features/venues/SedesPage').then(m => ({ default: m.SedesPage })))
@@ -298,8 +299,9 @@ export default function App() {
             {/* El blog se lee SIN cuenta: es lo primero que ve quien llega
                 desde un enlace compartido. Solo el editor exige sesión. */}
             <Route path="/blog" element={<BlogPage />} />
-            <Route path="/blog/nuevo" element={<P><BlogEditorPage /></P>} />
-            <Route path="/blog/editar/:id" element={<P><BlogEditorPage /></P>} />
+            <Route path="/blog/nuevo" element={<P><EstudioBlogPage /></P>} />
+            <Route path="/blog/editar/:id" element={<P><EstudioBlogPage /></P>} />
+            <Route path="/blog/previa" element={<PreviaArticuloPage />} />
             <Route path="/blog/:slug" element={<BlogPostPage />} />
             <Route path="/news/manage" element={<P><ManageNewsPage /></P>} />
             {/* Cualquier ruta que no exista cae en Inicio.
