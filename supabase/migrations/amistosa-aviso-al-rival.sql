@@ -1,0 +1,45 @@
+-- AVISARLE AL RIVAL que le anotaron una amistosa. Aplicada 2026-08-19.
+--
+-- ── El circuito estaba roto por la mitad ─────────────────────────────
+--
+-- Una amistosa nace PENDIENTE y no se publica hasta que el rival acepte. Eso
+-- está bien y es la regla de §3a: nadie publica la partida de otro. Pero al
+-- rival no le llegaba NADA cuando se la anotaban — ni push, ni correo, ni una
+-- fila en ningún lado. O sea que se le pedía permiso a alguien sin decirle que
+-- se lo estaban pidiendo.
+--
+-- Medido antes de tocar nada: 12 duelos → 8 contra invitados sin cuenta, 3
+-- PENDIENTES y UNO confirmado. Por eso las amistosas de Nel no aparecían en el
+-- perfil de Vara ni de ElDaigo: estaban bien enlazadas, solo que nadie las
+-- había confirmado porque nadie sabía que existían.
+--
+-- ── Se avisa UNA vez, y lo decide Postgres ───────────────────────────
+--
+-- `aviso_en` es el árbitro, mismo patrón que `bienvenida_en` y `diario_en`: la
+-- condición vive en el WHERE del UPDATE, así que no hay ventana entre leer y
+-- escribir. Sin eso, quien anotó el duelo podría llamar al endpoint en bucle y
+-- bombardear al rival — que es justo lo que invita a hacer un endpoint cuyo
+-- destinatario es OTRA persona.
+--
+-- ── Y la propiedad se comprueba en la misma sentencia ────────────────
+--
+-- `creador_id = p_creador` va dentro del UPDATE, no en un `if` de arriba: no
+-- se puede avisar de un duelo ajeno ni aunque se adivine su id.
+--
+-- Probado contra la base real, en transacción revertida:
+--   · el creador de un duelo pendiente  -> devuelve el rival
+--   · el MISMO, otra vez               -> nada (no repite)
+--   · un tercero que no lo anotó       -> nada (rechazado)
+--   · un duelo `sin_rival`             -> nada (no hay a quién)
+--   · un duelo ya confirmado           -> nada
+--
+-- El cuerpo aplicado está en la migración `amistosa_aviso_al_rival`. Lo llama
+-- /api/avisar-amistosa, que es lo único con service_role.
+
+alter table duelos_amistosos add column if not exists aviso_en timestamptz;
+
+-- create or replace function tomar_aviso_amistosa(p_duelo uuid, p_creador uuid)
+--   returns table (rival_id uuid, creador_nombre text) ... (ver migración aplicada)
+--
+-- revoke all ... from public;   <- a PUBLIC, no solo a anon: Postgres concede
+--                                  EXECUTE a PUBLIC en toda función nueva.

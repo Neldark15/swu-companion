@@ -354,7 +354,48 @@ export async function registrarAmistosa(miId: string, d: NuevaAmistosa): Promise
     console.warn('[amistosas] no se pudo anotar el duelo:', error.message)
     return { ok: false, error: error.message }
   }
+
+  // Avisarle al rival. Va DESPUÉS del insert y sin `await` bloqueante: el duelo
+  // ya quedó anotado y un fallo del aviso no puede deshacerlo ni retrasar la
+  // pantalla.
+  //
+  // Existe porque el circuito estaba roto por la mitad: la partida nace
+  // PENDIENTE y no se publica hasta que el rival acepte —eso está bien, §3a—,
+  // pero al rival no le llegaba nada. Medido: de 12 duelos, 3 llevaban
+  // pendientes y 1 confirmado. Se le pedía permiso a alguien sin decirle que se
+  // lo estaban pidiendo.
+  //
+  // Solo tiene sentido con rival CON cuenta: contra un invitado el duelo nace
+  // `sin_rival` y no hay a quién avisarle.
+  if (d.rivalId) void avisarAlRival(fila.id)
+
   return { ok: true }
+}
+
+/**
+ * Le toca el timbre al rival de un duelo recién anotado.
+ *
+ * Todo lo que decide vive en el servidor (`/api/avisar-amistosa`): que el duelo
+ * sea TUYO, que esté pendiente y que no se haya avisado ya. Acá no se comprueba
+ * nada porque nada de lo que se compruebe en el cliente vale.
+ *
+ * Silencioso a propósito. El aviso es un extra: si falla, el duelo sigue
+ * anotado y el rival lo va a ver igual en la franja de Inicio la próxima vez
+ * que abra la app.
+ */
+async function avisarAlRival(dueloId: string): Promise<void> {
+  try {
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (!token) return
+    await fetch('/api/avisar-amistosa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ dueloId }),
+    })
+  } catch {
+    // Sin red, o el endpoint caído. No es asunto de quien anotó el duelo.
+  }
 }
 
 

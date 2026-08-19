@@ -1,0 +1,27 @@
+-- RETIRO DEL HOLOCRÓN DE DUELOS. Aplicada 2026-08-19.
+--
+-- `/arena` y sus cinco pantallas se fueron de la app. El número que cerró la
+-- decisión: `select count(*) from match_logs` = CERO filas, cero autores,
+-- `max(recorded_at)` NULL. En toda la vida de la app nadie registró un combate.
+--
+-- ── Qué NO se hace acá ───────────────────────────────────────────────
+--
+-- NO se dropea `match_logs`. Está vacía, cuesta cero, y un DROP es
+-- irreversible: si aparece un cliente viejo cacheado que intente escribir, es
+-- preferible que escriba a una tabla muerta que que reviente.
+--
+-- Tampoco se toca `player_stats.arena_matches_logged`. Es nullable con default
+-- 0, así que el cliente puede dejar de mandarla sin romper nada, y dropear una
+-- columna de una tabla viva por 4 bytes de cero no vale el riesgo.
+--
+-- ── Lo que sí se quita, y por qué importa ────────────────────────────
+--
+-- La policy `"Public read logs"` era la única grieta contra §3a: dejaba el
+-- nombre del rival y su mazo legibles por CUALQUIERA con solo que el AUTOR
+-- tuviera el perfil público. El rival nunca dio permiso, y ni siquiera tenía
+-- que tener cuenta para aparecer ahí.
+--
+-- Hoy es teórico —no hay filas— pero una policy abierta sobre una tabla que
+-- sigue existiendo es una puerta esperando que alguien la use.
+
+drop policy if exists "Public read logs" on match_logs;
