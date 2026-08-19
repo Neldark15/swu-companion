@@ -27,7 +27,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
-import { enviarPush, pushConfigurado, type SuscripcionPush } from './_push'
+import { enviarPush, pushConfigurado, type SuscripcionPush } from './_push.js'
 
 interface PushTargets {
   userIds?: string[]

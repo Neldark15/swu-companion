@@ -3,7 +3,18 @@
  *
  * El nombre empieza con guion bajo a propósito: Vercel no convierte en función
  * los archivos de `api/` que empiezan así, y por eso este puede exportar
- * ayudantes en vez de un `handler`.
+ * ayudantes en vez de un `handler`. Comprobado en producción: /api/_push da 404.
+ *
+ * ── Y quien lo importe TIENE que escribir `./_push.js` ───────────────
+ *
+ * Con extensión, aunque el archivo sea `.ts`. Vercel compila cada `api/*.ts` a
+ * `.js` y lo corre como ESM, donde el import sin extensión NO resuelve. Los dos
+ * endpoints se desplegaron con `from './_push'`, el build pasó sin una queja y
+ * los dos reventaron al invocarse:
+ *
+ *   Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/api/_push'
+ *
+ * `npm run build` tampoco lo habría cazado: no comprueba `api/` (ver CLAUDE.md).
  *
  * ── Por qué no lo llama uno al otro ──────────────────────────────────
  *
