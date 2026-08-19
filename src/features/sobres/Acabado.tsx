@@ -43,19 +43,40 @@ interface Props {
    *   momento en que tiene que impresionar.
    */
   movimiento?: 'gesto' | 'solo'
+  /**
+   * ¿La carta es APAISADA?
+   *
+   * Sin esto el brillo se pintaba del alto entero del bolsillo aunque la carta
+   * fuera horizontal: una lámina vertical sobre una carta acostada, encima del
+   * relleno desenfocado. Son las 144 Showcase del pool, que son los 144
+   * líderes — o sea las nueve secciones Showcase enteras.
+   *
+   * Ojo: es la orientación de la CARA que se está viendo. El frente de un líder
+   * es apaisado (400×286) pero su reverso es vertical (286×400, medido 6/6):
+   * son la misma cartulina con una cara impresa de lado.
+   */
+  apaisada?: boolean
 }
 
-export function Acabado({ acabado, calidad = 'completo', movimiento = 'gesto' }: Props) {
+export function Acabado({ acabado, calidad = 'completo', movimiento = 'gesto', apaisada = false }: Props) {
+  // La GEOMETRÍA vive acá y en un solo sitio: qué superficie cubre el brillo.
+  const marco = apaisada ? 'foil-marco-apaisado' : 'foil-marco'
+
   if (calidad === 'plano') {
     // Tres clases, no dos. Mandar `metal` a la dorada teñía de oro las 211
     // Standard Prestige justo en la pantalla donde se ve la colección entera.
     const clase =
       acabado === 'foil' ? 'foil-plano' : acabado === 'metal' ? 'foil-plano-metal' : 'foil-plano-oro'
-    return <span aria-hidden className={clase} />
+    return (
+      <span aria-hidden className={marco}>
+        <span className={clase} />
+      </span>
+    )
   }
 
   return (
-    <span aria-hidden className={`foil-caja${movimiento === 'solo' ? ' foil-solo' : ''}`}>
+    <span aria-hidden className={marco}>
+    <span className={`foil-caja${movimiento === 'solo' ? ' foil-solo' : ''}`}>
       {/* El material. Solo uno de los tres. */}
       <span className={acabado === 'foil' ? 'foil-arcoiris' : acabado === 'metal' ? 'foil-metal' : 'foil-oro'} />
       {/* La trama va en los tres: es lo que hace que se lea como lámina
@@ -63,6 +84,7 @@ export function Acabado({ acabado, calidad = 'completo', movimiento = 'gesto' }:
       <span className="foil-trama" />
       {/* Y el lustre encima de todo, con el paralaje más fuerte. */}
       <span className="foil-lustre" />
+    </span>
     </span>
   )
 }

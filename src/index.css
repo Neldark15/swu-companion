@@ -876,13 +876,29 @@ input:focus, textarea:focus, select:focus {
 }
 
 /* Barrido de luz sobre el dorso. */
-.dorso-barrido {
+/* El barrido del misterio. Era un <rect> dentro del SVG del dorso dibujado;
+   ahora el dorso es una imagen, así que es un <span> encima. Sigue moviéndose
+   solo con `transform`. */
+.dorso-barrido-luz {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -40%;
+  width: 34%;
+  background: linear-gradient(
+    100deg,
+    transparent,
+    rgb(255 255 255 / 0.16) 45%,
+    rgb(255 255 255 / 0.16) 55%,
+    transparent
+  );
+  mix-blend-mode: screen;
   animation: dorso-pasa 2.1s ease-in-out infinite;
 }
 
 @keyframes dorso-pasa {
   0%        { transform: skewX(-14deg) translateX(0); }
-  55%, 100% { transform: skewX(-14deg) translateX(420px); }
+  55%, 100% { transform: skewX(-14deg) translateX(400%); }
 }
 
 /* Las chispas de la explosión. Cada una lleva su destino en `--cx`/`--cy`. */
@@ -927,7 +943,7 @@ input:focus, textarea:focus, select:focus {
      chispas) ya no se montan siquiera: el componente las quita antes. */
   .rayos       { animation: none; }
   .aura-late   { animation: none; opacity: 0.3; }
-  .dorso-barrido { animation: none; opacity: 0; }
+  .dorso-barrido-luz { animation: none; opacity: 0; }
   .sobre-rasga { animation: none; opacity: 0; }
   .sobre-fuga  { animation: none; opacity: 0; }
   .fogonazo    { animation: none; opacity: 0; }
@@ -967,6 +983,35 @@ input:focus, textarea:focus, select:focus {
 /* La caja que recorta. Va como HERMANA de la imagen, nunca dentro: CardImage
    lleva `overflow-hidden` y un `drop-shadow`, y las dos son propiedades de
    agrupamiento que aplanarían lo de adentro. */
+/* El marco: es lo ÚNICO que decide qué superficie cubre el acabado.
+ *
+ * Hace falta porque el bolsillo del álbum es 286/400 SIEMPRE, también para un
+ * líder, que es apaisado y solo ocupa una franja en el medio. Sin esto el
+ * brillo se pintaba del alto entero: una lámina vertical sobre una carta
+ * horizontal, encima del relleno desenfocado. Son las 144 Showcase del pool,
+ * que son los 144 líderes.
+ */
+.foil-marco {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* La franja apaisada, centrada. `padding-bottom` en % es del ANCHO, así que
+   71,5% da exactamente 286/400 del ancho de la celda y la franja queda con la
+   proporción de la carta acostada. Los hijos absolutos se anclan a la caja de
+   relleno, así que un `inset: 0` adentro cubre la franja entera. */
+.foil-marco-apaisado {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 0;
+  padding-bottom: 71.5%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
 .foil-caja {
   position: absolute;
   inset: 0;
@@ -974,6 +1019,14 @@ input:focus, textarea:focus, select:focus {
   pointer-events: none;
   border-radius: inherit;
 }
+
+/* El radio del recorte sigue a la forma de la carta: 2,8%/2% en vertical y al
+   revés en apaisada, igual que `radio-carta` (ver CardImage: la esquina viene
+   en el alfa a 2,8% del ancho). */
+.foil-marco .foil-caja { border-radius: 2.8% / 2%; }
+.foil-marco-apaisado .foil-caja { border-radius: 2% / 2.8%; }
+.foil-marco > [class^='foil-plano'] { border-radius: 2.8% / 2%; }
+.foil-marco-apaisado > [class^='foil-plano'] { border-radius: 2% / 2.8%; }
 
 /* ── Arcoíris: el foil clásico ── */
 .foil-arcoiris {
@@ -988,10 +1041,10 @@ input:focus, textarea:focus, select:focus {
     #b02bff 12.8%,
     #ff0f66 16%
   );
-  /* 0,42 y no 0,82: a plena opacidad el arcoiris se comia la lamina. La capa
-     tiene que DEJAR VER la carta — es un barniz encima del arte, no una capa
-     de color que lo sustituye. */
-  opacity: 0.42;
+  /* 0,30: la capa es un BARNIZ encima del arte, no una capa de color que lo
+     sustituye. Empezo en 0,82, bajo a 0,42 y quedo acá — cada paso fue mirar
+     una carta de verdad, no elegir un numero. */
+  opacity: 0.3;
   mix-blend-mode: overlay;
   transform: translate3d(calc(var(--px, 0) * 30%), calc(var(--py, 0) * 16%), 0);
   transition: transform 120ms linear;
@@ -1012,7 +1065,7 @@ input:focus, textarea:focus, select:focus {
     #16202e 9.6%,
     #0e1520 12.8%
   );
-  opacity: 0.4;
+  opacity: 0.3;
   mix-blend-mode: overlay;
   transform: translate3d(calc(var(--px, 0) * 26%), calc(var(--py, 0) * 14%), 0);
   transition: transform 120ms linear;
@@ -1031,9 +1084,10 @@ input:focus, textarea:focus, select:focus {
     #33200a 9.6%,
     #2a1a00 12.8%
   );
-  /* El oro va un punto por encima del plateado: sobre arte oscuro el ambar se
-     pierde antes que el blanco frio. */
-  opacity: 0.45;
+  /* El oro ya no se asigna a ninguna impresion (ver ACABADO en sobres.ts),
+     pero se queda vivo y probado en /banco-sobres: cambiar de acabado tiene que
+     seguir siendo una linea. */
+  opacity: 0.3;
   mix-blend-mode: overlay;
   transform: translate3d(calc(var(--px, 0) * 26%), calc(var(--py, 0) * 14%), 0);
   transition: transform 120ms linear;

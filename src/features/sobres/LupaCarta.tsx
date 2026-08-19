@@ -35,7 +35,7 @@ import { useEffect } from 'react'
 import { X } from 'lucide-react'
 import { CardImage } from '../../components/CardImage'
 import { caraTrasera, esDobleCara } from '../../services/caraCarta'
-import type { CasillaAlbum } from '../../services/sobres'
+import { esApaisada, type CasillaAlbum } from '../../services/sobres'
 import { CartaGirable } from './CartaGirable'
 import { ReversoCarta } from './ReversoCarta'
 
@@ -100,7 +100,7 @@ export function LupaCarta({ casilla, color, alCerrar, acabado }: Props) {
               <CardImage
                 src={casilla.arte || carta?.imageUrl}
                 alt={carta?.name ?? ''}
-                orientacion={carta?.isLeader || carta?.isBase ? 'apaisada' : 'vertical'}
+                orientacion={esApaisada(carta) ? 'apaisada' : 'vertical'}
                 elevacion="realce"
                 className="h-full w-full"
               />

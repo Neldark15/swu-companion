@@ -100,8 +100,8 @@ export const ESCALA: Rareza[] = ['hiper', 'prestigio', 'prestigioFoil', 'showcas
 export type Acabado = 'foil' | 'metal' | 'oro'
 
 /**
- * Las cinco van en ORO, por decisión de Nel: de los tres acabados, el dorado
- * es el que se ve mejor sobre el arte del juego.
+ * Las cinco van en METAL, por decisión de Nel. (Pasaron por arcoíris y por oro
+ * antes; el plateado es el que quedó.)
  *
  * Consecuencia asumida: el brillo ya NO distingue una impresión de otra. La
  * rareza se sigue leyendo por todo lo demás —el color del aura al abrirla, el
@@ -110,11 +110,11 @@ export type Acabado = 'foil' | 'metal' | 'oro'
  * material vuelva a informar, se cambia este mapa y nada más.
  */
 export const ACABADO: Record<Rareza, Acabado> = {
-  hiper: 'oro',
-  prestigio: 'oro',
-  prestigioFoil: 'oro',
-  showcase: 'oro',
-  serializada: 'oro',
+  hiper: 'metal',
+  prestigio: 'metal',
+  prestigioFoil: 'metal',
+  showcase: 'metal',
+  serializada: 'metal',
 }
 
 /** Los colores de cada escalón. Un solo sitio, para que el binder y la apertura no se separen. */
@@ -132,6 +132,22 @@ export const NOMBRE_RAREZA: Record<Rareza, string> = {
   prestigioFoil: 'Prestige Foil',
   showcase: 'Showcase',
   serializada: 'Serializada',
+}
+
+/**
+ * ¿La carta se ve acostada?
+ *
+ * Un helper y no la expresión a mano en cada sitio: son cinco los que la
+ * necesitan (la rejilla del álbum, la lupa, el revelado, el resumen del sobre y
+ * el banco) y basta que UNO se olvide para que el brillo salga del tamaño
+ * equivocado — que es exactamente el bug que se arregló con esto.
+ *
+ * Ojo: habla del FRENTE. El reverso de un líder es vertical aunque su frente
+ * sea apaisado (medido 6/6): es la misma cartulina con una cara impresa de
+ * lado. Para el otro lado está `caraTrasera()`.
+ */
+export function esApaisada(carta: Card | null | undefined): boolean {
+  return Boolean(carta?.isLeader || carta?.isBase)
 }
 
 /** Una carta ya sacada del sobre, con su ficha del catálogo resuelta. */

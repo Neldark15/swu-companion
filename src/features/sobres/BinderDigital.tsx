@@ -47,7 +47,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { ensureCards } from '../../services/swuApi'
 import {
   seccionesAlbum, casillasDeSeccion,
-  COLOR_RAREZA, NOMBRE_RAREZA, ACABADO,
+  COLOR_RAREZA, NOMBRE_RAREZA, ACABADO, esApaisada,
   type SeccionAlbum, type CasillaAlbum,
 } from '../../services/sobres'
 import { PaginaAlbum, POR_HOJA } from './PaginaAlbum'
@@ -155,7 +155,11 @@ export function BinderDigital() {
           <LupaCarta
             casilla={mirando}
             color={color}
-            acabado={mirando.tenida ? <Acabado acabado={ACABADO[abierta.rareza]} /> : undefined}
+            acabado={
+              mirando.tenida
+                ? <Acabado acabado={ACABADO[abierta.rareza]} apaisada={esApaisada(mirando.carta)} />
+                : undefined
+            }
             alCerrar={() => setMirando(null)}
           />
         )}

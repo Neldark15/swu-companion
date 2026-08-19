@@ -37,7 +37,7 @@ import { ReversoCarta } from './ReversoCarta'
 import { Acabado } from './Acabado'
 import { sonar } from './sonido'
 import { RECETA, chispas, useMenosMovimiento } from './efectos'
-import { ESCALA, NOMBRE_RAREZA, ACABADO, type CartaSacada } from '../../services/sobres'
+import { ESCALA, NOMBRE_RAREZA, ACABADO, esApaisada, type CartaSacada } from '../../services/sobres'
 
 type Fase = 'sellado' | 'rasgando' | 'revelando' | 'resumen'
 
@@ -280,7 +280,9 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir 
               {/* El brillo, hermano de la imagen y no hijo: CardImage lleva
                   `overflow-hidden` y `drop-shadow`, que aplanarían el 3D. Solo
                   se pinta una vez girada — antes taparía el dorso. */}
-              {girada && <Acabado acabado={ACABADO[actual.rareza]} movimiento="solo" />}
+              {girada && (
+                <Acabado acabado={ACABADO[actual.rareza]} movimiento="solo" apaisada={esApaisada(actual.carta)} />
+              )}
             </span>
 
             {/* Reverso */}
@@ -398,14 +400,14 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir 
                   <CardImage
                     src={c.arte || c.carta?.imageUrl}
                     alt={c.carta?.name ?? 'Carta'}
-                    orientacion={c.carta?.isLeader || c.carta?.isBase ? 'apaisada' : 'vertical'}
+                    orientacion={esApaisada(c.carta) ? 'apaisada' : 'vertical'}
                     className="w-full"
                   />
                 ) : (
                   <div className="aspect-[286/400] rounded-lg bg-swu-surface" />
                 )}
                 {/* Cinco a la vez: acabado barato. */}
-                <Acabado acabado={ACABADO[c.rareza]} calidad="plano" />
+                <Acabado acabado={ACABADO[c.rareza]} calidad="plano" apaisada={esApaisada(c.carta)} />
               </div>
             </Carta3D>
             <p className="mt-1 truncate text-[10px] text-swu-muted" title={c.carta?.name}>
