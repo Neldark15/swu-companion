@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Hexagon, Swords, ShieldCheck, Megaphone, Newspaper as NewspaperIcon, BarChart3 as MetaIcon, BookOpen, FlaskConical, Scale, RadioTower, Radar } from 'lucide-react'
+import { Hexagon, Swords, ShieldCheck, Megaphone, Newspaper as NewspaperIcon, BarChart3 as MetaIcon, BookOpen, FlaskConical, Scale, RadioTower, Radar, PackageOpen, Library } from 'lucide-react'
 import {
   MandoTrophyIcon, CargoIcon, BountyIcon,
   DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
@@ -26,6 +26,8 @@ const mainNav: NavItem[] = [
 
 const secondaryNav: NavItem[] = [
   { id: '/collection', label: 'Mi Botín', sub: 'Colección', icon: CargoIcon },
+  { id: '/sobres', label: 'La Bóveda', sub: 'Abrir sobres', icon: PackageOpen },
+  { id: '/binder-digital', label: 'Binder digital', sub: 'Lo que abriste', icon: Library },
   { id: '/explore', label: 'Contrabando', sub: 'Explorar', icon: BountyIcon },
   { id: '/espionaje', label: 'Espionaje', sub: 'Transmisiones', icon: SpyIcon },
   { id: '/misiones', label: 'Misiones', sub: 'Órdenes del Día', icon: DeathStarIcon },

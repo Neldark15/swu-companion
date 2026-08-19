@@ -98,6 +98,10 @@ const mainSystems: Sistema[] = [
 
   // ── Colección: lo que uno tiene y lo que se cambia ──
   { icon: CargoIcon,       label: 'Mi Botín',     tone: 'green',  to: '/collection', cat: 'coleccion', auth: true },
+  // La Bóveda va PRIMERO dentro de Colección junto a Mi Botín, y no en «Jugar»,
+  // porque lo que se hace acá es coleccionar: abrir sobres es el medio.
+  { icon: CargoIcon,       label: 'La Bóveda',    tone: 'amber',  to: '/sobres',     cat: 'coleccion', auth: true },
+  { icon: DeckCardsIcon,   label: 'Binder digital', tone: 'cyan', to: '/binder-digital', cat: 'coleccion', auth: true },
   { icon: BountyIcon,      label: 'Contrabando',  tone: 'red',    to: '/explore',    cat: 'coleccion', auth: true },
   // Acceso directo al mercado: llegar a comprar/vender exigía entrar a
   // Contrabando y después cambiar de pestaña.

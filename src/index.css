@@ -794,3 +794,142 @@ input:focus, textarea:focus, select:focus {
     font-size: 16px;
   }
 }
+
+
+/* ─────────────────────────────────────────────────────────────
+ * SOBRES — abrir uno y que se sienta
+ *
+ * Todo lo de acá anima SOLO `transform` y `opacity`. Es la misma regla que
+ * gobierna `carta3d` y no es una preferencia estética: son las dos
+ * propiedades que el navegador resuelve en el compositor sin recalcular ni
+ * repintar la página. Una animación de `filter: blur` o de `box-shadow` en
+ * esta pantalla —que ya tiene arte de cartas y un SVG girando— es lo que
+ * convierte la apertura en una presentación de diapositivas en un teléfono
+ * de gama baja.
+ *
+ * Las que anuncian algo (`aura-late`, `dorso-barrido`) se paran con
+ * `prefers-reduced-motion`, pero el COLOR se queda: quien pidió menos
+ * movimiento igual tiene que poder ver que le viene una serializada.
+ * ───────────────────────────────────────────────────────────── */
+
+/* El sobre al rasgarse: un tirón corto y seco, no una animación bonita. */
+@utility sobre-rasga {
+  animation: sobre-tiron 620ms cubic-bezier(0.36, 0, 0.66, -0.4) forwards;
+}
+
+@keyframes sobre-tiron {
+  0%   { transform: translateY(0) rotate(0deg) scale(1); }
+  18%  { transform: translateY(-10px) rotate(-2.5deg) scale(1.04); }
+  38%  { transform: translateY(4px) rotate(2deg) scale(1.01); }
+  100% { transform: translateY(52px) rotate(-1deg) scale(0.9); opacity: 0; }
+}
+
+/* La luz que se escapa por la boca del sobre. */
+@utility sobre-fuga {
+  background: radial-gradient(ellipse 60% 100% at 50% 100%,
+              rgb(255 255 255 / 0.85), rgb(255 255 255 / 0.25) 40%, transparent 70%);
+  animation: sobre-fuga-crece 620ms ease-out forwards;
+  mix-blend-mode: screen;
+}
+
+@keyframes sobre-fuga-crece {
+  0%   { opacity: 0; transform: scaleY(0.2); }
+  35%  { opacity: 1; transform: scaleY(1.1); }
+  100% { opacity: 0; transform: scaleY(2.4); }
+}
+
+/* Rayos de luz por detrás de la carta. Es un cónico que GIRA: la rotación va
+   por `transform`, así que el gradiente se pinta una vez y ya. */
+@utility rayos {
+  width: 460px;
+  height: 460px;
+  border-radius: 9999px;
+  background: conic-gradient(
+    var(--rayo-color) 0deg, transparent 6deg, transparent 18deg,
+    var(--rayo-color) 24deg, transparent 30deg, transparent 42deg,
+    var(--rayo-color) 48deg, transparent 54deg, transparent 66deg,
+    var(--rayo-color) 72deg, transparent 78deg, transparent 90deg
+  );
+  -webkit-mask-image: radial-gradient(circle, transparent 26%, black 46%, transparent 74%);
+  mask-image: radial-gradient(circle, transparent 26%, black 46%, transparent 74%);
+  animation: rayos-gira 9s linear infinite;
+  transition: opacity 500ms ease;
+  mix-blend-mode: screen;
+}
+
+@keyframes rayos-gira {
+  to { transform: rotate(360deg); }
+}
+
+/* El aura que late mientras la carta está boca abajo: el aviso de que viene
+   algo grande, sin decir qué. */
+@utility aura-late {
+  background: radial-gradient(circle, var(--aura-color) 0%, transparent 62%);
+  opacity: 0.34;
+  animation: aura-latido 1.5s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+
+@keyframes aura-latido {
+  0%, 100% { transform: scale(0.86); opacity: 0.22; }
+  50%      { transform: scale(1.06); opacity: 0.46; }
+}
+
+/* Barrido de luz sobre el dorso. */
+.dorso-barrido {
+  animation: dorso-pasa 2.1s ease-in-out infinite;
+}
+
+@keyframes dorso-pasa {
+  0%        { transform: skewX(-14deg) translateX(0); }
+  55%, 100% { transform: skewX(-14deg) translateX(420px); }
+}
+
+/* Las chispas de la explosión. Cada una lleva su destino en `--cx`/`--cy`. */
+@utility chispa {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  opacity: 0;
+  animation: chispa-vuela 780ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes chispa-vuela {
+  0%   { opacity: 0; transform: translate3d(0, 0, 0) scale(0.4); }
+  12%  { opacity: 1; }
+  100% { opacity: 0; transform: translate3d(var(--cx), var(--cy), 0) scale(0.1); }
+}
+
+/* El fogonazo que tapa la pantalla un instante. */
+@utility fogonazo {
+  animation: fogonazo-pasa 520ms ease-out forwards;
+  mix-blend-mode: screen;
+}
+
+@keyframes fogonazo-pasa {
+  0%   { opacity: 0; }
+  14%  { opacity: 0.55; }
+  100% { opacity: 0; }
+}
+
+/* El nombre de la carta entrando después del giro. */
+@utility grito-entra {
+  animation: grito-sube 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes grito-sube {
+  0%   { opacity: 0; transform: translateY(10px) scale(0.94); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Se paran las que se mueven solas. Las de una sola pasada (el grito, las
+     chispas) ya no se montan siquiera: el componente las quita antes. */
+  .rayos       { animation: none; }
+  .aura-late   { animation: none; opacity: 0.3; }
+  .dorso-barrido { animation: none; opacity: 0; }
+  .sobre-rasga { animation: none; opacity: 0; }
+  .sobre-fuga  { animation: none; opacity: 0; }
+  .fogonazo    { animation: none; opacity: 0; }
+  .grito-entra { animation: none; }
+}

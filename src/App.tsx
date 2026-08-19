@@ -37,6 +37,9 @@ const ScanPage = lazy(() => import('./features/scan/ScanPage').then(m => ({ defa
 const MetaPage = lazy(() => import('./features/meta/MetaPage').then(m => ({ default: m.MetaPage })))
 const ContadorPage = lazy(() => import('./features/contador/ContadorPage').then(m => ({ default: m.ContadorPage })))
 const AmistosasPage = lazy(() => import('./features/amistosas/AmistosasPage').then(m => ({ default: m.AmistosasPage })))
+const SobresPage = lazy(() => import('./features/sobres/SobresPage').then(m => ({ default: m.SobresPage })))
+const BinderDigital = lazy(() => import('./features/sobres/BinderDigital').then(m => ({ default: m.BinderDigital })))
+const BancoSobres = lazy(() => import('./features/sobres/BancoSobres').then(m => ({ default: m.BancoSobres })))
 const TorneosPage = lazy(() => import('./features/torneos/TorneosPage').then(m => ({ default: m.TorneosPage })))
 const TorneoDetallePage = lazy(() => import('./features/torneos/TorneoDetallePage').then(m => ({ default: m.TorneoDetallePage })))
 const ProfilePage = lazy(() => import('./features/profile/ProfilePage').then(m => ({ default: m.ProfilePage })))
@@ -221,6 +224,8 @@ export default function App() {
                 muro la pantalla diría «todavía no jugaste» a quien simplemente
                 no está logueado. */}
             <Route path="/amistosas" element={<P><AmistosasPage /></P>} />
+            <Route path="/sobres" element={<P><SobresPage /></P>} />
+            <Route path="/binder-digital" element={<P><BinderDigital /></P>} />
             <Route path="/laboratorio" element={<P><LabPage /></P>} />
             {/* Pegada al Laboratorio porque es su continuación: allí se MIDE un
                 emparejamiento y aquí se VE una partida de esa misma medición. */}
@@ -235,6 +240,7 @@ export default function App() {
             {import.meta.env.DEV && <Route path="/banco-marcos" element={<BancoMarcos />} />}
             {import.meta.env.DEV && <Route path="/banco-avatares" element={<BancoAvatares />} />}
             {import.meta.env.DEV && <Route path="/banco-sable" element={<BancoSable />} />}
+            {import.meta.env.DEV && <Route path="/banco-sobres" element={<BancoSobres />} />}
             <Route path="/play/tracker/:mode" element={<P><TrackerPage /></P>} />
             <Route path="/play/saved" element={<P><SavedMatchesPage /></P>} />
             <Route path="/events" element={<P><EventsPage /></P>} />

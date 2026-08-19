@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Swords, ShieldCheck, Megaphone, Newspaper, BarChart3, BookOpen, FlaskConical, Scale, Radar, RadioTower, Fingerprint, Languages } from 'lucide-react'
+import { Swords, ShieldCheck, Megaphone, Newspaper, BarChart3, BookOpen, FlaskConical, Scale, Radar, RadioTower, Fingerprint, Languages, PackageOpen, Library } from 'lucide-react'
 import {
   DatapadIcon, MandoTrophyIcon, DeckCardsIcon, SpyIcon,
   DeathStarIcon, BeskarIcon, ChanceCubeIcon, RebelIcon, StarfighterIcon,
@@ -57,6 +57,8 @@ const GROUPS: MoreGroup[] = [
       // BUSCAR dentro de ella (nombre, país, rankings).
       { to: '/galaxia', label: 'La Galaxia', sub: 'Universo 3D', icon: StarfighterIcon },
       { to: '/galaxy', label: 'Salas', sub: 'Chat y comandantes', icon: Radar },
+      { to: '/sobres', label: 'La Bóveda', sub: 'Abrir sobres', icon: PackageOpen },
+      { to: '/binder-digital', label: 'Binder digital', sub: 'Lo que abriste', icon: Library },
       { to: '/credencial', label: 'Mi Credencial', sub: 'Placa imprimible', icon: Fingerprint },
       { to: '/aurebesh', label: 'Aurebesh', sub: 'Traductor galáctico', icon: Languages },
             { to: '/blog', label: 'Blog', sub: 'Análisis y artículos', icon: BookOpen },
