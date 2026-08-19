@@ -115,6 +115,12 @@ export function TournamentPlayerView() {
             title: `Ronda ${event.current_round} — Mesa ${newMine.table_number ?? '?'}`,
             message: `Tu oponente: ${opponentName}`,
             icon: '⚔️',
+            // El canal filtra por evento entero (tournamentCloud.ts:1292), así que
+            // CUALQUIER mesa que cambie invoca este callback. Dos que caigan dentro
+            // del mismo `await` de arriba comparten esta clausura con los valores
+            // viejos y anuncian lo mismo dos veces. La clave es el HECHO, no la fila:
+            // el id del emparejamiento ya es único por ronda.
+            dedupKey: `pairing:${newMine.id}:asignada`,
           })
         }
 
@@ -132,6 +138,13 @@ export function TournamentPlayerView() {
             title: 'Resultado pendiente',
             message: `Tu oponente reportó ${newMine.score ?? '?-?'} — confirma o disputa`,
             icon: '⚠️',
+            // El timestamp va DENTRO de la clave a propósito: tras una disputa el
+            // rival vuelve a reportar y `submitPairingResult` escribe un
+            // `reported_at` nuevo (tournamentCloud.ts:627), o sea que ese segundo
+            // aviso es legítimo y tiene que sonar. Con `pairing:<id>:reportado` a
+            // secas se lo tragaría; con el valor adentro solo se traga el eco, que
+            // es el que lee dos veces el MISMO timestamp.
+            dedupKey: `pairing:${newMine.id}:reportado:${newMine.reported_at}`,
           })
         }
 
@@ -147,6 +160,7 @@ export function TournamentPlayerView() {
             title: 'Resultado confirmado',
             message: `Mesa ${newMine.table_number ?? '?'}: ${newMine.score ?? ''}`,
             icon: '✅',
+            dedupKey: `pairing:${newMine.id}:confirmado:${newMine.confirmed_at}`,
           })
         }
 
@@ -200,6 +214,8 @@ export function TournamentPlayerView() {
       setError(r.error ?? 'Error al enviar resultado')
       return
     }
+    // SIN dedupKey a propósito: esto es el acuse de una acción que la persona
+    // acaba de hacer, y si la repite tiene que volver a sonar.
     addNotification({
       type: 'info',
       title: r.needsConfirmation ? 'Resultado enviado' : 'Resultado registrado',

@@ -14,10 +14,12 @@
  *
  * ── Se anuncia una vez por día y por aparato ─────────────────────────
  *
- * La marca vive en `localStorage` (ver `sobreDiarioAnunciado`). No se usa el
- * `dedupKey` de las notificaciones: el store lo acepta en el tipo pero
- * `addNotification` no lo mira, así que la campana sonaría en cada montaje de
- * Inicio — que en una SPA es cada vez que se toca la pestaña de abajo.
+ * La marca vive en `localStorage` (ver `sobreDiarioAnunciado`) y gobierna las
+ * DOS cosas: la franja y la campana. Desde que `addNotification` sí honra
+ * `dedupKey` (notificationService.ts), una clave `sobre:<día>` alcanzaría para
+ * la campana — pero no para la franja, y además la guarda del store caduca a
+ * los 7 días y a los 50 avisos. La marca por día es la memoria durable de las
+ * dos, así que se queda acá y no se duplica en el store.
  *
  * Se marca ANTES de tocar la campana, no después: el doble montaje del modo
  * estricto de React corre el efecto dos veces, y marcando al final se anuncia

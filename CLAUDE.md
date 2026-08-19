@@ -1142,12 +1142,18 @@ tampoco anuncia nada.
 
 Dos cosas que se descubrieron construyéndolo y valen para toda la app:
 
-- **`dedupKey` de las notificaciones NO hace nada.** El tipo lo documenta como
-  «evita re-anunciar», pero `addNotification` en
-  [notificationService.ts](src/services/notificationService.ts) no lo mira: se
-  guarda en el objeto y nadie lo consulta. `progressionService` lo pasa creyendo
-  que protege. Cualquier cosa que dependa de él para no repetirse, se repite en
-  cada montaje.
+- **`dedupKey` de las notificaciones YA funciona — y su memoria es la campana.**
+  Estuvo inerte: el tipo prometía «evita re-anunciar» y `addNotification` no lo
+  miraba; solo cinco helpers deduplicaban aparte, y los seis llamadores directos
+  del store se inventaron cada uno su defensa (un `useRef` que muere al
+  desmontar, una marca en `localStorage`). Hoy la guarda vive DENTRO de
+  `addNotification` en [notificationService.ts](src/services/notificationService.ts)
+  y es la única. Dos reglas que no se pueden relajar: **sin clave no hay dedup**
+  —un acuse de acción propia («Resultado enviado») debe sonar cada vez— y la
+  clave **nunca** se deriva del texto. Y caduca a propósito con la campana (50
+  avisos / 7 días): el dedup durable vive río arriba (Dexie, `user_missions`,
+  `swu_gifts_last_seen`) y hay hitos que se RE-GANAN —el tier baja si borrás
+  mazos— que con memoria eterna quedarían mudos para siempre.
 - **`npm run build` NO comprueba tipos de `api/`.** `tsconfig.app.json` cubre
   `src/` y `tsconfig.node.json` solo `vite.config.ts`: un error de tipos en un
   endpoint aparece recién en el build de Vercel. Se comprueba a mano con

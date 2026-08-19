@@ -534,7 +534,15 @@ async function announceSaleToFeed(
       type: 'trade',
       content: `puso ${label} en venta${priceLabel}`,
       metadata: { cardId, cardName: label, price },
-      dedupKey: `sale:${cardId}:${Date.now()}`,
+      // SIN dedupKey a propósito, y esto no cambia nada: el que había era
+      // `sale:<carta>:${Date.now()}`, o sea una clave nueva en cada llamada, y
+      // `publishAutoPost` deduplica buscando la clave EXACTA en la base
+      // (communityService.ts, `.contains('metadata', { dedupKey })`). Una clave
+      // que nunca se repite nunca encuentra nada: jamás dedupliqué ni una vez.
+      //
+      // Y está bien que no deduplique: bajar una carta del mercado y volver a
+      // subirla a otro precio es una noticia nueva. Lo que no está bien es
+      // prometerlo en un parámetro que no puede cumplirlo.
     })
   } catch {
     // silencioso

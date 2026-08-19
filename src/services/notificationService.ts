@@ -21,9 +21,15 @@ export interface AppNotification {
   /** Optional link to navigate on click */
   link?: string
   /**
-   * Stable identity for a milestone (e.g. `ach:agg_3`, `lvl:7`). Now that
-   * notifications persist, this prevents re-announcing the same achievement
-   * every time the profile recomputes stats.
+   * Identidad estable del HECHO que se anuncia (`ach:agg_3`, `lvl:7`,
+   * `pairing:<id>:reportado:<timestamp>`). Si viene, `addNotification`
+   * descarta el aviso cuando ya hay uno con la misma clave en la campana.
+   *
+   * Sin clave NO hay dedup, y eso es deliberado: el acuse de algo que la
+   * persona acaba de hacer («Resultado enviado», TournamentPlayerView.tsx:203)
+   * tiene que sonar cada vez que lo haga. Por eso el campo es opcional y la
+   * clave NUNCA se deriva del texto: «Resultado confirmado / Mesa 3» se repite
+   * legítimamente en la ronda 1 y en la 5.
    */
   dedupKey?: string
 }
@@ -59,6 +65,19 @@ export const useNotificationStore = create<NotificationState>()(
       currentToast: null,
 
       addNotification: (n) => {
+        // La guarda de repetidos vive ACÁ, no en los helpers. Los consultaban
+        // 5 helpers, y los 6 llamadores DIRECTOS quedaban fuera
+        // (TournamentPlayerView.tsx:113/130/145/203, TournamentBroadcastListener.tsx:56,
+        // AvisoSobreDiario.tsx:56): cada uno se inventó su propia defensa —un
+        // useRef que muere al desmontar, una marca en localStorage— para el
+        // mismo problema. Quien sabe si un aviso ya está en la campana es el
+        // store que la guarda; una sola fuente de verdad.
+        //
+        // Mover la guarda acá NO cambia el comportamiento de nadie: hoy CERO
+        // llamadores directos pasan `dedupKey` (grep sobre src/), así que un
+        // aviso sin clave se agrega exactamente igual que antes.
+        if (n.dedupKey && alreadyNotified(n.dedupKey)) return
+
         const notification: AppNotification = {
           ...n,
           id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -122,17 +141,46 @@ export const useNotificationStore = create<NotificationState>()(
   )
 )
 
-/** Dedup guard: avoid re-notifying the same milestone across reloads. */
+/**
+ * ¿Ya hay un aviso vivo con esta clave?
+ *
+ * La memoria de la guarda ES la campana, así que la clave caduca con ella: el
+ * tope de 50 de `addNotification` y los 7 días de `clearOld`. Está BIEN que
+ * caduque, y hay dos razones para no darle memoria eterna:
+ *
+ * 1. El dedup DURABLE ya vive río arriba, contra almacenamiento que no se
+ *    poda: logros y títulos se diferencian contra `player_stats` en Dexie
+ *    (progressionService.ts:65 + ProfilePage.tsx:217), los regalos contra la
+ *    marca `swu_gifts_last_seen` (GiftListener.tsx:19), las misiones contra la
+ *    fila de `user_missions` (missionService.ts:296) y el sobre diario contra
+ *    `swu_sobre_diario_visto` (sobres.ts:339). Esto es el cinturón; los
+ *    tirantes están arriba.
+ * 2. Hay hitos que se RE-GANAN de verdad. El tier sale de conteos vivos de
+ *    Dexie —`decksCreated` y `cardsCollected` se pisan en cada carga del
+ *    perfil, ProfilePage.tsx:235/237—, así que borrar mazos o la colección lo
+ *    BAJA y volver a llenarlos lo vuelve a subir. Con memoria eterna,
+ *    re-ganar un tier sería silencio para siempre.
+ *
+ * O sea: esto mata el eco —el mismo hecho anunciado dos veces en el mismo
+ * minuto, o al recargar—, no lleva el libro histórico de lo ya anunciado.
+ *
+ * La firma es `string` y no `string | undefined` a propósito: el caso «sin
+ * clave» se decide en `addNotification`. Ensancharla haría que un aviso sin
+ * clave colapse contra cualquier otro sin clave, que es el bug contrario.
+ */
 function alreadyNotified(key: string): boolean {
   const notifications = useNotificationStore.getState().notifications
   return notifications.some(n => n.dedupKey === key)
 }
 
 // ─── HELPER: emit common notifications ──────────────────────────────
+//
+// Los helpers ya NO consultan la guarda: arman la clave y la pasan. Tenerla en
+// dos sitios era la puerta al bug clásico —se actualiza una copia y no la
+// otra— y además dejaba fuera a los seis llamadores directos del store.
 
 export function notifyAchievement(name: string, icon: string, achievementId?: string) {
   const key = achievementId ? `ach:${achievementId}` : `ach:${name}`
-  if (alreadyNotified(key)) return
   useNotificationStore.getState().addNotification({
     type: 'achievement',
     title: '¡Logro Desbloqueado!',
@@ -145,7 +193,6 @@ export function notifyAchievement(name: string, icon: string, achievementId?: st
 
 export function notifyLevelUp(level: number, rankName: string) {
   const key = `lvl:${level}`
-  if (alreadyNotified(key)) return
   useNotificationStore.getState().addNotification({
     type: 'level_up',
     title: `¡Nivel ${level}!`,
@@ -158,7 +205,6 @@ export function notifyLevelUp(level: number, rankName: string) {
 
 export function notifyTierUp(aspectLabel: string, tierLabel: string) {
   const key = `tier:${aspectLabel}:${tierLabel}`
-  if (alreadyNotified(key)) return
   useNotificationStore.getState().addNotification({
     type: 'tier_up',
     title: '¡Tier Alcanzado!',
@@ -171,7 +217,6 @@ export function notifyTierUp(aspectLabel: string, tierLabel: string) {
 
 export function notifyGiftReceived(senderName: string, giftLabel: string, giftId?: string) {
   const key = giftId ? `gift:${giftId}` : undefined
-  if (key && alreadyNotified(key)) return
   useNotificationStore.getState().addNotification({
     type: 'gift',
     title: '¡Regalo Recibido!',
@@ -204,7 +249,6 @@ export function notifyBondLevelUp(playerName: string, levelName: string) {
 
 export function notifyTitleUnlocked(titleName: string, titleId?: string) {
   const key = `title:${titleId ?? titleName}`
-  if (alreadyNotified(key)) return
   useNotificationStore.getState().addNotification({
     type: 'title',
     title: '¡Título Desbloqueado!',

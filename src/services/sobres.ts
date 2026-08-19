@@ -331,9 +331,10 @@ export async function estadoSobres(userId: string): Promise<EstadoSobres> {
  * veces. Eso es lo correcto: son dos pantallas distintas y en ninguna de las
  * dos habías visto el aviso.
  *
- * NO se usa el `dedupKey` de las notificaciones para esto: el store lo acepta
- * en el tipo pero `addNotification` no lo mira — comprobado leyendo su cuerpo.
- * Confiar en él haría sonar la campana en cada montaje de Inicio.
+ * `addNotification` SÍ honra hoy `dedupKey` (notificationService.ts), pero esta
+ * marca no se reemplaza por una clave: la guarda del store caduca (50 avisos /
+ * 7 días) y solo sabe de la campana, mientras que acá se decide también si se
+ * pinta la franja de Inicio.
  */
 const CLAVE_ANUNCIO = 'swu_sobre_diario_visto'
 
