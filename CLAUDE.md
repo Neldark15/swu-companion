@@ -1010,3 +1010,34 @@ comentario de `elegirPortada` lo documenta— y volvió a aparecer en el control
 de al lado. La regla: **si un control tiene vista previa en vivo, guarda solo.**
 Los deslizadores con antirrebote de 600 ms, y con la escritura forzada al
 desmontar para no perder el último movimiento.
+
+### 3h. La miniatura para compartir habla el idioma de la placa
+
+`CompartirArticulo` dibujaba un chasis genérico: degradado, halo, una rejilla
+cian y un `strokeRect`. Nada de eso venía de la app — el cian en particular no
+existe en la credencial ni en el ranking, y era lo que más delataba la
+plantilla.
+
+Ahora el lienzo ES una placa: silueta escalonada con muesca superior y muesca
+del canto derecho, canto de espesor, veta del cepillado, barniz, remaches en
+las esquinas, código de barras del borde y el titular sobre la **banda del
+nombre** de la credencial. La marca y el título van **grabados** (sombra
+arriba, filo de luz abajo, sin desenfoque).
+
+Reglas heredadas de las otras dos pantallas, y que acá también costaron:
+- **La gramática se REDIBUJA a la escala del lienzo.** La muesca superior
+  empezó en 22 px y a 1020 de ancho se leía como un redondeo; va en 40. Es lo
+  mismo que en el ranking, donde el problema era el opuesto (10 unidades del
+  viewBox medían 1,7 px y desaparecían). Nunca escalar el path de la
+  credencial.
+- **El código de barras arrancó invisible.** 4-13 px de ancho por 6 de alto es
+  pelusa a 1080. La credencial las lleva a ~3,7% del ancho: acá son 14-40 px.
+- **La semilla del dibujo sale del TÍTULO**, con el mismo FNV-1a y el mismo
+  `>>>` que la credencial. Determinista: dos previsualizaciones del mismo
+  artículo salen idénticas. Con `>>` los anchos se vuelven negativos y las
+  barras no se dibujan.
+- **El texto grabado solo de 26 px para arriba.** Por debajo el filo claro
+  engorda el glifo en vez de hundirlo.
+- **Nada de degradado cromado detrás de un texto**: en la credencial se midió
+  que deja la tinta entre 1,13:1 y 1,74:1 en la franja del medio. La banda del
+  titular va con lustre.

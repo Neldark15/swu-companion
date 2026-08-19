@@ -305,33 +305,167 @@ function espaciado(ctx: CanvasRenderingContext2D, texto: string, x: number, y: n
   ctx.restore()
 }
 
-function fondo(ctx: CanvasRenderingContext2D, W: number, H: number) {
-  const g = ctx.createLinearGradient(0, 0, 0, H)
-  g.addColorStop(0, '#12121C')
-  g.addColorStop(0.55, '#181825')
-  g.addColorStop(1, '#0D0D15')
-  ctx.fillStyle = g
+/**
+ * La SILUETA de la placa, redibujada a la medida del lienzo.
+ *
+ * La credencial es un path en un viewBox de 512×320. Acá NO se escala ese
+ * path: se conserva la REGLA —ninguna esquina de 90°, todo escalón entre 5 y
+ * 14 px REALES en pantalla— con las medidas de ESTE lienzo. Escalando, en
+ * 1080 los escalones medirían 20-30 px y la placa parecería un recorte de
+ * cartón; y a la inversa, en la fila del ranking desaparecían.
+ */
+function siluetaPlaca(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  const c = 34         // chaflán de esquina
+  const mx = w * 0.32  // dónde arranca la muesca superior
+  const mw = w * 0.36  // ancho de la muesca
+  // 40 y no 22: a 1020 px de ancho una muesca de 22 se lee como un
+  // redondeo, no como el escalón que hace reconocible la placa. Es la misma
+  // regla que en el ranking — la gramática se REDIBUJA a la escala de cada
+  // lienzo, no se escala desde el viewBox de la credencial.
+  const md = 40
+  ctx.beginPath()
+  ctx.moveTo(x, y + c)
+  ctx.lineTo(x + c, y)
+  ctx.lineTo(x + mx, y)
+  ctx.lineTo(x + mx + 16, y + md)
+  ctx.lineTo(x + mx + mw - 16, y + md)
+  ctx.lineTo(x + mx + mw, y)
+  ctx.lineTo(x + w - c, y)
+  ctx.lineTo(x + w, y + c)
+  ctx.lineTo(x + w, y + h * 0.34)
+  ctx.lineTo(x + w - 13, y + h * 0.34 + 13)   // muesca del canto derecho
+  ctx.lineTo(x + w - 13, y + h * 0.60)
+  ctx.lineTo(x + w, y + h * 0.60 + 13)
+  ctx.lineTo(x + w, y + h - c)
+  ctx.lineTo(x + w - c, y + h)
+  ctx.lineTo(x + c, y + h)
+  ctx.lineTo(x, y + h - c)
+  ctx.closePath()
+}
+
+/** El barniz de toda chapa: claro arriba, oscuro abajo. */
+function lustre(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  const g = ctx.createLinearGradient(x, y, x + w * 0.35, y + h)
+  g.addColorStop(0, 'rgba(255,255,255,0.10)')
+  g.addColorStop(0.42, 'rgba(255,255,255,0.02)')
+  g.addColorStop(0.60, 'rgba(0,0,0,0.05)')
+  g.addColorStop(1, 'rgba(0,0,0,0.30)')
+  return g
+}
+
+/**
+ * El fondo: una PLACA, no un degradado con rejilla.
+ *
+ * Lo que se trae de la credencial y por qué cada cosa:
+ * - la silueta escalonada, que es lo que la hace reconocible de un vistazo;
+ * - la VETA del metal cepillado (rayas finas horizontales) en vez de la
+ *   rejilla cian, que no venía de ninguna parte de la app;
+ * - el código de barras del borde izquierdo, determinista a partir del
+ *   título: el mismo artículo saca siempre la misma placa;
+ * - remaches en las esquinas y un canto de luz en la mitad de arriba.
+ */
+function fondo(ctx: CanvasRenderingContext2D, W: number, H: number, semilla: number) {
+  // Fondo de la escena, fuera de la placa.
+  const f = ctx.createLinearGradient(0, 0, 0, H)
+  f.addColorStop(0, '#0C0C14')
+  f.addColorStop(0.5, '#12121C')
+  f.addColorStop(1, '#08080E')
+  ctx.fillStyle = f
   ctx.fillRect(0, 0, W, H)
 
-  const halo = ctx.createRadialGradient(W * 0.5, H * 0.32, 0, W * 0.5, H * 0.32, W * 0.9)
-  halo.addColorStop(0, 'rgba(245,158,11,0.15)')
-  halo.addColorStop(0.6, 'rgba(245,158,11,0.03)')
+  const M = 30
+  const x = M, y = M, w = W - M * 2, h = H - M * 2
+
+  // ── el canto: la placa tiene espesor ──
+  ctx.save()
+  siluetaPlaca(ctx, x + 5, y + 6, w, h)
+  ctx.fillStyle = '#2A2A3C'
+  ctx.fill()
+  ctx.restore()
+
+  // ── la chapa ──
+  ctx.save()
+  siluetaPlaca(ctx, x, y, w, h)
+  ctx.clip()
+
+  ctx.fillStyle = '#181825'
+  ctx.fillRect(x, y, w, h)
+
+  // veta del cepillado
+  ctx.strokeStyle = 'rgba(255,255,255,0.045)'
+  ctx.lineWidth = 1
+  for (let ly = y; ly < y + h; ly += 3) {
+    ctx.beginPath(); ctx.moveTo(x, ly + 0.5); ctx.lineTo(x + w, ly + 0.5); ctx.stroke()
+  }
+
+  ctx.fillStyle = lustre(ctx, x, y, w, h)
+  ctx.fillRect(x, y, w, h)
+
+  // el halo del acento, contenido dentro de la placa
+  const halo = ctx.createRadialGradient(W * 0.5, H * 0.30, 0, W * 0.5, H * 0.30, W * 0.75)
+  halo.addColorStop(0, 'rgba(245,158,11,0.13)')
+  halo.addColorStop(0.55, 'rgba(245,158,11,0.03)')
   halo.addColorStop(1, 'rgba(245,158,11,0)')
   ctx.fillStyle = halo
-  ctx.fillRect(0, 0, W, H)
+  ctx.fillRect(x, y, w, h)
 
-  ctx.strokeStyle = 'rgba(34,211,238,0.045)'
-  ctx.lineWidth = 2
-  for (let x = 0; x <= W; x += 72) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke()
-  }
-  for (let y = 0; y <= H; y += 72) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke()
+  // ── código de barras del borde, determinista por artículo ──
+  // Mismo `>>>` que en la credencial: con `>>` el hash se vuelve int32 con
+  // signo y los anchos salen negativos, o sea barras que no se dibujan.
+  // Barras GRUESAS: con 4-13 px de ancho y 6 de alto eran pelusa a 1080. La
+  // credencial las lleva a ~19 unidades sobre 512, o sea el 3,7% del ancho;
+  // acá eso son ~38 px.
+  ctx.fillStyle = 'rgba(226,232,240,0.42)'
+  const bx = x + 30
+  const by = y + h * 0.26
+  for (let i = 0; i < 14; i++) {
+    const ancho = 14 + (((semilla >>> (i % 27)) * (i + 3)) >>> 0) % 26
+    ctx.fillRect(bx, by + i * 22, ancho, 9)
   }
 
-  ctx.strokeStyle = 'rgba(226,232,240,0.10)'
+  // ── canto de luz, solo la mitad de arriba ──
+  ctx.restore()
+  ctx.save()
+  siluetaPlaca(ctx, x, y, w, h)
+  ctx.clip()
+  ctx.beginPath(); ctx.rect(x, y, w, h * 0.45); ctx.clip()
+  siluetaPlaca(ctx, x, y, w, h)
+  ctx.strokeStyle = 'rgba(245,158,11,0.55)'
   ctx.lineWidth = 3
-  ctx.strokeRect(26, 26, W - 52, H - 52)
+  ctx.stroke()
+  ctx.restore()
+
+  // borde general, tenue
+  ctx.save()
+  siluetaPlaca(ctx, x, y, w, h)
+  ctx.strokeStyle = 'rgba(226,232,240,0.13)'
+  ctx.lineWidth = 2
+  ctx.stroke()
+  ctx.restore()
+
+  // ── remaches ──
+  for (const [rx, ry] of [[x + 58, y + 58], [x + w - 58, y + 58], [x + 58, y + h - 58], [x + w - 58, y + h - 58]]) {
+    ctx.beginPath(); ctx.arc(rx, ry, 9, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill()
+    ctx.beginPath(); ctx.arc(rx, ry - 1, 7, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(148,163,184,0.42)'; ctx.fill()
+    ctx.beginPath(); ctx.arc(rx, ry - 2, 3, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(255,255,255,0.20)'; ctx.fill()
+  }
+}
+
+/** Texto GRABADO: sombra arriba, filo de luz abajo. Sin desenfoque, como en
+ *  la placa — y solo de 26 px para arriba, que por debajo el filo engorda el
+ *  glifo en vez de hundirlo. */
+function grabado(ctx: CanvasRenderingContext2D, dibujar: () => void, tam: number) {
+  if (tam < 26) { dibujar(); return }
+  const color = ctx.fillStyle
+  ctx.save()
+  ctx.translate(0, -1.5); ctx.fillStyle = 'rgba(0,0,0,0.55)'; dibujar()
+  ctx.translate(0, 3); ctx.fillStyle = 'rgba(255,255,255,0.09)'; dibujar()
+  ctx.restore()
+  ctx.fillStyle = color
+  dibujar()
 }
 
 /** Una carta con su sombra. El PNG ya trae las esquinas recortadas en alfa,
@@ -382,7 +516,14 @@ function dibujar(ctx: CanvasRenderingContext2D, W: number, H: number, c: Conteni
   const historia = formato === 'historia'
   const RATIO = 286 / 400 // líderes y bases son apaisados
 
-  fondo(ctx, W, H)
+  // Semilla determinista del título: el mismo artículo saca siempre la misma
+  // placa. Un `Math.random()` acá haría que dos previsualizaciones del mismo
+  // artículo no se parezcan.
+  let semilla = 0x811c9dc5
+  for (let i = 0; i < c.titulo.length; i++) {
+    semilla ^= c.titulo.charCodeAt(i); semilla = Math.imul(semilla, 0x01000193)
+  }
+  fondo(ctx, W, H, semilla >>> 0)
   ctx.textBaseline = 'top'
   ctx.textAlign = 'left'
 
@@ -486,12 +627,16 @@ function dibujar(ctx: CanvasRenderingContext2D, W: number, H: number, c: Conteni
   const separacion = 24
   let cursorMarca = (W - (aHolocron + separacion + aSwu)) / 2
   ctx.fillStyle = COLOR.texto
-  espaciado(ctx, 'HOLOCRON', cursorMarca, y, SEP)
+  grabado(ctx, () => espaciado(ctx, 'HOLOCRON', cursorMarca, y, SEP), 38)
   cursorMarca += aHolocron + separacion
   ctx.fillStyle = COLOR.ambar
-  espaciado(ctx, 'SWU', cursorMarca, y, SEP)
-  ctx.fillStyle = 'rgba(34,211,238,0.55)'
-  ctx.fillRect(W / 2 - 58, y + 62, 116, 4)
+  grabado(ctx, () => espaciado(ctx, 'SWU', cursorMarca, y, SEP), 38)
+  // Un filo grabado en el metal, no una raya cian: el cian no venía de
+  // ninguna parte de la placa y era lo que más delataba la plantilla genérica.
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'
+  ctx.fillRect(W / 2 - 64, y + 61, 128, 3)
+  ctx.fillStyle = 'rgba(245,158,11,0.75)'
+  ctx.fillRect(W / 2 - 64, y + 64, 128, 3)
   y += altoMarca
 
   // ── arte y nombres ──
@@ -551,10 +696,41 @@ function dibujar(ctx: CanvasRenderingContext2D, W: number, H: number, c: Conteni
   // ── título ──
   ctx.textAlign = 'center'
   ctx.font = `700 ${tamTitulo}px ${SERIF}`
-  ctx.fillStyle = COLOR.texto
   const salto = Math.round(tamTitulo * 1.18)
+
+  // La BANDA del nombre de la credencial, acá detrás del titular: cruza la
+  // placa entera y sobresale por los dos lados. Va con lustre y NO con el
+  // degradado cromado — medido en la credencial, el cromo deja la tinta entre
+  // 1,13:1 y 1,74:1 en la franja del medio, justo donde cae el texto.
+  const bandaY = y - 22
+  const bandaH = lineasTitulo.length * salto + 30
+  ctx.save()
+  ctx.beginPath()
+  ctx.moveTo(14, bandaY)
+  ctx.lineTo(W - 14, bandaY)
+  ctx.lineTo(W - 14, bandaY + bandaH - 14)
+  ctx.lineTo(W - 32, bandaY + bandaH)
+  ctx.lineTo(32, bandaY + bandaH)
+  ctx.lineTo(14, bandaY + bandaH - 14)
+  ctx.closePath()
+  const gb = ctx.createLinearGradient(0, bandaY, 0, bandaY + bandaH)
+  gb.addColorStop(0, 'rgba(12,12,20,0.86)')
+  gb.addColorStop(1, 'rgba(8,8,14,0.94)')
+  ctx.fillStyle = gb
+  ctx.fill()
+  ctx.strokeStyle = 'rgba(245,158,11,0.60)'
+  ctx.lineWidth = 3
+  ctx.stroke()
+  // Filo de luz en el canto de arriba de la banda: la hace leer como metal
+  // sobresaliendo, no como un rectángulo pintado encima.
+  ctx.beginPath()
+  ctx.moveTo(14, bandaY + 1.5); ctx.lineTo(W - 14, bandaY + 1.5)
+  ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 3; ctx.stroke()
+  ctx.restore()
+
+  ctx.fillStyle = COLOR.texto
   for (const linea of lineasTitulo) {
-    ctx.fillText(linea, W / 2, y)
+    grabado(ctx, () => ctx.fillText(linea, W / 2, y), tamTitulo)
     y += salto
   }
 
