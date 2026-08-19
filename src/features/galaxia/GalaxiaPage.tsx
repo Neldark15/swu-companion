@@ -413,7 +413,7 @@ export function GalaxiaPage() {
               corta — el mismo patrón min-w-0/flex-shrink-0 de ProximosEventos.
             */}
             <p className="flex items-baseline gap-1 font-mono text-[10px] tracking-wider text-swu-muted">
-              <span className="min-w-0 truncate">Sistema {galaxia?.sistema ?? 'El Salvador'}</span>
+              <span className="min-w-0 truncate">Sistema {galaxia?.sistema ?? 'sin nombre'}</span>
               <span className="flex-shrink-0">· {totalTexto}</span>
             </p>
           </div>
@@ -488,7 +488,7 @@ export function GalaxiaPage() {
             <Users size={36} className="mx-auto mb-2 text-swu-muted opacity-30" />
             <p className="text-sm text-swu-text">Todavía no hay planetas</p>
             <p className="mt-1 text-[11px] text-swu-muted">
-              El sistema {galaxia?.sistema ?? 'El Salvador'} está esperando su primera cuenta.
+              El sistema {galaxia?.sistema ?? 'sin nombre'} está esperando su primera cuenta.
             </p>
           </div>
         )}

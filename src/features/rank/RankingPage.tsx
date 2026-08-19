@@ -186,7 +186,7 @@ export function RankingPage() {
             />
             <div>
               <h1 className="grabado text-lg font-black tracking-[0.18em] text-swu-text">RANKING</h1>
-              <p className="text-[11px] text-swu-muted">Quién gana partidas en El Salvador.</p>
+              <p className="text-[11px] text-swu-muted">Quién gana partidas en la comunidad.</p>
             </div>
           </div>
         <button
@@ -567,7 +567,7 @@ export function BancoRanking() {
               opacity: 0.45 }} />
             <div>
               <h1 className="grabado text-lg font-black tracking-[0.18em] text-swu-text">RANKING</h1>
-              <p className="text-[11px] text-swu-muted">Quién gana partidas en El Salvador.</p>
+              <p className="text-[11px] text-swu-muted">Quién gana partidas en la comunidad.</p>
             </div>
           </div>
           <button className="clip-chapa flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center text-swu-muted"

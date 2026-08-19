@@ -61,7 +61,7 @@ function textoPromo(nombre: string, rango: string, nivel?: number): string {
     ``,
     `${nombre} — ${linea}`,
     ``,
-    `Es la app de la comunidad de Star Wars: Unlimited en El Salvador:`,
+    `Es la app de la comunidad de Star Wars: Unlimited:`,
     `colección, mazos, torneos, el meta nacional y tu propia placa.`,
     ``,
     `Hacé la tuya gratis en ${SITIO}`,

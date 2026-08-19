@@ -488,3 +488,122 @@ export async function metaAmistoso(dias = 90): Promise<Resultado<MetaAmistoso[]>
     }),
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+ * LO PÚBLICO: el historial de otra persona, y el ranking de mesa
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Las amistosas CONFIRMADAS de cualquier jugador, vistas desde su lado.
+ *
+ * Solo confirmadas, y no por elección de esta función: la política
+ * `duelos_publicos` de la base deja leer exactamente ese estado a cualquiera
+ * (§3a). Una pendiente es una partida que el rival todavía no aceptó publicar,
+ * y enseñarla desde otro perfil sería publicarla por él.
+ *
+ * Se usa el MISMO `vistaDe` que el historial propio, con el id del perfil que
+ * se está mirando en vez del mío: así el marcador sale desde su punto de vista
+ * y no se duplica la lógica del volteo, que es donde vive el error clásico de
+ * esta tabla.
+ */
+export async function amistosasDePerfil(
+  userId: string,
+  tope = 100,
+): Promise<Resultado<DueloVisto[]>> {
+  if (!isSupabaseReady()) return { ok: false, mensaje: 'Sin conexión con la nube.' }
+  if (!userId) return { ok: true, datos: [] }
+
+  const { data, error } = await supabase
+    .from('duelos_amistosos')
+    .select(COLUMNAS)
+    .or(`creador_id.eq.${userId},rival_id.eq.${userId}`)
+    .eq('estado', 'confirmada')
+    .order('created_at', { ascending: false })
+    .limit(tope)
+
+  if (error) {
+    console.warn('[amistosas] historial público:', error.message)
+    return { ok: false, mensaje: 'No se pudo cargar el historial.' }
+  }
+  if (!data) return { ok: true, datos: [] }
+
+  const filas = data as unknown as FilaDuelo[]
+  const ids = [...new Set(
+    [userId, ...filas.flatMap(f => [f.creador_id, f.rival_id])].filter((x): x is string => !!x),
+  )]
+  const nombres = await nombresDe(ids)
+
+  return { ok: true, datos: filas.map(f => vistaDe(f, userId, nombres)) }
+}
+
+/** Una fila del ranking de amistosas. */
+export interface FilaRankingAmistosas {
+  userId: string
+  nombre: string
+  avatar: string | null
+  duelos: number
+  ganados: number
+  perdidos: number
+  empatados: number
+  /** Duelos que nadie marcó. NO son empates. */
+  sinMarcador: number
+  rivales: number
+}
+
+/**
+ * El ranking de las partidas de mesa.
+ *
+ * NO es «el ranking» — ese es `ranking_unificado()` en /rank, y ya cuenta las
+ * amistosas confirmadas a 1 punto. Este responde otra pregunta: de las partidas
+ * de mesa, ¿cómo voy? Por eso vive dentro de /amistosas y se titula con su
+ * nombre completo. Ver §3c: 14 tablas de posiciones sin nombre propio fue
+ * exactamente el problema que costó una reescritura.
+ */
+export async function rankingAmistosas(dias?: number): Promise<Resultado<FilaRankingAmistosas[]>> {
+  if (!isSupabaseReady()) return { ok: false, mensaje: 'Sin conexión con la nube.' }
+
+  const desde = dias
+    ? new Date(Date.now() - dias * 86400_000).toISOString()
+    : null
+
+  const { data, error } = await supabase.rpc('ranking_amistosas', { p_desde: desde })
+  if (error) {
+    console.warn('[amistosas] ranking:', error.message)
+    return { ok: false, mensaje: 'No se pudo cargar el ranking.' }
+  }
+
+  const filas = (data ?? []) as {
+    user_id: string; nombre: string; avatar: string | null
+    duelos: number; ganados: number; perdidos: number
+    empatados: number; sin_marcador: number; rivales: number
+  }[]
+
+  return {
+    ok: true,
+    datos: filas.map(f => ({
+      userId: f.user_id,
+      nombre: f.nombre,
+      avatar: f.avatar,
+      duelos: Number(f.duelos ?? 0),
+      ganados: Number(f.ganados ?? 0),
+      perdidos: Number(f.perdidos ?? 0),
+      empatados: Number(f.empatados ?? 0),
+      sinMarcador: Number(f.sin_marcador ?? 0),
+      rivales: Number(f.rivales ?? 0),
+    })),
+  }
+}
+
+/**
+ * El porcentaje de victorias, o `null` si no hay con qué.
+ *
+ * El denominador son las partidas CON marcador. Hoy 6 de los 12 duelos de
+ * producción están 0-0, así que para mucha gente esto devuelve `null` — y eso
+ * es lo correcto. Un «0%» sacado de partidas que nadie marcó es peor que no
+ * mostrar nada.
+ */
+export function winrateAmistosas(f: FilaRankingAmistosas): number | null {
+  const marcadas = f.ganados + f.perdidos + f.empatados
+  if (marcadas === 0) return null
+  return Math.round((f.ganados / marcadas) * 100)
+}

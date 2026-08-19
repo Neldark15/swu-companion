@@ -1,0 +1,35 @@
+-- RANKING DE AMISTOSAS — quién gana las partidas de mesa.
+--
+-- ── Por qué es OTRA tabla y no una pestaña del ranking general ───────
+--
+-- Este proyecto ya pagó tener 14 tablas de posiciones que no hablaban entre sí
+-- (§3c). La regla que quedó: el RANKING —el que dice quién es mejor— es UNO,
+-- `ranking_unificado()`, y ya cuenta las amistosas confirmadas a 1 punto.
+--
+-- Esta función responde otra pregunta: «de las partidas de mesa, ¿cómo voy?».
+-- Vive DENTRO de /amistosas, se titula «Ranking de amistosas» y la pantalla
+-- enlaza al general. Si algún día se titula «Ranking» a secas, vuelve el
+-- problema entero.
+--
+-- ── Los dos lados ────────────────────────────────────────────────────
+--
+-- Cada duelo se cuenta desde los dos puntos de vista con un `union all`, igual
+-- que `meta_amistoso`, y el marcador del rival va VOLTEADO. Con un solo lado la
+-- tabla saldría sesgada hacia quien lleva el teléfono a la mesa, que siempre es
+-- la misma persona; y sin voltear, la mitad de las filas tendría el resultado
+-- al revés — con los dos números plausibles, nadie lo notaría.
+--
+-- ── El 0-0 no es un empate ───────────────────────────────────────────
+--
+-- 6 de los 12 duelos de producción están 0-0: se usó el Contador para llevar la
+-- vida y nadie marcó quién ganó. Se cuentan en `sin_marcador` y quedan fuera
+-- del porcentaje. Un «50%» sacado de partidas que nadie marcó es una mentira
+-- con cara de dato. `empatados` exige que los dos marcaran algo (`mias > 0`).
+--
+-- Pública (anon + authenticated): solo agrega duelos CONFIRMADOS, que es el
+-- único estado público (§3a) y el único que la política `duelos_publicos` deja
+-- leer a un tercero.
+--
+-- Cuerpo completo en la migración `ranking_amistosas`, aplicada el 2026-08-19.
+-- Comprobado contra producción: el único duelo confirmado produce exactamente
+-- 2 filas (ganador y perdedor), que es lo que debe pasar.

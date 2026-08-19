@@ -24,7 +24,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Swords, Plus, RefreshCw } from 'lucide-react'
+import { ChevronLeft, Swords, Plus, RefreshCw, Search, X, Trophy } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { SegmentedControl } from '../../components/ui/SegmentedControl'
@@ -35,14 +35,14 @@ import { useAuth } from '../../hooks/useAuth'
 import { fechaCorta } from '../../services/horaSV'
 import { ensureCards } from '../../services/swuApi'
 import {
-  listarAmistosas, agruparCaraACara,
-  type DueloVisto, type CaraACara,
+  listarAmistosas, agruparCaraACara, rankingAmistosas, winrateAmistosas,
+  type DueloVisto, type CaraACara, type FilaRankingAmistosas,
 } from '../../services/amistosas'
 import { RegistrarAmistosa } from './RegistrarAmistosa'
 import { PorConfirmar } from './PorConfirmar'
 import { cargarIndice, resolver, nombreCorto, type IndiceCartas } from './cartasAmistosas'
 
-type Pestana = 'historial' | 'cara'
+type Pestana = 'historial' | 'cara' | 'ranking'
 
 /** El color y la palabra de cada resultado, en un solo sitio. */
 const RESULTADO: Record<DueloVisto['resultado'], { texto: string; clase: string }> = {
@@ -140,6 +140,17 @@ function FilaCaraACara({ c }: { c: CaraACara }) {
           {c.duelos} {c.duelos === 1 ? 'duelo' : 'duelos'}
           {c.sinMarcador > 0 && ` · ${c.sinMarcador} sin marcador`}
         </p>
+        {/* Al historial COMPLETO de esa persona, no solo lo que jugó conmigo.
+            Sin cuenta no hay a dónde ir: un invitado sin perfil solo existe
+            como nombre en mis propias filas. */}
+        {c.rivalId && (
+          <Link
+            to={`/amistosas/${c.rivalId}`}
+            className="mt-0.5 inline-block text-[10px] text-swu-cyan underline underline-offset-2"
+          >
+            Ver todas sus amistosas
+          </Link>
+        )}
       </div>
       <div className="flex shrink-0 items-center gap-2 font-mono text-sm font-black tabular-nums">
         <span className="text-swu-green">{c.ganados}</span>
@@ -148,6 +159,79 @@ function FilaCaraACara({ c }: { c: CaraACara }) {
         {c.empatados > 0 && <span className="text-swu-amber">·{c.empatados}</span>}
       </div>
     </li>
+  )
+}
+
+/**
+ * El ranking de las partidas de mesa.
+ *
+ * NO se titula «Ranking» a secas ni acá ni en la pestaña de al lado: el ranking
+ * de la app es UNO —`/rank`— y ya cuenta estas amistosas a 1 punto. Este
+ * responde otra pregunta. Este proyecto ya pagó tener 14 tablas de posiciones
+ * sin nombre propio (§3c de CLAUDE.md), y la forma de no repetirlo es que cada
+ * tabla diga de qué es y a dónde está la otra.
+ */
+function TablaRanking({ filas }: { filas: FilaRankingAmistosas[] | null }) {
+  if (filas === null) {
+    return (
+      <div className="space-y-2">
+        {[0, 1, 2].map(i => <div key={i} className="h-14 animate-pulse rounded-xl bg-swu-surface" />)}
+      </div>
+    )
+  }
+
+  if (filas.length === 0) {
+    return (
+      <EmptyState
+        icon={<Trophy size={26} />}
+        title="Todavía no hay nada que ordenar"
+        hint="Acá entran las amistosas que el rival CONFIRMÓ. Anotá una y pedile que la acepte: cuenta para los dos."
+      />
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="px-1 text-[11px] leading-snug text-swu-muted">
+        Solo partidas de mesa que el rival confirmó. El ranking general de la app está en{' '}
+        <Link to="/rank" className="text-swu-cyan underline underline-offset-2">Ranking</Link>.
+      </p>
+
+      <ul className="divide-y divide-swu-border overflow-hidden rounded-xl bg-swu-surface">
+        {filas.map((f, i) => {
+          const wr = winrateAmistosas(f)
+          return (
+            <li key={f.userId}>
+              <Link to={`/amistosas/${f.userId}`} className="flex items-center gap-3 px-3 py-2.5 active:bg-swu-surface-hover">
+                <span className="w-5 shrink-0 text-center text-sm font-black tabular-nums text-swu-muted">
+                  {i + 1}
+                </span>
+                <Avatar avatar={f.avatar} size={32} anillo={f.userId} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-bold text-swu-text">{f.nombre}</span>
+                  <span className="block text-[11px] text-swu-muted tabular-nums">
+                    {f.ganados}-{f.perdidos}
+                    {f.empatados > 0 && `-${f.empatados}`}
+                    {' · '}{f.duelos} {f.duelos === 1 ? 'duelo' : 'duelos'}
+                    {f.rivales > 1 && ` · ${f.rivales} rivales`}
+                  </span>
+                </span>
+                {/* El porcentaje se CALLA si no hay partidas marcadas. Un 0%
+                    sacado de duelos que nadie marcó es una mentira con cara de
+                    dato — y hoy 6 de 12 están en 0-0. */}
+                <span className="shrink-0 text-right">
+                  {wr !== null ? (
+                    <span className="text-base font-black tabular-nums text-swu-green">{wr}%</span>
+                  ) : (
+                    <span className="text-[10px] text-swu-muted">sin marcador</span>
+                  )}
+                </span>
+              </Link>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }
 
@@ -161,6 +245,11 @@ export function AmistosasPage() {
   const [fallo, setFallo] = useState<string | null>(null)
   const [indice, setIndice] = useState<IndiceCartas | null>(null)
   const [registrando, setRegistrando] = useState(false)
+  /* El buscador filtra sobre lo que YA se leyó: los duelos propios están todos
+   * en memoria (tope 100), así que una consulta por tecleo sería tráfico por
+   * nada y además parpadearía. */
+  const [busca, setBusca] = useState('')
+  const [ranking, setRanking] = useState<FilaRankingAmistosas[] | null>(null)
   /** Se sube para forzar otra consulta: reintentar, o volver de guardar. */
   const [recarga, setRecarga] = useState(0)
 
@@ -185,6 +274,18 @@ export function AmistosasPage() {
     return () => { vivo = false }
   }, [miId, recarga])
 
+  /* El ranking se pide solo al abrir SU pestaña: es una consulta al servidor y
+   * la mayoría entra a ver su historial, no la tabla. */
+  useEffect(() => {
+    if (pestana !== 'ranking' || ranking !== null) return
+    let vivo = true
+    void (async () => {
+      const r = await rankingAmistosas()
+      if (vivo) setRanking(r.ok ? r.datos : [])
+    })()
+    return () => { vivo = false }
+  }, [pestana, ranking])
+
   // El arte se resuelve contra la base local. Va aparte de los duelos: si la
   // base de cartas todavía no bajó, el historial igual se lee — sale sin arte,
   // no sale vacío.
@@ -198,7 +299,25 @@ export function AmistosasPage() {
     return () => { vivo = false }
   }, [])
 
+  /* Se compara sin acentos y en minúscula: «Nicolás» y «nicolas» tienen que
+   * encontrar lo mismo, o el buscador falla justo con los nombres de acá. */
+  const normaliza = (t: string) =>
+    t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+
+  const duelosFiltrados = useMemo(() => {
+    const q = normaliza(busca)
+    if (!q) return duelos ?? []
+    return (duelos ?? []).filter(d => normaliza(d.rival.nombre).includes(q))
+  }, [duelos, busca])
+
   const cara = useMemo(() => agruparCaraACara(duelos ?? []), [duelos])
+
+  const caraFiltrada = useMemo(() => {
+    const q = normaliza(busca)
+    if (!q) return cara
+    return cara.filter(c => normaliza(c.nombre).includes(q))
+  }, [cara, busca])
+
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-3 p-4 pb-10">
@@ -230,8 +349,37 @@ export function AmistosasPage() {
         options={[
           { value: 'historial', label: 'Historial' },
           { value: 'cara', label: 'Cara a cara' },
+          { value: 'ranking', label: 'Ranking' },
         ]}
       />
+
+      {/* El buscador solo aparece donde hay algo que buscar. En el ranking no:
+          hoy son dos filas y un buscador ahí sería un control que estorba. */}
+      {pestana !== 'ranking' && (
+        <div className="relative">
+          <Search size={15} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-swu-muted" />
+          <input
+            type="search"
+            value={busca}
+            onChange={e => setBusca(e.target.value)}
+            placeholder="Buscar por oponente…"
+            aria-label="Buscar duelos por nombre del oponente"
+            className="w-full rounded-lg border border-swu-border bg-swu-surface py-2 pr-9 pl-9 text-sm
+                       text-swu-text placeholder:text-swu-muted/70
+                       focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-swu-cyan"
+          />
+          {busca && (
+            <button
+              type="button"
+              onClick={() => setBusca('')}
+              aria-label="Borrar la búsqueda"
+              className="absolute top-1/2 right-2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full text-swu-muted hover:text-swu-text"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+      )}
 
       {duelos === null && (
         <div className="space-y-2">
@@ -264,16 +412,30 @@ export function AmistosasPage() {
       )}
 
       {duelos !== null && !fallo && duelos.length > 0 && pestana === 'historial' && (
-        <ul className="space-y-2">
-          {duelos.map(d => <TarjetaDuelo key={d.id} d={d} indice={indice} />)}
-        </ul>
+        duelosFiltrados.length > 0 ? (
+          <ul className="space-y-2">
+            {duelosFiltrados.map(d => <TarjetaDuelo key={d.id} d={d} indice={indice} />)}
+          </ul>
+        ) : (
+          <p className="rounded-xl bg-swu-surface px-4 py-6 text-center text-sm text-swu-muted">
+            Ningún duelo contra «{busca}».
+          </p>
+        )
       )}
 
       {duelos !== null && !fallo && duelos.length > 0 && pestana === 'cara' && (
-        <ul className="space-y-2">
-          {cara.map(c => <FilaCaraACara key={c.rivalId ?? `n:${c.nombre}`} c={c} />)}
-        </ul>
+        caraFiltrada.length > 0 ? (
+          <ul className="space-y-2">
+            {caraFiltrada.map(c => <FilaCaraACara key={c.rivalId ?? `n:${c.nombre}`} c={c} />)}
+          </ul>
+        ) : (
+          <p className="rounded-xl bg-swu-surface px-4 py-6 text-center text-sm text-swu-muted">
+            Nunca jugaste contra «{busca}».
+          </p>
+        )
       )}
+
+      {pestana === 'ranking' && <TablaRanking filas={ranking} />}
 
       <Sheet open={registrando} onClose={() => setRegistrando(false)} title="Registrar partida">
         {miId
