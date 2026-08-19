@@ -1104,8 +1104,6 @@ input:focus, textarea:focus, select:focus {
   );
 }
 
-/* El brillo especular: la banda blanca que cruza. Es la capa que de verdad se
-   ve moverse, así que lleva el paralaje MÁS fuerte. */
 /* Menos movimiento: el acabado se queda QUIETO en su posición de reposo, pero
    no desaparece. Que una carta sea foil es información sobre lo que tenés, no
    una animación decorativa. */
@@ -1130,22 +1128,15 @@ input:focus, textarea:focus, select:focus {
  * que siga siendo trabajo del compositor. Cada capa lleva su propia amplitud:
  * ESE desfase es el paralaje, y es lo que hace que se lea como una lámina con
  * grosor y no como una mancha que se desliza. */
-.foil-solo .foil-arcoiris {
-  position: absolute;
-  inset: -75%;
-  background: repeating-linear-gradient(
-    102deg,
-    #7a1038 0%,
-    #7a5c10 6%,
-    #0a5a42 12%,
-    #14425e 18%,
-    #4a1a68 24%,
-    #7a1038 30%
-  );
-  opacity: 0.62;
-  mix-blend-mode: color-dodge;
-  transform: translate3d(calc(var(--px, 0) * 30%), calc(var(--py, 0) * 16%), 0);
-  transition: transform 120ms linear;
+.foil-solo .foil-arcoiris { --amp: 24%; animation: foil-barre 6s ease-in-out infinite; }
+.foil-solo .foil-metal    { --amp: 20%; animation: foil-barre 5s ease-in-out infinite; }
+.foil-solo .foil-oro      { --amp: 20%; animation: foil-barre 5s ease-in-out infinite; }
+.foil-solo .foil-trama    { --amp: -9%; animation: foil-barre 6s ease-in-out infinite; }
+.foil-solo .foil-lustre   { --amp: 42%; animation: foil-barre 4.2s ease-in-out infinite; }
+
+@keyframes foil-barre {
+  0%, 100% { transform: translate3d(calc(var(--amp) * -1), 0, 0); }
+  50%      { transform: translate3d(var(--amp), 0, 0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
