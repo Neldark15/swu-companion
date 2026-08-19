@@ -459,6 +459,8 @@ export function ContadorPage() {
   const [ladoB, setLadoB] = useState<{ base: Card; lider: Card | null } | null>(null)
   const [dado, setDado] = useState<{ abierto: boolean; valores: number[]; tirada: number }>({ abierto: false, valores: [1], tirada: 0 })
   const [ajustes, setAjustes] = useState(false)
+  /** ¿Está preguntando quién ganó antes de cerrar? */
+  const [cerrando, setCerrando] = useState(false)
   const [registro, setRegistro] = useState(false)
   const [relojPanel, setReloj] = useState(false)
   /** (3) «Mis duelos»: el historial guardado, que hasta ahora no se veía. */
@@ -754,9 +756,16 @@ export function ContadorPage() {
     setReanudable(null)
   }, [currentProfile?.avatar, rival, subir])
 
-  const terminar = useCallback(() => {
-    // El cierre en la nube marca el duelo como terminado — es lo que lo hace
-    // contar en el cara-a-cara. Sin sesión, simplemente no hay historial.
+  /**
+   * Cierra el duelo con un marcador CONCRETO.
+   *
+   * Antes esto subía lo que hubiera, y lo que hay casi siempre es 0-0: medido
+   * en producción, 6 de los 12 duelos están así porque el Contador se usa para
+   * llevar la VIDA y nadie marca quién ganó el juego. Y de ahí cuelga todo —el
+   * ranking, el meta nacional y los sobres salen de las amistosas confirmadas—,
+   * así que ese 0-0 es la fuga de datos más cara de la app.
+   */
+  const cerrarCon = useCallback((victoriasA: number, victoriasB: number) => {
     if (duelo && supabaseUser && isSupabaseReady()) {
       window.clearTimeout(subidaRef.current)
       void supabase.from('duelos_amistosos').upsert({
@@ -766,8 +775,8 @@ export function ContadorPage() {
         rival_nombre: duelo.rival?.nombre ?? 'Invitado',
         base_creador: duelo.a.baseNombre,
         base_rival: duelo.b.baseNombre,
-        victorias_creador: duelo.a.victorias,
-        victorias_rival: duelo.b.victorias,
+        victorias_creador: victoriasA,
+        victorias_rival: victoriasB,
         rondas: duelo.ronda,
         terminado: true,
         updated_at: new Date().toISOString(),
@@ -778,9 +787,27 @@ export function ContadorPage() {
     borrar()
     setDuelo(null)
     setAjustes(false)
+    setCerrando(false)
     setLadoA(null); setLadoB(null)
     setRival(null); setBusqueda('')
   }, [duelo, supabaseUser])
+
+  /**
+   * El botón de terminar. Si nadie marcó quién ganó, PREGUNTA antes de cerrar.
+   *
+   * Se pregunta y no se obliga: «no lo anotamos» sigue siendo una respuesta
+   * válida, porque forzar una respuesta hace que la gente invente una y un
+   * marcador inventado es peor que ninguno. Pero preguntarlo cambia el caso por
+   * defecto — antes había que acordarse de marcar ANTES de cerrar, y nadie se
+   * acordaba.
+   */
+  const terminar = useCallback(() => {
+    if (duelo && duelo.a.victorias === 0 && duelo.b.victorias === 0) {
+      setCerrando(true)
+      return
+    }
+    cerrarCon(duelo?.a.victorias ?? 0, duelo?.b.victorias ?? 0)
+  }, [duelo, cerrarCon])
 
   /* ── El duelo en curso: pantalla completa, por encima de la TabBar ── */
   if (duelo) {
@@ -1010,6 +1037,53 @@ export function ContadorPage() {
         )}
 
         {/* Ajustes: reiniciar vida, terminar. */}
+        {/* ── ¿Quién ganó? ──────────────────────────────────────────────
+            Sale solo cuando el marcador está en 0-0, que es el 50% de los
+            duelos reales. Es LA pregunta de la que cuelga el ranking, el meta y
+            los sobres, y hasta ahora nunca se hacía: había que acordarse de
+            marcarlo antes de cerrar.
+
+            «No lo anotamos» sigue estando, y arriba de todo no: forzar una
+            respuesta hace que la gente invente una, y un marcador inventado es
+            peor que ninguno. Lo que cambia es el caso por defecto. */}
+        {cerrando && duelo && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/80 p-6">
+            <div className="w-full max-w-sm space-y-2 rounded-2xl border border-swu-border bg-swu-surface p-4">
+              <p className="text-sm font-bold text-swu-text">¿Quién ganó el duelo?</p>
+              <p className="mb-1 text-[11px] leading-snug text-swu-muted">
+                Con esto la partida cuenta para el ranking y el meta. Si tu rival la
+                confirma, les damos un sobre a los dos.
+              </p>
+              <button
+                onClick={() => cerrarCon(1, 0)}
+                className="flex w-full items-center gap-2 rounded-xl border border-swu-green/40 bg-swu-green/10 px-3 py-2.5 text-sm font-bold text-swu-green"
+              >
+                Gané yo
+              </button>
+              <button
+                onClick={() => cerrarCon(0, 1)}
+                className="flex w-full items-center gap-2 rounded-xl border border-swu-border bg-swu-bg px-3 py-2.5 text-sm text-swu-text"
+              >
+                Ganó {duelo.rival?.nombre ?? 'el rival'}
+              </button>
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => setCerrando(false)}
+                  className="flex-1 rounded-xl border border-swu-border px-3 py-2 text-xs text-swu-muted"
+                >
+                  Volver
+                </button>
+                <button
+                  onClick={() => cerrarCon(0, 0)}
+                  className="flex-1 rounded-xl border border-swu-border px-3 py-2 text-xs text-swu-muted"
+                >
+                  No lo anotamos
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {ajustes && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 p-6"
                onClick={() => setAjustes(false)}>

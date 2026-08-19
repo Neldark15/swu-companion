@@ -14,9 +14,10 @@
  */
 
 import { useT } from '../../services/i18n'
+import { pendientesDeConfirmar } from '../../services/amistosas'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, ScanLine } from 'lucide-react'
+import { ChevronRight, ScanLine, Swords } from 'lucide-react'
 import {
   DatapadIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
   DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
@@ -200,6 +201,26 @@ export function HomePage() {
 
   const { marcadores, stats: playerStats } = panel
 
+  /* Amistosas esperando MI confirmación.
+   *
+   * Va en Inicio y no solo en /amistosas porque ahí es donde la gente entra.
+   * Medido: de 12 duelos registrados solo UNO está confirmado — y de la
+   * confirmación cuelgan el ranking, el meta nacional y los sobres. El aviso
+   * existía, pero había que ir a buscarlo a una pantalla a la que nadie iba.
+   *
+   * Un push no lo arregla: solo 5 de 26 perfiles tienen avisos activos. */
+  const [porConfirmar, setPorConfirmar] = useState(0)
+  const miIdAuth = supabaseUser?.id ?? ''
+  useEffect(() => {
+    if (!miIdAuth) return
+    let vivo = true
+    void (async () => {
+      const r = await pendientesDeConfirmar(miIdAuth)
+      if (vivo && r.ok) setPorConfirmar(r.datos.length)
+    })()
+    return () => { vivo = false }
+  }, [miIdAuth])
+
   if (!currentProfile) return <WelcomeHome />
 
   /** El separador con líneas en degradado y el rótulo al centro, en versalitas.
@@ -264,6 +285,30 @@ export function HomePage() {
           alTocar="perfil"
         />
       </div>
+
+      {/* Lo que TE están esperando. Dice el premio porque es cierto y porque es
+          lo que hace que valga el toque: confirmar da un sobre a los dos. */}
+      {porConfirmar > 0 && (
+        <div className="px-4 pt-3">
+          <button
+            onClick={() => navigate('/amistosas')}
+            className="clip-hud flex w-full items-center gap-3 bg-swu-amber/15 px-4 py-3 text-left"
+          >
+            <Swords size={18} className="shrink-0 text-swu-amber" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-bold text-swu-text">
+                {porConfirmar === 1
+                  ? 'Tenés una partida por confirmar'
+                  : `Tenés ${porConfirmar} partidas por confirmar`}
+              </span>
+              <span className="block text-[11px] text-swu-muted">
+                Al confirmarla cuenta para el ranking y les da un sobre a los dos.
+              </span>
+            </span>
+            <ChevronRight size={16} className="shrink-0 text-swu-muted" />
+          </button>
+        </div>
+      )}
 
       {/* Terminá tu perfil. Se dibuja solo si de verdad falta algo, y se calla
           solo si la persona lo pide. Va acá arriba —justo bajo la tarjeta que
