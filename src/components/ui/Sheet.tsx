@@ -35,12 +35,34 @@ export function Sheet({ open, onClose, title, children, bare = false }: SheetPro
   // desmontaría y rearmaría con cada '+' que tocás dentro del panel — y la
   // devolución de foco te sacaría del botón que acabás de usar.
   const onCloseRef = useRef(onClose)
+/**
+ * La PILA de paneles abiertos, del más viejo al más nuevo.
+ *
+ * Hace falta porque cada `Sheet` registraba su Escape en `window` y ninguno
+ * paraba la propagación: con dos paneles abiertos —el estudio de artículos
+ * monta el selector de cartas ENCIMA del panel del mazo— un solo Escape
+ * cerraba los dos y se perdía el mazo que se estaba armando.
+ *
+ * Y el bloqueo del fondo iba con el mismo defecto: cada panel se guardaba el
+ * `overflow` que encontró al abrir. Si el de abajo se cerraba primero, restauraba
+ * el valor original teniendo otro panel todavía abierto y el fondo volvía a
+ * desplazarse detrás.
+ *
+ * El Escape se resuelve mirando el DOM (ver el comentario del manejador), y el
+ * `overflow` igual: se libera cuando ya no queda ningún panel pintado.
+ *
+ * Se devuelve a cadena vacía en vez de al valor que había antes, y eso es una
+ * SUPOSICIÓN declarada: en esta app nadie deja `body` con un overflow propio —
+ * los otros dos overlays (`CardZoom`, `LupaCarta`) guardan y restauran el suyo,
+ * y no se montan debajo de un panel. Si algún día uno lo hiciera, habría que
+ * guardar el valor original en algún sitio que el efecto pueda leer sin mutar
+ * estado de módulo (la regla de React del proyecto lo prohíbe, con razón).
+ */
   useEffect(() => { onCloseRef.current = onClose })
 
   useEffect(() => {
     if (!open) return
     const previouslyFocused = document.activeElement as HTMLElement | null
-    const prevOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
 
     // El foco entra al panel; si no, el teclado sigue en el fondo tapado.
@@ -50,6 +72,20 @@ export function Sheet({ open, onClose, title, children, bare = false }: SheetPro
     })
 
     const onKey = (e: KeyboardEvent) => {
+      /* Solo el panel de MÁS ARRIBA cierra con Escape, y quién es el de arriba
+       * se le pregunta al DOM, no a un contador propio.
+       *
+       * Antes esto llevaba una pila de módulo y NO funcionaba: medido con dos
+       * paneles abiertos, la pila tenía UNA sola entrada. Los paneles se montan
+       * y desmontan por caminos que el efecto no ve (el modo estricto invoca el
+       * efecto dos veces, y el panel de adentro vive dentro del `children` del
+       * de afuera), así que el contador se desincroniza del DOM real.
+       *
+       * Todos los paneles se portalan a `document.body`, así que el último en
+       * orden de documento ES el de encima. Eso no se puede desincronizar: es
+       * lo que hay pintado. */
+      const paneles = document.querySelectorAll('[data-panel-hoja]')
+      if (paneles.length > 1 && paneles[paneles.length - 1] !== panelRef.current) return
       if (e.key === 'Escape') { onCloseRef.current(); return }
       if (e.key !== 'Tab') return
       const nodes = panelRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE)
@@ -63,7 +99,24 @@ export function Sheet({ open, onClose, title, children, bare = false }: SheetPro
     window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prevOverflow
+      /* El fondo se libera cuando se cierra el ÚLTIMO panel, y quién queda se
+       * cuenta en el DOM — en el fotograma SIGUIENTE, porque en la limpieza
+       * este panel todavía está pintado.
+       *
+       * Se probó con un contador de módulo y NO era fiable: medido con dos
+       * paneles abiertos, el contador decía UNO. Los paneles se montan por
+       * caminos que el efecto no ve, así que cualquier contabilidad propia se
+       * desincroniza del DOM. */
+      /* Un temporizador y NO `requestAnimationFrame`: en una pestaña oculta rAF
+       * no corre —medido, 0 cuadros en 400 ms— y el fondo se quedaba bloqueado
+       * hasta volver a la pestaña. Los temporizadores se ralentizan en segundo
+       * plano pero se ejecutan. */
+      const t = setTimeout(() => {
+        if (document.querySelectorAll('[data-panel-hoja]').length === 0) {
+          document.body.style.overflow = ''
+        }
+      }, 0)
+      void t
       previouslyFocused?.focus?.()
     }
   }, [open])
@@ -91,6 +144,7 @@ export function Sheet({ open, onClose, title, children, bare = false }: SheetPro
     >
       <div
         ref={panelRef}
+        data-panel-hoja=""
         role="dialog"
         aria-modal="true"
         aria-label={title}
