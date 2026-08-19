@@ -5,7 +5,7 @@ import { supabase, isSupabaseReady } from '../services/supabase'
 import { syncProfileToCloud, syncStatsToCloud, pullAllFromCloud, addMonthlyXp } from '../services/sync'
 import { createPasskey, authenticateWithPasskey, authenticateWithAnyPasskey } from '../services/crypto'
 import { createDefaultStats } from '../services/gamification'
-import { getUserRole } from '../services/events'
+import { getPermisos } from '../services/events'
 import type { User } from '@supabase/supabase-js'
 
 interface AuthState {
@@ -14,6 +14,14 @@ interface AuthState {
   isOnline: boolean
   role: 'user' | 'admin'
   isAdmin: boolean
+  /**
+   * Puede escribir artículos SIN ser administrador.
+   *
+   * Existe porque escribir en el blog exigía `role = 'admin'`, y admin en esta
+   * app abre 13 tablas y 5 funciones —torneos, sedes, avisos push, y
+   * `set_user_role`—. Un colaborador que escribe no necesita nada de eso.
+   */
+  esAutorBlog: boolean
   isRecoveryMode: boolean
   /**
    * ¿Terminó ya el primer `initAuth`?
@@ -102,6 +110,7 @@ export const useAuth = create<AuthState>()(
       isOnline: isSupabaseReady(),
       role: 'user',
       isAdmin: false,
+      esAutorBlog: false,
       isRecoveryMode: false,
       authListo: false,
       rolListo: false,
@@ -151,7 +160,8 @@ export const useAuth = create<AuthState>()(
           set({ supabaseUser: user, profiles, currentProfile: profile, currentProfileId: profile.id })
 
           void (async () => {
-            const role = await getUserRole(user.id)
+            const permisos = await getPermisos(user.id)
+            const role = permisos?.role ?? null
             // `null` = no se pudo averiguar (red mala, RLS, timeout). En ese
             // caso NO se toca el rol: se conserva el persistido, que es el
             // último dato bueno. Pisarlo con una suposición es lo que echaba
@@ -161,7 +171,13 @@ export const useAuth = create<AuthState>()(
             // terminé de averiguar», no «sé la respuesta». Quien decide
             // expulsar (AdminLayout) necesita distinguir eso de «todavía no
             // pregunté», o echa al admin en la ventana intermedia.
-            if (role !== null) set({ role: role as 'user' | 'admin', isAdmin: role === 'admin' })
+            if (role !== null) {
+              set({
+                role: role as 'user' | 'admin',
+                isAdmin: role === 'admin',
+                esAutorBlog: permisos?.blogAutor === true,
+              })
+            }
             set({ rolListo: true })
           })()
 
@@ -229,7 +245,7 @@ export const useAuth = create<AuthState>()(
                 usuarioAplicado = null
                 set({
                   supabaseUser: null, currentProfile: null, currentProfileId: null,
-                  isRecoveryMode: false, rolListo: false,
+                  isRecoveryMode: false, rolListo: false, esAutorBlog: false,
                 })
               }
             })
@@ -349,7 +365,8 @@ export const useAuth = create<AuthState>()(
         // Acá venís de autenticarte recién, o sea que la red anda; si aun así
         // no se pudo leer el rol, `'user'` es el default seguro y el próximo
         // `initAuth` lo corrige.
-        const role = (await getUserRole(user.id) ?? 'user') as 'user' | 'admin'
+        const permisos = await getPermisos(user.id)
+        const role = (permisos?.role ?? 'user') as 'user' | 'admin'
 
         set({
           supabaseUser: user,
@@ -358,6 +375,7 @@ export const useAuth = create<AuthState>()(
           currentProfileId: profile.id,
           role,
           isAdmin: role === 'admin',
+          esAutorBlog: permisos?.blogAutor === true,
         })
 
         return { ok: true }
@@ -424,7 +442,8 @@ export const useAuth = create<AuthState>()(
         // Acá venís de autenticarte recién, o sea que la red anda; si aun así
         // no se pudo leer el rol, `'user'` es el default seguro y el próximo
         // `initAuth` lo corrige.
-        const role = (await getUserRole(user.id) ?? 'user') as 'user' | 'admin'
+        const permisos = await getPermisos(user.id)
+        const role = (permisos?.role ?? 'user') as 'user' | 'admin'
 
         set({
           supabaseUser: user,
@@ -433,6 +452,7 @@ export const useAuth = create<AuthState>()(
           currentProfileId: profile.id,
           role,
           isAdmin: role === 'admin',
+          esAutorBlog: permisos?.blogAutor === true,
         })
 
         // Pull all data from cloud in background
@@ -565,7 +585,7 @@ export const useAuth = create<AuthState>()(
         // Sin esto, volver a entrar con la misma cuenta sin recargar se saltaría
         // el trabajo pesado (Dexie + rol + pull) por creerlo ya hecho.
         usuarioAplicado = null
-        set({ currentProfile: null, currentProfileId: null, supabaseUser: null, role: 'user', isAdmin: false, isRecoveryMode: false, rolListo: false })
+        set({ currentProfile: null, currentProfileId: null, supabaseUser: null, role: 'user', isAdmin: false, esAutorBlog: false, isRecoveryMode: false, rolListo: false })
       },
 
       setCurrentProfile: (profile) => {

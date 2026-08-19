@@ -19,7 +19,11 @@ import { fechaLarga } from '../../services/horaSV'
 export function BlogPostPage() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
-  const { isAdmin } = useAuth()
+  const { isAdmin, esAutorBlog } = useAuth()
+  /* Escribir NO es administrar. Un autor publica lo suyo sin que se le abra el
+     panel de admin, que en esta app son 13 tablas y 5 funciones —torneos,
+     sedes, avisos push y `set_user_role`—. Ver `blog-autor-permiso-acotado.sql`. */
+  const puedeEscribir = isAdmin || esAutorBlog
   const [post, setPost] = useState<BlogPost | null>(null)
   const [estado, setEstado] = useState<'cargando' | 'listo' | 'no-esta'>('cargando')
   const [compartido, setCompartido] = useState(false)
@@ -84,7 +88,7 @@ export function BlogPostPage() {
             <ArrowLeft size={14} aria-hidden /> Blog
           </button>
           <div className="flex items-center gap-3">
-            {isAdmin && (
+            {puedeEscribir && (
               <Link to={`/blog/editar/${post.id}`} className="text-swu-muted hover:text-swu-amber" aria-label="Editar">
                 <PenLine size={15} aria-hidden />
               </Link>

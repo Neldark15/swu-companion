@@ -117,17 +117,34 @@ function generateEventCode(): string {
  * por `set_user_role()` / `cerrar_torneo()`.
  */
 export async function getUserRole(userId: string): Promise<string | null> {
-  if (!isSupabaseReady()) return 'user'
+  return (await getPermisos(userId))?.role ?? null
+}
+
+/**
+ * Rol y permisos de una persona, en UNA consulta.
+ *
+ * `blog_autor` va acá y no en su propia llamada porque se necesita en el mismo
+ * momento y por la misma razón: decidir qué puertas pintar. Dos consultas
+ * serían dos viajes para responder una sola pregunta.
+ *
+ * Devuelve `null` cuando NO SE PUDO averiguar, que es distinto de «no tiene
+ * permiso»: quien llama no debe degradar a `user` ante un fallo de red, o
+ * expulsa del panel a un admin con mala señal (§2v).
+ */
+export async function getPermisos(
+  userId: string,
+): Promise<{ role: string; blogAutor: boolean } | null> {
+  if (!isSupabaseReady()) return { role: 'user', blogAutor: false }
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, blog_autor')
     .eq('id', userId)
     .single()
 
   if (error) return null
 
-  return data?.role || 'user'
+  return { role: (data?.role as string) || 'user', blogAutor: data?.blog_autor === true }
 }
 
 export async function checkIsAdmin(userId: string): Promise<boolean> {

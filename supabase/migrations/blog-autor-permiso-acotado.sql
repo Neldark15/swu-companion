@@ -1,0 +1,42 @@
+-- AUTOR DEL BLOG — poder escribir artículos SIN ser administrador.
+--
+-- ── Por qué hacía falta ──────────────────────────────────────────────
+--
+-- La única política de escritura de `blog_posts` exigía `role = 'admin'`, y en
+-- esta app ser admin NO significa «puede escribir». Medido sobre la base:
+--
+--   13 tablas: official_events + tournament_rounds/_pairings/_standings,
+--              venues, news, event_registrations, galaxia_mensajes,
+--              stream_operadores/_sesiones, storage.objects, audit_logs,
+--              blog_posts
+--    5 funciones: cerrar_torneo (reparte XP y SOBRES), repartir_premios,
+--              set_melee_verified, set_user_role (promueve a otros),
+--              torneos_pendientes
+--
+-- Más los avisos push a toda la comunidad. Dar todo eso para que alguien
+-- publique un artículo es desproporcionado, y no se deshace a medias: quien ya
+-- vio el panel sabe que existe.
+--
+-- ── Y por qué NO alcanzaba con «admin OR blog_autor» ─────────────────
+--
+-- La política vieja era `FOR ALL` con un USING que solo preguntaba «¿sos
+-- admin?». Entre administradores da igual —se confía en ellos— pero con
+-- autores no: un autor podría EDITAR o BORRAR el artículo de otro autor. Por
+-- eso se parte en cuatro políticas: el autor inserta/edita/borra SOLO lo suyo,
+-- y el admin conserva el ALL, que es lo que hace falta para moderar.
+--
+-- La columna no es escribible desde el cliente: `authenticated` tiene UPDATE
+-- sobre una LISTA EXPLÍCITA de columnas de `profiles` (§2o) y esta no está en
+-- ella. Nadie se puede nombrar autor a sí mismo.
+--
+-- Comprobado contra la base, en transacción revertida:
+--   1. usuario normal escribe            -> rechazado
+--   2. el autor escribe lo suyo          -> publicado
+--   3. el autor firma como otro          -> rechazado
+--   4. autor edita el artículo de OTRO   -> no toca ninguna fila
+--   5. admin modera lo ajeno             -> puede
+--   6. usuario se nombra autor a sí mismo-> rechazado
+--   7. el autor crea un torneo           -> rechazado, sigue sin ser admin
+--
+-- El cuerpo completo está en la migración `blog_autor_permiso_acotado`
+-- aplicada el 2026-08-19.

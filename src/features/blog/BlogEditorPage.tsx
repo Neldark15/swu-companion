@@ -64,7 +64,11 @@ como texto plano: se ve el error, no se rompe.`
 export function BlogEditorPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { supabaseUser, isAdmin } = useAuth()
+  const { supabaseUser, isAdmin, esAutorBlog } = useAuth()
+  /* Escribir NO es administrar. Un autor publica lo suyo sin que se le abra el
+     panel de admin, que en esta app son 13 tablas y 5 funciones —torneos,
+     sedes, avisos push y `set_user_role`—. Ver `blog-autor-permiso-acotado.sql`. */
+  const puedeEscribir = isAdmin || esAutorBlog
 
   const [post, setPost] = useState<Partial<BlogPost>>({
     title: '', excerpt: '', content: '', kind: 'articulo', tags: [], published: false,
@@ -94,7 +98,7 @@ export function BlogEditorPage() {
     return () => { vivo = false }
   }, [id])
 
-  if (!isAdmin) {
+  if (!puedeEscribir) {
     return (
       <div className="max-w-3xl mx-auto px-5 py-20 text-center">
         <p className="blog-serif text-2xl text-swu-text/70 italic">El blog lo escriben los administradores.</p>

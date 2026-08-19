@@ -36,7 +36,11 @@ function Meta({ p }: { p: BlogPost }) {
 }
 
 export function BlogPage() {
-  const { isAdmin } = useAuth()
+  const { isAdmin, esAutorBlog } = useAuth()
+  /* Escribir NO es administrar. Un autor publica lo suyo sin que se le abra el
+     panel de admin, que en esta app son 13 tablas y 5 funciones —torneos,
+     sedes, avisos push y `set_user_role`—. Ver `blog-autor-permiso-acotado.sql`. */
+  const puedeEscribir = isAdmin || esAutorBlog
   const [posts, setPosts] = useState<BlogPost[]>([])
   const [estado, setEstado] = useState<'cargando' | 'listo'>('cargando')
 
@@ -64,7 +68,7 @@ export function BlogPage() {
             <h1 className="blog-serif text-4xl sm:text-5xl font-bold text-swu-text tracking-tight leading-none">
               Blog
             </h1>
-            {isAdmin && (
+            {puedeEscribir && (
               <Link
                 to="/blog/nuevo"
                 className="flex items-center gap-1.5 text-[11px] text-swu-amber border border-swu-amber/40 rounded-full px-3 py-1.5 hover:bg-swu-amber/10 transition-colors"
@@ -94,11 +98,11 @@ export function BlogPage() {
           <div className="py-16 text-center">
             <p className="blog-serif text-2xl text-swu-text/70 italic">Todavía no hay artículos.</p>
             <p className="text-sm text-swu-muted mt-2">
-              {isAdmin
+              {puedeEscribir
                 ? 'Escribí el primero: análisis de un mazo, de una carta o de cómo está el meta.'
                 : 'Pronto vas a encontrar acá análisis de mazos y de cartas.'}
             </p>
-            {isAdmin && (
+            {puedeEscribir && (
               <Link
                 to="/blog/nuevo"
                 className="inline-flex items-center gap-1.5 mt-5 text-sm text-swu-amber border border-swu-amber/40 rounded-full px-4 py-2"
