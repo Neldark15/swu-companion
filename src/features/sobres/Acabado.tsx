@@ -47,12 +47,11 @@ interface Props {
 
 export function Acabado({ acabado, calidad = 'completo', movimiento = 'gesto' }: Props) {
   if (calidad === 'plano') {
-    return (
-      <span
-        aria-hidden
-        className={acabado === 'foil' ? 'foil-plano' : 'foil-plano-oro'}
-      />
-    )
+    // Tres clases, no dos. Mandar `metal` a la dorada teñía de oro las 211
+    // Standard Prestige justo en la pantalla donde se ve la colección entera.
+    const clase =
+      acabado === 'foil' ? 'foil-plano' : acabado === 'metal' ? 'foil-plano-metal' : 'foil-plano-oro'
+    return <span aria-hidden className={clase} />
   }
 
   return (

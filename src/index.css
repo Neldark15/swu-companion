@@ -1089,6 +1089,24 @@ input:focus, textarea:focus, select:focus {
   );
 }
 
+/* El plateado NO puede caer en la clase dorada: son 211 cartas Standard
+   Prestige que se verían de oro en la única pantalla donde se ve la colección
+   entera. Tres clases planas, no dos. */
+.foil-plano-metal {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(
+    108deg,
+    transparent 34%,
+    rgb(226 236 252 / 0.14) 46%,
+    rgb(240 246 255 / 0.34) 50%,
+    rgb(226 236 252 / 0.14) 54%,
+    transparent 66%
+  );
+}
+
 .foil-plano-oro {
   position: absolute;
   inset: 0;

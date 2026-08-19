@@ -52,7 +52,8 @@
 import { useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { ChevronLeft, ChevronRight, Hash } from 'lucide-react'
 import { CardImage } from '../../components/CardImage'
-import { COLOR_RAREZA, NOMBRE_RAREZA, type SeccionAlbum, type CasillaAlbum } from '../../services/sobres'
+import { COLOR_RAREZA, NOMBRE_RAREZA, ACABADO, type SeccionAlbum, type CasillaAlbum, type Rareza } from '../../services/sobres'
+import { Acabado } from './Acabado'
 
 /** Bolsillos por hoja, como en un binder de verdad. */
 export const POR_HOJA = 9
@@ -94,7 +95,17 @@ export function PaginaAlbum({
   // Solo si el gesto es más horizontal que vertical: si no, se comería el
   // desplazamiento de la página, que es el gesto que más se usa.
   const toque = useRef<{ x: number; y: number } | null>(null)
-  const empezar = (e: ReactPointerEvent) => { toque.current = { x: e.clientX, y: e.clientY } }
+  /* Se marca que el gesto FUE un arrastre, para tragarse el `click` que viene
+   * detrás. Sin esto, arrastrar en el borde del álbum abre una carta al azar:
+   * en la hoja 0 hacia la derecha, `alCambiarHoja(0)` recibe el mismo valor,
+   * React descarta el render, los botones NO se remontan y el `click` que
+   * sigue al `pointerup` dispara `alAbrir`. Igual en la última hoja hacia el
+   * otro lado — o sea, justo en los dos bordes donde uno tantea. */
+  const arrastrado = useRef(false)
+  const empezar = (e: ReactPointerEvent) => {
+    toque.current = { x: e.clientX, y: e.clientY }
+    arrastrado.current = false
+  }
   const soltar = (e: ReactPointerEvent) => {
     const t = toque.current
     toque.current = null
@@ -102,7 +113,16 @@ export function PaginaAlbum({
     const dx = e.clientX - t.x
     const dy = e.clientY - t.y
     if (Math.abs(dx) < ARRASTRE_MINIMO || Math.abs(dx) <= Math.abs(dy)) return
+    arrastrado.current = true
     alCambiarHoja(dx < 0 ? Math.min(hojas - 1, hojaReal + 1) : Math.max(0, hojaReal - 1))
+  }
+  /* Va en la fase de CAPTURA: llega antes que el `onClick` de la casilla, que
+   * es lo único que lo puede frenar a tiempo. */
+  const tragarClic = (e: React.MouseEvent) => {
+    if (!arrastrado.current) return
+    arrastrado.current = false
+    e.stopPropagation()
+    e.preventDefault()
   }
 
   return (
@@ -140,6 +160,7 @@ export function PaginaAlbum({
         className="grid grid-cols-3 gap-2.5"
         onPointerDown={empezar}
         onPointerUp={soltar}
+        onClickCapture={tragarClic}
         onPointerCancel={() => { toque.current = null }}
       >
         {casillas === null
@@ -154,7 +175,7 @@ export function PaginaAlbum({
               const c = enHoja[i]
               if (!c) return <Cierre key={`cierre-${i}`} />
               return c.tenida ? (
-                <Llena key={c.posicion} casilla={c} color={color} ancho={ancho} alAbrir={alAbrir} />
+                <Llena key={c.posicion} casilla={c} color={color} ancho={ancho} rareza={seccion.rareza} alAbrir={alAbrir} />
               ) : (
                 <Hueco key={c.posicion} casilla={c} color={color} ancho={ancho} alAbrir={alAbrir} />
               )
@@ -250,11 +271,13 @@ function Numero({
 
 /** LLENA — la tenés. */
 function Llena({
-  casilla, color, ancho, alAbrir,
+  casilla, color, ancho, rareza, alAbrir,
 }: {
   casilla: CasillaAlbum
   color: string
   ancho: number
+  /** La lleva la SECCIÓN: todas sus casillas comparten impresión. */
+  rareza: Rareza
   alAbrir: (c: CasillaAlbum) => void
 }) {
   return (
@@ -265,8 +288,11 @@ function Llena({
                  focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-swu-cyan"
       aria-label={`Ver ${casilla.carta?.name ?? 'carta'}, número ${casilla.numero}`}
     >
+      {/* `radio-carta` y no `rounded-lg`: la carta trae su esquina en el alfa
+          a 2,8% del ancho (~3 px en una celda de 108), así que una sombra con
+          radio fijo de 8 px asoma el pico por detrás. */}
       <div
-        className="h-full w-full rounded-lg transition-transform duration-200 group-active:scale-95"
+        className="radio-carta relative h-full w-full transition-transform duration-200 group-active:scale-95"
         style={{ boxShadow: `0 0 12px ${color}45` }}
       >
         {/* `casilla.arte`, NO `carta.imageUrl`: la lámina foil del API trae los
@@ -278,6 +304,9 @@ function Llena({
           orientacion={casilla.carta?.isLeader || casilla.carta?.isBase ? 'apaisada' : 'vertical'}
           className="h-full w-full"
         />
+        {/* Nueve a la vez: acabado BARATO, un degradado sin `mix-blend-mode`.
+            El bueno se ve al abrir la carta. */}
+        <Acabado acabado={ACABADO[rareza]} calidad="plano" />
       </div>
 
       <Numero
@@ -336,23 +365,28 @@ function Hueco({
       type="button"
       onClick={() => alAbrir(casilla)}
       className="relative flex aspect-[286/400] w-full flex-col items-center justify-center gap-1
-                 rounded-lg border border-dashed border-swu-border bg-swu-surface/25 px-1
+                 rounded-lg border border-dashed border-swu-border bg-swu-surface/70 px-1
                  transition-colors active:bg-swu-surface/50
                  focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-swu-cyan"
       aria-label={nombre ? `Te falta ${nombre}, número ${casilla.numero}` : `Casilla ${casilla.numero}, vacía`}
     >
       {/* El número va en el color de la sección, no en gris: es lo que hace
           que la hoja vacía se lea como un álbum esperando y no como una carga
-          fallida. Al 45% queda por debajo de cualquier carta de verdad de la
-          misma hoja, así que nunca compite con lo que sí tenés. */}
+          fallida.
+
+          Pero NO se apaga con `opacity` para que «quede por debajo» de una
+          carta de verdad: al 45% daba 2,76:1 sobre el fondo real, por debajo
+          del mínimo legible, y es la misma regresión que este repo ya pagó una
+          vez. Que quede por debajo se consigue con el TAMAÑO y con que la
+          celda no tenga arte, no bajando el alfa. */}
       <Numero
         n={casilla.numero}
         ancho={ancho}
         className="text-[15px] font-black tabular-nums leading-none"
-        style={{ color, opacity: 0.45 }}
+        style={{ color }}
       />
       {nombre && (
-        <span className="line-clamp-2 text-center text-[8px] font-bold uppercase leading-tight tracking-wide text-swu-muted/60">
+        <span className="line-clamp-2 text-center text-[9px] font-bold uppercase leading-tight tracking-wide text-swu-muted/80">
           {nombre}
         </span>
       )}

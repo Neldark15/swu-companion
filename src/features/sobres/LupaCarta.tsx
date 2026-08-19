@@ -31,6 +31,7 @@
  * sentido al sobre.
  */
 
+import { useEffect } from 'react'
 import { X } from 'lucide-react'
 import { CardImage } from '../../components/CardImage'
 import { caraTrasera, esDobleCara } from '../../services/caraCarta'
@@ -51,16 +52,33 @@ interface Props {
 }
 
 export function LupaCarta({ casilla, color, alCerrar, acabado }: Props) {
+  /* Las tres cosas que hacen los otros dos overlays del proyecto y que este no
+   * hacía: cerrar con Escape, cerrar tocando el fondo, y que la página de
+   * atrás no se desplace mientras la lupa está abierta. Copiado de
+   * `CardZoom.tsx`, que es donde ya estaba resuelto. */
+  useEffect(() => {
+    const alTeclear = (e: KeyboardEvent) => { if (e.key === 'Escape') alCerrar() }
+    window.addEventListener('keydown', alTeclear)
+    const antes = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', alTeclear)
+      document.body.style.overflow = antes
+    }
+  }, [alCerrar])
+
   const carta = casilla.carta
   const trasera = caraTrasera(carta)
   const dobleCara = esDobleCara(carta)
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/85 p-5"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto
+                 overscroll-contain bg-black/85 p-5"
       role="dialog"
       aria-modal="true"
       aria-label={carta?.name ?? `Casilla ${casilla.numero}`}
+      onClick={alCerrar}
     >
       <button
         type="button"
@@ -71,7 +89,7 @@ export function LupaCarta({ casilla, color, alCerrar, acabado }: Props) {
         <X size={20} />
       </button>
 
-      <div className="w-full max-w-[300px]">
+      <div className="w-full max-w-[300px]" onClick={e => e.stopPropagation()}>
         {casilla.tenida ? (
           <CartaGirable
             ratio={RATIO_BOLSILLO}

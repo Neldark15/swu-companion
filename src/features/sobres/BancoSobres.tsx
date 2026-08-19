@@ -14,15 +14,22 @@ import { useState } from 'react'
 import { CajaDeSobres } from './CajaDeSobres'
 import { AperturaSobre } from './AperturaSobre'
 import { CartaGirable } from './CartaGirable'
+import { PaginaAlbum } from './PaginaAlbum'
+import { LupaCarta } from './LupaCarta'
 import { ReversoCarta } from './ReversoCarta'
 import { Acabado } from './Acabado'
 import { CardImage } from '../../components/CardImage'
 import { ESCALA, NOMBRE_RAREZA, COLOR_RAREZA, ACABADO, type CartaSacada, type Rareza, type Variante } from '../../services/sobres'
 import type { Card } from '../../types'
+import type { SeccionAlbum, CasillaAlbum } from '../../services/sobres'
 
 /** Arte real, para poder juzgar el brillo sobre una lámina de verdad. */
 const ARTE_PRUEBA =
   'https://cdn.starwarsunlimited.com/card_SWH_01_101_Rogue_Squadron_Skirmisher_e5659ca239.png'
+
+/** Un líder, que es apaisado: 7 hojas del álbum real mezclan las dos formas. */
+const ARTE_APAISADO =
+  'https://cdn.starwarsunlimited.com/card_SWH_01_001_Director_Krennic_Leader_62eaa20dc2.png'
 
 /** Una carta de mentira, con lo justo para que la pantalla la sepa pintar. */
 function cartaFalsa(nombre: string, n: number): Card {
@@ -89,11 +96,46 @@ function sobreDePrueba(premio: Rareza): CartaSacada[] {
   return base
 }
 
+/**
+ * Una sección del álbum de mentira: 14 casillas, unas cuantas tuyas.
+ *
+ * Existe porque en producción `cartas_desbloqueadas` está en CERO, así que la
+ * rejilla del álbum HOY no se puede mirar en ningún lado: todas las casillas
+ * salen como hueco y nunca se ve una llena, ni su brillo, ni el número encima,
+ * ni la insignia de serializada.
+ */
+function seccionDePrueba(rareza: Rareza): { seccion: SeccionAlbum; casillas: CasillaAlbum[] } {
+  const total = 14
+  const casillas: CasillaAlbum[] = Array.from({ length: total }, (_, i) => {
+    // Una de cada tres la tenés, y una apaisada de por medio: 7 hojas del
+    // álbum real son MIXTAS y ahí es donde el bolsillo fijo se pone a prueba.
+    const tenida = i % 3 !== 1
+    const lider = i === 2 || i === 5
+    const c = cartaFalsa(lider ? `Líder ${i}` : `Carta ${i}`, 767 + i)
+    return {
+      posicion: i + 1,
+      numero: 767 + i,
+      cardId: `p${i}`,
+      cantidad: i === 4 ? 3 : 1,
+      tenida,
+      serializada: rareza === 'serializada' && i === 8,
+      carta: { ...c, isLeader: lider, imageUrl: lider ? ARTE_APAISADO : ARTE_PRUEBA },
+      arte: lider ? ARTE_APAISADO : ARTE_PRUEBA,
+    }
+  })
+  return {
+    seccion: { setCode: 'ASH', variante: VARIANTE_DE[rareza], rareza, total, tenidas: casillas.filter(c => c.tenida).length },
+    casillas,
+  }
+}
+
 export function BancoSobres() {
   const [premio, setPremio] = useState<Rareza>('serializada')
   const [abriendo, setAbriendo] = useState<number | null>(null)
   const [cartas, setCartas] = useState<CartaSacada[] | null>(null)
   const [demora, setDemora] = useState(400)
+  const [hojaAlbum, setHojaAlbum] = useState(0)
+  const [lupa, setLupa] = useState<CasillaAlbum | null>(null)
 
   const elegir = (i: number) => {
     setAbriendo(i)
@@ -179,6 +221,36 @@ export function BancoSobres() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* El álbum. Con datos de mentira porque en producción está vacío y
+              no hay otra forma de ver una casilla llena. */}
+          <div className="mt-10 border-t border-swu-border pt-6">
+            <p className="mb-3 text-center text-sm text-swu-muted">
+              Una sección del álbum — arrastrá para pasar hoja
+            </p>
+            {(() => {
+              const { seccion, casillas } = seccionDePrueba(premio)
+              return (
+                <>
+                  <PaginaAlbum
+                    seccion={seccion}
+                    casillas={casillas}
+                    hoja={hojaAlbum}
+                    alCambiarHoja={setHojaAlbum}
+                    alAbrir={setLupa}
+                  />
+                  {lupa && (
+                    <LupaCarta
+                      casilla={lupa}
+                      color={COLOR_RAREZA[premio]}
+                      acabado={lupa.tenida ? <Acabado acabado={ACABADO[premio]} /> : undefined}
+                      alCerrar={() => setLupa(null)}
+                    />
+                  )}
+                </>
+              )
+            })()}
           </div>
 
           {/* Y el dorso redibujado, solo. */}

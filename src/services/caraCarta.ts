@@ -54,6 +54,12 @@ export type CaraTrasera =
        * Medido 6/6: el reverso de un líder es vertical (286×400) aunque su
        * frente sea apaisado. Va explícito y no deducido de `isLeader` porque
        * son dos preguntas distintas sobre la misma carta.
+       *
+       * OJO: hoy la rama 'apaisada' NO está medida y de hecho no se alcanza —
+       * las únicas 144 cartas del pool con segunda cara son los 144 líderes
+       * Showcase. Queda por si algún día entra al pool una carta de doble cara
+       * que no sea líder ni base, y en ese momento HAY QUE MEDIRLA: no está
+       * cubierta por el 6/6 de arriba.
        */
       orientacion: 'vertical' | 'apaisada'
     }

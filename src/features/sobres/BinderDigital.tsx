@@ -24,7 +24,7 @@
  *     305 bolsillos IMPOSIBLES de llenar. Y están casi todos en una sola
  *     sección — TWI Hyperspace Foil va del #3 al #517 con 220 cartas, o sea
  *     295 huecos muertos: 33 páginas de puro vacío inalcanzable.
- *   · Y el número tampoco es llave: 22 tripletas (set, variante, número)
+ *   · Y el número tampoco es llave: 23 tripletas (set, variante, número)
  *     tienen 2 o 3 cartas DISTINTAS. SEC Serialized Prestige tiene 85 cartas
  *     para 43 números — tres tiradas por número.
  *
@@ -124,6 +124,11 @@ export function BinderDigital() {
   // ── Una sección abierta: las páginas de nueve ────────────────────────
   if (abierta) {
     const color = COLOR_RAREZA[abierta.rareza]
+    // La sección siguiente, para que la última hoja ofrezca seguir en vez de
+    // obligar a volver al índice. Va con `abrirSeccion` y NO con `setAbierta`:
+    // el primero limpia las casillas de la anterior, si no quedarían pintadas.
+    const lista = secciones ?? []
+    const siguiente = lista[lista.indexOf(abierta) + 1]
 
     return (
       <div className="mx-auto max-w-3xl px-4 pt-3 pb-24">
@@ -136,31 +141,14 @@ export function BinderDigital() {
           Todas las secciones
         </button>
 
-        <div className="mb-4 text-center">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-swu-muted">{abierta.setCode}</p>
-          <h1 className="text-xl font-black tracking-tight" style={{ color }}>
-            {NOMBRE_RAREZA[abierta.rareza]}
-          </h1>
-          <p className="mt-0.5 text-sm text-swu-muted">
-            {abierta.tenidas} de {abierta.total}
-          </p>
-          <div className="mx-auto mt-2 h-1 w-40 overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full transition-[width] duration-500"
-              style={{
-                width: `${abierta.total ? (abierta.tenidas / abierta.total) * 100 : 0}%`,
-                background: color,
-              }}
-            />
-          </div>
-        </div>
-
         <PaginaAlbum
           seccion={abierta}
           casillas={casillas}
           hoja={Math.min(hoja, Math.max(0, Math.ceil(abierta.total / POR_HOJA) - 1))}
           alCambiarHoja={setHoja}
           alAbrir={setMirando}
+          alSiguienteSeccion={siguiente ? () => abrirSeccion(siguiente) : undefined}
+          siguienteSeccion={siguiente ? `${siguiente.setCode} · ${NOMBRE_RAREZA[siguiente.rareza]}` : undefined}
         />
 
         {mirando && (

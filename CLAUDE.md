@@ -1087,7 +1087,7 @@ Lucasfilm a propósito NO se copia.
 
 **La casilla del álbum NO es el número impreso.** Por número serían 2.930
 casillas para 2.669 cartas: **305 imposibles de llenar** —TWI Hyperspace Foil
-sola aporta 295, o sea 33 hojas de vacío inalcanzable— y 22 casillas con 2 o 3
+sola aporta 295, o sea 33 hojas de vacío inalcanzable— y 23 casillas con 2 o 3
 cartas distintas peleando (SEC Serialized repite CADA número tres veces). Es la
 posición ordinal que calcula `album_seccion()` con `row_number()`, y el número
 va de etiqueta; en 29 de las 33 secciones coinciden. Las secciones se ordenan
