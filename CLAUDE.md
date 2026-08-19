@@ -892,3 +892,40 @@ verdadero en Android: medido, ua «Linux; Android 14; Pixel 8» con platform
 le enseñaban los pasos de iPhone («tocá Compartir en Safari») en una pantalla
 que además no lo dejaba pasar. `PWAInstallCard.detectPlatform` tiene el mismo
 orden invertido y el mismo defecto latente.
+
+### 3e. La credencial como OBJETO: luz real y espesor
+
+Dos cosas que faltaban para que la placa dejara de parecer un dibujo bien hecho.
+
+**Luz de verdad, no degradados.** Hasta acá todo el «metal» eran degradados
+pintados a mano: un degradado dice DÓNDE hay brillo, un modelo de luz dice POR
+QUÉ. `${uid}-especular` toma la misma turbulencia estirada del cepillado —las
+microrrayas del material— como mapa de relieve y calcula con
+`feSpecularLighting` + `feDistantLight` el reflejo sobre ellas: la veta brilla
+en las crestas y se apaga en los valles. Tres cuidados:
+- `feSpecularLighting` devuelve RGBA con alfa propio. **Sin `feComposite
+  operator="in"` contra `SourceAlpha` el brillo se sale de la silueta.**
+- `lighting-color` va tibio (`#fff6e0`), no blanco puro: un 255 quema el borde
+  en los temas de chapa clara.
+- Es el filtro **más caro** de la placa, así que solo se aplica desde el
+  acabado cromado (nivel 11) hacia arriba. En `/banco-credencial` hay catorce
+  credenciales a la vez.
+
+**Espesor.** Cuatro copias de `SILUETA_BASE` empujadas en Z (-3, -6, -9, -12 px)
+y oscureciéndose hacia el fondo. Al inclinar se ve el canto, que es lo que
+separa un objeto de una calcomanía: una lámina de grosor cero nunca deja de
+parecer un dibujo, por bien iluminada que esté. Cuatro y no veinte — el ojo lee
+«grueso» con muy pocas y cada una es un nodo compuesto por frame.
+
+**Paralaje.** Los dos reflejos flotan por DELANTE de la placa (`translateZ` 14
+y 26 px) y se corren a distinta velocidad con la inclinación. Esa separación es
+lo que hace leer un vidrio encima; pegados a z=0 se ven como manchas pintadas.
+
+Medido durante un arrastre de 60 frames: **mediana 1,1 ms por frame, p95 2 ms**
+contra un presupuesto de 16,7. El primer frame cuesta 30 ms (promoción de
+capas) y es de una sola vez.
+
+**Trampa al verificar:** el `DetectorChoques` mide con
+`getBoundingClientRect`, que bajo una rotación 3D devuelve la caja
+**proyectada**. Si inclinás la tarjeta a mano y medís, salen siete choques
+falsos. Hay que medir con la placa de frente.

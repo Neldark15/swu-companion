@@ -141,6 +141,15 @@ export function CredencialSVG({ datos, tema, emblema, acabado, nivel, className 
       )}
 
       {/* Barniz y destello sobre la placa, recortados a su silueta. */}
+      {/* El reflejo especular va DEBAJO del barniz y del destello: es la luz
+          del material, y encima de ella todavía tiene que ir la del laminado.
+          Al revés, el barniz lo aplastaría. */}
+      {fin.cromo && (
+        <path
+          d={SILUETA_BASE} fillRule="evenodd" fill="#fff"
+          filter={`url(#${uid}-especular)`} className="mix-blend-screen"
+        />
+      )}
       <path d={SILUETA_BASE} fill={`url(#${uid}-lustre)`} fillRule="evenodd" />
       <path d={SILUETA_BASE} fill={`url(#${uid}-destello)`} fillRule="evenodd" />
 

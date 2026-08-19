@@ -25,6 +25,7 @@ import { useCallback, useId, useRef, useState } from 'react'
 import { RotateCw } from 'lucide-react'
 import { CredencialSVG, type DatosCredencial } from './CredencialSVG'
 import { CredencialReverso } from './CredencialReverso'
+import { SILUETA_BASE } from './geometriaCredencial'
 import type { TemaCredencial, EmblemaCredencialId } from './credencialTemas'
 import type { AcabadoCredencial } from './acabadosCredencial'
 
@@ -78,6 +79,9 @@ export function CredencialInteractiva({
     // El reflejo sigue al giro: la luz entra por donde se inclinó la placa.
     escenaRef.current?.style.setProperty('--brillo-x', `${50 - giro.current.y * 0.9}%`)
     escenaRef.current?.style.setProperty('--brillo-y', `${50 + giro.current.x * 1.6}%`)
+    // El punto duro se corre al doble: está al doble de profundidad.
+    escenaRef.current?.style.setProperty('--luz-x', `${50 - giro.current.y * 1.8}%`)
+    escenaRef.current?.style.setProperty('--luz-y', `${50 + giro.current.x * 3.2}%`)
   }, [])
 
   const alBajar = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
@@ -149,7 +153,11 @@ export function CredencialInteractiva({
       <div
         ref={escenaRef}
         className={`relative touch-pan-y select-none ${className ?? ''}`}
-        style={{ perspective: '1100px', ['--brillo-x' as string]: '50%', ['--brillo-y' as string]: '50%' }}
+        style={{
+          perspective: '1100px',
+          ['--brillo-x' as string]: '50%', ['--brillo-y' as string]: '50%',
+          ['--luz-x' as string]: '50%', ['--luz-y' as string]: '50%',
+        }}
         onPointerDown={alBajar}
         onPointerMove={alMover}
         onPointerUp={alSoltar}
@@ -160,6 +168,34 @@ export function CredencialInteractiva({
           className="relative motion-reduce:!transition-none"
           style={{ transformStyle: 'preserve-3d', aspectRatio: '512 / 320' }}
         >
+          {/* ── El CANTO ──
+              Copias de la silueta empujadas hacia atrás en Z. Al inclinar la
+              placa se ve el espesor por el borde, que es lo que separa un
+              objeto de una calcomanía: una lámina de grosor cero, por muy bien
+              iluminada que esté, nunca deja de parecer un dibujo.
+
+              Cuatro capas y no veinte: el ojo lee «grueso» con muy pocas, y
+              cada una es un nodo compuesto más en cada frame del arrastre.
+              Van oscureciéndose hacia el fondo porque a la ranura entra menos
+              luz. `backfaceVisibility` NO se toca acá: el canto tiene que
+              seguir viéndose cuando la tarjeta está dada vuelta. */}
+          {[3, 6, 9, 12].map((z, i) => (
+            <svg
+              key={z}
+              aria-hidden
+              viewBox="0 0 512 320"
+              className="pointer-events-none absolute inset-0 h-full w-full print:hidden"
+              style={{ transform: `translateZ(-${z}px)` }}
+            >
+              <path
+                d={SILUETA_BASE}
+                fillRule="evenodd"
+                fill={tema.base}
+                style={{ filter: `brightness(${0.72 - i * 0.13})` }}
+              />
+            </svg>
+          ))}
+
           {/* Frente. Va PRIMERO en el DOM porque la impresión toma el primer
               svg de la zona (ver `imprimirCredencial`). */}
           <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden' }}>
@@ -187,8 +223,27 @@ export function CredencialInteractiva({
             className="pointer-events-none absolute inset-0 mix-blend-soft-light print:hidden"
             style={{
               backfaceVisibility: 'hidden',
+              // FLOTA 14 px POR DELANTE de la placa. Esa separación es la que
+              // produce el paralaje: al inclinar, el reflejo se corre respecto
+              // del metal en vez de ir pegado a él, y el ojo lee que hay un
+              // vidrio encima. Pegado a z=0 se ve como una mancha pintada.
+              transform: 'translateZ(14px)',
               background:
                 'radial-gradient(60% 90% at var(--brillo-x) var(--brillo-y), rgba(255,255,255,0.55), rgba(255,255,255,0.06) 55%, transparent 72%)',
+            }}
+          />
+
+          {/* Segundo reflejo, más chico y más duro, y más adelante todavía: es
+              el punto de luz que se desliza cuando movés una tarjeta laminada.
+              Se mueve al DOBLE que el otro porque está al doble de distancia. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 mix-blend-overlay print:hidden"
+            style={{
+              backfaceVisibility: 'hidden',
+              transform: 'translateZ(26px)',
+              background:
+                'radial-gradient(22% 34% at var(--luz-x) var(--luz-y), rgba(255,255,255,0.5), transparent 70%)',
             }}
           />
         </div>

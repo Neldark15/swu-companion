@@ -91,6 +91,41 @@ export function DefsCredencial({ uid, tema }: Props) {
         </feComponentTransfer>
       </filter>
 
+      {/* ── Metal de verdad: reflejo especular ──
+          Hasta acá todo el «metal» eran degradados pintados a mano. Un
+          degradado dice DÓNDE hay brillo; un modelo de luz dice POR QUÉ, y esa
+          es la diferencia entre una lámina y una chapa.
+
+          `feSpecularLighting` toma un mapa de relieve —acá la misma turbulencia
+          estirada del cepillado, o sea las microrrayas del material— y calcula
+          el reflejo de una luz lejana sobre él. El resultado es que la veta
+          BRILLA en las crestas y se apaga en los valles, que es exactamente lo
+          que hace el aluminio cuando lo movés.
+
+          Tres cuidados, y los tres muerden si se saltan:
+          - `feSpecularLighting` devuelve RGBA con alfa propio; sin el
+            `feComposite operator="in"` contra el alfa de origen, el brillo se
+            sale de la silueta y mancha el fondo.
+          - `lighting-color` va tibio y no blanco puro: un blanco 255 sobre los
+            temas claros quema el borde.
+          - Es el filtro MÁS CARO de la placa. Por eso se aplica solo desde el
+            acabado cromado (nivel 11) hacia arriba: en el banco hay catorce
+            credenciales a la vez y pagarlo en las catorce se siente. */}
+      <filter id={`${uid}-especular`} x="0" y="0" width="100%" height="100%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.006 0.75" numOctaves="2" seed="11" result="veta" />
+        <feSpecularLighting
+          in="veta" surfaceScale="2.4" specularConstant="0.85" specularExponent="22"
+          lightingColor="#fff6e0" result="luz"
+        >
+          <feDistantLight azimuth="235" elevation="58" />
+        </feSpecularLighting>
+        {/* Recortado al alfa de la silueta: sin esto se derrama. */}
+        <feComposite in="luz" in2="SourceAlpha" operator="in" result="dentro" />
+        <feComponentTransfer in="dentro" result="atenuado">
+          <feFuncA type="linear" slope="0.55" intercept="0" />
+        </feComponentTransfer>
+      </filter>
+
       {/* ── Cromo ──
           Un degradado de muchas paradas con saltos duros: el cromo no es un
           gris suave, son bandas de cielo y suelo reflejadas. */}
