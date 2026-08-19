@@ -158,6 +158,17 @@ export interface DeckCard {
   subtitle: string | null
   quantity: number
   setCode: string
+  /**
+   * Qué IMPRESIÓN tenés de esta carta. Cambia el precio, no las reglas.
+   *
+   * Opcional a propósito: los mazos guardados antes de que esto existiera no
+   * lo llevan, y `undefined` se lee como 'normal' en todos lados. Añadirlo
+   * como obligatorio habría roto los 28 mazos que ya hay guardados.
+   *
+   * NO afecta a la validación ni a la exportación: para el juego, una foil y
+   * una normal son la misma carta.
+   */
+  variante?: 'normal' | 'foil' | 'hyperspace'
 }
 
 export interface Deck {

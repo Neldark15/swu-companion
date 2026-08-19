@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ChevronLeft, Plus, Minus, Search, X, Save, Check,
@@ -18,6 +18,11 @@ import { listFaceUrl, listFaceFit } from '../../services/cardArt'
 import { translateType, translateAspect } from '../../services/translations'
 import type { Deck, DeckCard, Card, TournamentFormat } from '../../types'
 import { ASPECTOS } from '../../services/filtrosCarta'
+import { formatPrice } from '../../services/pricing'
+import {
+  precioDeCartas, siguienteVariante, NOMBRE_VARIANTE,
+  type PrecioMazo, type VarianteMazo,
+} from '../../services/precioMazo'
 
 const BUILDER_COSTS = [0, 1, 2, 3, 4, 5, 6, COST_MAX_BUCKET]
 
@@ -43,6 +48,41 @@ type Tab = 'deck' | 'search'
 // ─── Image cache for card thumbnails ─────────────────────
 const imgCache = new Map<string, string>()
 const backImgCache = new Map<string, string>()
+
+/**
+ * La etiqueta de impresión de una carta del mazo.
+ *
+ * Es un solo botón que CICLA normal → foil → hyperspace en vez de un menú de
+ * tres opciones: la fila del mazo ya lleva miniatura, cantidad, nombre y dos
+ * botones, y en un teléfono de 375 px no cabe un desplegable. Con tres estados
+ * y la etiqueta siempre visible, ciclar no esconde nada.
+ *
+ * En «normal» va apagado y ocupa el sitio donde antes solo estaba el set, así
+ * que no le roba espacio a nada.
+ */
+function ChipImpresion({
+  variante, alTocar,
+}: {
+  variante: VarianteMazo | undefined
+  alTocar: () => void
+}) {
+  const v = variante ?? 'normal'
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); alTocar() }}
+      aria-label={`Impresión: ${NOMBRE_VARIANTE[v]}. Tocá para cambiar.`}
+      className={`text-[9px] font-bold uppercase tracking-wide rounded px-1 py-px transition-colors ${
+        v === 'normal'
+          ? 'text-swu-muted hover:text-swu-text'
+          : v === 'foil'
+            ? 'bg-swu-cyan/20 text-swu-cyan'
+            : 'bg-swu-amber/20 text-swu-amber'
+      }`}
+    >
+      {NOMBRE_VARIANTE[v]}
+    </button>
+  )
+}
 
 export function DeckBuilderPage() {
   const { id } = useParams<{ id: string }>()
@@ -95,6 +135,7 @@ export function DeckBuilderPage() {
   const [cardImages, setCardImages] = useState<Map<string, string>>(new Map(imgCache))
   /** Carta que se está mirando en grande. Null = cerrado. */
   const [verCarta, setVerCarta] = useState<string | null>(null)
+  const [precio, setPrecio] = useState<PrecioMazo | null>(null)
   const [backImages, setBackImages] = useState<Map<string, string>>(new Map(backImgCache))
   const loadedRef = useRef(new Set<string>())
 
@@ -270,6 +311,33 @@ export function DeckBuilderPage() {
     })
   }
 
+  /**
+   * Cambia la IMPRESIÓN de una carta del mazo: normal → foil → hyperspace.
+   *
+   * Solo cambia el precio, nunca las reglas: para el juego una foil y una
+   * normal son la misma carta, así que ni la validación ni la exportación la
+   * miran.
+   */
+  const cambiarVariante = (
+    target: 'leaders' | 'mainDeck' | 'sideboard' | 'base',
+    cardId: string,
+  ) => {
+    setDeck((prev) => {
+      if (target === 'base') {
+        if (!prev.base) return prev
+        const nd = { ...prev, base: { ...prev.base, variante: siguienteVariante(prev.base.variante) } }
+        autoSave(nd)
+        return nd
+      }
+      const list = prev[target].map((c) =>
+        c.cardId === cardId ? { ...c, variante: siguienteVariante(c.variante) } : c,
+      )
+      const nd = { ...prev, [target]: list }
+      autoSave(nd)
+      return nd
+    })
+  }
+
   const incrementCard = (target: 'mainDeck' | 'sideboard', cardId: string) => {
     setDeck((prev) => {
       const list = prev[target].map((c) => {
@@ -281,6 +349,40 @@ export function DeckBuilderPage() {
       const nd = { ...prev, [target]: list }; autoSave(nd); return nd
     })
   }
+
+  /* ── El precio aproximado del mazo ────────────────────────────────
+   *
+   * La clave incluye la IMPRESIÓN de cada carta, no solo el id y la cantidad:
+   * si no, marcar una carta como foil no recalcularía nada y el total se
+   * quedaría mostrando el precio de la versión normal.
+   *
+   * El efecto va acá, ANTES del retorno por `loading`: un hook después de un
+   * return condicional se llamaría un número distinto de veces según el
+   * estado, que es exactamente lo que React prohíbe. */
+  const todasLasCartas = [
+    ...deck.leaders, ...(deck.base ? [deck.base] : []), ...deck.mainDeck, ...deck.sideboard,
+  ]
+  const clavePrecio = todasLasCartas
+    .map(c => `${c.cardId}:${c.quantity}:${c.variante ?? 'normal'}`)
+    .join('|')
+
+  // La lista se memoriza contra la CLAVE, no contra el mazo: así el efecto solo
+  // vuelve a correr cuando cambia algo que de verdad mueve el precio, y no con
+  // cada tecla del nombre del mazo.
+  const cartasParaPrecio = useMemo(
+    () => todasLasCartas,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [clavePrecio],
+  )
+
+  useEffect(() => {
+    let vivo = true
+    void (async () => {
+      const p = await precioDeCartas(cartasParaPrecio)
+      if (vivo) setPrecio(p)
+    })()
+    return () => { vivo = false }
+  }, [cartasParaPrecio])
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><Loader2 size={28} className="text-swu-accent-texto animate-spin" /></div>
@@ -496,6 +598,58 @@ export function DeckBuilderPage() {
             </div>
           )}
 
+          {/* ═══ Precio aproximado ═══
+              El total NUNCA va solo. Medido en producción: de 3.630 cartas con
+              precio, solo 662 tienen desglose por impresión. Así que si alguien
+              marca su mazo como foil, 4 de cada 5 cartas se valoran con el
+              precio de la normal — y callarlo convertiría el número en una
+              afirmación falsa. */}
+          {precio && precio.total !== null && (
+            <div className="clip-hud bg-swu-surface px-3 py-2.5">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-swu-muted">
+                  Precio aproximado
+                </span>
+                <span className="text-xl font-black text-swu-green tabular-nums">
+                  ≈ {formatPrice(precio.total)}
+                </span>
+              </div>
+              <p className="mt-1 text-[10px] leading-tight text-swu-muted">
+                Promedio de TCGplayer en dólares, mercado de EE.&nbsp;UU. Sirve para
+                comparar mazos, no para poner precio de venta.
+              </p>
+              {(precio.copiasSinPrecio > 0 || precio.copiasFoilSinDato > 0 || precio.copiasHyperSiempreSinDato > 0) && (
+                <ul className="mt-1.5 space-y-0.5 border-t border-swu-border pt-1.5">
+                  {precio.copiasSinPrecio > 0 && (
+                    <li className="text-[10px] text-swu-amber">
+                      {precio.copiasSinPrecio} {precio.copiasSinPrecio === 1 ? 'copia' : 'copias'} sin
+                      precio, fuera del total
+                      {precio.sinPrecio.length > 0 && (
+                        <span className="text-swu-muted"> · {precio.sinPrecio.slice(0, 3).join(', ')}
+                          {precio.sinPrecio.length > 3 ? ` y ${precio.sinPrecio.length - 3} más` : ''}</span>
+                      )}
+                    </li>
+                  )}
+                  {precio.copiasFoilSinDato > 0 && (
+                    <li className="text-[10px] text-swu-muted">
+                      {precio.copiasFoilSinDato} {precio.copiasFoilSinDato === 1 ? 'copia foil' : 'copias foil'} sin
+                      precio de foil: van con el de la normal.
+                    </li>
+                  )}
+                  {/* Se dice aparte y con otras palabras porque la causa es
+                      otra: medido, NINGUNA de las 662 cartas con desglose trae
+                      precio de hyperspace. No es «esta carta no lo tiene». */}
+                  {precio.copiasHyperSiempreSinDato > 0 && (
+                    <li className="text-[10px] text-swu-muted">
+                      {precio.copiasHyperSiempreSinDato} {precio.copiasHyperSiempreSinDato === 1 ? 'copia hyper' : 'copias hyper'}:
+                      la fuente no publica precio de hyperspace para ninguna carta, así que van con el de la normal.
+                    </li>
+                  )}
+                </ul>
+              )}
+            </div>
+          )}
+
           {/* ═══ MAZO PRINCIPAL — with thumbnails ═══ */}
           <div>
             <p className="text-xs font-bold text-swu-accent-texto mb-1.5">Mazo Principal ({mainCount}/{targetSize} mín.)</p>
@@ -530,8 +684,11 @@ export function DeckBuilderPage() {
                       className="flex-1 min-w-0 text-left"
                     >
                       <span className="text-sm text-swu-text truncate block">{c.name}</span>
-                      <span className="text-[9px] text-swu-muted font-mono">{c.setCode}</span>
                     </button>
+                    <span className="flex flex-col items-end gap-px flex-shrink-0">
+                      <span className="text-[9px] text-swu-muted font-mono">{c.setCode}</span>
+                      <ChipImpresion variante={c.variante} alTocar={() => cambiarVariante('mainDeck', c.cardId)} />
+                    </span>
                     {/* Controls */}
                     <div className="flex gap-1 flex-shrink-0">
                       <button onClick={() => removeCard('mainDeck', c.cardId)} className="w-6 h-6 rounded bg-swu-red/10 text-swu-red-texto flex items-center justify-center"><Minus size={12} /></button>
@@ -577,8 +734,11 @@ export function DeckBuilderPage() {
                       className="flex-1 min-w-0 text-left"
                     >
                       <span className="text-sm text-swu-text truncate block">{c.name}</span>
-                      <span className="text-[9px] text-swu-muted font-mono">{c.setCode}</span>
                     </button>
+                    <span className="flex flex-col items-end gap-px flex-shrink-0">
+                      <span className="text-[9px] text-swu-muted font-mono">{c.setCode}</span>
+                      <ChipImpresion variante={c.variante} alTocar={() => cambiarVariante('sideboard', c.cardId)} />
+                    </span>
                     {/* Controls */}
                     <div className="flex gap-1 flex-shrink-0">
                       <button onClick={() => removeCard('sideboard', c.cardId)} className="w-6 h-6 rounded bg-swu-red/10 text-swu-red-texto flex items-center justify-center"><Minus size={12} /></button>
