@@ -56,11 +56,6 @@ const CommunityPage = lazy(() => import('./features/community/CommunityPage').th
 const CollectionPage = lazy(() => import('./features/collection/CollectionPage').then(m => ({ default: m.CollectionPage })))
 const PublicProfilePage = lazy(() => import('./features/collection/PublicProfilePage').then(m => ({ default: m.PublicProfilePage })))
 const ExplorePage = lazy(() => import('./features/collection/ExplorePage').then(m => ({ default: m.ExplorePage })))
-const ArenaPage = lazy(() => import('./features/arena/ArenaPage').then(m => ({ default: m.ArenaPage })))
-const ArenaLogPage = lazy(() => import('./features/arena/ArenaLogPage').then(m => ({ default: m.ArenaLogPage })))
-const ArenaHistoryPage = lazy(() => import('./features/arena/ArenaHistoryPage').then(m => ({ default: m.ArenaHistoryPage })))
-const ArenaStatsPage = lazy(() => import('./features/arena/ArenaStatsPage').then(m => ({ default: m.ArenaStatsPage })))
-const ArenaFeedPage = lazy(() => import('./features/arena/ArenaFeedPage').then(m => ({ default: m.ArenaFeedPage })))
 const MeleeHubPage = lazy(() => import('./features/events/melee/MeleeHubPage').then(m => ({ default: m.MeleeHubPage })))
 const MeleeAddPage = lazy(() => import('./features/events/melee/MeleeAddPage').then(m => ({ default: m.MeleeAddPage })))
 const MeleeDetailPage = lazy(() => import('./features/events/melee/MeleeDetailPage').then(m => ({ default: m.MeleeDetailPage })))
@@ -263,11 +258,20 @@ export default function App() {
             <Route path="/events/lobby/:code" element={<P><EventLobbyPage /></P>} />
             <Route path="/events/play/:code" element={<P><TournamentPlayerView /></P>} />
             <Route path="/events/dashboard/:code" element={<P><TournamentDashboard /></P>} />
-            <Route path="/arena" element={<P><ArenaPage /></P>} />
-            <Route path="/arena/log" element={<P><ArenaLogPage /></P>} />
-            <Route path="/arena/history" element={<P><ArenaHistoryPage /></P>} />
-            <Route path="/arena/stats" element={<P><ArenaStatsPage /></P>} />
-            <Route path="/arena/feed" element={<P><ArenaFeedPage /></P>} />
+            {/* El Holocrón de Duelos se retiró. Su tabla `match_logs` terminó
+                con CERO filas y cero autores: en toda la vida de la app nadie
+                registró un combate ahí, y sus tres logros colgaban de un
+                contador que ningún código incrementaba.
+
+                El redirect es EXPLÍCITO y no se deja caer en el comodín del
+                final: ese manda a Inicio en silencio, que para quien tenga
+                /arena guardado en la pantalla de inicio o en un enlace viejo se
+                ve como que la app se rompió. Acá aterriza en /amistosas, que es
+                donde de verdad se anotan las partidas.
+
+                Se puede quitar a partir de noviembre de 2026. */}
+            <Route path="/arena/*" element={<Navigate to="/amistosas" replace />} />
+            <Route path="/arena" element={<Navigate to="/amistosas" replace />} />
             {/* Registro manual de torneos de melee. Vive DENTRO de Eventos:
                 es una forma más de anotar un torneo, y las estadísticas del
                 circuito ya salen solas en el perfil desde la cuenta enlazada. */}

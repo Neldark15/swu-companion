@@ -26,7 +26,6 @@ export function usePrefetchRoutes() {
       () => import('../features/collection/CollectionPage'),
       () => import('../features/espionaje/EspionajePage'),
       () => import('../features/rank/RankingPage'),
-      () => import('../features/arena/ArenaPage'),
       () => import('../features/events/EventsPage'),
     ]
 

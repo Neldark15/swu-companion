@@ -77,7 +77,12 @@ const mainSystems: Sistema[] = [
   // ── Jugar: lo de la mesa, en vivo o para dejar registro ──
   { icon: ChanceCubeIcon,  label: 'Contador',     tone: 'purple', to: '/contador',   cat: 'jugar' },
   { icon: MandoTrophyIcon, label: 'Amistosas',    tone: 'green',  to: '/amistosas',  cat: 'jugar' },
-  { icon: DatapadIcon,     label: 'Holocrón',     tone: 'green',  to: '/arena',      cat: 'jugar', auth: true },
+  // Duelo ocupa el hueco que dejó el Holocrón, y no es un cambio de rótulo:
+  // esa casilla era el ÚNICO salto de un toque desde Inicio hacia el tracker
+  // en el teléfono (la TabBar no lleva /play y el sidebar es de escritorio).
+  // Quitarla sin poner esta habría empeorado el acceso al módulo que la
+  // gente sí usa, para arreglar el que nadie usó nunca.
+  { icon: DatapadIcon,     label: 'Duelo',        tone: 'green',  to: '/play',       cat: 'jugar', auth: true },
   { icon: DeathStarIcon,   label: 'Misiones',     tone: 'amber',  to: '/misiones',   cat: 'jugar', auth: true },
 
   // ── Competir: torneos, ranking y meta ──
@@ -145,7 +150,7 @@ interface Marcador {
 
 /** Traducción de los rótulos de módulo y categoría al inglés (Fase i18n). */
 const MOD_EN: Record<string, string> = {
-  'Contador': 'Counter', 'Amistosas': 'Friendlies', 'Holocrón': 'Holocron', 'Misiones': 'Missions',
+  'Contador': 'Counter', 'Amistosas': 'Friendlies', 'Duelo': 'Duel', 'Misiones': 'Missions',
   'Torneos': 'Tournaments', 'Eventos': 'Events', 'Meta': 'Meta', 'Ranking': 'Ranking', 'En Vivo': 'Live',
   'Mis Decks': 'My Decks', 'Laboratorio': 'Lab', 'Buscar Cartas': 'Search Cards', 'Rulings': 'Rulings',
   'Mi Botín': 'My Loot', 'Contrabando': 'Smuggling', 'Mercancía': 'Market',

@@ -9,6 +9,7 @@ import { deleteDeckFromCloud, pullDecksFromCloud, syncDeckToCloud } from '../../
 import { validateDeck, getEffectiveMinDeckSize } from '../../services/deckValidator'
 import { getPricesForCards, fetchTCGPrices, formatPrice, precioVariante, type PriceInfo } from '../../services/pricing'
 import { useAuth } from '../../hooks/useAuth'
+import { updateMissionProgress } from '../../services/missionService'
 import { ImportDeckModal } from './ImportDeckModal'
 import { ExportDeckModal } from './ExportDeckModal'
 import type { Deck, DeckCard } from '../../types'
@@ -234,7 +235,12 @@ export function DeckListPage() {
     newDeck.validationErrors = validation.errors
 
     await db.decks.put(newDeck)
-    if (supabaseUser) syncDeckToCloud(supabaseUser.id, newDeck).catch(() => {})
+    if (supabaseUser) {
+      syncDeckToCloud(supabaseUser.id, newDeck).catch(() => {})
+      // La misión de «crear mazo» se cuenta acá, que es donde nace uno. Se traga
+      // el fallo a propósito: una misión no puede impedir que se guarde el mazo.
+      void updateMissionProgress(supabaseUser.id, 'deck_created').catch(() => {})
+    }
     loadDecks()
   }
 

@@ -11,6 +11,7 @@ import { getMyWishlist, addToWishlist, removeFromWishlist } from '../../services
 import { db } from '../../services/db'
 import { syncFavoriteToCloud } from '../../services/sync'
 import { useAuth } from '../../hooks/useAuth'
+import { updateMissionProgress } from '../../services/missionService'
 import { getCardQuantity, updateCollectionQuantity } from '../../services/collectionService'
 import { formatPrice, getLocalPrice, precioPromedio, type PriceInfo } from '../../services/pricing'
 import { getPricesForCards, fetchTCGPrices } from '../../services/pricing'
@@ -142,6 +143,10 @@ export function CardDetailPage() {
       await db.favoriteCards.delete(id)
     } else {
       await db.favoriteCards.put({ cardId: id })
+      // Solo al MARCAR, nunca al desmarcar: si contara las dos, la misión se
+      // completaría tocando el mismo corazón cinco veces.
+      const uid = useAuth.getState().supabaseUser?.id
+      if (uid) void updateMissionProgress(uid, 'card_favorited').catch(() => {})
     }
     setIsFavorite(newFav)
 

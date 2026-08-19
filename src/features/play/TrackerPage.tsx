@@ -3,6 +3,8 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, Save, RotateCcw, Shield, Sparkles, Zap, Check, Pencil, Trophy, Search, X, Users, Layers } from 'lucide-react'
 import { Counter } from '../../components/ui/Counter'
 import { Badge } from '../../components/ui/Badge'
+import { useAuth } from '../../hooks/useAuth'
+import { updateMissionProgress } from '../../services/missionService'
 import { useMatchPersistence } from '../../hooks/useMatchPersistence'
 import { searchCards } from '../../services/swuApi'
 import { db } from '../../services/db'
@@ -252,6 +254,21 @@ export function TrackerPage() {
 
     if (newScore[playerIdx] >= 2) {
       setMatchOver(true)
+      // Las misiones de «jugar» y «ganar» se cuentan ACÁ, que es el único punto
+      // del código donde de verdad termina una partida. Estuvieron sin cablear
+      // desde siempre: `updateMissionProgress` tenía UN solo llamador en toda la
+      // app (los regalos), así que de las 12 diarias solo 3 podían completarse y
+      // se sortean 4 por día — la mayoría de los días la lista entera era
+      // imposible.
+      //
+      // `playerIdx === 0` es quien lleva el teléfono. No se marca victoria si
+      // ganó el rival, y el fallo se traga: una misión no puede tumbar el final
+      // de una partida.
+      const uid = useAuth.getState().supabaseUser?.id
+      if (uid) {
+        void updateMissionProgress(uid, 'match_played').catch(() => {})
+        if (playerIdx === 0) void updateMissionProgress(uid, 'match_won').catch(() => {})
+      }
       const ms = buildMatchState(matchId, mode, players, newScore, currentGame, initiative, newGames, false)
       finishMatch(ms)
     } else {
@@ -445,21 +462,15 @@ export function TrackerPage() {
             </div>
           ))}
         </div>
-        <button
-          onClick={() => {
-            const params = new URLSearchParams({
-              p1: players[0]?.name || '',
-              p2: players[1]?.name || '',
-              mode,
-              score: `${gameScore[0]}-${gameScore[1]}`,
-              winner: String(gameScore[0] >= 2 ? 1 : 2),
-            })
-            navigate(`/arena/log?${params.toString()}`)
-          }}
-          className="w-full max-w-xs py-3 rounded-xl bg-swu-green/15 border border-swu-green/40 text-swu-green font-bold text-sm active:scale-95 transition-transform"
-        >
-          Registrar en Holocrón
-        </button>
+        {/* Acá vivía «Registrar en Holocrón», que llevaba a /arena/log. Se fue
+            con el módulo: en toda la vida de la app ese formulario produjo CERO
+            filas (medido en `match_logs`).
+            No se re-apuntó a /amistosas a propósito: el registro de amistosa es
+            bilateral —lo confirma el rival— y se abre en una hoja desde
+            /amistosas, sin parámetros de URL que leer. Fabricar ese puente sería
+            rediseñarlo para salvar un flujo que nadie usó.
+            La partida NO se pierde: `finishMatch` ya la guardó y se ve en
+            /play/saved. */}
         <div className="flex gap-3 w-full max-w-xs">
           <button onClick={() => navigate('/play')} className="flex-1 py-3 rounded-xl bg-swu-surface border border-swu-border text-swu-text font-bold text-sm">Volver</button>
           <button

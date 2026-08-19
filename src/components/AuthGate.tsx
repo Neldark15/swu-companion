@@ -1,10 +1,9 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { HolocronLoader } from './PageTransition'
-import { Shield, UserPlus, Sparkles, Swords, ScrollText, Trophy, Target } from 'lucide-react'
+import { Shield, UserPlus, Sparkles, Swords, Trophy, Target } from 'lucide-react'
 
 const features = [
-  { icon: ScrollText, label: 'Holocrón de Duelos', desc: 'Registre y analice sus combates' },
   { icon: Swords, label: 'Tracker en Vivo', desc: 'Contadores de vida en tiempo real' },
   { icon: Trophy, label: 'Torneos', desc: 'Organice y participe en eventos' },
   { icon: Target, label: 'Misiones Diarias', desc: 'Gane XP completando objetivos' },

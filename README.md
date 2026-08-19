@@ -89,7 +89,7 @@ No hay CI adicional. **Siempre correr `npm run build` localmente antes de pushea
 src/
 ├── App.tsx              # 46 rutas lazy + AuthGate
 ├── components/          # AuthGate, CardImage, SWIcons, layout, ui
-├── features/            # 17 módulos (arena, cards, collection, community, decks, ...)
+├── features/            # 16 módulos (amistosas, cards, collection, community, decks, ...)
 ├── services/            # ~30 servicios (supabase, swuApi, sync, galaxyService, ...)
 ├── hooks/               # useAuth, useMatchPersistence, useSettings, useUIStore
 ├── data/                # regions.ts (continentes + países)

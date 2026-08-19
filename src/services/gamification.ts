@@ -24,7 +24,7 @@ import { diaCalendarioSV } from './horaSV'
 export type Aspect = 'Vigilance' | 'Command' | 'Aggression' | 'Cunning' | 'Heroism' | 'Villainy' | 'Progress' | 'Transmissions'
 export type XpAction = 'match_played' | 'match_won' | 'tournament_created' | 'tournament_finished' |
   'deck_created' | 'deck_valid' | 'card_favorited' | 'card_collected' | 'daily_login' |
-  'tournament_won' | 'arena_match_logged' |
+  'tournament_won' |
   'gift_leccion_received' | 'gift_creditos_received' | 'gift_beskar_received' | 'gift_sent' |
   'gift_holocron_received' | 'gift_kyber_received' |
   'daily_mission_completed' | 'weekly_mission_completed' | 'achievement_unlocked'
@@ -72,7 +72,6 @@ export interface PlayerStats {
   loginDays: number
   lastLoginDate: string        // YYYY-MM-DD
   modesPlayed: string[]        // ['premier', 'twin_suns']
-  arenaMatchesLogged: number   // matches logged in Holocrón
   giftsReceived: number        // total gifts received from other players
   giftsSent: number            // total gifts sent to other players
   leccionesJediReceived: number
@@ -155,7 +154,6 @@ export const XP_VALUES: Record<XpAction, number> = {
   card_favorited: 2,
   card_collected: 1,
   daily_login: 5,
-  arena_match_logged: 15,
   gift_leccion_received: 15,
   gift_creditos_received: 15,
   gift_beskar_received: 30,
@@ -250,12 +248,16 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'vil_8', name: 'Emperador', description: 'Alcanzar nivel 30', aspect: 'Villainy', icon: '👑', svgIcon: 'crown', threshold: 30, statKey: 'level' },
 
   // ═══════════════════════════════════════════════════════════════════
-  // PROGRESO (Ámbar) — 8 logros — Registro de duelos + meta-logros
-  // Tiers: [25, 50, 75, 100] equidistantes (incremento 25)
+  // PROGRESO (Ámbar) — 5 logros — TODOS meta: completar los otros aspectos.
+  //
+  // Eran 8. Los tres que se fueron (pro_1/2/3, «Registrar N duelos en
+  // Holocrón») colgaban de `arenaMatchesLogged`, un contador que NINGÚN código
+  // incrementaba: nacieron inalcanzables y así murieron. Se fueron con el
+  // módulo, cuya tabla terminó con cero filas.
+  //
+  // Y tampoco pegaban acá: los otros cinco son meta-logros —«completá tal
+  // aspecto»— y esos tres eran una tarea suelta metida en el medio.
   // ═══════════════════════════════════════════════════════════════════
-  { id: 'pro_1', name: 'Primer Registro', description: 'Registrar 1 duelo en Holocrón', aspect: 'Progress', icon: '📝', svgIcon: 'draft', threshold: 1, statKey: 'arenaMatchesLogged' },
-  { id: 'pro_2', name: 'Cronista', description: 'Registrar 10 duelos', aspect: 'Progress', icon: '📜', svgIcon: 'blueprint', threshold: 10, statKey: 'arenaMatchesLogged' },
-  { id: 'pro_3', name: 'Historiador', description: 'Registrar 50 duelos', aspect: 'Progress', icon: '📖', svgIcon: 'books', threshold: 50, statKey: 'arenaMatchesLogged' },
   { id: 'pro_4', name: 'Héroe Completo', description: 'Completar Heroísmo 100%', aspect: 'Progress', icon: '💎', svgIcon: 'heroism', threshold: 1, statKey: '_heroismComplete' },
   { id: 'pro_5', name: 'Comandante Supremo', description: 'Completar Comando 100%', aspect: 'Progress', icon: '⚔️', svgIcon: 'command', threshold: 1, statKey: '_commandComplete' },
   { id: 'pro_6', name: 'Vigilante Eterno', description: 'Completar Vigilancia 100%', aspect: 'Progress', icon: '🛡️', svgIcon: 'vigilance', threshold: 1, statKey: '_vigilanceComplete' },
@@ -299,7 +301,13 @@ export const ASPECT_CONFIG: Record<Aspect, {
   Cunning:    { label: 'Astucia',     icon: '🎯', svgIcon: 'cunning',    color: 'from-yellow-500 to-yellow-700', bgColor: 'bg-yellow-500/20',  textColor: 'text-yellow-400',  borderColor: 'border-yellow-500/30',  tierThresholds: [25, 50, 75, 100],    statKey: 'decksCreated' },
   Heroism:    { label: 'Heroísmo',    icon: '💎', svgIcon: 'heroism',    color: 'from-cyan-400 to-cyan-600',    bgColor: 'bg-cyan-500/20',    textColor: 'text-cyan-300',    borderColor: 'border-cyan-500/30',    tierThresholds: [250, 500, 750, 1000], statKey: 'cardsCollected' },
   Villainy:   { label: 'Villanía',    icon: '🌙', svgIcon: 'villainy',   color: 'from-purple-500 to-purple-700', bgColor: 'bg-purple-500/20',  textColor: 'text-purple-400',  borderColor: 'border-purple-500/30',  tierThresholds: [8, 16, 24, 32],      statKey: 'unlockedCount' },
-  Progress:       { label: 'Progreso',       icon: '🌟', svgIcon: 'glowing_star',   color: 'from-amber-400 to-amber-600',   bgColor: 'bg-amber-500/20',   textColor: 'text-amber-400',   borderColor: 'border-amber-500/30',   tierThresholds: [25, 50, 75, 100],    statKey: 'arenaMatchesLogged' },
+  // Progreso mide el NIVEL, que es lo que agrega el avance de todo lo demás.
+  // Antes medía los duelos registrados en el Holocrón: cero para los 27
+  // perfiles, o sea una barra vacía para siempre. No se pasó a
+  // `matchesPlayed` porque esa ES Vigilancia (barra y logros vig_1..5) y las
+  // dos habrían dicho el mismo número con distinto nombre. Los umbrales
+  // 10/20/30/40 son los mismos niveles que ya premian vil_6/7/8.
+  Progress:       { label: 'Progreso',       icon: '🌟', svgIcon: 'glowing_star',   color: 'from-amber-400 to-amber-600',   bgColor: 'bg-amber-500/20',   textColor: 'text-amber-400',   borderColor: 'border-amber-500/30',   tierThresholds: [10, 20, 30, 40],     statKey: 'level' },
   Transmissions:  { label: 'Transmisiones', icon: '📡', svgIcon: 'sentinel',      color: 'from-indigo-400 to-cyan-600',   bgColor: 'bg-indigo-500/20',  textColor: 'text-indigo-300',  borderColor: 'border-indigo-500/30',  tierThresholds: [125, 250, 375, 500], statKey: 'giftsReceived' },
 }
 
@@ -444,7 +452,6 @@ export function getAspectBars(stats: PlayerStats): AspectBar[] {
       case 'decksCreated': rawValue = stats.decksCreated; break
       case 'cardsCollected': rawValue = stats.cardsCollected; break
       case 'loginDays': rawValue = stats.loginDays; break
-      case 'arenaMatchesLogged': rawValue = stats.arenaMatchesLogged; break
       case 'giftsReceived': rawValue = stats.giftsReceived; break
       case 'unlockedCount': rawValue = unlockedCount; break
       default: rawValue = 0
@@ -498,7 +505,6 @@ export function createDefaultStats(profileId: string): PlayerStats {
     loginDays: 1,
     lastLoginDate: today,
     modesPlayed: [],
-    arenaMatchesLogged: 0,
     giftsReceived: 0,
     giftsSent: 0,
     leccionesJediReceived: 0,

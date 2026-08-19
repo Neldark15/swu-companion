@@ -74,7 +74,6 @@
     │   └── ui/                ← componentes compartidos (NotificationBell, etc.)
     │
     ├── features/              ← 17 módulos de feature
-    │   ├── arena/             ← /arena, /arena/log, /history, /stats, /feed
     │   ├── cards/             ← /cards, /cards/:id
     │   ├── collection/        ← /collection (Mi Botín), /explore, /u/:userId
     │   ├── community/         ← /community (Comunidades)
@@ -105,7 +104,7 @@
     │   ├── collectionService.ts, collectionImport.ts, collectionExport.ts
     │   ├── communityService.ts, cosmeticsService.ts
     │   ├── tournamentCloud.ts, tournamentPoints.ts, swiss.ts, elimination.ts
-    │   ├── arenaService.ts, meleeService.ts, missionService.ts
+    │   ├── meleeService.ts, missionService.ts
     │   ├── deckImportExport.ts, deckValidator.ts
     │   ├── gamification.ts, trivia.ts, news.ts, giftService.ts
     │   ├── notificationService.ts, relationshipService.ts
@@ -132,7 +131,6 @@
 **Principal:**
 - `/` Base (Hexagon) — centro de mando
 - `/play` Duelo (Swords) — tracker en vivo
-- `/arena` Holocrón (DatapadIcon) — registro de duelos
 - `/melee` Circuito (MedalIcon) — Melee.gg
 - `/laboratorio` Laboratorio (LabIcon) — simulador de mazos contra el meta
 - `/rulings` Rulings (HolocronIcon) — reglamento oficial, PÚBLICO
@@ -1041,6 +1039,51 @@ Reglas heredadas de las otras dos pantallas, y que acá también costaron:
 - **Nada de degradado cromado detrás de un texto**: en la credencial se midió
   que deja la tinta entre 1,13:1 y 1,74:1 en la franja del medio. La banda del
   titular va con lustre.
+
+### 3h-bis. El Holocrón de Duelos se retiró, y por qué el número mandó
+
+`/arena` y sus cinco pantallas se fueron el 2026-08-19. La decisión no fue de
+gusto: **`match_logs` terminó con CERO filas y cero autores** en toda la vida de
+la app. No es «poco uso», es que nadie registró jamás un combate ahí.
+
+Y estaba a medio cablear desde el principio: `logMatch` escribía en Dexie y en
+`match_logs`, y **no tocaba `player_stats`, ni el XP, ni el ranking**. Los tres
+logros del aspecto Progreso y el título «Cronista del Holocrón» colgaban de
+`arenaMatchesLogged`, un contador que **ningún código incrementaba** — nacieron
+inalcanzables. Lo mismo tres misiones diarias.
+
+Lo que hay que saber si aparece un enlace viejo:
+
+- **`/arena/*` redirige a `/amistosas`** con un `<Navigate>` EXPLÍCITO en
+  App.tsx, no por el comodín del final: ese manda a Inicio en silencio, que para
+  quien tenga la ruta guardada se ve como que la app se rompió. Se puede quitar
+  a partir de noviembre de 2026.
+- **La casilla «Duelo» de Inicio entró ANTES de que saliera «Holocrón».** Esa
+  casilla era el único salto de un toque desde Inicio hacia el tracker en el
+  teléfono (la TabBar no lleva `/play` y el sidebar es de escritorio). Quitarla
+  sin reemplazo habría empeorado el acceso al módulo que la gente sí usa.
+- **La barra del aspecto «Progreso» ahora mide `level`**, no `matchesPlayed`:
+  esa última ES Vigilancia (barra y logros `vig_1..5`) y las dos habrían dicho
+  el mismo número con distinto nombre.
+- **Las tablas NO se borraron.** `match_logs` en Postgres queda vacía y cuesta
+  cero; la tabla `matchLogs` de Dexie sigue DECLARADA a propósito — Dexie solo
+  borra una tabla si le escribís `matchLogs: null`, y tocar los bloques de
+  versión rompe la base de quien ya tiene la app instalada.
+- Lo que sí se quitó de la base es la policy `"Public read logs"`, que dejaba el
+  nombre y el mazo del rival legibles por cualquiera sin pedirle permiso —la
+  única grieta contra §3a.
+
+**Misiones, de paso.** `updateMissionProgress` tenía UN solo llamador en toda la
+app (los regalos), así que de 12 diarias solo 3 podían completarse **y se
+sortean 4 por día**: la mayoría de los días la lista entera era imposible. Se
+comprobó en la base: las únicas filas que existen en `user_missions` son
+`d_gift1`, `d_gift2` y `w_gift3`. Ahora hay llamador para `match_played`,
+`match_won` (TrackerPage), `deck_created` (DeckListPage) y `card_favorited`
+(CardDetailPage), y se retiraron las que no lo tienen: las 3 del Holocrón, las 2
+de «validar mazo» y la de «finalizar torneo» —esa la cierra el organizador
+server-side y acreditarla en el cliente premiaría a quien no jugó—. **Regla: una
+misión sin llamador es una tarea imposible en pantalla; si agregás un
+`objectiveType`, agregá el `updateMissionProgress` en el mismo commit.**
 
 ### 3i. Sobres y álbum: la colección es SOLO brillante, y el brillo lo pone la app
 

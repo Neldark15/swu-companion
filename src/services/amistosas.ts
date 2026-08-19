@@ -174,7 +174,7 @@ function vistaDe(
  * piden botones distintos —uno lleva a registrar, el otro a reintentar— y con
  * un `[]` pelado los dos casos se ven idénticos.
  *
- * Es exactamente el fallo que tiene hoy `/arena`: `getPublicMatchFeed` se traga
+ * Era exactamente el fallo que tenía `/arena` (retirado): `getPublicMatchFeed` se tragaba
  * el error y devuelve `[]`, así que la pantalla dice «no hay partidas» con la
  * red caída.
  */

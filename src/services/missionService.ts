@@ -16,7 +16,7 @@ import {
 
 export type MissionType = 'daily' | 'weekly'
 export type ObjectiveType = 'match_played' | 'match_won' | 'gift_sent' | 'deck_created' |
-  'arena_match_logged' | 'card_favorited' | 'deck_valid' | 'tournament_finished' |
+  'card_favorited' |
   'card_collected' | 'card_searched' | 'price_checked' | 'set_explored'
 
 export type RewardType = 'xp' | 'title' | 'xp_title'
@@ -47,26 +47,20 @@ export interface UserMission {
 export const DAILY_MISSIONS: MissionTemplate[] = [
   { id: 'd_play1', type: 'daily', name: 'Orden de Patrulla', description: 'Jugar 1 partida', objectiveType: 'match_played', objectiveValue: 1, rewardXp: 20, icon: '⚔️' },
   { id: 'd_win1', type: 'daily', name: 'Victoria Táctica', description: 'Ganar 1 partida', objectiveType: 'match_won', objectiveValue: 1, rewardXp: 25, icon: '🏆' },
-  { id: 'd_arena1', type: 'daily', name: 'Registro de Combate', description: 'Registrar 1 duelo en Arena', objectiveType: 'arena_match_logged', objectiveValue: 1, rewardXp: 20, icon: '📝' },
   { id: 'd_gift1', type: 'daily', name: 'Diplomacia Galáctica', description: 'Enviar 1 regalo', objectiveType: 'gift_sent', objectiveValue: 1, rewardXp: 15, icon: '🎁' },
   { id: 'd_fav1', type: 'daily', name: 'Ojo de Coleccionista', description: 'Marcar 1 carta favorita', objectiveType: 'card_favorited', objectiveValue: 1, rewardXp: 10, icon: '⭐' },
   { id: 'd_deck1', type: 'daily', name: 'Diseño Rápido', description: 'Crear 1 deck', objectiveType: 'deck_created', objectiveValue: 1, rewardXp: 15, icon: '🔧' },
-  { id: 'd_valid1', type: 'daily', name: 'Certificación', description: 'Validar 1 deck', objectiveType: 'deck_valid', objectiveValue: 1, rewardXp: 20, icon: '✅' },
   { id: 'd_win2', type: 'daily', name: 'Doble Impacto', description: 'Ganar 2 partidas', objectiveType: 'match_won', objectiveValue: 2, rewardXp: 30, icon: '⚡' },
   { id: 'd_play3', type: 'daily', name: 'Servicio Activo', description: 'Jugar 3 partidas', objectiveType: 'match_played', objectiveValue: 3, rewardXp: 25, icon: '🎮' },
   { id: 'd_gift2', type: 'daily', name: 'Emisario Imperial', description: 'Enviar 2 regalos', objectiveType: 'gift_sent', objectiveValue: 2, rewardXp: 20, icon: '📡' },
-  { id: 'd_arena2', type: 'daily', name: 'Crónica Doble', description: 'Registrar 2 duelos', objectiveType: 'arena_match_logged', objectiveValue: 2, rewardXp: 25, icon: '📖' },
   { id: 'd_fav5', type: 'daily', name: 'Curador Exprés', description: 'Marcar 5 cartas favoritas', objectiveType: 'card_favorited', objectiveValue: 5, rewardXp: 15, icon: '💎' },
 ]
 
 export const WEEKLY_MISSIONS: MissionTemplate[] = [
   { id: 'w_win5', type: 'weekly', name: 'Campaña de Victoria', description: 'Ganar 5 partidas', objectiveType: 'match_won', objectiveValue: 5, rewardXp: 60, icon: '🏅' },
-  { id: 'w_tourn1', type: 'weekly', name: 'Servicio de Torneo', description: 'Finalizar 1 torneo', objectiveType: 'tournament_finished', objectiveValue: 1, rewardXp: 60, icon: '🏟️' },
-  { id: 'w_arena5', type: 'weekly', name: 'Archivo Semanal', description: 'Registrar 5 duelos', objectiveType: 'arena_match_logged', objectiveValue: 5, rewardXp: 50, icon: '📚' },
   { id: 'w_gift3', type: 'weekly', name: 'Red de Alianzas', description: 'Enviar 3 regalos', objectiveType: 'gift_sent', objectiveValue: 3, rewardXp: 40, icon: '🤝' },
   { id: 'w_deck2', type: 'weekly', name: 'Laboratorio Táctico', description: 'Crear 2 decks', objectiveType: 'deck_created', objectiveValue: 2, rewardXp: 40, icon: '🔬' },
   { id: 'w_play10', type: 'weekly', name: 'Deber Cumplido', description: 'Jugar 10 partidas', objectiveType: 'match_played', objectiveValue: 10, rewardXp: 50, icon: '🎯' },
-  { id: 'w_valid3', type: 'weekly', name: 'Triple Validación', description: 'Validar 3 decks', objectiveType: 'deck_valid', objectiveValue: 3, rewardXp: 60, icon: '🛡️' },
   { id: 'w_fav20', type: 'weekly', name: 'Gran Curador', description: 'Marcar 20 favoritas', objectiveType: 'card_favorited', objectiveValue: 20, rewardXp: 40, icon: '💎' },
 ]
 

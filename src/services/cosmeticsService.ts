@@ -104,14 +104,6 @@ export const TITLES: Title[] = [
     rarity: 'rare',
     check: (s) => s.matchesPlayed >= 200,
   },
-  {
-    id: 'title_cronista',
-    name: 'Cronista del Holocrón',
-    description: 'Registrador de duelos',
-    condition: '50 duelos en Holocrón',
-    rarity: 'rare',
-    check: (s) => s.arenaMatchesLogged >= 50,
-  },
 
   // Epic
   {
