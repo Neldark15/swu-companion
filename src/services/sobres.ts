@@ -86,22 +86,34 @@ export const RAREZA: Record<Variante, Rareza> = {
 export const ESCALA: Rareza[] = ['hiper', 'prestigio', 'prestigioFoil', 'showcase', 'serializada']
 
 /**
- * El ACABADO de cada escalón: cómo brilla, que es distinto de cuán raro es.
+ * El ACABADO: cómo brilla, que es distinto de cuán raro es.
  *
  * - `foil`   arcoíris que barre con el ángulo, el brillo clásico de la foil.
- * - `metal`  plateado duro y espejado, el de las Prestige.
- * - `oro`    el metal pero dorado, para la Prestige foil y la serializada.
+ * - `metal`  plateado duro y espejado.
+ * - `oro`    el metal pero dorado.
  *
  * Va separado de la rareza porque son dos preguntas: una decide la fanfarria y
- * el orden, la otra decide qué material se pinta encima del arte.
+ * el orden, la otra decide qué material se pinta encima del arte. Los tres
+ * acabados siguen existiendo y probados en `/banco-sobres`; lo que cambia acá
+ * abajo es solo la ASIGNACIÓN.
  */
 export type Acabado = 'foil' | 'metal' | 'oro'
 
+/**
+ * Las cinco van en ORO, por decisión de Nel: de los tres acabados, el dorado
+ * es el que se ve mejor sobre el arte del juego.
+ *
+ * Consecuencia asumida: el brillo ya NO distingue una impresión de otra. La
+ * rareza se sigue leyendo por todo lo demás —el color del aura al abrirla, el
+ * grito, el filo del dorso, el color de la sección del álbum y la insignia de
+ * la serializada— que es donde de verdad se mira. Si algún día se quiere que el
+ * material vuelva a informar, se cambia este mapa y nada más.
+ */
 export const ACABADO: Record<Rareza, Acabado> = {
-  hiper: 'foil',
-  prestigio: 'metal',
+  hiper: 'oro',
+  prestigio: 'oro',
   prestigioFoil: 'oro',
-  showcase: 'foil',
+  showcase: 'oro',
   serializada: 'oro',
 }
 
