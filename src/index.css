@@ -988,7 +988,10 @@ input:focus, textarea:focus, select:focus {
     #b02bff 12.8%,
     #ff0f66 16%
   );
-  opacity: 0.82;
+  /* 0,42 y no 0,82: a plena opacidad el arcoiris se comia la lamina. La capa
+     tiene que DEJAR VER la carta — es un barniz encima del arte, no una capa
+     de color que lo sustituye. */
+  opacity: 0.42;
   mix-blend-mode: overlay;
   transform: translate3d(calc(var(--px, 0) * 30%), calc(var(--py, 0) * 16%), 0);
   transition: transform 120ms linear;
@@ -1009,7 +1012,7 @@ input:focus, textarea:focus, select:focus {
     #16202e 9.6%,
     #0e1520 12.8%
   );
-  opacity: 0.72;
+  opacity: 0.4;
   mix-blend-mode: overlay;
   transform: translate3d(calc(var(--px, 0) * 26%), calc(var(--py, 0) * 14%), 0);
   transition: transform 120ms linear;
@@ -1028,7 +1031,9 @@ input:focus, textarea:focus, select:focus {
     #33200a 9.6%,
     #2a1a00 12.8%
   );
-  opacity: 0.8;
+  /* El oro va un punto por encima del plateado: sobre arte oscuro el ambar se
+     pierde antes que el blanco frio. */
+  opacity: 0.45;
   mix-blend-mode: overlay;
   transform: translate3d(calc(var(--px, 0) * 26%), calc(var(--py, 0) * 14%), 0);
   transition: transform 120ms linear;
