@@ -857,3 +857,38 @@ Reglas que quedan, para no volver atrás:
   que devolvió la base y cambia al escribir en el buscador.
 - «Consejo Jedi» sobrevive **solo** como el título del podio de los tres
   primeros de esa única tabla.
+
+### 3d. La puerta de instalación: qué NO se puede exigir
+
+`PuertaInstalacion` bloquea la app hasta que esté instalada como PWA y con
+avisos activos. Tres cosas hacen que un requisito sea imposible de cumplir, y
+exigirlo ahí no es «más estricto»: es una pared sin puerta.
+
+1. **Desde el navegador de Instagram / Facebook / TikTok NO se puede
+   instalar.** En iOS «Añadir a inicio» solo existe en Safari, y el de
+   Instagram es un WKWebView sin ese menú; en Android son WebViews que nunca
+   disparan `beforeinstallprompt`. Se los detecta por cadena de agente
+   (`Instagram`, `FBAN|FBAV|FB_IAB|FBIOS`, `BytedanceWebview|musical_ly`) y se
+   los deja pasar con una barra que ofrece abrir en el navegador de verdad.
+2. **En iOS el permiso de avisos solo se puede pedir DESPUÉS de instalar.** Por
+   eso el orden es instalar → abrir instalada → activar avisos, y no al revés.
+3. **Un «Bloquear» es irreversible desde código.** El permiso queda en `denied`
+   y `requestPermission()` ya no vuelve a preguntar. Se enseñan los pasos de
+   los ajustes del teléfono, con un botón para volver a comprobar, y hay salida
+   («entrar sin avisos»): echar a alguien para siempre por un botón mal tocado
+   es un bug, no una regla más dura.
+
+**Rutas que nunca pasan por la puerta** (`rutaLibre` en `services/entorno.ts`):
+`/overlay/:code` y `/estudio/:code` —los carga OBS, que es un Chromium sin menú
+y no puede instalar nada; taparlos tumba la transmisión EN VIVO—,
+`/events/live/:code`, y las páginas públicas (`/rulings`, `/meta`, `/torneos`,
+`/aurebesh`, `/u/:id`, `/blog`, `/sedes`), que son las que hacen que un enlace
+compartido traiga gente nueva.
+
+**Android se comprueba ANTES que iOS en `plataforma()`.** El truco conocido
+para delatar al iPad —`platform === 'MacIntel'` con táctil— también da
+verdadero en Android: medido, ua «Linux; Android 14; Pixel 8» con platform
+«MacIntel» y `maxTouchPoints` 5. Con la regla del iPad primero, a un Android se
+le enseñaban los pasos de iPhone («tocá Compartir en Safari») en una pantalla
+que además no lo dejaba pasar. `PWAInstallCard.detectPlatform` tiene el mismo
+orden invertido y el mismo defecto latente.
