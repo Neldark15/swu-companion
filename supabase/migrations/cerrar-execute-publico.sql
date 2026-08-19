@@ -1,0 +1,43 @@
+-- Cerrar el EXECUTE que llegaba a `anon` por DOS caminos distintos.
+--
+-- El asesor de seguridad daba 54 avisos y 41 eran la misma causa. Pero no era
+-- una causa: eran dos, y hubo que hacer dos vueltas.
+--
+--   1. Postgres concede EXECUTE a PUBLIC en toda función nueva, y `anon` es
+--      miembro de PUBLIC. `revoke ... from anon` NO lo quita — se ve en el ACL
+--      como una entrada con el beneficiario VACÍO.
+--   2. Supabase trae ADEMÁS `GRANT ALL ON FUNCTIONS TO anon, authenticated,
+--      service_role` por defecto, o sea una concesión EXPLÍCITA a `anon`.
+--
+-- La primera vuelta solo cortó (1) y el asesor siguió listando las mismas
+-- funciones. Hay que cortar los dos caminos.
+--
+-- ── Lo que NO era un agujero ─────────────────────────────────────────
+--
+-- Probado desde fuera con la clave pública ANTES de tocar nada:
+--   · las de disparador → «trigger functions can only be called as triggers»
+--   · set_user_role     → «no autenticado» (su comprobación interna aguanta)
+-- Era defensa en profundidad, no una fuga. Pero 41 avisos tapan a los que sí
+-- importarían el día que aparezca uno de verdad.
+--
+-- ── Las que se QUEDAN abiertas a anon, y por qué ─────────────────────
+--
+-- `es_admin_blog`, `puede_escribir_blog`, `galaxia_pertenece`
+--     Las usa una POLÍTICA de RLS, y una política se evalúa con los permisos
+--     de quien consulta. Revocarlas no las asegura: hace que la consulta
+--     ENTERA falle con 42501 para todo visitante. Hoy mismo tumbé el blog
+--     público exactamente así.
+--
+-- `ranking_unificado`, `ranking_amistosas`, `meta_amistoso`,
+-- `mazo_de_amistosa`, `blog_sumar_vista`
+--     Las leen páginas PÚBLICAS —el blog, el meta, los torneos— que son las
+--     que hacen que un enlace compartido traiga gente nueva. Solo devuelven
+--     datos que ya son públicos.
+--
+-- Comprobado DESPUÉS: blog_posts, duelos_amistosos confirmadas,
+-- official_events y los tres RPC públicos siguen en 200 para un anónimo; y
+-- set_user_role, toggle_post_like y handle_new_user pasan a 404 «Could not
+-- find the function» — PostgREST ya ni se los expone.
+--
+-- Cuerpo en las migraciones `cerrar_execute_a_public` y `cerrar_execute_a_anon`
+-- del 2026-08-19.
