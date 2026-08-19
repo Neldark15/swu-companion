@@ -13,7 +13,9 @@
 import { useState } from 'react'
 import { CajaDeSobres } from './CajaDeSobres'
 import { AperturaSobre } from './AperturaSobre'
-import { ESCALA, NOMBRE_RAREZA, type CartaSacada, type Rareza, type Variante } from '../../services/sobres'
+import { CartaGirable } from './CartaGirable'
+import { ReversoCarta } from './ReversoCarta'
+import { ESCALA, NOMBRE_RAREZA, COLOR_RAREZA, type CartaSacada, type Rareza, type Variante } from '../../services/sobres'
 import type { Card } from '../../types'
 
 /** Una carta de mentira, con lo justo para que la pantalla la sepa pintar. */
@@ -141,7 +143,28 @@ export function BancoSobres() {
           }}
         />
       ) : (
-        <CajaDeSobres alElegir={elegir} />
+        <>
+          <CajaDeSobres alElegir={elegir} />
+
+          {/* La carta girable del binder. Va acá porque el gesto —arrastrar con
+              inercia y pasar de los 90° para ver el dorso— solo se puede juzgar
+              probándolo, y en el binder de verdad hace falta tener cartas. */}
+          <div className="mt-10 border-t border-swu-border pt-6">
+            <p className="mb-3 text-center text-sm text-swu-muted">
+              Carta girable del binder — arrastrala
+            </p>
+            <div className="mx-auto max-w-[260px]">
+              <CartaGirable
+                frente={
+                  <div className="flex h-full w-full items-center justify-center rounded-xl bg-swu-surface text-sm text-swu-muted">
+                    FRENTE
+                  </div>
+                }
+                dorso={<ReversoCarta color={COLOR_RAREZA[premio]} />}
+              />
+            </div>
+          </div>
+        </>
       )}
     </div>
   )
