@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { esRutaInterna } from '../services/rutaInterna'
 
 /**
  * Guarda dónde estabas y te devuelve ahí cuando el sistema mató la app.
@@ -48,15 +49,14 @@ function leer(): RutaGuardada | null {
     if (typeof d !== 'object' || d === null) return null
     const { ruta, ts } = d as Partial<RutaGuardada>
     if (typeof ruta !== 'string' || typeof ts !== 'number' || !Number.isFinite(ts)) return null
-    // La ruta tiene que ser interna y absoluta.
-    //   · `//evil.com`  → URL protocolo-relativa.
-    //   · `/\evil.com`  → los navegadores normalizan la barra invertida a
-    //                     barra normal, así que equivale a `//evil.com`.
-    // Sin estos controles, un valor manipulado en localStorage se convertiría
-    // en un redirector abierto. Se rechaza cualquier barra invertida, que en
-    // una ruta legítima de esta app no aparece nunca.
-    if (!ruta.startsWith('/')) return null
-    if (ruta.startsWith('//') || ruta.includes('\\')) return null
+    // La ruta tiene que ser interna y absoluta, o un valor manipulado en
+    // localStorage sería un redirector abierto. La regla vive en
+    // `services/rutaInterna.ts` porque ahora también la necesita el `link` de
+    // las notificaciones; tenerla en dos sitios es cómo una de las dos se
+    // queda vieja. Esa versión además tapa `"/<TAB>/evil.com"`, que esta
+    // comprobación dejaba pasar: el navegador borra el tabulador ANTES de
+    // mirar la forma, así que terminaba siendo `//evil.com`.
+    if (!esRutaInterna(ruta)) return null
     return { ruta, ts }
   } catch {
     return null

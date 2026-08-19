@@ -3,8 +3,10 @@
  */
 
 import { useState, useRef, useEffect } from 'react'
-import { Bell } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Bell, ChevronRight } from 'lucide-react'
 import { useNotificationStore, type AppNotification } from '../../services/notificationService'
+import { esRutaInterna } from '../../services/rutaInterna'
 
 const TYPE_ICON: Record<string, string> = {
   achievement: '🏆',
@@ -26,6 +28,7 @@ function timeAgo(ts: number): string {
 }
 
 export function NotificationBell() {
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const notifications = useNotificationStore((s) => s.notifications)
@@ -84,7 +87,16 @@ export function NotificationBell() {
               {recent.map((n: AppNotification) => (
                 <button
                   key={n.id}
-                  onClick={() => { markRead(n.id); setOpen(false); }}
+                  onClick={() => {
+                    markRead(n.id)
+                    setOpen(false)
+                    // El `link` se comprueba antes de navegar: las
+                    // notificaciones se guardan en localStorage y uno de los
+                    // enlaces se arma con datos del servidor
+                    // (`/events/live/${event_code}`), así que es texto que esta
+                    // pantalla no escribió. Ver `services/rutaInterna.ts`.
+                    if (esRutaInterna(n.link)) navigate(n.link)
+                  }}
                   className={`w-full flex items-start gap-2.5 p-3 text-left hover:bg-white/5 transition-colors ${
                     !n.read ? 'bg-white/[0.03]' : ''
                   }`}
@@ -99,6 +111,13 @@ export function NotificationBell() {
                   <span className="text-[9px] text-white/30 shrink-0 mt-0.5">{timeAgo(n.timestamp)}</span>
                   {!n.read && (
                     <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0 mt-1.5" />
+                  )}
+                  {/* La flecha se dibuja SOLO si de verdad lleva a algún lado.
+                      Ponerla en todas convertiría en promesa lo que en algunas
+                      —los avisos de torneo de TournamentPlayerView no llevan
+                      `link`— sigue siendo un callejón sin salida. */}
+                  {esRutaInterna(n.link) && (
+                    <ChevronRight size={12} className="text-white/25 shrink-0 mt-0.5" />
                   )}
                 </button>
               ))}
