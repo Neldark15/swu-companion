@@ -12,7 +12,7 @@
  * buscador en vez de mostrar un cuadro vacío.
  */
 
-import { useState, useEffect, useMemo, lazy, Suspense } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import { Check, AlertTriangle, Save, Star, Image as ImageIcon } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
@@ -167,6 +167,38 @@ export function PersonalizarPerfil() {
     })
   }
 
+  /**
+   * Guardar el planeta AL INSTANTE, como la portada.
+   *
+   * Es el mismo fallo que ya se arregló para la portada y volvió a aparecer
+   * acá: la vista previa cambia EN VIVO al mover un deslizador, así que uno da
+   * por hecho que ya quedó guardado y se va de la pantalla sin tocar
+   * «Guardar». Medido en producción antes de arreglarlo: 7 personas le pusieron
+   * nombre a su planeta —el campo está pegado al botón— y solo 2 tenían los
+   * colores. O sea que cinco eligieron su mundo y lo perdieron.
+   *
+   * Los deslizadores van con antirrebote: mover uno dispara decenas de
+   * cambios y no hace falta una escritura por píxel.
+   */
+  const temporizador = useRef<number | null>(null)
+  const guardarPlaneta = useCallback((parche: Partial<Personalizacion>, alInstante: boolean) => {
+    setP(prev => ({ ...prev, ...parche }))
+    setOk(false)
+    if (temporizador.current) window.clearTimeout(temporizador.current)
+    const escribir = () => {
+      void guardarPersonalizacion(uid, parche).then(r => {
+        if (r.ok) setOk(true)
+        else setError(r.error ?? 'No se pudo guardar tu planeta.')
+      })
+    }
+    if (alInstante) escribir()
+    else temporizador.current = window.setTimeout(escribir, 600)
+  }, [uid])
+
+  // Si te vas de la pantalla con un deslizador a medio asentar, se escribe
+  // igual: perder el cambio por medio segundo sería el mismo bug otra vez.
+  useEffect(() => () => { if (temporizador.current) window.clearTimeout(temporizador.current) }, [])
+
   const guardar = async () => {
     setError(null)
     setOk(false)
@@ -210,7 +242,7 @@ export function PersonalizarPerfil() {
                   acento del perfil, que es lo que pidió Nel. Se distingue del
                   resto porque borra la elección en vez de fijar otra. */}
               <button
-                onClick={() => setP({ ...p, planet_family: null })}
+                onClick={() => guardarPlaneta({ planet_family: null }, true)}
                 className={`text-[10px] font-semibold ${
                   p.planet_family === null ? 'text-swu-cyan' : 'text-swu-muted underline'
                 }`}
@@ -225,7 +257,7 @@ export function PersonalizarPerfil() {
                 return (
                   <button
                     key={f}
-                    onClick={() => setP({ ...p, planet_family: f })}
+                    onClick={() => guardarPlaneta({ planet_family: f }, true)}
                     aria-pressed={activa}
                     className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-semibold
                                 transition-colors focus-visible:outline-none focus-visible:ring-2
@@ -247,12 +279,12 @@ export function PersonalizarPerfil() {
           <Deslizador
             etiqueta="Mares"
             valor={p.planet_seas}
-            onCambio={v => setP({ ...p, planet_seas: v })}
+            onCambio={v => guardarPlaneta({ planet_seas: v }, false)}
           />
           <Deslizador
             etiqueta="Cráteres"
             valor={p.planet_craters}
-            onCambio={v => setP({ ...p, planet_craters: v })}
+            onCambio={v => guardarPlaneta({ planet_craters: v }, false)}
           />
         </div>
 

@@ -987,3 +987,20 @@ Medido en el banco (`/banco-ranking`, solo desarrollo, con los datos reales):
 contraste; el peor es 5,8:1.** Los bancos están en `rutaLibre` porque la puerta
 de instalación tapaba justo la pantalla que hay que mirar para revisar un
 diseño móvil.
+
+### 3g. Vista previa en vivo = la gente cree que ya guardó
+
+El panel del planeta (`PersonalizarPerfil`) tiene una vista previa 3D que
+cambia AL INSTANTE al mover un deslizador o elegir un tipo de mundo. Pero esos
+controles solo tocaban estado local y esperaban al botón «Guardar» del final.
+
+Resultado medido en producción: **7 personas le pusieron nombre a su planeta y
+solo 2 tenían los colores.** El campo del nombre está pegado al botón, así que
+ese sí se guardaba; los colores están arriba, con la vista previa cambiando en
+vivo, y cinco personas eligieron su mundo y lo perdieron.
+
+Es el MISMO fallo que ya se había arreglado para la portada de la vitrina —el
+comentario de `elegirPortada` lo documenta— y volvió a aparecer en el control
+de al lado. La regla: **si un control tiene vista previa en vivo, guarda solo.**
+Los deslizadores con antirrebote de 600 ms, y con la escritura forzada al
+desmontar para no perder el último movimiento.
