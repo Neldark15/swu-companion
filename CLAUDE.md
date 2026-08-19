@@ -1123,3 +1123,39 @@ un solo error en consola.
 Banco en **`/banco-sobres`** (solo desarrollo): se elige qué premio sale, los
 tres acabados uno al lado del otro y el dorso. Sin él, revisar cómo se ve una
 serializada es esperar 1 de cada 33 sobres.
+
+**El SOBRE DIARIO cae a las 8:00 y el aviso NO puede ser solo push.** El reparto
+es `dar_sobre_diario()` (solo `service_role`), que lo dispara el cron
+`/api/sobre-diario` a las `0 14 * * *` — 14:00 UTC son las 8:00 de El Salvador,
+que es UTC-6 todo el año. El día lo calcula la función con la zona SV y **no se
+pasa por parámetro**: si viniera de afuera, cualquiera con la llave del cron
+podría pedir «el sobre de ayer» y repartir otra tanda. Idempotente por el WHERE
+del ON CONFLICT sobre `diario_en`, igual que `bienvenida_en` — probado en
+transacción revertida: 26 la primera corrida, **0** la segunda y la tercera del
+mismo día, y 26 otra vez con el día retrocedido.
+
+El aviso llega por DOS caminos porque uno solo no alcanza: **medido, 4 de 26
+perfiles tienen suscripción de push**. El cron pushea a esos 4 y la app le avisa
+al resto con la franja de Inicio (`AvisoSobreDiario`) y la campana. Los dos leen
+el MISMO hecho —`sobres_saldo.diario_en`—, así que si el cron no corrió, la app
+tampoco anuncia nada.
+
+Dos cosas que se descubrieron construyéndolo y valen para toda la app:
+
+- **`dedupKey` de las notificaciones NO hace nada.** El tipo lo documenta como
+  «evita re-anunciar», pero `addNotification` en
+  [notificationService.ts](src/services/notificationService.ts) no lo mira: se
+  guarda en el objeto y nadie lo consulta. `progressionService` lo pasa creyendo
+  que protege. Cualquier cosa que dependa de él para no repetirse, se repite en
+  cada montaje.
+- **`npm run build` NO comprueba tipos de `api/`.** `tsconfig.app.json` cubre
+  `src/` y `tsconfig.node.json` solo `vite.config.ts`: un error de tipos en un
+  endpoint aparece recién en el build de Vercel. Se comprueba a mano con
+  `./node_modules/.bin/tsc --noEmit --strict --skipLibCheck --module esnext
+  --moduleResolution bundler --target es2023 --types node api/*.ts`.
+
+El envío de push vive en **`api/_push.ts`** (el guion bajo es lo que hace que
+Vercel no lo convierta en una función). Lo comparten `/api/send-push` y el cron:
+la parte que no conviene duplicar es el borrado de las suscripciones muertas
+(410/404) — con dos copias, la segunda se olvida y el «enviados» empieza a
+mentir.

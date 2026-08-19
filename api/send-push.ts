@@ -26,8 +26,8 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import webpush from 'web-push'
 import { createClient } from '@supabase/supabase-js'
+import { enviarPush, pushConfigurado, type SuscripcionPush } from './_push'
 
 interface PushTargets {
   userIds?: string[]
@@ -48,15 +48,8 @@ interface SendPushBody extends PushPayload {
   targets: PushTargets
 }
 
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:noreply@swusv.com'
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
 const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
-}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS for same-origin (Vercel domain only — adjust if needed)
@@ -67,7 +60,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   // Config check
-  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+  if (!pushConfigurado()) {
     return res.status(503).json({ error: 'Push no configurado en el servidor (VAPID ausente)' })
   }
   if (!SUPABASE_URL || !SERVICE_ROLE) {
@@ -151,53 +144,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ sent: 0, failed: 0, removed: 0, note: 'Ninguno de los destinatarios tiene push activado' })
   }
 
-  // ── Build payload ──
-  const payload: PushPayload = {
+  // ── Enviar ──
+  // El envío y la limpieza de suscripciones muertas viven en `_push.ts`, que
+  // comparte con el cron del sobre diario. Dos copias de la limpieza es como
+  // una de las dos se olvida de borrar los 410 y el «enviados» empieza a mentir.
+  const r = await enviarPush(supabase, subs as SuscripcionPush[], {
     title: String(body.title).slice(0, 200),
     body: String(body.body).slice(0, 400),
     icon: body.icon || '/icon-192.png',
     link: body.link || '/',
     tag: body.tag,
     type: body.type,
-  }
-  const payloadJson = JSON.stringify(payload)
-
-  // ── Send all ──
-  const sendOne = async (s: { id: string; endpoint: string; p256dh: string; auth: string }) => {
-    try {
-      await webpush.sendNotification(
-        { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-        payloadJson,
-        { TTL: 60 * 60 * 24 } // 24h max delivery delay
-      )
-      return { ok: true as const, id: s.id }
-    } catch (e: unknown) {
-      type WebPushError = { statusCode?: number; message?: string }
-      const err = e as WebPushError
-      const statusCode = err?.statusCode ?? 0
-      return { ok: false as const, id: s.id, statusCode, message: err?.message }
-    }
-  }
-
-  const results = await Promise.all(subs.map(sendOne))
-  const sent = results.filter(r => r.ok).length
-  const failed = results.filter(r => !r.ok).length
-
-  // Cleanup dead subscriptions (410 Gone, 404 Not Found)
-  const deadIds = results
-    .filter(r => !r.ok && (r.statusCode === 410 || r.statusCode === 404))
-    .map(r => r.id)
-
-  let removed = 0
-  if (deadIds.length > 0) {
-    const { count } = await supabase
-      .from('push_subscriptions')
-      .delete({ count: 'exact' })
-      .in('id', deadIds)
-    removed = count ?? 0
-  }
-
-  // TODO: track failure_count for transient errors via RPC for cleanup. Skipped for MVP.
+  })
+  const { enviados: sent, fallidos: failed, borrados: removed } = r
 
   return res.status(200).json({ sent, failed, removed, targeted: subs.length })
 }

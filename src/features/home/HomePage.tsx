@@ -28,6 +28,7 @@ import { NoticiasSection } from './NoticiasSection'
 import { DondeJugar } from './DondeJugar'
 import { ProximosEventos } from './ProximosEventos'
 import { AvisoPerfil } from '../profile/AvisoPerfil'
+import { AvisoSobreDiario } from '../sobres/AvisoSobreDiario'
 import { TarjetaJugador } from '../profile/TarjetaJugador'
 import { Carta3D } from '../../components/Carta3D'
 import { HUD_TEXTO, type HudTone } from '../../components/hudTones'
@@ -285,6 +286,10 @@ export function HomePage() {
           alTocar="perfil"
         />
       </div>
+
+      {/* El sobre de las 8 de la mañana. Va primero porque es lo que acaba de
+          pasar, y se puede cerrar: el sobre no se gasta al ocultar el aviso. */}
+      <AvisoSobreDiario userId={miIdAuth} />
 
       {/* Lo que TE están esperando. Dice el premio porque es cierto y porque es
           lo que hace que valga el toque: confirmar da un sobre a los dos. */}

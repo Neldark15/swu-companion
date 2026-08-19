@@ -33,6 +33,7 @@
 import { supabase, isSupabaseReady } from './supabase'
 import { getCardsByIds, MAIN_SET_LABELS } from './swuApi'
 import { artesDeVariantes } from './sobresArte'
+import { diaCalendarioSV } from './horaSV'
 import type { Card } from '../types'
 
 /**
@@ -267,6 +268,93 @@ export async function misSobres(userId: string): Promise<number> {
   // `supabase-js` no lanza en errores de PostgREST: hay que mirar `error`.
   if (error || !data) return 0
   return Number(data.disponibles ?? 0)
+}
+
+/**
+ * ¿Ya cayó el sobre de hoy?
+ *
+ * ── Por qué se pregunta a la base y no al reloj del teléfono ─────────
+ *
+ * El reparto lo hace un cron a las 8:00, y un cron puede atrasarse, fallar o
+ * no haber corrido nunca. Mirar la hora local y deducir «ya son las 9, así que
+ * ya lo tenés» anunciaría un sobre que puede no existir. `diario_en` es el día
+ * que la base efectivamente cobró: es la única respuesta que no puede mentir.
+ *
+ * ── Y por qué el día se compara en zona SV ───────────────────────────
+ *
+ * `diario_en` es un `date` calculado con la zona de El Salvador. Comparado
+ * contra `new Date()` de un teléfono en otro huso —hay gente de la comunidad
+ * viajando— el aviso saldría un día corrido. `diaCalendarioSV` pone los dos
+ * lados en la misma zona.
+ */
+export interface EstadoSobres {
+  /** Sobres sin abrir. */
+  saldo: number
+  /** El día SV en que cayó el último diario. Cadena vacía si nunca cayó. */
+  dia: string
+  /** ¿El de hoy ya está en la cuenta? */
+  cayoHoy: boolean
+}
+
+export async function estadoSobres(userId: string): Promise<EstadoSobres> {
+  const vacio: EstadoSobres = { saldo: 0, dia: '', cayoHoy: false }
+  if (!isSupabaseReady() || !userId) return vacio
+
+  const { data, error } = await supabase
+    .from('sobres_saldo')
+    .select('disponibles, diario_en')
+    .eq('user_id', userId)
+    .maybeSingle()
+  // `supabase-js` no lanza en errores de PostgREST: hay que mirar `error`.
+  if (error || !data) return vacio
+
+  const dia = String(data.diario_en ?? '')
+  return {
+    saldo: Number(data.disponibles ?? 0),
+    dia,
+    // `diario_en` ya viene como «2026-08-19» (un `date`, sin hora ni zona), así
+    // que se compara como cadena contra el día SV de hoy. Pasarlo por `new
+    // Date()` lo interpretaría como medianoche UTC y en El Salvador eso son las
+    // 6 de la tarde del día ANTERIOR: el aviso saldría corrido un día.
+    cayoHoy: dia !== '' && dia === diaCalendarioSV(new Date()),
+  }
+}
+
+/**
+ * El anuncio del sobre diario se da UNA vez por día y por aparato.
+ *
+ * Vive en `localStorage` y no en la base a propósito: es una preferencia de
+ * pantalla, no un hecho del juego. Guardarlo en la nube costaría una tabla y
+ * una escritura por persona por día para decidir si se pinta una franja.
+ *
+ * El precio es que si abrís en el teléfono y después en la compu, lo ves dos
+ * veces. Eso es lo correcto: son dos pantallas distintas y en ninguna de las
+ * dos habías visto el aviso.
+ *
+ * NO se usa el `dedupKey` de las notificaciones para esto: el store lo acepta
+ * en el tipo pero `addNotification` no lo mira — comprobado leyendo su cuerpo.
+ * Confiar en él haría sonar la campana en cada montaje de Inicio.
+ */
+const CLAVE_ANUNCIO = 'swu_sobre_diario_visto'
+
+/** ¿Ya se anunció el sobre de ESE día en este aparato? */
+export function sobreDiarioAnunciado(dia: string): boolean {
+  if (!dia) return true
+  try {
+    return localStorage.getItem(CLAVE_ANUNCIO) === dia
+  } catch {
+    // Modo privado de Safari: sin memoria, se prefiere NO repetir el aviso.
+    return true
+  }
+}
+
+export function marcarSobreDiarioAnunciado(dia: string): void {
+  if (!dia) return
+  try {
+    localStorage.setItem(CLAVE_ANUNCIO, dia)
+  } catch {
+    // Sin dónde guardar no hay nada que hacer, y no es motivo para reventar.
+  }
 }
 
 /** Cuántos ha abierto en total. Para la ficha de coleccionista. */

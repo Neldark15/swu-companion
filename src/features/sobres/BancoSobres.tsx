@@ -17,6 +17,7 @@ import { CartaGirable } from './CartaGirable'
 import { PaginaAlbum } from './PaginaAlbum'
 import { LupaCarta } from './LupaCarta'
 import { ReversoCarta } from './ReversoCarta'
+import { FranjaSobreDiario } from './AvisoSobreDiario'
 import { Acabado } from './Acabado'
 import { AcabadoDeImagen } from './AcabadoDeImagen'
 import { CardImage } from '../../components/CardImage'
@@ -268,6 +269,19 @@ export function BancoSobres() {
                 </>
               )
             })()}
+          </div>
+
+          {/* La franja del sobre diario. En producción solo aparece el día que
+              el cron reparte y una sola vez por aparato: sin esto, revisarla
+              sería esperar a las 8 de la mañana con una cuenta de verdad.
+              Se dibujan los DOS textos porque el singular y el plural son
+              cadenas distintas y la de uno solo no se ve casi nunca. */}
+          <div className="mt-10 border-t border-swu-border pt-6">
+            <p className="mb-1 text-center text-sm text-swu-muted">La franja del sobre diario</p>
+            <div className="-mx-4">
+              <FranjaSobreDiario saldo={1} alAbrir={() => {}} alCerrar={() => {}} />
+              <FranjaSobreDiario saldo={173} alAbrir={() => {}} alCerrar={() => {}} />
+            </div>
           </div>
 
           {/* Y el dorso redibujado, solo. */}
