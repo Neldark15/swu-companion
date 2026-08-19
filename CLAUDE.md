@@ -911,11 +911,23 @@ en las crestas y se apaga en los valles. Tres cuidados:
   acabado cromado (nivel 11) hacia arriba. En `/banco-credencial` hay catorce
   credenciales a la vez.
 
-**Espesor.** Cuatro copias de `SILUETA_BASE` empujadas en Z (-3, -6, -9, -12 px)
-y oscureciéndose hacia el fondo. Al inclinar se ve el canto, que es lo que
-separa un objeto de una calcomanía: una lámina de grosor cero nunca deja de
-parecer un dibujo, por bien iluminada que esté. Cuatro y no veinte — el ojo lee
-«grueso» con muy pocas y cada una es un nodo compuesto por frame.
+**Espesor: el canto va como CONTORNO, nunca como relleno.** Cuatro copias de
+`SILUETA_BASE` empujadas en Z, con `fill="none"` y `stroke` grueso.
+
+Esto ya rompió el dorso una vez y vale la pena saber por qué. Con relleno, cada
+capa es una losa opaca del tamaño de la placa; al girar la tarjeta media vuelta
+esas losas quedan por delante de la cara de atrás y **el dorso desaparece**. Se
+intentaron dos arreglos de ORDENAMIENTO antes de ver que el error era de
+concepto —mover las caras a las superficies externas (±7) con el canto en medio
+(±6), y duplicar el canto con `backfaceVisibility` por lado— y **ninguno de los
+dos funcionó**: medido en el navegador apagando capas una por una, el
+compositor no ordena por profundidad entre los `<svg>` del canto y los `<div>`
+de las caras.
+
+Como contorno el problema no existe: el canto de una tarjeta ES solo el borde,
+el interior queda transparente, ninguna capa puede tapar a ninguna cara y no
+hace falta que nadie ordene nada. El `strokeWidth` tiene que ser mayor que la
+separación entre capas o el canto se ve como cuatro líneas sueltas.
 
 **Paralaje.** Los dos reflejos flotan por DELANTE de la placa (`translateZ` 14
 y 26 px) y se corren a distinta velocidad con la inclinación. Esa separación es

@@ -169,17 +169,26 @@ export function CredencialInteractiva({
           style={{ transformStyle: 'preserve-3d', aspectRatio: '512 / 320' }}
         >
           {/* ── El CANTO ──
-              Copias de la silueta empujadas hacia atrás en Z. Al inclinar la
-              placa se ve el espesor por el borde, que es lo que separa un
-              objeto de una calcomanía: una lámina de grosor cero, por muy bien
-              iluminada que esté, nunca deja de parecer un dibujo.
+              El espesor de la tarjeta: al inclinarla se ve el borde, y eso es
+              lo que separa un objeto de una calcomanía.
 
-              Cuatro capas y no veinte: el ojo lee «grueso» con muy pocas, y
-              cada una es un nodo compuesto más en cada frame del arrastre.
-              Van oscureciéndose hacia el fondo porque a la ranura entra menos
-              luz. `backfaceVisibility` NO se toca acá: el canto tiene que
-              seguir viéndose cuando la tarjeta está dada vuelta. */}
-          {[3, 6, 9, 12].map((z, i) => (
+              VA COMO CONTORNO, NO COMO RELLENO, y ahí está toda la historia.
+              El canto de una tarjeta ES solo el borde; rellenarlo era el error
+              de fondo. Con relleno, cada capa es una losa opaca del tamaño de
+              la placa, y en cuanto la tarjeta gira media vuelta esas losas
+              quedan por delante de la cara de atrás y la tapan entera: el dorso
+              «se perdía».
+
+              Se probaron dos arreglos de ordenamiento antes de ver el error de
+              concepto —mover las caras a las superficies externas, y duplicar
+              el canto con `backfaceVisibility` por lado— y ninguno sirvió:
+              medido en el navegador, el compositor no ordena por profundidad
+              entre los <svg> del canto y los <div> de las caras.
+
+              Como contorno el problema no existe: el interior queda
+              transparente, así que ninguna capa puede tapar a ninguna cara,
+              mire desde donde mire, y no hace falta que nadie ordene nada. */}
+          {[2, 4, 6, 8].map((z, i) => (
             <svg
               key={z}
               aria-hidden
@@ -190,8 +199,14 @@ export function CredencialInteractiva({
               <path
                 d={SILUETA_BASE}
                 fillRule="evenodd"
-                fill={tema.base}
-                style={{ filter: `brightness(${0.72 - i * 0.13})` }}
+                fill="none"
+                stroke={tema.base}
+                // Grueso: cada contorno tiene que solaparse con el siguiente o
+                // el canto se ve como cuatro líneas sueltas en vez de macizo.
+                strokeWidth="7"
+                // Se va oscureciendo hacia el fondo: a la ranura le entra menos
+                // luz que al borde de afuera.
+                style={{ filter: `brightness(${0.7 - i * 0.15})` }}
               />
             </svg>
           ))}
@@ -215,37 +230,46 @@ export function CredencialInteractiva({
               className="w-full drop-shadow-[0_14px_30px_rgba(0,0,0,0.6)]"
             />
           </div>
-          {/* Reflejo: una mancha de luz que se corre con el giro. `mix-blend`
-              lo funde con el metal en vez de posarse encima como una calca.
-              `pointer-events-none` o se comería el arrastre. */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 mix-blend-soft-light print:hidden"
-            style={{
-              backfaceVisibility: 'hidden',
-              // FLOTA 14 px POR DELANTE de la placa. Esa separación es la que
-              // produce el paralaje: al inclinar, el reflejo se corre respecto
-              // del metal en vez de ir pegado a él, y el ojo lee que hay un
-              // vidrio encima. Pegado a z=0 se ve como una mancha pintada.
-              transform: 'translateZ(14px)',
-              background:
-                'radial-gradient(60% 90% at var(--brillo-x) var(--brillo-y), rgba(255,255,255,0.55), rgba(255,255,255,0.06) 55%, transparent 72%)',
-            }}
-          />
+          {/* ── Reflejos ──
+              Flotan por DELANTE de la cara, y esa separación es la que produce
+              el paralaje: al inclinar se corren respecto del metal en vez de ir
+              pegados a él, y el ojo lee que hay un vidrio encima. Pegados a la
+              cara se ven como manchas pintadas.
 
-          {/* Segundo reflejo, más chico y más duro, y más adelante todavía: es
-              el punto de luz que se desliza cuando movés una tarjeta laminada.
-              Se mueve al DOBLE que el otro porque está al doble de distancia. */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 mix-blend-overlay print:hidden"
-            style={{
-              backfaceVisibility: 'hidden',
-              transform: 'translateZ(26px)',
-              background:
-                'radial-gradient(22% 34% at var(--luz-x) var(--luz-y), rgba(255,255,255,0.5), transparent 70%)',
-            }}
-          />
+              Hay un juego POR CADA CARA. Antes había uno solo, colgado del
+              frente: al girar la tarjeta se iba para atrás con él y el dorso
+              quedaba mate y sucio, sin nada de luz. Cada juego lleva
+              `backfaceVisibility: hidden`, así que solo se ve el de la cara que
+              estás mirando y nunca se suman los dos. */}
+          {[
+            { lado: 'frente', giro: '' },
+            { lado: 'dorso', giro: 'rotateY(180deg) ' },
+          ].map(({ lado, giro }) => (
+            <div key={lado} className="contents">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 mix-blend-soft-light print:hidden"
+                style={{
+                  backfaceVisibility: 'hidden',
+                  transform: `${giro}translateZ(20px)`,
+                  background:
+                    'radial-gradient(60% 90% at var(--brillo-x) var(--brillo-y), rgba(255,255,255,0.55), rgba(255,255,255,0.06) 55%, transparent 72%)',
+                }}
+              />
+              {/* El punto duro: la luz que se desliza en una tarjeta laminada.
+                  Va más adelante todavía y por eso se mueve al doble. */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 mix-blend-overlay print:hidden"
+                style={{
+                  backfaceVisibility: 'hidden',
+                  transform: `${giro}translateZ(32px)`,
+                  background:
+                    'radial-gradient(22% 34% at var(--luz-x) var(--luz-y), rgba(255,255,255,0.5), transparent 70%)',
+                }}
+              />
+            </div>
+          ))}
         </div>
       </div>
 
