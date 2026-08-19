@@ -38,10 +38,16 @@ interface Props {
   /** Proporción de la caja, para que no salte al cargar el arte. */
   ratio?: number
   /**
-   * El brillo que se pinta sobre la CARA. Va acá y no afuera porque tiene que
-   * seguir al ángulo, y el ángulo solo lo conoce este componente.
+   * El brillo de cada cara, POR SEPARADO.
+   *
+   * Son dos y no uno porque las dos caras de un líder Showcase tienen
+   * proporciones opuestas (medido: frente 400×286, dorso 286×400), así que un
+   * solo acabado sale con la forma equivocada en uno de los dos lados. Van acá
+   * dentro y no afuera porque tienen que seguir al ángulo, y el ángulo solo lo
+   * conoce este componente.
    */
-  acabado?: ReactNode
+  acabadoFrente?: ReactNode
+  acabadoDorso?: ReactNode
   className?: string
 }
 
@@ -50,7 +56,9 @@ const ROCE = 0.94
 /** Por debajo de esto se considera quieta y se corta el bucle. */
 const QUIETA = 0.02
 
-export function CartaGirable({ frente, dorso, acabado, ratio = 286 / 400, className = '' }: Props) {
+export function CartaGirable({
+  frente, dorso, acabadoFrente, acabadoDorso, ratio = 286 / 400, className = '',
+}: Props) {
   const caja = useRef<HTMLDivElement>(null)
   const giro = useRef({ x: -6, y: 0 })
   const vel = useRef({ x: 0, y: 0 })
@@ -171,13 +179,14 @@ export function CartaGirable({ frente, dorso, acabado, ratio = 286 / 400, classN
             {/* HERMANO de la imagen, nunca hijo: CardImage lleva
                 `overflow-hidden` y un `drop-shadow`, y las dos son propiedades
                 de agrupamiento que aplanarían el 3D de lo que tenga dentro. */}
-            {acabado}
+            {acabadoFrente}
           </div>
           <div
             className="absolute inset-0 flex items-center justify-center"
             style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
           >
             {dorso}
+            {acabadoDorso}
           </div>
         </div>
       </div>

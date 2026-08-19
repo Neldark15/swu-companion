@@ -35,7 +35,8 @@ import { useEffect } from 'react'
 import { X } from 'lucide-react'
 import { CardImage } from '../../components/CardImage'
 import { caraTrasera, esDobleCara } from '../../services/caraCarta'
-import { esApaisada, type CasillaAlbum } from '../../services/sobres'
+import { esApaisada, type CasillaAlbum, type Acabado as TipoAcabado } from '../../services/sobres'
+import { AcabadoDeImagen } from './AcabadoDeImagen'
 import { CartaGirable } from './CartaGirable'
 import { ReversoCarta } from './ReversoCarta'
 
@@ -44,11 +45,16 @@ const RATIO_BOLSILLO = 286 / 400
 
 interface Props {
   casilla: CasillaAlbum
-  /** El color de la sección. Solo tiñe el filo del dorso. */
+  /** El color de la sección. */
   color: string
   alCerrar: () => void
-  /** El brillo de la impresión, si el módulo ya lo tiene armado. */
-  acabado?: React.ReactNode
+  /**
+   * Qué material lleva esta impresión. El brillo lo arma la lupa, una vez por
+   * CARA: las dos caras de un líder Showcase tienen proporciones opuestas, así
+   * que un acabado ya armado desde afuera saldría con la forma equivocada de
+   * uno de los dos lados.
+   */
+  acabado?: TipoAcabado
 }
 
 export function LupaCarta({ casilla, color, alCerrar, acabado }: Props) {
@@ -93,8 +99,13 @@ export function LupaCarta({ casilla, color, alCerrar, acabado }: Props) {
         {casilla.tenida ? (
           <CartaGirable
             ratio={RATIO_BOLSILLO}
-            acabado={acabado}
-            frente={
+            acabadoFrente={acabado ? <AcabadoDeImagen src={casilla.arte || carta?.imageUrl} acabado={acabado} /> : undefined}
+            acabadoDorso={
+              acabado && trasera.tipo === 'cara'
+                ? <AcabadoDeImagen src={trasera.url} acabado={acabado} />
+                : undefined
+            }
+              frente={
               /* `casilla.arte`, no `carta.imageUrl`: la impresión foil del API
                  trae los destellos quemados en el archivo. */
               <CardImage

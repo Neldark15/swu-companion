@@ -18,6 +18,7 @@ import { PaginaAlbum } from './PaginaAlbum'
 import { LupaCarta } from './LupaCarta'
 import { ReversoCarta } from './ReversoCarta'
 import { Acabado } from './Acabado'
+import { AcabadoDeImagen } from './AcabadoDeImagen'
 import { CardImage } from '../../components/CardImage'
 import { ESCALA, NOMBRE_RAREZA, COLOR_RAREZA, ACABADO, type CartaSacada, type Rareza, type Variante } from '../../services/sobres'
 import type { Card } from '../../types'
@@ -27,9 +28,23 @@ import type { SeccionAlbum, CasillaAlbum } from '../../services/sobres'
 const ARTE_PRUEBA =
   'https://cdn.starwarsunlimited.com/card_SWH_01_101_Rogue_Squadron_Skirmisher_e5659ca239.png'
 
-/** Un líder, que es apaisado: 7 hojas del álbum real mezclan las dos formas. */
+/**
+ * Obi-Wan Kenobi Showcase (LOF 1012) — la carta EXACTA donde apareció el fallo
+ * del brillo con la forma equivocada. Sus dos caras miden al revés:
+ *
+ *   frente  400×286  apaisada  (…_Leader_…)
+ *   dorso   286×400  vertical  (…_Leader_Unit_…)
+ *
+ * Es el peor caso del módulo y por eso está en el banco.
+ *
+ * Ojo con la DOBLE BARRA: la clave de esta carta en el CDN empieza por «/», así
+ * que la URL lleva `.com//card_…`. Con una sola barra devuelve 403 (comprobado).
+ * Otras cartas la llevan simple. Nunca «limpiar» esas urls.
+ */
 const ARTE_APAISADO =
-  'https://cdn.starwarsunlimited.com/card_SWH_01_001_Director_Krennic_Leader_62eaa20dc2.png'
+  'https://cdn.starwarsunlimited.com//card_05031012_EN_Obi_Wan_Kenobi_Leader_85186449a0.png'
+const ARTE_APAISADO_DORSO =
+  'https://cdn.starwarsunlimited.com//card_05031012_EN_Obi_Wan_Kenobi_Leader_Unit_3196d94aa3.png'
 
 /** Una carta de mentira, con lo justo para que la pantalla la sepa pintar. */
 function cartaFalsa(nombre: string, n: number): Card {
@@ -119,7 +134,8 @@ function seccionDePrueba(rareza: Rareza): { seccion: SeccionAlbum; casillas: Cas
       cantidad: i === 4 ? 3 : 1,
       tenida,
       serializada: rareza === 'serializada' && i === 8,
-      carta: { ...c, isLeader: lider, imageUrl: lider ? ARTE_APAISADO : ARTE_PRUEBA },
+      carta: { ...c, isLeader: lider, imageUrl: lider ? ARTE_APAISADO : ARTE_PRUEBA,
+               backImageUrl: lider ? ARTE_APAISADO_DORSO : null },
       arte: lider ? ARTE_APAISADO : ARTE_PRUEBA,
     }
   })
@@ -200,7 +216,7 @@ export function BancoSobres() {
             <div className="mx-auto max-w-[260px]">
               <CartaGirable
                 frente={<CardImage src={ARTE_PRUEBA} alt="Carta de prueba" orientacion="vertical" className="w-full" />}
-                acabado={<Acabado acabado={ACABADO[premio]} />}
+                acabadoFrente={<AcabadoDeImagen src={ARTE_PRUEBA} acabado={ACABADO[premio]} />}
                 dorso={<ReversoCarta color={COLOR_RAREZA[premio]} />}
               />
             </div>
@@ -244,7 +260,7 @@ export function BancoSobres() {
                     <LupaCarta
                       casilla={lupa}
                       color={COLOR_RAREZA[premio]}
-                      acabado={lupa.tenida ? <Acabado acabado={ACABADO[premio]} /> : undefined}
+                      acabado={lupa.tenida ? ACABADO[premio] : undefined}
                       alCerrar={() => setLupa(null)}
                     />
                   )}

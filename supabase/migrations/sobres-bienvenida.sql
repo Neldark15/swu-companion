@@ -1,0 +1,39 @@
+-- SOBRE DE BIENVENIDA — 7 sobres al entrar a la comunidad.
+--
+-- Antes, quien nunca había jugado abría La Bóveda y leía «no te quedan
+-- sobres»: un arranque frío para 25 personas donde la única forma de ganar el
+-- primero era registrar una amistosa y que el rival la confirmara.
+--
+-- ── Se da UNA vez en la vida, y hay que poder demostrarlo ────────────
+--
+-- No alcanza con «solo a quien no tenga fila»: el saldo también se crea al
+-- ganar un torneo o una amistosa, así que esa condición le regalaría otros 7 a
+-- quien ya hubiera jugado pero todavía no hubiera cobrado la bienvenida. Y
+-- tampoco alcanza con correr el relleno una vez y confiar.
+--
+-- Por eso se marca en la propia fila. `bienvenida_en` es el árbitro, igual que
+-- la llave primaria lo es para las serializadas: la condición vive en el WHERE
+-- del ON CONFLICT, o sea que decide Postgres en la misma sentencia y no hay
+-- ventana entre leer y escribir.
+--
+-- ── Y el disparador NO puede tumbar un registro ──────────────────────
+--
+-- El `exception when others` de `trg_sobres_bienvenida` no es pereza: un fallo
+-- ahí se llevaría la creación de la cuenta. Quedarse sin sobres de bienvenida
+-- es un problema; no poder registrarse es otro mucho peor.
+--
+-- Comprobado contra la base, en transacción revertida:
+--   · sin fila previa            -> 7
+--   · segunda llamada            -> 0 filas tocadas, sigue en 7
+--   · alguien con saldo (2)      -> 9 tras DOS llamadas, no 16
+--   · cuenta nueva por auth.users-> perfil creado Y 7 sobres (la cadena real
+--     de registro es auth.users -> profiles -> este disparador)
+--   · con la bienvenida reventando a propósito -> LA CUENTA SE CREA IGUAL
+--
+-- El cuerpo completo quedó en la migración `sobres_bienvenida` aplicada el
+-- 2026-08-19. Repartidos: 25 de 25 perfiles cobraron.
+--
+-- Ojo al copiar este patrón: se revoca a PUBLIC, no solo a `anon`. Postgres
+-- concede EXECUTE a PUBLIC en toda función nueva y `anon` es miembro de
+-- PUBLIC — revocarle solo a `anon` no quita nada (ya pasó con los RPC del
+-- álbum, ver `album-rpc-cerrar-public.sql`).

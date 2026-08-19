@@ -53,7 +53,7 @@ import { useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } fr
 import { ChevronLeft, ChevronRight, Hash } from 'lucide-react'
 import { CardImage } from '../../components/CardImage'
 import { COLOR_RAREZA, NOMBRE_RAREZA, ACABADO, esApaisada, type SeccionAlbum, type CasillaAlbum, type Rareza } from '../../services/sobres'
-import { Acabado } from './Acabado'
+import { AcabadoDeImagen } from './AcabadoDeImagen'
 
 /** Bolsillos por hoja, como en un binder de verdad. */
 export const POR_HOJA = 9
@@ -306,7 +306,11 @@ function Llena({
         />
         {/* Nueve a la vez: acabado BARATO, un degradado sin `mix-blend-mode`.
             El bueno se ve al abrir la carta. */}
-        <Acabado acabado={ACABADO[rareza]} calidad="plano" apaisada={esApaisada(casilla.carta)} />
+        <AcabadoDeImagen
+          src={casilla.arte || casilla.carta?.imageUrl}
+          acabado={ACABADO[rareza]}
+          calidad="plano"
+        />
       </div>
 
       <Numero

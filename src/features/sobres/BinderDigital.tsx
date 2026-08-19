@@ -47,12 +47,11 @@ import { useAuth } from '../../hooks/useAuth'
 import { ensureCards } from '../../services/swuApi'
 import {
   seccionesAlbum, casillasDeSeccion,
-  COLOR_RAREZA, NOMBRE_RAREZA, ACABADO, esApaisada,
+  COLOR_RAREZA, NOMBRE_RAREZA, ACABADO,
   type SeccionAlbum, type CasillaAlbum,
 } from '../../services/sobres'
 import { PaginaAlbum, POR_HOJA } from './PaginaAlbum'
 import { LupaCarta } from './LupaCarta'
-import { Acabado } from './Acabado'
 
 export function BinderDigital() {
   const usuario = useAuth(s => s.supabaseUser)
@@ -155,11 +154,7 @@ export function BinderDigital() {
           <LupaCarta
             casilla={mirando}
             color={color}
-            acabado={
-              mirando.tenida
-                ? <Acabado acabado={ACABADO[abierta.rareza]} apaisada={esApaisada(mirando.carta)} />
-                : undefined
-            }
+            acabado={mirando.tenida ? ACABADO[abierta.rareza] : undefined}
             alCerrar={() => setMirando(null)}
           />
         )}

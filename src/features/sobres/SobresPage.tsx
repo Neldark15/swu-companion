@@ -31,6 +31,7 @@ import { alternarSilencio, estaEnSilencio } from './sonido'
 
 /** De dónde salen los sobres. Se enseña siempre: un juego sin forma de ganar aburre. */
 const FUENTES = [
+  { que: 'Al entrar a la comunidad', cuanto: '7 sobres, una sola vez' },
   { que: 'Una amistosa confirmada', cuanto: '1 sobre para cada uno' },
   { que: 'Ganar un torneo', cuanto: '3 sobres' },
   { que: 'Jugar un torneo', cuanto: '1 sobre' },

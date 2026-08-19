@@ -34,7 +34,7 @@ import { Carta3D } from '../../components/Carta3D'
 import { Button } from '../../components/ui/Button'
 import { SobreArte } from './SobreArte'
 import { ReversoCarta } from './ReversoCarta'
-import { Acabado } from './Acabado'
+import { AcabadoDeImagen } from './AcabadoDeImagen'
 import { sonar } from './sonido'
 import { RECETA, chispas, useMenosMovimiento } from './efectos'
 import { ESCALA, NOMBRE_RAREZA, ACABADO, esApaisada, type CartaSacada } from '../../services/sobres'
@@ -281,7 +281,11 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir 
                   `overflow-hidden` y `drop-shadow`, que aplanarían el 3D. Solo
                   se pinta una vez girada — antes taparía el dorso. */}
               {girada && (
-                <Acabado acabado={ACABADO[actual.rareza]} movimiento="solo" apaisada={esApaisada(actual.carta)} />
+                <AcabadoDeImagen
+                  src={actual.arte || actual.carta?.imageUrl}
+                  acabado={ACABADO[actual.rareza]}
+                  movimiento="solo"
+                />
               )}
             </span>
 
@@ -407,7 +411,7 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir 
                   <div className="aspect-[286/400] rounded-lg bg-swu-surface" />
                 )}
                 {/* Cinco a la vez: acabado barato. */}
-                <Acabado acabado={ACABADO[c.rareza]} calidad="plano" apaisada={esApaisada(c.carta)} />
+                <AcabadoDeImagen src={c.arte || c.carta?.imageUrl} acabado={ACABADO[c.rareza]} calidad="plano" />
               </div>
             </Carta3D>
             <p className="mt-1 truncate text-[10px] text-swu-muted" title={c.carta?.name}>
