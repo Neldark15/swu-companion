@@ -20,9 +20,10 @@ import type { Deck, DeckCard, Card, TournamentFormat } from '../../types'
 import { ASPECTOS } from '../../services/filtrosCarta'
 import { formatPrice } from '../../services/pricing'
 import {
-  precioDeCartas, siguienteVariante, NOMBRE_VARIANTE,
+  precioDeCartas, impresionesDe, resumenImpresiones,
   type PrecioMazo, type VarianteMazo,
 } from '../../services/precioMazo'
+import { CopiasDeCarta } from './CopiasDeCarta'
 
 const BUILDER_COSTS = [0, 1, 2, 3, 4, 5, 6, COST_MAX_BUCKET]
 
@@ -48,41 +49,6 @@ type Tab = 'deck' | 'search'
 // ─── Image cache for card thumbnails ─────────────────────
 const imgCache = new Map<string, string>()
 const backImgCache = new Map<string, string>()
-
-/**
- * La etiqueta de impresión de una carta del mazo.
- *
- * Es un solo botón que CICLA normal → foil → hyperspace en vez de un menú de
- * tres opciones: la fila del mazo ya lleva miniatura, cantidad, nombre y dos
- * botones, y en un teléfono de 375 px no cabe un desplegable. Con tres estados
- * y la etiqueta siempre visible, ciclar no esconde nada.
- *
- * En «normal» va apagado y ocupa el sitio donde antes solo estaba el set, así
- * que no le roba espacio a nada.
- */
-function ChipImpresion({
-  variante, alTocar,
-}: {
-  variante: VarianteMazo | undefined
-  alTocar: () => void
-}) {
-  const v = variante ?? 'normal'
-  return (
-    <button
-      onClick={(e) => { e.stopPropagation(); alTocar() }}
-      aria-label={`Impresión: ${NOMBRE_VARIANTE[v]}. Tocá para cambiar.`}
-      className={`text-[9px] font-bold uppercase tracking-wide rounded px-1 py-px transition-colors ${
-        v === 'normal'
-          ? 'text-swu-muted hover:text-swu-text'
-          : v === 'foil'
-            ? 'bg-swu-cyan/20 text-swu-cyan'
-            : 'bg-swu-amber/20 text-swu-amber'
-      }`}
-    >
-      {NOMBRE_VARIANTE[v]}
-    </button>
-  )
-}
 
 export function DeckBuilderPage() {
   const { id } = useParams<{ id: string }>()
@@ -136,6 +102,18 @@ export function DeckBuilderPage() {
   /** Carta que se está mirando en grande. Null = cerrado. */
   const [verCarta, setVerCarta] = useState<string | null>(null)
   const [precio, setPrecio] = useState<PrecioMazo | null>(null)
+  /**
+   * Qué carta tiene abierta la hoja de copias. Se guarda la REFERENCIA
+   * (id + lista), no la carta: la carta se deriva del mazo al pintar.
+   *
+   * Guardar una copia del objeto era tener dos fuentes de verdad para el mismo
+   * dato — al cambiar una impresión había que escribir en las dos, y cualquier
+   * otro camino que tocara el mazo (los botones + y −, deshacer, el autoguardado
+   * volviendo de la nube) dejaba la hoja mostrando lo viejo.
+   */
+  const [copias, setCopias] = useState<
+    { cardId: string; lista: 'leaders' | 'mainDeck' | 'sideboard' | 'base' } | null
+  >(null)
   const [backImages, setBackImages] = useState<Map<string, string>>(new Map(backImgCache))
   const loadedRef = useRef(new Set<string>())
 
@@ -295,7 +273,7 @@ export function DeckBuilderPage() {
       const list = [...prev[target]]
       const idx = list.findIndex((c) => c.cardId === card.id)
       if (idx >= 0) { list[idx] = { ...list[idx], quantity: list[idx].quantity + 1 } }
-      else { list.push({ cardId: card.id, name: card.name, subtitle: card.subtitle, quantity: 1, setCode: card.setCode }) }
+      else { list.push({ cardId: card.id, name: card.name, subtitle: card.subtitle, quantity: 1, setCode: card.setCode, variantes: ['normal'] }) }
       const nd = { ...prev, [target]: list }
       autoSave(nd)
       return nd
@@ -306,31 +284,53 @@ export function DeckBuilderPage() {
     if (target === 'base') { setDeck((p) => { const nd = { ...p, base: null }; autoSave(nd); return nd }); return }
     if (target === 'leaders') { setDeck((p) => { const nd = { ...p, leaders: p.leaders.filter((c) => c.cardId !== cardId) }; autoSave(nd); return nd }); return }
     setDeck((prev) => {
-      const list = prev[target].map((c) => c.cardId === cardId ? { ...c, quantity: c.quantity - 1 } : c).filter((c) => c.quantity > 0)
+      // Se recorta también el arreglo de impresiones. Sin esto, bajar de 3 a 1
+      // dejaba guardada la impresión de la copia 3, y volver a subir a 3 la
+      // resucitaba: una foil que la persona ya había quitado reaparecía sola.
+      const list = prev[target]
+        .map((c) => {
+          if (c.cardId !== cardId) return c
+          const n = c.quantity - 1
+          return { ...c, quantity: n, variantes: impresionesDe(c).slice(0, Math.max(0, n)) }
+        })
+        .filter((c) => c.quantity > 0)
       const nd = { ...prev, [target]: list }; autoSave(nd); return nd
     })
   }
 
   /**
-   * Cambia la IMPRESIÓN de una carta del mazo: normal → foil → hyperspace.
+   * Cambia la impresión de UNA copia, o de todas.
+   *
+   * `impresionesDe` normaliza antes de escribir: la fila guardada puede venir
+   * sin nada, con el valor único de la versión anterior, o con un arreglo
+   * desfasado de la cantidad (los botones + y − la mueven). Escribir sobre lo
+   * crudo dejaría huecos justo en la copia que se está tocando.
    *
    * Solo cambia el precio, nunca las reglas: para el juego una foil y una
    * normal son la misma carta, así que ni la validación ni la exportación la
    * miran.
    */
-  const cambiarVariante = (
+  const cambiarImpresion = (
     target: 'leaders' | 'mainDeck' | 'sideboard' | 'base',
     cardId: string,
+    copia: number | 'todas',
+    v: VarianteMazo,
   ) => {
+    const nuevas = (c: DeckCard) => {
+      const actuales = impresionesDe(c)
+      return copia === 'todas'
+        ? actuales.map(() => v)
+        : actuales.map((x, i) => (i === copia ? v : x))
+    }
     setDeck((prev) => {
       if (target === 'base') {
         if (!prev.base) return prev
-        const nd = { ...prev, base: { ...prev.base, variante: siguienteVariante(prev.base.variante) } }
+        const nd = { ...prev, base: { ...prev.base, variantes: nuevas(prev.base) } }
         autoSave(nd)
         return nd
       }
-      const list = prev[target].map((c) =>
-        c.cardId === cardId ? { ...c, variante: siguienteVariante(c.variante) } : c,
+      const list = prev[target].map(c =>
+        c.cardId === cardId ? { ...c, variantes: nuevas(c) } : c,
       )
       const nd = { ...prev, [target]: list }
       autoSave(nd)
@@ -344,7 +344,9 @@ export function DeckBuilderPage() {
         if (c.cardId !== cardId) return c
         const maxCopies = deck.format === 'twin_suns' ? 1 : 3
         if (c.quantity >= maxCopies) return c
-        return { ...c, quantity: c.quantity + 1 }
+        // La copia nueva entra como normal: es lo que se acaba de conseguir, y
+        // heredar la impresión de la anterior afirmaría algo que nadie dijo.
+        return { ...c, quantity: c.quantity + 1, variantes: [...impresionesDe(c), 'normal' as VarianteMazo] }
       })
       const nd = { ...prev, [target]: list }; autoSave(nd); return nd
     })
@@ -363,7 +365,7 @@ export function DeckBuilderPage() {
     ...deck.leaders, ...(deck.base ? [deck.base] : []), ...deck.mainDeck, ...deck.sideboard,
   ]
   const clavePrecio = todasLasCartas
-    .map(c => `${c.cardId}:${c.quantity}:${c.variante ?? 'normal'}`)
+    .map(c => `${c.cardId}:${c.quantity}:${impresionesDe(c).join(',')}`)
     .join('|')
 
   // La lista se memoriza contra la CLAVE, no contra el mazo: así el efecto solo
@@ -387,6 +389,15 @@ export function DeckBuilderPage() {
   if (loading) {
     return <div className="flex items-center justify-center h-64"><Loader2 size={28} className="text-swu-accent-texto animate-spin" /></div>
   }
+
+  /* La carta de la hoja, SIEMPRE leída del mazo: si se cierra la sesión de esa
+   * carta (se quitó la última copia) la hoja se va sola en vez de quedarse
+   * enseñando algo que ya no está. */
+  const cartaEnCopias: DeckCard | null = !copias
+    ? null
+    : copias.lista === 'base'
+      ? deck.base
+      : (deck[copias.lista].find(c => c.cardId === copias.cardId) ?? null)
 
   const mainCount = countCards(deck.mainDeck)
   const sideCount = countCards(deck.sideboard)
@@ -687,7 +698,14 @@ export function DeckBuilderPage() {
                     </button>
                     <span className="flex flex-col items-end gap-px flex-shrink-0">
                       <span className="text-[9px] text-swu-muted font-mono">{c.setCode}</span>
-                      <ChipImpresion variante={c.variante} alTocar={() => cambiarVariante('mainDeck', c.cardId)} />
+                      <button
+                        type="button"
+                        onClick={() => setCopias({ cardId: c.cardId, lista: 'mainDeck' })}
+                        aria-label={`Impresión de las ${c.quantity} copias de ${c.name}: ${resumenImpresiones(impresionesDe(c))}. Tocá para cambiarlas.`}
+                        className="rounded px-1 py-px text-[9px] font-bold tracking-wide text-swu-muted uppercase hover:text-swu-text"
+                      >
+                        {resumenImpresiones(impresionesDe(c))}
+                      </button>
                     </span>
                     {/* Controls */}
                     <div className="flex gap-1 flex-shrink-0">
@@ -737,7 +755,14 @@ export function DeckBuilderPage() {
                     </button>
                     <span className="flex flex-col items-end gap-px flex-shrink-0">
                       <span className="text-[9px] text-swu-muted font-mono">{c.setCode}</span>
-                      <ChipImpresion variante={c.variante} alTocar={() => cambiarVariante('sideboard', c.cardId)} />
+                      <button
+                        type="button"
+                        onClick={() => setCopias({ cardId: c.cardId, lista: 'sideboard' })}
+                        aria-label={`Impresión de las ${c.quantity} copias de ${c.name}: ${resumenImpresiones(impresionesDe(c))}. Tocá para cambiarlas.`}
+                        className="rounded px-1 py-px text-[9px] font-bold tracking-wide text-swu-muted uppercase hover:text-swu-text"
+                      >
+                        {resumenImpresiones(impresionesDe(c))}
+                      </button>
                     </span>
                     {/* Controls */}
                     <div className="flex gap-1 flex-shrink-0">
@@ -875,6 +900,19 @@ export function DeckBuilderPage() {
 
       {/* Ver la carta en grande sin salir del mazo. */}
       <CardPreviewSheet cardId={verCarta} onClose={() => setVerCarta(null)} />
+
+      {cartaEnCopias && (
+        <CopiasDeCarta
+          abierto
+          alCerrar={() => setCopias(null)}
+          nombre={cartaEnCopias.name}
+          imagen={cardImages.get(cartaEnCopias.cardId)}
+          impresiones={impresionesDe(cartaEnCopias)}
+          alCambiar={(i, v) => cambiarImpresion(copias!.lista, cartaEnCopias.cardId, i, v)}
+          alCambiarTodas={(v) => cambiarImpresion(copias!.lista, cartaEnCopias.cardId, 'todas', v)}
+        />
+      )}
+
     </div>
   )
 }

@@ -159,15 +159,24 @@ export interface DeckCard {
   quantity: number
   setCode: string
   /**
-   * Qué IMPRESIÓN tenés de esta carta. Cambia el precio, no las reglas.
+   * La impresión de CADA COPIA. Una entrada por copia, en el mismo orden en
+   * que se ven en la hoja.
    *
-   * Opcional a propósito: los mazos guardados antes de que esto existiera no
-   * lo llevan, y `undefined` se lee como 'normal' en todos lados. Añadirlo
-   * como obligatorio habría roto los 28 mazos que ya hay guardados.
+   * Es un arreglo y no un valor suelto porque nadie tiene sus tres copias
+   * iguales: lo normal es tener una foil y dos normales. Un solo valor obligaba
+   * a mentir en dos de las tres.
+   *
+   * Opcional a propósito, y por partida doble:
+   *   · los mazos guardados antes de que esto existiera no lo llevan
+   *   · los guardados con la versión anterior llevan `variante`, el valor único
+   * Los dos casos se resuelven al leer con `impresionesDe()`, que nunca
+   * devuelve menos entradas que copias hay.
    *
    * NO afecta a la validación ni a la exportación: para el juego, una foil y
    * una normal son la misma carta.
    */
+  variantes?: ('normal' | 'foil' | 'hyperspace' | 'alterna')[]
+  /** @deprecated El valor único de antes. Lo lee `impresionesDe()` y ya no se escribe. */
   variante?: 'normal' | 'foil' | 'hyperspace'
 }
 

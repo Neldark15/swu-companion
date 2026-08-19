@@ -38,21 +38,58 @@
 import { getPricesForCards, precioVariante, type PriceInfo } from './pricing'
 import type { Deck, DeckCard } from '../types'
 
-/** Las tres impresiones que cambian el precio. */
-export type VarianteMazo = 'normal' | 'foil' | 'hyperspace'
+/** Las impresiones que se pueden marcar. Solo dos tienen precio propio. */
+export type VarianteMazo = 'normal' | 'foil' | 'hyperspace' | 'alterna'
 
 export const NOMBRE_VARIANTE: Record<VarianteMazo, string> = {
   normal: 'Normal',
   foil: 'Foil',
   hyperspace: 'Hyper',
+  alterna: 'Alterna',
 }
 
 /** El ciclo del selector: tocar la etiqueta pasa a la siguiente. */
-export const CICLO_VARIANTE: VarianteMazo[] = ['normal', 'foil', 'hyperspace']
+export const CICLO_VARIANTE: VarianteMazo[] = ['normal', 'foil', 'hyperspace', 'alterna']
 
 export function siguienteVariante(v: VarianteMazo | undefined): VarianteMazo {
   const i = CICLO_VARIANTE.indexOf(v ?? 'normal')
   return CICLO_VARIANTE[(i + 1) % CICLO_VARIANTE.length]
+}
+
+/**
+ * Las impresiones de una carta, UNA POR COPIA y siempre completas.
+ *
+ * Resuelve los tres estados en los que puede llegar una fila guardada:
+ *   · sin nada          → todas normales
+ *   · con `variante`    → el valor único de la versión anterior, repetido
+ *   · con `variantes`   → tal cual, recortado o rellenado hasta `quantity`
+ *
+ * El recorte y el relleno importan: la cantidad se cambia con los botones + y −
+ * y el arreglo puede quedar desfasado. Devolver menos entradas que copias haría
+ * que la última carta de la hoja se pintara sin selector, y más entradas haría
+ * que se cobraran copias que no existen.
+ */
+export function impresionesDe(c: {
+  quantity: number
+  variantes?: VarianteMazo[]
+  variante?: 'normal' | 'foil' | 'hyperspace'
+}): VarianteMazo[] {
+  const base = c.variantes ?? (c.variante ? Array(c.quantity).fill(c.variante) : [])
+  const out: VarianteMazo[] = []
+  for (let i = 0; i < c.quantity; i++) out.push(base[i] ?? 'normal')
+  return out
+}
+
+/** El resumen para la etiqueta de la fila: «Normal» o «2 foil · 1 normal». */
+export function resumenImpresiones(vs: VarianteMazo[]): string {
+  if (vs.length === 0) return NOMBRE_VARIANTE.normal
+  const cuenta = new Map<VarianteMazo, number>()
+  for (const v of vs) cuenta.set(v, (cuenta.get(v) ?? 0) + 1)
+  if (cuenta.size === 1) return NOMBRE_VARIANTE[vs[0]]
+  return [...cuenta.entries()]
+    .sort((a, b) => b[1] - a[1] || CICLO_VARIANTE.indexOf(a[0]) - CICLO_VARIANTE.indexOf(b[0]))
+    .map(([v, n]) => `${n} ${NOMBRE_VARIANTE[v].toLowerCase()}`)
+    .join(' · ')
 }
 
 export interface PrecioMazo {
@@ -68,11 +105,11 @@ export interface PrecioMazo {
    */
   copiasFoilSinDato: number
   /**
-   * Copias marcadas HYPERSPACE. Van aparte porque su causa es distinta y
+   * Copias marcadas HYPER o ALTERNA. Van aparte porque su causa es distinta y
    * absoluta: medido sobre las 662 filas con desglose, CERO mencionan
-   * hyperspace. La fuente no publica ese precio para ninguna carta, así que
-   * marcar hyper nunca va a mover el total — y decir «no hay dato para esta
-   * carta» sería sugerir que para otra sí.
+   * hyperspace, showcase ni prestige. La fuente solo publica «Normal» y
+   * «Foil», así que marcar hyper o alterna nunca va a mover el total — y decir
+   * «no hay dato para esta carta» sería sugerir que para otra sí.
    */
   copiasHyperSiempreSinDato: number
   /** Los nombres de las que no tienen precio, para poder decir cuáles. */
@@ -99,11 +136,12 @@ export function cartasDelMazo(deck: Deck): DeckCard[] {
  */
 function tieneDesglose(p: PriceInfo | undefined, variante: VarianteMazo): boolean {
   if (variante === 'normal') return true
+  // 'alterna' y 'hyperspace' no tienen precio propio en la fuente: medido,
+  // CERO de las 662 filas con desglose los mencionan.
+  if (variante !== 'foil') return false
   if (!p?.variants) return false
-  return Object.keys(p.variants).some(clave =>
-    variante === 'hyperspace'
-      ? /hyperspace/i.test(clave)
-      : /foil/i.test(clave) && !/hyperspace/i.test(clave),
+  return Object.keys(p.variants).some(
+    clave => /foil/i.test(clave) && !/hyperspace/i.test(clave),
   )
 }
 
@@ -143,19 +181,27 @@ export async function precioDeCartas(cartas: DeckCard[]): Promise<PrecioMazo> {
 
   for (const c of cartas) {
     const p = precios.get(c.cardId)
-    const variante = (c.variante ?? 'normal') as VarianteMazo
-    const unidad = precioVariante(p, variante)
 
-    if (unidad == null) {
-      sinPrecio += c.quantity
-      if (!faltantes.includes(c.name)) faltantes.push(c.name)
-      continue
-    }
-    total += unidad * c.quantity
-    conPrecio += c.quantity
-    if (!tieneDesglose(p, variante)) {
-      if (variante === 'hyperspace') hyperSinDato += c.quantity
-      else foilSinDato += c.quantity
+    // Copia por copia: una foil y dos normales de la misma carta suman
+    // distinto, y ese era justamente el punto de guardar una impresión por
+    // copia en vez de una por carta.
+    for (const variante of impresionesDe(c)) {
+      // `precioVariante` solo entiende las tres que tienen sentido para el
+      // precio; 'alterna' no tiene precio propio y va al base, igual que hyper.
+      const paraPrecio = variante === 'alterna' ? 'normal' : variante
+      const unidad = precioVariante(p, paraPrecio)
+
+      if (unidad == null) {
+        sinPrecio += 1
+        if (!faltantes.includes(c.name)) faltantes.push(c.name)
+        continue
+      }
+      total += unidad
+      conPrecio += 1
+      if (!tieneDesglose(p, variante)) {
+        if (variante === 'foil') foilSinDato += 1
+        else hyperSinDato += 1
+      }
     }
   }
 

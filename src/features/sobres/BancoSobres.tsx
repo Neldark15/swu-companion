@@ -37,9 +37,10 @@ const ARTE_PRUEBA =
  *
  * Es el peor caso del módulo y por eso está en el banco.
  *
- * Ojo con la DOBLE BARRA: la clave de esta carta en el CDN empieza por «/», así
- * que la URL lleva `.com//card_…`. Con una sola barra devuelve 403 (comprobado).
- * Otras cartas la llevan simple. Nunca «limpiar» esas urls.
+ * Ojo con la DOBLE BARRA, y es POR CARTA: la clave de esta empieza por «/», así
+ * que su URL lleva `.com//card_…` y con una sola barra devuelve 403. Pero la
+ * Rogue Squadron de este mismo archivo es al revés — con una barra da 200 y con
+ * dos, 403. La URL viene así del API y NUNCA se debe «limpiar».
  */
 const ARTE_APAISADO =
   'https://cdn.starwarsunlimited.com//card_05031012_EN_Obi_Wan_Kenobi_Leader_85186449a0.png'
