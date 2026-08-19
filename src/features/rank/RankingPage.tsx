@@ -92,6 +92,17 @@ const CARA_YO: React.CSSProperties = {
   backgroundImage: `${LUSTRE}, ${VETA}`,
 }
 
+/**
+ * MATE: metal sin barnizar. NO significa «sin cuenta» — significa «esto no es
+ * el ranking»: es el material del estado vacío y de toda la pestaña Progreso.
+ * Si Progreso se viera igual que el ranking volvería el problema que esta
+ * pantalla vino a arreglar.
+ */
+const CARA_MATE: React.CSSProperties = {
+  backgroundColor: 'var(--color-swu-bg)',
+  backgroundImage: VETA,
+}
+
 /** La del primero. */
 const CARA_ORO: React.CSSProperties = {
   backgroundColor: 'var(--color-swu-surface)',
@@ -156,24 +167,43 @@ export function RankingPage() {
 
   return (
     <div className="p-4 lg:p-6 pb-24 max-w-3xl mx-auto space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-black text-swu-text">RANKING</h1>
-          <p className="text-xs text-swu-muted">Quién gana partidas en El Salvador.</p>
-        </div>
+      {/* La cabecera del archivo. Trae de la credencial: el código de barras
+          del borde —acá como UN degradado repetido, no 13 <rect>—, el rótulo
+          en versalitas espaciadas y el canto metálico. Es la única instancia
+          de cada cosa en la pantalla, así que no cuesta nada. */}
+      <div className="clip-placa p-px" style={{ backgroundColor: CANTO_NEUTRO }}>
+        <div className="clip-placa flex items-start justify-between gap-3 px-4 py-3" style={CARA}>
+          <div className="flex items-stretch gap-3">
+            <span
+              aria-hidden
+              className="w-2 shrink-0"
+              style={{
+                backgroundImage:
+                  'repeating-linear-gradient(0deg, var(--color-swu-muted) 0 2px,' +
+                  ' transparent 2px 5px, var(--color-swu-muted) 5px 8px, transparent 8px 12px)',
+                opacity: 0.45,
+              }}
+            />
+            <div>
+              <h1 className="grabado text-lg font-black tracking-[0.18em] text-swu-text">RANKING</h1>
+              <p className="text-[11px] text-swu-muted">Quién gana partidas en El Salvador.</p>
+            </div>
+          </div>
         <button
           onClick={() => void cargar()}
           aria-label="Actualizar"
-          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-swu-border text-swu-muted active:scale-95"
+          className="clip-chapa flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center text-swu-muted active:scale-95"
+          style={{ backgroundColor: 'var(--color-swu-bg)', backgroundImage: LUSTRE }}
         >
           <RefreshCw size={15} className={cargando ? 'animate-spin' : ''} />
         </button>
+        </div>
       </div>
 
       {/* Dos pestañas, y la segunda dice que NO es un ranking. Ese rótulo es
           el arreglo: el problema nunca fue tener dos números, fue que los dos
           se llamaban igual. */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 [&>span]:w-full">
         <Pestana activa={pestana === 'ranking'} onClick={() => setPestana('ranking')}
                  icono={<Swords size={14} />} texto="Ranking" />
         <Pestana activa={pestana === 'progreso'} onClick={() => setPestana('progreso')}
@@ -187,18 +217,20 @@ export function RankingPage() {
               <button
                 key={v.etiqueta}
                 onClick={() => setDias(v.dias)}
-                className={`min-h-[44px] flex-1 rounded-xl px-2 text-[12px] font-bold transition-colors ${
-                  dias === v.dias
-                    ? 'bg-swu-accent text-swu-accent-fg'
-                    : 'border border-swu-border text-swu-muted'
+                className={`clip-chapa min-h-[44px] flex-1 px-2 text-[12px] font-bold transition-colors ${
+                  dias === v.dias ? 'text-swu-accent-texto' : 'text-swu-muted'
                 }`}
+                style={dias === v.dias
+                  ? { backgroundColor: 'color-mix(in srgb, var(--color-swu-accent) 18%, var(--color-swu-bg))', backgroundImage: LUSTRE }
+                  : { backgroundColor: 'var(--color-swu-bg)', backgroundImage: VETA }}
               >
                 {v.etiqueta}
               </button>
             ))}
           </div>
 
-          <p className="flex items-start gap-1.5 rounded-xl border border-swu-border bg-swu-surface/60 px-3 py-2 text-[11px] text-swu-muted">
+          <p className="clip-chapa flex items-start gap-1.5 px-3 py-2 text-[11px] text-swu-muted"
+             style={{ backgroundColor: 'var(--color-swu-bg)', backgroundImage: VETA }}>
             <Info size={13} className="mt-0.5 shrink-0 text-swu-accent-texto" />
             <span>{REGLA_PUNTOS}. Las amistosas cuentan solo si el rival las confirmó.</span>
           </p>
@@ -210,19 +242,21 @@ export function RankingPage() {
           )}
 
           {!cargando && filas.length === 0 && !error && (
-            <div className="rounded-2xl border border-swu-border bg-swu-surface p-6 text-center">
+            <div className="clip-placa p-px" style={{ backgroundColor: CANTO_NEUTRO }}>
+             <div className="clip-placa p-6 text-center" style={CARA_MATE}>
               <Trophy size={26} className="mx-auto mb-2 text-swu-muted" />
               <p className="text-sm font-bold text-swu-text">Todavía no hay partidas en esta ventana</p>
               <p className="mt-1 text-[11px] text-swu-muted">
                 El ranking se llena con los torneos que se juegan y con las amistosas que ambos
                 jugadores confirman.
               </p>
+             </div>
             </div>
           )}
 
           {podio.length > 0 && (
             <div className="rounded-2xl border border-swu-accent/20 bg-gradient-to-br from-swu-accent/10 to-transparent p-4">
-              <p className="mb-3 text-center text-[10px] font-black uppercase tracking-[0.2em] text-swu-accent-texto">
+              <p className="mb-3 text-center text-[11px] font-black uppercase tracking-[0.2em] text-swu-accent-texto">
                 Consejo Jedi
               </p>
               {/* Orden visual 2-1-3: el campeón al centro y más grande. */}
@@ -258,24 +292,29 @@ export function RankingPage() {
       ) : (
         <>
           {/* El rótulo más importante de la pantalla. */}
-          <div className="rounded-2xl border border-swu-border bg-swu-surface p-4">
-            <p className="text-sm font-bold text-swu-text">Esto no es el ranking</p>
+          <div className="clip-placa p-px" style={{ backgroundColor: CANTO_NEUTRO }}>
+           <div className="clip-placa p-4" style={CARA_MATE}>
+            <p className="grabado text-sm font-bold text-swu-text">Esto no es el ranking</p>
             <p className="mt-1 text-[11px] leading-relaxed text-swu-muted">
               El progreso mide cuánto usás la app: cartas que registrás, mazos que armás, misiones,
               logros y días seguidos. Sube aunque no juegues una sola partida, así que no dice quién
               juega mejor — para eso está la pestaña Ranking.
             </p>
+           </div>
           </div>
 
           <div className="space-y-1.5">
             {progreso.map((p, i) => (
               <div
                 key={p.userId}
-                className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 ${
-                  p.userId === miId
-                    ? 'border border-swu-accent/30 bg-swu-accent/10'
-                    : 'border border-swu-border bg-swu-surface/60'
+                /* Mate y con esquinas rectas: la placa recortada es del
+                   ranking. Si estas filas llevaran el mismo metal, las dos
+                   tablas volverían a parecer lo mismo, que es justo lo que
+                   esta pantalla vino a arreglar. */
+                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 ${
+                  p.userId === miId ? 'bg-swu-accent/10' : ''
                 }`}
+                style={{ backgroundImage: VETA }}
               >
                 <span className="w-7 text-center font-mono text-[11px] font-bold text-swu-muted">{i + 1}</span>
                 <Avatar avatar={p.avatar || ''} size={32} caja="circulo" anillo={p.userId} />
@@ -296,18 +335,39 @@ export function RankingPage() {
   )
 }
 
+/**
+ * Pestaña como chapa: la activa va ALZADA (labio de luz arriba) y la otra
+ * HUNDIDA (sombra arriba). Es el mismo bisel de la credencial, pero con un par
+ * de `box-shadow` inset SIN desenfoque en vez de un filtro de cinco
+ * primitivas: la sombra inset la compone la GPU y no promueve capa.
+ *
+ * El foco va en un ENVOLTORIO sin recorte: `clip-path` se come el `outline`
+ * del propio elemento, así que un anillo dibujado sobre la chapa no existiría.
+ */
 function Pestana({ activa, onClick, icono, texto }: {
   activa: boolean; onClick: () => void; icono: React.ReactNode; texto: string
 }) {
   return (
-    <button
-      onClick={onClick}
-      className={`flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-bold transition-colors ${
-        activa ? 'bg-swu-accent text-swu-accent-fg' : 'border border-swu-border text-swu-muted'
-      }`}
-    >
-      {icono} {texto}
-    </button>
+    <span className="chapa-foco has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-swu-accent">
+      <button
+        onClick={onClick}
+        aria-pressed={activa}
+        className={`clip-chapa flex min-h-[44px] w-full items-center justify-center gap-1.5 px-3 text-xs font-bold transition-colors focus-visible:outline-none ${
+          activa ? 'text-swu-accent-texto' : 'text-swu-muted'
+        }`}
+        style={{
+          backgroundColor: activa
+            ? 'color-mix(in srgb, var(--color-swu-accent) 18%, var(--color-swu-bg))'
+            : 'var(--color-swu-bg)',
+          backgroundImage: activa ? LUSTRE : VETA,
+          boxShadow: activa
+            ? 'inset 0 1px 0 rgba(255,255,255,.14), inset 0 -1px 0 rgba(0,0,0,.45)'
+            : 'inset 0 1px 0 rgba(0,0,0,.5), inset 0 -1px 0 rgba(255,255,255,.05)',
+        }}
+      >
+        {icono} {texto}
+      </button>
+    </span>
   )
 }
 
@@ -493,13 +553,55 @@ const BANCO: FilaRanking[] = [
 export function BancoRanking() {
   const podio = BANCO.slice(0, 3)
   const resto = BANCO.slice(3)
-  // «Yo» es el quinto: así se ve la fila propia en medio de la lista.
   const miClave = 'u5'
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-4 pb-24">
       <p className="text-xs font-mono tracking-wider text-swu-muted">BANCO DEL RANKING · datos reales</p>
+
+      {/* Cabecera */}
+      <div className="clip-placa p-px" style={{ backgroundColor: CANTO_NEUTRO }}>
+        <div className="clip-placa flex items-start justify-between gap-3 px-4 py-3" style={CARA}>
+          <div className="flex items-stretch gap-3">
+            <span aria-hidden className="w-2 shrink-0" style={{
+              backgroundImage: 'repeating-linear-gradient(0deg, var(--color-swu-muted) 0 2px, transparent 2px 5px, var(--color-swu-muted) 5px 8px, transparent 8px 12px)',
+              opacity: 0.45 }} />
+            <div>
+              <h1 className="grabado text-lg font-black tracking-[0.18em] text-swu-text">RANKING</h1>
+              <p className="text-[11px] text-swu-muted">Quién gana partidas en El Salvador.</p>
+            </div>
+          </div>
+          <button className="clip-chapa flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center text-swu-muted"
+                  style={{ backgroundColor: 'var(--color-swu-bg)', backgroundImage: LUSTRE }}>
+            <RefreshCw size={15} />
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 [&>span]:w-full">
+        <Pestana activa onClick={() => {}} icono={<Swords size={14} />} texto="Ranking" />
+        <Pestana activa={false} onClick={() => {}} icono={<TrendingUp size={14} />} texto="Progreso" />
+      </div>
+
+      <div className="flex gap-2">
+        {VENTANAS.map((v, i) => (
+          <button key={v.etiqueta}
+            className={`clip-chapa min-h-[44px] flex-1 px-2 text-[12px] font-bold ${i === 0 ? 'text-swu-accent-texto' : 'text-swu-muted'}`}
+            style={i === 0
+              ? { backgroundColor: 'color-mix(in srgb, var(--color-swu-accent) 18%, var(--color-swu-bg))', backgroundImage: LUSTRE }
+              : { backgroundColor: 'var(--color-swu-bg)', backgroundImage: VETA }}>
+            {v.etiqueta}
+          </button>
+        ))}
+      </div>
+
+      <p className="clip-chapa flex items-start gap-1.5 px-3 py-2 text-[11px] text-swu-muted"
+         style={{ backgroundColor: 'var(--color-swu-bg)', backgroundImage: VETA }}>
+        <Info size={13} className="mt-0.5 shrink-0 text-swu-accent-texto" />
+        <span>{REGLA_PUNTOS}. Las amistosas cuentan solo si el rival las confirmó.</span>
+      </p>
+
       <div className="rounded-2xl border border-swu-accent/20 bg-gradient-to-br from-swu-accent/10 to-transparent p-4">
-        <p className="mb-3 text-center text-[10px] font-black uppercase tracking-[0.2em] text-swu-accent-texto">
+        <p className="mb-3 text-center text-[11px] font-black uppercase tracking-[0.2em] text-swu-accent-texto">
           Consejo Jedi
         </p>
         <div className="flex items-end justify-center gap-3">
@@ -509,11 +611,23 @@ export function BancoRanking() {
           ))}
         </div>
       </div>
+
       <div className="space-y-1.5">
         {resto.map((f, i) => (
           <Fila key={f.clave} fila={f} puesto={i + 4} soyYo={f.clave === miClave} />
         ))}
       </div>
+
+      {/* Progreso: MATE a propósito, para comprobar que NO se confunde. */}
+      <div className="clip-placa p-px" style={{ backgroundColor: CANTO_NEUTRO }}>
+        <div className="clip-placa p-4" style={CARA_MATE}>
+          <p className="grabado text-sm font-bold text-swu-text">Esto no es el ranking</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-swu-muted">
+            El progreso mide cuánto usás la app. Sube aunque no juegues una sola partida.
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
+

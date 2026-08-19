@@ -982,9 +982,15 @@ Lo que se descartó y por qué:
 - **Reusar el vocabulario de acabados del nivel** (prisma, kyber, halo) para el
   puesto: las mismas palabras significarían dos cosas en dos pantallas.
 
+**La pestaña Progreso va en MATE, a propósito.** Metal sin barnizar, esquinas
+rectas, sin chapa de puntos. Si se viera con el mismo metal que el ranking,
+las dos tablas volverían a parecer lo mismo — que es exactamente el problema
+que esta pantalla vino a arreglar. El material dice «esto no es el ranking»
+antes de que nadie lea el cartel.
+
 Medido en el banco (`/banco-ranking`, solo desarrollo, con los datos reales):
-**41 textos, ninguno por debajo de 11 px y ninguno por debajo del mínimo de
-contraste; el peor es 5,8:1.** Los bancos están en `rutaLibre` porque la puerta
+**51 textos, ninguno por debajo de 11 px, ninguno por debajo del mínimo de
+contraste y ningún botón por debajo de 44×44; el peor contraste es 5,8:1.** Los bancos están en `rutaLibre` porque la puerta
 de instalación tapaba justo la pantalla que hay que mirar para revisar un
 diseño móvil.
 
