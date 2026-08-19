@@ -40,3 +40,47 @@
 --
 -- El cuerpo completo está en la migración `blog_autor_permiso_acotado`
 -- aplicada el 2026-08-19.
+
+-- ══════════════════════════════════════════════════════════════════════
+-- DOS ARREGLOS POSTERIORES, EL MISMO DÍA. Los dos los provocó esta misma
+-- migración y los dos valen más que el cambio original.
+-- ══════════════════════════════════════════════════════════════════════
+--
+-- ── 1. Tumbó el blog PÚBLICO (`blog_arreglar_lectura_publica`) ───────
+--
+-- Un visitante sin cuenta recibía 401 «permission denied for function
+-- es_admin_blog» en vez de los artículos.
+--
+-- Causa: `blog_admin_todo` era `FOR ALL`, y ALL incluye SELECT. Postgres evalúa
+-- TODAS las políticas permisivas aplicables, así que una lectura anónima
+-- también corría `es_admin_blog()` — a la que se le acababa de revocar EXECUTE
+-- a `anon`. Sin permiso sobre la función la consulta ENTERA falla; no devuelve
+-- `false`.
+--
+-- LECCIÓN: revocar EXECUTE a `anon` sobre una función que USA UNA POLÍTICA no
+-- la asegura, la rompe. La política se evalúa con los permisos de quien
+-- consulta. Es la cara opuesta de la lección de los RPC del álbum: allá había
+-- que revocar de más, acá revocar de más rompe.
+--
+-- Arreglo: conceder las dos funciones a `anon` (responden sobre QUIEN LLAMA,
+-- así que para un anónimo son `false` y no revelan nada) y acotar la política
+-- del admin a las tres operaciones de escritura.
+--
+-- ── 2. …y eso dejó al admin sin ver borradores (`blog_admin_lee_borradores`) ──
+--
+-- Al partir el `FOR ALL` se perdió algo que daba gratis: la LECTURA. El admin
+-- dejó de ver los borradores ajenos, y sin verlos tampoco podía editarlos —un
+-- UPDATE exige que la fila sea visible—. Las otras dos políticas de lectura
+-- solo cubren «publicado» y «mío», que es justo lo que un borrador ajeno no es.
+--
+-- ── Y una trampa del MÉTODO de prueba ────────────────────────────────
+--
+-- Un `set local role anon` NO alcanza para simular a un visitante: la
+-- credencial (`request.jwt.claims`) sigue puesta, así que `auth.uid()` seguía
+-- devolviendo al administrador y la prueba decía que un anónimo veía un
+-- borrador. Hay que BORRAR la credencial además de cambiar el rol.
+--
+-- Estado final, comprobado en transacción revertida:
+--   anónimo lee 7 publicados · anónimo NO escribe · el autor escribe lo suyo ·
+--   no puede firmar como otro · no toca ni VE el borrador de otro autor ·
+--   el admin sí modera · y un anónimo de verdad NO ve borradores.
