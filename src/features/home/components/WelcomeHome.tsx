@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react'
+import { TarjetaOferta } from '../../sobres/OfertaSobresDiarios'
 import { useNavigate } from 'react-router-dom'
 import {
   LogIn, UserPlus, Eye, EyeOff, AlertTriangle, Loader2, ArrowRight,
@@ -81,6 +82,12 @@ export function WelcomeHome() {
             </span>
           </div>
         </div>
+      </div>
+
+      {/* El premio, entre la portada y el formulario: es lo primero que ve quien
+          llega por un enlace compartido, y es la razón por la que se registra. */}
+      <div className="px-5 pt-4">
+        <TarjetaOferta />
       </div>
 
       {/* ── Login form (principal) ── */}

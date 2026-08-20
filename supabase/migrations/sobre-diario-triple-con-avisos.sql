@@ -1,0 +1,21 @@
+-- TRES sobres al día con los avisos activados. Aplicada 2026-08-19.
+--
+-- El criterio es tener fila en `push_subscriptions`, y NO una «bandera de
+-- instalado», porque es lo único OBSERVABLE del lado del servidor: que la app
+-- esté instalada no se puede saber desde Postgres, una suscripción sí. Y en iOS
+-- el push EXIGE la app instalada, así que en la práctica cubre las dos cosas.
+--
+-- Se premia un ESTADO, no un acto, y eso es a propósito: quien apague los
+-- avisos vuelve a uno al día sin que nadie tenga que revocar nada. Las
+-- suscripciones muertas las borra `enviarPush` al recibir 410/404, y como el
+-- cron manda un aviso cada mañana, la lista se limpia sola todos los días.
+--
+-- Comprobado contra la base real en transacción revertida (27 perfiles, 7 con
+-- push): 27 perfiles tocados, 41 sobres (20×1 + 7×3), saldo 212 → 253, y la
+-- segunda corrida del mismo día sigue devolviendo 0 y 0.
+--
+-- OJO con el `drop function` de arriba: cambia el tipo de retorno (se agregaron
+-- `sobres` y `con_avisos`), y Postgres no deja hacer eso con un
+-- `create or replace` a secas.
+--
+-- El cuerpo aplicado está en la migración `sobre_diario_triple_con_avisos`.

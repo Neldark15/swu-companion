@@ -30,6 +30,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
+import { TarjetaOferta } from '../sobres/OfertaSobresDiarios'
 import { useLocation } from 'react-router-dom'
 import { Download, Bell, Check, Share, Plus, ExternalLink, AlertTriangle, Smartphone } from 'lucide-react'
 import { esStandalone, navegadorEmbebido, plataforma, rutaLibre } from '../../services/entorno'
@@ -152,6 +153,10 @@ function Pantalla({ paso, plat, promptInstalar, onPedir, onRecomprobar, onSeguir
             mesa y te avisa de los torneos.
           </p>
         </div>
+
+        {/* El premio va ARRIBA de los pasos, no debajo: es la razón por la que
+            vale la pena hacerlos, y debajo del formulario no lo lee nadie. */}
+        <TarjetaOferta />
 
         <Pasos activo={paso} />
 

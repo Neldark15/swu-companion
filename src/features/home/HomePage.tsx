@@ -29,6 +29,7 @@ import { DondeJugar } from './DondeJugar'
 import { ProximosEventos } from './ProximosEventos'
 import { AvisoPerfil } from '../profile/AvisoPerfil'
 import { AvisoSobreDiario } from '../sobres/AvisoSobreDiario'
+import { PopupOferta } from '../sobres/OfertaSobresDiarios'
 import { TarjetaJugador } from '../profile/TarjetaJugador'
 import { Carta3D } from '../../components/Carta3D'
 import { HUD_TEXTO, type HudTone } from '../../components/hudTones'
@@ -295,6 +296,12 @@ export function HomePage() {
       {/* El sobre de las 8 de la mañana. Va primero porque es lo que acaba de
           pasar, y se puede cerrar: el sobre no se gasta al ocultar el aviso. */}
       <AvisoSobreDiario userId={miIdAuth} />
+
+      {/* Y para quien está cobrando UNO por no tener los avisos: es el único
+          caso sin pantalla propia —entró por la salida de emergencia de la
+          puerta, o ya tenía cuenta de antes— y son 20 de los 27 perfiles.
+          El propio componente se calla solo si ya está suscrito. */}
+      <PopupOferta userId={miIdAuth} alIrAAjustes={() => navigate('/settings')} />
 
       {/* Lo que TE están esperando. Dice el premio porque es cierto y porque es
           lo que hace que valga el toque: confirmar da un sobre a los dos. */}

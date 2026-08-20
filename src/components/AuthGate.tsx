@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { HolocronLoader } from './PageTransition'
-import { Shield, UserPlus, Sparkles, Swords, Trophy, Target } from 'lucide-react'
+import { Shield, UserPlus, Sparkles, Swords, Trophy, Target, Gift } from 'lucide-react'
 
 const features = [
+  { icon: Gift, label: '3 sobres al día', desc: 'Con la app instalada y los avisos puestos' },
   { icon: Swords, label: 'Tracker en Vivo', desc: 'Contadores de vida en tiempo real' },
   { icon: Trophy, label: 'Torneos', desc: 'Organice y participe en eventos' },
   { icon: Target, label: 'Misiones Diarias', desc: 'Gane XP completando objetivos' },

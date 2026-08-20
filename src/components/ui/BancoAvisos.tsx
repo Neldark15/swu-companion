@@ -22,8 +22,10 @@
  * comportarse como si no tuviera destino.
  */
 
+import { useState } from 'react'
 import { useNotificationStore } from '../../services/notificationService'
 import { esRutaInterna } from '../../services/rutaInterna'
+import { TarjetaOferta, PopupOferta } from '../../features/sobres/OfertaSobresDiarios'
 
 /** Cada botón deja un aviso distinto. El texto dice a dónde debería llevar. */
 const CASOS: { rotulo: string; link?: string; nota: string }[] = [
@@ -41,6 +43,7 @@ export function BancoAvisos() {
   const addNotification = useNotificationStore(s => s.addNotification)
   const notifications = useNotificationStore(s => s.notifications)
   const unreadCount = useNotificationStore(s => s.unreadCount)
+  const [verPopup, setVerPopup] = useState(0)
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 px-4 py-6">
@@ -78,6 +81,30 @@ export function BancoAvisos() {
             </span>
           </button>
         ))}
+      </div>
+
+      {/* La tarjeta del sobre diario, que va en la puerta de instalación, en el
+          muro de acceso y en la bienvenida. Las tres están detrás de estados
+          que no se pueden provocar a mano (no instalado / sin sesión), así que
+          sin esto se subiría sin que nadie la viera. */}
+      <div className="border-t border-swu-border pt-4">
+        <p className="mb-2 text-sm text-swu-muted">La tarjeta del sobre diario</p>
+        <TarjetaOferta />
+
+        {/* Y el emergente, el que de verdad hay que mirar: es el único que se
+            dibuja encima de todo y el que lleva el botón que suscribe. En
+            producción solo lo ve quien NO tiene avisos y una vez por día, así
+            que acá se fuerza borrando su marca. */}
+        <button
+          type="button"
+          onClick={() => { try { localStorage.removeItem('swu_oferta_sobres_visto') } catch { /* modo privado */ } setVerPopup(v => v + 1) }}
+          className="mt-3 w-full rounded-lg border border-swu-border bg-swu-surface px-3 py-2.5 text-sm text-swu-text"
+        >
+          Mostrar el emergente
+        </button>
+        {verPopup > 0 && (
+          <PopupOferta key={verPopup} userId="banco" alIrAAjustes={() => alert('iría a /settings')} />
+        )}
       </div>
 
       <div className="rounded-lg bg-swu-surface px-3 py-2.5 text-xs text-swu-muted tabular-nums">

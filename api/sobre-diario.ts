@@ -1,5 +1,5 @@
 /**
- * EL SOBRE DIARIO — uno para cada quien, todos los días a las 8:00 de la mañana.
+ * EL SOBRE DIARIO — TRES con los avisos activados, uno sin ellos, a las 8:00.
  *
  * ── El horario ───────────────────────────────────────────────────────
  *
@@ -18,13 +18,17 @@
  * sobre es peor. Por eso el push va después del reparto y su error se informa
  * en el cuerpo en vez de reventar.
  *
- * ── El aviso solo llega a 4 de 26 ────────────────────────────────────
+ * ── Por qué tres, y por qué el push no es el único camino ───────────
  *
- * Medido hoy: 26 perfiles, 4 con suscripción de push. O sea que el 85% de la
- * comunidad no se enteraría por acá. Por eso el aviso de verdad lo pinta la
- * app —la franja de Inicio y la campana, que leen `sobres_saldo.diario_en`— y
- * este push es el extra para quien lo tiene activado, no el único camino.
- * Si algún día suben las suscripciones, este endpoint no cambia.
+ * Tres sobres es el premio por tener los avisos puestos, y `dar_sobre_diario()`
+ * lo decide mirando `push_subscriptions` — lo único que el servidor puede
+ * comprobar de verdad (que la app esté instalada no se ve desde Postgres; una
+ * suscripción sí, y en iOS el push exige estar instalado).
+ *
+ * Aun así el aviso de verdad lo pinta la app —la franja de Inicio y la campana,
+ * que leen `sobres_saldo.diario_en`—, porque este push por definición solo
+ * alcanza a quien YA lo tiene activado. Al que le faltan los avisos hay que
+ * poder decírselo justamente por otro canal.
  *
  * ── Correrlo dos veces no regala nada ────────────────────────────────
  *
@@ -78,19 +82,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // La RPC devuelve UNA fila (dia, repartidos); PostgREST la entrega como array.
   const fila = Array.isArray(data) ? data[0] : data
-  const repartidos = Number(fila?.repartidos ?? 0)
+  const repartidos = Number(fila?.repartidos ?? 0)   // perfiles que cobraron
+  const sobres = Number(fila?.sobres ?? 0)           // sobres en total
+  const conAvisos = Number(fila?.con_avisos ?? 0)    // cuántos cobraron TRES
   const dia = String(fila?.dia ?? '')
 
   // Cero repartidos es el caso NORMAL de una segunda corrida del mismo día, no
   // un fallo. Y también es la señal de que no hay que avisar: si nadie recibió
   // nada, un push diciendo «ya cayó tu sobre» sería mentira.
   if (repartidos === 0) {
-    return res.status(200).json({ dia, repartidos: 0, aviso: 'ya estaba repartido hoy' })
+    return res.status(200).json({ dia, repartidos: 0, sobres: 0, aviso: 'ya estaba repartido hoy' })
   }
 
   // ── 2. Avisar ──
   if (!pushConfigurado()) {
-    return res.status(200).json({ dia, repartidos, push: 'VAPID no configurado' })
+    return res.status(200).json({ dia, repartidos, sobres, conAvisos, push: 'VAPID no configurado' })
   }
 
   const { data: subs, error: errSubs } = await supabase
@@ -99,12 +105,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (errSubs) {
     // El reparto YA se hizo. Se informa el fallo del aviso sin perderlo.
-    return res.status(200).json({ dia, repartidos, push: 'error leyendo suscripciones: ' + errSubs.message })
+    return res.status(200).json({ dia, repartidos, sobres, conAvisos, push: 'error leyendo suscripciones: ' + errSubs.message })
   }
 
+  // Quien recibe este push TIENE suscripción, y tener suscripción es justo lo
+  // que da los tres. Así que acá el número no hay que calcularlo por persona:
+  // todo destinatario de este aviso cobró 3.
   const push = await enviarPush(supabase, (subs ?? []) as SuscripcionPush[], {
-    title: 'Cayó tu sobre diario',
-    body: 'Ya está en La Bóveda. Abrilo a ver qué te tocó.',
+    title: 'Cayeron tus 3 sobres',
+    body: 'Los tenés por dejar los avisos activados. Abrilos en La Bóveda.',
     icon: '/icon-192.png',
     link: '/sobres',
     // Con `tag` fijo, dos avisos del mismo día se reemplazan en vez de apilarse.
@@ -112,5 +121,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     type: 'gift',
   })
 
-  return res.status(200).json({ dia, repartidos, push })
+  return res.status(200).json({ dia, repartidos, sobres, conAvisos, push })
 }

@@ -1167,6 +1167,33 @@ Banco en **`/banco-sobres`** (solo desarrollo): se elige qué premio sale, los
 tres acabados uno al lado del otro y el dorso. Sin él, revisar cómo se ve una
 serializada es esperar 1 de cada 33 sobres.
 
+**El SOBRE DIARIO son TRES con los avisos puestos, uno sin ellos.**
+
+El criterio es tener fila en `push_subscriptions`, y NO una «bandera de
+instalado», porque es lo único que el servidor puede comprobar de verdad: que
+la app esté instalada no se ve desde Postgres, una suscripción sí. En iOS
+además el push EXIGE la app instalada, así que en la práctica quien cobra tres
+hizo las dos cosas.
+
+Se premia un ESTADO, no un acto: quien apague los avisos vuelve a uno solo sin
+que nadie revoque nada, y las suscripciones muertas las borra `enviarPush` con
+los 410/404 — como el cron manda un aviso cada mañana, la lista se limpia sola.
+
+**Lo que se anuncia tiene que ser lo que se reparte.** Los carteles dicen
+«avisos activados», no «app instalada», porque eso es lo que decide la función.
+Y dicen que empieza «en el reparto siguiente»: el reparto es una foto que se
+toma a las 8:00, así que quien active a mediodía ya cobró el de hoy.
+
+Dónde se anuncia (`OfertaSobresDiarios.tsx`): tarjeta en la puerta de
+instalación, en el muro de acceso y en la bienvenida; y un EMERGENTE en Inicio
+para quien ya está dentro sin avisos —el único caso sin pantalla propia, y el
+más numeroso—. **El emergente decide con `Notification.permission` primero**:
+`isUserSubscribed()` espera a `navigator.serviceWorker.ready`, y esa promesa
+**no resuelve nunca** si no hay service worker registrado. Medido en el banco:
+el efecto se colgaba y el cartel no salía jamás. Va con reloj de 3 s, y si el
+reloj gana se decide NO mostrar — decirle «cobrás 1» a alguien que cobra 3 es
+peor que un cartel que no salió.
+
 **El SOBRE DIARIO cae a las 8:00 y el aviso NO puede ser solo push.** El reparto
 es `dar_sobre_diario()` (solo `service_role`), que lo dispara el cron
 `/api/sobre-diario` a las `0 14 * * *` — 14:00 UTC son las 8:00 de El Salvador,
