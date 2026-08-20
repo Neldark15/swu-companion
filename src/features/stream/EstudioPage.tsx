@@ -26,6 +26,7 @@ import {
   Heart,
   Lock,
   LockOpen,
+  Music,
   Radio,
   RotateCcw,
   Search,
@@ -33,6 +34,7 @@ import {
   Shield,
   Sparkles,
   Undo2,
+  User as UserIcon,
   X,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
@@ -198,6 +200,45 @@ export function EstudioPage() {
     },
     [aplicar]
   )
+
+  /* ── Atajos de teclado ──
+   * Para quien opera desde la Mac: llegar al botón correcto con el ratón en
+   * medio de una jugada cuesta más que la propia jugada.
+   * Se ignoran mientras se escribe en un campo, o teclear un nombre dispararía
+   * media consola. */
+  useEffect(() => {
+    const alTeclear = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      const destino = e.target as HTMLElement | null
+      const etiqueta = destino?.tagName
+      if (etiqueta === 'INPUT' || etiqueta === 'TEXTAREA' || destino?.isContentEditable) return
+
+      const atajos: Record<string, () => void> = {
+        '1': () => aplicar({ t: 'escena', escena: 'pronto' }),
+        '2': () => aplicar({ t: 'escena', escena: 'juego' }),
+        '3': () => aplicar({ t: 'escena', escena: 'descanso' }),
+        '4': () => aplicar({ t: 'escena', escena: 'fin' }),
+        q: () => cambiarDano(0, 1),
+        a: () => cambiarDano(0, -1),
+        p: () => cambiarDano(1, 1),
+        l: () => cambiarDano(1, -1),
+        ' ': () =>
+          aplicar(
+            estado.reloj.iniciadoEn !== null
+              ? { t: 'relojPausar', ahora: Date.now() }
+              : { t: 'relojIniciar', ahora: Date.now() }
+          ),
+      }
+
+      const accion = atajos[e.key.toLowerCase()]
+      if (!accion) return
+      e.preventDefault()
+      accion()
+    }
+
+    window.addEventListener('keydown', alTeclear)
+    return () => window.removeEventListener('keydown', alTeclear)
+  }, [aplicar, cambiarDano, estado.reloj.iniciadoEn])
 
   const restante = useMemo(() => restanteReloj(estado.reloj, ahora), [estado.reloj, ahora])
   const cantidadTicker = useMemo(() => mensajesTicker(estado.ticker).length, [estado.ticker])
@@ -509,6 +550,13 @@ export function EstudioPage() {
           ))}
         </div>
 
+        {/* ══ Fila 3 · En vivo: destacar carta, narrador y música ══ */}
+        <div className="mt-2.5 grid gap-2.5 lg:grid-cols-3">
+          <PanelCartaDestacada carta={estado.carta} ahora={ahora} onAccion={aplicar} />
+          <PanelNarrador datos={estado.lowerThird} onAccion={aplicar} />
+          <PanelMusica code={code} musica={estado.musica} onAccion={aplicar} />
+        </div>
+
         </>
         )}
 
@@ -649,6 +697,234 @@ export function EstudioPage() {
         )}
       </main>
     </div>
+  )
+}
+
+/* ── En vivo: carta destacada, narrador, música ─────────────────────── */
+
+/** Segundos que la carta destacada se queda en pantalla antes de irse sola. */
+const DURACION_CARTA_MS = 14_000
+
+/**
+ * La tarjeta grande centrada con el arte y el texto de reglas retipografiado.
+ *
+ * Es la herramienta de mayor legibilidad que existe en este formato: en la mesa
+ * el texto de una carta mide 2,3 px. Se auto-oculta para que nadie la deje
+ * puesta encima de la partida.
+ */
+function PanelCartaDestacada({
+  carta,
+  ahora,
+  onAccion,
+}: {
+  carta: EstadoOverlay['carta']
+  ahora: number
+  onAccion: (a: Accion) => void
+}) {
+  const [abierto, setAbierto] = useState(false)
+  const visible = carta !== null && carta.hasta > ahora
+  const restante = visible && carta ? Math.ceil((carta.hasta - ahora) / 1000) : 0
+
+  return (
+    <Panel titulo="Carta destacada" nota={visible ? `${restante}s al aire` : undefined} denso>
+      <div className="flex flex-col gap-2">
+        <button
+          onClick={() => setAbierto(true)}
+          className="flex min-h-[52px] items-center justify-center gap-2 rounded-lg border border-swu-accent/40 bg-swu-accent/10 text-xs font-black uppercase tracking-wider text-swu-accent-texto transition hover:bg-swu-accent/20"
+        >
+          <Sparkles size={14} />
+          Destacar una carta
+        </button>
+
+        {visible && carta && (
+          <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-2">
+            {carta.img && (
+              <img src={imgCarta(carta.img, 128)} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
+            )}
+            <span className="min-w-0 flex-1 truncate text-xs font-bold">{carta.nombre}</span>
+            <button
+              onClick={() => onAccion({ t: 'carta', carta: null })}
+              className="shrink-0 rounded px-2 py-1 text-[10px] font-black uppercase tracking-wider text-swu-muted transition hover:text-red-300"
+            >
+              Quitar
+            </button>
+          </div>
+        )}
+
+        <p className="text-[10px] leading-relaxed text-swu-muted">
+          Sale grande en el centro con el texto de reglas legible y se oculta sola
+          a los {DURACION_CARTA_MS / 1000} segundos.
+        </p>
+      </div>
+
+      {abierto && (
+        <ModalCartas
+          tipo="jugada"
+          etiqueta="carta para destacar"
+          onCerrar={() => setAbierto(false)}
+          onElegir={c => {
+            onAccion({
+              t: 'carta',
+              carta: {
+                nombre: c.nombre,
+                subtitulo: c.subtitulo,
+                texto: c.texto,
+                img: c.img,
+                hasta: Date.now() + DURACION_CARTA_MS,
+              },
+            })
+            setAbierto(false)
+          }}
+        />
+      )}
+    </Panel>
+  )
+}
+
+/** Franja con el nombre de quien narra. */
+function PanelNarrador({
+  datos,
+  onAccion,
+}: {
+  datos: EstadoOverlay['lowerThird']
+  onAccion: (a: Accion) => void
+}) {
+  return (
+    <Panel titulo="Narrador en pantalla" denso>
+      <div className="flex flex-col gap-2">
+        <CampoTexto
+          etiqueta="Nombre"
+          valor={datos.texto}
+          onGuardar={v => onAccion({ t: 'lowerThird', campos: { texto: v } })}
+        />
+        <CampoTexto
+          etiqueta="Rol o tienda"
+          valor={datos.sub}
+          onGuardar={v => onAccion({ t: 'lowerThird', campos: { sub: v } })}
+        />
+        <button
+          onClick={() => onAccion({ t: 'lowerThird', campos: { visible: !datos.visible } })}
+          disabled={!datos.texto.trim() && !datos.visible}
+          className={`flex min-h-[44px] items-center justify-center gap-2 rounded-lg border text-[11px] font-black uppercase tracking-wider transition disabled:opacity-40 ${
+            datos.visible
+              ? 'border-emerald-400 bg-emerald-400/20 text-emerald-200'
+              : 'border-white/10 bg-black/20 text-swu-muted hover:bg-white/5'
+          }`}
+        >
+          <UserIcon size={13} />
+          {datos.visible ? 'Al aire' : 'Mostrar'}
+        </button>
+      </div>
+    </Panel>
+  )
+}
+
+/**
+ * Música de fondo, controlada desde acá porque el operador está en el celular.
+ *
+ * El audio sale por el navegador y OBS lo mezcla: hay que marcar «Controlar
+ * audio mediante OBS» en la fuente del marcador (el archivo de escenas que
+ * genera este panel ya lo trae).
+ */
+function PanelMusica({
+  code,
+  musica,
+  onAccion,
+}: {
+  code: string
+  musica: EstadoOverlay['musica']
+  onAccion: (a: Accion) => void
+}) {
+  const [subiendo, setSubiendo] = useState(false)
+  const [error, setError] = useState('')
+
+  const subir = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const archivo = e.target.files?.[0]
+    if (!archivo) return
+    setSubiendo(true)
+    setError('')
+
+    subirImagenMarca(code, 'musica', archivo)
+      .then(url => {
+        // Se sube PAUSADA: nadie quiere que la música arranque sola al aire.
+        onAccion({
+          t: 'musica',
+          campos: { pista: url, titulo: archivo.name.replace(/\.[^.]+$/, ''), sonando: false },
+        })
+      })
+      .catch(err => setError(err instanceof Error ? err.message : 'No se pudo subir'))
+      .finally(() => {
+        setSubiendo(false)
+        e.target.value = ''
+      })
+  }
+
+  return (
+    <Panel titulo="Música de fondo" nota={musica.sonando ? 'Sonando' : undefined} denso>
+      <div className="flex flex-col gap-2">
+        {musica.pista ? (
+          <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 p-2">
+            <Music size={14} className="shrink-0 text-swu-muted" />
+            <span className="min-w-0 flex-1 truncate text-xs font-semibold">
+              {musica.titulo || 'Pista'}
+            </span>
+          </div>
+        ) : (
+          <p className="rounded-lg border border-white/10 bg-black/20 p-2 text-[11px] text-swu-muted">
+            Sin pista. Subí un MP3 y controlá el volumen desde acá.
+          </p>
+        )}
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => onAccion({ t: 'musica', campos: { sonando: !musica.sonando } })}
+            disabled={!musica.pista}
+            className={`min-h-[44px] rounded-lg border text-[11px] font-black uppercase tracking-wider transition disabled:opacity-40 ${
+              musica.sonando
+                ? 'border-emerald-400 bg-emerald-400/20 text-emerald-200'
+                : 'border-white/10 bg-black/20 text-swu-muted hover:bg-white/5'
+            }`}
+          >
+            {musica.sonando ? 'Pausar' : 'Reproducir'}
+          </button>
+
+          <label className="grid min-h-[44px] cursor-pointer place-items-center rounded-lg border border-white/10 bg-black/20 text-[11px] font-black uppercase tracking-wider text-swu-muted transition hover:bg-white/5">
+            {subiendo ? 'Subiendo…' : musica.pista ? 'Cambiar' : 'Subir MP3'}
+            <input
+              type="file"
+              accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/aac"
+              onChange={subir}
+              disabled={subiendo}
+              className="hidden"
+            />
+          </label>
+        </div>
+
+        <label className="flex flex-col gap-1">
+          <span className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-swu-muted">
+            Volumen <span className="font-mono">{musica.volumen}%</span>
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            defaultValue={musica.volumen}
+            // Al SOLTAR y no en cada cambio: arrastrar el control dispara
+            // decenas de eventos y mandaría una escritura por píxel.
+            onMouseUp={e => onAccion({ t: 'musica', campos: { volumen: Number(e.currentTarget.value) } })}
+            onTouchEnd={e => onAccion({ t: 'musica', campos: { volumen: Number(e.currentTarget.value) } })}
+            className="w-full accent-swu-accent"
+          />
+        </label>
+
+        {error && <p className="text-[11px] text-red-300">{error}</p>}
+
+        <p className="text-[10px] leading-relaxed text-swu-muted">
+          Usá solo música con licencia libre: en YouTube la música con derechos
+          genera reclamos sobre el VOD, y eso no se arregla después.
+        </p>
+      </div>
+    </Panel>
   )
 }
 
@@ -995,7 +1271,7 @@ function Monitor({ code, alAire }: { code: string; alAire: boolean }) {
       <div className="relative w-full overflow-hidden bg-black" style={{ aspectRatio: '16 / 9' }}>
         <iframe
           title="Monitor de programa"
-          src={`/overlay/${code}?fondo=oscuro`}
+          src={`/overlay/${code}?fondo=oscuro&silencio=1`}
           className="absolute left-0 top-0 h-full w-full border-0"
           sandbox="allow-scripts allow-same-origin"
         />

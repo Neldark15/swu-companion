@@ -53,6 +53,8 @@ export type Accion =
   | { t: 'envivo'; valor: boolean }
   | { t: 'marca'; campos: Partial<import('../types/stream').MarcaOverlay> }
   | { t: 'carta'; carta: EstadoOverlay['carta'] }
+  | { t: 'lowerThird'; campos: Partial<EstadoOverlay['lowerThird']> }
+  | { t: 'musica'; campos: Partial<EstadoOverlay['musica']> }
 
 function conLado(e: EstadoOverlay, i: Indice, cambio: Partial<LadoOverlay>): EstadoOverlay {
   const lados: [LadoOverlay, LadoOverlay] = [{ ...e.lados[0] }, { ...e.lados[1] }]
@@ -139,6 +141,7 @@ export function reducir(e: EstadoOverlay, a: Accion): EstadoOverlay {
         envivo: e.envivo,
         ticker: e.ticker,
         tickerVisible: e.tickerVisible,
+        musica: e.musica,
         escena: e.escena,
         etiquetaRonda: e.etiquetaRonda,
         patrocinio: e.patrocinio,
@@ -219,6 +222,12 @@ export function reducir(e: EstadoOverlay, a: Accion): EstadoOverlay {
 
     case 'carta':
       return { ...e, carta: a.carta }
+
+    case 'lowerThird':
+      return { ...e, lowerThird: { ...e.lowerThird, ...a.campos } }
+
+    case 'musica':
+      return { ...e, musica: { ...e.musica, ...a.campos } }
   }
 }
 

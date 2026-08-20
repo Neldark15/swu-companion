@@ -122,7 +122,9 @@ export function escenasOBS(code: string, nombre: string, origen: string): string
           css: 'html, body, #root { background: transparent !important; margin: 0 !important; overflow: hidden; }',
           shutdown: false,
           restart_when_active: false,
-          reroute_audio: false,
+          // La música del marcador entra a la mezcla de OBS. Sin esto el audio
+          // del navegador se pierde y la música no sale al aire.
+          reroute_audio: true,
           webpage_control_level: 1,
         },
       },

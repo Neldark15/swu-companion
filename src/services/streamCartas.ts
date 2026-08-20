@@ -24,6 +24,8 @@ export interface CartaStream {
   aspectos: string[]
   /** HP impreso. Solo las bases lo traen; va de 24 a 35 según la carta. */
   hp: number | null
+  /** Texto de reglas, para retipografiarlo grande en la carta destacada. */
+  texto: string
   img: string
   setCode: string
 }
@@ -48,6 +50,13 @@ function mapear(c: Cruda): CartaStream {
     tipo: texto(c.type),
     aspectos: Array.isArray(c.aspects) ? (c.aspects as unknown[]).filter((a): a is string => typeof a === 'string') : [],
     hp: typeof c.hp === 'number' ? c.hp : null,
+    // El API reparte el texto en dos formas según el endpoint (§ swuApi):
+    // `text` en el bulk, `front_text`/`back_text` en el paginado.
+    texto:
+      texto(c.text) ||
+      [c.front_text, c.frontText, c.back_text, c.backText]
+        .filter((x): x is string => typeof x === 'string' && x.length > 0)
+        .join(' / '),
     img:
       texto(c.front_image_url) ||
       texto(c.frontImageUrl) ||

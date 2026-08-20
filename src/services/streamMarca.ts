@@ -12,22 +12,28 @@
 import { supabase } from './supabase'
 
 const BUCKET = 'stream-marca'
-/** El bucket rechaza más de 3 MB; se avisa antes de gastar la subida. */
-const MAX_BYTES = 3 * 1024 * 1024
-const TIPOS = ['image/png', 'image/webp', 'image/jpeg', 'image/avif']
+/** El bucket rechaza más de 12 MB; se avisa antes de gastar la subida. */
+const MAX_BYTES = 12 * 1024 * 1024
+const TIPOS_IMAGEN = ['image/png', 'image/webp', 'image/jpeg', 'image/avif']
+const TIPOS_AUDIO = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/aac', 'audio/mp4']
 
-export type TipoMarca = 'logo' | 'fondo'
+export type TipoMarca = 'logo' | 'fondo' | 'musica'
 
 export async function subirImagenMarca(
   code: string,
   tipo: TipoMarca,
   archivo: File
 ): Promise<string> {
-  if (!TIPOS.includes(archivo.type)) {
-    throw new Error('Formato no admitido. Usá PNG, WEBP, JPG o AVIF.')
+  const permitidos = tipo === 'musica' ? TIPOS_AUDIO : TIPOS_IMAGEN
+  if (!permitidos.includes(archivo.type)) {
+    throw new Error(
+      tipo === 'musica'
+        ? 'Formato no admitido. Usá MP3, WAV, OGG o AAC.'
+        : 'Formato no admitido. Usá PNG, WEBP, JPG o AVIF.'
+    )
   }
   if (archivo.size > MAX_BYTES) {
-    throw new Error(`La imagen pesa ${(archivo.size / 1024 / 1024).toFixed(1)} MB. El máximo es 3 MB.`)
+    throw new Error(`El archivo pesa ${(archivo.size / 1024 / 1024).toFixed(1)} MB. El máximo es 12 MB.`)
   }
 
   const ext = archivo.name.split('.').pop()?.toLowerCase() ?? 'png'

@@ -129,6 +129,14 @@ export interface EstadoOverlay {
   youtube: string
   /** El operador anuncia que hay transmisión: la app la muestra a todos. */
   envivo: boolean
+  /** Franja con el nombre de quien narra. Se enciende y apaga a voluntad. */
+  lowerThird: { texto: string; sub: string; visible: boolean }
+  /**
+   * Música de fondo. Suena DENTRO del overlay y OBS la mezcla, porque el
+   * operador está en el celular y no puede ir a la Mac a cambiar de tema.
+   * `pista` es la URL del MP3 subido a la cabina.
+   */
+  musica: { pista: string; titulo: string; sonando: boolean; volumen: number }
   lados: [LadoOverlay, LadoOverlay]
   carta: CartaDestacada | null
 }
@@ -167,6 +175,8 @@ export const ESTADO_INICIAL: EstadoOverlay = {
   tickerVisible: false,
   youtube: '',
   envivo: false,
+  lowerThird: { texto: '', sub: '', visible: false },
+  musica: { pista: '', titulo: '', sonando: false, volumen: 35 },
   lados: [{ ...LADO_VACIO }, { ...LADO_VACIO }],
   carta: null,
 }
@@ -285,6 +295,17 @@ export function normalizarEstado(x: unknown): EstadoOverlay {
     tickerVisible: booleano(o.tickerVisible),
     youtube: texto(o.youtube),
     envivo: booleano(o.envivo),
+    lowerThird: {
+      texto: texto((o.lowerThird as Record<string, unknown> | undefined)?.texto),
+      sub: texto((o.lowerThird as Record<string, unknown> | undefined)?.sub),
+      visible: booleano((o.lowerThird as Record<string, unknown> | undefined)?.visible),
+    },
+    musica: {
+      pista: texto((o.musica as Record<string, unknown> | undefined)?.pista),
+      titulo: texto((o.musica as Record<string, unknown> | undefined)?.titulo),
+      sonando: booleano((o.musica as Record<string, unknown> | undefined)?.sonando),
+      volumen: entero((o.musica as Record<string, unknown> | undefined)?.volumen, 35, 0, 100),
+    },
     lados: [normalizarLado(lados[0]), normalizarLado(lados[1])],
     carta: normalizarCarta(o.carta),
   }

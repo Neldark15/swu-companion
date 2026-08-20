@@ -24,7 +24,7 @@
  * `UpdatePrompt` — el único sitio del repo que registra el service worker.
  */
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import {
   ESTADO_INICIAL,
@@ -186,6 +186,9 @@ export function OverlayPage() {
   const code = codeCrudo.trim().toUpperCase()
   const [params] = useSearchParams()
   const fondoOscuro = params.get('fondo') === 'oscuro'
+  /* El monitor del estudio abre el MISMO overlay en un iframe: sin esto la
+     música sonaría dos veces y encima en el oído del operador. */
+  const silencio = params.get('silencio') === '1'
   const debug = params.get('debug') === '1'
 
   const [estado, setEstado] = useState<EstadoOverlay>(debug ? ESTADO_DEMO : ESTADO_INICIAL)
@@ -308,7 +311,9 @@ export function OverlayPage() {
         ) : (
           <EscenaOpaca estado={estado} restante={restante} />
         )}
+        {estado.lowerThird.visible && <LowerThird datos={estado.lowerThird} />}
         {estado.tickerVisible && <BarraNoticias texto={estado.ticker} />}
+        {!silencio && <Musica musica={estado.musica} />}
         <FranjaLegal patrocinio={estado.patrocinio} aviso={estado.marca.avisoLegal} />
       </div>
     </CtxTema.Provider>
@@ -1091,6 +1096,92 @@ function CartaDestacadaVista({ carta }: { carta: NonNullable<EstadoOverlay['cart
       </div>
     </div>
   )
+}
+
+/* ── Lower third ────────────────────────────────────────────────────── */
+
+/** Franja con el nombre de quien narra. Va sobre la barra de abajo. */
+function LowerThird({ datos }: { datos: EstadoOverlay['lowerThird'] }) {
+  const t = useContext(CtxTema)
+  if (!datos.texto.trim()) return null
+
+  return (
+    <div
+      className="ov-entra-abajo"
+      style={{
+        position: 'absolute',
+        left: 250,
+        bottom: 300,
+        filter: 'drop-shadow(0 10px 26px rgba(0,0,0,.6))',
+        zIndex: 6,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'stretch' }}>
+        <span style={{ width: 7, background: t.acento, boxShadow: `0 0 14px ${t.acento}` }} />
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            gap: 3,
+            padding: '13px 30px',
+            background: t.metal,
+            border: `1.5px solid ${t.acento}55`,
+            borderLeft: 'none',
+            boxShadow: RELIEVE,
+          }}
+        >
+          <span style={{ fontSize: 30, fontWeight: 900, lineHeight: 1.05, letterSpacing: '.02em' }}>
+            {datos.texto}
+          </span>
+          {datos.sub && (
+            <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '.16em', color: `${BLANCO}A0` }}>
+              {datos.sub}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Música ─────────────────────────────────────────────────────────── */
+
+/**
+ * Suena DENTRO del overlay para que OBS la mezcle, porque el operador está en
+ * el celular y no puede ir a la Mac a cambiar de tema.
+ *
+ * En OBS hay que marcar «Controlar audio mediante OBS» en la fuente del
+ * navegador; sin eso el audio no entra a la mezcla. El archivo de escenas que
+ * genera el panel ya lo trae puesto.
+ *
+ * No pinta nada: es solo el reproductor.
+ */
+function Musica({ musica }: { musica: EstadoOverlay['musica'] }) {
+  const ref = useRef<HTMLAudioElement | null>(null)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.volume = Math.min(1, Math.max(0, musica.volumen / 100))
+  }, [musica.volumen])
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el || !musica.pista) return
+    if (musica.sonando) {
+      // El navegador de OBS permite autoplay; un navegador normal lo bloquea y
+      // rechaza la promesa. Se traga en silencio: la música es accesoria y no
+      // puede tumbar el marcador.
+      void el.play().catch(() => {})
+    } else {
+      el.pause()
+    }
+  }, [musica.sonando, musica.pista])
+
+  if (!musica.pista) return null
+
+  return <audio ref={ref} src={musica.pista} loop preload="auto" />
 }
 
 /* ── Barra de comunidad ─────────────────────────────────────────────── */
