@@ -89,6 +89,9 @@ export const MARCA_POR_DEFECTO: MarcaOverlay = {
   fondoUrl: '',
   primario: '#0A2E6E',
   acento: '#E8B849',
+  /* Apagado por defecto: una cabina nueva NO hereda la identidad de otra
+     comunidad. Las que ya lo tenían lo llevan explícito en su fila, y un
+     disparador en la base impide que un cliente viejo se lo borre. */
   motivoLocal: false,
   avisoLegal:
     'COBERTURA COMUNITARIA · HECHA POR FANS · NO OFICIAL · NO AFILIADA A FANTASY FLIGHT GAMES, ASMODEE NI LUCASFILM',

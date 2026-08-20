@@ -71,14 +71,46 @@ interface Tema {
   metal: string
 }
 
+/**
+ * La paleta ORIGINAL, afinada a mano: azul acero desaturado, no un azul
+ * saturado cualquiera. Derivarla por multiplicación daba otro color, así que
+ * con el color de fábrica se usa TAL CUAL y solo se deriva cuando la cabina
+ * eligió un color propio.
+ */
+const OSCURO_BASE = '#061B42'
+const METAL_BASE = 'linear-gradient(180deg, #2B4F92 0%, #16305F 46%, #081A3E 100%)'
+
 function temaDe(marca: MarcaOverlay): Tema {
   const primario = marca.primario || MARCA_POR_DEFECTO.primario
+  const acento = marca.acento || MARCA_POR_DEFECTO.acento
+
+  // Color de fábrica → paleta original intacta.
+  if (primario.toLowerCase() === MARCA_POR_DEFECTO.primario.toLowerCase()) {
+    return { primario, oscuro: OSCURO_BASE, acento, metal: METAL_BASE }
+  }
+
+  // Color propio → se deriva. Se ACLARA hacia blanco en vez de multiplicar:
+  // multiplicar satura y ensucia; aclarar conserva el aire metálico.
+  const claro = (t: number) => aclarar(primario, t)
   return {
     primario,
-    oscuro: mezclar(primario, 0.42),
-    acento: marca.acento || MARCA_POR_DEFECTO.acento,
-    metal: `linear-gradient(180deg, ${mezclar(primario, 1.45)} 0%, ${mezclar(primario, 0.82)} 46%, ${mezclar(primario, 0.34)} 100%)`,
+    oscuro: mezclar(primario, 0.55),
+    acento,
+    metal: `linear-gradient(180deg, ${claro(0.2)} 0%, ${mezclar(primario, 0.78)} 46%, ${mezclar(primario, 0.36)} 100%)`,
   }
+}
+
+/** Mezcla hacia blanco: desatura, que es lo que da el aspecto metálico. */
+function aclarar(hex: string, t: number): string {
+  const h = hex.replace('#', '')
+  const n = h.length === 3 ? h.split('').map(c => c + c).join('') : h.slice(0, 6)
+  const v = parseInt(n, 16)
+  if (Number.isNaN(v)) return hex
+  const mez = (c: number) => Math.round(c + (255 - c) * t)
+  const r = mez((v >> 16) & 255)
+  const g = mez((v >> 8) & 255)
+  const b = mez(v & 255)
+  return `#${[r, g, b].map(x => x.toString(16).padStart(2, '0')).join('')}`
 }
 
 const CtxTema = createContext<Tema>(temaDe(MARCA_POR_DEFECTO))
