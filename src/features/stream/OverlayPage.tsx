@@ -24,29 +24,64 @@
  * `UpdatePrompt` — el único sitio del repo que registra el service worker.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import {
   ESTADO_INICIAL,
   formatearReloj,
   mensajesTicker,
   restanteReloj,
+  MARCA_POR_DEFECTO,
   type EstadoOverlay,
   type LadoOverlay,
+  type MarcaOverlay,
 } from '../../types/stream'
 import { leerOverlay, suscribirOverlay } from '../../services/streamOverlay'
 
 /* ── Identidad ────────────────────────────────────────────────────────
  * Azul cobalto y dorado con luces cian, sobre la bandera de El Salvador.
  * Rojo solo para TIEMPO y el punto de EN JUEGO. */
-const COBALTO_OSCURO = '#061B42'
-const DORADO = '#E8B849'
 const ROJO = '#C1332A'
 const BLANCO = '#F4F7FB'
 const CIAN = '#3FB6FF'
 
 /** Gradiente metalizado de los paneles. */
-const METAL = 'linear-gradient(180deg, #2B4F92 0%, #16305F 46%, #081A3E 100%)'
+/**
+ * El tema sale de la MARCA de la cabina, no de constantes fijas: la
+ * herramienta la usan varias comunidades y cada una tiene su color.
+ *
+ * `mezclar` oscurece hacia negro para derivar el fondo y el metal a partir de
+ * un solo color primario — así el operador elige UN color y no cinco.
+ */
+function mezclar(hex: string, factor: number): string {
+  const h = hex.replace('#', '')
+  const n = h.length === 3 ? h.split('').map(c => c + c).join('') : h.slice(0, 6)
+  const v = parseInt(n, 16)
+  if (Number.isNaN(v)) return hex
+  const r = Math.round(((v >> 16) & 255) * factor)
+  const g = Math.round(((v >> 8) & 255) * factor)
+  const b = Math.round((v & 255) * factor)
+  return `#${[r, g, b].map(x => Math.min(255, x).toString(16).padStart(2, '0')).join('')}`
+}
+
+interface Tema {
+  primario: string
+  oscuro: string
+  acento: string
+  metal: string
+}
+
+function temaDe(marca: MarcaOverlay): Tema {
+  const primario = marca.primario || MARCA_POR_DEFECTO.primario
+  return {
+    primario,
+    oscuro: mezclar(primario, 0.42),
+    acento: marca.acento || MARCA_POR_DEFECTO.acento,
+    metal: `linear-gradient(180deg, ${mezclar(primario, 1.45)} 0%, ${mezclar(primario, 0.82)} 46%, ${mezclar(primario, 0.34)} 100%)`,
+  }
+}
+
+const CtxTema = createContext<Tema>(temaDe(MARCA_POR_DEFECTO))
 /** Relieve interior: filo de luz arriba, sombra abajo. */
 const RELIEVE =
   'inset 0 1px 0 rgba(255,255,255,.22), inset 0 -10px 22px rgba(0,0,0,.4), inset 0 12px 26px rgba(90,150,255,.12)'
@@ -213,19 +248,23 @@ export function OverlayPage() {
   }
 
   return (
-    <>
+    <CtxTema.Provider value={temaDe(estado.marca)}>
       <style>{ESTILOS}</style>
       <div style={lienzo}>
         {estado.escena === 'juego' ? (
           <>
             {/* El marco con la ventana transparente: la cámara de OBS queda
                 DETRÁS y asoma solo por la ventana (421,258 → 1494,859). Las
-                barras del HUD van encima del marco. */}
-            <img
-              src="/stream/marco.webp"
-              alt=""
-              style={{ position: 'absolute', inset: 0, width: 1920, height: 1080, pointerEvents: 'none' }}
-            />
+                barras del HUD van encima del marco.
+                Lleva volcanes: es de El Salvador, así que solo con motivo local.
+                Sin él, la cámara ocupa TODO el cuadro y las barras van encima. */}
+            {estado.marca.motivoLocal && (
+              <img
+                src="/stream/marco.webp"
+                alt=""
+                style={{ position: 'absolute', inset: 0, width: 1920, height: 1080, pointerEvents: 'none' }}
+              />
+            )}
             <BarraArriba estado={estado} restante={restante} />
             <CartaJugada lado={estado.lados[0]} alineado="izq" />
             <CartaJugada lado={estado.lados[1]} alineado="der" />
@@ -238,9 +277,9 @@ export function OverlayPage() {
           <EscenaOpaca estado={estado} restante={restante} />
         )}
         {estado.tickerVisible && <BarraNoticias texto={estado.ticker} />}
-        <FranjaLegal patrocinio={estado.patrocinio} />
+        <FranjaLegal patrocinio={estado.patrocinio} aviso={estado.marca.avisoLegal} />
       </div>
-    </>
+    </CtxTema.Provider>
   )
 }
 
@@ -250,14 +289,18 @@ export function OverlayPage() {
 function Chapa({
   recorte = 16,
   brillo = false,
+  local = false,
   style,
   children,
 }: {
   recorte?: number
   brillo?: boolean
+  /** Filo tricolor de El Salvador; si no, remate con el acento de la marca. */
+  local?: boolean
   style?: React.CSSProperties
   children: React.ReactNode
 }) {
+  const t = useContext(CtxTema)
   return (
     <div
       style={{
@@ -270,8 +313,8 @@ function Chapa({
       <div
         style={{
           // Textura de microcircuito diagonal, casi imperceptible, sobre el metal.
-          background: `repeating-linear-gradient(115deg, rgba(255,255,255,.028) 0 1px, transparent 1px 26px), ${METAL}`,
-          border: `1.5px solid ${DORADO}59`,
+          background: `repeating-linear-gradient(115deg, rgba(255,255,255,.028) 0 1px, transparent 1px 26px), ${t.metal}`,
+          border: `1.5px solid ${t.acento}59`,
           boxShadow: RELIEVE,
           clipPath: chaflan(recorte),
           height: '100%',
@@ -281,7 +324,8 @@ function Chapa({
         }}
       >
         {children}
-        {/* Filo de la bandera: azul-blanco-azul recorriendo la base del panel. */}
+        {/* Filo inferior. Con motivo local es la bandera; si no, el acento
+            de la marca — el panel nunca queda sin su remate. */}
         <span
           style={{
             position: 'absolute',
@@ -289,7 +333,9 @@ function Chapa({
             right: recorte,
             bottom: 0,
             height: 4,
-            background: 'linear-gradient(90deg, #1E4FB8 0 34%, #F4F7FB 34% 66%, #1E4FB8 66% 100%)',
+            background: local
+              ? 'linear-gradient(90deg, #1E4FB8 0 34%, #F4F7FB 34% 66%, #1E4FB8 66% 100%)'
+              : `linear-gradient(90deg, transparent, ${t.acento}, transparent)`,
             opacity: 0.9,
             boxShadow: '0 0 8px rgba(63,182,255,.45)',
             pointerEvents: 'none',
@@ -337,6 +383,7 @@ function Luces({ lado }: { lado: 'izq' | 'der' }) {
  * admite borde propio).
  */
 function Volcan({ tam = 44 }: { tam?: number }) {
+  const t = useContext(CtxTema)
   return (
     <div style={{ position: 'relative', width: tam, height: tam * 0.74, flex: '0 0 auto' }}>
       <span
@@ -357,7 +404,7 @@ function Volcan({ tam = 44 }: { tam?: number }) {
           position: 'absolute',
           inset: 0,
           clipPath: 'polygon(50% 0, 100% 100%, 0 100%)',
-          background: `${DORADO}B8`,
+          background: `${t.acento}B8`,
         }}
       />
       <span
@@ -373,13 +420,14 @@ function Volcan({ tam = 44 }: { tam?: number }) {
 }
 
 function Etiqueta({ children }: { children: React.ReactNode }) {
+  const t = useContext(CtxTema)
   return (
     <span
       style={{
         fontSize: 11,
         fontWeight: 800,
         letterSpacing: '.22em',
-        color: DORADO,
+        color: t.acento,
         lineHeight: 1,
         whiteSpace: 'nowrap',
       }}
@@ -390,6 +438,7 @@ function Etiqueta({ children }: { children: React.ReactNode }) {
 }
 
 function Celda({ children, sinBorde }: { children: React.ReactNode; sinBorde?: boolean }) {
+  const t = useContext(CtxTema)
   return (
     <div
       style={{
@@ -399,7 +448,7 @@ function Celda({ children, sinBorde }: { children: React.ReactNode; sinBorde?: b
         alignItems: 'center',
         gap: 7,
         padding: '0 20px',
-        borderLeft: sinBorde ? 'none' : `1px solid ${DORADO}30`,
+        borderLeft: sinBorde ? 'none' : `1px solid ${t.acento}30`,
       }}
     >
       {children}
@@ -421,6 +470,7 @@ function IconoAspecto({ aspecto, tam = 30 }: { aspecto: string; tam?: number }) 
 }
 
 function Retrato({ lado }: { lado: LadoOverlay }) {
+  const t = useContext(CtxTema)
   const [falló, setFalló] = useState(false)
   const src = lado.liderImg ? `/api/img?u=${encodeURIComponent(lado.liderImg)}&w=448` : ''
 
@@ -432,9 +482,9 @@ function Retrato({ lado }: { lado: LadoOverlay }) {
         height: '100%',
         flex: '0 0 auto',
         clipPath: chaflan(12),
-        border: `2px solid ${lado.liderDesplegado ? DORADO : `${DORADO}55`}`,
-        boxShadow: lado.liderDesplegado ? `inset 0 0 18px ${DORADO}66` : 'none',
-        background: COBALTO_OSCURO,
+        border: `2px solid ${lado.liderDesplegado ? t.acento : `${t.acento}55`}`,
+        boxShadow: lado.liderDesplegado ? `inset 0 0 18px ${t.acento}66` : 'none',
+        background: t.oscuro,
       }}
     >
       {src && !falló ? (
@@ -468,8 +518,8 @@ function Retrato({ lado }: { lado: LadoOverlay }) {
             left: '50%',
             transform: 'translateX(-50%)',
             padding: '3px 10px',
-            background: `linear-gradient(180deg, ${DORADO}, #C9982F)`,
-            color: COBALTO_OSCURO,
+            background: `linear-gradient(180deg, ${t.acento}, #C9982F)`,
+            color: t.oscuro,
             fontSize: 11,
             fontWeight: 900,
             letterSpacing: '.12em',
@@ -496,11 +546,12 @@ function BloqueJugador({
   invertido: boolean
   conIniciativa: boolean
 }) {
+  const t = useContext(CtxTema)
   const vida = Math.max(0, lado.hpMax - lado.dano)
   const derrotado = vida === 0
   const fraccion = lado.hpMax > 0 ? vida / lado.hpMax : 1
   /* Blanco → dorado (≤50%) → rojo (≤25%): la tensión se ve venir. */
-  const colorVida = derrotado || fraccion <= 0.25 ? ROJO : fraccion <= 0.5 ? DORADO : BLANCO
+  const colorVida = derrotado || fraccion <= 0.25 ? ROJO : fraccion <= 0.5 ? t.acento : BLANCO
 
   return (
     <div
@@ -639,13 +690,13 @@ function BloqueJugador({
               position: 'relative',
               overflow: 'hidden',
               padding: '14px 30px',
-              background: `linear-gradient(180deg, #F5CF6B, ${DORADO} 55%, #B8862B)`,
-              color: COBALTO_OSCURO,
+              background: `linear-gradient(180deg, #F5CF6B, ${t.acento} 55%, #B8862B)`,
+              color: t.oscuro,
               fontSize: 17,
               fontWeight: 900,
               letterSpacing: '.2em',
               clipPath: chaflan(9),
-              boxShadow: `0 0 18px ${DORADO}66`,
+              boxShadow: `0 0 18px ${t.acento}66`,
               whiteSpace: 'nowrap',
             }}
           >
@@ -671,6 +722,7 @@ function BloqueJugador({
 }
 
 function MiniBase({ img }: { img: string }) {
+  const t = useContext(CtxTema)
   const [falló, setFalló] = useState(false)
   const src = img ? `/api/img?u=${encodeURIComponent(img)}&w=224` : ''
   if (!src || falló) {
@@ -681,8 +733,8 @@ function MiniBase({ img }: { img: string }) {
           height: 58,
           flex: '0 0 auto',
           clipPath: chaflan(8),
-          background: COBALTO_OSCURO,
-          border: `1.5px solid ${DORADO}44`,
+          background: t.oscuro,
+          border: `1.5px solid ${t.acento}44`,
         }}
       />
     )
@@ -698,7 +750,7 @@ function MiniBase({ img }: { img: string }) {
         flex: '0 0 auto',
         objectFit: 'cover',
         clipPath: chaflan(8),
-        border: `1.5px solid ${DORADO}66`,
+        border: `1.5px solid ${t.acento}66`,
       }}
     />
   )
@@ -707,10 +759,11 @@ function MiniBase({ img }: { img: string }) {
 /* ── Barra superior: ronda + reloj + jugador 2 ──────────────────────── */
 
 function BarraArriba({ estado, restante }: { estado: EstadoOverlay; restante: number | null }) {
+  const t = useContext(CtxTema)
   const porTerminar = restante !== null && restante <= 5 * 60 * 1000
   const ultimoMinuto = restante !== null && restante <= 60 * 1000
   const colorReloj =
-    estado.tiempoExtra || restante === 0 || ultimoMinuto ? ROJO : porTerminar ? DORADO : BLANCO
+    estado.tiempoExtra || restante === 0 || ultimoMinuto ? ROJO : porTerminar ? t.acento : BLANCO
 
   return (
     <div
@@ -718,16 +771,20 @@ function BarraArriba({ estado, restante }: { estado: EstadoOverlay; restante: nu
       style={{ position: 'absolute', top: 16, left: 18, right: 18, height: 128, display: 'flex', gap: 14 }}
     >
       {/* Bloque de ronda y reloj */}
-      <Chapa recorte={16} brillo style={{ flex: '0 0 auto' }}>
+      <Chapa recorte={16} brillo local={estado.marca.motivoLocal} style={{ flex: '0 0 auto' }}>
         <Luces lado="izq" />
         <div style={{ display: 'flex', alignItems: 'center', padding: '0 26px 0 24px', gap: 22 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
-            <Volcan tam={40} />
-            <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '.28em', color: DORADO, whiteSpace: 'nowrap' }}>
-              EL SALVADOR
-            </span>
-          </div>
-          <span style={{ width: 1, height: 64, background: `${DORADO}35` }} />
+          {estado.marca.motivoLocal && (
+            <>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+                <Volcan tam={40} />
+                <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '.28em', color: t.acento, whiteSpace: 'nowrap' }}>
+                  EL SALVADOR
+                </span>
+              </div>
+              <span style={{ width: 1, height: 64, background: `${t.acento}35` }} />
+            </>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ fontSize: 19, fontWeight: 900, letterSpacing: '.06em', whiteSpace: 'nowrap' }}>
               {estado.etiquetaRonda}
@@ -736,7 +793,7 @@ function BarraArriba({ estado, restante }: { estado: EstadoOverlay; restante: nu
               JUEGO {estado.juego}
             </span>
           </div>
-          <span style={{ width: 1, height: 64, background: `${DORADO}35` }} />
+          <span style={{ width: 1, height: 64, background: `${t.acento}35` }} />
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
             <span
               className={porTerminar ? 'ov-pulso' : undefined}
@@ -775,7 +832,7 @@ function BarraArriba({ estado, restante }: { estado: EstadoOverlay; restante: nu
       <div style={{ flex: 1 }} />
 
       {/* Jugador 2, reflejado hacia el borde derecho */}
-      <Chapa recorte={16} brillo style={{ flex: '0 0 auto', position: 'relative' }}>
+      <Chapa recorte={16} brillo local={estado.marca.motivoLocal} style={{ flex: '0 0 auto', position: 'relative' }}>
         <Luces lado="der" />
         <BloqueJugador
           lado={estado.lados[1]}
@@ -800,7 +857,7 @@ function BarraAbajo({ estado }: { estado: EstadoOverlay }) {
       className="ov-entra-abajo"
       style={{ position: 'absolute', bottom: abajo, left: 18, right: 18, height: 128, display: 'flex' }}
     >
-      <Chapa recorte={16} brillo style={{ flex: '0 0 auto', position: 'relative' }}>
+      <Chapa recorte={16} brillo local={estado.marca.motivoLocal} style={{ flex: '0 0 auto', position: 'relative' }}>
         <Luces lado="izq" />
         <BloqueJugador
           lado={estado.lados[0]}
@@ -826,6 +883,7 @@ function BarraAbajo({ estado }: { estado: EstadoOverlay }) {
  * Ocupa la franja vertical entre las dos barras, que estaba vacía.
  */
 function CartaJugada({ lado, alineado }: { lado: LadoOverlay; alineado: 'izq' | 'der' }) {
+  const t = useContext(CtxTema)
   const [falló, setFalló] = useState(false)
   const src = lado.jugadaImg ? `/api/img?u=${encodeURIComponent(lado.jugadaImg)}&w=448` : ''
 
@@ -849,8 +907,8 @@ function CartaJugada({ lado, alineado }: { lado: LadoOverlay; alineado: 'izq' | 
     >
       <div
         style={{
-          background: `repeating-linear-gradient(115deg, rgba(255,255,255,.028) 0 1px, transparent 1px 26px), ${METAL}`,
-          border: `1.5px solid ${DORADO}66`,
+          background: `repeating-linear-gradient(115deg, rgba(255,255,255,.028) 0 1px, transparent 1px 26px), ${t.metal}`,
+          border: `1.5px solid ${t.acento}66`,
           boxShadow: RELIEVE,
           clipPath: chaflan(14),
           padding: 12,
@@ -864,7 +922,7 @@ function CartaJugada({ lado, alineado }: { lado: LadoOverlay; alineado: 'izq' | 
             fontSize: 11,
             fontWeight: 900,
             letterSpacing: '.24em',
-            color: DORADO,
+            color: t.acento,
             textAlign: 'center',
           }}
         >
@@ -930,17 +988,18 @@ function BannerTiempo() {
 }
 
 function BannerRevision() {
+  const t = useContext(CtxTema)
   return (
     <div
       className="ov-fundido"
-      style={{ position: 'absolute', top: 470, left: '50%', transform: 'translateX(-50%)', filter: `drop-shadow(0 0 20px ${DORADO}66)` }}
+      style={{ position: 'absolute', top: 470, left: '50%', transform: 'translateX(-50%)', filter: `drop-shadow(0 0 20px ${t.acento}66)` }}
     >
       <span
         style={{
           display: 'block',
           padding: '16px 46px',
-          background: METAL,
-          border: `2px solid ${DORADO}`,
+          background: t.metal,
+          border: `2px solid ${t.acento}`,
           fontSize: 32,
           fontWeight: 900,
           letterSpacing: '.14em',
@@ -955,6 +1014,7 @@ function BannerRevision() {
 }
 
 function CartaDestacadaVista({ carta }: { carta: NonNullable<EstadoOverlay['carta']> }) {
+  const t = useContext(CtxTema)
   const src = carta.img ? `/api/img?u=${encodeURIComponent(carta.img)}&w=448` : ''
   return (
     <div
@@ -973,8 +1033,8 @@ function CartaDestacadaVista({ carta }: { carta: NonNullable<EstadoOverlay['cart
           display: 'flex',
           gap: 24,
           padding: 22,
-          background: METAL,
-          border: `1.5px solid ${DORADO}66`,
+          background: t.metal,
+          border: `1.5px solid ${t.acento}66`,
           boxShadow: RELIEVE,
           clipPath: chaflan(16),
         }}
@@ -1003,6 +1063,7 @@ function CartaDestacadaVista({ carta }: { carta: NonNullable<EstadoOverlay['cart
 /* ── Barra de comunidad ─────────────────────────────────────────────── */
 
 function BarraNoticias({ texto }: { texto: string }) {
+  const t = useContext(CtxTema)
   const mensajes = useMemo(() => mensajesTicker(texto), [texto])
   if (mensajes.length === 0) return null
 
@@ -1020,8 +1081,8 @@ function BarraNoticias({ texto }: { texto: string }) {
         display: 'flex',
         alignItems: 'center',
         overflow: 'hidden',
-        background: METAL,
-        borderTop: `2px solid ${DORADO}99`,
+        background: t.metal,
+        borderTop: `2px solid ${t.acento}99`,
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,.16)',
       }}
     >
@@ -1032,8 +1093,8 @@ function BarraNoticias({ texto }: { texto: string }) {
           display: 'flex',
           alignItems: 'center',
           padding: '0 24px',
-          background: `linear-gradient(180deg, #F5CF6B, ${DORADO} 55%, #B8862B)`,
-          color: COBALTO_OSCURO,
+          background: `linear-gradient(180deg, #F5CF6B, ${t.acento} 55%, #B8862B)`,
+          color: t.oscuro,
           fontSize: 19,
           fontWeight: 900,
           letterSpacing: '.16em',
@@ -1064,7 +1125,8 @@ function BarraNoticias({ texto }: { texto: string }) {
   )
 }
 
-function FranjaLegal({ patrocinio }: { patrocinio: string }) {
+function FranjaLegal({ patrocinio, aviso }: { patrocinio: string; aviso: string }) {
+  const t = useContext(CtxTema)
   return (
     <div
       style={{
@@ -1077,7 +1139,7 @@ function FranjaLegal({ patrocinio }: { patrocinio: string }) {
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0 32px',
-        background: `${COBALTO_OSCURO}E6`,
+        background: `${t.oscuro}E6`,
         borderTop: `1px solid ${BLANCO}1A`,
         fontSize: 17,
         fontWeight: 600,
@@ -1086,7 +1148,7 @@ function FranjaLegal({ patrocinio }: { patrocinio: string }) {
         zIndex: 6,
       }}
     >
-      <span>{AVISO_LEGAL}</span>
+      <span>{aviso || AVISO_LEGAL}</span>
       {patrocinio && <span style={{ color: `${BLANCO}CC` }}>{patrocinio}</span>}
     </div>
   )
@@ -1101,9 +1163,11 @@ const TITULOS: Record<string, string> = {
 }
 
 function EscenaOpaca({ estado, restante }: { estado: EstadoOverlay; restante: number | null }) {
+  const t = useContext(CtxTema)
   const l0 = estado.lados[0]
   const l1 = estado.lados[1]
   const hayMatchup = Boolean(l0.nombre || l1.nombre)
+  const logo = estado.marca.logoUrl || (estado.marca.motivoLocal ? '/stream/logo.webp' : '')
 
   return (
     <div
@@ -1119,21 +1183,43 @@ function EscenaOpaca({ estado, restante }: { estado: EstadoOverlay; restante: nu
         // El marco propio (volcán + El Salvador) va de fondo; una capa oscura
         // sutil encima asegura contraste. El color sólido es el respaldo si la
         // imagen no cargara: nunca queda una pantalla en blanco.
-        background: `linear-gradient(rgba(3,10,28,.24), rgba(3,10,28,.46)), url('/stream/fondo.jpg') center / cover no-repeat, ${COBALTO_OSCURO}`,
+        // El fondo de la marca manda; si la cabina no subió ninguno y tiene el
+        // motivo local, va el marco propio; si no, solo el color de la marca.
+        background: estado.marca.fondoUrl
+          ? `linear-gradient(rgba(0,0,0,.28), rgba(0,0,0,.5)), url('${estado.marca.fondoUrl}') center / cover no-repeat, ${t.oscuro}`
+          : estado.marca.motivoLocal
+            ? `linear-gradient(rgba(3,10,28,.24), rgba(3,10,28,.46)), url('/stream/fondo.jpg') center / cover no-repeat, ${t.oscuro}`
+            : `radial-gradient(circle at 50% 35%, ${t.primario} 0%, ${t.oscuro} 68%, #05070E 100%)`,
       }}
     >
-      {/* El emblema de la comunidad preside la espera, flotando como holograma. */}
-      <img
-        src="/stream/logo.webp"
-        alt=""
-        className="ov-flota"
-        style={{
-          width: 330,
-          height: 330,
-          objectFit: 'contain',
-          filter: `drop-shadow(0 0 34px rgba(63,182,255,.4)) drop-shadow(0 10px 26px rgba(0,0,0,.7))`,
-        }}
-      />
+      {/* El emblema preside la espera, flotando como holograma. Cada cabina
+          sube el suyo; sin logo no se pinta nada (jamás el de otra comunidad). */}
+      {logo && (
+        <img
+          src={logo}
+          alt=""
+          className="ov-flota"
+          style={{
+            width: 330,
+            height: 330,
+            objectFit: 'contain',
+            filter: `drop-shadow(0 0 34px ${t.acento}55) drop-shadow(0 10px 26px rgba(0,0,0,.7))`,
+          }}
+        />
+      )}
+
+      {estado.marca.nombre && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 30, fontWeight: 900, letterSpacing: '.3em', color: t.acento }}>
+            {estado.marca.nombre}
+          </span>
+          {estado.marca.lema && (
+            <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '.28em', color: `${BLANCO}88` }}>
+              {estado.marca.lema}
+            </span>
+          )}
+        </div>
+      )}
 
       <span
         style={{
@@ -1153,8 +1239,8 @@ function EscenaOpaca({ estado, restante }: { estado: EstadoOverlay; restante: nu
             fontSize: 64,
             fontWeight: 900,
             fontVariantNumeric: 'tabular-nums',
-            color: DORADO,
-            textShadow: `0 0 26px ${DORADO}66`,
+            color: t.acento,
+            textShadow: `0 0 26px ${t.acento}66`,
           }}
         >
           {formatearReloj(restante)}
@@ -1164,7 +1250,7 @@ function EscenaOpaca({ estado, restante }: { estado: EstadoOverlay; restante: nu
       {hayMatchup && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 38 }}>
           <span style={{ fontSize: 42, fontWeight: 900, textTransform: 'uppercase' }}>{l0.nombre || '—'}</span>
-          <span style={{ fontSize: 26, fontWeight: 900, color: DORADO, letterSpacing: '.22em' }}>VS</span>
+          <span style={{ fontSize: 26, fontWeight: 900, color: t.acento, letterSpacing: '.22em' }}>VS</span>
           <span style={{ fontSize: 42, fontWeight: 900, textTransform: 'uppercase' }}>{l1.nombre || '—'}</span>
         </div>
       )}
@@ -1187,8 +1273,8 @@ function EscenaOpaca({ estado, restante }: { estado: EstadoOverlay; restante: nu
       <span
         style={{
           padding: '8px 26px',
-          background: METAL,
-          border: `1px solid ${DORADO}55`,
+          background: t.metal,
+          border: `1px solid ${t.acento}55`,
           clipPath: chaflan(8),
           fontSize: 20,
           fontWeight: 800,

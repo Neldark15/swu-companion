@@ -57,8 +57,46 @@ export interface CartaDestacada {
   hasta: number
 }
 
+/**
+ * La identidad visual de la cabina.
+ *
+ * Existe para que la herramienta NO sea «el overlay de El Salvador»: cada
+ * creador sube su logo y elige sus colores. Los valores por defecto son
+ * neutros a propósito — quien no configure nada obtiene algo sobrio, no la
+ * marca de otra comunidad.
+ */
+export interface MarcaOverlay {
+  /** Rótulo de las pantallas de espera. Ej: «CHAVO RUCOS». */
+  nombre: string
+  /** Línea chica bajo el nombre. Ej: «MÉXICO» o el nombre del torneo. */
+  lema: string
+  logoUrl: string
+  fondoUrl: string
+  /** Color de los paneles. */
+  primario: string
+  /** Color de los filos, rótulos e INICIATIVA. */
+  acento: string
+  /** El filo tricolor y el volcán: propios de El Salvador, apagables. */
+  motivoLocal: boolean
+  /** Editable: cada comunidad tiene su propia fórmula. */
+  avisoLegal: string
+}
+
+export const MARCA_POR_DEFECTO: MarcaOverlay = {
+  nombre: '',
+  lema: '',
+  logoUrl: '',
+  fondoUrl: '',
+  primario: '#0A2E6E',
+  acento: '#E8B849',
+  motivoLocal: false,
+  avisoLegal:
+    'COBERTURA COMUNITARIA · HECHA POR FANS · NO OFICIAL · NO AFILIADA A FANTASY FLIGHT GAMES, ASMODEE NI LUCASFILM',
+}
+
 export interface EstadoOverlay {
   v: 1
+  marca: MarcaOverlay
   escena: Escena
   /** "RONDA 3" · "TOP 4" · "FINAL" */
   etiquetaRonda: string
@@ -112,6 +150,7 @@ const LADO_VACIO: LadoOverlay = {
 
 export const ESTADO_INICIAL: EstadoOverlay = {
   v: 1,
+  marca: { ...MARCA_POR_DEFECTO },
   escena: 'pronto',
   etiquetaRonda: 'RONDA 1',
   juego: 1,
@@ -198,6 +237,23 @@ function normalizarCarta(x: unknown): CartaDestacada | null {
   }
 }
 
+function normalizarMarca(x: unknown): MarcaOverlay {
+  const o = (x ?? {}) as Record<string, unknown>
+  // Un color inválido rompería el render entero; se acota a #rgb/#rrggbb.
+  const color = (v: unknown, porDefecto: string) =>
+    typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v.trim()) ? v.trim() : porDefecto
+  return {
+    nombre: texto(o.nombre),
+    lema: texto(o.lema),
+    logoUrl: texto(o.logoUrl),
+    fondoUrl: texto(o.fondoUrl),
+    primario: color(o.primario, MARCA_POR_DEFECTO.primario),
+    acento: color(o.acento, MARCA_POR_DEFECTO.acento),
+    motivoLocal: booleano(o.motivoLocal),
+    avisoLegal: texto(o.avisoLegal, MARCA_POR_DEFECTO.avisoLegal),
+  }
+}
+
 /**
  * Convierte cualquier cosa que venga de la base en un estado pintable.
  *
@@ -212,6 +268,7 @@ export function normalizarEstado(x: unknown): EstadoOverlay {
 
   return {
     v: 1,
+    marca: normalizarMarca(o.marca),
     escena: ESCENAS.includes(o.escena as Escena) ? (o.escena as Escena) : 'pronto',
     etiquetaRonda: texto(o.etiquetaRonda, ESTADO_INICIAL.etiquetaRonda),
     juego: entero(o.juego, 1, 1, 5),

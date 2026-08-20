@@ -50,6 +50,7 @@ export type Accion =
   | { t: 'tickerVisible'; valor: boolean }
   | { t: 'youtube'; texto: string }
   | { t: 'envivo'; valor: boolean }
+  | { t: 'marca'; campos: Partial<import('../types/stream').MarcaOverlay> }
   | { t: 'carta'; carta: EstadoOverlay['carta'] }
 
 function conLado(e: EstadoOverlay, i: Indice, cambio: Partial<LadoOverlay>): EstadoOverlay {
@@ -124,6 +125,13 @@ export function reducir(e: EstadoOverlay, a: Accion): EstadoOverlay {
       // Se conservan los nombres: reiniciar el match no cambia quién juega.
       return {
         ...ESTADO_INICIAL,
+        // La marca, el canal y el ticker son CONFIGURACIÓN de la cabina, no
+        // estado de la partida: reiniciar el marcador no puede borrar el logo.
+        marca: e.marca,
+        youtube: e.youtube,
+        envivo: e.envivo,
+        ticker: e.ticker,
+        tickerVisible: e.tickerVisible,
         escena: e.escena,
         etiquetaRonda: e.etiquetaRonda,
         patrocinio: e.patrocinio,
@@ -198,6 +206,9 @@ export function reducir(e: EstadoOverlay, a: Accion): EstadoOverlay {
 
     case 'envivo':
       return { ...e, envivo: a.valor }
+
+    case 'marca':
+      return { ...e, marca: { ...e.marca, ...a.campos } }
 
     case 'carta':
       return { ...e, carta: a.carta }

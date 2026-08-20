@@ -29,6 +29,7 @@ import {
   Radio,
   RotateCcw,
   Search,
+  Image as ImageIcon,
   Shield,
   Sparkles,
   Undo2,
@@ -42,6 +43,7 @@ import {
   restanteReloj,
   urlIncrustarYoutube,
   type EstadoOverlay,
+  type MarcaOverlay,
 } from '../../types/stream'
 import {
   aplicarAccion,
@@ -52,6 +54,7 @@ import {
 } from '../../services/streamOverlay'
 import { listarSesiones, misSesiones } from '../../services/streamSesiones'
 import { descargarEscenasOBS } from '../../services/obsEscenas'
+import { borrarImagenMarca, subirImagenMarca, type TipoMarca } from '../../services/streamMarca'
 import {
   buscarCartas,
   cargarCartasStream,
@@ -583,6 +586,8 @@ export function EstudioPage() {
             </div>
           </Panel>
 
+          <PanelMarca code={code} marca={estado.marca} onAccion={aplicar} />
+
           <Panel titulo="Textos y barra de comunidad" denso>
             <div className="flex flex-col gap-2">
               <CampoTexto
@@ -621,6 +626,208 @@ export function EstudioPage() {
         )}
       </main>
     </div>
+  )
+}
+
+/* ── Marca de la cabina ─────────────────────────────────────────────── */
+
+/**
+ * Identidad visual: logo, colores y textos.
+ *
+ * Es lo que convierte esto en una herramienta y no en «el overlay de una
+ * comunidad»: cada creador sube su logo y elige su color, y el resultado se ve
+ * en el monitor al instante porque la marca viaja en el mismo estado en vivo
+ * que el marcador.
+ */
+function PanelMarca({
+  code,
+  marca,
+  onAccion,
+}: {
+  code: string
+  marca: MarcaOverlay
+  onAccion: (a: Accion) => void
+}) {
+  const [subiendo, setSubiendo] = useState<TipoMarca | null>(null)
+  const [error, setError] = useState('')
+
+  const subir = (tipo: TipoMarca) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const archivo = e.target.files?.[0]
+    if (!archivo) return
+    setSubiendo(tipo)
+    setError('')
+
+    const anterior = tipo === 'logo' ? marca.logoUrl : marca.fondoUrl
+
+    subirImagenMarca(code, tipo, archivo)
+      .then(url => {
+        onAccion({ t: 'marca', campos: tipo === 'logo' ? { logoUrl: url } : { fondoUrl: url } })
+        // La anterior se borra DESPUÉS de guardar la nueva: si se borrara antes
+        // y la subida fallara, la cabina quedaría sin imagen.
+        if (anterior) void borrarImagenMarca(anterior)
+      })
+      .catch(err => setError(err instanceof Error ? err.message : 'No se pudo subir'))
+      .finally(() => {
+        setSubiendo(null)
+        e.target.value = ''
+      })
+  }
+
+  const quitar = (tipo: TipoMarca) => {
+    const anterior = tipo === 'logo' ? marca.logoUrl : marca.fondoUrl
+    onAccion({ t: 'marca', campos: tipo === 'logo' ? { logoUrl: '' } : { fondoUrl: '' } })
+    if (anterior) void borrarImagenMarca(anterior)
+  }
+
+  return (
+    <Panel titulo="Marca de la cabina" nota="Se ve al instante en el monitor" denso>
+      <div className="flex flex-col gap-2.5">
+        <CampoTexto
+          etiqueta="Nombre (pantallas de espera)"
+          valor={marca.nombre}
+          onGuardar={v => onAccion({ t: 'marca', campos: { nombre: v } })}
+        />
+        <CampoTexto
+          etiqueta="Lema o región"
+          valor={marca.lema}
+          onGuardar={v => onAccion({ t: 'marca', campos: { lema: v } })}
+        />
+
+        <div className="grid grid-cols-2 gap-2">
+          <SubirImagen
+            etiqueta="Logo (PNG transparente)"
+            url={marca.logoUrl}
+            subiendo={subiendo === 'logo'}
+            onSubir={subir('logo')}
+            onQuitar={() => quitar('logo')}
+          />
+          <SubirImagen
+            etiqueta="Fondo de espera"
+            url={marca.fondoUrl}
+            subiendo={subiendo === 'fondo'}
+            onSubir={subir('fondo')}
+            onQuitar={() => quitar('fondo')}
+          />
+        </div>
+
+        {error && (
+          <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-2 text-[11px] text-red-300">
+            {error}
+          </p>
+        )}
+
+        <div className="grid grid-cols-2 gap-2">
+          <ColorMarca
+            etiqueta="Color principal"
+            valor={marca.primario}
+            onCambiar={v => onAccion({ t: 'marca', campos: { primario: v } })}
+          />
+          <ColorMarca
+            etiqueta="Color de acento"
+            valor={marca.acento}
+            onCambiar={v => onAccion({ t: 'marca', campos: { acento: v } })}
+          />
+        </div>
+
+        <button
+          onClick={() => onAccion({ t: 'marca', campos: { motivoLocal: !marca.motivoLocal } })}
+          className={`flex min-h-[40px] items-center justify-center gap-2 rounded-lg border text-[11px] font-black uppercase tracking-wider transition ${
+            marca.motivoLocal
+              ? 'border-sky-400 bg-sky-400/20 text-sky-200'
+              : 'border-white/10 bg-black/20 text-swu-muted hover:bg-white/5'
+          }`}
+        >
+          {marca.motivoLocal ? 'Motivo El Salvador activo' : 'Motivo El Salvador apagado'}
+        </button>
+        <p className="text-[10px] leading-relaxed text-swu-muted">
+          Enciende el marco de volcanes, el filo tricolor y el emblema. Apagado, la cámara ocupa
+          todo el cuadro y manda tu marca.
+        </p>
+
+        <CampoLargo
+          etiqueta="Aviso legal (franja inferior)"
+          valor={marca.avisoLegal}
+          filas={2}
+          ayuda="Dejalo tal cual si cubrís partidas de un juego con licencia: es lo que deja claro que la cobertura es de fans."
+          onGuardar={v => onAccion({ t: 'marca', campos: { avisoLegal: v } })}
+        />
+      </div>
+    </Panel>
+  )
+}
+
+function SubirImagen({
+  etiqueta,
+  url,
+  subiendo,
+  onSubir,
+  onQuitar,
+}: {
+  etiqueta: string
+  url: string
+  subiendo: boolean
+  onSubir: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onQuitar: () => void
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 rounded-lg border border-white/10 bg-black/20 p-2">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-swu-muted">{etiqueta}</span>
+
+      <div className="grid h-16 place-items-center overflow-hidden rounded bg-black/40">
+        {url ? (
+          <img src={url} alt="" className="max-h-16 max-w-full object-contain" />
+        ) : (
+          <ImageIcon size={20} className="text-swu-muted" />
+        )}
+      </div>
+
+      <label className="cursor-pointer rounded bg-white/5 py-1.5 text-center text-[10px] font-bold uppercase tracking-wider transition hover:bg-white/10">
+        {subiendo ? 'Subiendo…' : url ? 'Cambiar' : 'Subir'}
+        <input
+          type="file"
+          accept="image/png,image/webp,image/jpeg,image/avif"
+          onChange={onSubir}
+          disabled={subiendo}
+          className="hidden"
+        />
+      </label>
+
+      {url && (
+        <button
+          onClick={onQuitar}
+          className="rounded py-1 text-[10px] font-bold uppercase tracking-wider text-swu-muted transition hover:text-red-300"
+        >
+          Quitar
+        </button>
+      )}
+    </div>
+  )
+}
+
+function ColorMarca({
+  etiqueta,
+  valor,
+  onCambiar,
+}: {
+  etiqueta: string
+  valor: string
+  onCambiar: (v: string) => void
+}) {
+  return (
+    <label className="flex flex-col gap-1.5 rounded-lg border border-white/10 bg-black/20 p-2">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-swu-muted">{etiqueta}</span>
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={valor}
+          // onBlur y no onChange: el selector dispara en cada movimiento del
+          // ratón y mandaría decenas de escrituras a la nube por color elegido.
+          onBlur={e => onCambiar(e.target.value)}
+          className="h-9 w-12 shrink-0 cursor-pointer rounded border border-white/10 bg-transparent"
+        />
+        <span className="font-mono text-[11px] uppercase text-swu-muted">{valor}</span>
+      </div>
+    </label>
   )
 }
 
