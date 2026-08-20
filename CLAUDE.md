@@ -1085,6 +1085,67 @@ server-side y acreditarla en el cliente premiaría a quien no jugó—. **Regla:
 misión sin llamador es una tarea imposible en pantalla; si agregás un
 `objectiveType`, agregá el `updateMissionProgress` en el mismo commit.**
 
+### 3h-ter. El bot de noticias: qué puede afirmar y qué no
+
+`/api/bot-noticias` (cron `31 13 * * *` = 07:31 SV) compara el catálogo de
+api.swuapi.com contra una foto propia (`bot_catalogo_foto`) y deja un
+**borrador** en `news` cuando aparecen cartas que antes no estaban.
+
+**No hay una sola línea de texto generada por IA.** Los títulos y resúmenes son
+plantillas con huecos rellenados por campos literales del catálogo. No es
+tacañería: así no existe ningún punto del sistema donde algo pueda alucinar una
+carta que no existe.
+
+**El bot NO dice «spoiler» ni «revelada hoy».** No hay fuente para eso: el
+único campo candidato del API oficial (`publishedAt`) trae el mismo valor
+centinela `2025-03-05T06:00:00.000Z` en **4.840 de 9.185 cartas**. Lo único que
+el bot sabe —y lo único que afirma— es que el catálogo incorporó cartas que
+antes no tenía.
+
+Cuatro trampas medidas, cada una capaz de hacerlo mentir:
+
+- **`?since=` no sirve.** Devuelve 8.661 de 9.185 filas «modificadas» cada día y
+  **cero** son nuevas: el scraper de swuapi reescribe casi todo el catálogo en
+  cada corrida. El diff va contra la foto propia, nunca contra `updated_at`.
+- **Se cuenta la CARTA, no la lámina.** 9.185 impresiones son 2.189 cartas;
+  6.996 filas son variantes y promos. Sin `variantType === 'Standard'` + clave
+  `(nombre|subtítulo)`, el día que entraron 838 variantes el bot habría
+  publicado 838 «cartas nuevas» falsas.
+- **La primera corrida siembra y se calla.** Con la tabla vacía el diff vería
+  2.189 altas y el estreno sería una noticia falsa.
+- **Piso de cordura de 8.000 cartas.** Si el API devuelve menos, no se publica
+  NI se toca la foto — si no, una respuesta parcial haría que la corrida
+  siguiente viera como «nuevas» todas las que faltaron (§2c otra vez).
+
+**Todo entra como borrador** (`published: false` explícito: la tabla viene
+DEFAULT true). El modo de fallo de un bot honesto no es que el dato sea falso,
+es que la frase alrededor lo sea, y eso solo lo ve una persona. La política
+`news_select` ya deja a los admin ver los no publicados.
+
+**Freno sin redeploy:** `BOT_NOTICIAS_OFF=1` y el endpoint responde 200 sin
+hacer nada.
+
+**El autor va CLAVADO en el archivo** (`AUTOR_BOT`), nunca leído de la
+petición: el endpoint escribe con service_role, que se salta la RLS entera. Si
+el autor viniera de afuera, quien adivinara el secreto podría publicar firmando
+como una persona real. `news.author_id` es NOT NULL pero sin clave foránea, así
+que el bot tiene identidad propia sin necesitar una cuenta.
+
+**Lo que NO se hizo, y por qué:** las fechas de salida y los avisos de artículo
+existen y son públicos en `admin.starwarsunlimited.com` (`/api/products` trae
+`releaseDate` limpio; `/api/articles` sin `populate` trae titular y resumen en
+345 bytes). Pero los términos de uso de FFG dicen textualmente «You will not
+transmit any bugs, viruses, trojan horses, **bots, scrapers**, or any like or
+related programming through or to the Star Wars: Unlimited Website», y Nel
+decidió no tocar ese sitio. `api.swuapi.com/sets` **no** los reemplaza: su
+`release_date` viene null en 25 de 28 sets y los 3 poblados están mal
+atribuidos (le cuelgan la fecha del set base a la fila del Weekly Play).
+
+**La carta del día** (`features/home/CartaDelDia.tsx`) es lo otro que se pidió
+—«algo casi todos los días»— resuelto sin inventar novedad: una carta del
+catálogo YA publicado, elegida con FNV-1a sobre el día SV, la misma para los 27
+y sin guardar una sola fila. No es un spoiler y no se rotula como tal.
+
 ### 3i. Sobres y álbum: la colección es SOLO brillante, y el brillo lo pone la app
 
 `/sobres` (La Bóveda) y `/binder-digital` (El Álbum). El sorteo vive ENTERO en

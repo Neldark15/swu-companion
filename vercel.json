@@ -17,6 +17,10 @@
     {
       "path": "/api/sobre-diario",
       "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/bot-noticias",
+      "schedule": "31 13 * * *"
     }
   ],
   "functions": {

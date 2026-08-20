@@ -26,6 +26,7 @@ import { useState } from 'react'
 import { useNotificationStore } from '../../services/notificationService'
 import { esRutaInterna } from '../../services/rutaInterna'
 import { TarjetaOferta, PopupOferta } from '../../features/sobres/OfertaSobresDiarios'
+import { CartaDelDia } from '../../features/home/CartaDelDia'
 
 /** Cada botón deja un aviso distinto. El texto dice a dónde debería llevar. */
 const CASOS: { rotulo: string; link?: string; nota: string }[] = [
@@ -105,6 +106,13 @@ export function BancoAvisos() {
         {verPopup > 0 && (
           <PopupOferta key={verPopup} userId="banco" alIrAAjustes={() => alert('iría a /settings')} />
         )}
+      </div>
+
+      {/* La carta del dia de Inicio. Lee el catalogo local, asi que si el banco
+          la muestra vacia es que Dexie todavia no bajo las cartas. */}
+      <div className="border-t border-swu-border pt-4">
+        <p className="mb-1 text-sm text-swu-muted">La carta del día (de Inicio)</p>
+        <div className="-mx-4"><CartaDelDia /></div>
       </div>
 
       <div className="rounded-lg bg-swu-surface px-3 py-2.5 text-xs text-swu-muted tabular-nums">

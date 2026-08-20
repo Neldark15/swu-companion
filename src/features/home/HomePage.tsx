@@ -25,6 +25,7 @@ import {
 } from '../../components/SWIcons'
 import { HudPanel, HudCorners, HexIcon } from '../../components/Hud'
 import { NoticiasSection } from './NoticiasSection'
+import { CartaDelDia } from './CartaDelDia'
 import { DondeJugar } from './DondeJugar'
 import { ProximosEventos } from './ProximosEventos'
 import { AvisoPerfil } from '../profile/AvisoPerfil'
@@ -452,6 +453,11 @@ export function HomePage() {
 
       <div className="px-4 pt-6">
         <NoticiasSection />
+
+      {/* Algo nuevo cada mañana SIN inventar novedad: una carta del catálogo
+          ya publicado, elegida por el día. No es un spoiler y no se rotula
+          como tal — ver la cabecera del componente. */}
+      <CartaDelDia />
       </div>
     </div>
   )
