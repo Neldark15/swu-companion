@@ -30,6 +30,7 @@ type Indice = 0 | 1
 export type Accion =
   | { t: 'escena'; escena: Escena }
   | { t: 'ronda'; etiqueta: string }
+  | { t: 'juego'; numero: number }
   | { t: 'dano'; lado: Indice; delta: number }
   | { t: 'recursos'; lado: Indice; delta: number }
   | { t: 'iniciativa'; lado: Indice | null }
@@ -75,6 +76,12 @@ export function reducir(e: EstadoOverlay, a: Accion): EstadoOverlay {
 
     case 'ronda':
       return { ...e, etiquetaRonda: a.etiqueta }
+
+    case 'juego':
+      // Fijar el número directo: «Nuevo juego» solo suma, y un toque de más
+      // dejaba el marcador diciendo JUEGO 3 en el primero, sin forma de
+      // corregirlo en vivo.
+      return { ...e, juego: Math.min(5, Math.max(1, Math.round(a.numero))) }
 
     case 'dano': {
       const lado = e.lados[a.lado]

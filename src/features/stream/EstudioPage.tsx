@@ -399,6 +399,29 @@ export function EstudioPage() {
               </div>
             </div>
 
+            {/* Juego de la serie: fijar el número directo. «Nuevo juego» solo
+                suma, y un toque de más no se podía corregir en vivo. */}
+            <div className="mt-2 flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5">
+              <span className="text-[10px] font-black uppercase tracking-wider text-swu-muted">
+                Juego
+              </span>
+              <div className="ml-auto flex items-center gap-1">
+                {[1, 2, 3].map(n => (
+                  <button
+                    key={n}
+                    onClick={() => aplicar({ t: 'juego', numero: n })}
+                    className={`h-8 w-9 rounded-md text-sm font-black transition ${
+                      estado.juego === n
+                        ? 'bg-swu-accent/25 text-white'
+                        : 'bg-white/5 text-swu-muted hover:bg-white/10'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Ronda: chips, la fila más ancha del bloque. */}
             <div className="mt-2 flex flex-wrap gap-1">
               {RONDAS.map(r => (

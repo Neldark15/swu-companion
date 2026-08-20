@@ -929,11 +929,12 @@ function CartaJugada({ lado, alineado }: { lado: LadoOverlay; alineado: 'izq' | 
       className="ov-sube-lado"
       style={{
         position: 'absolute',
-        top: 232,
-        // Alineado al marco: la ventana de la cámara va de x=421 a x=1494, así
-        // que el panel se apoya justo por fuera y no pisa el borde decorado.
-        [alineado === 'izq' ? 'left' : 'right']: 84,
-        width: 300,
+        top: 250,
+        // Pegado al borde del cuadro: cada panel se come ancho de cámara, y con
+        // la mesa a pantalla completa 300 px por lado tapaban ~30% del juego.
+        // A 208 px el arte sigue leyéndose y libera ~200 px de mesa.
+        [alineado === 'izq' ? 'left' : 'right']: 22,
+        width: 208,
         filter: 'drop-shadow(0 14px 34px rgba(0,0,0,.65)) drop-shadow(0 0 20px rgba(63,182,255,.28))',
       }}
     >
@@ -942,18 +943,18 @@ function CartaJugada({ lado, alineado }: { lado: LadoOverlay; alineado: 'izq' | 
           background: `repeating-linear-gradient(115deg, rgba(255,255,255,.028) 0 1px, transparent 1px 26px), ${t.metal}`,
           border: `1.5px solid ${t.acento}66`,
           boxShadow: RELIEVE,
-          clipPath: chaflan(14),
-          padding: 12,
+          clipPath: chaflan(11),
+          padding: 9,
           display: 'flex',
           flexDirection: 'column',
-          gap: 9,
+          gap: 7,
         }}
       >
         <span
           style={{
             fontSize: 11,
             fontWeight: 900,
-            letterSpacing: '.24em',
+            letterSpacing: '.2em',
             color: t.acento,
             textAlign: 'center',
           }}
@@ -969,11 +970,11 @@ function CartaJugada({ lado, alineado }: { lado: LadoOverlay; alineado: 'izq' | 
         />
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, textAlign: 'center' }}>
-          <span style={{ fontSize: 21, fontWeight: 900, lineHeight: 1.1, textTransform: 'uppercase' }}>
+          <span style={{ fontSize: 17, fontWeight: 900, lineHeight: 1.12, textTransform: 'uppercase' }}>
             {lado.jugadaNombre}
           </span>
           {lado.jugadaSub && (
-            <span style={{ fontSize: 14, fontWeight: 700, color: `${BLANCO}A0`, lineHeight: 1.2 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: `${BLANCO}A0`, lineHeight: 1.2 }}>
               {lado.jugadaSub}
             </span>
           )}
