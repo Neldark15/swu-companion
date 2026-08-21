@@ -48,6 +48,7 @@
  */
 
 import { supabase, isSupabaseReady } from './supabase'
+import { getCountryByCode } from '../data/regions'
 import { getGalaxyPlayersOFalla } from './galaxyService'
 import { RANKS, ACHIEVEMENTS } from './gamification'
 
@@ -108,8 +109,31 @@ export interface PlanetaJugador {
   magnitud: number
 }
 
+/**
+ * Un sistema solar: un pais con su sol y sus planetas.
+ *
+ * El `orbita` de sus planetas es el puesto DENTRO de este sistema, no global.
+ * Eso no es un detalle: hoy los 28 perfiles caian en un solo sol y el anillo
+ * mas externo era k=5; partido por pais, El Salvador baja a k=4 y sus planetas
+ * CRECEN un 15% (medido: 10,2 -> 11,8 px de diametro a 375 px). Repartir la
+ * galaxia no encoge a los salvadorenos, los agranda.
+ */
+export interface SistemaSolar {
+  /** Codigo ISO, o `null` para quien no eligio pais. */
+  pais: string | null
+  /** Como se llama en pantalla: «El Salvador», «Mexico», «Sin registrar». */
+  nombre: string
+  bandera: string
+  planetas: PlanetaJugador[]
+}
+
 export interface Galaxia {
+  /** El sistema de quien mira, o el mas poblado. Es donde arranca la camara. */
   sistema: string
+  /** Todos los sistemas, el mas poblado primero. */
+  sistemas: SistemaSolar[]
+  /** Todos los planetas de todos los sistemas. Se conserva para quien solo
+   *  necesita buscar una persona sin importarle donde vive (PlanetaPage). */
   planetas: PlanetaJugador[]
   totalJugadores: number
 }
@@ -128,6 +152,9 @@ export type TipoMovimiento = 'venta' | 'logro' | 'nivel' | 'mazo' | 'mensaje'
  * dejaría fuera a 3 de cada 4 jugadores. La comunidad entera es un sistema.
  */
 const SISTEMA = 'El Salvador'
+
+/** Clave del sistema de quien no eligio pais. No es un codigo ISO a proposito. */
+const SIN_PAIS = '·'
 
 /**
  * Tope de filas por fuente de movimiento. Se piden ordenadas por fecha
@@ -365,7 +392,7 @@ async function movimientosDeLogros(mapa: Map<string, Movimiento>): Promise<numbe
  */
 export async function getGalaxia(miId?: string): Promise<Galaxia> {
   if (!isSupabaseReady()) {
-    return { sistema: SISTEMA, planetas: [], totalJugadores: 0 }
+    return { sistema: SISTEMA, sistemas: [], planetas: [], totalJugadores: 0 }
   }
 
   const movimientos = new Map<string, Movimiento>()
@@ -380,6 +407,18 @@ export async function getGalaxia(miId?: string): Promise<Galaxia> {
     movimientosDeMazos(movimientos),
     movimientosDeLogros(movimientos),
   ])
+
+  // Se agrupa por PAIS antes de numerar: la orbita es el puesto dentro del
+  // sistema, no en toda la galaxia. Quien no eligio pais va a un sistema
+  // aparte —«Sin registrar»— y NO se le inventa uno: meterlo en El Salvador
+  // seria afirmar de donde es alguien que no lo dijo.
+  const porPais = new Map<string, typeof jugadores>()
+  for (const j of jugadores) {
+    const clave = (j.country || '').trim().toUpperCase() || SIN_PAIS
+    const l = porPais.get(clave)
+    if (l) l.push(j)
+    else porPais.set(clave, [j])
+  }
 
   const planetas: PlanetaJugador[] = jugadores
     .slice()
@@ -416,8 +455,42 @@ export async function getGalaxia(miId?: string): Promise<Galaxia> {
       }
     })
 
+  // Los sistemas, el mas poblado primero. Se re-numera la orbita DENTRO de
+  // cada uno con el mismo criterio de siempre: nivel DESC y desempate por id
+  // ascendente, que es lo que hace que un planeta solo cambie de anillo al
+  // subir de nivel y nunca por refrescar.
+  const porId = new Map(planetas.map(p => [p.id, p]))
+  const sistemas: SistemaSolar[] = [...porPais.entries()]
+    .map(([clave, gente]) => {
+      const pais = clave === SIN_PAIS ? null : clave
+      const c = pais ? getCountryByCode(pais) : undefined
+      return {
+        pais,
+        nombre: c?.name ?? (pais ?? 'Sin registrar'),
+        bandera: c?.flag ?? '🛰',
+        planetas: gente
+          .slice()
+          .sort((a, b) => (b.level - a.level) || (a.userId < b.userId ? -1 : a.userId > b.userId ? 1 : 0))
+          .map((j, i) => {
+            const base = porId.get(j.userId)!
+            // La orbita se re-escribe: la global ya no significa nada.
+            return { ...base, orbita: i }
+          }),
+      }
+    })
+    // Mas poblado primero; desempate por codigo para que el orden no dependa
+    // del capricho del Map. El «sin registrar» SIEMPRE al final: no compite
+    // con un pais.
+    .sort((a, b) =>
+      (b.planetas.length - a.planetas.length) ||
+      (a.pais === null ? 1 : b.pais === null ? -1 : a.pais.localeCompare(b.pais)))
+
+  // El sistema de quien mira, o el mas poblado. Es donde arranca la camara.
+  const mio = miId ? sistemas.find(s => s.planetas.some(p => p.id === miId)) : undefined
+
   return {
-    sistema: SISTEMA,
+    sistema: mio?.nombre ?? sistemas[0]?.nombre ?? SISTEMA,
+    sistemas,
     planetas,
     // El conteo sale de `player_stats`, no de `planetas.length`: si algún día
     // la comunidad pasa el tope de `getGalaxyPlayers`, el número tiene que
