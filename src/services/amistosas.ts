@@ -648,3 +648,39 @@ export function winrateAmistosas(f: FilaRankingAmistosas): number | null {
   if (marcadas === 0) return null
   return Math.round((f.ganados / marcadas) * 100)
 }
+
+// ─── Los mazos de alguien, para el Contador ──────────────────────────
+
+/**
+ * Nombre, líder y base de los mazos de una persona. NADA más.
+ *
+ * El Contador ofrecía «Mis mazos» en los DOS lados: para elegir la base del
+ * rival te enseñaba los tuyos. Con esto, cada lado ofrece los de su dueño.
+ *
+ * Devuelve también los mazos PRIVADOS, y es deliberado: lo que sale son seis
+ * campos —el nombre del mazo, y el id y el nombre del líder y de la base—, y
+ * líder y base son justo lo que la otra persona te va a poner sobre la mesa en
+ * cuanto empiece la partida. La receta no cruza el servidor.
+ */
+export interface MazoDeAlguien {
+  id: string
+  nombre: string
+  liderId: string | null
+  lider: string | null
+  baseId: string
+  base: string | null
+}
+
+export async function mazosParaContador(userId: string): Promise<MazoDeAlguien[]> {
+  if (!isSupabaseReady() || !userId) return []
+  const { data, error } = await supabase.rpc('mazos_para_contador', { p_user: userId })
+  // Gotcha 2f: supabase-js no lanza ante un error de PostgREST.
+  if (error) { console.warn('[contador] no se pudieron leer los mazos:', error.message); return [] }
+  return ((data ?? []) as {
+    id: string; nombre: string; lider_id: string | null
+    lider: string | null; base_id: string; base: string | null
+  }[]).map(m => ({
+    id: m.id, nombre: m.nombre, liderId: m.lider_id,
+    lider: m.lider, baseId: m.base_id, base: m.base,
+  }))
+}

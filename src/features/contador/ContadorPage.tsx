@@ -39,12 +39,13 @@ import { Carta3D } from '../../components/Carta3D'
 import { Avatar } from '../../components/ui/Avatar'
 import { Dice3D } from '../utilities/Dice3D'
 import { db } from '../../services/db'
+import { mazosParaContador, type MazoDeAlguien } from '../../services/amistosas'
 import { ensureCards } from '../../services/swuApi'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase, isSupabaseReady } from '../../services/supabase'
 import { searchProfiles, type SearchableProfile } from '../../services/playerSearch'
 import { fechaCorta } from '../../services/horaSV'
-import type { Card, Deck } from '../../types'
+import type { Card } from '../../types'
 
 /* ── Estado persistido ───────────────────────────────────── */
 
@@ -346,7 +347,10 @@ function SelectorLado({
 }: {
   titulo: string
   bases: Card[]
-  decks: Deck[]
+  /* Los mazos de QUIEN corresponde a este lado, ya normalizados. Antes esto
+     recibía `Deck[]` locales y los dos lados recibían los MISMOS: para elegir
+     la base del rival te ofrecía los tuyos. */
+  decks: MazoDeAlguien[]
   elegido: { base: Card; lider: Card | null } | null
   onElegir: (base: Card, lider: Card | null) => void
 }) {
@@ -415,24 +419,26 @@ function SelectorLado({
 
       {pestana === 'mazo' && (
         decks.length === 0
-          ? <p className="text-[12px] text-swu-muted">No hay mazos guardados en este dispositivo.</p>
+          ? <p className="text-[12px] text-swu-muted">Sin mazos guardados.</p>
           : (
             <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
               {decks.map(d => (
                 <button
                   key={d.id}
                   onClick={async () => {
-                    // El mazo guarda su base como DeckCard; la carta completa
-                    // (imagen, vida impresa) sale de la base local.
-                    const base = d.base ? await db.cards.get(d.base.cardId) : null
-                    const lider = d.leaders?.[0] ? await db.cards.get(d.leaders[0].cardId) : null
+                    // Del mazo solo viaja el id de la base y del líder; la carta
+                    // completa (imagen, vida impresa) sale de la base LOCAL. Por
+                    // eso da igual que el mazo sea de otra persona: su receta
+                    // nunca hizo falta.
+                    const base = await db.cards.get(d.baseId)
+                    const lider = d.liderId ? await db.cards.get(d.liderId) : null
                     if (base) onElegir(base, lider ?? null)
                   }}
                   className="w-full rounded-lg border border-swu-border bg-swu-bg px-3 py-2 text-left"
                 >
-                  <p className="text-[13px] font-semibold text-swu-text truncate">{d.name}</p>
+                  <p className="text-[13px] font-semibold text-swu-text truncate">{d.nombre}</p>
                   <p className="text-[10px] text-swu-muted truncate">
-                    {d.leaders?.[0]?.name ?? '—'} · {d.base?.name ?? 'sin base'}
+                    {d.lider ?? '—'} · {d.base ?? 'sin base'}
                   </p>
                 </button>
               ))}
@@ -441,6 +447,41 @@ function SelectorLado({
       )}
     </div>
   )
+}
+
+/* ── La memoria de la última mesa ─────────────────────────────
+ *
+ * Abrir el Contador exigía elegir DOS bases desde cero cada vez, y quien juega
+ * en la tienda repite rival y mazo toda la tarde. Esto recuerda la última mesa
+ * y la deja puesta al entrar.
+ *
+ * Se guarda al EMPEZAR el duelo, no al elegir: elegir una base y arrepentirse
+ * no debería dejar rastro. Y se guardan IDS, no cartas: la carta completa sale
+ * de la base local, que ya la tiene, y así la memoria no envejece si el arte
+ * o la vida impresa cambian.
+ *
+ * Nada de esto arranca un duelo solo. La pantalla queda con las bases puestas
+ * y el botón «Comenzar» esperando, que es donde ya estaba la decisión.
+ */
+const CLAVE_MEMORIA = 'contador_memoria_v1'
+
+interface MemoriaMesa {
+  rival: { id: string; name: string; avatar: string | null } | null
+  baseA: string | null
+  liderA: string | null
+  baseB: string | null
+  liderB: string | null
+}
+
+function leerMemoria(): MemoriaMesa | null {
+  try {
+    const crudo = localStorage.getItem(CLAVE_MEMORIA)
+    return crudo ? (JSON.parse(crudo) as MemoriaMesa) : null
+  } catch { return null }
+}
+
+function guardarMemoria(m: MemoriaMesa): void {
+  try { localStorage.setItem(CLAVE_MEMORIA, JSON.stringify(m)) } catch { /* sin sitio */ }
 }
 
 /* ── Pantalla ────────────────────────────────────────────── */
@@ -454,7 +495,16 @@ export function ContadorPage() {
   // hacerlo en el efecto encadenaba un render extra (regla del lint).
   const [reanudable, setReanudable] = useState<Duelo | null>(() => cargar())
   const [bases, setBases] = useState<Card[]>([])
-  const [decks, setDecks] = useState<Deck[]>([])
+  const [decks, setDecks] = useState<MazoDeAlguien[]>([])
+  /* Los del rival se piden aparte y solo cuando hay rival: son de otra
+     persona, así que no están en la base local de este teléfono.
+     Se guarda DE QUIÉN son, no solo la lista. Sin eso, al cambiar de rival la
+     lista del anterior se queda en pantalla mientras llega la nueva, y
+     «Base de Rodo» enseña los mazos de Vara — que es exactamente el fallo que
+     esta pantalla vino a arreglar, pero un segundo. */
+  const [decksRival, setDecksRival] = useState<{ de: string; lista: MazoDeAlguien[] }>(
+    { de: '', lista: [] },
+  )
   const [ladoA, setLadoA] = useState<{ base: Card; lider: Card | null } | null>(null)
   const [ladoB, setLadoB] = useState<{ base: Card; lider: Card | null } | null>(null)
   const [dado, setDado] = useState<{ abierto: boolean; valores: number[]; tirada: number }>({ abierto: false, valores: [1], tirada: 0 })
@@ -501,11 +551,63 @@ export function ContadorPage() {
         const misDecks = await db.decks.toArray()
         if (!vivo) return
         setBases(canon)
-        setDecks(misDecks.sort((x, y) => (y.updatedAt ?? 0) - (x.updatedAt ?? 0)))
+        setDecks(
+          misDecks
+            .filter(d => d.base?.cardId)
+            .sort((x, y) => (y.updatedAt ?? 0) - (x.updatedAt ?? 0))
+            .map(d => ({
+              id: d.id, nombre: d.name,
+              liderId: d.leaders?.[0]?.cardId ?? null,
+              lider: d.leaders?.[0]?.name ?? null,
+              baseId: d.base!.cardId, base: d.base!.name ?? null,
+            })),
+        )
+
+        /* La última mesa, puesta de vuelta.
+         *
+         * Solo si NO hay duelo en curso ni nada elegido: quien vuelve a una
+         * partida a medias no quiere que le cambien las bases debajo. Y si
+         * una carta recordada ya no está en la base local, ese lado queda
+         * vacío en vez de romperse — la memoria no puede impedir abrir la
+         * herramienta. */
+        const mem = leerMemoria()
+        if (mem) {
+          const [bA, lA, bB, lB] = await Promise.all([
+            mem.baseA ? db.cards.get(mem.baseA) : undefined,
+            mem.liderA ? db.cards.get(mem.liderA) : undefined,
+            mem.baseB ? db.cards.get(mem.baseB) : undefined,
+            mem.liderB ? db.cards.get(mem.liderB) : undefined,
+          ])
+          if (!vivo) return
+          /* Con la forma funcional y no leyendo el estado: este efecto corre
+             UNA vez al montar, y leer `ladoA`/`ladoB` obligaría a ponerlos de
+             dependencia — con lo que recargar la base de cartas entera pasaría
+             a dispararse cada vez que alguien cambia de base. El `?? prev`
+             hace lo mismo que el guard: no pisa nada que ya se haya elegido
+             mientras se resolvían las cartas. */
+          if (bA) setLadoA(prev => prev ?? { base: bA, lider: lA ?? null })
+          if (bB) setLadoB(prev => prev ?? { base: bB, lider: lB ?? null })
+          if (mem.rival) setRival(prev => prev ?? (mem.rival as SearchableProfile))
+        }
       } catch { /* sin base local la búsqueda queda vacía; el error se ve en la lista */ }
     })()
     return () => { vivo = false }
   }, [])
+
+  /* Los mazos del rival. Se piden al elegirlo y se sueltan al quitarlo: dejar
+     los del anterior haría que «Base de Vara» ofreciera los de Rodo. */
+  useEffect(() => {
+    // El guard va antes de tocar el estado: un setState síncrono en el cuerpo
+    // del efecto encadena un render antes de pintar (`set-state-in-effect`).
+    if (!rival) return
+    let vivo = true
+    const de = rival.id
+    void (async () => {
+      const lista = await mazosParaContador(de)
+      if (vivo) setDecksRival({ de, lista })
+    })()
+    return () => { vivo = false }
+  }, [rival])
 
   // La pantalla no se apaga con el duelo abierto. Si el navegador no trae
   // Wake Lock (Firefox viejo), simplemente no pasa — la mesa sigue.
@@ -754,6 +856,12 @@ export function ContadorPage() {
     subir(d)
     setDuelo(d)
     setReanudable(null)
+    // La mesa que se acaba de armar es la que se va a repetir la próxima vez.
+    guardarMemoria({
+      rival: rival ? { id: rival.id, name: rival.name, avatar: rival.avatar } : null,
+      baseA: a.base.id, liderA: a.lider?.id ?? null,
+      baseB: b.base.id, liderB: b.lider?.id ?? null,
+    })
   }, [currentProfile?.avatar, rival, subir])
 
   /**
@@ -1191,7 +1299,10 @@ export function ContadorPage() {
         )}
       </div>
 
-      <SelectorLado titulo={rival ? `Base de ${rival.name}` : 'Jugador de enfrente'} bases={bases} decks={decks}
+      {/* Los mazos del rival, no los míos. Sin rival elegido no hay mazos que
+          ofrecer: se busca la base a mano, que es lo que se hacía igual. */}
+      <SelectorLado titulo={rival ? `Base de ${rival.name}` : 'Jugador de enfrente'}
+        bases={bases} decks={rival && decksRival.de === rival.id ? decksRival.lista : []}
         elegido={ladoB} onElegir={(base, lider) => setLadoB({ base, lider })} />
       <SelectorLado titulo={`Vos${currentProfile?.name ? ` (${currentProfile.name})` : ''}`}
         bases={bases} decks={decks}
