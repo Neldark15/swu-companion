@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X, Copy, Check, FileJson, FileText, FileSpreadsheet, Image as ImageIcon, Loader2, Share2 } from 'lucide-react'
 import { exportDeckAsSwudbJson, exportDeckAsMeleeText, exportDeckAsSwudbCsv } from '../../services/deckImportExport'
 import { generarImagenMazo, nombreArchivoMazo, entregarImagen } from '../../services/deckImagen'
@@ -21,6 +21,8 @@ export function ExportDeckModal({ open, deck, onClose }: Props) {
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [avisoCopia, setAvisoCopia] = useState<string | null>(null)
+  const areaRef = useRef<HTMLTextAreaElement>(null)
   const [generandoImg, setGenerandoImg] = useState(false)
   const [avisoImg, setAvisoImg] = useState<string | null>(null)
   const { currentProfile } = useAuth()
@@ -63,17 +65,42 @@ export function ExportDeckModal({ open, deck, onClose }: Props) {
     }
   }
 
+  /**
+   * Copiar, con dos redes debajo.
+   *
+   * Antes esto era un `try` con un `catch` VACÍO, y el comentario decía que no
+   * hacía falta avisar porque el texto seguía a la vista. Pero desde el lado de
+   * quien mira, un botón que no hace absolutamente nada al tocarlo no se lee
+   * como «copialo a mano»: se lee como que la app está rota. Y `writeText`
+   * falla más de lo que parece — el navegador lo rechaza si el documento no
+   * tiene el foco, y en algunos navegadores embebidos directamente no existe.
+   *
+   * Así que: se intenta el camino moderno; si falla se selecciona el texto y se
+   * usa `execCommand`, que está obsoleto pero no pide permiso y funciona en
+   * todos lados; y si eso TAMBIÉN falla, el texto queda seleccionado y se dice
+   * con qué teclas terminarlo. Las tres ramas dejan a la persona con su mazo.
+   */
   const handleCopy = async () => {
+    setAvisoCopia(null)
     try {
       await navigator.clipboard.writeText(text)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch {
-      // Copiar puede fallar por permisos del portapapeles o porque el
-      // navegador lo bloquea fuera de un gesto. No hay nada que hacer al
-      // respecto y el texto sigue visible para copiarlo a mano, así que no se
-      // molesta a nadie con un error.
+      return
+    } catch { /* sigue por la red de abajo */ }
+
+    const area = areaRef.current
+    if (!area) { setAvisoCopia('No se pudo copiar. Seleccioná el texto a mano.'); return }
+    area.focus()
+    area.select()
+    let listo = false
+    try { listo = document.execCommand('copy') } catch { listo = false }
+    if (listo) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+      return
     }
+    setAvisoCopia('El texto quedó seleccionado: copialo con Ctrl+C (o ⌘+C).')
   }
 
   return (
@@ -162,6 +189,7 @@ export function ExportDeckModal({ open, deck, onClose }: Props) {
             </div>
           ) : (
             <textarea
+              ref={areaRef}
               readOnly
               value={loading ? 'Generando...' : text}
               className="w-full h-full min-h-[200px] p-3 bg-swu-bg border border-swu-border rounded-xl text-xs text-swu-text font-mono resize-none focus:outline-none"
@@ -170,6 +198,9 @@ export function ExportDeckModal({ open, deck, onClose }: Props) {
         </div>
 
         {/* Footer */}
+        {avisoCopia && (
+          <p className="px-4 pb-1 text-[11px] leading-snug text-swu-amber">{avisoCopia}</p>
+        )}
         <div className="p-4 border-t border-swu-border flex gap-2 flex-shrink-0">
           <button
             onClick={onClose}

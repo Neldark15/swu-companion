@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ChevronLeft, Plus, Minus, Search, X, Save, Check,
-  AlertTriangle, CheckCircle2, Loader2, BookOpen, Layers, Package, RotateCw,
+  AlertTriangle, CheckCircle2, Loader2, BookOpen, Layers, Package, RotateCw, Share2,
 } from 'lucide-react'
 import { db } from '../../services/db'
 import {
@@ -14,6 +14,7 @@ import { syncDeckToCloud } from '../../services/sync'
 import { useAuth } from '../../hooks/useAuth'
 import { CardImage } from '../../components/CardImage'
 import { CardPreviewSheet } from '../../components/CardPreviewSheet'
+import { ExportDeckModal } from './ExportDeckModal'
 import { listFaceUrl, listFaceFit } from '../../services/cardArt'
 import { translateType, translateAspect } from '../../services/translations'
 import type { Deck, DeckCard, Card, TournamentFormat } from '../../types'
@@ -79,6 +80,7 @@ export function DeckBuilderPage() {
   const [searching, setSearching] = useState(false)
   const [searchTotal, setSearchTotal] = useState(0)
   const [saveFlash, setSaveFlash] = useState(false)
+  const [exportando, setExportando] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [addTarget, setAddTarget] = useState<'mainDeck' | 'sideboard'>('mainDeck')
 
@@ -413,10 +415,30 @@ export function DeckBuilderPage() {
     <div className="p-3 lg:p-6 space-y-3 pb-8 lg:pb-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <button onClick={() => navigate('/decks')} className="flex items-center gap-1 text-sm text-swu-muted"><ChevronLeft size={18} /> Decks</button>
-        <button onClick={saveDeck} className={`p-2 rounded-lg border transition-colors ${saveFlash ? 'bg-swu-green/20 border-swu-green/40 text-swu-green' : 'bg-swu-surface border-swu-border text-swu-muted'}`}>
-          {saveFlash ? <Check size={16} /> : <Save size={16} />}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Exportar VIVÍA SOLO EN LA LISTA, detrás de un ícono de 13 px sin
+              rótulo. O sea que para copiar el mazo que tenías abierto había
+              que salir de él, encontrar su fila y adivinar cuál de los cuatro
+              iconitos era. Acá va con la palabra escrita: el que quiere copiar
+              su lista está mirando la lista, no el índice. */}
+          <button
+            onClick={() => setExportando(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-swu-border bg-swu-surface
+                       px-2.5 py-2 text-xs font-bold text-swu-muted transition-colors active:scale-95"
+            title="Exportar o copiar este mazo"
+          >
+            <Share2 size={14} /> Exportar
+          </button>
+          <button onClick={saveDeck} className={`p-2 rounded-lg border transition-colors ${saveFlash ? 'bg-swu-green/20 border-swu-green/40 text-swu-green' : 'bg-swu-surface border-swu-border text-swu-muted'}`}>
+            {saveFlash ? <Check size={16} /> : <Save size={16} />}
+          </button>
+        </div>
       </div>
+
+      {/* Se exporta lo que está EN PANTALLA, no lo último guardado: el mazo se
+          guarda solo en cada cambio, y esperar a un guardado explícito para
+          poder copiar sería pedir un paso que la pantalla ya no pide. */}
+      <ExportDeckModal open={exportando} deck={deck} onClose={() => setExportando(false)} />
 
       {/* El nombre y el formato eran los DOS únicos campos que cambiaban con
           `setDeck` sin llamar a `autoSave`: las cartas se guardaban solas (ocho
