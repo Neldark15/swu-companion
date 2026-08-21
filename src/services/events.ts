@@ -169,6 +169,8 @@ export async function createOfficialEvent(data: {
   location?: string
   /** Sede donde se juega. Liga el torneo a su página pública. */
   venueId?: string | null
+  /** Afiche del evento. Sin él, la tarjeta del calendario cae al banner de la sede. */
+  imageUrl?: string | null
   organizerId: string
 }): Promise<{ ok: boolean; event?: OfficialEvent; error?: string }> {
   if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión al servidor' }
@@ -201,6 +203,7 @@ export async function createOfficialEvent(data: {
       date: data.date || null,
       location: data.location || null,
       venue_id: data.venueId || null,
+      image_url: data.imageUrl || null,
     })
     .select()
     .single()

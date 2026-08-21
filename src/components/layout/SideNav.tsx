@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Hexagon, Swords, ShieldCheck, Megaphone, Newspaper as NewspaperIcon, BarChart3 as MetaIcon, BookOpen, FlaskConical, Scale, RadioTower, Radar, PackageOpen, Library } from 'lucide-react'
+import { Hexagon, Swords, ShieldCheck, Megaphone, Newspaper as NewspaperIcon, BarChart3 as MetaIcon, BookOpen, FlaskConical, Scale, RadioTower, Radar, PackageOpen, Library, CalendarDays } from 'lucide-react'
 import {
   MandoTrophyIcon, CargoIcon, BountyIcon,
   DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
@@ -44,6 +44,7 @@ const secondaryNav: NavItem[] = [
   { id: '/contador', label: 'Contador', sub: 'Duelo en mesa real', icon: ChanceCubeIcon },
   { id: '/amistosas', label: 'Amistosas', sub: 'Historial cara a cara', icon: Swords },
   { id: '/torneos', label: 'Torneos', sub: 'Archivo de la comunidad', icon: MandoTrophyIcon },
+  { id: '/calendario', label: 'Calendario', sub: 'Los torneos del mes', icon: CalendarDays },
 ]
 
 export function SideNav() {

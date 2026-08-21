@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { createOfficialEvent, type OfficialEvent } from '../../services/events'
-import { miSede, type Sede } from '../../services/venuesService'
+import { miSede, subirImagen, type Sede } from '../../services/venuesService'
 import { logAdminAction } from '../../services/adminService'
 import { aISOdesdeSV, fechaCortaYHora } from '../../services/horaSV'
 
@@ -59,6 +59,10 @@ export function AdminEventCreatePage() {
   /** La sede del organizador, si la tiene. Ligar el torneo a ella es lo que
    *  lo hace aparecer en su página pública. */
   const [sede, setSede] = useState<Sede | null>(null)
+  /** El afiche del evento. Se sube ANTES de crear: si la subida falla, el
+   *  torneo no nace a medias con una foto rota. */
+  const [afiche, setAfiche] = useState<{ url: string; previa: string } | null>(null)
+  const [subiendo, setSubiendo] = useState(false)
   const [usarSede, setUsarSede] = useState(true)
 
   useEffect(() => {
@@ -111,6 +115,7 @@ export function AdminEventCreatePage() {
       date: dateStr,
       location: usarSede && sede ? `${sede.name} · ${sede.address}` : location.trim() || undefined,
       venueId: usarSede && sede ? sede.id : null,
+      imageUrl: afiche?.url ?? null,
       organizerId: supabaseUser.id,
     })
 
@@ -386,6 +391,52 @@ export function AdminEventCreatePage() {
             />
           </Field>
         </div>
+        {/* El afiche. Va al mismo bucket que las sedes, en la carpeta del uid:
+            es lo que la política de Storage exige para dejar escribir, y lo
+            que impide pisarle la imagen a otro. */}
+        <div className="rounded-2xl border border-swu-border bg-swu-surface p-4">
+          <p className="mb-2 text-sm font-semibold text-swu-text">Foto del evento</p>
+          {afiche ? (
+            <div className="space-y-2">
+              <img src={afiche.previa} alt="" className="h-32 w-full rounded-lg object-cover" />
+              <button
+                type="button"
+                onClick={() => setAfiche(null)}
+                className="text-xs text-swu-muted underline"
+              >
+                Quitar
+              </button>
+            </div>
+          ) : (
+            <label className="flex h-11 cursor-pointer items-center justify-center rounded-lg border border-dashed border-swu-border text-sm text-swu-muted">
+              {subiendo ? 'Subiendo…' : 'Elegir una imagen'}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/avif"
+                className="hidden"
+                disabled={subiendo}
+                onChange={async (ev) => {
+                  const f = ev.target.files?.[0]
+                  // El input se limpia SIEMPRE: sin esto, elegir el mismo
+                  // archivo tras un fallo no vuelve a disparar el change.
+                  ev.target.value = ''
+                  if (!f || !supabaseUser) return
+                  setSubiendo(true)
+                  setError('')
+                  const r = await subirImagen(supabaseUser.id, f, 'evento')
+                  setSubiendo(false)
+                  if (!r.ok || !r.url) { setError(r.error ?? 'No se pudo subir la imagen'); return }
+                  setAfiche({ url: r.url, previa: r.url })
+                }}
+              />
+            </label>
+          )}
+          <p className="mt-2 text-[11px] leading-snug text-swu-muted">
+            Opcional. Si no ponés ninguna, el calendario usa el banner de la sede.
+            JPG, PNG, WebP o AVIF, hasta 3 MB.
+          </p>
+        </div>
+
         {sede && (
           <label className="flex items-start gap-2 bg-swu-bg border border-swu-border rounded-lg p-2.5 cursor-pointer">
             <input

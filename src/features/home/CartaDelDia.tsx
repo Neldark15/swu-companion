@@ -21,12 +21,31 @@
  * Se ordena por `id` antes de indexar: sin un orden estable, Dexie puede
  * devolver las cartas en otro orden en otro teléfono y cada quien vería una
  * carta distinta el mismo día.
+ *
+ * ── Por qué pesa el set más nuevo, y por qué NO el «que está por salir» ──
+ *
+ * Lo pedido era priorizar el set por salir (Homeworlds). Hoy eso es imposible y
+ * no por pereza: **Homeworlds no está en el catálogo**. Comprobado contra el
+ * API — 28 sets, ninguno con ese nombre. Sus cartas no existen todavía en
+ * ninguna fuente a la que esta app tenga acceso, así que una «carta de
+ * Homeworlds» solo podría salir de inventarla.
+ *
+ * Lo que sí se puede es dar peso al set MÁS NUEVO que tenga cartas, y ese
+ * orden ya vive en `MAIN_SET_LABELS` (swuApi.ts), que está en orden de salida.
+ * El día que Homeworlds entre al catálogo, se agrega su código al final de ese
+ * mapa y pasa a ganar sin tocar este archivo.
+ *
+ * El reparto es 70 / 20 / 10: el set más nuevo, el anterior, y cualquiera del
+ * resto. No es 100% del más nuevo a propósito — con ~230 cartas por set, un
+ * solo set se repetiría cada 8 meses, y la gracia de la sección es que la
+ * carta sorprenda.
  */
 
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CardImage } from '../../components/CardImage'
 import { db } from '../../services/db'
+import { MAIN_SET_LABELS } from '../../services/swuApi'
 import { diaCalendarioSV } from '../../services/horaSV'
 import type { Card } from '../../types'
 
@@ -56,7 +75,26 @@ export function CartaDelDia() {
         const todas = await db.cards.filter(c => c.isCanonical === true).toArray()
         if (!vivo || todas.length === 0) return
         todas.sort((a, b) => a.id.localeCompare(b.id))
-        setCarta(todas[hashDia(diaCalendarioSV(new Date())) % todas.length])
+
+        // El orden de salida. El último con cartas en el catálogo es el nuevo.
+        const porSalida = Object.keys(MAIN_SET_LABELS)
+        const conCartas = porSalida.filter(s => todas.some(c => c.setCode === s))
+        const nuevo = conCartas[conCartas.length - 1]
+        const anterior = conCartas[conCartas.length - 2]
+
+        const h = hashDia(diaCalendarioSV(new Date()))
+        // El MISMO hash decide el cajón y el índice. Con dos hashes distintos
+        // haría falta una segunda semilla, y con el mismo número para las dos
+        // cosas el índice quedaría correlacionado con el cajón — dividir por
+        // 100 separa los dos usos sin inventar otra función.
+        const cajon = h % 100
+        const preferido = cajon < 70 ? nuevo : cajon < 90 ? anterior : undefined
+
+        const bolsa = preferido ? todas.filter(c => c.setCode === preferido) : todas
+        // Si el set preferido no tiene canónicas (no debería, pero el catálogo
+        // local puede estar a medio bajar), se cae a todas en vez de no pintar.
+        const fuente = bolsa.length > 0 ? bolsa : todas
+        setCarta(fuente[Math.floor(h / 100) % fuente.length])
       } catch {
         // El catálogo local todavía no está. No es un fallo que valga contar.
       }

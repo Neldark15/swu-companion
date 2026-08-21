@@ -94,6 +94,10 @@ const RUTAS_LIBRES = [
   /^\/rulings/,
   /^\/meta/,
   /^\/torneos/,
+  // El calendario es la pantalla de «cuándo jugamos»: es lo que se comparte
+  // por WhatsApp para invitar, así que taparla con la puerta de instalación
+  // sería cerrarle la puerta justo a quien todavía no tiene la app.
+  /^\/calendario/,
   /^\/aurebesh/,
   /^\/u\//,
   /^\/blog/,

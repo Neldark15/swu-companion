@@ -166,7 +166,7 @@ const TIPOS = ['image/jpeg', 'image/png', 'image/webp', 'image/avif']
 export async function subirImagen(
   userId: string,
   archivo: File,
-  tipo: 'banner' | 'logo',
+  tipo: 'banner' | 'logo' | 'evento',
 ): Promise<{ ok: boolean; url?: string; error?: string }> {
   if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión con el servidor.' }
   if (!TIPOS.includes(archivo.type)) {

@@ -89,6 +89,7 @@ const mainSystems: Sistema[] = [
 
   // ── Competir: torneos, ranking y meta ──
   { icon: MandoTrophyIcon, label: 'Torneos',      tone: 'amber',  to: '/torneos',    cat: 'competir' },
+  { icon: DatapadIcon,     label: 'Calendario',   tone: 'cyan',   to: '/calendario', cat: 'competir' },
   { icon: MandoTrophyIcon, label: 'Eventos',      tone: 'amber',  to: '/events',     cat: 'competir', auth: true },
   { icon: KyberIcon,       label: 'Meta',         tone: 'cyan',   to: '/meta',       cat: 'competir' },
   { icon: BeskarIcon,      label: 'Ranking', tone: 'amber',  to: '/rank',       cat: 'competir', auth: true },
@@ -152,7 +153,7 @@ interface Marcador {
 
 /** Traducción de los rótulos de módulo y categoría al inglés (Fase i18n). */
 const MOD_EN: Record<string, string> = {
-  'Contador': 'Counter', 'Amistosas': 'Friendlies', 'Duelo': 'Duel', 'Misiones': 'Missions',
+  'Contador': 'Counter', 'Amistosas': 'Friendlies', 'Duelo': 'Duel', 'Misiones': 'Missions', 'Calendario': 'Calendar',
   'Torneos': 'Tournaments', 'Eventos': 'Events', 'Meta': 'Meta', 'Ranking': 'Ranking', 'En Vivo': 'Live',
   'Mis Decks': 'My Decks', 'Laboratorio': 'Lab', 'Buscar Cartas': 'Search Cards', 'Rulings': 'Rulings',
   'Mi Botín': 'My Loot', 'Contrabando': 'Smuggling', 'Mercancía': 'Market',
