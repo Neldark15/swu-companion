@@ -26,7 +26,7 @@ const mainNav: NavItem[] = [
 
 const secondaryNav: NavItem[] = [
   { id: '/collection', label: 'Mi Botín', sub: 'Colección', icon: CargoIcon },
-  { id: '/sobres', label: 'La Bóveda', sub: 'Abrir sobres', icon: PackageOpen },
+  { id: '/sobres', label: 'Sobredosis', sub: 'Abrir sobres', icon: PackageOpen },
   { id: '/binder-digital', label: 'Binder digital', sub: 'Lo que abriste', icon: Library },
   { id: '/explore', label: 'Contrabando', sub: 'Explorar', icon: BountyIcon },
   { id: '/espionaje', label: 'Espionaje', sub: 'Transmisiones', icon: SpyIcon },

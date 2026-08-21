@@ -59,8 +59,8 @@ export function AvisoSobreDiario({ userId }: Props) {
         type: 'gift',
         title: 'Cayó tu sobre diario',
         message: e.saldo === 1
-          ? 'Te espera en La Bóveda.'
-          : `Te esperan ${e.saldo} sobres en La Bóveda.`,
+          ? 'Te espera en Sobredosis.'
+          : `Te esperan ${e.saldo} sobres en Sobredosis.`,
         link: '/sobres',
       })
       setAviso({ dia: e.dia, saldo: e.saldo })
@@ -104,13 +104,13 @@ export function FranjaSobreDiario(
             <span className="block text-sm font-bold text-swu-text">Cayó tu sobre diario</span>
             <span className="block text-[11px] text-swu-muted">
               {saldo === 1
-                ? 'Te espera uno sin abrir en La Bóveda.'
-                : `Tenés ${saldo} sin abrir en La Bóveda.`}
+                ? 'Te espera uno sin abrir en Sobredosis.'
+                : `Tenés ${saldo} sin abrir en Sobredosis.`}
             </span>
           </span>
           <ChevronRight size={16} className="shrink-0 text-swu-muted" />
         </button>
-        {/* Cerrar la franja NO gasta el sobre: sigue en la cuenta y la Bóveda
+        {/* Cerrar la franja NO gasta el sobre: sigue en la cuenta y Sobredosis
             lo enseña igual. Por eso se puede quitar sin preguntar nada.
             El área táctil va CABLEADA en 44×44 (`h-11 w-11`), no en padding:
             con `p-2` medía 32×32 en el banco, por debajo del mínimo que se

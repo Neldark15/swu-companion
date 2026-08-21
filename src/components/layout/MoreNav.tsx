@@ -59,7 +59,7 @@ const GROUPS: MoreGroup[] = [
       // BUSCAR dentro de ella (nombre, país, rankings).
       { to: '/galaxia', label: 'La Galaxia', sub: 'Universo 3D', icon: StarfighterIcon },
       { to: '/galaxy', label: 'Salas', sub: 'Chat y comandantes', icon: Radar },
-      { to: '/sobres', label: 'La Bóveda', sub: 'Abrir sobres', icon: PackageOpen },
+      { to: '/sobres', label: 'Sobredosis', sub: 'Abrir sobres', icon: PackageOpen },
       { to: '/binder-digital', label: 'Binder digital', sub: 'Lo que abriste', icon: Library },
       { to: '/credencial', label: 'Mi Credencial', sub: 'Placa imprimible', icon: Fingerprint },
       { to: '/aurebesh', label: 'Aurebesh', sub: 'Traductor galáctico', icon: Languages },

@@ -1284,7 +1284,7 @@ coleccion vive en dos espacios de ids y con el crudo no resolveria del otro lado
 
 ### 3i. Sobres y álbum: la colección es SOLO brillante, y el brillo lo pone la app
 
-`/sobres` (La Bóveda) y `/binder-digital` (El Álbum). El sorteo vive ENTERO en
+`/sobres` (Sobredosis) y `/binder-digital` (El Álbum). El sorteo vive ENTERO en
 `abrir_sobre()`, SECURITY DEFINER: el cliente no escribe ni una fila en las
 cinco tablas. Las serializadas son de UNA persona en toda la comunidad y los
 sobres son la moneda, así que un INSERT desde el navegador sería el juego

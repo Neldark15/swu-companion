@@ -24,6 +24,7 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith('/cards')) return 'Buscar Cartas'
   if (pathname.startsWith('/decks')) return 'Mis Decks'
   if (pathname.startsWith('/collection')) return 'Mi Botín'
+  if (pathname.startsWith('/sobres')) return 'Sobredosis'
   if (pathname.startsWith('/explore')) return 'Contrabando'
   if (pathname.startsWith('/utilities')) return 'Utilidades'
   if (pathname.startsWith('/misiones')) return 'Misiones'

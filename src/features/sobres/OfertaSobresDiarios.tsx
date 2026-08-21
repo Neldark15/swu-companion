@@ -49,7 +49,7 @@ export function TarjetaOferta() {
             {SOBRES_CON_AVISOS} sobres al día con los avisos puestos
           </p>
           <p className="text-[11px] leading-snug text-swu-muted">
-            Sin ellos es {SOBRES_SIN_AVISOS}. Caen solos cada mañana a las 8:00 y se abren en La Bóveda.
+            Sin ellos es {SOBRES_SIN_AVISOS}. Caen solos cada mañana a las 8:00 y se abren en Sobredosis.
           </p>
         </div>
       </div>
@@ -145,7 +145,7 @@ export function PopupOferta({ userId, alIrAAjustes }: {
         </h2>
         <p className="mt-1.5 text-sm leading-snug text-swu-muted">
           Con los avisos activados son <strong className="text-swu-amber">{SOBRES_CON_AVISOS}</strong>,
-          todas las mañanas a las 8:00. Se te avisa cuando caen y los abrís en La Bóveda.
+          todas las mañanas a las 8:00. Se te avisa cuando caen y los abrís en Sobredosis.
         </p>
         <p className="mt-2 text-[11px] leading-snug text-swu-muted">
           Empiezan a caer de a {SOBRES_CON_AVISOS} en el reparto siguiente, no al instante: el de hoy

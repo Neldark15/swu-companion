@@ -36,7 +36,7 @@ export function NotificationToast() {
 
   /* Con destino, tocar el aviso LLEVA ahí y lo marca leído: es lo que hace un
    * aviso del sistema en cualquier teléfono, y es lo que la persona espera
-   * cuando lee «Te espera en La Bóveda».
+   * cuando lee «Te espera en Sobredosis».
    *
    * Sin destino se comporta como antes, o sea que solo se cierra. Eso NO es un
    * caso raro: los cuatro avisos de mesa de TournamentPlayerView van a
