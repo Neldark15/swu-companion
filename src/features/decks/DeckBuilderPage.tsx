@@ -11,6 +11,7 @@ import {
 } from '../../services/swuApi'
 import { validateDeck, canAddCard, getEffectiveMinDeckSize, getFormatRules } from '../../services/deckValidator'
 import { syncDeckToCloud } from '../../services/sync'
+import { updateMissionProgress } from '../../services/missionService'
 import { useAuth } from '../../hooks/useAuth'
 import { CardImage } from '../../components/CardImage'
 import { CardPreviewSheet } from '../../components/CardPreviewSheet'
@@ -203,19 +204,41 @@ export function DeckBuilderPage() {
     })
   }, [deck.leaders, deck.base, deck.mainDeck, deck.sideboard])
 
+  /**
+   * Crear un mazo NO contaba para las misiones, y esa era la trampa.
+   *
+   * El único llamador de `deck_created` estaba en el flujo de IMPORTAR
+   * (DeckListPage). O sea que la misión «Crear 1 deck» solo se completaba
+   * pegando una lista de otro lado: armar uno a mano en esta pantalla —que es
+   * lo que la misión pide con todas las letras— no contaba nada.
+   *
+   * Cuenta cuando el mazo deja de estar vacío: con líder Y base ya es un mazo,
+   * antes es una pantalla en blanco. Y una sola vez, porque esto vive dentro
+   * del autoguardado y ese corre en cada carta que se toca.
+   */
+  const yaConto = useRef(false)
+  const contarSiNace = useCallback((d: Deck) => {
+    if (!isNew || yaConto.current || !supabaseUser) return
+    if (!d.leaders?.length || !d.base) return
+    yaConto.current = true
+    void updateMissionProgress(supabaseUser.id, 'deck_created').catch(() => {})
+  }, [isNew, supabaseUser])
+
   const saveDeck = useCallback(async () => {
     const toSave = { ...deck, updatedAt: Date.now() }
     await db.decks.put(toSave)
     if (supabaseUser) syncDeckToCloud(supabaseUser.id, toSave).catch(() => {})
+    contarSiNace(toSave)
     setSaveFlash(true)
     setTimeout(() => setSaveFlash(false), 1200)
-  }, [deck, supabaseUser])
+  }, [deck, supabaseUser, contarSiNace])
 
   const autoSave = useCallback(async (d: Deck) => {
     const toSave = { ...d, updatedAt: Date.now() }
     await db.decks.put(toSave).catch(() => {})
     if (supabaseUser) syncDeckToCloud(supabaseUser.id, toSave).catch(() => {})
-  }, [supabaseUser])
+    contarSiNace(toSave)
+  }, [supabaseUser, contarSiNace])
 
   const doSearch = useCallback(async (query: string, aspect: string | null, cost: number | null) => {
     // Antes solo se buscaba con texto escrito. Acá es justamente donde uno

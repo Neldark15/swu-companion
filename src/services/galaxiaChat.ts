@@ -14,6 +14,7 @@
  */
 
 import { supabase, isSupabaseReady } from './supabase'
+import { updateMissionProgress } from './missionService'
 import { getCountryByCode, getContinentById } from '../data/regions'
 
 /**
@@ -224,6 +225,10 @@ export async function enviar(
         : 'No se pudo enviar el mensaje.',
     }
   }
+  /* Las misiones se enteran en el gesto mismo, y solo si salió bien. Se traga
+     el fallo a propósito: una misión no puede impedir la acción. */
+  void updateMissionProgress(autorId, 'chat_enviado').catch(() => {})
+
   return { ok: true, datos: null }
 }
 

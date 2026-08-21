@@ -25,6 +25,7 @@
  */
 
 import { supabase, isSupabaseReady } from './supabase'
+import { updateMissionProgress } from './missionService'
 
 /** Las columnas que se piden. Explícitas: un `*` traería columnas nuevas sin querer. */
 const COLUMNAS =
@@ -368,6 +369,10 @@ export async function registrarAmistosa(miId: string, d: NuevaAmistosa): Promise
   // Solo tiene sentido con rival CON cuenta: contra un invitado el duelo nace
   // `sin_rival` y no hay a quién avisarle.
   if (d.rivalId) void avisarAlRival(fila.id)
+
+  /* Las misiones se enteran en el gesto mismo, y solo si salió bien. Se traga
+     el fallo a propósito: una misión no puede impedir la acción. */
+  void updateMissionProgress(miId, 'amistosa_registrada').catch(() => {})
 
   return { ok: true }
 }

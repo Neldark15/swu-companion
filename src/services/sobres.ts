@@ -31,6 +31,7 @@
  */
 
 import { supabase, isSupabaseReady } from './supabase'
+import { updateMissionProgress } from './missionService'
 import { getCardsByIds, MAIN_SET_LABELS } from './swuApi'
 import { artesDeVariantes } from './sobresArte'
 import { diaCalendarioSV } from './horaSV'
@@ -228,6 +229,16 @@ export async function abrirSobre(): Promise<SobreAbierto> {
   const { data, error } = await supabase.rpc('abrir_sobre')
   if (error) throw new Error(error.message || 'No se pudo abrir el sobre')
   if (!data) throw new Error('El servidor no devolvió el sobre')
+
+  /* Las misiones se enteran ACÁ, en el gesto mismo y solo si el sobre salió
+     de verdad. Se traga el fallo a propósito: una misión no puede impedir que
+     se abra un sobre. Y el id sale de la sesión, no de un parámetro: esta
+     función no lo recibe porque el RPC ya sabe quién llama. */
+  void (async () => {
+    const { data: sesion } = await supabase.auth.getUser()
+    const uid = sesion?.user?.id
+    if (uid) await updateMissionProgress(uid, 'sobre_abierto')
+  })().catch(() => {})
 
   const crudas = (data.cartas ?? []) as FilaCruda[]
   const fichas = await getCardsByIds(crudas.map(c => c.card_id))

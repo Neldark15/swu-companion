@@ -40,6 +40,7 @@ import { Avatar } from '../../components/ui/Avatar'
 import { Dice3D } from '../utilities/Dice3D'
 import { db } from '../../services/db'
 import { mazosParaContador, type MazoDeAlguien } from '../../services/amistosas'
+import { updateMissionProgress } from '../../services/missionService'
 import { ensureCards } from '../../services/swuApi'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase, isSupabaseReady } from '../../services/supabase'
@@ -891,6 +892,21 @@ export function ContadorPage() {
       }).then(({ error }) => {
         if (error) console.warn('[Contador] no se pudo cerrar el duelo:', error.message)
       })
+
+      /* Y las misiones se enteran. Hasta ahora el Contador —la herramienta que
+         de verdad se usa en la mesa— no alimentaba ninguna: las misiones de
+         «jugar» y «ganar» solo las movía /play, el tracker viejo. O sea que
+         quien jugaba de verdad no completaba la misión de jugar.
+         Se cuenta al CERRAR con marcador, no en cada toque de vida: un duelo
+         a medias todavía no es una partida. */
+      const jugadas = victoriasA + victoriasB
+      if (jugadas > 0) {
+        void updateMissionProgress(supabaseUser.id, 'match_played', jugadas).catch(() => {})
+        if (victoriasA > 0) {
+          void updateMissionProgress(supabaseUser.id, 'match_won', victoriasA).catch(() => {})
+        }
+      }
+      void updateMissionProgress(supabaseUser.id, 'amistosa_registrada').catch(() => {})
     }
     borrar()
     setDuelo(null)

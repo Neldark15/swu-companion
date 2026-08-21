@@ -15,9 +15,19 @@ import {
 // ─── TYPES ──────────────────────────────────────────────────────────
 
 export type MissionType = 'daily' | 'weekly'
-export type ObjectiveType = 'match_played' | 'match_won' | 'gift_sent' | 'deck_created' |
-  'card_favorited' |
-  'card_collected' | 'card_searched' | 'price_checked' | 'set_explored'
+/**
+ * Los objetivos que la app SABE observar. Cada uno tiene un llamador real de
+ * `updateMissionProgress`; si agregás uno, agregá el llamador en el MISMO
+ * commit o nace siendo una tarea imposible en pantalla.
+ *
+ * Se fueron cuatro que estaban declarados y no los disparaba nadie ni los usaba
+ * ninguna plantilla —`card_collected`, `card_searched`, `price_checked`,
+ * `set_explored`—: tipos muertos que solo servían para que alguien creyera que
+ * había por dónde.
+ */
+export type ObjectiveType =
+  | 'match_played' | 'match_won' | 'gift_sent' | 'deck_created' | 'card_favorited'
+  | 'sobre_abierto' | 'muro_publicado' | 'chat_enviado' | 'amistosa_registrada'
 
 export type RewardType = 'xp' | 'title' | 'xp_title'
 
@@ -44,27 +54,48 @@ export interface UserMission {
 
 // ─── MISSION CATALOG ────────────────────────────────────────────────
 
+/**
+ * Las diarias. Se sortean 4 por día.
+ *
+ * ── POR QUÉ CAMBIÓ EL CATÁLOGO ENTERO ────────────────────────────────
+ *
+ * El anterior pedía cosas que nadie hace a diario. Medido sobre 30 días de
+ * producción, lo que la comunidad hace de verdad es:
+ *
+ *     publicar en el muro   322 veces · 18 personas
+ *     abrir un sobre         54 ·  4      (y hay 259 sin abrir esperando)
+ *     crear un mazo          27 · 11
+ *     escribir en el chat    18 ·  5
+ *     registrar amistosa     16 ·  6
+ *
+ * Y el catálogo viejo pedía «marcar 5 cartas favoritas en un día» y «20 en una
+ * semana». En seis meses se registraron DIEZ filas de misión en toda la app.
+ *
+ * La regla nueva: una diaria tiene que ser algo que harías igual. El sobre lo
+ * recibe todo el mundo a las 8 de la mañana y abrirlo es un toque; publicar en
+ * el muro ya lo hacen 18 de 28. Nada pide «3 partidas» ni «5 favoritas».
+ */
 export const DAILY_MISSIONS: MissionTemplate[] = [
-  { id: 'd_play1', type: 'daily', name: 'Orden de Patrulla', description: 'Jugar 1 partida', objectiveType: 'match_played', objectiveValue: 1, rewardXp: 20, icon: '⚔️' },
-  { id: 'd_win1', type: 'daily', name: 'Victoria Táctica', description: 'Ganar 1 partida', objectiveType: 'match_won', objectiveValue: 1, rewardXp: 25, icon: '🏆' },
-  { id: 'd_gift1', type: 'daily', name: 'Diplomacia Galáctica', description: 'Enviar 1 regalo', objectiveType: 'gift_sent', objectiveValue: 1, rewardXp: 15, icon: '🎁' },
-  { id: 'd_fav1', type: 'daily', name: 'Ojo de Coleccionista', description: 'Marcar 1 carta favorita', objectiveType: 'card_favorited', objectiveValue: 1, rewardXp: 10, icon: '⭐' },
-  { id: 'd_deck1', type: 'daily', name: 'Diseño Rápido', description: 'Crear 1 deck', objectiveType: 'deck_created', objectiveValue: 1, rewardXp: 15, icon: '🔧' },
-  { id: 'd_win2', type: 'daily', name: 'Doble Impacto', description: 'Ganar 2 partidas', objectiveType: 'match_won', objectiveValue: 2, rewardXp: 30, icon: '⚡' },
-  { id: 'd_play3', type: 'daily', name: 'Servicio Activo', description: 'Jugar 3 partidas', objectiveType: 'match_played', objectiveValue: 3, rewardXp: 25, icon: '🎮' },
-  { id: 'd_gift2', type: 'daily', name: 'Emisario Imperial', description: 'Enviar 2 regalos', objectiveType: 'gift_sent', objectiveValue: 2, rewardXp: 20, icon: '📡' },
-  { id: 'd_fav5', type: 'daily', name: 'Curador Exprés', description: 'Marcar 5 cartas favoritas', objectiveType: 'card_favorited', objectiveValue: 5, rewardXp: 15, icon: '💎' },
+  { id: 'd_sobre1',    type: 'daily', name: 'Botín del día',        description: 'Abrir 1 sobre',                 objectiveType: 'sobre_abierto',      objectiveValue: 1, rewardXp: 20, icon: '📦' },
+  { id: 'd_muro1',     type: 'daily', name: 'Señal en la red',      description: 'Publicar algo en el muro',      objectiveType: 'muro_publicado',     objectiveValue: 1, rewardXp: 15, icon: '📡' },
+  { id: 'd_fav1',      type: 'daily', name: 'Ojo de Coleccionista', description: 'Marcar 1 carta favorita',       objectiveType: 'card_favorited',     objectiveValue: 1, rewardXp: 10, icon: '⭐' },
+  { id: 'd_chat1',     type: 'daily', name: 'Frecuencia abierta',   description: 'Escribir en una sala de chat',  objectiveType: 'chat_enviado',       objectiveValue: 1, rewardXp: 15, icon: '💬' },
+  { id: 'd_amistosa1', type: 'daily', name: 'Duelo de práctica',    description: 'Registrar una amistosa',        objectiveType: 'amistosa_registrada', objectiveValue: 1, rewardXp: 25, icon: '⚔️' },
+  { id: 'd_deck1',     type: 'daily', name: 'Diseño Rápido',        description: 'Crear o importar un mazo',      objectiveType: 'deck_created',       objectiveValue: 1, rewardXp: 20, icon: '🔧' },
+  { id: 'd_play1',     type: 'daily', name: 'Orden de Patrulla',    description: 'Jugar 1 partida',               objectiveType: 'match_played',       objectiveValue: 1, rewardXp: 20, icon: '🎮' },
+  { id: 'd_win1',      type: 'daily', name: 'Victoria Táctica',     description: 'Ganar 1 partida',               objectiveType: 'match_won',          objectiveValue: 1, rewardXp: 25, icon: '🏆' },
+  { id: 'd_sobre3',    type: 'daily', name: 'Fiebre de sobres',     description: 'Abrir 3 sobres',                objectiveType: 'sobre_abierto',      objectiveValue: 3, rewardXp: 30, icon: '🎁' },
+  { id: 'd_gift1',     type: 'daily', name: 'Diplomacia Galáctica', description: 'Enviar 1 regalo',               objectiveType: 'gift_sent',          objectiveValue: 1, rewardXp: 15, icon: '🤝' },
 ]
 
 export const WEEKLY_MISSIONS: MissionTemplate[] = [
-  { id: 'w_win5', type: 'weekly', name: 'Campaña de Victoria', description: 'Ganar 5 partidas', objectiveType: 'match_won', objectiveValue: 5, rewardXp: 60, icon: '🏅' },
-  { id: 'w_gift3', type: 'weekly', name: 'Red de Alianzas', description: 'Enviar 3 regalos', objectiveType: 'gift_sent', objectiveValue: 3, rewardXp: 40, icon: '🤝' },
-  { id: 'w_deck2', type: 'weekly', name: 'Laboratorio Táctico', description: 'Crear 2 decks', objectiveType: 'deck_created', objectiveValue: 2, rewardXp: 40, icon: '🔬' },
-  { id: 'w_play10', type: 'weekly', name: 'Deber Cumplido', description: 'Jugar 10 partidas', objectiveType: 'match_played', objectiveValue: 10, rewardXp: 50, icon: '🎯' },
-  { id: 'w_fav20', type: 'weekly', name: 'Gran Curador', description: 'Marcar 20 favoritas', objectiveType: 'card_favorited', objectiveValue: 20, rewardXp: 40, icon: '💎' },
+  { id: 'w_sobre7',    type: 'weekly', name: 'Almacén Imperial',    description: 'Abrir 7 sobres',            objectiveType: 'sobre_abierto',       objectiveValue: 7,  rewardXp: 60, icon: '📦' },
+  { id: 'w_muro5',     type: 'weekly', name: 'Voz de la Alianza',   description: 'Publicar 5 veces en el muro', objectiveType: 'muro_publicado',    objectiveValue: 5,  rewardXp: 50, icon: '📡' },
+  { id: 'w_amistosa3', type: 'weekly', name: 'Sala de Guerra',      description: 'Registrar 3 amistosas',     objectiveType: 'amistosa_registrada', objectiveValue: 3,  rewardXp: 70, icon: '⚔️' },
+  { id: 'w_deck2',     type: 'weekly', name: 'Laboratorio Táctico', description: 'Crear 2 mazos',             objectiveType: 'deck_created',        objectiveValue: 2,  rewardXp: 40, icon: '🔬' },
+  { id: 'w_win5',      type: 'weekly', name: 'Campaña de Victoria', description: 'Ganar 5 partidas',          objectiveType: 'match_won',           objectiveValue: 5,  rewardXp: 60, icon: '🏅' },
+  { id: 'w_fav10',     type: 'weekly', name: 'Gran Curador',        description: 'Marcar 10 favoritas',       objectiveType: 'card_favorited',      objectiveValue: 10, rewardXp: 40, icon: '💎' },
 ]
-
-// ─── SEEDED RANDOM ──────────────────────────────────────────────────
 
 /** Simple seeded PRNG (mulberry32) */
 function seededRandom(seed: number): () => number {
@@ -314,7 +345,26 @@ export async function updateMissionProgress(
       }
 
       if (nowCompleted) {
-        notifyMissionComplete(template.name)
+        /* SE ACREDITA SOLA. Antes no.
+         *
+         * Este es el fallo que dejaba las misiones sin efecto: `claimMissionReward`
+         * tenía UN llamador —la pantalla de Misiones— así que completabas la misión
+         * en silencio y el XP no llegaba nunca a menos que entraras a /misiones y
+         * tocaras un botón. Medido sobre las 10 filas de toda la historia de la app:
+         * 7 completadas, y 3 de ellas nunca cobradas. Peor, la recompensa se PERDÍA
+         * al rotar el período.
+         *
+         * Un premio que hay que ir a buscar a una pantalla escondida no es un premio,
+         * es una tarea. Se acredita acá y se avisa con el número.
+         *
+         * Se reusa `claimMissionReward` en vez de copiar el reparto: comprueba
+         * `completed && !claimed` contra la base, así que llamarla dos veces —desde
+         * acá y desde la pantalla vieja— no paga dos veces. */
+        const cobro = await claimMissionReward(userId, template.id)
+        notifyMissionComplete(
+          template.name,
+          cobro.success ? cobro.xpAwarded : undefined,
+        )
       }
     } catch (e) {
       console.warn('[Mission] Failed to update progress:', e)

@@ -12,6 +12,7 @@
  */
 
 import { supabase, isSupabaseReady } from './supabase'
+import { updateMissionProgress } from './missionService'
 
 // ─── Constantes ──────────────────────────────────────────
 
@@ -195,6 +196,10 @@ export async function createCommunityPost(
       console.warn('[Community] Failed to create post:', error?.message)
       return null
     }
+    /* Las misiones se enteran en el gesto mismo, y solo si salió bien. Se traga
+     el fallo a propósito: una misión no puede impedir la acción. */
+    void updateMissionProgress(userId, 'muro_publicado').catch(() => {})
+
     return mapPost(data, new Set())
   } catch {
     return null

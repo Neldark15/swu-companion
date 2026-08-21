@@ -227,11 +227,21 @@ export function notifyGiftReceived(senderName: string, giftLabel: string, giftId
   })
 }
 
-export function notifyMissionComplete(missionName: string) {
+/**
+ * Misión completada — y CUÁNTO se ganó.
+ *
+ * El XP viaja en el aviso porque desde que se acredita sola no hay ninguna otra
+ * pantalla donde se vea. Antes había que ir a /misiones a tocar «Reclamar», y
+ * ni siquiera ahí se enseñaba el número: la tarjeta se ponía gris y ya.
+ *
+ * Sin `xp` el mensaje es solo el nombre: así el aviso sigue sirviendo si el
+ * cobro falló, en vez de mentir con un «+0 XP».
+ */
+export function notifyMissionComplete(missionName: string, xp?: number) {
   useNotificationStore.getState().addNotification({
     type: 'mission',
     title: '¡Misión Completada!',
-    message: missionName,
+    message: xp ? `${missionName} · +${xp} XP` : missionName,
     icon: '✅',
     link: '/misiones',
   })
