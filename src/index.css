@@ -1225,3 +1225,72 @@ input:focus, textarea:focus, select:focus {
     animation: none;
   }
 }
+
+/* ─── Bahías de la consola (Inicio) ───────────────────────────────────
+ *
+ * Va como CSS PLANO y no como `@utility`, por la trampa de §3i: Tailwind 4
+ * solo emite una `@utility` si DETECTA la clase escrita en el código, y estas
+ * se aplican desde un `data-` y desde `nth-child`. Como `@utility` no llegarían
+ * nunca a la hoja de estilos y el panel se abriría sin animación, sin un solo
+ * error en consola.
+ */
+
+/* El hueco es una rejilla de UNA fila cuyo alto se interpola de 0fr a 1fr.
+ * `height: auto` no se puede transicionar y medir con JS obligaría a leer
+ * geometría del DOM en cada apertura. */
+.bahia-hueco {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 280ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.bahia-hueco[data-abierta='true'] { grid-template-rows: 1fr; }
+
+/* `min-height: 0` NO es opcional: sin él la fila no baja de la altura de su
+ * contenido y la bahía no cierra. Es el detalle que hace fallar este truco.
+ *
+ * Y `visibility` saca los botones del orden de tabulación mientras está
+ * cerrada — con solo `overflow: hidden` miden cero pero el teclado sigue
+ * entrando y el foco se va de la pantalla. Se retrasa lo que dura el cierre
+ * para no cortar la animación por la mitad. */
+.bahia-cuerpo {
+  min-height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  transition: visibility 0s linear 280ms;
+}
+.bahia-hueco[data-abierta='true'] > .bahia-cuerpo {
+  visibility: visible;
+  transition: visibility 0s;
+}
+
+/* Los mosaicos entran escalonados, como instrumentos encendiéndose en fila.
+ *
+ * El retardo va por `nth-child` y no envolviendo cada casilla en un div con su
+ * variable: envolverlas rompería la cadena de `h-full` que mantiene del mismo
+ * alto a todas las de una fila. Son seis reglas porque seis es la categoría más
+ * grande (Competir, Colección y Comunidad); la séptima cubre el chat de región,
+ * que se cuela primero en Comunidad. */
+.bahia-hueco[data-abierta='true'] > .bahia-cuerpo > .grid > * {
+  animation: bahia-entra 240ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+.bahia-hueco[data-abierta='true'] > .bahia-cuerpo > .grid > *:nth-child(1) { animation-delay: 40ms; }
+.bahia-hueco[data-abierta='true'] > .bahia-cuerpo > .grid > *:nth-child(2) { animation-delay: 70ms; }
+.bahia-hueco[data-abierta='true'] > .bahia-cuerpo > .grid > *:nth-child(3) { animation-delay: 100ms; }
+.bahia-hueco[data-abierta='true'] > .bahia-cuerpo > .grid > *:nth-child(4) { animation-delay: 130ms; }
+.bahia-hueco[data-abierta='true'] > .bahia-cuerpo > .grid > *:nth-child(5) { animation-delay: 160ms; }
+.bahia-hueco[data-abierta='true'] > .bahia-cuerpo > .grid > *:nth-child(6) { animation-delay: 190ms; }
+.bahia-hueco[data-abierta='true'] > .bahia-cuerpo > .grid > *:nth-child(n+7) { animation-delay: 210ms; }
+
+/* Solo `transform` y `opacity`: las dos que el compositor mueve sin recalcular
+ * layout ni repintar. Es la misma regla que sigue Carta3D. */
+@keyframes bahia-entra {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+/* Quien pidió menos movimiento LLEGA igual: se abre y se cierra, sin viaje. */
+@media (prefers-reduced-motion: reduce) {
+  .bahia-hueco { transition: none; }
+  .bahia-cuerpo { transition: none; }
+  .bahia-hueco[data-abierta='true'] > .bahia-cuerpo > .grid > * { animation: none; }
+}

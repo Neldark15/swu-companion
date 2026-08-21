@@ -13,6 +13,7 @@
  *    la tira no se dibuja en vez de mostrar tres ceros.
  */
 
+import type { ComponentType } from 'react'
 import { useT } from '../../services/i18n'
 import { pendientesDeConfirmar } from '../../services/amistosas'
 import { pedidosPendientes } from '../../services/mercadoPedidos'
@@ -32,9 +33,10 @@ import { ProximosEventos } from './ProximosEventos'
 import { AvisoPerfil } from '../profile/AvisoPerfil'
 import { AvisoSobreDiario } from '../sobres/AvisoSobreDiario'
 import { AvisoMensajes } from '../mensajes/AvisoMensajes'
+import { MosaicoModulo } from './MosaicoModulo'
+import { BahiaModulos } from './BahiaModulos'
 import { PopupOferta } from '../sobres/OfertaSobresDiarios'
 import { TarjetaJugador } from '../profile/TarjetaJugador'
-import { Carta3D } from '../../components/Carta3D'
 import { HUD_TEXTO, type HudTone } from '../../components/hudTones'
 import { useAuth } from '../../hooks/useAuth'
 import { type PlayerStats, calculateLevel } from '../../services/gamification'
@@ -47,13 +49,49 @@ import { ChatRegion } from './ChatRegion'
 /** Las familias de módulos, en el orden en que se muestran. */
 type Categoria = 'jugar' | 'competir' | 'construir' | 'coleccion' | 'comunidad'
 
-const CATEGORIAS: { id: Categoria; titulo: string }[] = [
-  { id: 'jugar',     titulo: 'Jugar' },
-  { id: 'competir',  titulo: 'Competir' },
-  { id: 'construir', titulo: 'Construir' },
-  { id: 'coleccion', titulo: 'Colección' },
-  { id: 'comunidad', titulo: 'Comunidad' },
+const CATEGORIAS: {
+  id: Categoria; titulo: string
+  /* Tipo ancho a propósito: las categorías mezclan íconos de lucide con los
+     propios del juego, y `typeof DatapadIcon` solo abarca los segundos. */
+  icono: ComponentType<{ size?: number }>
+  tono: HudTone
+}[] = [
+  { id: 'jugar',     titulo: 'Jugar',     icono: Swords,          tono: 'green' },
+  { id: 'competir',  titulo: 'Competir',  icono: MandoTrophyIcon, tono: 'amber' },
+  { id: 'construir', titulo: 'Construir', icono: DeckCardsIcon,   tono: 'cyan' },
+  { id: 'coleccion', titulo: 'Colección', icono: CargoIcon,       tono: 'purple' },
+  { id: 'comunidad', titulo: 'Comunidad', icono: StarfighterIcon, tono: 'red' },
 ]
+
+/**
+ * Qué bahías quedaron abiertas, por aparato.
+ *
+ * Va en `localStorage` y no en la nube a propósito: es una preferencia de esta
+ * pantalla en este teléfono, no un dato de la cuenta. Sincronizarla obligaría a
+ * esperar la red para saber cómo dibujar Inicio.
+ *
+ * La primera vez se abre SOLO «Jugar». Con todo cerrado, quien entra por
+ * primera vez no ve un solo módulo y la app parece vacía; con todo abierto
+ * volvemos a las trece filas de mosaicos que esto vino a arreglar.
+ */
+const CLAVE_BAHIAS = 'inicio_bahias'
+
+function bahiasGuardadas(): Set<Categoria> {
+  try {
+    const crudo = localStorage.getItem(CLAVE_BAHIAS)
+    if (crudo === null) return new Set<Categoria>(['jugar'])
+    const lista = JSON.parse(crudo) as unknown
+    // Se filtra contra las categorías REALES: un valor viejo de una categoría
+    // que ya no existe abriría una bahía fantasma.
+    if (!Array.isArray(lista)) return new Set<Categoria>(['jugar'])
+    return new Set(lista.filter((x): x is Categoria =>
+      CATEGORIAS.some(c => c.id === x)))
+  } catch {
+    // Modo privado de Safari o almacenamiento lleno: no es motivo para no
+    // dibujar Inicio.
+    return new Set<Categoria>(['jugar'])
+  }
+}
 
 interface Sistema {
   icon: typeof DatapadIcon
@@ -156,14 +194,6 @@ interface Marcador {
 }
 
 /** Traducción de los rótulos de módulo y categoría al inglés (Fase i18n). */
-const MOD_EN: Record<string, string> = {
-  'Contador': 'Counter', 'Amistosas': 'Friendlies', 'Duelo': 'Duel', 'Misiones': 'Missions', 'Calendario': 'Calendar', 'Pedidos': 'Orders', 'Mensajes': 'Messages',
-  'Torneos': 'Tournaments', 'Eventos': 'Events', 'Meta': 'Meta', 'Ranking': 'Ranking', 'En Vivo': 'Live',
-  'Mis Decks': 'My Decks', 'Laboratorio': 'Lab', 'Buscar Cartas': 'Search Cards', 'Rulings': 'Rulings',
-  'Mi Botín': 'My Loot', 'Contrabando': 'Smuggling', 'Mercancía': 'Market',
-  'La Galaxia': 'The Galaxy', 'Espionaje': 'Espionage', 'Blog': 'Blog',
-  'Transmisión': 'Broadcast', 'Panel Admin': 'Admin Panel',
-}
 const CAT_EN: Record<string, string> = {
   'Jugar': 'Play', 'Competir': 'Compete', 'Construir': 'Build', 'Colección': 'Collection', 'Comunidad': 'Community',
   'Solo administradores': 'Administrators only',
@@ -173,6 +203,17 @@ export function HomePage() {
   const navigate = useNavigate()
   const { currentProfile, supabaseUser, isAdmin } = useAuth()
   const tI = useT()
+  const [bahias, setBahias] = useState<Set<Categoria>>(bahiasGuardadas)
+
+  const alternarBahia = (id: Categoria) => {
+    setBahias(previo => {
+      const siguiente = new Set(previo)
+      if (siguiente.has(id)) siguiente.delete(id)
+      else siguiente.add(id)
+      try { localStorage.setItem(CLAVE_BAHIAS, JSON.stringify([...siguiente])) } catch { /* sin sitio */ }
+      return siguiente
+    })
+  }
 
   /** Rango y marcador viajan juntos: salen de la misma fila y se pintan a la
    *  vez, así que un solo estado evita un render intermedio a medio llenar. */
@@ -256,37 +297,6 @@ export function HomePage() {
       </div>
     </div>
   )
-
-  /** Una casilla de módulo. Extraída para que la use la cuadrícula general y
-   *  también la franja de administración, sin duplicar los 40 renglones de 3D
-   *  y clip-path que quedaron medidos hasta el pixel. */
-  const renderModulo = (sys: Sistema) => {
-    const Icon = sys.icon
-    return (
-      <button key={sys.label} onClick={() => navigate(sys.to)} className="text-left">
-        {/* El mismo 3D de las cartas, con menos ángulo: un panel de interfaz que
-            se inclina como una carta se siente a juguete. Seis grados alcanzan
-            para que responda al dedo. */}
-        <Carta3D brillo intensidad={6} className="h-full">
-          <HudPanel tone={sys.tone} glow className="h-full">
-            <div className="relative h-full flex items-center gap-2 p-2.5">
-              <HudCorners tone={sys.tone} />
-              <HexIcon tone={sys.tone} size={38}><Icon size={18} /></HexIcon>
-              {/* Solo el rótulo, en blanco: el color lo lleva el ícono. A 320 px
-                  la caja queda en 46 px y una palabra sola —«Contrabando» mide
-                  83— no tiene dónde partirse; `break-words` + `text-[11px]` le
-                  devuelven el aire y a partir de 360 vuelve a 13. */}
-              <span className="min-w-0 flex-1 break-words text-[11px] font-bold text-white
-                               leading-tight min-[360px]:text-[13px]">
-                {tI(sys.label, MOD_EN[sys.label] ?? sys.label)}
-              </span>
-              <ChevronRight size={14} className="text-swu-muted flex-shrink-0" aria-hidden />
-            </div>
-          </HudPanel>
-        </Carta3D>
-      </button>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-swu-bg pb-8">
@@ -445,22 +455,30 @@ export function HomePage() {
           categoría se dibuja solo si tiene al menos una casilla visible: sin
           sesión, «Jugar» igual muestra Contador y Amistosas, pero «Colección»
           —toda con auth— no aparece, y su separador tampoco. */}
-      {CATEGORIAS.map(({ id, titulo }) => {
+      {CATEGORIAS.map(({ id, titulo, icono: IconoCat, tono }) => {
         const items = mainSystems.filter(
           s => s.cat === id && (!s.auth || currentProfile) && (!s.admin || isAdmin),
         )
         if (items.length === 0) return null
+        // El chat de región cuenta como una casilla más: la cifra de la
+        // cabecera tiene que decir lo que hay dentro, no lo que hay en el array.
+        const conChat = id === 'comunidad' && !!supabaseUser
         return (
-          <div key={id}>
-            {renderSeparador(titulo, 'cyan')}
-            <div className="px-4 pt-2 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {/* El chat de tu región va PRIMERO de Comunidad: es lo único de
-                  esa franja que cambia solo y que tiene algo que decirte hoy.
-                  Se dibuja únicamente con sesión — sin cuenta no hay región. */}
-              {id === 'comunidad' && <ChatRegion userId={supabaseUser?.id} />}
-              {items.map(renderModulo)}
-            </div>
-          </div>
+          <BahiaModulos
+            key={id}
+            titulo={tI(titulo, CAT_EN[titulo] ?? titulo)}
+            icono={<IconoCat size={15} />}
+            tono={tono}
+            cantidad={items.length + (conChat ? 1 : 0)}
+            abierta={bahias.has(id)}
+            onAlternar={() => alternarBahia(id)}
+          >
+            {/* El chat de tu región va PRIMERO de Comunidad: es lo único de
+                esa bahía que cambia solo y que tiene algo que decirte hoy.
+                Se dibuja únicamente con sesión — sin cuenta no hay región. */}
+            {conChat && <ChatRegion userId={supabaseUser?.id} />}
+            {items.map(sys => <MosaicoModulo key={sys.label} sys={sys} />)}
+          </BahiaModulos>
         )
       })}
 
@@ -472,7 +490,7 @@ export function HomePage() {
         <>
           {renderSeparador('Solo administradores', 'amber')}
           <div className="px-4 pt-2 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-            {adminSystems.map(renderModulo)}
+            {adminSystems.map(sys => <MosaicoModulo key={sys.label} sys={sys} />)}
           </div>
         </>
       )}

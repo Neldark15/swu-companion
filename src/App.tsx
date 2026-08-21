@@ -43,6 +43,7 @@ const SobresPage = lazy(() => import('./features/sobres/SobresPage').then(m => (
 const BinderDigital = lazy(() => import('./features/sobres/BinderDigital').then(m => ({ default: m.BinderDigital })))
 const BancoSobres = lazy(() => import('./features/sobres/BancoSobres').then(m => ({ default: m.BancoSobres })))
 const BancoAmistosas = lazy(() => import('./features/amistosas/BancoAmistosas').then(m => ({ default: m.BancoAmistosas })))
+const BancoConsola = lazy(() => import('./features/home/BancoConsola').then(m => ({ default: m.BancoConsola })))
 const BancoCopias = lazy(() => import('./features/decks/BancoCopias').then(m => ({ default: m.BancoCopias })))
 const BancoPaneles = lazy(() => import('./features/decks/BancoPaneles').then(m => ({ default: m.BancoPaneles })))
 const BancoAvisos = lazy(() => import('./components/ui/BancoAvisos').then(m => ({ default: m.BancoAvisos })))
@@ -258,6 +259,7 @@ export default function App() {
             {import.meta.env.DEV && <Route path="/banco-pedidos" element={<PedidosPage />} />}
             {import.meta.env.DEV && <Route path="/banco-carrito" element={<BancoCarrito />} />}
             {import.meta.env.DEV && <Route path="/banco-mensajes" element={<MensajesPage />} />}
+            {import.meta.env.DEV && <Route path="/banco-consola" element={<BancoConsola />} />}
             <Route path="/play/tracker/:mode" element={<P><TrackerPage /></P>} />
             <Route path="/play/saved" element={<P><SavedMatchesPage /></P>} />
             <Route path="/events" element={<P><EventsPage /></P>} />
