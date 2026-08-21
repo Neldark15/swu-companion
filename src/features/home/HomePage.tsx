@@ -34,6 +34,7 @@ import { AvisoPerfil } from '../profile/AvisoPerfil'
 import { AvisoSobreDiario } from '../sobres/AvisoSobreDiario'
 import { AvisoMensajes } from '../mensajes/AvisoMensajes'
 import { AvisoEncuesta } from '../encuesta/AvisoEncuesta'
+import { MisionesDeHoy } from '../missions/MisionesDeHoy'
 import { MosaicoModulo } from './MosaicoModulo'
 import { BahiaModulos } from './BahiaModulos'
 import { PopupOferta } from '../sobres/OfertaSobresDiarios'
@@ -323,6 +324,10 @@ export function HomePage() {
       <AvisoEncuesta userId={miIdAuth} />
       <AvisoMensajes userId={miIdAuth} />
       <AvisoSobreDiario userId={miIdAuth} />
+      {/* Va DESPUÉS del sobre: el sobre es de lo que hay que enterarse,
+          las misiones son lo que se puede hacer con eso. Y una de ellas
+          es justamente abrirlo. */}
+      <MisionesDeHoy userId={miIdAuth} />
 
       {/* Y para quien está cobrando UNO por no tener los avisos: es el único
           caso sin pantalla propia —entró por la salida de emergencia de la
