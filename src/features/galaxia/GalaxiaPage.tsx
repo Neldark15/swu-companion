@@ -24,7 +24,7 @@ import {
   Tag, Award, ChevronsUp, Layers, MessageSquare, Users, AlertTriangle, ExternalLink,
 } from 'lucide-react'
 import { hayWebGL } from './webgl'
-import { LENTES, metricaDe, magnitudDe, type Lente } from './lentes'
+import { LENTES, metricaDe, magnitudDe, type Lente, conLente } from './lentes'
 
 /**
  * La escena va en su propio chunk, como en `MesaPage`.
@@ -325,6 +325,23 @@ export function GalaxiaPage() {
       .map((p, i) => ({ ...p, orbita: i, magnitud: magnitudDe(p, lente, max) }))
   }, [galaxia, lente])
 
+  /**
+   * Mi sistema o la galaxia entera. Arranca en el propio: es lo que se ha
+   * visto siempre, y los planetas se ven un 15 % más grandes que con todos
+   * los países encuadrados a la vez.
+   */
+  const [amplitud, setAmplitud] = useState<'sistema' | 'galaxia'>('sistema')
+
+  /**
+   * Lo mismo, pero repartido en sistemas: es lo que dibuja la escena. La lista
+   * plana de arriba se queda para lo que NO tiene sol —la lista, el emergente,
+   * el recorrido—, donde el país no cambia nada.
+   */
+  const sistemas = useMemo(
+    () => conLente(galaxia?.sistemas ?? [], galaxia?.planetas ?? [], lente),
+    [galaxia, lente],
+  )
+
   /** El recorrido solo pasa por planetas CON movimiento: es lo que va a mostrar. */
   const conMovimiento = useMemo(
     () => planetas.filter(p => p.ultimoMovimiento !== null),
@@ -528,11 +545,38 @@ export function GalaxiaPage() {
                 </button>
               ))}
             </div>
+            {/* ── Mi sistema / toda la galaxia ── */}
+            {sistemas.length > 1 && vista === 'orbital' && (
+              <div className="flex items-center gap-1.5" role="group"
+                   aria-label="Qué tanto de la galaxia se ve">
+                {([
+                  ['sistema', `Mi sistema`],
+                  ['galaxia', `Toda la galaxia · ${sistemas.length} soles`],
+                ] as const).map(([id, rotulo]) => (
+                  <button
+                    key={id}
+                    aria-pressed={amplitud === id}
+                    onClick={() => setAmplitud(id)}
+                    className={`flex-shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold
+                                transition-colors focus-visible:outline-none focus-visible:ring-2
+                                focus-visible:ring-swu-accent ${
+                      amplitud === id
+                        ? 'border-swu-amber/60 bg-swu-amber/15 text-swu-amber'
+                        : 'border-swu-border bg-swu-surface text-swu-muted'
+                    }`}
+                  >
+                    {rotulo}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* La leyenda dice qué codifica qué, y cambia con la lente: una
                 escena con cuatro codificaciones a la vez sin leyenda es un
                 adivinanza, no una visualización. */}
             <p className="font-mono text-[10px] leading-snug text-swu-muted">
               tamaño y órbita = {LENTES.find(l => l.id === lente)?.leyenda} · color = rango · lunas = logros
+              {sistemas.length > 1 && ' · cada sol = un país'}
             </p>
 
             {vista === 'orbital' && (
@@ -541,8 +585,9 @@ export function GalaxiaPage() {
                                 rounded-2xl border border-swu-border bg-swu-surface lg:h-[58vh]" />
               }>
                 <GalaxiaEscena
-                  planetas={planetas}
+                  sistemas={sistemas}
                   seleccion={seleccion}
+                  amplitud={amplitud}
                   onSeleccionar={alTocar}
                   onSinWebGL={alPerderWebGL}
                   className="h-[46vh] min-h-[260px] max-h-[520px] w-full rounded-2xl

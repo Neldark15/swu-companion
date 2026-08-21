@@ -37,17 +37,43 @@
  *   1 LineSegments    → TODAS las órbitas fundidas en un solo búfer, punteadas
  *                       gratis (se emite un segmento sí y otro no).
  *   1 Points          → el campo de estrellas, un búfer de 620 vértices.
- *   3 Mesh + 1 Sprite → el sol, su resplandor y los dos aros (yo / seleccionado)
- *                       que comparten UNA geometría de anillo.
+ *   2 InstancedMesh   → los soles y sus resplandores. Uno por país, y la
+ *                       cuenta NO crece con los países: ver abajo.
+ *   2 Mesh            → los dos aros (yo / seleccionado), que comparten UNA
+ *                       geometría de anillo.
  *
- * Son **8 llamadas de dibujo por cuadro**, y son 8 con 19 planetas o con 200:
+ * Son **8 llamadas de dibujo por cuadro**, y son 8 con 19 planetas o con 200,
  * la cuenta no depende de la comunidad. Medido contando `drawElements`,
  * `drawArrays` y `drawElementsInstanced` sobre el contexto real, con el
  * histograma de índices para saber qué es cada una:
  *
- *     idx2160 ×1  sol          inst1560 ×1  los 19 planetas (520 tri × 19)
- *     idx6    ×1  resplandor   idx264   ×2  los dos aros
+ *     idx2160 ×1  soles        inst1560 ×1  los 19 planetas (520 tri × 19)
+ *     idx6    ×1  resplandores idx264   ×2  los dos aros
  *     v620    ×1  estrellas    v524     ×1  órbitas
+ *
+ * ── Varios soles, un solo dibujo ──
+ *
+ * Cada país es un sistema con su sol. Lo obvio —un `Mesh` y un `Sprite` por
+ * país— llevaría de 8 llamadas a 8+2n: con cinco países son 18, y cada país
+ * nuevo cuesta dos más para siempre. Así que los soles y los resplandores van
+ * instanciados como ya iban los planetas y las lunas, y la cuenta se queda
+ * clavada en 8 con uno o con veinte.
+ *
+ * El resplandor deja de ser `Sprite` porque un `Sprite` NO se puede instanciar
+ * (three lo trata como un objeto suelto). Es un plano que mira a la cámara: la
+ * misma cuenta que hace el `Sprite` por dentro, hecha acá para las n a la vez.
+ *
+ * ── Cada sol alumbra SOLO su sistema ──
+ *
+ * La luz del sol no tenía corte a propósito, para que los anillos exteriores
+ * no quedaran negros. Con varios soles eso se vuelve un problema: sin corte,
+ * los cinco alumbran a todos y los planetas se lavan a blanco.
+ *
+ * El corte se aplica AUNQUE la caída siga en cero, así que la luz se queda
+ * plana dentro del sistema y se apaga antes de llegar al vecino. El número no
+ * es a ojo: con el corte en 1,6 radios de sistema, el anillo exterior de casa
+ * conserva el 72 % de la luz y al planeta más cercano del vecino le llega un
+ * 2 %. Es lo que separa los sistemas sin apagar el propio.
  *
  * Con 19 planetas eso son 10.778 triángulos (720 + 9.880 + 176 + 2), muy por
  * debajo del umbral donde el número de llamadas empieza a costar.
@@ -58,10 +84,10 @@
  * estilos forzaría un recálculo de layout dentro del cuadro.
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { RANKS } from '../../services/gamification'
-import type { PlanetaJugador } from '../../services/galaxiaService'
+import type { PlanetaJugador, SistemaSolar } from '../../services/galaxiaService'
 
 // ─── Color por rango ─────────────────────────────────────
 
@@ -128,6 +154,41 @@ function velocidadAnillo(k: number): number {
   return 0.052 / Math.sqrt(radioAnillo(k) / RADIO_MIN)
 }
 
+// ─── Geometría de la galaxia (varios sistemas) ───────────
+
+/** Aire entre el borde de un sistema y el del vecino. */
+const AIRE = 8.0
+
+/**
+ * Alcance de la luz de un sol, en radios de su propio sistema.
+ *
+ * 1,6 no es a ojo. La atenuación de three con caída cero es
+ * `(1 − (d/corte)⁴)²`, así que con el sistema de casa en r = 14,8 y el vecino
+ * a 28,6: el anillo exterior propio (d = 14,8) conserva el 72 % y el planeta
+ * más cercano del vecino (d = 22,8) recibe el 2 %. Subirlo lava el sistema de
+ * al lado; bajarlo apaga el anillo exterior propio.
+ */
+const ALCANCE_SOL = 1.6
+
+/**
+ * El sol de un sistema chico NO puede medir lo mismo que el de uno grande.
+ *
+ * Se vio en el banco con los cinco soles: un sol de radio 2,0 dentro de un
+ * sistema de 5,8 es una bola que se come a su propio planeta, y con cuatro de
+ * esas alrededor la vista se convierte en faroles. Se escala con el sistema y
+ * se topa en la mitad, para que un país de una persona siga teniendo un sol
+ * visible y tocable en vez de un punto.
+ */
+function radioSol(radio: number, mayor: number): number {
+  return RADIO_SOL * Math.max(0.5, Math.min(1, radio / Math.max(0.001, mayor)))
+}
+
+/** Hasta dónde llega un sistema: el anillo más externo y un poco de aire. */
+function radioSistema(gente: PlanetaJugador[]): number {
+  const kMax = gente.length ? Math.max(...gente.map(v => acomodo(v.orbita).k)) : 0
+  return radioAnillo(kMax) + 1.2
+}
+
 // ─── Texturas dibujadas al vuelo ─────────────────────────
 
 /** Punto redondo con borde suave: sin esto las estrellas son cuadraditos. */
@@ -167,6 +228,9 @@ interface Cuerpo {
   id: string
   nombre: string
   radio: number
+  /** Centro del sistema al que pertenece. Ya no todos giran sobre el origen. */
+  cx: number
+  cz: number
   rOrbita: number
   angBase: number
   velocidad: number
@@ -177,6 +241,7 @@ interface Cuerpo {
 
 interface Mando {
   seleccionar: (id: string | null) => void
+  encuadrar: (todo: boolean) => void
 }
 
 interface Props {
@@ -186,10 +251,21 @@ interface Props {
    * entera —y recompila shaders— en cada toque. Medido con el banco de pruebas:
    * pasándolo sin memoizar, un barrido de toques solo alcanzaba 8 de los 19
    * planetas porque el lienzo se reemplazaba a mitad de camino.
+   *
+   * Es la lista de SISTEMAS, uno por país. El de quien mira va al centro y el
+   * resto lo rodea; con un solo sistema la escena queda igual que siempre.
    */
-  planetas: PlanetaJugador[]
+  sistemas: SistemaSolar[]
   /** Id del planeta resaltado. Lo controla la pantalla. */
   seleccion: string | null
+  /**
+   * Qué tanto se ve. Es un BOTÓN de la pantalla y no solo un pellizco, porque
+   * al entrar la cámara encuadra el sistema propio y los otros soles quedan
+   * FUERA de cuadro: sin un control visible, nadie descubre que hay más
+   * galaxia que la suya. Alejar de arranque para que asomen costaría el 15 %
+   * de tamaño que se acaba de ganar al repartir los países.
+   */
+  amplitud: 'sistema' | 'galaxia'
   onSeleccionar: (id: string | null) => void
   /** Se avisa si el navegador suelta el contexto 3D en marcha. */
   onSinWebGL?: () => void
@@ -197,8 +273,13 @@ interface Props {
 }
 
 export function GalaxiaEscena({
-  planetas, seleccion, onSeleccionar, onSinWebGL, className = '',
+  sistemas, seleccion, amplitud, onSeleccionar, onSinWebGL, className = '',
 }: Props) {
+  // La lista plana la usan el rótulo accesible y el efecto. Se memoiza contra
+  // `sistemas`, que ya viene memoizado de la pantalla: si se recalculara en
+  // cada render, el efecto de montaje se dispararía en cada toque.
+  const planetas = useMemo(() => sistemas.flatMap(s => s.planetas), [sistemas])
+
   const cajaRef = useRef<HTMLDivElement>(null)
   const etiquetaYoRef = useRef<HTMLDivElement>(null)
   const etiquetaSelRef = useRef<HTMLDivElement>(null)
@@ -214,10 +295,12 @@ export function GalaxiaEscena({
   const alSeleccionarRef = useRef(onSeleccionar)
   const alFallarRef = useRef(onSinWebGL)
   const seleccionRef = useRef(seleccion)
+  const amplitudRef = useRef(amplitud)
   useEffect(() => {
     alSeleccionarRef.current = onSeleccionar
     alFallarRef.current = onSinWebGL
     seleccionRef.current = seleccion
+    amplitudRef.current = amplitud
   })
 
   // ── Montaje ──
@@ -257,57 +340,160 @@ export function GalaxiaEscena({
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(48, 1, 0.5, 600)
 
+    // ── Dónde cae cada sistema ──
+    //
+    // El de quien mira va al ORIGEN. No es un detalle de implementación: es lo
+    // que hace que abrir la Galaxia se vea igual que siempre para los 24
+    // salvadoreños, y que quien entre desde México no aterrice mirando un país
+    // ajeno con el suyo de reojo en una esquina.
+    const iHogar = Math.max(0, sistemas.findIndex(v => v.planetas.some(p => p.esYo)))
+    const nSat = sistemas.length - 1
+    const rHogar = radioSistema(sistemas[iHogar].planetas)
+    const rSatMax = sistemas.length > 1
+      ? Math.max(...sistemas.filter((_, i) => i !== iHogar).map(v => radioSistema(v.planetas)))
+      : 0
+    // Dos condiciones, y hay que cumplir las DOS: que el satélite no toque a
+    // casa, y que los satélites no se toquen entre ellos. Hoy manda la primera
+    // (28,6 contra 13,9), pero la segunda es la que evita que el día que haya
+    // diez países se solapen en el mismo anillo.
+    const dOrbita = nSat === 0 ? 0 : Math.max(
+      rHogar + rSatMax + AIRE,
+      nSat > 1 ? (2 * rSatMax + AIRE) / (2 * Math.sin(Math.PI / nSat)) : 0,
+    )
+
+    interface Sistema {
+      nombre: string
+      bandera: string
+      cx: number
+      cz: number
+      kMax: number
+      radio: number
+      /** Radio del sol, que NO es el mismo en todos. Ver `radioSol`. */
+      rSol: number
+      etiqueta: HTMLDivElement | null
+    }
+    const enEscena: Sistema[] = sistemas.map((v, i) => {
+      // El puesto del satélite en su anillo: los repartidos en partes iguales
+      // y girados por el ángulo áureo, para que no se lea como un reloj.
+      const j = i < iHogar ? i : i - 1
+      const ang = AUREO + (j / Math.max(1, nSat)) * Math.PI * 2
+      const kMax = v.planetas.length ? Math.max(...v.planetas.map(p => acomodo(p.orbita).k)) : 0
+      return {
+        nombre: v.nombre,
+        bandera: v.bandera,
+        cx: i === iHogar ? 0 : Math.cos(ang) * dOrbita,
+        cz: i === iHogar ? 0 : Math.sin(ang) * dOrbita,
+        kMax,
+        radio: radioAnillo(kMax) + 1.2,
+        rSol: RADIO_SOL,
+        etiqueta: null,
+      }
+    })
+    const rMayor = Math.max(...enEscena.map(v => v.radio))
+    for (const v of enEscena) v.rSol = radioSol(v.radio, rMayor)
+    const rGalaxia = nSat === 0 ? rHogar : dOrbita + rSatMax
+
+    // Un rótulo de HTML por sol, hermano del lienzo. Solo si hay más de un
+    // sistema: con uno solo no hay nada que distinguir y sería ruido.
+    if (enEscena.length > 1) {
+      for (const v of enEscena) {
+        const el = document.createElement('div')
+        el.className =
+          'pointer-events-none absolute left-0 top-0 whitespace-nowrap rounded-full ' +
+          'border border-white/15 bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white/75'
+        el.setAttribute('aria-hidden', 'true')
+        el.style.visibility = 'hidden'
+        el.textContent = `${v.bandera} ${v.nombre}`
+        caja.appendChild(el)
+        v.etiqueta = el
+      }
+    }
+
     // ── Luces ──
     // Ambiente frío y bajo: el lado nocturno del planeta se ve, pero se ve
-    // oscuro. El sol es una luz puntual en el origen SIN caída (decay 0) a
-    // propósito: con caída física los anillos exteriores quedarían negros, y
-    // ahí es donde vive la mayor parte de la comunidad.
+    // oscuro. Cada sol es una luz puntual SIN caída (decay 0) a propósito: con
+    // caída física los anillos exteriores quedarían negros, y ahí es donde vive
+    // la mayor parte de la comunidad. Lo que sí lleva es CORTE, que se aplica
+    // aunque la caída siga en cero — es lo único que impide que los cinco soles
+    // alumbren a todos a la vez y laven los planetas a blanco. Ver ALCANCE_SOL.
     scene.add(new THREE.AmbientLight(0x2a3350, 1.15))
-    const luzSol = new THREE.PointLight(0xffd9a0, 2.3, 0, 0)
-    scene.add(luzSol)
+    const luces = enEscena.map(v => {
+      const l = new THREE.PointLight(0xffd9a0, 2.3, v.radio * ALCANCE_SOL, 0)
+      l.position.set(v.cx, 0, v.cz)
+      scene.add(l)
+      return l
+    })
 
-    // ── Sol ──
-    const geoSol = new THREE.SphereGeometry(RADIO_SOL, 24, 16)
+    // ── Soles y resplandores: una llamada cada uno, haya los que haya ──
+    const molde = new THREE.Matrix4()
+    // La esfera se crea de radio 1 y el tamaño va en la escala de la instancia:
+    // con un radio fijo en la geometría, cada sol distinto pediría su propia
+    // geometría y con ella su propia llamada de dibujo.
+    const geoSol = new THREE.SphereGeometry(1, 24, 16)
     const matSol = new THREE.MeshBasicMaterial({ color: 0xffd9a0 })
-    scene.add(new THREE.Mesh(geoSol, matSol))
+    const soles = new THREE.InstancedMesh(geoSol, matSol, enEscena.length)
+    enEscena.forEach((v, i) => {
+      molde.makeScale(v.rSol, v.rSol, v.rSol)
+      molde.setPosition(v.cx, 0, v.cz)
+      soles.setMatrixAt(i, molde)
+    })
+    soles.instanceMatrix.needsUpdate = true
+    scene.add(soles)
 
+    // El resplandor era un `Sprite` y ahora es un plano: un `Sprite` no se
+    // puede instanciar. Mirar a la cámara es la misma cuenta que el `Sprite`
+    // hacía por dentro, hecha acá para todos a la vez en `mirarResplandores`.
     const texResplandor = texturaResplandor()
-    const matResplandor = new THREE.SpriteMaterial({
+    const geoResplandor = new THREE.PlaneGeometry(1, 1)
+    const matResplandor = new THREE.MeshBasicMaterial({
       map: texResplandor, transparent: true,
       blending: THREE.AdditiveBlending, depthWrite: false,
     })
-    const resplandor = new THREE.Sprite(matResplandor)
-    resplandor.scale.setScalar(RADIO_SOL * 6)
-    scene.add(resplandor)
+    const resplandores = new THREE.InstancedMesh(geoResplandor, matResplandor, enEscena.length)
+    resplandores.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+    scene.add(resplandores)
+    const escalaGlow = new THREE.Vector3()
 
     // ── Cuerpos ──
-    const cuerpos: Cuerpo[] = planetas.map(p => {
-      const { k, hueco, cupo } = acomodo(p.orbita)
-      return {
-        id: p.id,
-        nombre: p.nombre,
-        radio: radioPlaneta(p.magnitud),
-        rOrbita: radioAnillo(k),
-        angBase: (hueco / cupo) * Math.PI * 2 + k * AUREO,
-        velocidad: velocidadAnillo(k),
-        x: 0,
-        z: 0,
+    // El recorrido va sistema por sistema en el MISMO orden que `planetas`
+    // (que es `flatMap` sobre `sistemas`), porque el color por instancia de más
+    // abajo indexa por posición: si los dos órdenes se separaran, cada planeta
+    // se pintaría con el rango de otro.
+    const cuerpos: Cuerpo[] = []
+    sistemas.forEach((v, i) => {
+      const c = enEscena[i]
+      for (const p of v.planetas) {
+        const { k, hueco, cupo } = acomodo(p.orbita)
+        cuerpos.push({
+          id: p.id,
+          nombre: p.nombre,
+          radio: radioPlaneta(p.magnitud),
+          cx: c.cx,
+          cz: c.cz,
+          rOrbita: radioAnillo(k),
+          angBase: (hueco / cupo) * Math.PI * 2 + k * AUREO,
+          velocidad: velocidadAnillo(k),
+          x: 0,
+          z: 0,
+        })
       }
     })
     const kMax = Math.max(...planetas.map(p => acomodo(p.orbita).k))
 
-    // ── Órbitas: un solo búfer para todos los anillos ──
+    // ── Órbitas: un solo búfer para todos los anillos de todos los sistemas ──
     // Se emite un segmento sí y otro no, así el punteado sale de la geometría
     // (mitad de vértices) en vez de costar un LineDashedMaterial.
     const puntos: number[] = []
-    for (let k = 0; k <= kMax; k++) {
-      const r = radioAnillo(k)
-      const tramos = Math.max(72, Math.round(r * 11))
-      for (let i = 0; i < tramos; i += 2) {
-        const a0 = (i / tramos) * Math.PI * 2
-        const a1 = ((i + 1) / tramos) * Math.PI * 2
-        puntos.push(Math.cos(a0) * r, 0, Math.sin(a0) * r)
-        puntos.push(Math.cos(a1) * r, 0, Math.sin(a1) * r)
+    for (const v of enEscena) {
+      for (let k = 0; k <= v.kMax; k++) {
+        const r = radioAnillo(k)
+        const tramos = Math.max(72, Math.round(r * 11))
+        for (let i = 0; i < tramos; i += 2) {
+          const a0 = (i / tramos) * Math.PI * 2
+          const a1 = ((i + 1) / tramos) * Math.PI * 2
+          puntos.push(v.cx + Math.cos(a0) * r, 0, v.cz + Math.sin(a0) * r)
+          puntos.push(v.cx + Math.cos(a1) * r, 0, v.cz + Math.sin(a1) * r)
+        }
       }
     }
     const geoOrbitas = new THREE.BufferGeometry()
@@ -376,7 +562,17 @@ export function GalaxiaEscena({
     // el empaquetador poda el bloque en producción). Igual que `__mesa`: contar
     // cuerpos y lunas por números en vez de adivinar por píxeles.
     if (import.meta.env.DEV) {
-      ;(window as unknown as { __galaxia?: unknown }).__galaxia = { cuerpos, lunas }
+      ;(window as unknown as { __galaxia?: unknown }).__galaxia = {
+        cuerpos, lunas, enEscena, dOrbita, rGalaxia,
+        // Estado vivo de la cámara. Sin esto, comprobar que tocar un sol muda
+        // el objetivo obliga a leerlo de los píxeles, que es justo lo que este
+        // archivo no quiere que se haga.
+        estado: () => ({
+          dist, distMin, distMax,
+          objetivo: [objetivo.x, objetivo.z],
+          meta: [objetivoMeta.x, objetivoMeta.z],
+        }),
+      }
     }
 
     // ── Aros de «yo» y «seleccionado»: comparten geometría ──
@@ -456,15 +652,45 @@ export function GalaxiaEscena({
     scene.add(estrellas)
 
     // ── Cámara orbital, a mano ──
-    const rSistema = radioAnillo(kMax) + 1.2
+    //
+    // Ya no orbita el origen sino un OBJETIVO que se puede mudar de sistema.
+    // Ahí está la mitad del pedido: la galaxia entera es navegable, y sin
+    // enseñar un gesto nuevo — se toca un sol o un planeta de otro país y la
+    // cámara se muda. El zoom hacia afuera es la otra mitad, y alcanza para
+    // ver los cinco a la vez.
     let theta = -0.55
     let phi = 0.66
     let dist = 40
-    let distAjuste = 40
+    let distMin = 3
+    let distMax = 120
     /** La PRIMERA medida fija el encuadre; las siguientes solo re-topan el zoom. */
     let encuadrado = false
 
-    function encuadre(): number {
+    const objetivo = new THREE.Vector3(0, 0, 0)
+    const objetivoMeta = new THREE.Vector3(0, 0, 0)
+
+    /** Muda la cámara a ese punto. El cuadro la lleva, no salta. */
+    function viajarA(cx: number, cz: number): void {
+      objetivoMeta.set(cx, 0, cz)
+    }
+
+    /**
+     * Encuadra el sistema propio o la galaxia entera.
+     *
+     * La usan el botón de la pantalla Y el montaje. Que la use el montaje no
+     * es un adorno: la escena se reconstruye entera al cambiar de lente, y sin
+     * esto se volvía al sistema propio con el botón todavía diciendo «toda la
+     * galaxia». Se vio en el banco cambiando de lente con la vista amplia.
+     */
+    function encuadrar(todo: boolean): void {
+      dist = Math.min(Math.max(encuadre(todo ? rGalaxia : rHogar), distMin), distMax)
+      // La vista amplia mira al centro de la galaxia, que es donde está el
+      // sistema propio: los satélites se reparten a su alrededor, así que el
+      // centro de todo y el de casa son el mismo punto.
+      if (todo) viajarA(0, 0)
+    }
+
+    function encuadre(r: number): number {
       const vFov = (camera.fov * Math.PI) / 180
       const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect)
       // Con TANGENTE y no con seno: el seno ajusta una ESFERA envolvente y lo
@@ -472,17 +698,17 @@ export function GalaxiaEscena({
       // el sistema se veía chico en el teléfono. La tangente ajusta el disco.
       // El peor caso vertical es la cámara en planta (cos φ = 1), que sigue
       // pidiendo menos que el ancho: girar nunca saca planetas de cuadro.
-      return (rSistema / Math.tan(Math.min(vFov, hFov) / 2)) * 1.04
+      return (r / Math.tan(Math.min(vFov, hFov) / 2)) * 1.04
     }
 
     function colocarCamara(): void {
       const sp = Math.sin(phi)
       camera.position.set(
-        dist * sp * Math.sin(theta),
+        objetivo.x + dist * sp * Math.sin(theta),
         dist * Math.cos(phi),
-        dist * sp * Math.cos(theta),
+        objetivo.z + dist * sp * Math.cos(theta),
       )
-      camera.lookAt(0, 0, 0)
+      camera.lookAt(objetivo)
       // Se actualiza acá y no se deja para `render()`.
       //
       // `Vector3.project()` usa `matrixWorldInverse`, que normalmente refresca
@@ -531,8 +757,8 @@ export function GalaxiaEscena({
       for (let i = 0; i < cuerpos.length; i++) {
         const c = cuerpos[i]
         const ang = c.angBase + tiempo * c.velocidad
-        c.x = Math.cos(ang) * c.rOrbita
-        c.z = Math.sin(ang) * c.rOrbita
+        c.x = c.cx + Math.cos(ang) * c.rOrbita
+        c.z = c.cz + Math.sin(ang) * c.rOrbita
         matriz.makeScale(c.radio, c.radio, c.radio)
         matriz.setPosition(c.x, 0, c.z)
         malla.setMatrixAt(i, matriz)
@@ -555,6 +781,22 @@ export function GalaxiaEscena({
         }
         mallaLunas.instanceMatrix.needsUpdate = true
       }
+    }
+
+    /**
+     * Los resplandores miran a la cámara. Va DESPUÉS de colocarla: con la
+     * rotación del cuadro anterior, girar deja los discos de canto un cuadro.
+     */
+    function mirarResplandores(): void {
+      for (let i = 0; i < enEscena.length; i++) {
+        const v = enEscena[i]
+        const e = v.rSol * 6
+        molde.makeRotationFromQuaternion(camera.quaternion)
+        molde.scale(escalaGlow.set(e, e, e))
+        molde.setPosition(v.cx, 0, v.cz)
+        resplandores.setMatrixAt(i, molde)
+      }
+      resplandores.instanceMatrix.needsUpdate = true
     }
 
     /** Píxeles de pantalla por unidad de mundo a esa distancia de la cámara. */
@@ -606,7 +848,18 @@ export function GalaxiaEscena({
       if (anima) tiempo += dt
       if (anima || recolocar) { colocar(); recolocar = false }
 
+      // El viaje entre sistemas: suavizado exponencial, que es independiente
+      // del ritmo de cuadro. Con «menos movimiento» no se anima, se llega.
+      if (!objetivo.equals(objetivoMeta)) {
+        if (!anima || dt === 0) objetivo.copy(objetivoMeta)
+        else {
+          objetivo.lerp(objetivoMeta, 1 - Math.exp(-dt * 5))
+          if (objetivo.distanceToSquared(objetivoMeta) < 1e-4) objetivo.copy(objetivoMeta)
+        }
+      }
+
       colocarCamara()
+      mirarResplandores()
       ponerAro(aroYo, miId, 1.55)
       ponerAro(aroSel, seleccionActual, 2.1)
       renderer.render(scene, camera)
@@ -617,6 +870,25 @@ export function GalaxiaEscena({
         ? planetas.find(p => p.id === seleccionActual)
         : undefined
       ponerEtiqueta(etiquetaSelRef.current, sel?.id ?? null, sel?.nombre ?? '')
+
+      // El rótulo de cada sol. Se esconde el que se sale del lienzo en vez de
+      // dejarlo pegado al borde: pegado parece que señala a otra cosa.
+      for (const v of enEscena) {
+        if (!v.etiqueta) continue
+        const p = aPantalla(v.cx, v.cz)
+        // El rótulo cuelga por ENCIMA del sol, así que se mide donde de verdad
+        // queda: con el sol apenas debajo del borde inferior el rótulo todavía
+        // se lee, y con el sol arriba del borde superior ya no.
+        const alto = p ? v.rSol * escalaEn(v.cx, v.cz) + 10 : 0
+        if (!p || p.px < -60 || p.px > anchoCSS + 60 ||
+            p.py - alto < 0 || p.py - alto > altoCSS + 40) {
+          v.etiqueta.style.visibility = 'hidden'
+          continue
+        }
+        v.etiqueta.style.visibility = 'visible'
+        v.etiqueta.style.transform =
+          `translate3d(${Math.round(p.px)}px, ${Math.round(p.py - alto)}px, 0) translate(-50%, -100%)`
+      }
     }
 
     function bucle(): void {
@@ -679,13 +951,19 @@ export function GalaxiaEscena({
       altoCSS = h
       camera.aspect = w / h
       camera.updateProjectionMatrix()
-      const nuevo = encuadre()
+      // El encuadre de arranque es el sistema de CASA, no la galaxia: se entra
+      // viendo a los vecinos de uno, y de ahí se sale a mirar el resto.
+      const nuevo = encuadre(rHogar)
       // Solo la primera medida coloca la cámara: recolocarla en cada cambio de
       // tamaño (girar el teléfono, aparecer el teclado) le arrancaría el zoom
       // de las manos a quien la está moviendo.
       if (!encuadrado) { dist = nuevo; encuadrado = true }
-      distAjuste = nuevo
-      dist = Math.min(Math.max(dist, rSistema * 0.22), distAjuste * 2.2)
+      distMin = rHogar * 0.22
+      // Y el tope de alejamiento tiene que dar para la galaxia ENTERA, o los
+      // otros países existirían sin poder verse. Con un solo sistema se queda
+      // en el 2,2× de siempre.
+      distMax = Math.max(nuevo * 2.2, encuadre(rGalaxia) * 1.12)
+      dist = Math.min(Math.max(dist, distMin), distMax)
       pedirCuadro()
     }
 
@@ -735,6 +1013,27 @@ export function GalaxiaEscena({
         const d = Math.hypot(p.px - px, p.py - py)
         const umbral = Math.min(30, Math.max(14, c.radio * escalaEn(c.x, c.z) + 10))
         if (d <= umbral && d < mejorD) { mejorD = d; mejor = c.id }
+      }
+      return mejor
+    }
+
+    /**
+     * Qué SOL hay bajo el dedo. Es el atajo para cruzar la galaxia: los soles
+     * son lo único visible de un país lejano cuando sus planetas ya son
+     * puntos. Solo cuenta con más de un sistema — si no, tocar el sol propio
+     * dejaría de deseleccionar, que es lo que hace hoy.
+     */
+    function solEn(px: number, py: number): Sistema | null {
+      if (enEscena.length < 2) return null
+      colocarCamara()
+      let mejor: Sistema | null = null
+      let mejorD = Infinity
+      for (const v of enEscena) {
+        const p = aPantalla(v.cx, v.cz)
+        if (!p) continue
+        const d = Math.hypot(p.px - px, p.py - py)
+        const umbral = Math.min(44, Math.max(18, v.rSol * escalaEn(v.cx, v.cz) + 12))
+        if (d <= umbral && d < mejorD) { mejorD = d; mejor = v }
       }
       return mejor
     }
@@ -791,7 +1090,7 @@ export function GalaxiaEscena({
         const [a, b] = [...punteros.values()]
         const ahora = Math.hypot(a.x - b.x, a.y - b.y)
         if (ahora > 0) {
-          dist = Math.min(Math.max(distIni * (pinchIni / ahora), rSistema * 0.22), distAjuste * 2.2)
+          dist = Math.min(Math.max(distIni * (pinchIni / ahora), distMin), distMax)
         }
       }
       pedirCuadro()
@@ -803,7 +1102,16 @@ export function GalaxiaEscena({
       punteros.delete(e.pointerId)
       if (punteros.size < 2) pinchIni = 0
       if (esToque && punteros.size === 0 && performance.now() - toqueT < 500) {
-        alSeleccionarRef.current(planetaEn(c.x, c.y))
+        // Los planetas ganan al sol: en un sistema chico el sol y su único
+        // planeta caen dentro del mismo dedo, y ahí lo que se quiso tocar es
+        // la persona, no el país.
+        const id = planetaEn(c.x, c.y)
+        if (id) alSeleccionarRef.current(id)
+        else {
+          const sol = solEn(c.x, c.y)
+          if (sol) viajarA(sol.cx, sol.cz)
+          else alSeleccionarRef.current(null)
+        }
       }
       esToque = false
       pedirCuadro()
@@ -813,7 +1121,7 @@ export function GalaxiaEscena({
       // Va con `addEventListener` y no como prop de React para poder cancelar:
       // sin `preventDefault` la rueda desplaza la página en vez de acercar.
       e.preventDefault()
-      dist = Math.min(Math.max(dist * Math.exp(e.deltaY * 0.0012), rSistema * 0.22), distAjuste * 2.2)
+      dist = Math.min(Math.max(dist * Math.exp(e.deltaY * 0.0012), distMin), distMax)
       pedirCuadro()
     }
 
@@ -835,6 +1143,7 @@ export function GalaxiaEscena({
     // alguien toca antes, `cuerpos` tiene que traer posiciones de verdad y la
     // cámara su matriz, o el acierto del dedo apunta a otro lado.
     ajustar()
+    if (amplitudRef.current === 'galaxia') encuadrar(true)
     colocar()
     colocarCamara()
     recolocar = false
@@ -842,7 +1151,16 @@ export function GalaxiaEscena({
     pedirCuadro()
 
     mandoRef.current = {
-      seleccionar: (id: string | null) => { seleccionActual = id; pedirCuadro() },
+      seleccionar: (id: string | null) => {
+        seleccionActual = id
+        // Elegir a alguien desde la lista o el recorrido de la pantalla tiene
+        // que llevar la cámara hasta su sistema; si no, se resalta un aro que
+        // está fuera de cuadro y parece que no pasó nada.
+        const c = id ? cuerpos.find(v => v.id === id) : undefined
+        if (c) viajarA(c.cx, c.cz)
+        pedirCuadro()
+      },
+      encuadrar: (todo: boolean) => { encuadrar(todo); pedirCuadro() },
     }
 
     return () => {
@@ -862,8 +1180,10 @@ export function GalaxiaEscena({
 
       // WebGL no se libera solo: sin esto, entrar y salir de la Galaxia deja
       // contextos vivos hasta que el navegador empieza a cortar los más viejos.
-      geoSol.dispose(); matSol.dispose()
-      texResplandor.dispose(); matResplandor.dispose()
+      for (const v of enEscena) v.etiqueta?.remove()
+      geoSol.dispose(); matSol.dispose(); soles.dispose()
+      geoResplandor.dispose(); texResplandor.dispose()
+      matResplandor.dispose(); resplandores.dispose()
       geoOrbitas.dispose(); matOrbitas.dispose()
       geoPlaneta.dispose(); matPlaneta.dispose()
       malla.dispose()
@@ -871,7 +1191,7 @@ export function GalaxiaEscena({
       mallaLunas?.dispose()
       geoAro.dispose(); matAroYo.dispose(); matAroSel.dispose()
       geoEstrellas.dispose(); texPunto.dispose(); matEstrellas.dispose()
-      luzSol.dispose()
+      for (const l of luces) l.dispose()
       renderer.dispose()
 
       /**
@@ -900,13 +1220,17 @@ export function GalaxiaEscena({
       renderer.domElement.remove()
       miId = null
     }
-  }, [planetas])
+  }, [sistemas, planetas])
 
   // La selección la manda la pantalla: se le pasa a la escena por el mando en
   // vez de reconstruirla, que costaría recompilar shaders en cada toque.
   useEffect(() => {
     mandoRef.current?.seleccionar(seleccion)
   }, [seleccion])
+
+  useEffect(() => {
+    mandoRef.current?.encuadrar(amplitud === 'galaxia')
+  }, [amplitud])
 
   const nombreYo = planetas.find(p => p.esYo)?.nombre
 
