@@ -29,8 +29,10 @@ import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import { TradeMatches } from './TradeMatches'
 import { useAuth } from '../../hooks/useAuth'
 import {
-  reservasDelMercado, claveReserva, agregarAlCarrito,
+  reservasDelMercado, claveReserva, agregarAlCarrito, misPedidos,
+  type Pedido,
 } from '../../services/mercadoPedidos'
+import { CarritoFlotante } from '../mercado/CarritoFlotante'
 import { db } from '../../services/db'
 import type { Card } from '../../types'
 import { Avatar } from '../../components/ui/Avatar'
@@ -383,6 +385,20 @@ function MarketTab() {
   const [reservas, setReservas] = useState<Map<string, number>>(new Map())
   const [alCarrito, setAlCarrito] = useState<string | null>(null)
   const [avisoCarrito, setAvisoCarrito] = useState<string | null>(null)
+  /** Los carritos abiertos, uno por vendedor. Alimentan la burbuja flotante. */
+  const [carritos, setCarritos] = useState<Pedido[]>([])
+
+  /** Relee los carritos y las reservas. Se llama tras cada toque que cambie
+   *  alguna de las dos: agregar al carrito cambia el carrito, y mandar un
+   *  pedido cambia ADEMAS lo que los demas ven como reservado. */
+  const recargarCarritos = useCallback(async () => {
+    // Sin sesion la RLS responde «permission denied for table pedidos» y ese
+    // texto no le sirve a nadie. El Mercado se puede mirar sin cuenta.
+    if (!supabaseUser) { setCarritos([]); return }
+    const r = await misPedidos()
+    if (r.ok) setCarritos(r.datos.filter(p => p.estado === 'carrito'))
+    void reservasDelMercado().then(setReservas)
+  }, [supabaseUser])
   const [cards, setCards] = useState<Map<string, Card>>(new Map())
   // Con instantánea NO se arranca cargando: ya hay qué mostrar, y un spinner
   // encima de datos buenos es una pantalla que parpadea sin razón.
@@ -413,6 +429,7 @@ function MarketTab() {
       const list = await getMarketplaceListings()
       setListings(list)
       void reservasDelMercado().then(setReservas)
+      void recargarCarritos()
       setFailed(false)
       // Hydrate card details
       const cardIds = Array.from(new Set(list.map(l => l.cardId)))
@@ -426,7 +443,9 @@ function MarketTab() {
     } finally {
       setLoading(false)
     }
-  }, [])
+    // `recargarCarritos` es estable (useCallback con [] y solo setState), así
+    // que listarla no reconstruye `load` ni dispara recargas en cascada.
+  }, [recargarCarritos])
 
   // Al montar CON instantánea no se recarga: los datos ya están y una consulta
   // que tarda medio segundo reemplazaría la lista justo cuando estás volviendo
@@ -844,9 +863,16 @@ function MarketTab() {
                     )}
                   </span>
 
-                  {l.quantity > 1 && (
+                  {/* Lo que QUEDA, no lo publicado. Con 2 de 3 reservadas,
+                      decir «x3» es ofrecer algo que no esta disponible. */}
+                  {quedan > 1 && (
                     <span className="absolute bottom-3 right-3 z-10 text-[9px] font-mono font-bold text-white bg-black/75 rounded px-1">
-                      x{l.quantity}
+                      x{quedan}
+                    </span>
+                  )}
+                  {quedan > 0 && quedan < l.quantity && (
+                    <span className="absolute bottom-3 left-3 z-10 rounded bg-black/75 px-1 font-mono text-[9px] font-bold text-swu-amber">
+                      {l.quantity - quedan} reservada{l.quantity - quedan > 1 ? 's' : ''}
                     </span>
                   )}
                 </button>
@@ -904,7 +930,7 @@ function MarketTab() {
                         // El mensaje del servidor va TAL CUAL: «no quedan
                         // tantas: hay 2 disponibles» dice que hacer.
                         if (!r.ok) setAvisoCarrito(r.mensaje)
-                        else void reservasDelMercado().then(setReservas)
+                        else void recargarCarritos()
                       }}
                       className="mt-2 flex items-center justify-center gap-1.5 rounded-lg border border-swu-amber/40 bg-swu-amber/15
                                  py-1.5 text-[11px] font-semibold text-swu-amber transition-transform active:scale-[0.98] disabled:opacity-60"
@@ -944,6 +970,10 @@ function MarketTab() {
         </button>
       )}
 
+      {/* La burbuja del carrito. Vive DENTRO de la vitrina y no en el layout
+          global: solo tiene sentido mientras se mira mercancía. Se calla sola
+          cuando el carrito está vacío. */}
+      <CarritoFlotante carritos={carritos} cartas={cards} alCambiar={() => { void recargarCarritos() }} />
     </div>
   )
 }

@@ -46,6 +46,7 @@ const BancoAmistosas = lazy(() => import('./features/amistosas/BancoAmistosas').
 const BancoCopias = lazy(() => import('./features/decks/BancoCopias').then(m => ({ default: m.BancoCopias })))
 const BancoPaneles = lazy(() => import('./features/decks/BancoPaneles').then(m => ({ default: m.BancoPaneles })))
 const BancoAvisos = lazy(() => import('./components/ui/BancoAvisos').then(m => ({ default: m.BancoAvisos })))
+const BancoCarrito = lazy(() => import('./features/mercado/BancoCarrito').then(m => ({ default: m.BancoCarrito })))
 const PedidosPage = lazy(() => import('./features/mercado/PedidosPage').then(m => ({ default: m.PedidosPage })))
 const CalendarioPage = lazy(() => import('./features/calendario/CalendarioPage').then(m => ({ default: m.CalendarioPage })))
 const TorneosPage = lazy(() => import('./features/torneos/TorneosPage').then(m => ({ default: m.TorneosPage })))
@@ -253,6 +254,7 @@ export default function App() {
             {import.meta.env.DEV && <Route path="/banco-avisos" element={<BancoAvisos />} />}
             {import.meta.env.DEV && <Route path="/banco-calendario" element={<CalendarioPage />} />}
             {import.meta.env.DEV && <Route path="/banco-pedidos" element={<PedidosPage />} />}
+            {import.meta.env.DEV && <Route path="/banco-carrito" element={<BancoCarrito />} />}
             <Route path="/play/tracker/:mode" element={<P><TrackerPage /></P>} />
             <Route path="/play/saved" element={<P><SavedMatchesPage /></P>} />
             <Route path="/events" element={<P><EventsPage /></P>} />

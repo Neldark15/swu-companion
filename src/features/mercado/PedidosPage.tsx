@@ -143,7 +143,7 @@ export function PedidosPage() {
           <ul className="mt-1 space-y-0.5 text-swu-muted">
             {problemas.map(pr => (
               <li key={pr.card_id}>
-                · {cartas.get(pr.card_id)?.name ?? pr.card_id}
+                · {cartas.get(pr.card_id)?.name ?? 'Una carta'}
                 {pr.que === 'retirada'
                   ? ' — el vendedor la retiró'
                   : ` — pediste ${pr.pediste} y quedan ${pr.quedan}`}
@@ -226,7 +226,7 @@ export function PedidosPage() {
                         </span>
                       </span>
                       <span className="min-w-0 flex-1 truncate text-[12px] text-swu-text">
-                        {c?.name ?? l.cardId}
+                        {c?.name ?? <span className="text-swu-muted">Carta sin ficha</span>}
                         {c?.subtitle && <span className="text-swu-muted"> · {c.subtitle}</span>}
                       </span>
                       {p.estado === 'carrito' ? (

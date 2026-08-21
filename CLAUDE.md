@@ -1178,6 +1178,49 @@ Salvador serían indistinguibles. Y la rejilla es de **seis semanas siempre**,
 aunque el mes entre en cinco: si el alto cambiara al pasar de mes, la lista de
 abajo daría un brinco a mitad del gesto (§3i).
 
+### 3h-quinquies. El Mercado: carrito, reserva y por qué los cruces dan cero
+
+`/pedidos` y la burbuja del Mercado leen `pedidos` + `pedido_lineas`. Lo
+reservado **se deriva**, nunca se escribe en `collection`: la RLS de esa tabla
+es `auth.uid() = user_id` sin excepción.
+
+**La trampa que costó descubrir y que hay que recordar:** un
+`select … for update` sobre `collection` desde el cliente devuelve **las filas
+ajenas vacías, sin error**. Medido: 206 filas sin candado, 45 con `for update`.
+Postgres aplica el USING de la policy de UPDATE a los SELECT con candado. Por
+eso **toda** RPC del mercado es SECURITY DEFINER; una SECURITY INVOKER vería
+«esta carta no está en venta» para toda publicación ajena.
+
+Reglas que no se pueden relajar:
+
+- **`carrito` NO reserva.** Reservan `enviado` y `aceptado`. Es toda la
+  diferencia entre poner algo en el carrito y bloquearle la carta a alguien, y
+  la UI lo dice con todas las letras en los dos sitios.
+- **El candado va sobre la fila del VENDEDOR**, y lo reservado se suma DESPUÉS
+  del candado, en la misma transacción. Ahí se resuelve que dos compradores
+  peleen por la última copia.
+- **Nada de FK de `pedido_lineas` a `collection`**: `collectionService` BORRA la
+  fila cuando la cantidad baja a 0 — con CASCADE le borra el carrito al
+  comprador, con RESTRICT le impide al vendedor bajar su carta.
+- **El tope es `coalesce(sale_quantity, quantity)`**, y `listing.quantity` ya
+  viene con esa regla aplicada. `sale_quantity` NULL significa TODAS.
+- **Si al enviar algo cambió, no se manda NADA** y se dice qué línea y por qué.
+  Mandar medio carrito en silencio es el fallo que se ve como éxito.
+
+**LOS CRUCES DE INTERCAMBIO DAN CERO, Y NO ES POR LA REGLA DE «OFRECER».** La
+cabecera de `tradeService.ts` explica que exigir `for_sale` o `quantity > 3` es
+estricto a propósito. Pero medido: **`wishlist` tiene CERO filas** — nadie ha
+añadido nunca una carta. El lado de la OFERTA sí está poblado (203
+publicaciones, 493 filas con repetidas de 8 personas); el que está vacío es el
+de la DEMANDA. El cruce lee **667 filas en cada visita al Mercado** para
+cruzarlas contra 0.
+
+El único sitio donde se puede añadir a la lista de deseos es el botón dentro de
+`/cards/:id`, o sea a tres toques de donde alguien está mirando mercancía. Si
+se quiere que el cruce sirva, lo que hay que arreglar es la ENTRADA, no el
+algoritmo — y su destino natural hoy es el carrito («3 de tu lista están en
+venta»), no el trueque carta-por-carta.
+
 ### 3i. Sobres y álbum: la colección es SOLO brillante, y el brillo lo pone la app
 
 `/sobres` (La Bóveda) y `/binder-digital` (El Álbum). El sorteo vive ENTERO en
