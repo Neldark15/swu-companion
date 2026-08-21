@@ -15,6 +15,7 @@
 
 import { useT } from '../../services/i18n'
 import { pendientesDeConfirmar } from '../../services/amistosas'
+import { pedidosPendientes } from '../../services/mercadoPedidos'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, ScanLine, Swords } from 'lucide-react'
@@ -220,6 +221,10 @@ export function HomePage() {
    *
    * Un push no lo arregla: solo 5 de 26 perfiles tienen avisos activos. */
   const [porConfirmar, setPorConfirmar] = useState(0)
+  /** Pedidos del Mercado que esperan un acto MÍO. Es el camino que llega a los
+   *  20 de 27 que NO tienen push: sin esto, un vendedor sin avisos activados no
+   *  se entera nunca de que le compraron. */
+  const [pedidos, setPedidos] = useState({ porResponder: 0, porCerrar: 0 })
   const miIdAuth = supabaseUser?.id ?? ''
   useEffect(() => {
     if (!miIdAuth) return
@@ -227,6 +232,8 @@ export function HomePage() {
     void (async () => {
       const r = await pendientesDeConfirmar(miIdAuth)
       if (vivo && r.ok) setPorConfirmar(r.datos.length)
+      const p = await pedidosPendientes()
+      if (vivo) setPedidos(p)
     })()
     return () => { vivo = false }
   }, [miIdAuth])
@@ -305,6 +312,37 @@ export function HomePage() {
           puerta, o ya tenía cuenta de antes— y son 20 de los 27 perfiles.
           El propio componente se calla solo si ya está suscrito. */}
       <PopupOferta userId={miIdAuth} alIrAAjustes={() => navigate('/settings')} />
+
+      {/* Los pedidos del Mercado que esperan algo tuyo. Va ARRIBA de las
+          amistosas porque acá hay una carta de otra persona BLOQUEADA: mientras
+          no respondas, nadie más se la puede llevar y el reloj de 48 h corre. */}
+      {(pedidos.porResponder > 0 || pedidos.porCerrar > 0) && (
+        <div className="px-4 pt-3">
+          <button
+            onClick={() => navigate('/pedidos')}
+            className="clip-hud flex w-full items-center gap-3 bg-swu-green/15 px-4 py-3 text-left"
+          >
+            <CargoIcon size={18} className="shrink-0 text-swu-green" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-bold text-swu-text">
+                {pedidos.porResponder > 0
+                  ? pedidos.porResponder === 1
+                    ? 'Te llegó un pedido'
+                    : `Te llegaron ${pedidos.porResponder} pedidos`
+                  : pedidos.porCerrar === 1
+                    ? 'Tenés un pedido sin cerrar'
+                    : `Tenés ${pedidos.porCerrar} pedidos sin cerrar`}
+              </span>
+              <span className="block text-[11px] text-swu-muted">
+                {pedidos.porResponder > 0
+                  ? 'Las cartas quedan apartadas hasta que respondas. Se liberan solas a las 48 horas.'
+                  : 'Cuando ya se hayan visto, marcalo para liberar las cartas.'}
+              </span>
+            </span>
+            <ChevronRight size={16} className="shrink-0 text-swu-muted" />
+          </button>
+        </div>
+      )}
 
       {/* Lo que TE están esperando. Dice el premio porque es cierto y porque es
           lo que hace que valga el toque: confirmar da un sobre a los dos. */}

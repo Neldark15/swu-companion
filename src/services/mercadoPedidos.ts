@@ -179,6 +179,9 @@ export async function enviarPedido(
   if (!r.ok) {
     return { ok: false, mensaje: 'Algo cambió mientras tanto', problemas: r.problemas ?? [] }
   }
+  // Va DESPUÉS del envío y sin `await` bloqueante: el pedido ya está mandado y
+  // un fallo del aviso no puede deshacerlo ni retrasar la pantalla.
+  void avisar(pedidoId, 'solicitud')
   return { ok: true, datos: { total: Number(r.total ?? 0) } }
 }
 
@@ -191,6 +194,10 @@ export async function responderPedido(
     p_pedido: pedidoId, p_acepta: acepta, p_motivo: motivo ?? null,
   })
   if (error) return { ok: false, mensaje: error.message }
+  // El otro lado del circuito: sin esto, el comprador no se entera de que le
+  // aceptaron y el pedido se queda esperando a nadie — que es exactamente lo
+  // que le pasaba a las amistosas.
+  void avisar(pedidoId, 'respuesta')
   return { ok: true, datos: null }
 }
 
@@ -213,6 +220,46 @@ export async function cancelarPedido(pedidoId: string): Promise<Resultado<null>>
   const { error } = await supabase.rpc('cancelar_pedido', { p_pedido: pedidoId })
   if (error) return { ok: false, mensaje: error.message }
   return { ok: true, datos: null }
+}
+
+/**
+ * Le toca el timbre a la otra parte.
+ *
+ * Todo lo que decide vive en el servidor (`/api/avisar-pedido`): que el pedido
+ * sea tuyo, que esté en el estado correcto y que no se haya avisado ya. Acá no
+ * se comprueba nada porque nada de lo que se compruebe en el cliente vale.
+ *
+ * Silencioso a propósito. El aviso es un extra: si falla, el pedido sigue
+ * mandado y la otra parte lo va a ver igual en su franja de Inicio y en la
+ * pestaña de Pedidos. Medido: 7 de 27 tienen push, así que la app NUNCA puede
+ * depender de este camino.
+ */
+async function avisar(pedidoId: string, tipo: 'solicitud' | 'respuesta'): Promise<void> {
+  try {
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (!token) return
+    await fetch('/api/avisar-pedido', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ pedidoId, tipo }),
+    })
+  } catch {
+    // Sin red, o el endpoint caído. No es asunto de quien mandó el pedido.
+  }
+}
+
+/** Cuántos pedidos esperan un acto MÍO. Alimenta la franja de Inicio. */
+export async function pedidosPendientes(): Promise<{ porResponder: number; porCerrar: number }> {
+  const vacio = { porResponder: 0, porCerrar: 0 }
+  if (!isSupabaseReady()) return vacio
+  const { data, error } = await supabase.rpc('pedidos_pendientes')
+  if (error || !data) return vacio
+  const f = Array.isArray(data) ? data[0] : data
+  return {
+    porResponder: Number(f?.por_responder ?? 0),
+    porCerrar: Number(f?.por_cerrar ?? 0),
+  }
 }
 
 /** Los estados que siguen vivos: ocupan la bandeja y bloquean cartas. */
