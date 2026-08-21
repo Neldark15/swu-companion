@@ -1215,11 +1215,26 @@ publicaciones, 493 filas con repetidas de 8 personas); el que está vacío es el
 de la DEMANDA. El cruce lee **667 filas en cada visita al Mercado** para
 cruzarlas contra 0.
 
-El único sitio donde se puede añadir a la lista de deseos es el botón dentro de
-`/cards/:id`, o sea a tres toques de donde alguien está mirando mercancía. Si
-se quiere que el cruce sirva, lo que hay que arreglar es la ENTRADA, no el
-algoritmo — y su destino natural hoy es el carrito («3 de tu lista están en
-venta»), no el trueque carta-por-carta.
+Eso se arregló por los dos lados:
+
+- **El corazón «la busco» está ahora EN la vitrina del Mercado**, arriba a la
+  izquierda de cada carta. Antes el único sitio era dentro de `/cards/:id`, a
+  tres toques de donde uno mira mercancía — nadie entra al detalle de una carta
+  para marcar que la quiere. La clave que se guarda es el **uuid canónico**
+  (`card.id`), no el `card_id` de la fila: la colección vive en dos espacios de
+  ids y con el crudo la misma carta se marca dos veces y el cruce no casa.
+- **El bloque vacío ya no se dibuja.** Ocupaba cerca de un TERCIO de la primera
+  pantalla del Mercado —rótulo, ícono, tres renglones y un botón— para no decir
+  nada, y empujaba las 237 publicaciones abajo del pliegue. Tampoco se dibuja
+  mientras carga: un esqueleto que SIEMPRE termina en nada es un parpadeo en
+  cada visita. Aparece solo cuando hay un cruce de verdad.
+- **Y `getTradeMatches` se corta antes de leer nada** si `wishlist` está vacía
+  en toda la base (una cuenta con `head`, sin traer filas). Con la tabla en
+  cero ningún cruce es posible para nadie, así que las 667 filas de oferta no
+  se leían para nada.
+
+Si en unas semanas el corazón sigue sin usarse, la respuesta es quitar el cruce
+entero: son tres líneas en `ExplorePage` y un archivo.
 
 ### 3i. Sobres y álbum: la colección es SOLO brillante, y el brillo lo pone la app
 

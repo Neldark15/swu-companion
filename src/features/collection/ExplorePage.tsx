@@ -10,7 +10,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, Search, Users, Skull, Package, Eye, EyeOff, Tag,
-  ShoppingBag, Loader2, RefreshCw, MessageCircle, Pencil, SlidersHorizontal, ShoppingCart } from 'lucide-react'
+  ShoppingBag, Loader2, RefreshCw, MessageCircle, Pencil, SlidersHorizontal, ShoppingCart, Heart } from 'lucide-react'
 import {
   searchPublicProfiles,
   getExploreProfiles,
@@ -22,7 +22,10 @@ import {
 } from '../../services/collectionService'
 import { getCardsByIds } from '../../services/swuApi'
 import { SaleModal } from './SaleModal'
-import { getTradeMatches, type TradeMatch } from '../../services/tradeService'
+import {
+  getTradeMatches, getMyWishlist, addToWishlist, removeFromWishlist,
+  type TradeMatch,
+} from '../../services/tradeService'
 import { CardImage } from '../../components/CardImage'
 import { Carta3D } from '../../components/Carta3D'
 import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
@@ -101,6 +104,23 @@ function MatchesSection() {
   }, [supabaseUser])
 
   if (!supabaseUser) return null
+
+  /**
+   * Sin cruces NO se dibuja nada, ni el rótulo ni el estado vacío.
+   *
+   * El cartel de «todavía no hay cruces» ocupaba cerca de un TERCIO de la
+   * primera pantalla del Mercado —rótulo, ícono, tres renglones de explicación
+   * y un botón— para no decir nada, y empujaba las 237 publicaciones abajo del
+   * pliegue. Un estado vacío se justifica cuando explica algo que la persona
+   * puede arreglar AHÍ MISMO; este mandaba a otra pantalla a hacer algo que
+   * nadie hizo nunca (`wishlist` está en cero).
+   *
+   * Cuando alguien marque una carta con el corazón, el bloque aparece solo.
+   */
+  // También mientras carga: un esqueleto que SIEMPRE termina en nada es un
+  // parpadeo en cada visita. Un cruce que aparece un instante tarde no molesta
+  // a nadie; el hueco que siempre se resuelve en vacío, sí.
+  if (!failed && matches.length === 0) return null
 
   return (
     <section>
@@ -387,6 +407,10 @@ function MarketTab() {
   const [avisoCarrito, setAvisoCarrito] = useState<string | null>(null)
   /** Los carritos abiertos, uno por vendedor. Alimentan la burbuja flotante. */
   const [carritos, setCarritos] = useState<Pedido[]>([])
+  /** Lo que busco, por uuid canónico. Es la pata que le faltaba al cruce: el
+   *  único sitio donde se podía marcar era dentro de /cards/:id, a tres toques
+   *  de acá, y por eso `wishlist` lleva CERO filas desde siempre. */
+  const [deseos, setDeseos] = useState<Set<string>>(new Set())
 
   /** Relee los carritos y las reservas. Se llama tras cada toque que cambie
    *  alguna de las dos: agregar al carrito cambia el carrito, y mandar un
@@ -430,6 +454,10 @@ function MarketTab() {
       setListings(list)
       void reservasDelMercado().then(setReservas)
       void recargarCarritos()
+      if (supabaseUser) {
+        void getMyWishlist(supabaseUser.id)
+          .then(w => setDeseos(new Set(w.map(x => x.cardId))))
+      }
       setFailed(false)
       // Hydrate card details
       const cardIds = Array.from(new Set(list.map(l => l.cardId)))
@@ -443,9 +471,9 @@ function MarketTab() {
     } finally {
       setLoading(false)
     }
-    // `recargarCarritos` es estable (useCallback con [] y solo setState), así
-    // que listarla no reconstruye `load` ni dispara recargas en cascada.
-  }, [recargarCarritos])
+    // `recargarCarritos` ya depende de `supabaseUser`, así que listar las dos
+    // no agrega nada: cuando cambia la sesión cambian las dos a la vez.
+  }, [recargarCarritos, supabaseUser])
 
   // Al montar CON instantánea no se recarga: los datos ya están y una consulta
   // que tarda medio segundo reemplazaría la lista justo cuando estás volviendo
@@ -822,6 +850,7 @@ function MarketTab() {
             const claveL = claveReserva(l.userId, l.cardId)
             // Lo publicado MENOS lo que ya tiene reservado alguien.
             const quedan = l.quantity - (reservas.get(claveL) ?? 0)
+            const deseado = deseos.has(cards.get(l.cardId)?.id ?? l.cardId)
             return (
               <div
                 key={`${l.userId}-${l.cardId}`}
@@ -853,6 +882,36 @@ function MarketTab() {
                    * operación más cara que hay en un teléfono, porque obliga a
                    * releer lo ya pintado por debajo—. Se quitó lo invisible y
                    * se quedó lo que hace legible el precio, que es el negro. */}
+                  {/* «La busco». Va ACA porque es donde uno mira mercancia: el
+                      unico sitio donde se podia marcar era dentro de
+                      /cards/:id, a tres toques, y por eso la lista lleva cero
+                      filas desde siempre. Sobre lo propio no se dibuja: nadie
+                      busca lo que ya vende. */}
+                  {!esMia && supabaseUser && (
+                    <button
+                      aria-label={deseado ? 'Ya la buscás — tocá para quitarla' : 'La busco'}
+                      aria-pressed={deseado}
+                      onClick={async e => {
+                        e.stopPropagation()
+                        // La clave es el uuid CANONICO de la carta, no el id de
+                        // la fila: a la coleccion se llega con los dos espacios
+                        // de ids y con el crudo la misma carta se marca dos
+                        // veces y el cruce no casa.
+                        const clave = card?.id ?? l.cardId
+                        const proximo = new Set(deseos)
+                        if (deseado) { proximo.delete(clave); void removeFromWishlist(supabaseUser.id, clave) }
+                        else { proximo.add(clave); void addToWishlist(supabaseUser.id, clave) }
+                        setDeseos(proximo)
+                      }}
+                      className="absolute top-1.5 left-1.5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/70"
+                    >
+                      <Heart
+                        size={15}
+                        className={deseado ? 'fill-swu-red text-swu-red' : 'text-white/60'}
+                      />
+                    </button>
+                  )}
+
                   <span className="absolute top-3 right-3 z-10 px-1.5 py-0.5 rounded-md bg-black/80">
                     {l.price != null ? (
                       <span className="text-[11px] font-extrabold text-swu-amber font-mono">

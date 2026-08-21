@@ -234,7 +234,32 @@ function isOffered(row: CollectionRow): boolean {
  * Con RLS, `wishlist` y `collection` ajenas solo se leen si esa persona tiene
  * el perfil público, así que quien se pone en privado desaparece del cruce.
  */
+/**
+ * ¿Hay siquiera UN deseo en toda la base?
+ *
+ * Un cruce necesita las dos patas: alguien que BUSCA y alguien que OFRECE. La
+ * oferta está poblada (203 publicaciones y 493 filas con repetidas de 8
+ * personas), pero `wishlist` está en CERO — nadie ha marcado nunca una carta.
+ *
+ * Con la tabla vacía NINGÚN cruce es posible para nadie, así que preguntarlo
+ * primero —una cuenta con `head`, sin traer una sola fila— ahorra leer las 667
+ * filas de oferta en cada visita al Mercado para cruzarlas contra nada.
+ *
+ * No se mira solo MI lista: el cruce va en las dos direcciones, y «vos tenés lo
+ * que esa persona busca» depende de la lista de ELLA.
+ */
+async function hayDeseos(): Promise<boolean> {
+  if (!isSupabaseReady()) return false
+  const { count, error } = await supabase
+    .from('wishlist').select('*', { count: 'exact', head: true })
+  // `supabase-js` no lanza en errores de PostgREST: hay que mirar `error`.
+  if (error) return true // Ante la duda se cruza: mejor gastar que ocultar.
+  return (count ?? 0) > 0
+}
+
 export async function getTradeMatches(userId: string): Promise<TradeMatch[]> {
+  if (!(await hayDeseos())) return []
+
   if (!isSupabaseReady()) return []
 
   // 1. Lo que YO busco y lo que YO ofrezco.
