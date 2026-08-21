@@ -1,0 +1,37 @@
+-- EL CHAT DE A DOS. Aplicado 2026-08-23.
+--
+-- ── Por que una tabla y no «uuidA|uuidB» en el ambito ────────────────
+--
+-- Porque NO ENTRA: el CHECK `ambito_coherente` limita el ambito a 64 caracteres
+-- y un par de uuids con separador son 73. Medido, no supuesto.
+--
+-- Y sale mejor asi: la fila propia es donde cuelga el bloqueo, y es lo que
+-- permite listar «mis conversaciones» sin recorrer todos los mensajes.
+--
+-- ── El par va ORDENADO ───────────────────────────────────────────────
+--
+-- `check (a < b)` mas un unico sobre (a,b). Sin eso, A abriendo con B y B
+-- abriendo con A crearian DOS conversaciones, cada uno hablaria solo en la suya
+-- sin ver al otro, y no habria ningun error a la vista.
+--
+-- ── Leer y escribir se separan ───────────────────────────────────────
+--
+-- Bloquear NO es salir de la sala. El bloqueado sigue LEYENDO el historial y
+-- deja de poder ESCRIBIR: borrarle el historial al bloquear le quitaria a la
+-- victima la prueba de lo que paso. Por eso hay dos funciones —
+-- `galaxia_pertenece` (leer) y `galaxia_puede_escribir` (escribir)— en vez de
+-- meterle el bloqueo a la primera.
+--
+-- Probado contra la base, en transaccion revertida y con `set local role
+-- authenticated` DE VERDAD (poner solo el JWT no aplica RLS: como dueño de la
+-- tabla no se filtra nada):
+--   A abre con B / B abre con A   -> es LA MISMA, 1 sola conversacion
+--   B escribe                     -> ok
+--   A lo lee                      -> 1
+--   un TERCERO lo lee             -> 0
+--   un TERCERO escribe            -> rechazado
+--   el BLOQUEADO escribe          -> rechazado
+--   el bloqueado sigue leyendo    -> 1
+--   el bloqueado se desbloquea    -> rechazado (solo reabre quien cerro)
+--
+-- Los cuerpos estan en la migracion `chat_conversaciones_de_a_dos`.
