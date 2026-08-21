@@ -1,0 +1,22 @@
+-- VACIAR EL CARRITO NO ES UNA TRANSACCION. Aplicado 2026-08-23.
+--
+-- `cancelar_pedido` marcaba `cancelado` viniera de donde viniera, asi que
+-- vaciar un carrito dejaba una entrada PERMANENTE en el Historial de los dos.
+-- Y un carrito vaciado no es una compra fallida: nadie lo mando, el vendedor
+-- nunca lo vio, no se reservo ni una carta. Es como cerrar una pestaña.
+--
+-- Lo encontro Nel en produccion el primer dia: tenia «Boba Fett x2 —
+-- Cancelado» de ElDaigo en su historial por haber vaciado un carrito, y con
+-- razon pregunto por que le aparecia algo que nunca compro.
+--
+-- La distincion que hace el trabajo:
+--
+--   desde `carrito`  -> se BORRA. No paso nada y nadie lo vio.
+--   desde `enviado`  -> se marca `cancelado`. El vendedor SI lo vio, le
+--                       aparecio en la bandeja y le tenia la carta reservada:
+--                       eso merece quedar registrado para los dos.
+--
+-- Probado en transaccion revertida:
+--   vaciar un CARRITO      -> 0 filas y 0 lineas (no deja rastro)
+--   cancelar uno ENVIADO   -> queda `cancelado`
+--   y en los dos casos     -> la reserva vuelve a 0
