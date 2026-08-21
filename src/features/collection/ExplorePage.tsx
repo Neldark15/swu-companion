@@ -998,6 +998,25 @@ function MarketTab() {
                       {alCarrito === claveL ? 'Agregando…' : 'Al carrito'}
                     </button>
                   )}
+                  {/* Escribirle DENTRO de la app, con la carta ya enganchada.
+                      Es lo que hace que la conversacion empiece hablando de
+                      ESTA publicacion y no de «una carta». La clave que viaja
+                      es el uuid CANONICO, igual que en el corazon: el card_id
+                      de la fila puede ser del espacio de ids heredado y del
+                      otro lado no resolveria. */}
+                  {!esMia && supabaseUser && (
+                    <button
+                      onClick={e => {
+                        e.stopPropagation()
+                        navigate(`/mensajes?con=${l.userId}&carta=${encodeURIComponent(card?.id ?? l.cardId)}`)
+                      }}
+                      className="mt-2 flex items-center justify-center gap-1.5 rounded-lg border border-swu-cyan/40 bg-swu-cyan/15
+                                 py-1.5 text-[11px] font-semibold text-swu-cyan transition-transform active:scale-[0.98]"
+                    >
+                      <MessageCircle size={12} aria-hidden /> Escribirle por esta carta
+                    </button>
+                  )}
+
                   {l.sellerWhatsapp && !esMia && quedan > 0 ? (
                     <a
                       href={`https://wa.me/${l.sellerWhatsapp}?text=${encodeURIComponent(

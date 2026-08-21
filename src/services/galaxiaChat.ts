@@ -16,7 +16,28 @@
 import { supabase, isSupabaseReady } from './supabase'
 import { getCountryByCode, getContinentById } from '../data/regions'
 
-export type AlcanceSala = 'global' | 'continente' | 'pais' | 'tienda'
+/**
+ * Los alcances de sala.
+ *
+ * OJO: agregar uno acá NO alcanza. Hacen falta las TRES cosas o falla en
+ * silencio de una forma distinta cada vez:
+ *   1. este tipo
+ *   2. su rama en `galaxia_pertenece` (si no, la sala nace cerrada: el CASE
+ *      del servidor termina en `else false`)
+ *   3. su valor en el CHECK `galaxia_mensajes_alcance_check` (si no, se entra
+ *      y el primer mensaje rebota con un 23514)
+ *
+ * El 2 sin el 3 ya pasó con `pedido`: la sala dejaba entrar a las dos partes y
+ * rechazaba todo lo que escribieran.
+ */
+export type AlcanceSala = 'global' | 'continente' | 'pais' | 'tienda' | 'pedido' | 'dm'
+
+/** Las salas privadas de a dos. No llevan presencia ni contador de gente. */
+export const ALCANCES_PRIVADOS: AlcanceSala[] = ['pedido', 'dm']
+
+export function esSalaPrivada(alcance: AlcanceSala): boolean {
+  return ALCANCES_PRIVADOS.includes(alcance)
+}
 
 export interface Sala {
   alcance: AlcanceSala

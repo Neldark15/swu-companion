@@ -47,6 +47,7 @@ const BancoCopias = lazy(() => import('./features/decks/BancoCopias').then(m => 
 const BancoPaneles = lazy(() => import('./features/decks/BancoPaneles').then(m => ({ default: m.BancoPaneles })))
 const BancoAvisos = lazy(() => import('./components/ui/BancoAvisos').then(m => ({ default: m.BancoAvisos })))
 const BancoCarrito = lazy(() => import('./features/mercado/BancoCarrito').then(m => ({ default: m.BancoCarrito })))
+const MensajesPage = lazy(() => import('./features/mensajes/MensajesPage').then(m => ({ default: m.MensajesPage })))
 const PedidosPage = lazy(() => import('./features/mercado/PedidosPage').then(m => ({ default: m.PedidosPage })))
 const CalendarioPage = lazy(() => import('./features/calendario/CalendarioPage').then(m => ({ default: m.CalendarioPage })))
 const TorneosPage = lazy(() => import('./features/torneos/TorneosPage').then(m => ({ default: m.TorneosPage })))
@@ -202,6 +203,7 @@ export default function App() {
             {/* Torneos: el archivo de lo que ya se jugó. Público —sin <P>— como
                 /rulings: un torneo terminado es historia de la comunidad, no
                 requiere cuenta para mirarlo. */}
+            <Route path="/mensajes" element={<P><MensajesPage /></P>} />
             <Route path="/pedidos" element={<P><PedidosPage /></P>} />
             <Route path="/calendario" element={<CalendarioPage />} />
             <Route path="/torneos" element={<TorneosPage />} />
@@ -255,6 +257,7 @@ export default function App() {
             {import.meta.env.DEV && <Route path="/banco-calendario" element={<CalendarioPage />} />}
             {import.meta.env.DEV && <Route path="/banco-pedidos" element={<PedidosPage />} />}
             {import.meta.env.DEV && <Route path="/banco-carrito" element={<BancoCarrito />} />}
+            {import.meta.env.DEV && <Route path="/banco-mensajes" element={<MensajesPage />} />}
             <Route path="/play/tracker/:mode" element={<P><TrackerPage /></P>} />
             <Route path="/play/saved" element={<P><SavedMatchesPage /></P>} />
             <Route path="/events" element={<P><EventsPage /></P>} />

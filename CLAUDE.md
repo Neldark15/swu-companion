@@ -1236,6 +1236,52 @@ Eso se arregló por los dos lados:
 Si en unas semanas el corazón sigue sin usarse, la respuesta es quitar el cruce
 entero: son tres líneas en `ExplorePage` y un archivo.
 
+### 3h-sexies. El chat: un ALCANCE mas, y tres cosas que hay que tocar juntas
+
+`galaxia_mensajes` sirve a TODO el chat: las salas de pais/tienda/global, la de
+un pedido (`pedido`) y la de a dos (`dm`). Una conversacion privada no es un
+sistema aparte — por eso los adjuntos de carta y mazo, el borrado suave, la
+moderacion y el tiempo real vienen ya puestos.
+
+**Agregar un alcance necesita TRES cosas, y saltarse una falla distinto:**
+
+1. el tipo `AlcanceSala` en `galaxiaChat.ts`
+2. su rama en `galaxia_pertenece` — si falta, la sala **nace cerrada** (el CASE
+   del servidor termina en `else false`)
+3. su valor en el CHECK `galaxia_mensajes_alcance_check` — si falta, **se entra
+   y el primer mensaje rebota con un 23514**
+
+El 2 sin el 3 ya pasó con `pedido`: la sala dejaba entrar a las dos partes y
+rechazaba todo lo que escribieran. **Probar `galaxia_pertenece()` NO es probar
+el chat; hay que INSERTAR.**
+
+**El ambito no puede llevar un par de uuids.** El CHECK `ambito_coherente` lo
+topa en 64 caracteres y un par con separador son 73 — medido. Por eso la
+conversacion de a dos tiene fila propia (`conversaciones`), con el par ORDENADO
+(`check (a < b)` + unico): sin eso, A abriendo con B y B abriendo con A crean
+DOS salas y cada uno habla solo en la suya, sin ningun error a la vista.
+
+**Leer y escribir se separan.** `galaxia_pertenece` decide quien LEE y
+`galaxia_puede_escribir` quien ESCRIBE. Cortar a alguien no lo saca de la sala:
+sigue leyendo el historial y deja de poder escribir. Borrarselo al bloquear le
+quitaria a quien bloquea la prueba de lo que paso.
+
+**Las salas privadas NO usan presencia.** `escucharPresencia` abre un canal de
+Realtime identificado por NOMBRE, y esos canales **no los protege la RLS de
+`galaxia_mensajes`**: quien conozca el id de la sala podria unirse y ver quien
+esta conectado sin pertenecer. En `pais:SV` es inofensivo; en un chat de a dos
+es una fuga. Y en un 1:1 tampoco aporta: ya sabes con quien hablas.
+
+**Un admin NO puede leer una sala privada** (la policy de SELECT es
+`galaxia_pertenece`, sin rama de admin) pero SI puede borrar un mensaje que no
+puede leer. Eso es moderar sin espiar, y esta bien asi. Medido con `set local
+role authenticated` de verdad — poner solo el JWT no aplica RLS.
+
+**El puente con el Mercado:** `/mensajes?con=<uuid>&carta=<uuid>` abre la
+conversacion con la carta YA enganchada (`adjuntoInicial` de `SalaChat`). La
+clave que viaja es el uuid CANONICO de la carta, no el `card_id` de la fila: la
+coleccion vive en dos espacios de ids y con el crudo no resolveria del otro lado.
+
 ### 3i. Sobres y álbum: la colección es SOLO brillante, y el brillo lo pone la app
 
 `/sobres` (La Bóveda) y `/binder-digital` (El Álbum). El sorteo vive ENTERO en

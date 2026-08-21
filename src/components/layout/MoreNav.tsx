@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Swords, ShieldCheck, Megaphone, Newspaper, BarChart3, BookOpen, FlaskConical, Scale, Radar, RadioTower, Fingerprint, Languages, PackageOpen, Library , ShoppingCart, CalendarDays} from 'lucide-react'
+import { Swords, ShieldCheck, Megaphone, Newspaper, BarChart3, BookOpen, FlaskConical, Scale, Radar, RadioTower, Fingerprint, Languages, PackageOpen, Library , ShoppingCart, CalendarDays, MessageCircle} from 'lucide-react'
 import {
   MandoTrophyIcon, DeckCardsIcon, SpyIcon,
   DeathStarIcon, BeskarIcon, ChanceCubeIcon, RebelIcon, StarfighterIcon,
@@ -44,6 +44,7 @@ const GROUPS: MoreGroup[] = [
       { to: '/torneos', label: 'Torneos', sub: 'Archivo de la comunidad', icon: MandoTrophyIcon },
       { to: '/calendario', label: 'Calendario', sub: 'Los torneos del mes', icon: CalendarDays },
       { to: '/pedidos', label: 'Pedidos', sub: 'Carrito y ventas', icon: ShoppingCart },
+      { to: '/mensajes', label: 'Mensajes', sub: 'Conversaciones privadas', icon: MessageCircle },
     ],
   },
   {

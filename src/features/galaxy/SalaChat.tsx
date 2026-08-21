@@ -24,7 +24,7 @@ import { Send, Loader2, MessageSquare, BellOff, Bell, Trash2, ArrowDown, RotateC
 import { Avatar } from '../../components/ui/Avatar'
 import { hora, diaCalendarioSV } from '../../services/horaSV'
 import {
-  leerSala, enviar, retirar, escucharSala, escucharPresencia, marcarLeida,
+  leerSala, enviar, retirar, escucharSala, escucharPresencia, marcarLeida, esSalaPrivada,
   type Sala, type MensajeGalaxia, type AdjuntoMensaje,
 } from '../../services/galaxiaChat'
 import { CompartirEnChat } from './CompartirEnChat'
@@ -40,6 +40,15 @@ interface Props {
   alcanceGente: number
   silenciada: boolean
   onSilenciar: (v: boolean) => void
+  /**
+   * Un adjunto ya puesto al abrir.
+   *
+   * Es lo que permite «hablar de ESTA carta»: desde el Mercado se abre el chat
+   * con la publicación ya enganchada, en vez de obligar a buscarla otra vez
+   * dentro del selector. Solo siembra el valor INICIAL; después el adjunto lo
+   * maneja la propia pantalla como cualquier otro.
+   */
+  adjuntoInicial?: AdjuntoMensaje | null
 }
 
 /** Un mensaje que todavía no confirmó el servidor. */
@@ -94,6 +103,7 @@ function conEnlaces(texto: string) {
 
 export function SalaChat({
   sala, miId, miNombre, miAvatar, soyAdmin, alcanceGente, silenciada, onSilenciar,
+  adjuntoInicial = null,
 }: Props) {
   const [mensajes, setMensajes] = useState<MensajeGalaxia[]>([])
   const [cargando, setCargando] = useState(true)
@@ -102,7 +112,11 @@ export function SalaChat({
   const [enVuelo, setEnVuelo] = useState<EnVuelo[]>([])
   const [enLinea, setEnLinea] = useState<string[]>([])
   /** Lo que se va a mandar pegado al próximo mensaje, si hay algo. */
-  const [adjunto, setAdjunto] = useState<AdjuntoMensaje | null>(null)
+  // Va como valor INICIAL y no en un efecto: un `setState` en el cuerpo de un
+  // efecto encadena un render antes de pintar, y además volvería a poner el
+  // adjunto cada vez que el componente se re-monte, incluso después de que la
+  // persona lo hubiera quitado a propósito.
+  const [adjunto, setAdjunto] = useState<AdjuntoMensaje | null>(adjuntoInicial)
   const [abriendoCompartir, setAbriendoCompartir] = useState(false)
   const [alFondo, setAlFondo] = useState(true)
   const [nuevosAbajo, setNuevosAbajo] = useState(0)
@@ -155,7 +169,16 @@ export function SalaChat({
 
   // Quién está mirando esta sala AHORA.
   useEffect(
-    () => escucharPresencia(sala.alcance, sala.ambito, miId, miNombre, miAvatar, setEnLinea),
+    // En una sala PRIVADA no se usa presencia, y no es por ahorrar: el canal
+    // de Realtime se identifica por NOMBRE y no lo protege la RLS de
+    // `galaxia_mensajes`. Quien conozca el id de la sala podría unirse y ver
+    // quién está conectado sin pertenecer a ella. En una sala de país eso es
+    // inofensivo; en un chat de a dos es una fuga.
+    //
+    // Y tampoco aporta nada: en un 1:1 ya sabés con quién estás hablando.
+    () => esSalaPrivada(sala.alcance)
+      ? () => {}
+      : escucharPresencia(sala.alcance, sala.ambito, miId, miNombre, miAvatar, setEnLinea),
     [sala.alcance, sala.ambito, miId, miNombre, miAvatar],
   )
 

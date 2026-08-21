@@ -124,6 +124,7 @@ const mainSystems: Sistema[] = [
   // La credencial estaba SOLO dentro de Perfil → Personalizar: en móvil son
   // cuatro toques y nadie la encontraba. Acá se ve al abrir la app.
   { icon: KyberIcon,       label: 'Mi Credencial', tone: 'amber', to: '/credencial', cat: 'comunidad', auth: true },
+  { icon: HolonetIcon,     label: 'Mensajes',     tone: 'green',  to: '/mensajes',   cat: 'comunidad', auth: true },
   { icon: HolonetIcon,     label: 'Aurebesh',    tone: 'cyan',   to: '/aurebesh',   cat: 'comunidad' },
   { icon: SpyIcon,         label: 'Espionaje',    tone: 'purple', to: '/espionaje',  cat: 'comunidad', auth: true },
   { icon: HolonetIcon,     label: 'Blog',         tone: 'amber',  to: '/blog',       cat: 'comunidad' },
@@ -155,7 +156,7 @@ interface Marcador {
 
 /** Traducción de los rótulos de módulo y categoría al inglés (Fase i18n). */
 const MOD_EN: Record<string, string> = {
-  'Contador': 'Counter', 'Amistosas': 'Friendlies', 'Duelo': 'Duel', 'Misiones': 'Missions', 'Calendario': 'Calendar', 'Pedidos': 'Orders',
+  'Contador': 'Counter', 'Amistosas': 'Friendlies', 'Duelo': 'Duel', 'Misiones': 'Missions', 'Calendario': 'Calendar', 'Pedidos': 'Orders', 'Mensajes': 'Messages',
   'Torneos': 'Tournaments', 'Eventos': 'Events', 'Meta': 'Meta', 'Ranking': 'Ranking', 'En Vivo': 'Live',
   'Mis Decks': 'My Decks', 'Laboratorio': 'Lab', 'Buscar Cartas': 'Search Cards', 'Rulings': 'Rulings',
   'Mi Botín': 'My Loot', 'Contrabando': 'Smuggling', 'Mercancía': 'Market',
