@@ -33,6 +33,7 @@ import { ProximosEventos } from './ProximosEventos'
 import { AvisoPerfil } from '../profile/AvisoPerfil'
 import { AvisoSobreDiario } from '../sobres/AvisoSobreDiario'
 import { AvisoMensajes } from '../mensajes/AvisoMensajes'
+import { AvisoEncuesta } from '../encuesta/AvisoEncuesta'
 import { MosaicoModulo } from './MosaicoModulo'
 import { BahiaModulos } from './BahiaModulos'
 import { PopupOferta } from '../sobres/OfertaSobresDiarios'
@@ -317,6 +318,9 @@ export function HomePage() {
 
       {/* El sobre de las 8 de la mañana. Va primero porque es lo que acaba de
           pasar, y se puede cerrar: el sobre no se gasta al ocultar el aviso. */}
+      {/* Primero de todos los avisos: es el único que CADUCA. Un mensaje
+          sigue ahí mañana; una encuesta que cerró ya no se puede contestar. */}
+      <AvisoEncuesta userId={miIdAuth} />
       <AvisoMensajes userId={miIdAuth} />
       <AvisoSobreDiario userId={miIdAuth} />
 
