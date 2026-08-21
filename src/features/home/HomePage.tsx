@@ -116,6 +116,7 @@ const mainSystems: Sistema[] = [
   // Acceso directo al mercado: llegar a comprar/vender exigía entrar a
   // Contrabando y después cambiar de pestaña.
   { icon: CargoIcon,       label: 'Mercancía',    tone: 'amber',  to: '/explore?tab=market', cat: 'coleccion', auth: true },
+  { icon: CargoIcon,       label: 'Pedidos',      tone: 'green',  to: '/pedidos',    cat: 'coleccion', auth: true },
 
   // ── Comunidad: mirar a los demás ──
   { icon: StarfighterIcon, label: 'La Galaxia',   tone: 'cyan',   to: '/galaxia',    cat: 'comunidad', auth: true },
@@ -153,7 +154,7 @@ interface Marcador {
 
 /** Traducción de los rótulos de módulo y categoría al inglés (Fase i18n). */
 const MOD_EN: Record<string, string> = {
-  'Contador': 'Counter', 'Amistosas': 'Friendlies', 'Duelo': 'Duel', 'Misiones': 'Missions', 'Calendario': 'Calendar',
+  'Contador': 'Counter', 'Amistosas': 'Friendlies', 'Duelo': 'Duel', 'Misiones': 'Missions', 'Calendario': 'Calendar', 'Pedidos': 'Orders',
   'Torneos': 'Tournaments', 'Eventos': 'Events', 'Meta': 'Meta', 'Ranking': 'Ranking', 'En Vivo': 'Live',
   'Mis Decks': 'My Decks', 'Laboratorio': 'Lab', 'Buscar Cartas': 'Search Cards', 'Rulings': 'Rulings',
   'Mi Botín': 'My Loot', 'Contrabando': 'Smuggling', 'Mercancía': 'Market',

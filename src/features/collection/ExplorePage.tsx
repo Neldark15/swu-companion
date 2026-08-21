@@ -10,7 +10,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, Search, Users, Skull, Package, Eye, EyeOff, Tag,
-  ShoppingBag, Loader2, RefreshCw, MessageCircle, Pencil, SlidersHorizontal } from 'lucide-react'
+  ShoppingBag, Loader2, RefreshCw, MessageCircle, Pencil, SlidersHorizontal, ShoppingCart } from 'lucide-react'
 import {
   searchPublicProfiles,
   getExploreProfiles,
@@ -28,6 +28,9 @@ import { Carta3D } from '../../components/Carta3D'
 import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import { TradeMatches } from './TradeMatches'
 import { useAuth } from '../../hooks/useAuth'
+import {
+  reservasDelMercado, claveReserva, agregarAlCarrito,
+} from '../../services/mercadoPedidos'
 import { db } from '../../services/db'
 import type { Card } from '../../types'
 import { Avatar } from '../../components/ui/Avatar'
@@ -374,6 +377,12 @@ function MarketTab() {
   const [guardando, setGuardando] = useState(false)
 
   const [listings, setListings] = useState<MarketplaceListing[]>(guardada?.listings ?? [])
+  /** Cuántas unidades tiene reservadas cada (vendedor, carta). UNA consulta
+   *  para todo el mercado: preguntarlo por fila serían 200 viajes, y §2y
+   *  prohíbe topes fijos al leer esta lista. */
+  const [reservas, setReservas] = useState<Map<string, number>>(new Map())
+  const [alCarrito, setAlCarrito] = useState<string | null>(null)
+  const [avisoCarrito, setAvisoCarrito] = useState<string | null>(null)
   const [cards, setCards] = useState<Map<string, Card>>(new Map())
   // Con instantánea NO se arranca cargando: ya hay qué mostrar, y un spinner
   // encima de datos buenos es una pantalla que parpadea sin razón.
@@ -403,6 +412,7 @@ function MarketTab() {
       // mismo que ya se había pasado (207 publicaciones contra un tope de 200).
       const list = await getMarketplaceListings()
       setListings(list)
+      void reservasDelMercado().then(setReservas)
       setFailed(false)
       // Hydrate card details
       const cardIds = Array.from(new Set(list.map(l => l.cardId)))
@@ -772,6 +782,15 @@ function MarketTab() {
         />
       )}
 
+      {/* El fallo del carrito va ARRIBA de la vitrina y no dentro de la tarjeta:
+          el mensaje del servidor —«no quedan tantas: hay 2 disponibles»— no
+          entra en una celda de dos columnas sin partirse. */}
+      {avisoCarrito && (
+        <div className="mb-2 rounded-lg bg-swu-red/15 px-3 py-2 text-[11px] text-swu-red-texto">
+          {avisoCarrito}
+        </div>
+      )}
+
       {!loading && filtered.length > 0 && (
         /* Vitrina de tienda: la carta grande y el precio encima, como en el
            mostrador. Antes era una fila de lista con una miniatura de 56px,
@@ -781,6 +800,9 @@ function MarketTab() {
             const card = cards.get(l.cardId)
             const apaisada = listFaceIsLandscape(card)
             const esMia = !!supabaseUser && l.userId === supabaseUser.id
+            const claveL = claveReserva(l.userId, l.cardId)
+            // Lo publicado MENOS lo que ya tiene reservado alguien.
+            const quedan = l.quantity - (reservas.get(claveL) ?? 0)
             return (
               <div
                 key={`${l.userId}-${l.cardId}`}
@@ -862,7 +884,36 @@ function MarketTab() {
                     >
                       <Pencil size={12} aria-hidden /> Editar publicación
                     </button>
-                  ) : l.sellerWhatsapp ? (
+                  ) : quedan <= 0 ? (
+                    /* Reservada por otro. Se ATENUA y se rotula, no se
+                       esconde: hacer desaparecer la carta haria pensar que el
+                       vendedor la retiro, y ademas vuelve en cuanto la reserva
+                       venza o se rechace. */
+                    <p className="mt-2 rounded-lg bg-swu-surface-hover py-1.5 text-center text-[10px] font-bold text-swu-muted">
+                      Ya está reservada
+                    </p>
+                  ) : (
+                    <button
+                      disabled={alCarrito === claveL}
+                      onClick={async e => {
+                        e.stopPropagation()
+                        setAlCarrito(claveL)
+                        setAvisoCarrito(null)
+                        const r = await agregarAlCarrito(l.userId, l.cardId, 1)
+                        setAlCarrito(null)
+                        // El mensaje del servidor va TAL CUAL: «no quedan
+                        // tantas: hay 2 disponibles» dice que hacer.
+                        if (!r.ok) setAvisoCarrito(r.mensaje)
+                        else void reservasDelMercado().then(setReservas)
+                      }}
+                      className="mt-2 flex items-center justify-center gap-1.5 rounded-lg border border-swu-amber/40 bg-swu-amber/15
+                                 py-1.5 text-[11px] font-semibold text-swu-amber transition-transform active:scale-[0.98] disabled:opacity-60"
+                    >
+                      <ShoppingCart size={12} aria-hidden />
+                      {alCarrito === claveL ? 'Agregando…' : 'Al carrito'}
+                    </button>
+                  )}
+                  {l.sellerWhatsapp && !esMia && quedan > 0 ? (
                     <a
                       href={`https://wa.me/${l.sellerWhatsapp}?text=${encodeURIComponent(
                         mensajeVendedor(l, card),
@@ -875,11 +926,7 @@ function MarketTab() {
                     >
                       <MessageCircle size={12} aria-hidden /> Escribirle
                     </a>
-                  ) : (
-                    <p className="mt-2 text-[9px] text-swu-muted/60 text-center leading-tight">
-                      Sin WhatsApp — tocá su nombre para ver el perfil
-                    </p>
-                  )}
+                  ) : null}
                 </div>
               </div>
             )
