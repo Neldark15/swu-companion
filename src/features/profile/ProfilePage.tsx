@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronRight, History, Heart, Star, Layers, BookOpen, Trophy,
@@ -155,6 +155,25 @@ export function ProfilePage() {
   const [customCountry, setCustomCountry] = useState(currentProfile?.country || '')
   const [customContinent, setCustomContinent] = useState(currentProfile?.continent || '')
 
+  /**
+   * ¿Se entró pidiendo la personalización? (`?editar=perfil`, el enlace del
+   * aviso «terminá tu perfil» de Inicio.)
+   *
+   * El inicializador de `view` de arriba ya lo mira, pero en arranque FRÍO
+   * `currentProfile` todavía es null y devuelve 'select'; después llega el
+   * perfil y el efecto de más abajo mandaba a 'profile' sin excepción. O sea
+   * que el ÚNICO camino que ese aviso ofrece para poner el país no llegaba
+   * nunca a la pantalla que lo pone.
+   *
+   * Va en un ref y no en estado porque se consume UNA vez: si el deseo
+   * sobreviviera, cada cambio del perfil —incluido guardar— reabriría la
+   * personalización que se acaba de cerrar.
+   */
+  const pidioEditar = useRef(
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('editar') === 'perfil',
+  )
+
   /* Acá había también un `auth.initAuth()`. AppLayout —que es ancestro de esta
      página— ya lo llama al montar, así que este solo repetía `getSession` +
      el rol + `pullAllFromCloud` en CADA visita, y Perfil es uno de los cinco
@@ -188,9 +207,25 @@ export function ProfilePage() {
       // un sistema externo. Se aplica en un microtask para no encadenar un
       // render dentro del efecto.
       queueMicrotask(() => {
-        setView('profile')
+        if (pidioEditar.current) { pidioEditar.current = false; setView('customize') }
+        else setView('profile')
         setCustomAvatar(currentProfile.avatar)
         setCustomName(currentProfile.name)
+        /* Y el país y el continente, que faltaban.
+         *
+         * Los cuatro campos del borrador se siembran en el `useState` de
+         * montaje, que en arranque frío corre con `currentProfile` en null.
+         * Avatar y nombre se reponían acá; país y continente no. Resultado
+         * medido en el código: entrar directo a /profile con la app recién
+         * abierta y guardar CUALQUIER cosa mandaba `country: undefined`, y la
+         * pantalla quedaba mostrando «sin región» a alguien que sí la tenía.
+         *
+         * La nube se salva por el guardián de `syncProfileToCloud` (no escribe
+         * si viene vacío), así que el dato no se perdía de verdad — pero el
+         * selector mentía hasta la siguiente bajada de la nube, y para quien
+         * lo mira eso es exactamente igual que haberlo perdido. */
+        setCustomCountry(currentProfile.country || '')
+        setCustomContinent(currentProfile.continent || '')
       })
 
       // Load basic stats
