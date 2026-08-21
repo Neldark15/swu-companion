@@ -1,0 +1,42 @@
+-- PRESTAMOS DE CARTAS ENTRE JUGADORES. Aplicado 2026-08-23.
+--
+-- ── Que ES y que NO es ───────────────────────────────────────────────
+--
+-- Es un RECORDATORIO de quien tiene que, no un cambio de dueño. NO toca
+-- `collection`: la carta sigue siendo del que la presto. Si lo hiciera, una
+-- devolucion mal hecha borraria cartas de la coleccion de alguien.
+--
+-- ── Lo anota el que PRESTA, y no hace falta que el otro confirme ─────
+--
+-- Es su carta y su memoria. Pero un prestamo dice algo sobre OTRA persona
+-- —«fulano tiene mi carta»— asi que el que recibe lo VE y puede DISPUTARLO.
+--
+-- No se exige confirmacion para que exista, y es una decision medida: en las
+-- amistosas, que si la exigen, 3 de 4 llevaban semanas sin confirmar. Un
+-- recordatorio que necesita el visto bueno del otro para servirte a VOS no es
+-- un recordatorio, es un tramite.
+--
+-- ── Permisos asimetricos, a proposito ────────────────────────────────
+--
+--   cancelar  -> SOLO quien presto (es deshacer una anotacion propia)
+--   disputar  -> SOLO quien recibe (es decir «eso no me lo prestaste»)
+--   devuelto  -> LOS DOS (se ven el sabado, se devuelven la carta, lo marca
+--                el que se acuerde; si solo pudiera uno, el otro se queda con
+--                un recordatorio que no puede apagar)
+--
+-- ── Y quien recibe puede NO tener cuenta ─────────────────────────────
+--
+-- `recibe_id` es nullable y siempre hay `recibe_nombre`. En una comunidad de 27
+-- que se conocen en persona, prestarle una carta a alguien que todavia no se
+-- registro es normal, no un borde.
+--
+-- Probado en transaccion revertida con `set local role authenticated`:
+--   A presta 2 a B                 -> ok, los dos lo ven
+--   contadores                     -> A «me deben 1, vencidos 1»; B «le debo 1»
+--   un TERCERO lo ve               -> 0
+--   un TERCERO lo cierra           -> rechazado
+--   quien PRESTA lo disputa        -> rechazado
+--   quien RECIBE lo cancela        -> rechazado
+--   quien RECIBE lo marca devuelto -> devuelto
+--   cerrarlo dos veces             -> rechazado
+--   contadores tras devolver       -> 0 y 0
