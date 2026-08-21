@@ -1,0 +1,77 @@
+-- CARRITO, RESERVA, PEDIDO Y CHAT DEL MERCADO. Aplicado 2026-08-22.
+--
+-- Cuatro migraciones aplicadas en este orden:
+--   mercado_carrito_y_pedidos          (tablas + RLS)
+--   mercado_disponibilidad_y_carrito   (disponibilidad + agregar/quitar)
+--   mercado_enviar_aceptar_cerrar      (la maquina de estados)
+--   mercado_chat_de_pedido_y_caducidad (sala del pedido + vencer_pedidos)
+--
+-- ── EL HALLAZGO QUE HABRIA ROTO TODO EN SILENCIO ─────────────────────
+--
+-- Medido en produccion, haciendome pasar por un comprador:
+--     select ... from collection where for_sale             -> 206 filas
+--     select ... from collection where for_sale FOR UPDATE  ->  45 filas
+--
+-- Postgres aplica el USING de la policy de UPDATE (`auth.uid() = user_id`) a
+-- los SELECT CON CANDADO, y NO da error: las 161 filas ajenas simplemente
+-- desaparecen. Una funcion SECURITY INVOKER veria «esta carta no esta en venta»
+-- para TODA publicacion que no sea del que llama.
+--
+-- Por eso cada RPC de aca es SECURITY DEFINER, igual que `abrir_sobre`,
+-- `confirmar_amistosa` y `cerrar_torneo`.
+--
+-- ── Lo reservado se DERIVA, no se escribe ────────────────────────────
+--
+-- La RLS de `collection` no deja que un comprador toque la fila del vendedor,
+-- y ninguna RLS decente lo permitiria. «Reservada» = existe una linea de pedido
+-- en estado `enviado` o `aceptado`. El estado `carrito` NO reserva: esa es toda
+-- la diferencia entre poner algo en el carrito y bloquearle la carta a alguien.
+--
+-- ── La concurrencia: dos compradores por la ultima copia ─────────────
+--
+-- El recurso en disputa es la fila `(vendedor, card_id)` de `collection`, NO la
+-- linea del carrito de cada quien. El candado va sobre ESA fila y lo reservado
+-- se suma DESPUES del candado, en la misma transaccion. El segundo comprador
+-- espera y al despertar ya ve la reserva del primero. No hace falta atrapar
+-- ningun 23505: el candado ordena.
+--
+-- ── NO hay clave foranea de la linea hacia `collection` ──────────────
+--
+-- Es una mina en las dos direcciones, y esta medida: `collectionService.ts`
+-- BORRA la fila entera cuando la cantidad baja a 0. Con ON DELETE CASCADE el
+-- vendedor le borraria el carrito al comprador sin avisar; con RESTRICT no
+-- podria bajar su propia carta. Se guarda (vendedor_id, card_id) suelto.
+--
+-- ── Dos trampas mas ──────────────────────────────────────────────────
+--
+--  · `sale_quantity` NULL significa TODAS: el tope es
+--    `coalesce(sale_quantity, quantity)`, no `sale_quantity` a secas.
+--  · Una tabla nueva NACE con ALL para anon y authenticated (§2j). Conceder no
+--    basta: hay que REVOCAR. Aca se revoca y se concede solo SELECT; todo lo
+--    que escribe va por RPC.
+--
+-- ── El chat es UNA RAMA, no un subsistema ────────────────────────────
+--
+-- `galaxia_mensajes` ya identifica la sala con el par (alcance, ambito) y toda
+-- la pertenencia vive en `galaxia_pertenece`, que termina en `else false`: una
+-- sala de alcance desconocido nace CERRADA. Agregar 'pedido' son cuatro lineas
+-- y trae gratis mensajes, adjuntos, borrado suave, moderacion y tiempo real.
+--
+-- ── Caducidad ────────────────────────────────────────────────────────
+--
+-- 48 h sin respuesta del vendedor, y 7 dias desde aceptado sin que ninguno lo
+-- cierre. El pedido NO se borra: queda `vencido` en el historial de los dos.
+-- Lo dispara el cron de Vercel (no hay pg_cron en este proyecto, verificado).
+--
+-- ── Probado contra la base, en transaccion revertida ─────────────────
+--
+--   carrito NO reserva                          -> 0
+--   al enviar reserva                           -> 1, total congelado
+--   segundo comprador por la ultima copia       -> rechazado, «hay 0 disponibles»
+--   un tercero acepta un pedido ajeno           -> rechazado
+--   el comprador se auto-acepta                 -> rechazado
+--   el vendedor acepta                          -> aceptado, sigue reservada
+--   cerrar                                      -> completado, reserva a 0
+--   chat: comprador si, vendedor si, tercero NO, pedido inventado NO,
+--         alcance desconocido NO, sala global intacta
+--   vencer_pedidos() a las 49 h                 -> vencido, reserva a 0
