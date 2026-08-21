@@ -1146,6 +1146,38 @@ atribuidos (le cuelgan la fecha del set base a la fila del Weekly Play).
 catálogo YA publicado, elegida con FNV-1a sobre el día SV, la misma para los 27
 y sin guardar una sola fila. No es un spoiler y no se rotula como tal.
 
+### 3h-quater. El calendario es una VISTA, no una tabla
+
+`/calendario` lee `official_events` con la sede unida. **No hay tabla de
+calendario y no debe haberla**: esa tabla ya tenía fecha, `venue_id`, formato,
+estado y organizador. Un segundo sitio donde exista «el torneo del sábado» es
+cómo la comunidad termina con dos respuestas a la misma pregunta (§3c).
+
+Tres cosas que costó descubrir y no hay que deshacer:
+
+- **`venues` ya no tiene `unique(owner_id)`.** Modelaba «una tienda, su dueño»;
+  la comunidad necesita una lista curada entre admins. Se pudo cambiar sin
+  riesgo porque la tabla estaba en CERO filas. Lo único de `venues` es ahora el
+  NOMBRE. Y `accent` **no es un hex**: un CHECK solo acepta
+  cyan/amber/green/red/purple.
+- **`anon` ve TODOS los eventos, no solo los terminados.** Antes
+  `events_public_finished` lo limitaba a `status='finished'` y el calendario
+  público salía con los sábados pasados y sin los que vienen — medido en el
+  navegador. El `code` queda expuesto y no importa: inscribirse exige sesión
+  (`event_registrations` es `auth.uid() = user_id`) y `/torneos/:code` ya era
+  pública.
+- **Los sábados son FILAS CONCRETAS**, no una regla de repetición: se pidieron
+  editables, y con una regla, cambiarle la hora a un sábado obliga a inventar
+  excepciones. `sembrar_sabados(n)` las repone, es idempotente por `code` y solo
+  la llama `service_role`. **Hay que volver a correrla** cuando se acaben las
+  12 semanas sembradas.
+
+Del diseño: el color es la **sede** y el estado va en **texto**. Si el color
+hiciera las dos cosas, un torneo cancelado en Sonsonate y uno abierto en San
+Salvador serían indistinguibles. Y la rejilla es de **seis semanas siempre**,
+aunque el mes entre en cinco: si el alto cambiara al pasar de mes, la lista de
+abajo daría un brinco a mitad del gesto (§3i).
+
 ### 3i. Sobres y álbum: la colección es SOLO brillante, y el brillo lo pone la app
 
 `/sobres` (La Bóveda) y `/binder-digital` (El Álbum). El sorteo vive ENTERO en
