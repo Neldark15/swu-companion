@@ -24,7 +24,7 @@
  */
 
 import { supabase, isSupabaseReady } from './supabase'
-import type { Sala } from './galaxiaChat'
+import { estadoDeSalas, claveSala, type Sala } from './galaxiaChat'
 
 export interface Conversacion {
   id: string
@@ -33,6 +33,15 @@ export interface Conversacion {
   /** Quién cortó, si alguien cortó. */
   bloqueadaPor: string | null
   creadaEn: string
+  /**
+   * Cuántos mensajes del OTRO no he leído. Sale de la misma marca de lectura
+   * que usan las salas de país y de tienda (`galaxia_lecturas`), no de un
+   * contador propio: dos formas de contar lo mismo terminan discrepando, y
+   * `SalaChat` ya marca leído al abrir cualquier sala, incluida esta.
+   */
+  noLeidos: number
+  /** El último mensaje, para que la lista sea un buzón y no un directorio. */
+  ultimo: { cuerpo: string; en: string; mio: boolean; id: string } | null
 }
 
 export type Resultado<T> = { ok: true; datos: T } | { ok: false; mensaje: string }
@@ -79,22 +88,71 @@ export async function misConversaciones(miId: string): Promise<Resultado<Convers
   if (filas.length === 0) return { ok: true, datos: [] }
 
   const otros = [...new Set(filas.map(f => (f.a === miId ? f.b : f.a)))]
-  const { data: perfiles } = await supabase
-    .from('profiles').select('id, name, avatar').in('id', otros)
-  const mapa = new Map((perfiles ?? []).map(p => [p.id as string, p as Conversacion['otro']]))
+  const ids = filas.map(f => f.id)
 
-  return {
-    ok: true,
-    datos: filas.map(f => {
-      const otroId = f.a === miId ? f.b : f.a
-      return {
-        id: f.id,
-        otro: mapa.get(otroId) ?? { id: otroId, name: 'Alguien', avatar: null },
-        bloqueadaPor: f.bloqueada_por,
-        creadaEn: f.creada_en,
-      }
-    }),
+  // Tres viajes en paralelo, no uno por conversación: los perfiles, el último
+  // mensaje de cada sala y las marcas de lectura.
+  const [perfilesRes, ultimosRes, estado] = await Promise.all([
+    supabase.from('profiles').select('id, name, avatar').in('id', otros),
+    supabase
+      .from('galaxia_mensajes')
+      .select('id, ambito, cuerpo, creado_en, autor_id')
+      .eq('alcance', 'dm')
+      .in('ambito', ids)
+      .is('borrado_en', null)
+      .order('creado_en', { ascending: false }),
+    estadoDeSalas(miId, filas.map(f => ({
+      alcance: 'dm' as const, ambito: f.id, titulo: '', detalle: '',
+    }))),
+  ])
+
+  const mapa = new Map((perfilesRes.data ?? []).map(p => [p.id as string, p as Conversacion['otro']]))
+
+  // Vienen ordenados de más nuevo a más viejo, así que el PRIMERO de cada
+  // ámbito es el último mensaje. Se queda el primero que se ve y se ignora el
+  // resto: es un `distinct on` hecho en el cliente, sin una segunda consulta.
+  const ultimos = new Map<string, Conversacion['ultimo']>()
+  for (const m of (ultimosRes.data ?? []) as { id: string; ambito: string; cuerpo: string; creado_en: string; autor_id: string }[]) {
+    if (ultimos.has(m.ambito)) continue
+    ultimos.set(m.ambito, { cuerpo: m.cuerpo, en: m.creado_en, mio: m.autor_id === miId, id: m.id })
   }
+
+  const datos = filas.map(f => {
+    const otroId = f.a === miId ? f.b : f.a
+    const e = estado.get(claveSala('dm', f.id))
+    return {
+      id: f.id,
+      otro: mapa.get(otroId) ?? { id: otroId, name: 'Alguien', avatar: null },
+      bloqueadaPor: f.bloqueada_por,
+      creadaEn: f.creada_en,
+      // Una conversación silenciada no suma al globo, igual que en las salas
+      // de país: silenciar tiene que significar lo mismo en todas partes.
+      noLeidos: e && !e.silenciada ? e.sinLeer : 0,
+      ultimo: ultimos.get(f.id) ?? null,
+    }
+  })
+
+  // Lo que espera respuesta va arriba; después, lo más reciente. El orden por
+  // fecha de CREACIÓN dejaba abajo una conversación vieja con un mensaje nuevo.
+  datos.sort((x, y) =>
+    (y.noLeidos > 0 ? 1 : 0) - (x.noLeidos > 0 ? 1 : 0) ||
+    ((y.ultimo?.en ?? y.creadaEn) < (x.ultimo?.en ?? x.creadaEn) ? -1 : 1))
+
+  return { ok: true, datos }
+}
+
+/**
+ * Cuántos mensajes privados me esperan, en total.
+ *
+ * Lo usa la franja de Inicio, que es el ÚNICO camino real para la mayoría:
+ * medido hoy, de los 28 perfiles solo 8 tienen avisos push, y los tres
+ * fundadores de México, España y Argentina tienen CERO. Un mensaje que solo
+ * avisa por push no le llega a ninguno de ellos.
+ */
+export async function mensajesSinLeer(miId: string): Promise<number> {
+  const r = await misConversaciones(miId)
+  if (!r.ok) return 0
+  return r.datos.reduce((n, c) => n + c.noLeidos, 0)
 }
 
 /**

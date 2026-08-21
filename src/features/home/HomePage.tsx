@@ -31,6 +31,7 @@ import { DondeJugar } from './DondeJugar'
 import { ProximosEventos } from './ProximosEventos'
 import { AvisoPerfil } from '../profile/AvisoPerfil'
 import { AvisoSobreDiario } from '../sobres/AvisoSobreDiario'
+import { AvisoMensajes } from '../mensajes/AvisoMensajes'
 import { PopupOferta } from '../sobres/OfertaSobresDiarios'
 import { TarjetaJugador } from '../profile/TarjetaJugador'
 import { Carta3D } from '../../components/Carta3D'
@@ -306,6 +307,7 @@ export function HomePage() {
 
       {/* El sobre de las 8 de la mañana. Va primero porque es lo que acaba de
           pasar, y se puede cerrar: el sobre no se gasta al ocultar el aviso. */}
+      <AvisoMensajes userId={miIdAuth} />
       <AvisoSobreDiario userId={miIdAuth} />
 
       {/* Y para quien está cobrando UNO por no tener los avisos: es el único

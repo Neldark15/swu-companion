@@ -172,11 +172,32 @@ export function MensajesPage() {
             >
               <Avatar avatar={c.otro.avatar} size={38} anillo={c.otro.id} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-bold text-swu-text">{c.otro.name}</span>
-                <span className="block text-[10px] text-swu-muted">
-                  {c.bloqueadaPor ? 'Cortada' : `Desde ${fechaCorta(c.creadaEn)}`}
+                <span className="flex items-baseline gap-2">
+                  <span className={`min-w-0 flex-1 truncate text-sm ${
+                    c.noLeidos > 0 ? 'font-black text-swu-text' : 'font-bold text-swu-text'}`}>
+                    {c.otro.name}
+                  </span>
+                  <span className="flex-shrink-0 text-[10px] text-swu-muted">
+                    {c.bloqueadaPor ? 'Cortada' : fechaCorta(c.ultimo?.en ?? c.creadaEn)}
+                  </span>
+                </span>
+                {/* La vista previa es lo que convierte una lista de nombres en
+                    un buzón: sin ella hay que entrar a cada una para saber si
+                    pasó algo. El «Vos:» distingue lo que dije de lo que me
+                    dijeron, que es la mitad de la información de un renglón. */}
+                <span className={`block truncate text-[11px] ${
+                  c.noLeidos > 0 ? 'font-semibold text-swu-text' : 'text-swu-muted'}`}>
+                  {c.ultimo
+                    ? `${c.ultimo.mio ? 'Vos: ' : ''}${c.ultimo.cuerpo}`
+                    : 'Sin mensajes todavía'}
                 </span>
               </span>
+              {c.noLeidos > 0 && (
+                <span className="flex-shrink-0 rounded-full bg-swu-cyan px-1.5 py-0.5
+                                 text-[10px] font-black leading-none text-swu-bg">
+                  {c.noLeidos > 99 ? '99+' : c.noLeidos}
+                </span>
+              )}
             </button>
           </li>
         ))}
