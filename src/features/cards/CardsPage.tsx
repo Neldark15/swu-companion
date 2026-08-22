@@ -13,7 +13,7 @@ import { VitrinaShowcase } from '../collection/VitrinaShowcase'
 import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import {
   searchCards, getSets, getLocalCardCount, loadFullDatabase, ensureFreshDatabase, collectionEntry,
-  subscribeDbLoadProgress, MAIN_SET_MIN_CARDS, COST_MAX_BUCKET, PLAYSET_SIZE,
+  subscribeDbLoadProgress, MAIN_SET_MIN_CARDS, MAIN_SET_LABELS, COST_MAX_BUCKET, PLAYSET_SIZE,
   type SearchParams, type DbLoadProgress, type OwnedFilter,
 } from '../../services/swuApi'
 import { getPricesForCards, fetchTCGPrices, formatPrice, precioPromedio, type PriceInfo } from '../../services/pricing'
@@ -130,7 +130,25 @@ export function CardsPage() {
   const [owned, setOwned] = useState<OwnedFilter>(restored?.owned ?? 'all')
   const [favoritesOnly, setFavoritesOnly] = useState(restored?.favoritesOnly ?? false)
   /** Apagado de fábrica: el 74% de las filas son variantes de la misma carta. */
-  const [allPrintings, setAllPrintings] = useState(restored?.allPrintings ?? false)
+  /**
+   * «Todas las impresiones» viene ENCENDIDO por defecto.
+   *
+   * Apagado, Explorar mostraba solo la impresión canónica de cada carta:
+   * 2.316 filas de 9.185. Las Hyperspace, las Showcase y las foil —que es
+   * con lo que la gente de verdad abre sobres y arma binder— no aparecían
+   * hasta marcar una casilla que estaba dentro del panel de filtros, o sea
+   * escondida detrás de un toque que casi nadie daba.
+   *
+   * Medido: encendido son 9.185 filas, **3,97× más**. Ese es el costo, y
+   * está aceptado a propósito. Entran también ~400 promos de torneo (GC Top
+   * 64, SQ Prize Wall y demás) que casi nadie tiene; si algún día molestan,
+   * lo que hay que filtrar son esas variantes, no volver a esconder las
+   * Hyperspace.
+   *
+   * La instantánea sigue mandando: quien lo apague durante la sesión, lo
+   * mantiene apagado mientras navega. Solo cambia con qué arranca.
+   */
+  const [allPrintings, setAllPrintings] = useState(restored?.allPrintings ?? true)
 
   const [cards, setCards] = useState<Card[]>(restored?.cards ?? [])
   const [total, setTotal] = useState(restored?.total ?? 0)
@@ -475,8 +493,18 @@ export function CardsPage() {
   }, [selectedType, selectedAspect, selectedCost, selectedSet, selectedArena,
       selectedRarity, owned, favoritesOnly, allPrintings])
 
+  /**
+   * Los chips de set son los COLECCIONABLES, no los grandes.
+   *
+   * Estaban filtrados por `cardCount >= 500`, y eso dejaba fuera de Explorar
+   * al set de Twin Suns: 88 cartas —con 8 líderes y 4 bases propios— que
+   * estaban descargadas en la base local y no se podían filtrar por set desde
+   * ninguna pantalla. Solo aparecían escribiendo el nombre exacto.
+   */
+  const setsFiltrables = sets.filter((s) => s.code in MAIN_SET_LABELS)
+  /** La expansión más nueva, para las lanzaderas. Acá el tamaño SÍ importa:
+   *  un set suplementario de 88 cartas no es «lo último que salió». */
   const mainSets = sets.filter((s) => s.cardCount >= MAIN_SET_MIN_CARDS)
-  /** La expansión más nueva, para las lanzaderas. Sin lista fija que mantener. */
   const newestSet = mainSets.length > 0 ? mainSets[mainSets.length - 1].code : null
 
   /** Atajos que además ENSEÑAN el sistema de filtros: dejan los chips a la vista. */
@@ -656,7 +684,7 @@ export function CardsPage() {
           <div>
             <p className="text-xs text-swu-muted mb-1.5">Set</p>
             <div className="flex flex-wrap gap-1.5">
-              {mainSets.map((s) => (
+              {setsFiltrables.map((s) => (
                 <button key={s.code} onClick={() => toggleFilter(selectedSet, s.code, setSelectedSet)} title={s.name} className={chipClass(selectedSet === s.code, 'amber')}>
                   {s.code}
                 </button>

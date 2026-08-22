@@ -1499,3 +1499,65 @@ códigos de set; un nombre como «Vara, Christian» parte la fila en silencio.
 de instalación, el Header y la TabBar por estructura y no por una lista de
 excepciones. **Y no hay entrada en ningún menú**: se entra tecleando
 `/temporada`.
+
+### 3j. Twin Suns (TS26) y por qué «estaba en la base» y aun así no existía
+
+Reporte: «las cartas de Twin Suns no están en nuestra base». Medido: **sí
+estaban**. Las 88 impresiones de TS26 llevaban tiempo en Dexie —9.185 filas,
+las 88 canónicas y con `searchBlob`— y escribir «Ahsoka» ya las encontraba.
+
+Lo que no existía era la forma de LLEGAR a ellas, y eran dos sitios:
+
+- **Explorar** (`/cards`) armaba los chips de set con
+  `sets.filter(s => s.cardCount >= MAIN_SET_MIN_CARDS)`, o sea 500. TS26 son
+  88 cartas: no había chip, y sin chip no hay forma de pedir «todo el set».
+- **El Binder** decide qué se puede coleccionar con `isCollectible()`, que usa
+  `MAIN_SET_LABELS` como lista blanca. TS26 no estaba: sus cartas no contaban
+  para ningún progreso y el set no tenía barra.
+
+**La lección de nombres:** había dos preguntas distintas usando el mismo
+criterio. «¿Es una expansión grande?» (para saber cuál es la más nueva) y
+«¿se puede coleccionar?» no son lo mismo, y TS26 —88 cartas, pero con 8
+líderes y 4 bases propios— las separa. Ahora `MAIN_SET_LABELS` responde la
+segunda y `MAIN_SET_MIN_CARDS` la primera. Si se mezclan otra vez, el próximo
+producto suplementario vuelve a desaparecer.
+
+Denominadores del Binder tras el cambio: 252/262/257/262/265/264/265/264 +
+**TS26 84** = **2.175** coleccionables (antes 2.089). Los 4 tokens de TS26 no
+cuentan, como en todos los sets.
+
+Dos comprobaciones que valió la pena hacer antes de tocar nada:
+- **Choques de nombre.** De las 88, solo 4 repiten (nombre, subtítulo) con una
+  Standard ya existente, y las 4 son fichas —Battle Droid, Clone Trooper,
+  Experience, Shield— que ya se repetían entre sets. **84 son nuevas de
+  verdad.** No es una regresión: sin TS26 ya había 97 grupos repetidos y 121
+  filas de más.
+- **Precios.** `SET_GROUP_MAP` y `ALLOWED_GROUPS` del proxy YA tenían
+  `TS26: 24622` (verificado contra tcgcsv: grupo 24622 = «Twin Suns»), así que
+  los precios de TS26 son reales, no heredados de otra carta.
+
+**El centinela de completitud NO detecta que el catálogo creció.**
+`isDatabaseComplete()` compara `count >= expected`, y `expected` es lo que
+guardó la última carga: si el API pasa de 9.057 a 9.185, una caché de 9.057
+sigue dando `true`. Lo que salva la situación es el refresco semanal de
+`ensureFreshDatabase()`, así que un set nuevo tarda **hasta 7 días** en
+aparecer. Si alguna vez hay que hacerlo inmediato, la sonda barata existe: la
+suma de `total_cards` de `/sets` da exactamente el total del export (9.185
+verificado) y pesa **5,8 KB contra 9,9 MB**. Guardar esa suma y comparar por
+DESIGUALDAD —nunca por «es mayor»— evita el bucle si el API alguna vez la
+infla.
+
+### 3j-bis. «Todas las impresiones» viene encendido
+
+Explorar arrancaba mostrando solo la impresión canónica: **2.316 filas de
+9.185**. Las Hyperspace, Showcase y foil —con lo que la gente abre sobres y
+arma binder— quedaban detrás de una casilla dentro del panel de filtros.
+
+Ahora el valor inicial es `true`. **Cuesta 3,97× más filas** y entran también
+~400 promos de torneo (GC Top 64, SQ Prize Wall…) que casi nadie tiene; está
+aceptado a propósito. Si algún día estorban, lo que hay que filtrar son esas
+variantes concretas, **no volver a esconder las Hyperspace**.
+
+La instantánea del buscador (`_snapshot`, a nivel de módulo) sigue mandando
+dentro de la sesión: quien lo apague lo mantiene apagado mientras navega. Y
+`clearFilters()` **no** lo toca, así que «Limpiar» no lo apaga.

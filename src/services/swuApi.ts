@@ -80,6 +80,17 @@ interface ApiSetResponse {
  * the app). Promos/weekly-play/judge sets are excluded on purpose — they're
  * identified dynamically by cardCount < MAIN_SET_MIN_CARDS.
  */
+/**
+ * Los sets que la app trata como COLECCIONABLES: los que salen en el filtro
+ * de Explorar y los que tienen barra de progreso en el Binder.
+ *
+ * `isCollectible()` lo usa como lista blanca, así que estar acá es lo que
+ * decide si una carta se puede «tener». Por eso TS26 entra aunque sean 88
+ * cartas y no ~1.000: **es un producto jugable con sus propios 8 líderes y
+ * 4 bases**, no una tanda de promos. El umbral por tamaño
+ * (`MAIN_SET_MIN_CARDS`) sigue existiendo para otra pregunta distinta —«cuál
+ * es la expansión más nueva»— y ahí TS26 no compite.
+ */
 export const MAIN_SET_LABELS: Record<string, string> = {
   SOR: 'Spark of Rebellion',
   SHD: 'Shadows of the Galaxy',
@@ -89,9 +100,15 @@ export const MAIN_SET_LABELS: Record<string, string> = {
   SEC: 'Secrets of Power',
   LAW: 'A Lawless Time',
   ASH: 'Ashes of the Empire',
+  TS26: '2026 Twin Suns',
 }
 
-/** Threshold that separates main expansions (~900-1200 cards incl. variants) from promos. */
+/**
+ * Umbral que separa las EXPANSIONES GRANDES (~900-1200 cartas con variantes)
+ * de todo lo demás. Ojo: no es lo mismo que «coleccionable» — para eso está
+ * `MAIN_SET_LABELS`. Esto solo sirve para preguntas de tamaño, como cuál es
+ * la expansión más nueva.
+ */
 export const MAIN_SET_MIN_CARDS = 500
 
 /** El último chip de coste es "7+": agrupa todo de 7 para arriba. */

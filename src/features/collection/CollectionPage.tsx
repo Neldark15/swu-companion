@@ -658,17 +658,17 @@ export function CollectionPage() {
          *
          * El hueco se reserva DESDE EL PRIMER PINTADO. Antes esta tarjeta no
          * existía hasta que `getSetProgress()` resolvía —lee las 9.057 filas
-         * de Dexie— y entonces aparecía de golpe con el anillo de 72 px y sus
-         * ocho barras, empujando la lista entera hacia abajo. Medido, era la
+         * de Dexie— y entonces aparecía de golpe con el anillo de 72 px y
+         * todas sus barras, empujando la lista entera hacia abajo. Medido, era la
          * causa del CLS de **0,246** en la lista y **0,368** en el binder:
          * 2,5 y 3,7 veces el umbral de «bueno», y el peor salto de toda la
          * app.
          *
          * El hueco no se reserva con un `min-height` a ojo sino dibujando la
-         * MISMA estructura con guiones: los ocho sets son fijos
-         * (`MAIN_SET_LABELS`), así que la altura coincide por construcción y
-         * no hay número mágico que se desajuste cuando alguien toque el
-         * diseño.
+         * MISMA estructura con guiones: la lista de sets sale de
+         * `MAIN_SET_LABELS`, así que la altura coincide por construcción y no
+         * hay número mágico que se desajuste cuando alguien toque el diseño
+         * — ni cuando entre un set nuevo, como pasó con Twin Suns.
          *
          * El hueco se reserva TAMBIÉN mientras carga la colección, no solo
          * cuando ya hay cartas: `items` llega de Supabase, así que con la

@@ -140,9 +140,9 @@ export async function getSetProgress(
     }
   }
 
-  // Se recorren los 8 sets SIEMPRE, en orden de lanzamiento — incluidos
-  // aquellos de los que el usuario no tiene ni una carta. Ese cero es
-  // justamente la información que faltaba.
+  // Se recorren TODOS los sets coleccionables siempre, en orden de
+  // lanzamiento — incluidos aquellos de los que el usuario no tiene ni una
+  // carta. Ese cero es justamente la información que faltaba.
   const sets: SetProgress[] = Object.entries(MAIN_SET_LABELS).map(([code, label]) => {
     const total = bySet.get(code) ?? 0
     const owned = ownedBySet.get(code) ?? 0
