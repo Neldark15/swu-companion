@@ -4,6 +4,10 @@
  */
 
 import { esDeMesas, etiquetaTipo } from '../../services/tipoTorneo'
+import { MesasPanel } from './MesasPanel'
+import {
+  getMesasDeRonda, ultimaRonda, cambiarTipoTorneo, type MesaArmada,
+} from '../../services/mesasService'
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Play, SkipForward, Clock, Users, Trophy, GitBranch, UserMinus } from 'lucide-react'
@@ -34,7 +38,7 @@ import { PairingsView } from './components/PairingsView'
 import { BracketView } from './components/BracketView'
 import { RoundTimer } from './components/RoundTimer'
 
-type Tab = 'rounds' | 'pairings' | 'standings' | 'timer' | 'bracket'
+type Tab = 'rounds' | 'pairings' | 'standings' | 'timer' | 'bracket' | 'mesas'
 
 export default function TournamentDashboard() {
   const { code } = useParams<{ code: string }>()
@@ -45,6 +49,12 @@ export default function TournamentDashboard() {
   const [standings, setStandings] = useState<CloudStanding[]>([])
   const [pairings, setPairings] = useState<CloudPairing[]>([])
   const [rounds, setRounds] = useState<CloudRound[]>([])
+  /* Un torneo de MESAS (Twin Suns) se opera desde acá, que es el tablero de
+     torneos. Estuvo un rato dentro del Centro de Temporada y estaba mal: llevar
+     un torneo multijugador es una funcion de TORNEOS, no de temporada — y el
+     Centro lo ve una sola persona, asi que ningun otro organizador podia. */
+  const [mesas, setMesas] = useState<MesaArmada[]>([])
+  const [rondaMesas, setRondaMesas] = useState<{ id: string; numero: number } | null>(null)
   const [activeTab, setActiveTab] = useState<Tab>('rounds')
   const [selectedRound, setSelectedRound] = useState<number>(0)
   const [loading, setLoading] = useState(true)
@@ -68,6 +78,17 @@ export default function TournamentDashboard() {
     ])
     setStandings(s)
     setRounds(r)
+
+    // Las mesas solo se piden si el torneo es de ese tipo: en un suizo la
+    // consulta traeria siempre cero y seria un viaje de red por nada.
+    if (esDeMesas(ev.tournament_type)) {
+      const ronda = await ultimaRonda(ev.id)
+      setRondaMesas(ronda)
+      setMesas(ronda ? await getMesasDeRonda(ronda.id) : [])
+    } else {
+      setRondaMesas(null)
+      setMesas([])
+    }
 
     const roundToShow = selectedRound || ev.current_round
     if (roundToShow > 0) {
@@ -276,6 +297,11 @@ export default function TournamentDashboard() {
   if (event.tournament_type === 'elimination') {
     tabs.push({ id: 'bracket', label: 'Bracket', icon: <GitBranch size={16} /> })
   }
+  /* La pestaña de Mesas se ofrece SIEMPRE, no solo si el torneo ya es de ese
+     tipo: escondida detras del tipo, la herramienta existia y no aparecia en
+     ningun lado para quien no hubiera acertado al crear el torneo. Adentro se
+     ofrece convertir. */
+  tabs.push({ id: 'mesas', label: 'Mesas', icon: <Users size={16} /> })
 
   // Build player name map for bracket
   const playerNames = new Map<string, string>()
@@ -517,6 +543,30 @@ export default function TournamentDashboard() {
         )}
 
         {/* ── Bracket Tab ── */}
+        {activeTab === 'mesas' && (
+          <div className="px-4">
+            {esDeMesas(event.tournament_type) ? (
+              <MesasPanel
+                eventId={event.id}
+                cerrado={event.status === 'finished'}
+                standings={standings}
+                ronda={rondaMesas}
+                mesas={mesas}
+                ocupado={actionLoading}
+                onCambio={() => { void fetchData() }}
+                onAviso={showMessage}
+                onError={setError}
+              />
+            ) : (
+              <ConvertirAMesas
+                event={event}
+                onHecho={() => { showMessage('Torneo convertido a mesas'); void fetchData() }}
+                onError={setError}
+              />
+            )}
+          </div>
+        )}
+
         {activeTab === 'bracket' && event.tournament_type === 'elimination' && (
           <BracketViewLoader
             eventId={event.id}
@@ -559,5 +609,57 @@ function BracketViewLoader({
       pairingsByRound={pairingsByRound}
       playerNames={playerNames}
     />
+  )
+}
+
+/* ── Convertir un torneo a mesas ───────────────────────────────────── */
+
+function ConvertirAMesas({
+  event, onHecho, onError,
+}: {
+  event: CloudEvent
+  onHecho: () => void
+  onError: (m: string) => void
+}) {
+  const [yendo, setYendo] = useState(false)
+  const arrancado = event.status === 'finished' || event.current_round > 0
+
+  return (
+    <div className="rounded-xl border border-swu-border bg-swu-surface p-4 space-y-2.5">
+      <p className="text-sm font-bold text-swu-text">
+        Este torneo es de tipo «{etiquetaTipo(event.tournament_type)}»
+      </p>
+      <p className="text-xs leading-relaxed text-swu-muted">
+        Twin Suns se juega en mesas de 3 o 4, no uno contra uno. Para llevarlo
+        desde acá el torneo tiene que ser de tipo <strong>Mesas</strong>.
+      </p>
+      {arrancado ? (
+        <p className="text-xs text-swu-muted">
+          Ya arrancó, así que el tipo no se puede cambiar: los pareos que ya tiene
+          escritos no corresponderían a una estructura de mesas. Para un torneo de
+          Twin Suns, creá uno nuevo eligiendo «Mesas».
+        </p>
+      ) : (
+        <>
+          <p className="text-xs leading-relaxed text-swu-muted">
+            Todavía no sembró la clasificación, así que se puede convertir sin
+            perder el código, los inscritos ni la sede.
+          </p>
+          <button
+            onClick={async () => {
+              setYendo(true)
+              const r = await cambiarTipoTorneo(event.id, 'mesas')
+              setYendo(false)
+              if (r.ok) onHecho(); else onError(r.mensaje)
+            }}
+            disabled={yendo}
+            className="flex min-h-[44px] items-center gap-2 rounded-lg bg-swu-accent px-4 text-sm
+                       font-semibold text-white disabled:opacity-50"
+          >
+            <Users size={15} /> {yendo ? 'Convirtiendo…' : 'Convertir a torneo de mesas'}
+          </button>
+        </>
+      )}
+    </div>
   )
 }

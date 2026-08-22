@@ -1606,6 +1606,20 @@ distintos. En un torneo de mesas sería peor: nadie escribe `omw_pct` ni
 manda `coalesce(puesto, 32767)` y donde no hay puesto se conserva el orden
 viejo.
 
+**Dónde se opera un torneo de mesas: `/events/dashboard/:code`, pestaña
+«Mesas».** Estuvo un rato dentro del Centro de Temporada y estaba mal por dos
+motivos: llevar un torneo multijugador es una función de TORNEOS, no de
+temporada; y el Centro lo ve **una sola persona**, así que ningún otro
+organizador podía operar un Twin Suns. El Centro solo enlaza. `MesasPanel`
+vive por eso en `features/events/`, no en `features/temporada/`.
+
+**Y la pestaña se ofrece SIEMPRE, no solo si el torneo ya es de tipo
+`mesas`.** Estuvo escondida detrás del tipo y el resultado fue que la
+herramienta existía y no aparecía en ningún lado para quien no hubiera
+acertado al crear el torneo — que es exactamente lo que pasó con los torneos
+del sábado, creados como suizos. Adentro se ofrece `cambiar_tipo_torneo()`,
+que solo funciona ANTES de sembrar.
+
 **El torneo del 15/8 (SV150826) se queda como está — DECISIÓN DE NEL.**
 Tiene `premios_en` marcado y **cero filas en `tournament_results`**: se cerró
 sin repartir, así que 5 jugadores con cuenta quedaron sin XP y sin sobres, y

@@ -1,6 +1,11 @@
 /**
  * MesasPanel — armar y anotar un torneo de MESAS (Twin Suns).
  *
+ * Vive en `features/events/` y no en `features/temporada/`: llevar un torneo
+ * de mesas es una función de TORNEOS. Estuvo un rato dentro del Centro de
+ * Temporada y estaba mal — el Centro lo ve una sola persona, así que ningún
+ * otro organizador podía operar un Twin Suns.
+ *
  * ── Elegir cuántas mesas no es un capricho ────────────────────────────
  *
  * Con 12 jugadores se puede jugar **3 mesas de 4** o **4 mesas de 3**, y

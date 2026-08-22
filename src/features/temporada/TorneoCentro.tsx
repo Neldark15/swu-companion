@@ -30,7 +30,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   AlertCircle, ArrowLeft, Check, Copy, Download, ExternalLink,
-  Image as ImageIcon, ArrowDown, ArrowUp, Newspaper, Play, Trophy, Users,
+  Image as ImageIcon, ArrowDown, ArrowUp, Newspaper, Play, Trophy,
 } from 'lucide-react'
 import { HudPanel } from '../../components/Hud'
 import { Avatar } from '../../components/ui/Avatar'
@@ -47,9 +47,7 @@ import { fijarSemillas } from '../../services/centroTemporada'
 import { StandingsTable } from '../events/components/StandingsTable'
 import { BracketView } from '../events/components/BracketView'
 import { componerBorrador, type Borrador } from './borradorArticulo'
-import { MesasPanel } from './MesasPanel'
-import { esDeMesas, etiquetaTipo } from '../../services/tipoTorneo'
-import { getMesasDeRonda, ultimaRonda, cambiarTipoTorneo, type MesaArmada } from '../../services/mesasService'
+import { esDeMesas } from '../../services/tipoTorneo'
 import {
   aTexto, copiarTexto, descargarCSV, compartirImagen, type TablaPublicable,
 } from './exportarTabla'
@@ -71,8 +69,6 @@ export function TorneoCentro() {
   const [cargando, setCargando] = useState(true)
   const [ocupado, setOcupado] = useState(false)
   const [recarga, setRecarga] = useState(0)
-  const [mesas, setMesas] = useState<MesaArmada[]>([])
-  const [rondaMesas, setRondaMesas] = useState<{ id: string; numero: number } | null>(null)
 
   /* La carga vive DENTRO del efecto, con bandera de vida (renders en cascada
    * + escritura sobre componente desmontado). `recarga` la vuelve a disparar
@@ -101,19 +97,6 @@ export function TorneoCentro() {
       )
       if (!vivo) return
       setPareos(mapa)
-
-      // Las mesas solo se piden si el torneo es de ese tipo: en un suizo la
-      // consulta traería siempre cero y sería un viaje de red por nada.
-      if (esDeMesas(ev.tournament_type)) {
-        const r = await ultimaRonda(ev.id)
-        if (!vivo) return
-        setRondaMesas(r)
-        setMesas(r ? await getMesasDeRonda(r.id) : [])
-      } else {
-        setRondaMesas(null)
-        setMesas([])
-      }
-      if (!vivo) return
 
       // Un torneo cerrado se lee por el camino histórico: es el ÚNICO que
       // respeta la columna `puesto`. El orden calculado de `getStandings`
@@ -189,14 +172,12 @@ export function TorneoCentro() {
       )}
 
       <div className="flex gap-1 border-b border-swu-border overflow-x-auto">
-        {/* La pestaña de Mesas se ve SIEMPRE, no solo en un torneo que ya es
-            de mesas. Estaba escondida detrás del tipo, y como los torneos del
-            sábado se habían creado como suizos, la herramienta existía y no
-            aparecía en ningún lado. Adentro se ofrece convertir. */}
-        {(esDeMesas(evento.tournament_type)
-            ? ([['inscritos', 'Inscritos'], ['mesas', 'Mesas'], ['publicar', 'Publicar']] as const)
-            : ([['inscritos', 'Inscritos'], ['llaves', 'Llaves'], ['mesas', 'Mesas'], ['publicar', 'Publicar']] as const)
-         ).map(
+        {/* Los torneos de MESAS se operan desde el tablero de torneos
+            (`/events/dashboard/:code`), no desde acá: llevar un torneo
+            multijugador es una función de torneos, no de temporada — y este
+            Centro lo ve una sola persona, así que ningún otro organizador
+            podría. Acá solo se enlaza. */}
+        {([['inscritos', 'Inscritos'], ['llaves', 'Llaves'], ['publicar', 'Publicar']] as const).map(
           ([k, label]) => (
             <button
               key={k}
@@ -226,28 +207,6 @@ export function TorneoCentro() {
             setOcupado(false)
             if (r.ok) { setAviso(`${r.datos} semillas fijadas`); setRecarga(n => n + 1) } else { setError(r.mensaje) }
           }}
-        />
-      )}
-
-      {pestana === 'mesas' && !esDeMesas(evento.tournament_type) && (
-        <ConvertirAMesas
-          evento={evento}
-          onHecho={() => { setAviso('Torneo convertido a mesas'); setRecarga(n => n + 1); }}
-          onError={setError}
-        />
-      )}
-
-      {pestana === 'mesas' && esDeMesas(evento.tournament_type) && (
-        <MesasPanel
-          eventId={evento.id}
-          cerrado={evento.status === 'finished'}
-          standings={standings}
-          ronda={rondaMesas}
-          mesas={mesas}
-          ocupado={ocupado}
-          onCambio={() => setRecarga(n => n + 1)}
-          onAviso={setAviso}
-          onError={setError}
         />
       )}
 
@@ -431,6 +390,23 @@ function Llaves({
   onCerrar: () => Promise<void>
 }) {
   const [confirmarCierre, setConfirmarCierre] = useState(false)
+
+  if (esDeMesas(evento.tournament_type)) {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm text-swu-muted">
+          Este torneo es de <strong>mesas</strong>: no se arma con pareos ni con
+          cuadro. Las mesas se reparten y se anotan desde el tablero de torneos.
+        </p>
+        <a
+          href={`/events/dashboard/${evento.code}`}
+          className="inline-flex min-h-[44px] items-center gap-1.5 text-sm font-semibold text-swu-cyan"
+        >
+          <ExternalLink size={14} /> Abrir el tablero · pestaña Mesas
+        </a>
+      </div>
+    )
+  }
 
   if (standings.length === 0) {
     return (
@@ -685,62 +661,6 @@ function Publicar({
           </>
         )}
       </div>
-    </div>
-  )
-}
-
-/* ── Convertir a mesas ─────────────────────────────────────────────── */
-
-function ConvertirAMesas({
-  evento, onHecho, onError,
-}: {
-  evento: OfficialEvent
-  onHecho: () => void
-  onError: (m: string) => void
-}) {
-  const [yendo, setYendo] = useState(false)
-  const arrancado = evento.status === 'finished' || evento.current_round > 0
-
-  return (
-    <div className="space-y-3">
-      <HudPanel compact tone={arrancado ? 'neutral' : 'amber'}>
-        <div className="space-y-2.5 p-3.5">
-          <p className="text-sm font-bold text-swu-text">
-            Este torneo es de tipo «{etiquetaTipo(evento.tournament_type)}»
-          </p>
-          <p className="text-xs leading-relaxed text-swu-muted">
-            Twin Suns se juega en mesas de 3 o 4, no uno contra uno. Para llevarlo
-            desde acá el torneo tiene que ser de tipo <strong>Mesas</strong>.
-          </p>
-          {arrancado ? (
-            <p className="text-xs text-swu-muted">
-              Ya arrancó, así que el tipo no se puede cambiar: los pareos que ya
-              tiene escritos no corresponderían a una estructura de mesas. Para un
-              torneo de Twin Suns, creá uno nuevo eligiendo «Mesas».
-            </p>
-          ) : (
-            <>
-              <p className="text-xs leading-relaxed text-swu-muted">
-                Todavía no sembró la clasificación, así que se puede convertir sin
-                perder el código, los inscritos ni la sede.
-              </p>
-              <button
-                onClick={async () => {
-                  setYendo(true)
-                  const r = await cambiarTipoTorneo(evento.id, 'mesas')
-                  setYendo(false)
-                  if (r.ok) onHecho(); else onError(r.mensaje)
-                }}
-                disabled={yendo}
-                className="flex min-h-[44px] items-center gap-2 rounded-lg bg-swu-accent px-4 text-sm
-                           font-semibold text-white disabled:opacity-50"
-              >
-                <Users size={15} /> {yendo ? 'Convirtiendo…' : 'Convertir a torneo de mesas'}
-              </button>
-            </>
-          )}
-        </div>
-      </HudPanel>
     </div>
   )
 }
