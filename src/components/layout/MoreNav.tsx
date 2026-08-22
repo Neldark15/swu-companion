@@ -1,8 +1,33 @@
 import { useNavigate } from 'react-router-dom'
-import { Swords, ShieldCheck, Megaphone, Newspaper, BarChart3, BookOpen, FlaskConical, Scale, Radar, RadioTower, Fingerprint, Languages, PackageOpen, Library , ShoppingCart, CalendarDays, MessageCircle} from 'lucide-react'
 import {
-  MandoTrophyIcon, DeckCardsIcon, SpyIcon,
-  DeathStarIcon, BeskarIcon, ChanceCubeIcon, RebelIcon, StarfighterIcon,
+  AgendaIcon,
+  AnuncioIcon,
+  ArticuloIcon,
+  AurebeshIcon,
+  BeskarIcon,
+  BinderIcon,
+  BlasterIcon,
+  ChanceCubeIcon,
+  CredencialIcon,
+  DatapadIcon,
+  DeathStarIcon,
+  DeckCardsIcon,
+  EmisionIcon,
+  EmpireIcon,
+  HelmetIcon,
+  HolocronIcon,
+  LabIcon,
+  MandoTrophyIcon,
+  MedalIcon,
+  MetaHoloIcon,
+  PedidoIcon,
+  RebelIcon,
+  SaberIcon,
+  SalasIcon,
+  SobreIcon,
+  SpyIcon,
+  StarfighterIcon,
+  TransmisionIcon,
 } from '../SWIcons'
 import { useAuth } from '../../hooks/useAuth'
 import type { ComponentType } from 'react'
@@ -26,44 +51,44 @@ const GROUPS: MoreGroup[] = [
   {
     title: 'Jugar',
     items: [
-      { to: '/play', label: 'Duelo', sub: 'Tracker en vivo', icon: Swords },
-      { to: '/events', label: 'Torneo', sub: 'Eventos organizados', icon: MandoTrophyIcon },
+      { to: '/play', label: 'Duelo', sub: 'Tracker en vivo', icon: SaberIcon },
+      { to: '/events', label: 'Torneo', sub: 'Eventos organizados', icon: MedalIcon },
       // Vive en «Jugar»: se consulta EN la mesa, en medio de una partida.
-      { to: '/envivo', label: 'En Vivo', sub: 'Transmisión de torneos', icon: RadioTower },
-      { to: '/rulings', label: 'Rulings', sub: 'Reglamento del juego', icon: Scale },
+      { to: '/envivo', label: 'En Vivo', sub: 'Transmisión de torneos', icon: EmisionIcon },
+      { to: '/rulings', label: 'Rulings', sub: 'Reglamento del juego', icon: HolocronIcon },
     ],
   },
   {
     title: 'Construir',
     items: [
       { to: '/decks', label: 'Mis Decks', sub: 'Constructor', icon: DeckCardsIcon },
-      { to: '/laboratorio', label: 'Laboratorio', sub: 'Simulador de mazos', icon: FlaskConical },
+      { to: '/laboratorio', label: 'Laboratorio', sub: 'Simulador de mazos', icon: LabIcon },
       { to: '/misiones', label: 'Misiones', sub: 'Órdenes del día', icon: DeathStarIcon },
       { to: '/contador', label: 'Contador', sub: 'Duelo en mesa real', icon: ChanceCubeIcon },
-      { to: '/amistosas', label: 'Amistosas', sub: 'Historial cara a cara', icon: Swords },
+      { to: '/amistosas', label: 'Amistosas', sub: 'Historial cara a cara', icon: BlasterIcon },
       { to: '/torneos', label: 'Torneos', sub: 'Archivo de la comunidad', icon: MandoTrophyIcon },
-      { to: '/calendario', label: 'Calendario', sub: 'Los torneos del mes', icon: CalendarDays },
-      { to: '/pedidos', label: 'Pedidos', sub: 'Carrito y ventas', icon: ShoppingCart },
-      { to: '/mensajes', label: 'Mensajes', sub: 'Conversaciones privadas', icon: MessageCircle },
+      { to: '/calendario', label: 'Calendario', sub: 'Los torneos del mes', icon: AgendaIcon },
+      { to: '/pedidos', label: 'Pedidos', sub: 'Carrito y ventas', icon: PedidoIcon },
+      { to: '/mensajes', label: 'Mensajes', sub: 'Conversaciones privadas', icon: TransmisionIcon },
     ],
   },
   {
     title: 'Comunidad',
     items: [
-      { to: '/news', label: 'Noticias', sub: 'Agenda de torneos', icon: Newspaper },
-      { to: '/meta', label: 'Meta', sub: 'Torneos y matchups', icon: BarChart3 },
+      { to: '/news', label: 'Noticias', sub: 'Agenda de torneos', icon: DatapadIcon },
+      { to: '/meta', label: 'Meta', sub: 'Torneos y matchups', icon: MetaHoloIcon },
       { to: '/community', label: 'Comunidades', sub: 'El Salvador', icon: RebelIcon },
       { to: '/rank', label: 'Ranking', sub: 'Quién gana partidas', icon: BeskarIcon },
       // Dos entradas porque son dos trabajos: la Galaxia es MIRAR a la
       // comunidad (quién es quién, qué hizo de último) y el Explorador es
       // BUSCAR dentro de ella (nombre, país, rankings).
       { to: '/galaxia', label: 'La Galaxia', sub: 'Universo 3D', icon: StarfighterIcon },
-      { to: '/galaxy', label: 'Salas', sub: 'Chat y comandantes', icon: Radar },
-      { to: '/sobres', label: 'Sobredosis', sub: 'Abrir sobres', icon: PackageOpen },
-      { to: '/binder-digital', label: 'Binder digital', sub: 'Lo que abriste', icon: Library },
-      { to: '/credencial', label: 'Mi Credencial', sub: 'Placa imprimible', icon: Fingerprint },
-      { to: '/aurebesh', label: 'Aurebesh', sub: 'Traductor galáctico', icon: Languages },
-            { to: '/blog', label: 'Blog', sub: 'Análisis y artículos', icon: BookOpen },
+      { to: '/galaxy', label: 'Salas', sub: 'Chat y comandantes', icon: SalasIcon },
+      { to: '/sobres', label: 'Sobredosis', sub: 'Abrir sobres', icon: SobreIcon },
+      { to: '/binder-digital', label: 'Binder digital', sub: 'Lo que abriste', icon: BinderIcon },
+      { to: '/credencial', label: 'Mi Credencial', sub: 'Placa imprimible', icon: CredencialIcon },
+      { to: '/aurebesh', label: 'Aurebesh', sub: 'Traductor galáctico', icon: AurebeshIcon },
+            { to: '/blog', label: 'Blog', sub: 'Análisis y artículos', icon: ArticuloIcon },
 { to: '/espionaje', label: 'Espionaje', sub: 'Transmisiones', icon: SpyIcon },
     ],
   },
@@ -106,9 +131,9 @@ export function MoreNav() {
             Cuartel General
           </h3>
           <div className="grid grid-cols-3 gap-2">
-            {tile({ to: '/estudio', label: 'Transmisión', sub: 'Centro de mando', icon: RadioTower })}
-            {tile({ to: '/admin', label: 'Admin', sub: 'Panel de control', icon: ShieldCheck })}
-            {tile({ to: '/admin/announcements', label: 'Anuncios', sub: 'Comunicaciones', icon: Megaphone })}
+            {tile({ to: '/estudio', label: 'Transmisión', sub: 'Centro de mando', icon: HelmetIcon })}
+            {tile({ to: '/admin', label: 'Admin', sub: 'Panel de control', icon: EmpireIcon })}
+            {tile({ to: '/admin/announcements', label: 'Anuncios', sub: 'Comunicaciones', icon: AnuncioIcon })}
           </div>
         </section>
       )}

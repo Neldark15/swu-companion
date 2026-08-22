@@ -265,3 +265,197 @@ export function LabIcon({ size = 24, className = '' }: IconProps) {
     </svg>
   )
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+ * Segunda tanda: los módulos que todavía se nombraban con un ícono
+ * genérico de lucide.
+ *
+ * Mismo molde que los de arriba —24×24, trazo 1,5, `currentColor`, remates
+ * redondos— porque van mezclados con ellos en la misma columna del menú y
+ * en la misma cuadrícula de Inicio: uno de otro grosor se ve como un error
+ * de imprenta.
+ *
+ * Regla de dibujo: tienen que leerse a 14 px, que es el tamaño al que los
+ * pinta MoreNav. Eso manda más que el detalle — tres trazos que se
+ * distinguen valen más que ocho que se empastan.
+ * ═══════════════════════════════════════════════════════════════════ */
+
+/** Sobre de cartas — Sobredosis */
+export function SobreIcon({ size = 24, className = '' }: IconProps) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      {/* Primera versión: el dentado arriba y dos renglones dentro. Visto a 14
+          px en el banco se leía como un BLOC DE NOTAS — los renglones mandaban
+          más que el dentado. Fuera los renglones; entra la banda diagonal del
+          envoltorio, que es lo que hace «sobre metalizado» y no «papel». */}
+      <path d="M5 6.5h14v13a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19.5z" />
+      <path d="M5 6.5 6.6 4l1.9 2.5L10.4 4l1.6 2.5L13.6 4l1.9 2.5L17.4 4 19 6.5" />
+      <path d="M5 15.5 19 9.5" strokeWidth="2.6" opacity="0.35" />
+    </svg>
+  )
+}
+
+/** Hoja de álbum con bolsillos — Binder digital */
+export function BinderIcon({ size = 24, className = '' }: IconProps) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="4" y="3" width="16" height="18" rx="1.5" />
+      <path d="M7.5 3v18" opacity="0.5" />
+      <rect x="10" y="6" width="3.6" height="4.6" rx="0.5" fill="currentColor" opacity="0.35" stroke="none" />
+      <rect x="15" y="6" width="3.6" height="4.6" rx="0.5" fill="currentColor" opacity="0.35" stroke="none" />
+      <rect x="10" y="12.5" width="3.6" height="4.6" rx="0.5" fill="currentColor" opacity="0.35" stroke="none" />
+      <rect x="15" y="12.5" width="3.6" height="4.6" rx="0.5" fill="currentColor" opacity="0.35" stroke="none" />
+    </svg>
+  )
+}
+
+/** Placa de identificación con muesca — Mi Credencial */
+export function CredencialIcon({ size = 24, className = '' }: IconProps) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      {/* La esquina cortada es la misma gramática de la credencial de verdad:
+          ninguna esquina de 90°. */}
+      <path d="M3.5 5.5h13.5L20.5 9v9.5a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1z" />
+      <circle cx="9" cy="12" r="2.2" />
+      <path d="M14 11h4M14 14.5h3" opacity="0.6" />
+    </svg>
+  )
+}
+
+/** Aurek, la primera letra del aurebesh — Traductor */
+export function AurebeshIcon({ size = 24, className = '' }: IconProps) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      {/* El AUREK de verdad, copiado del mismo trazo que la app ya usa para
+          escribir en Aurebesh (`features/credencial/aurebeshGlifos.ts`, letra
+          A). La primera versión era una «A» latina estilizada y el comentario
+          afirmaba que era el aurek: no lo era. El aurek son dos galones
+          horizontales encarados, nada parecido a una A.
+          El glifo vive en una caja de 10×10 con trazo 1,1; acá se escala 1,8
+          para llenar el viewBox de 24, y por eso el trazo va en 0,85 — al
+          escalarlo se ve como los 1,5 del resto de los íconos. */}
+      <g transform="translate(3 3) scale(1.8)" strokeWidth="0.85">
+        <path d="M0.8 0 L0.8 3.2 L6.4 3.2 L9.6 1.2 M0.8 10 L0.8 6.8 L6.4 6.8 L9.6 8.8" />
+      </g>
+    </svg>
+  )
+}
+
+/** Datapad con la agenda — Calendario */
+export function AgendaIcon({ size = 24, className = '' }: IconProps) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="3.5" y="5" width="17" height="15" rx="2" />
+      <path d="M3.5 9.5h17" />
+      <path d="M8 3.5v3M16 3.5v3" />
+      <rect x="6.5" y="12" width="3" height="2.6" rx="0.4" fill="currentColor" opacity="0.5" stroke="none" />
+      <rect x="14.5" y="15.4" width="3" height="2.6" rx="0.4" fill="currentColor" opacity="0.3" stroke="none" />
+    </svg>
+  )
+}
+
+/** Transmisión personal — Mensajes */
+export function TransmisionIcon({ size = 24, className = '' }: IconProps) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M4 6.5A1.5 1.5 0 0 1 5.5 5h10A1.5 1.5 0 0 1 17 6.5v6A1.5 1.5 0 0 1 15.5 14H9l-4 3.5V14H5.5A1.5 1.5 0 0 1 4 12.5z" />
+      {/* Las ondas: es una TRANSMISIÓN, no una nota de papel. */}
+      <path d="M19 7.5a4.5 4.5 0 0 1 0 6" opacity="0.6" />
+      <path d="M21 5.5a7.5 7.5 0 0 1 0 10" opacity="0.3" />
+    </svg>
+  )
+}
+
+/** Contenedor de carga con gancho — Pedidos */
+export function PedidoIcon({ size = 24, className = '' }: IconProps) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      {/* Primera versión: cajón con rejilla completa. A 14 px se leía como una
+          VENTANA. Las divisiones verticales eran el problema: quedan la tapa y
+          una sola correa, y el gancho sube a trazo entero para que se vea que
+          es carga colgada y no un mueble. */}
+      <path d="M12 2v2.2" />
+      <path d="M9.8 4.2a2.2 2.2 0 0 1 4.4 0" />
+      <rect x="4" y="7.5" width="16" height="12.5" rx="1.5" />
+      <path d="M4 11.5h16" opacity="0.6" />
+      <path d="M12 11.5v8.5" opacity="0.3" />
+    </svg>
+  )
+}
+
+/** Antena de transmisión — En Vivo */
+export function EmisionIcon({ size = 24, className = '' }: IconProps) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="12" cy="8" r="2" fill="currentColor" stroke="none" />
+      <path d="M8.5 4.5a5 5 0 0 0 0 7M15.5 4.5a5 5 0 0 1 0 7" />
+      <path d="M5.8 2a8.5 8.5 0 0 0 0 12M18.2 2a8.5 8.5 0 0 1 0 12" opacity="0.4" />
+      <path d="M10.6 10 9 21h6l-1.6-11" />
+    </svg>
+  )
+}
+
+/** Red de salas enlazadas — Salas de chat */
+export function SalasIcon({ size = 24, className = '' }: IconProps) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="12" cy="12" r="2.6" fill="currentColor" opacity="0.45" stroke="none" />
+      <circle cx="12" cy="12" r="2.6" />
+      <circle cx="5" cy="6.5" r="2" />
+      <circle cx="19" cy="6.5" r="2" />
+      <circle cx="6.5" cy="19" r="2" />
+      <circle cx="17.5" cy="19" r="2" />
+      <path d="M6.6 8 10 10.4M17.4 8 14 10.4M8 17.6l2.3-3.2M16 17.6l-2.3-3.2" opacity="0.55" />
+    </svg>
+  )
+}
+
+/** Datapad con un artículo — Blog */
+export function ArticuloIcon({ size = 24, className = '' }: IconProps) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M4.5 4.5h11.5L19.5 8v11.5a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z" />
+      <path d="M15.5 4.5V8h4" opacity="0.6" />
+      <path d="M7.5 12h9M7.5 15h9M7.5 18h5.5" opacity="0.7" />
+    </svg>
+  )
+}
+
+/** Proyector con barras — Meta */
+export function MetaHoloIcon({ size = 24, className = '' }: IconProps) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      {/* Barras, pero SALIENDO de un proyector: la base y el haz son lo que lo
+          separan de una gráfica cualquiera. */}
+      <path d="M5 21h14" />
+      <path d="M7.5 21 9 18.5h6l1.5 2.5" opacity="0.5" />
+      <rect x="7" y="11" width="2.8" height="7.5" rx="0.6" fill="currentColor" opacity="0.35" />
+      <rect x="10.6" y="6.5" width="2.8" height="12" rx="0.6" fill="currentColor" opacity="0.55" />
+      <rect x="14.2" y="9" width="2.8" height="9.5" rx="0.6" fill="currentColor" opacity="0.35" />
+    </svg>
+  )
+}
+
+/** Hexágono de mando — la Base */
+export function BaseIcon({ size = 24, className = '' }: IconProps) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      {/* El hexágono ya es el motivo de la app —los paneles del HUD, el ícono
+          octogonal— así que acá se conserva y se le pone el punto de mando. */}
+      <polygon points="12,2.5 21,7.25 21,16.75 12,21.5 3,16.75 3,7.25" />
+      <circle cx="12" cy="12" r="2.4" fill="currentColor" opacity="0.7" stroke="none" />
+      <path d="M12 2.5v3M12 18.5v3M3 7.25l2.6 1.4M18.4 15.35 21 16.75" opacity="0.4" />
+    </svg>
+  )
+}
+
+/** Altavoz de anuncios — comunicados */
+export function AnuncioIcon({ size = 24, className = '' }: IconProps) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M4 10.5v3a1.5 1.5 0 0 0 1.5 1.5H8l6 4.5V6L8 10.5H5.5A1.5 1.5 0 0 0 4 12z" />
+      <path d="M17.5 8.5a5.5 5.5 0 0 1 0 7" opacity="0.55" />
+      <path d="M20 6a9 9 0 0 1 0 12" opacity="0.3" />
+    </svg>
+  )
+}

@@ -1,9 +1,33 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Hexagon, Swords, ShieldCheck, Megaphone, Newspaper as NewspaperIcon, BarChart3 as MetaIcon, BookOpen, FlaskConical, Scale, RadioTower, Radar, PackageOpen, Library, CalendarDays } from 'lucide-react'
 import {
-  MandoTrophyIcon, CargoIcon, BountyIcon,
-  DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
-  ChanceCubeIcon, RebelIcon, StarfighterIcon,
+  EmpireIcon,
+  HelmetIcon,
+  AnuncioIcon,
+  AgendaIcon,
+  ArticuloIcon,
+  BaseIcon,
+  BeskarIcon,
+  BinderIcon,
+  BlasterIcon,
+  BountyIcon,
+  CargoIcon,
+  ChanceCubeIcon,
+  DatapadIcon,
+  DeathStarIcon,
+  DeckCardsIcon,
+  EmisionIcon,
+  HolocronIcon,
+  HolonetIcon,
+  LabIcon,
+  MandoTrophyIcon,
+  MedalIcon,
+  MetaHoloIcon,
+  RebelIcon,
+  SaberIcon,
+  SalasIcon,
+  SobreIcon,
+  SpyIcon,
+  StarfighterIcon,
 } from '../SWIcons'
 import { NotificationBell } from '../ui/NotificationBell'
 import { useAuth } from '../../hooks/useAuth'
@@ -16,35 +40,35 @@ type NavItem =
   | { id: string; label: string; sub: string; img: string; icon?: undefined }
 
 const mainNav: NavItem[] = [
-  { id: '/', label: 'Base', sub: 'Centro de mando', icon: Hexagon },
-  { id: '/play', label: 'Duelo', sub: 'Tracker en vivo', icon: Swords },
+  { id: '/', label: 'Base', sub: 'Centro de mando', icon: BaseIcon },
+  { id: '/play', label: 'Duelo', sub: 'Tracker en vivo', icon: SaberIcon },
   { id: '/galaxia', label: 'La Galaxia', sub: 'Universo 3D', icon: StarfighterIcon },
-  { id: '/blog', label: 'Blog', sub: 'Análisis y artículos', icon: BookOpen },
-  { id: '/events', label: 'Torneo', sub: 'Eventos organizados', icon: MandoTrophyIcon },
+  { id: '/blog', label: 'Blog', sub: 'Análisis y artículos', icon: ArticuloIcon },
+  { id: '/events', label: 'Torneo', sub: 'Eventos organizados', icon: MedalIcon },
   { id: '/profile', label: 'Mi Perfil', sub: 'Holocrón', img: '/holocron-icon.png' },
 ]
 
 const secondaryNav: NavItem[] = [
   { id: '/collection', label: 'Mi Botín', sub: 'Colección', icon: CargoIcon },
-  { id: '/sobres', label: 'Sobredosis', sub: 'Abrir sobres', icon: PackageOpen },
-  { id: '/binder-digital', label: 'Binder digital', sub: 'Lo que abriste', icon: Library },
+  { id: '/sobres', label: 'Sobredosis', sub: 'Abrir sobres', icon: SobreIcon },
+  { id: '/binder-digital', label: 'Binder digital', sub: 'Lo que abriste', icon: BinderIcon },
   { id: '/explore', label: 'Contrabando', sub: 'Explorar', icon: BountyIcon },
   { id: '/espionaje', label: 'Espionaje', sub: 'Transmisiones', icon: SpyIcon },
   { id: '/misiones', label: 'Misiones', sub: 'Órdenes del Día', icon: DeathStarIcon },
   { id: '/decks', label: 'Mis Decks', sub: 'Constructor', icon: DeckCardsIcon },
-  { id: '/laboratorio', label: 'Laboratorio', sub: 'Simulador de mazos', icon: FlaskConical },
-  { id: '/galaxy', label: 'Salas', sub: 'Chat y comandantes', icon: Radar },
-  { id: '/news', label: 'Noticias', sub: 'Agenda de torneos', icon: NewspaperIcon },
-  { id: '/meta', label: 'Meta', sub: 'Torneos y matchups', icon: MetaIcon },
+  { id: '/laboratorio', label: 'Laboratorio', sub: 'Simulador de mazos', icon: LabIcon },
+  { id: '/galaxy', label: 'Salas', sub: 'Chat y comandantes', icon: SalasIcon },
+  { id: '/news', label: 'Noticias', sub: 'Agenda de torneos', icon: DatapadIcon },
+  { id: '/meta', label: 'Meta', sub: 'Torneos y matchups', icon: MetaHoloIcon },
   { id: '/community', label: 'Comunidades', sub: 'Galaxia', icon: RebelIcon },
   { id: '/rank', label: 'Ranking', sub: 'Quién gana partidas', icon: BeskarIcon },
   { id: '/cards', label: 'Buscar Cartas', sub: 'Base de datos', icon: HolonetIcon },
-  { id: '/envivo', label: 'En Vivo', sub: 'Transmisión de torneos', icon: RadioTower },
-  { id: '/rulings', label: 'Rulings', sub: 'Reglamento del juego', icon: Scale },
+  { id: '/envivo', label: 'En Vivo', sub: 'Transmisión de torneos', icon: EmisionIcon },
+  { id: '/rulings', label: 'Rulings', sub: 'Reglamento del juego', icon: HolocronIcon },
   { id: '/contador', label: 'Contador', sub: 'Duelo en mesa real', icon: ChanceCubeIcon },
-  { id: '/amistosas', label: 'Amistosas', sub: 'Historial cara a cara', icon: Swords },
+  { id: '/amistosas', label: 'Amistosas', sub: 'Historial cara a cara', icon: BlasterIcon },
   { id: '/torneos', label: 'Torneos', sub: 'Archivo de la comunidad', icon: MandoTrophyIcon },
-  { id: '/calendario', label: 'Calendario', sub: 'Los torneos del mes', icon: CalendarDays },
+  { id: '/calendario', label: 'Calendario', sub: 'Los torneos del mes', icon: AgendaIcon },
 ]
 
 export function SideNav() {
@@ -132,7 +156,7 @@ export function SideNav() {
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
               location.pathname === '/admin/announcements' ? 'bg-swu-accent/20' : 'bg-swu-surface group-hover:bg-swu-surface-hover'
             }`}>
-              <Megaphone size={18} />
+              <AnuncioIcon size={18} />
             </div>
             <div className="flex-1 min-w-0">
               <div className={`text-sm font-semibold truncate ${location.pathname === '/admin/announcements' ? 'text-swu-accent-texto' : ''}`}>Anuncios</div>
@@ -157,7 +181,7 @@ export function SideNav() {
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
                 location.pathname.startsWith('/estudio') ? 'bg-swu-accent/20' : 'bg-swu-surface group-hover:bg-swu-surface-hover'
               }`}>
-                <RadioTower size={18} />
+                <HelmetIcon size={18} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className={`text-sm font-semibold truncate ${location.pathname.startsWith('/estudio') ? 'text-swu-accent-texto' : ''}`}>Transmisión</div>
@@ -175,7 +199,7 @@ export function SideNav() {
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
                 location.pathname.startsWith('/admin') && location.pathname !== '/admin/announcements' ? 'bg-swu-amber/20' : 'bg-swu-surface group-hover:bg-swu-surface-hover'
               }`}>
-                <ShieldCheck size={18} />
+                <EmpireIcon size={18} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className={`text-sm font-semibold truncate ${location.pathname.startsWith('/admin') && location.pathname !== '/admin/announcements' ? 'text-swu-amber' : ''}`}>Admin</div>

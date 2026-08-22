@@ -19,11 +19,15 @@ import { pendientesDeConfirmar } from '../../services/amistosas'
 import { pedidosPendientes } from '../../services/mercadoPedidos'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, ScanLine, Swords } from 'lucide-react'
+// `ChevronRight` y `ScanLine` se quedan: son mecánica de interfaz —«seguir»
+// y «escanear»—, no la identidad de un módulo. Un ícono temático ahí no
+// ayuda a nadie; un chevrón dibujado como un caza deja de leerse como
+// «entrá acá».
+import { ChevronRight, ScanLine } from 'lucide-react'
 import {
   DatapadIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
   DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
-  ChanceCubeIcon, KyberIcon, LabIcon, HolocronIcon, StarfighterIcon,
+  ChanceCubeIcon, KyberIcon, LabIcon, HolocronIcon, StarfighterIcon, SaberIcon, BlasterIcon,
 } from '../../components/SWIcons'
 import { HudPanel, HudCorners, HexIcon } from '../../components/Hud'
 import { NoticiasSection } from './NoticiasSection'
@@ -58,7 +62,7 @@ const CATEGORIAS: {
   icono: ComponentType<{ size?: number }>
   tono: HudTone
 }[] = [
-  { id: 'jugar',     titulo: 'Jugar',     icono: Swords,          tono: 'green' },
+  { id: 'jugar',     titulo: 'Jugar',     icono: SaberIcon,       tono: 'green' },
   { id: 'competir',  titulo: 'Competir',  icono: MandoTrophyIcon, tono: 'amber' },
   { id: 'construir', titulo: 'Construir', icono: DeckCardsIcon,   tono: 'cyan' },
   { id: 'coleccion', titulo: 'Colección', icono: CargoIcon,       tono: 'purple' },
@@ -374,7 +378,7 @@ export function HomePage() {
             onClick={() => navigate('/amistosas')}
             className="clip-hud flex w-full items-center gap-3 bg-swu-amber/15 px-4 py-3 text-left"
           >
-            <Swords size={18} className="shrink-0 text-swu-amber" />
+            <BlasterIcon size={18} className="shrink-0 text-swu-amber" />
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-bold text-swu-text">
                 {porConfirmar === 1
