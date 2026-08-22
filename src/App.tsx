@@ -37,6 +37,10 @@ const AdminVenuePage = lazy(() => import('./features/admin/AdminVenuePage').then
 const ScanPage = lazy(() => import('./features/scan/ScanPage').then(m => ({ default: m.ScanPage })))
 const MetaPage = lazy(() => import('./features/meta/MetaPage').then(m => ({ default: m.MetaPage })))
 const ContadorPage = lazy(() => import('./features/contador/ContadorPage').then(m => ({ default: m.ContadorPage })))
+// El Contador para una mesa de Twin Suns (3 o 4). Comparte las piezas con el
+// de dos, pero es otra pantalla: el duelo entero esta construido sobre DOS
+// lados enfrentados y generalizarlo a N tocaba guardado, nube y misiones.
+const MesaContador = lazy(() => import('./features/contador/MesaContador').then(m => ({ default: m.MesaContador })))
 const AmistosasPage = lazy(() => import('./features/amistosas/AmistosasPage').then(m => ({ default: m.AmistosasPage })))
 const AmistosasDeJugador = lazy(() => import('./features/amistosas/AmistosasDeJugador').then(m => ({ default: m.AmistosasDeJugador })))
 const SobresPage = lazy(() => import('./features/sobres/SobresPage').then(m => ({ default: m.SobresPage })))
@@ -226,6 +230,7 @@ export default function App() {
             <Route path="/aurebesh" element={<TraductorPage />} />
             <Route path="/cards/:id" element={<CardDetailPage />} />
             <Route path="/contador" element={<ContadorPage />} />
+            <Route path="/contador/mesa" element={<MesaContador />} />
             {/* Torneos: el archivo de lo que ya se jugó. Público —sin <P>— como
                 /rulings: un torneo terminado es historia de la comunidad, no
                 requiere cuenta para mirarlo. */}
@@ -287,6 +292,7 @@ export default function App() {
             {import.meta.env.DEV && <Route path="/banco-consola" element={<BancoConsola />} />}
             {import.meta.env.DEV && <Route path="/banco-encuesta" element={<BancoEncuesta />} />}
             {import.meta.env.DEV && <Route path="/banco-iconos" element={<BancoIconos />} />}
+            {import.meta.env.DEV && <Route path="/banco-mesa-contador" element={<MesaContador />} />}
             <Route path="/play/tracker/:mode" element={<P><TrackerPage /></P>} />
             <Route path="/play/saved" element={<P><SavedMatchesPage /></P>} />
             <Route path="/events" element={<P><EventsPage /></P>} />

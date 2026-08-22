@@ -1561,3 +1561,88 @@ variantes concretas, **no volver a esconder las Hyperspace**.
 La instantánea del buscador (`_snapshot`, a nivel de módulo) sigue mandando
 dentro de la sesión: quien lo apague lo mantiene apagado mientras navega. Y
 `clearFilters()` **no** lo toca, así que «Limpiar» no lo apaga.
+
+### 3k. Torneos de MESAS (Twin Suns) y el else que escribía pareos
+
+Twin Suns es multijugador: mesas de 3 o 4. Eso **no cabe en
+`tournament_pairings`**, que tiene dos columnas de jugador y un ganador. Una
+mesa de 4 solo entraría como filas con `player2_id` NULL — y `PairingsView`
+lee eso como **BYE**: dibujaría partidas que nunca se jugaron, en las tres
+pantallas que comparten ese componente. Tabla nueva (`tournament_mesas`, un
+asiento por fila); `tournament_pairings` no se toca.
+
+**Se llama `mesas`, no `twin_suns`.** Ese valor YA existe como *formato de
+mazo*; con el mismo nombre, una fila tendría `format='twin_suns'` y
+`tournament_type='twin_suns'` significando cosas distintas. Son dos ejes:
+el formato dice con qué mazo se juega, el tipo cómo se estructura el torneo.
+
+**La aritmética está cerrada, no es heurística.** M mesas sirven si y solo si
+`3M ≤ N ≤ 4M`; de ahí salen las de 4 (`N−3M`) y las de 3 (`4M−N`). El único
+número entre 3 y 32 que **no cierra es el 5**. Y elegir mesas importa: con 12
+se puede jugar 3 de 4 o 4 de 3, y son torneos distintos. Todo en
+`services/mesas.ts`, puro y probado sobre 3..40.
+
+**El servidor VALIDA, no recalcula.** El reparto lo calcula el cliente y
+`armar_mesas()` comprueba que sea legal (la gente activa exacta, nadie dos
+veces, toda mesa con 3 o 4, numeradas sin saltos). Dos algoritmos de siembra
+se separarían; un validador y un generador, no.
+
+**El else que ESCRIBÍA.** `TournamentDashboard` tenía
+`tournament_type === 'elimination' ? … : generateSwissPairings(…)`. Cualquier
+tipo nuevo caía en la rama suiza: apretar «Generar ronda» en un torneo de
+mesas **escribía pareos 1v1 en la base** y decía «Ronda N generada» en verde.
+Era el único else del sistema que escribe. Y dos rótulos se contradecían
+sobre el mismo torneo: la vista pública llamaba «Eliminación» a todo lo que
+no fuera suizo y la del jugador «SWISS» a todo lo que no fuera eliminación.
+Todo sale ahora de `services/tipoTorneo.ts`, que además tiene la lista de
+opciones que estaba **copiada** en las dos pantallas de creación.
+
+**`_repartir_premios` no leía `puesto` — y eso ya estaba roto en producción.**
+Ordenaba por `points, omw_pct, gw_pct, player_name`. Medido en el torneo del
+15/8: la columna dice Vara 2.º / Christian 3.º y el reparto daba Christian
+2.º / Vara 3.º — el podio que la gente vio y el que reparte XP y sobres eran
+distintos. En un torneo de mesas sería peor: nadie escribe `omw_pct` ni
+`gw_pct`, quedan en 0 y el desempate real pasa a ser **el abecedario**. Ahora
+manda `coalesce(puesto, 32767)` y donde no hay puesto se conserva el orden
+viejo.
+
+**Hay que llamar `fijar_puestos_finales()` ANTES de cerrar.** Si `puesto`
+queda NULL, `temporada_tabla()` filtra `puesto is not null` y el torneo
+entero desaparece de la temporada **sin un solo error**.
+
+**Y `getEventByCode` filtra `status in ('open','active')`** — es correcto para
+inscribirse, pero el Centro de Temporada decía «no se encontró el torneo»
+para todos los ya cerrados. Para operarlos está `getEventByCodeAnyStatus`.
+
+### 3k-bis. El Contador de MESA, y por qué el panel necesitó variante
+
+`/contador/mesa` es el Contador para 3 o 4 jugadores. Es **otra pantalla** y
+no un parámetro del duelo: el duelo está construido sobre dos lados
+enfrentados (`{a, b}`, `lado: 'a'|'b'`, `juegos: {ganador}`), y generalizarlo
+a N tocaba guardado, subida a la nube de amistosas, misiones e historial —
+todo por una mesa que no usa ninguna de esas cosas.
+
+Lo que sí comparten son las piezas: `MitadJugador` y `SelectorLado` se
+extrajeron a `features/contador/piezas.tsx` **sin cambiarles una línea**, y
+los tipos/ayudas a `estado.ts` (separados porque un archivo que exporta
+componentes Y funciones rompe el Fast Refresh).
+
+**La variante `compacta` no es cosmética.** El panel reparte la pantalla en
+tres tercios táctiles y dibuja círculos de 80 px. A ancho completo el tercio
+mide ~125 px y entran; en una rejilla 2×2 el panel es la mitad de ancho, el
+tercio baja a ~62 px y **el botón de sumar quedaba cortado por el borde** —
+verificado en pantalla. Compacta encoge círculos, cifra y adornos; las zonas
+tocables siguen siendo el tercio entero.
+
+**Rotaciones:** con 4, rejilla 2×2 y los DOS de arriba a 180°. Con 3, uno
+arriba a 180° a todo el ancho y dos abajo. No se rota 90° a los laterales a
+propósito: una cifra en vertical no se lee de reojo, que es justo lo que hay
+que hacer en medio de un turno.
+
+**El resultado se anota por ORDEN DE CAÍDA**, no eligiendo puestos: se marca
+quién queda fuera y el último en pie es el 1.º. Verificado — cayendo 2, 4 y 1
+la barra dice «1.º Asiento 3 · 2.º Vos · 3.º Asiento 4 · 4.º Asiento 2», que
+es exactamente lo que el organizador copia a la pestaña Mesas del torneo.
+
+Banco en `/banco-mesa-contador` (solo desarrollo): la puerta de instalación
+tapa `/contador/mesa` en un navegador normal.
