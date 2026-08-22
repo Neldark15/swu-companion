@@ -3,6 +3,7 @@
  * Route: /events/tournament/:code
  */
 
+import { esDeMesas, etiquetaTipo } from '../../services/tipoTorneo'
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Play, SkipForward, Clock, Users, Trophy, GitBranch, UserMinus } from 'lucide-react'
@@ -129,6 +130,20 @@ export default function TournamentDashboard() {
 
   const handleGeneratePairings = async () => {
     if (!event) return
+
+    /* Un torneo de MESAS no se opera desde acá.
+     *
+     * Esto era un ternario binario, así que cualquier tipo que no fuera
+     * 'elimination' caía en la rama suiza: apretar «Generar ronda» en un
+     * torneo de mesas escribía pareos 1v1 en `tournament_pairings`, decía
+     * «Ronda N generada» en verde y no dejaba ni un error. Un torneo
+     * multijugador partido en parejas, y nadie se enteraba hasta mirar las
+     * mesas. Es el único else de todo el sistema que ESCRIBE. */
+    if (esDeMesas(event.tournament_type)) {
+      showMessage('Este torneo es de mesas: se arma desde el Centro de Temporada.')
+      return
+    }
+
     setActionLoading(true)
     const nextRound = event.current_round + 1
     const res = event.tournament_type === 'elimination'
@@ -278,7 +293,7 @@ export default function TournamentDashboard() {
             <div className="flex-1 min-w-0">
               <h1 className="text-sm font-bold text-swu-text truncate">{event.name}</h1>
               <div className="flex items-center gap-2 text-xs text-swu-muted">
-                <span className="uppercase">{event.tournament_type}</span>
+                <span className="uppercase">{etiquetaTipo(event.tournament_type)}</span>
                 <span>·</span>
                 <span>Ronda {event.current_round}/{event.max_rounds || '?'}</span>
                 <span>·</span>

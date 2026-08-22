@@ -1,3 +1,4 @@
+import { TIPOS_TORNEO, type TipoTorneo } from '../../services/tipoTorneo'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -37,10 +38,9 @@ const MATCH_OPTIONS = [
 
 const PLAYER_LIMITS = [8, 16, 24, 32, 48, 64]
 
-const TOURNAMENT_TYPE_OPTIONS = [
-  { value: 'swiss', label: 'Suizo', desc: 'Todos juegan, ranking por puntos' },
-  { value: 'elimination', label: 'Eliminación', desc: 'Bracket directo, pierdes y sales' },
-]
+// Segunda copia de la misma lista: ahora las dos pantallas leen
+// services/tipoTorneo.ts.
+const TOURNAMENT_TYPE_OPTIONS = TIPOS_TORNEO
 
 export function CreateEventPage() {
   const navigate = useNavigate()
@@ -59,7 +59,7 @@ export function CreateEventPage() {
   // reparseaba localStorage en CADA render, o sea en cada tecla.
   const [b] = useState(() => leerBorrador<{
     name: string; description: string; format: string; matchType: string
-    tournamentType: 'swiss' | 'elimination'; maxPlayers: number
+    tournamentType: TipoTorneo; maxPlayers: number
     date: string; time: string; location: string
   }>(LLAVES_BORRADOR.evento))
 
@@ -68,7 +68,7 @@ export function CreateEventPage() {
   const [description, setDescription] = useState(b?.description ?? '')
   const [format, setFormat] = useState(b?.format ?? 'premier')
   const [matchType, setMatchType] = useState(b?.matchType ?? 'bo1')
-  const [tournamentType, setTournamentType] = useState<'swiss' | 'elimination'>(b?.tournamentType ?? 'swiss')
+  const [tournamentType, setTournamentType] = useState<TipoTorneo>(b?.tournamentType ?? 'swiss')
   const [maxPlayers, setMaxPlayers] = useState(b?.maxPlayers ?? 32)
   const [date, setDate] = useState(b?.date ?? '')
   const [time, setTime] = useState(b?.time ?? '')
@@ -358,7 +358,7 @@ export function CreateEventPage() {
           {TOURNAMENT_TYPE_OPTIONS.map(opt => (
             <button
               key={opt.value}
-              onClick={() => setTournamentType(opt.value as 'swiss' | 'elimination')}
+              onClick={() => setTournamentType(opt.value)}
               className={`flex-1 p-3 rounded-xl border text-center transition-colors ${
                 tournamentType === opt.value
                   ? 'bg-swu-accent/10 border-swu-accent text-swu-accent-texto'

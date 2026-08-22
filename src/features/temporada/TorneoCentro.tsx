@@ -34,7 +34,7 @@ import {
 } from 'lucide-react'
 import { HudPanel } from '../../components/Hud'
 import { Avatar } from '../../components/ui/Avatar'
-import { getEventByCode, getEventRegistrations, type OfficialEvent, type EventRegistration } from '../../services/events'
+import { getEventByCodeAnyStatus, getEventRegistrations, type OfficialEvent, type EventRegistration } from '../../services/events'
 import {
   initializeTournament, generateSwissPairings, generateEliminationBracket,
   getStandings, getAllRounds, getRoundPairings, finishTournament,
@@ -47,11 +47,14 @@ import { fijarSemillas } from '../../services/centroTemporada'
 import { StandingsTable } from '../events/components/StandingsTable'
 import { BracketView } from '../events/components/BracketView'
 import { componerBorrador, type Borrador } from './borradorArticulo'
+import { MesasPanel } from './MesasPanel'
+import { esDeMesas } from '../../services/tipoTorneo'
+import { getMesasDeRonda, ultimaRonda, type MesaArmada } from '../../services/mesasService'
 import {
   aTexto, copiarTexto, descargarCSV, compartirImagen, type TablaPublicable,
 } from './exportarTabla'
 
-type Pestana = 'inscritos' | 'llaves' | 'publicar'
+type Pestana = 'inscritos' | 'llaves' | 'mesas' | 'publicar'
 
 export function TorneoCentro() {
   const { code = '' } = useParams()
@@ -68,6 +71,8 @@ export function TorneoCentro() {
   const [cargando, setCargando] = useState(true)
   const [ocupado, setOcupado] = useState(false)
   const [recarga, setRecarga] = useState(0)
+  const [mesas, setMesas] = useState<MesaArmada[]>([])
+  const [rondaMesas, setRondaMesas] = useState<{ id: string; numero: number } | null>(null)
 
   /* La carga vive DENTRO del efecto, con bandera de vida (renders en cascada
    * + escritura sobre componente desmontado). `recarga` la vuelve a disparar
@@ -75,7 +80,7 @@ export function TorneoCentro() {
   useEffect(() => {
     let vivo = true
     void (async () => {
-      const ev = await getEventByCode(code)
+      const ev = await getEventByCodeAnyStatus(code)
       if (!vivo) return
       setEvento(ev)
       if (!ev) { setCargando(false); return }
@@ -96,6 +101,19 @@ export function TorneoCentro() {
       )
       if (!vivo) return
       setPareos(mapa)
+
+      // Las mesas solo se piden si el torneo es de ese tipo: en un suizo la
+      // consulta traería siempre cero y sería un viaje de red por nada.
+      if (esDeMesas(ev.tournament_type)) {
+        const r = await ultimaRonda(ev.id)
+        if (!vivo) return
+        setRondaMesas(r)
+        setMesas(r ? await getMesasDeRonda(r.id) : [])
+      } else {
+        setRondaMesas(null)
+        setMesas([])
+      }
+      if (!vivo) return
 
       // Un torneo cerrado se lee por el camino histórico: es el ÚNICO que
       // respeta la columna `puesto`. El orden calculado de `getStandings`
@@ -171,7 +189,10 @@ export function TorneoCentro() {
       )}
 
       <div className="flex gap-1 border-b border-swu-border overflow-x-auto">
-        {([['inscritos', 'Inscritos'], ['llaves', 'Llaves'], ['publicar', 'Publicar']] as const).map(
+        {(esDeMesas(evento.tournament_type)
+            ? ([['inscritos', 'Inscritos'], ['mesas', 'Mesas'], ['publicar', 'Publicar']] as const)
+            : ([['inscritos', 'Inscritos'], ['llaves', 'Llaves'], ['publicar', 'Publicar']] as const)
+         ).map(
           ([k, label]) => (
             <button
               key={k}
@@ -201,6 +222,20 @@ export function TorneoCentro() {
             setOcupado(false)
             if (r.ok) { setAviso(`${r.datos} semillas fijadas`); setRecarga(n => n + 1) } else { setError(r.mensaje) }
           }}
+        />
+      )}
+
+      {pestana === 'mesas' && (
+        <MesasPanel
+          eventId={evento.id}
+          cerrado={evento.status === 'finished'}
+          standings={standings}
+          ronda={rondaMesas}
+          mesas={mesas}
+          ocupado={ocupado}
+          onCambio={() => setRecarga(n => n + 1)}
+          onAviso={setAviso}
+          onError={setError}
         />
       )}
 

@@ -6,6 +6,7 @@
  * en /admin/events (o muestra el código de éxito si querés copiarlo antes).
  */
 
+import { TIPOS_TORNEO, type TipoTorneo } from '../../services/tipoTorneo'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -32,10 +33,9 @@ const MATCH_OPTIONS = [
   { value: 'bo3', label: 'Bo3', desc: 'Mejor de 3' },
 ]
 const PLAYER_LIMITS = [4, 8, 16, 24, 32, 48, 64]
-const TOURNAMENT_TYPE_OPTIONS = [
-  { value: 'swiss' as const, label: 'Suizo', desc: 'Todos juegan, ranking por puntos' },
-  { value: 'elimination' as const, label: 'Eliminación', desc: 'Bracket directo, pierdes y sales' },
-]
+// La lista vive en services/tipoTorneo.ts: estaba copiada acá y en
+// CreateEventPage, y agregar un tipo en una sola dejaba la opción a medias.
+const TOURNAMENT_TYPE_OPTIONS = TIPOS_TORNEO
 
 export function AdminEventCreatePage() {
   const navigate = useNavigate()
@@ -51,7 +51,7 @@ export function AdminEventCreatePage() {
   const [description, setDescription] = useState('')
   const [format, setFormat] = useState('premier')
   const [matchType, setMatchType] = useState('bo1')
-  const [tournamentType, setTournamentType] = useState<'swiss' | 'elimination'>('swiss')
+  const [tournamentType, setTournamentType] = useState<TipoTorneo>('swiss')
   const [maxPlayers, setMaxPlayers] = useState(16)
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')

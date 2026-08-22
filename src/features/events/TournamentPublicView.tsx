@@ -4,6 +4,7 @@
  * Optimized for projection / spectators
  */
 
+import { etiquetaTipo } from '../../services/tipoTorneo'
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import {
@@ -145,7 +146,7 @@ export default function TournamentPublicView() {
               <h1 className="text-lg font-bold text-swu-text">{event.name}</h1>
               <div className="flex items-center gap-2 text-xs text-swu-muted mt-1">
                 <span className="uppercase font-bold text-swu-accent-texto">
-                  {event.tournament_type === 'swiss' ? 'Suizo' : 'Eliminación'}
+                  {etiquetaTipo(event.tournament_type)}
                 </span>
                 <span>·</span>
                 <span>Ronda {event.current_round}/{event.max_rounds || '?'}</span>

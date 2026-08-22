@@ -9,6 +9,7 @@
  * - Toasts cuando: cambia pareja, oponente reporta, resultado se confirma, etc.
  */
 
+import { etiquetaTipo } from '../../services/tipoTorneo'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
@@ -297,7 +298,7 @@ export function TournamentPlayerView() {
         <div className="text-right">
           <h1 className="text-lg font-bold text-swu-text leading-tight">{event.name}</h1>
           <p className="text-[10px] text-swu-muted font-mono">
-            {event.tournament_type === 'elimination' ? 'ELIMINACIÓN' : 'SWISS'} · RONDA {event.current_round}/{event.max_rounds ?? '?'} · {event.status.toUpperCase()}
+            {etiquetaTipo(event.tournament_type).toUpperCase()} · RONDA {event.current_round}/{event.max_rounds ?? '?'} · {event.status.toUpperCase()}
           </p>
         </div>
       </header>

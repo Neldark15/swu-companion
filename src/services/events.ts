@@ -1,3 +1,4 @@
+import type { TipoTorneo } from './tipoTorneo'
 import { supabase, isSupabaseReady } from './supabase'
 import { inicioDelDiaSVenUTC } from './horaSV'
 
@@ -15,6 +16,12 @@ export interface OfficialEvent {
   date: string | null
   location: string | null
   status: 'open' | 'active' | 'finished' | 'cancelled'
+  /* Estaban en la fila (la consulta es `select('*')`) pero no en el tipo, así
+     que cualquier pantalla que quisiera ramificar por el tipo de torneo no
+     compilaba — y era justo lo que hacía falta para los torneos de mesas. */
+  tournament_type: TipoTorneo
+  max_rounds: number | null
+  current_round: number
   created_at: string
   updated_at: string
   // Joined data
@@ -163,7 +170,7 @@ export async function createOfficialEvent(data: {
   description?: string
   format: string
   matchType: string
-  tournamentType?: 'swiss' | 'elimination'
+  tournamentType?: TipoTorneo
   maxPlayers: number
   date?: string
   location?: string
@@ -335,6 +342,46 @@ export async function getUpcomingOfficialEvents(limite = 3): Promise<OfficialEve
     organizer_avatar: profileMap.get(e.organizer_id)?.avatar || '🎯',
     registered_count: inscritos?.get(e.id),
   } as OfficialEvent))
+}
+
+/**
+ * El evento por código, EN CUALQUIER ESTADO.
+ *
+ * `getEventByCode` filtra `status in ('open','active')` porque su uso es
+ * inscribirse: a un torneo cerrado no se entra. Pero para OPERARLO —ver la
+ * clasificación, exportar la tabla, redactar el artículo— hace falta poder
+ * abrir uno terminado, y con el filtro puesto la pantalla decía «no se
+ * encontró el torneo» para todos los torneos ya jugados.
+ */
+export async function getEventByCodeAnyStatus(code: string): Promise<OfficialEvent | null> {
+  if (!isSupabaseReady()) return null
+
+  const { data, error } = await supabase
+    .from('official_events')
+    .select('*')
+    .eq('code', code.toUpperCase())
+    .maybeSingle()
+
+  if (error || !data) return null
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('name, avatar')
+    .eq('id', (data as { organizer_id: string }).organizer_id)
+    .maybeSingle()
+
+  const { count } = await supabase
+    .from('event_registrations')
+    .select('*', { count: 'exact', head: true })
+    .eq('event_id', (data as { id: string }).id)
+
+  return {
+    ...(data as object),
+    organizer_name: profile?.name || 'Organizador',
+    organizer_avatar: profile?.avatar || '🎯',
+    // `undefined` si la consulta falló: «no se sabe» no es cero.
+    registered_count: count ?? undefined,
+  } as OfficialEvent
 }
 
 export async function getEventByCode(code: string): Promise<OfficialEvent | null> {

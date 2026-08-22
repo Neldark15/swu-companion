@@ -4,6 +4,7 @@
  * Supports Swiss and Single Elimination formats
  */
 
+import type { TipoTorneo } from './tipoTorneo'
 import { supabase, isSupabaseReady } from './supabase'
 import { generatePairings, suggestedRounds } from './swiss'
 import {
@@ -87,7 +88,7 @@ export interface CloudEvent {
   name: string
   code: string
   status: string
-  tournament_type: 'swiss' | 'elimination'
+  tournament_type: TipoTorneo
   max_rounds: number | null
   current_round: number
   round_timer_minutes: number

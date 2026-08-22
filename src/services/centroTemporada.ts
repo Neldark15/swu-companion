@@ -25,6 +25,7 @@
  * solo.
  */
 
+import type { TipoTorneo } from './tipoTorneo'
 import { supabase, isSupabaseReady } from './supabase'
 
 export type Resultado<T> = { ok: true; datos: T } | { ok: false; mensaje: string }
@@ -53,7 +54,7 @@ export interface EventoDeFecha {
   code: string
   status: 'open' | 'active' | 'finished' | 'cancelled'
   date: string | null
-  tournament_type: 'swiss' | 'elimination'
+  tournament_type: TipoTorneo
   current_round: number
   max_rounds: number | null
 }
