@@ -44,7 +44,7 @@ const mainNav: NavItem[] = [
   { id: '/play', label: 'Duelo', sub: 'Tracker en vivo', icon: SaberIcon },
   { id: '/galaxia', label: 'La Galaxia', sub: 'Universo 3D', icon: StarfighterIcon },
   { id: '/blog', label: 'Blog', sub: 'Análisis y artículos', icon: ArticuloIcon },
-  { id: '/events', label: 'Torneo', sub: 'Eventos organizados', icon: MedalIcon },
+  { id: '/events', label: 'Próximos Eventos', sub: 'Los que vienen', icon: MedalIcon },
   { id: '/profile', label: 'Mi Perfil', sub: 'Holocrón', img: '/holocron-icon.png' },
 ]
 
@@ -65,7 +65,7 @@ const secondaryNav: NavItem[] = [
   { id: '/cards', label: 'Buscar Cartas', sub: 'Base de datos', icon: HolonetIcon },
   { id: '/envivo', label: 'En Vivo', sub: 'Transmisión de torneos', icon: EmisionIcon },
   { id: '/rulings', label: 'Rulings', sub: 'Reglamento del juego', icon: HolocronIcon },
-  { id: '/contador', label: 'Contador', sub: 'Duelo en mesa real', icon: ChanceCubeIcon },
+  { id: '/contador', label: 'Contador de daños', sub: 'Duelo en mesa real', icon: ChanceCubeIcon },
   { id: '/amistosas', label: 'Amistosas', sub: 'Historial cara a cara', icon: BlasterIcon },
   { id: '/torneos', label: 'Torneos', sub: 'Archivo de la comunidad', icon: MandoTrophyIcon },
   { id: '/calendario', label: 'Calendario', sub: 'Los torneos del mes', icon: AgendaIcon },

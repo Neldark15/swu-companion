@@ -52,7 +52,7 @@ const GROUPS: MoreGroup[] = [
     title: 'Jugar',
     items: [
       { to: '/play', label: 'Duelo', sub: 'Tracker en vivo', icon: SaberIcon },
-      { to: '/events', label: 'Torneo', sub: 'Eventos organizados', icon: MedalIcon },
+      { to: '/events', label: 'Próximos Eventos', sub: 'Los que vienen', icon: MedalIcon },
       // Vive en «Jugar»: se consulta EN la mesa, en medio de una partida.
       { to: '/envivo', label: 'En Vivo', sub: 'Transmisión de torneos', icon: EmisionIcon },
       { to: '/rulings', label: 'Rulings', sub: 'Reglamento del juego', icon: HolocronIcon },
@@ -64,7 +64,7 @@ const GROUPS: MoreGroup[] = [
       { to: '/decks', label: 'Mis Decks', sub: 'Constructor', icon: DeckCardsIcon },
       { to: '/laboratorio', label: 'Laboratorio', sub: 'Simulador de mazos', icon: LabIcon },
       { to: '/misiones', label: 'Misiones', sub: 'Órdenes del día', icon: DeathStarIcon },
-      { to: '/contador', label: 'Contador', sub: 'Duelo en mesa real', icon: ChanceCubeIcon },
+      { to: '/contador', label: 'Contador de daños', sub: 'Duelo en mesa real', icon: ChanceCubeIcon },
       { to: '/amistosas', label: 'Amistosas', sub: 'Historial cara a cara', icon: BlasterIcon },
       { to: '/torneos', label: 'Torneos', sub: 'Archivo de la comunidad', icon: MandoTrophyIcon },
       { to: '/calendario', label: 'Calendario', sub: 'Los torneos del mes', icon: AgendaIcon },

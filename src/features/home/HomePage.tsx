@@ -126,7 +126,7 @@ interface Sistema {
  */
 const mainSystems: Sistema[] = [
   // ── Jugar: lo de la mesa, en vivo o para dejar registro ──
-  { icon: ChanceCubeIcon,  label: 'Contador',     tone: 'purple', to: '/contador',   cat: 'jugar' },
+  { icon: ChanceCubeIcon,  label: 'Contador de daños', tone: 'purple', to: '/contador', cat: 'jugar' },
   { icon: BlasterIcon, label: 'Amistosas',    tone: 'green',  to: '/amistosas',  cat: 'jugar' },
   // Duelo ocupa el hueco que dejó el Holocrón, y no es un cambio de rótulo:
   // esa casilla era el ÚNICO salto de un toque desde Inicio hacia el tracker
@@ -139,7 +139,7 @@ const mainSystems: Sistema[] = [
   // ── Competir: torneos, ranking y meta ──
   { icon: MandoTrophyIcon, label: 'Torneos',      tone: 'amber',  to: '/torneos',    cat: 'competir' },
   { icon: AgendaIcon,     label: 'Calendario',   tone: 'cyan',   to: '/calendario', cat: 'competir' },
-  { icon: MedalIcon, label: 'Eventos',      tone: 'amber',  to: '/events',     cat: 'competir', auth: true },
+  { icon: MedalIcon, label: 'Próximos Eventos', tone: 'amber', to: '/events',  cat: 'competir', auth: true },
   { icon: MetaHoloIcon,       label: 'Meta',         tone: 'cyan',   to: '/meta',       cat: 'competir' },
   { icon: BeskarIcon,      label: 'Ranking', tone: 'amber',  to: '/rank',       cat: 'competir', auth: true },
   { icon: EmisionIcon,     label: 'En Vivo',      tone: 'red',    to: '/envivo',     cat: 'competir' },
