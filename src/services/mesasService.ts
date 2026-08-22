@@ -193,3 +193,29 @@ export async function getMiMesa(
   const todas = await getMesasDeRonda(roundId)
   return todas.find(m => m.mesa === mesa) ?? null
 }
+
+/**
+ * Convierte un torneo ya creado a otro tipo (p. ej. suizo → mesas).
+ *
+ * Hacía falta porque la pestaña de Mesas solo tiene sentido en un torneo de
+ * ese tipo, y los del sábado ya estaban creados como suizos: sin esto había
+ * que borrarlos y rehacerlos, perdiendo el código, los inscritos y la sede.
+ *
+ * El servidor solo lo permite ANTES de sembrar. Convertir un torneo en marcha
+ * dejaría huérfanos los pareos 1v1 ya escritos y las pantallas leerían una
+ * estructura que ya no corresponde al tipo.
+ */
+export async function cambiarTipoTorneo(
+  eventId: string,
+  tipo: 'swiss' | 'elimination' | 'mesas',
+): Promise<Resultado<true>> {
+  if (!isSupabaseReady()) return { ok: false, mensaje: SIN_CONEXION }
+  const { data, error } = await supabase.rpc('cambiar_tipo_torneo', {
+    p_evento: eventId,
+    p_tipo: tipo,
+  })
+  if (error) return { ok: false, mensaje: error.message }
+  const r = data as RespuestaRPC | null
+  if (!r?.ok) return { ok: false, mensaje: r?.error ?? 'No se pudo cambiar el tipo.' }
+  return { ok: true, datos: true }
+}

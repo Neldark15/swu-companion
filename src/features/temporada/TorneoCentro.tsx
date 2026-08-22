@@ -30,7 +30,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   AlertCircle, ArrowLeft, Check, Copy, Download, ExternalLink,
-  Image as ImageIcon, ArrowDown, ArrowUp, Newspaper, Play, Trophy,
+  Image as ImageIcon, ArrowDown, ArrowUp, Newspaper, Play, Trophy, Users,
 } from 'lucide-react'
 import { HudPanel } from '../../components/Hud'
 import { Avatar } from '../../components/ui/Avatar'
@@ -48,8 +48,8 @@ import { StandingsTable } from '../events/components/StandingsTable'
 import { BracketView } from '../events/components/BracketView'
 import { componerBorrador, type Borrador } from './borradorArticulo'
 import { MesasPanel } from './MesasPanel'
-import { esDeMesas } from '../../services/tipoTorneo'
-import { getMesasDeRonda, ultimaRonda, type MesaArmada } from '../../services/mesasService'
+import { esDeMesas, etiquetaTipo } from '../../services/tipoTorneo'
+import { getMesasDeRonda, ultimaRonda, cambiarTipoTorneo, type MesaArmada } from '../../services/mesasService'
 import {
   aTexto, copiarTexto, descargarCSV, compartirImagen, type TablaPublicable,
 } from './exportarTabla'
@@ -189,9 +189,13 @@ export function TorneoCentro() {
       )}
 
       <div className="flex gap-1 border-b border-swu-border overflow-x-auto">
+        {/* La pestaña de Mesas se ve SIEMPRE, no solo en un torneo que ya es
+            de mesas. Estaba escondida detrás del tipo, y como los torneos del
+            sábado se habían creado como suizos, la herramienta existía y no
+            aparecía en ningún lado. Adentro se ofrece convertir. */}
         {(esDeMesas(evento.tournament_type)
             ? ([['inscritos', 'Inscritos'], ['mesas', 'Mesas'], ['publicar', 'Publicar']] as const)
-            : ([['inscritos', 'Inscritos'], ['llaves', 'Llaves'], ['publicar', 'Publicar']] as const)
+            : ([['inscritos', 'Inscritos'], ['llaves', 'Llaves'], ['mesas', 'Mesas'], ['publicar', 'Publicar']] as const)
          ).map(
           ([k, label]) => (
             <button
@@ -225,7 +229,15 @@ export function TorneoCentro() {
         />
       )}
 
-      {pestana === 'mesas' && (
+      {pestana === 'mesas' && !esDeMesas(evento.tournament_type) && (
+        <ConvertirAMesas
+          evento={evento}
+          onHecho={() => { setAviso('Torneo convertido a mesas'); setRecarga(n => n + 1); }}
+          onError={setError}
+        />
+      )}
+
+      {pestana === 'mesas' && esDeMesas(evento.tournament_type) && (
         <MesasPanel
           eventId={evento.id}
           cerrado={evento.status === 'finished'}
@@ -673,6 +685,62 @@ function Publicar({
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+/* ── Convertir a mesas ─────────────────────────────────────────────── */
+
+function ConvertirAMesas({
+  evento, onHecho, onError,
+}: {
+  evento: OfficialEvent
+  onHecho: () => void
+  onError: (m: string) => void
+}) {
+  const [yendo, setYendo] = useState(false)
+  const arrancado = evento.status === 'finished' || evento.current_round > 0
+
+  return (
+    <div className="space-y-3">
+      <HudPanel compact tone={arrancado ? 'neutral' : 'amber'}>
+        <div className="space-y-2.5 p-3.5">
+          <p className="text-sm font-bold text-swu-text">
+            Este torneo es de tipo «{etiquetaTipo(evento.tournament_type)}»
+          </p>
+          <p className="text-xs leading-relaxed text-swu-muted">
+            Twin Suns se juega en mesas de 3 o 4, no uno contra uno. Para llevarlo
+            desde acá el torneo tiene que ser de tipo <strong>Mesas</strong>.
+          </p>
+          {arrancado ? (
+            <p className="text-xs text-swu-muted">
+              Ya arrancó, así que el tipo no se puede cambiar: los pareos que ya
+              tiene escritos no corresponderían a una estructura de mesas. Para un
+              torneo de Twin Suns, creá uno nuevo eligiendo «Mesas».
+            </p>
+          ) : (
+            <>
+              <p className="text-xs leading-relaxed text-swu-muted">
+                Todavía no sembró la clasificación, así que se puede convertir sin
+                perder el código, los inscritos ni la sede.
+              </p>
+              <button
+                onClick={async () => {
+                  setYendo(true)
+                  const r = await cambiarTipoTorneo(evento.id, 'mesas')
+                  setYendo(false)
+                  if (r.ok) onHecho(); else onError(r.mensaje)
+                }}
+                disabled={yendo}
+                className="flex min-h-[44px] items-center gap-2 rounded-lg bg-swu-accent px-4 text-sm
+                           font-semibold text-white disabled:opacity-50"
+              >
+                <Users size={15} /> {yendo ? 'Convirtiendo…' : 'Convertir a torneo de mesas'}
+              </button>
+            </>
+          )}
+        </div>
+      </HudPanel>
     </div>
   )
 }

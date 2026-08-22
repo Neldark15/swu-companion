@@ -478,3 +478,59 @@ end;
 $$;
 
 commit;
+
+
+-- ══ 8. Convertir un torneo YA CREADO ═════════════════════════════════
+--
+-- La pestaña de Mesas solo tiene sentido en un torneo de ese tipo, y los
+-- torneos del sábado ya estaban creados como suizos: sin esto había que
+-- borrarlos y rehacerlos, perdiendo el código, los inscritos y la sede.
+--
+-- Solo ANTES de sembrar. Convertir uno en marcha dejaría huérfanos los
+-- pareos 1v1 ya escritos y las pantallas leerían una estructura que ya no
+-- corresponde al tipo.
+create or replace function public.cambiar_tipo_torneo(p_evento uuid, p_tipo text)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+declare
+  v_ev public.official_events%rowtype;
+  v_st int; v_ro int;
+begin
+  if not public.puede_operar_torneo() then
+    return jsonb_build_object('ok', false, 'error', 'No tenes permiso para operar este torneo.');
+  end if;
+  if p_tipo not in ('swiss', 'elimination', 'mesas') then
+    return jsonb_build_object('ok', false, 'error', 'Ese tipo de torneo no existe.');
+  end if;
+
+  select * into v_ev from public.official_events where id = p_evento;
+  if not found then
+    return jsonb_build_object('ok', false, 'error', 'El torneo no existe.');
+  end if;
+  if v_ev.status = 'finished' then
+    return jsonb_build_object('ok', false, 'error', 'El torneo ya esta cerrado.');
+  end if;
+
+  select count(*) into v_st from public.tournament_standings where event_id = p_evento;
+  select count(*) into v_ro from public.tournament_rounds    where event_id = p_evento;
+  if v_st > 0 or v_ro > 0 then
+    return jsonb_build_object('ok', false, 'error',
+      format('El torneo ya arranco (%s en clasificacion, %s ronda(s)): el tipo se cambia antes de sembrar.',
+             v_st, v_ro));
+  end if;
+
+  update public.official_events
+     set tournament_type = p_tipo,
+         -- max_rounds se recalcula al sembrar; el de un suizo no sirve para mesas.
+         max_rounds = null, current_round = 0, updated_at = now()
+   where id = p_evento;
+
+  return jsonb_build_object('ok', true, 'tipo', p_tipo);
+end;
+$$;
+
+revoke all on function public.cambiar_tipo_torneo(uuid, text) from public, anon;
+grant execute on function public.cambiar_tipo_torneo(uuid, text) to authenticated;
