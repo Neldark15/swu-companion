@@ -12,11 +12,13 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Swords, ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
+import { ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
 import {
   MandoTrophyIcon, CargoIcon, DeckCardsIcon, StarfighterIcon, DatapadIcon,
   BountyIcon, DeathStarIcon, BeskarIcon, HolonetIcon, ChanceCubeIcon,
-  KyberIcon, LabIcon, HolocronIcon,
+  KyberIcon, LabIcon, HolocronIcon, SaberIcon, BlasterIcon, AgendaIcon,
+  MedalIcon, MetaHoloIcon, EmisionIcon, SobreIcon, BinderIcon, PedidoIcon,
+  SalasIcon, CredencialIcon, TransmisionIcon, RebelIcon, ArticuloIcon,
 } from '../../components/SWIcons'
 import type { HudTone } from '../../components/hudTones'
 import { BahiaModulos } from './BahiaModulos'
@@ -28,11 +30,11 @@ const BAHIAS: {
   id: Cat; titulo: string; icono: typeof DatapadIcon; tono: HudTone; modulos: ModuloVisible[]
 }[] = [
   {
-    id: 'jugar', titulo: 'Jugar', icono: Swords as never, tono: 'green',
+    id: 'jugar', titulo: 'Jugar', icono: SaberIcon, tono: 'green',
     modulos: [
       { icon: ChanceCubeIcon,  label: 'Contador de daños', tone: 'purple', to: '#' },
-      { icon: MandoTrophyIcon, label: 'Amistosas',         tone: 'green',  to: '#' },
-      { icon: DatapadIcon,     label: 'Duelo',             tone: 'green',  to: '#' },
+      { icon: BlasterIcon,     label: 'Amistosas',         tone: 'green',  to: '#' },
+      { icon: SaberIcon,       label: 'Duelo',             tone: 'green',  to: '#' },
       { icon: DeathStarIcon,   label: 'Misiones',          tone: 'amber',  to: '#' },
     ],
   },
@@ -40,11 +42,11 @@ const BAHIAS: {
     id: 'competir', titulo: 'Competir', icono: MandoTrophyIcon, tono: 'amber',
     modulos: [
       { icon: MandoTrophyIcon, label: 'Torneos',    tone: 'amber', to: '#' },
-      { icon: DatapadIcon,     label: 'Calendario', tone: 'cyan',  to: '#' },
-      { icon: MandoTrophyIcon, label: 'Próximos Eventos', tone: 'amber', to: '#' },
-      { icon: KyberIcon,       label: 'Meta',       tone: 'cyan',  to: '#' },
+      { icon: AgendaIcon,      label: 'Calendario', tone: 'cyan',  to: '#' },
+      { icon: MedalIcon,       label: 'Próximos Eventos', tone: 'amber', to: '#' },
+      { icon: MetaHoloIcon,    label: 'Meta',       tone: 'cyan',  to: '#' },
       { icon: BeskarIcon,      label: 'Ranking',    tone: 'amber', to: '#' },
-      { icon: HolonetIcon,     label: 'En Vivo',    tone: 'red',   to: '#' },
+      { icon: EmisionIcon,     label: 'En Vivo',    tone: 'red',   to: '#' },
     ],
   },
   {
@@ -60,22 +62,22 @@ const BAHIAS: {
     id: 'coleccion', titulo: 'Colección', icono: CargoIcon, tono: 'purple',
     modulos: [
       { icon: CargoIcon,     label: 'Mi Botín',       tone: 'green', to: '#' },
-      { icon: CargoIcon,     label: 'Sobredosis',     tone: 'amber', to: '#' },
-      { icon: DeckCardsIcon, label: 'Binder digital', tone: 'cyan',  to: '#' },
+      { icon: SobreIcon,     label: 'Sobredosis',     tone: 'amber', to: '#' },
+      { icon: BinderIcon,    label: 'Binder digital', tone: 'cyan',  to: '#' },
       { icon: BountyIcon,    label: 'Contrabando',    tone: 'red',   to: '#' },
-      { icon: CargoIcon,     label: 'Mercancía',      tone: 'amber', to: '#' },
-      { icon: CargoIcon,     label: 'Pedidos',        tone: 'green', to: '#' },
+      { icon: KyberIcon,     label: 'Mercancía',      tone: 'amber', to: '#' },
+      { icon: PedidoIcon,    label: 'Pedidos',        tone: 'green', to: '#' },
     ],
   },
   {
     id: 'comunidad', titulo: 'Comunidad', icono: StarfighterIcon, tono: 'red',
     modulos: [
       { icon: StarfighterIcon, label: 'La Galaxia',    tone: 'cyan',  to: '#' },
-      { icon: HolonetIcon,     label: 'Salas',         tone: 'cyan',  to: '#' },
-      { icon: KyberIcon,       label: 'Mi Credencial', tone: 'amber', to: '#' },
-      { icon: HolonetIcon,     label: 'Mensajes',      tone: 'green', to: '#' },
-      { icon: BeskarIcon,      label: 'Comunidades',   tone: 'green', to: '#' },
-      { icon: DatapadIcon,     label: 'Blog',          tone: 'cyan',  to: '#' },
+      { icon: SalasIcon,       label: 'Salas',         tone: 'cyan',  to: '#' },
+      { icon: CredencialIcon,  label: 'Mi Credencial', tone: 'amber', to: '#' },
+      { icon: TransmisionIcon, label: 'Mensajes',      tone: 'green', to: '#' },
+      { icon: RebelIcon,       label: 'Comunidades',   tone: 'green', to: '#' },
+      { icon: ArticuloIcon,    label: 'Blog',          tone: 'cyan',  to: '#' },
     ],
   },
 ]

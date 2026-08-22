@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Hexagon, type LucideIcon } from 'lucide-react'
-import { CargoIcon, BountyIcon, HolonetIcon } from '../SWIcons'
+import { type LucideIcon } from 'lucide-react'
+import { CargoIcon, BountyIcon, HolonetIcon, BaseIcon } from '../SWIcons'
 import { useT } from '../../services/i18n'
 import { useUIStore } from '../../hooks/useUIStore'
 import type { ComponentType } from 'react'
@@ -28,7 +28,7 @@ type TabDef =
   | { id: string; label: string; img: string; icon?: undefined }
 
 const tabs: TabDef[] = [
-  { id: '/', label: 'Inicio', icon: Hexagon },
+  { id: '/', label: 'Inicio', icon: BaseIcon },
   { id: '/cards', label: 'Explorar', icon: HolonetIcon },
   { id: '/collection', label: 'Binder', icon: CargoIcon },
   { id: '/explore', label: 'Mercado', icon: BountyIcon },

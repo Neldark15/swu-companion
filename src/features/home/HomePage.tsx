@@ -25,9 +25,12 @@ import { useNavigate } from 'react-router-dom'
 // «entrá acá».
 import { ChevronRight, ScanLine } from 'lucide-react'
 import {
-  DatapadIcon, MandoTrophyIcon, CargoIcon, BountyIcon,
-  DeckCardsIcon, SpyIcon, DeathStarIcon, BeskarIcon, HolonetIcon,
-  ChanceCubeIcon, KyberIcon, LabIcon, HolocronIcon, StarfighterIcon, SaberIcon, BlasterIcon,
+  AgendaIcon, ArticuloIcon, AurebeshIcon, BeskarIcon, BinderIcon,
+  BlasterIcon, BountyIcon, CargoIcon, ChanceCubeIcon, CredencialIcon,
+  DatapadIcon, DeathStarIcon, DeckCardsIcon, EmisionIcon, EmpireIcon,
+  HelmetIcon, HolocronIcon, HolonetIcon, KyberIcon, LabIcon, MandoTrophyIcon,
+  MedalIcon, MetaHoloIcon, PedidoIcon, SaberIcon, SobreIcon, SpyIcon,
+  StarfighterIcon, TransmisionIcon,
 } from '../../components/SWIcons'
 import { HudPanel, HudCorners, HexIcon } from '../../components/Hud'
 import { NoticiasSection } from './NoticiasSection'
@@ -124,22 +127,22 @@ interface Sistema {
 const mainSystems: Sistema[] = [
   // ── Jugar: lo de la mesa, en vivo o para dejar registro ──
   { icon: ChanceCubeIcon,  label: 'Contador',     tone: 'purple', to: '/contador',   cat: 'jugar' },
-  { icon: MandoTrophyIcon, label: 'Amistosas',    tone: 'green',  to: '/amistosas',  cat: 'jugar' },
+  { icon: BlasterIcon, label: 'Amistosas',    tone: 'green',  to: '/amistosas',  cat: 'jugar' },
   // Duelo ocupa el hueco que dejó el Holocrón, y no es un cambio de rótulo:
   // esa casilla era el ÚNICO salto de un toque desde Inicio hacia el tracker
   // en el teléfono (la TabBar no lleva /play y el sidebar es de escritorio).
   // Quitarla sin poner esta habría empeorado el acceso al módulo que la
   // gente sí usa, para arreglar el que nadie usó nunca.
-  { icon: DatapadIcon,     label: 'Duelo',        tone: 'green',  to: '/play',       cat: 'jugar', auth: true },
+  { icon: SaberIcon,     label: 'Duelo',        tone: 'green',  to: '/play',       cat: 'jugar', auth: true },
   { icon: DeathStarIcon,   label: 'Misiones',     tone: 'amber',  to: '/misiones',   cat: 'jugar', auth: true },
 
   // ── Competir: torneos, ranking y meta ──
   { icon: MandoTrophyIcon, label: 'Torneos',      tone: 'amber',  to: '/torneos',    cat: 'competir' },
-  { icon: DatapadIcon,     label: 'Calendario',   tone: 'cyan',   to: '/calendario', cat: 'competir' },
-  { icon: MandoTrophyIcon, label: 'Eventos',      tone: 'amber',  to: '/events',     cat: 'competir', auth: true },
-  { icon: KyberIcon,       label: 'Meta',         tone: 'cyan',   to: '/meta',       cat: 'competir' },
+  { icon: AgendaIcon,     label: 'Calendario',   tone: 'cyan',   to: '/calendario', cat: 'competir' },
+  { icon: MedalIcon, label: 'Eventos',      tone: 'amber',  to: '/events',     cat: 'competir', auth: true },
+  { icon: MetaHoloIcon,       label: 'Meta',         tone: 'cyan',   to: '/meta',       cat: 'competir' },
   { icon: BeskarIcon,      label: 'Ranking', tone: 'amber',  to: '/rank',       cat: 'competir', auth: true },
-  { icon: HolonetIcon,     label: 'En Vivo',      tone: 'red',    to: '/envivo',     cat: 'competir' },
+  { icon: EmisionIcon,     label: 'En Vivo',      tone: 'red',    to: '/envivo',     cat: 'competir' },
 
   // ── Construir: mazos y consulta de cartas y reglas ──
   { icon: DeckCardsIcon,   label: 'Mis Decks',    tone: 'green',  to: '/decks',      cat: 'construir', auth: true },
@@ -156,23 +159,23 @@ const mainSystems: Sistema[] = [
   { icon: CargoIcon,       label: 'Mi Botín',     tone: 'green',  to: '/collection', cat: 'coleccion', auth: true },
   // Sobredosis va PRIMERO dentro de Colección junto a Mi Botín, y no en «Jugar»,
   // porque lo que se hace acá es coleccionar: abrir sobres es el medio.
-  { icon: CargoIcon,       label: 'Sobredosis',   tone: 'amber',  to: '/sobres',     cat: 'coleccion', auth: true },
-  { icon: DeckCardsIcon,   label: 'Binder digital', tone: 'cyan', to: '/binder-digital', cat: 'coleccion', auth: true },
+  { icon: SobreIcon,       label: 'Sobredosis',   tone: 'amber',  to: '/sobres',     cat: 'coleccion', auth: true },
+  { icon: BinderIcon,   label: 'Binder digital', tone: 'cyan', to: '/binder-digital', cat: 'coleccion', auth: true },
   { icon: BountyIcon,      label: 'Contrabando',  tone: 'red',    to: '/explore',    cat: 'coleccion', auth: true },
   // Acceso directo al mercado: llegar a comprar/vender exigía entrar a
   // Contrabando y después cambiar de pestaña.
-  { icon: CargoIcon,       label: 'Mercancía',    tone: 'amber',  to: '/explore?tab=market', cat: 'coleccion', auth: true },
-  { icon: CargoIcon,       label: 'Pedidos',      tone: 'green',  to: '/pedidos',    cat: 'coleccion', auth: true },
+  { icon: KyberIcon,       label: 'Mercancía',    tone: 'amber',  to: '/explore?tab=market', cat: 'coleccion', auth: true },
+  { icon: PedidoIcon,       label: 'Pedidos',      tone: 'green',  to: '/pedidos',    cat: 'coleccion', auth: true },
 
   // ── Comunidad: mirar a los demás ──
   { icon: StarfighterIcon, label: 'La Galaxia',   tone: 'cyan',   to: '/galaxia',    cat: 'comunidad', auth: true },
   // La credencial estaba SOLO dentro de Perfil → Personalizar: en móvil son
   // cuatro toques y nadie la encontraba. Acá se ve al abrir la app.
-  { icon: KyberIcon,       label: 'Mi Credencial', tone: 'amber', to: '/credencial', cat: 'comunidad', auth: true },
-  { icon: HolonetIcon,     label: 'Mensajes',     tone: 'green',  to: '/mensajes',   cat: 'comunidad', auth: true },
-  { icon: HolonetIcon,     label: 'Aurebesh',    tone: 'cyan',   to: '/aurebesh',   cat: 'comunidad' },
+  { icon: CredencialIcon,       label: 'Mi Credencial', tone: 'amber', to: '/credencial', cat: 'comunidad', auth: true },
+  { icon: TransmisionIcon,     label: 'Mensajes',     tone: 'green',  to: '/mensajes',   cat: 'comunidad', auth: true },
+  { icon: AurebeshIcon,     label: 'Aurebesh',    tone: 'cyan',   to: '/aurebesh',   cat: 'comunidad' },
   { icon: SpyIcon,         label: 'Espionaje',    tone: 'purple', to: '/espionaje',  cat: 'comunidad', auth: true },
-  { icon: HolonetIcon,     label: 'Blog',         tone: 'amber',  to: '/blog',       cat: 'comunidad' },
+  { icon: ArticuloIcon,     label: 'Blog',         tone: 'amber',  to: '/blog',       cat: 'comunidad' },
 ]
 
 /**
@@ -188,8 +191,8 @@ const mainSystems: Sistema[] = [
  * escondan, es que el separador tampoco aparece.
  */
 const adminSystems: Sistema[] = [
-  { icon: DatapadIcon,     label: 'Transmisión', tone: 'red',    to: '/estudio', admin: true },
-  { icon: MandoTrophyIcon, label: 'Panel Admin', tone: 'cyan',   to: '/admin',   admin: true },
+  { icon: HelmetIcon,     label: 'Transmisión', tone: 'red',    to: '/estudio', admin: true },
+  { icon: EmpireIcon, label: 'Panel Admin', tone: 'cyan',   to: '/admin',   admin: true },
 ]
 
 interface Marcador {
