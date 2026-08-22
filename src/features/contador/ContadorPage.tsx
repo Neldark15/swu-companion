@@ -1247,7 +1247,7 @@ export function ContadorPage() {
       <div className="flex items-center gap-2">
         <Swords size={18} className="text-swu-amber" />
         <div>
-          <h1 className="text-base font-bold text-swu-text">Contador de mesa</h1>
+          <h1 className="text-base font-bold text-swu-text">Contador de daños</h1>
           <p className="text-[11px] text-swu-muted">
             El teléfono va en el medio: la mitad de arriba se ve derecha desde enfrente.
           </p>
