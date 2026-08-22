@@ -1606,6 +1606,14 @@ distintos. En un torneo de mesas sería peor: nadie escribe `omw_pct` ni
 manda `coalesce(puesto, 32767)` y donde no hay puesto se conserva el orden
 viejo.
 
+**El torneo del 15/8 (SV150826) se queda como está — DECISIÓN DE NEL.**
+Tiene `premios_en` marcado y **cero filas en `tournament_results`**: se cerró
+sin repartir, así que 5 jugadores con cuenta quedaron sin XP y sin sobres, y
+el pestillo impide reintentar. Parece un bug abierto y **no hay que
+arreglarlo**: destrabarlo repartiría premios reales meses después, y Nel
+decidió el 2026-08-22 dejarlo así. Si aparece otra vez en una auditoría, esta
+línea es la respuesta.
+
 **Hay que llamar `fijar_puestos_finales()` ANTES de cerrar.** Si `puesto`
 queda NULL, `temporada_tabla()` filtra `puesto is not null` y el torneo
 entero desaparece de la temporada **sin un solo error**.
