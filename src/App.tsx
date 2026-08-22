@@ -126,6 +126,16 @@ const EnVivoPage = lazy(() => import('./features/stream/EnVivoPage').then(m => (
 
 // Admin panel — separate layout, isAdmin guard inside AdminLayout
 const AdminLayout = lazy(() => import('./features/admin/AdminLayout').then(m => ({ default: m.AdminLayout })))
+
+// Centro de Temporada — layout propio, guarda de CURADOR adentro (no de admin:
+// hay cuatro admins y este módulo es de uno solo). Sin entrada en ningún menú:
+// se entra tecleando /temporada.
+const CentroLayout = lazy(() => import('./features/temporada/CentroLayout').then(m => ({ default: m.CentroLayout })))
+const PanelTemporada = lazy(() => import('./features/temporada/PanelTemporada').then(m => ({ default: m.PanelTemporada })))
+const TemporadaPage = lazy(() => import('./features/temporada/TemporadaPage').then(m => ({ default: m.TemporadaPage })))
+const TorneosLista = lazy(() => import('./features/temporada/TorneosLista').then(m => ({ default: m.TorneosLista })))
+const TorneoCentro = lazy(() => import('./features/temporada/TorneoCentro').then(m => ({ default: m.TorneoCentro })))
+const AyudaCentro = lazy(() => import('./features/temporada/AyudaCentro').then(m => ({ default: m.AyudaCentro })))
 const AdminDashboard = lazy(() => import('./features/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })))
 const AdminUsersPage = lazy(() => import('./features/admin/AdminUsersPage').then(m => ({ default: m.AdminUsersPage })))
 const AdminNewsPage = lazy(() => import('./features/admin/AdminNewsPage').then(m => ({ default: m.AdminNewsPage })))
@@ -181,6 +191,19 @@ export default function App() {
             <Route path="push" element={<AdminPushPage />} />
             <Route path="audit" element={<AdminAuditPage />} />
             <Route path="announcements" element={<AdminAnnouncementsPage />} />
+          </Route>
+
+          {/* ── Centro de Temporada — fuera de AppLayout, igual que /admin ──
+              Así se salta la puerta de instalación, el Header y la TabBar POR
+              ESTRUCTURA y no por una lista de excepciones que haya que
+              mantener. La guarda no es `isAdmin` sino `es_curador()`: hay
+              cuatro admins y este módulo es de uno. */}
+          <Route path="/temporada" element={<CentroLayout />}>
+            <Route index element={<PanelTemporada />} />
+            <Route path="torneos" element={<TorneosLista />} />
+            <Route path="ayuda" element={<AyudaCentro />} />
+            <Route path="torneo/:code" element={<TorneoCentro />} />
+            <Route path=":id" element={<TemporadaPage />} />
           </Route>
 
           {/* ── Transmisión — fuera de AppLayout a propósito (ver arriba) ── */}

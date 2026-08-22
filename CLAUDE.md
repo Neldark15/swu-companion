@@ -1432,3 +1432,70 @@ Vercel no lo convierta en una función). Lo comparten `/api/send-push` y el cron
 la parte que no conviene duplicar es el borrado de las suscripciones muertas
 (410/404) — con dos copias, la segunda se olvida y el «enviados» empieza a
 mentir.
+
+### 3i-bis. El Centro de Temporada: una puerta que NO es `role = 'admin'`
+
+`/temporada` reúne lo de llevar una temporada de torneos —inscritos, llaves,
+tabla de puntos exportable, borrador del artículo— y **lo ve una sola
+persona**. Hay CUATRO admins (Nelson, Jbeltramirez, ElDaigo, Rodorigo), así
+que el rol no servía de puerta: la regla es estar en `centro_curadores`,
+igual que `stream_operadores` («Ser admin NO alcanza»).
+
+Con **una diferencia deliberada**: acá no hay escotilla de admin para
+repartir accesos. Un admin que pueda darse el suyo vuelve la restricción
+decorativa. Se reparte insertando la fila desde el SQL Editor.
+
+**El gate de cliente es una cortina, no una cerradura.** `isAdmin` y el rol
+viven en localStorage. Lo que cierra de verdad son las policies de
+`temporadas_competitivas` / `temporada_fechas` y —esto costó una prueba— el
+**guardia dentro de `temporada_tabla()`**: es SECURITY DEFINER con EXECUTE
+concedido a `authenticated` entero, así que sin el `where es_curador()` de
+adentro cualquier logueado que adivinara el uuid leía la temporada completa.
+Medido antes de taparlo: Rodorigo, admin y no curador, la leyó sin problema.
+Las diez pruebas están hechas con `set local role authenticated` — poner solo
+los claims del JWT corre como dueño de tabla y la RLS nunca se aplica.
+
+**Los puntos se CALCULAN, no se guardan.** `temporada_tabla()` los deriva de
+`tournament_standings.puesto` en cada lectura. Un ledger sería una segunda
+copia de una verdad que ya existe (§3c) y habría que acordarse de recalcularlo
+cada vez que se corrige un puesto. Derivado no puede quedar viejo.
+
+**La clave de jugador NO es `user_id`.** De los 8 del torneo del 15/8, **3 no
+tienen cuenta y uno lo ganó**. Se agrupa por nombre normalizado igual que
+`ranking_unificado()`. Escribir «Marlin» y «marlín» son dos personas
+distintas: la pantalla lo advierte.
+
+**La tabla de SP tiene una corrección medida.** 15/12/10/8/6, pero con **8
+jugadores o menos el peldaño 5.º-8.º paga 6**: si no, seis últimos lugares
+(48) le ganan a tres campeonatos (45), que es exactamente lo que el sistema
+dice querer evitar. Va como columna (`ajuste_sala_chica`), no cableada.
+
+**Solo cuenta lo `finished`.** Un torneo a medias tiene puestos provisionales.
+
+**Cerrar va SOLO por `finishTournament()`** → RPC `cerrar_torneo`.
+`advanceSwissRound` y `advanceEliminationRound` también ponen
+`status='finished'`, pero con un update de cliente y **sin repartir nada**.
+
+**El módulo no reconstruye el motor.** Importa `tournamentCloud`,
+`swiss`/`elimination` y los componentes `BracketView` / `StandingsTable` tal
+cual, y para reportar resultados **enlaza** a `/events/dashboard/:code`. Lo
+único nuevo es `fijarSemillas()`: `initializeTournament` siembra con el orden
+de INSCRIPCIÓN (`seed: idx+1`), que para un cuadro no significa nada.
+
+**El borrador de artículo se escribe en el dialecto del blog**, y hay dos
+reglas que si se rompen degradan el bloque a texto plano *sin un solo error
+visible*: línea en blanco obligatoria a los dos lados de cada `[[…]]`, y
+parseo todo-o-nada. Verificado contra el parser REAL (`parsearBloqueEstadistico`),
+no a ojo. **No emite `[[carta:]]`**: el líder es texto libre y sin `|SET-NUM`
+el bloque elegiría una impresión al azar («Cad Bane» son 5 cartas). Y por
+debajo de **20 listas publica conteos, no porcentajes** — sobre 8 listas un
+punto porcentual es media persona.
+
+**El CSV escapa según RFC 4180, y los dos generadores que ya existían no.**
+`collectionExport` y `deckImportExport` funcionan porque sus campos son
+códigos de set; un nombre como «Vara, Christian» parte la fila en silencio.
+
+**Está montado FUERA de `AppLayout`**, como `/admin`: así se salta la puerta
+de instalación, el Header y la TabBar por estructura y no por una lista de
+excepciones. **Y no hay entrada en ningún menú**: se entra tecleando
+`/temporada`.
