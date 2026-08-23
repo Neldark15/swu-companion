@@ -1797,3 +1797,179 @@ cada diaria y 60 en cada semanal.
 Banco en **`/banco-misiones`** (solo desarrollo): la página entera sin sesión,
 con el catálogo en cero. Antes el efecto salía con `if (!userId) return` y
 dejaba un spinner eterno.
+
+### 3n. Misiones fáciles: el barajado no barajaba y el sorteo no garantizaba nada
+
+Pedido de Nel: «aumenta las misiones que sean fáciles». El catálogo pasó de
+**26 a 54** (21 diarias, 13 semanales, 20 hazañas; 31 de un toque) y se sortean
+**6 diarias** en vez de 4. Pero antes de agrandar el montón había tres cosas
+rotas, y las tres se midieron.
+
+**`sort(() => rng() - 0.5)` NO es un barajado.** Un comparador aleatorio le da
+al motor de ordenamiento respuestas incoherentes y el resultado depende de su
+algoritmo interno. Corriendo el sorteo REAL sobre 365 días:
+
+| montón | se sortean | la que más sale | la que menos | sesgo |
+|---|---|---|---|---|
+| 10 | 4 | 190 | 117 | 1,6× |
+| 25 | 6 | 154 | **66** | **2,3×** |
+
+**Empeora cuanto más grande es el montón, y el sesgo es POSICIONAL**: las de
+más abajo del arreglo son las que menos salen. O sea que agregar 28 misiones al
+final habría sido agregarlas para que casi no aparecieran — la ampliación
+entera fallando en silencio. Con Fisher-Yates el mismo experimento da 1,2×.
+
+**El sorteo no garantizaba nada hacible.** Medido sobre 365 días con el
+catálogo viejo: **22 días al año no salía NINGUNA misión** que la mayoría
+pudiera hacer, y el **38 % de los días** salía como mucho una. No es raro
+—«enviar un regalo» lo hicieron **3** personas de 38 y «jugar una partida» 7, y
+competían de igual a igual con «publicar en Comunidades», que hicieron 26—.
+
+El resultado estaba en la base: **19 de 38 personas con 0 XP**. Cada plantilla
+lleva ahora `dificultad` (`toque` / `rato` / `reto`) y `sortearMisiones`
+garantiza un piso: **3 fáciles al día, 2 a la semana**. 0 días sin el piso en
+365. Las fáciles entran dos veces al sorteo, así que salen más seguido a
+propósito; dentro de cada nivel el reparto queda entre 1,1× y 1,5×.
+
+**Cuánta gente HIZO cada acción alguna vez** (de 38, y es el criterio para
+poner `dificultad`): Comunidades 26 · mazo 14 · sobre 11 · favorita 10 ·
+amistosa 8 · partida 7 · chat 5 · **regalo 3**.
+
+**Ninguna misión decía DÓNDE se hace.** «Publicar algo en el muro» usaba una
+palabra que **no existe en ninguna pantalla de la app**: la sección se llama
+«Comunidades», está a tres toques (Perfil → Más → Comunidad) y el botón dice
+«Escribir al grupo…». Nel, que construyó la app, no supo cómo cumplirla — si no
+la encuentra él, no la encuentra nadie. Cada plantilla lleva `ruta` y `donde`
+(**el nombre de la pantalla tal como se lee en el menú**) y la tarjeta es un
+botón que lleva ahí. Si agregás una misión, el `donde` se copia del menú, no se
+inventa.
+
+**El catálogo salió a `misionesCatalogo.ts`**, puro y sin red, como `mesas.ts`.
+Que estuviera pegado a `supabase` es *la razón* de que el sesgo del barajado no
+se viera nunca: para medirlo había que levantar medio backend.
+
+**`scripts/misiones-tienen-llamador.mjs` vuelve COMPROBABLE la regla del
+§3h-ter.** Cruza tipos declarados / usados por una plantilla / disparados por
+alguien, y falla si los tres números no coinciden. Acordarse no alcanzó: ya se
+rompió dos veces. Corrélo al tocar el catálogo.
+
+**Y `loginDays`/`currentStreak` estaban MUERTOS.** Se escribían una vez en
+`createDefaultStats` y nadie los volvía a tocar: los **38** perfiles tenían
+`login_days = 1` y racha 0, sin excepción. Tres logros (7/30/100 días), tres
+cosméticos y el número de racha que Inicio enseña llevaban muertos desde el
+primer día. `registrarVisita` (en gamification.ts) es **pura** y está probada
+en `scripts/racha-visitas.test.mts` sobre cambio de mes, cambio de año y 29 de
+febrero — el primer intento tenía un desfase de UN día (calculaba «ayer»
+pasando la clave `YYYY-MM-DD` por un conversor de zona, y una medianoche UTC en
+El Salvador todavía es el día anterior) y la racha nunca pasaba de 1. Leyendo
+el código no se ve; simulando 30 días sí. Para correr una clave de día usá
+**`diaSinZonaMas`**, nunca `diaCalendarioSVMas`: esa toma un INSTANTE.
+
+### 3ñ. El sub-nombre de la credencial, y dónde cabe de verdad
+
+Debajo del apodo de la placa va una línea chica: «The Creator» en la de Nelson,
+la que cada quien elija en la suya, y nadie más puede ponerse nada que apunte
+al creador.
+
+**Es COLUMNA (`profiles.subnombre`) con disparador, no una llave del JSON de
+`settings`** como el apodo y la ubicación. La credencial se exporta a PNG y se
+comparte (§3b): una regla que solo vive en el navegador se salta editando
+`localStorage`. No es una regla, es una sugerencia.
+
+**«The Creator» no se teclea: se DERIVA** de estar en `centro_curadores`, la
+tabla que ya significa «solo Nelson» y que a propósito no tiene escotilla de
+admin (§3i-bis). Si el título se pudiera escribir, la prohibición sería
+decorativa.
+
+**La normalización no es `lower()`.** Quita tildes, traduce los números que se
+usan como letras (0→o, 1→i, 3→e, 4→a, 5→s, 7→t) y borra todo lo que no sea
+letra, así que «Cre4dor», «C R E A T O R», «Créator», «Th3 Cr34t0r» y
+«c.r.e.a.d.o.r» caen igual. Se bloquean RAÍCES (`creator`, `creador`,
+`creater`, `kreator`, `kreador`, `creatore`, `criador`), **no** `creado` ni
+`crear`: la regla es no apuntar al creador, no prohibir un verbo — «Creativo» y
+«Creado en SV» son sub-nombres legítimos.
+
+**La regla existe DOS veces y hay una prueba que impide que se separen.**
+`services/subnombreRegla.ts` (puro, para responder sin viaje) y
+`subnombre_reservado()` en Postgres (la que manda).
+`scripts/subnombre-espejo.mjs` tiene la ÚNICA lista de casos y la corre contra
+las dos: **32/32 en los dos lados**. `--sql` escupe la consulta para la base.
+
+**Dónde va en la placa lo decidió el DetectorChoques, no la aritmética** (§2z,
+otra vez). El primer intento lo puso en y=140 a cuerpo 10 y el detector lo cazó
+en las **27** placas: pisaba la sublínea Aurebesh por 2,6 y UBICACION por 2,1.
+Las cajas reales: apodo 104,4→121,8 · Aurebesh 124→132 · UBICACION 140,9→153.
+Entre la Aurebesh y UBICACION quedan **8,9 unidades** y un renglón de cuerpo 10
+mide 13,6: no entraba, y no era cuestión de apretar.
+
+Solución: **cuando hay sub-nombre, ocupa el lugar de la Aurebesh del apodo** —
+que es el mismo texto transliterado, o sea adorno, mientras que el sub-nombre
+es un dato. Quien no se ponga uno conserva su sublínea intacta. Sin la Aurebesh
+el hueco es 121,8→140,9 y a cuerpo 12 la caja mide 16,3: 1,4 de aire arriba y
+abajo. **27 placas medidas, limpio.**
+
+### 3o. Préstamos: estuvo a medias meses y el síntoma era «0 filas»
+
+`/prestamos` anota quién tiene tus cartas y a quién le debés vos. Es un
+RECORDATORIO: **no toca `collection`**, la carta sigue siendo de quien la
+prestó — si la moviera, una devolución mal anotada le borraría cartas a
+alguien.
+
+**Cómo quedó a medias, que es la lección.** La primera parte dejó la tabla,
+`cerrar_prestamo` y `prestamos_pendientes` aplicados y probados… y `prestamos`
+con **UNA sola policy, la de SELECT**. Se podía leer, cerrar y contar préstamos
+que nadie podía crear. Tampoco había una línea de frontend. La tabla llevaba
+**0 filas** en toda su vida, y eso se lee como «nadie lo usa» cuando en realidad
+era «no hay por dónde». Y el archivo de migración era **100 % comentario**: el
+DDL se aplicó por MCP y nunca se escribió al repo, así que el proyecto
+documentaba un módulo cuyo esquema no estaba en ningún lado.
+
+**Prestar va por RPC, no por una policy de INSERT.** Un insert con policy deja
+al cliente elegir `estado`, `prestado_en`, `cerrado_en` y `cerrado_por`: con
+`estado` en la mano se escribe un préstamo ya «devuelto» —o «disputado» en
+nombre del otro—, que es exactamente lo que los permisos asimétricos de
+`cerrar_prestamo` cuidan.
+
+**Si quien recibe TIENE cuenta, el nombre lo pone el servidor** desde su perfil,
+nunca lo que se teclee. Es un dato sobre otra persona y esa fila la ve ella:
+poder escribirlo a mano sería poder anotar «Fulano me debe» con el nombre
+cambiado.
+
+**No se exige tener la carta registrada**, a diferencia del Mercado
+(`markCardForSale` pide `quantity > 0`). Publicar es ofrecer algo; esto es un
+recordatorio, y si prestaste una carta que nunca cargaste el sistema no tiene
+por qué llamarte mentiroso. La pantalla ofrece tu colección primero, que
+resuelve el caso normal sin convertir el raro en un muro.
+
+**Permisos asimétricos, a propósito:** cancelar SOLO quien presta (es deshacer
+una anotación propia), disputar SOLO quien recibe, devuelto LOS DOS (si solo
+pudiera uno, el otro se queda con un recordatorio que no puede apagar). **La UI
+sigue esa regla en los botones** en vez de mostrarlos todos y dejar que el
+servidor rechace: un botón que siempre falla se lee como que la app está rota.
+
+15/15 probado con `set local role authenticated`, incluido el insert directo
+saltándose el RPC.
+
+### 3p. El emergente de ubicación no contradice al AvisoPerfil: lo acota
+
+`AvisoPerfil` es una tarjeta y **no** un modal a propósito, y su comentario
+explica por qué. `AvisoUbicacion` sí es emergente, y la diferencia es que son
+dos cosas distintas metidas en el mismo bulto:
+
+- la bio, los aspectos y el nombre del planeta son **adorno**;
+- el país es **funcional**: sin él quedás fuera del ranking por país, de la sala
+  de chat de tu país y de la pestaña SV del meta.
+
+Medido: **3 de 38** perfiles no tienen país (28 SV, 5 ES, 1 MX, 1 AR). Con esos
+números el emergente no es invasivo, es el único momento en que se le va a
+preguntar a esas tres personas.
+
+**Lleva su propia llave en `localStorage`** y no la del otro aviso: el «No me lo
+recuerdes» de `AvisoPerfil` lo calla PARA SIEMPRE, y colgando de esa marca quien
+la haya tocado alguna vez nunca vería la pregunta. Pospone 3 días, no 7 y no
+eterno.
+
+**Espera a que HAYA perfil antes de juzgar.** `currentProfile` arranca en null
+en cada arranque en frío (§2v): sin esa guarda el emergente saltaría un instante
+en cada apertura para TODO el mundo, que es justo lo que enseña a cerrar avisos
+sin leerlos.
