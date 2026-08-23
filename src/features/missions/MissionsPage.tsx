@@ -9,7 +9,8 @@
  */
 
 import { useState, useEffect } from 'react'
-import { Target, Clock, Gift, CheckCircle, Loader2, Infinity as InfinityIcon } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Target, Clock, Gift, CheckCircle, Loader2, Infinity as InfinityIcon, ArrowRight } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import {
   getUserMissions,
@@ -259,7 +260,28 @@ function MissionCard({ mission, onClaim, claiming }: {
               {claiming ? <Loader2 size={12} className="animate-spin" /> : <Gift size={12} />}
               <span>Reclamar</span>
             </button>
-          ) : null}
+          ) : (
+            /*
+             * ADÓNDE SE HACE. Es la mitad que faltaba.
+             *
+             * La misión decía «Publicar algo en el muro» y la palabra «muro»
+             * NO existe en ninguna pantalla de la app: la sección se llama
+             * «Comunidades», está a tres toques dentro de Perfil → Más, y el
+             * botón dice «Escribir al grupo…». Nel, que construyó esto, no
+             * supo cómo cumplirla. Una misión que no se sabe dónde se hace no
+             * es difícil: es invisible.
+             *
+             * Va en TODAS las misiones y no solo en esa, porque el problema no
+             * era el texto de una: era que ninguna decía adónde ir.
+             */
+            <Link
+              to={template.ruta}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-cyan-500/15 border border-cyan-500/25 text-cyan-300 text-[10px] font-bold hover:bg-cyan-500/25 transition-colors whitespace-nowrap"
+            >
+              <span>{template.donde}</span>
+              <ArrowRight size={11} />
+            </Link>
+          )}
         </div>
       </div>
     </div>

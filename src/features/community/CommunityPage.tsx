@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { updateMissionProgress } from '../../services/missionService'
 import { getRankingUnificado, recordDe, REGLA_PUNTOS, type FilaRanking } from '../../services/rankingUnificado'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -155,6 +156,10 @@ export function CommunityPage() {
       setPosts(prev => prev.map(p => p.id === postId
         ? { ...p, likedByMe: res.liked, likes: res.likes }
         : p))
+      /* SOLO al poner el corazón, nunca al quitarlo: es un TOGGLE, y contar
+         las dos direcciones convertiría dar-y-quitar en un contador que sube
+         solo. Con `res.liked` la llamada sale del hecho, no del toque. */
+      if (res.liked) void updateMissionProgress(supabaseUser.id, 'post_apoyado').catch(() => {})
     }
   }
 

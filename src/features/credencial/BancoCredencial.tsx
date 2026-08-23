@@ -26,6 +26,7 @@ const DATOS_FALSOS: DatosCredencial = {
   desplegado: '04 MAR 2026',
   avatar: 'boba-fett', // id de ícono del juego: ejercita la rama urlAvatarSW
   mazo: 'Grand Admiral Thrawn',
+  subnombre: 'The Creator',
 }
 
 /** Variantes que ejercitan las otras dos ramas del avatar y textos largos. */
@@ -37,6 +38,9 @@ const DATOS_EMOJI: DatosCredencial = {
   desplegado: '17 AGO 2026',
   avatar: '🎯', // emoji suelto: la ventana lo pinta como texto, nunca crudo
   mazo: null,
+  // Sin sub-nombre: la mayoría de la gente no va a ponerse uno, así que el
+  // caso «no está» tiene que estar en el banco igual que el caso «está».
+  subnombre: null,
 }
 
 const DATOS_LARGOS: DatosCredencial = {
@@ -47,6 +51,8 @@ const DATOS_LARGOS: DatosCredencial = {
   desplegado: '28 DIC 2025',
   avatar: 'darth-vader',
   mazo: 'Doctor Aphra, Rogue Archaeologist',
+  // 24 caracteres exactos: el tope. Si algo se sale, se sale acá.
+  subnombre: 'Archivista del Imperio',
 }
 
 /**

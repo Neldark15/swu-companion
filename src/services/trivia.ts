@@ -5,6 +5,7 @@
  */
 
 import { supabase, isSupabaseReady } from './supabase'
+import { updateMissionProgress } from './missionService'
 import { BANCO_TRIVIA, type PreguntaTrivia, type TemaTrivia } from './triviaBanco'
 import { diaCalendarioSV, diaCalendarioSVMas } from './horaSV'
 
@@ -259,6 +260,11 @@ export async function recordTriviaAnswer(
 
     if (error) return { ok: false, xpEarned: 0 }
   }
+
+  /* Después de los DOS caminos (fila nueva y fila que ya existía), y solo
+     tras comprobar que ninguno devolvió error: acá la respuesta ya quedó
+     guardada. Cuenta igual si acertaste o no — la misión es contestar. */
+  void updateMissionProgress(userId, 'trivia_respondida').catch(() => {})
 
   return { ok: true, xpEarned: xp }
 }

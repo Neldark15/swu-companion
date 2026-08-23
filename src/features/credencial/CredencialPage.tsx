@@ -14,6 +14,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
+import { getSubnombre, guardarSubnombre, MAX_SUBNOMBRE } from '../../services/subnombre'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, Printer } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
@@ -122,6 +123,36 @@ function CredencialInterna({ perfil }: { perfil: UserProfile }) {
     credencialTema, credencialEmblema, credencialApodo, credencialUbicacion,
     credencialMazoId, credencialMostrarMazo, credencialMazoLider, setCredencial,
   } = useSettings()
+
+
+  /* El sub-nombre NO va en `settings` como el apodo y la ubicación: es una
+     columna con disparador, porque la credencial se exporta a PNG y se
+     comparte, y quién puede llamarse cómo lo decide el servidor. */
+  const [subBorrador, setSubBorrador] = useState('')
+  const [subAviso, setSubAviso] = useState<{ texto: string; malo: boolean } | null>(null)
+  const miId = supabaseUser?.id ?? ''
+
+  useEffect(() => {
+    if (!miId) return
+    let vivo = true
+    void (async () => {
+      const v = await getSubnombre(miId)
+      if (vivo) setSubBorrador(v ?? '')
+    })()
+    return () => { vivo = false }
+  }, [miId])
+
+  /* Se guarda al SALIR del campo, no con un botón aparte.
+     El resto de esta pantalla tiene vista previa en vivo y guarda solo; un
+     campo con botón propio acá sería el fallo del §3g otra vez — la gente ve
+     el cambio en la placa, cree que quedó, y se va. */
+  const guardarSub = async () => {
+    if (!miId) return
+    const r = await guardarSubnombre(miId, subBorrador)
+    setSubAviso(r.ok
+      ? { texto: 'Guardado.', malo: false }
+      : { texto: r.mensaje, malo: true })
+  }
 
   const [stats, setStats] = useState<PlayerStats | null>(null)
   /** Si la impresión no pudo arrancar (ventana bloqueada), se dice por qué. */
@@ -343,6 +374,22 @@ function CredencialInterna({ perfil }: { perfil: UserProfile }) {
             />
             <p className="text-[10px] text-swu-muted mt-1">Vacío = el país de tu cuenta.</p>
           </div>
+        </div>
+
+        {/* Sub-nombre */}
+        <div>
+          <p className="text-xs text-swu-muted mb-1.5">Sub-nombre</p>
+          <input
+            value={subBorrador}
+            onChange={(e) => { setSubBorrador(e.target.value); setSubAviso(null) }}
+            onBlur={guardarSub}
+            maxLength={MAX_SUBNOMBRE}
+            placeholder="La línea chica debajo del apodo"
+            className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 text-sm text-swu-text outline-none focus:border-swu-accent"
+          />
+          <p className={`text-[10px] mt-1 ${subAviso?.malo ? 'text-red-400' : 'text-swu-muted'}`}>
+            {subAviso?.texto ?? `Hasta ${MAX_SUBNOMBRE} caracteres. Vacío = no se muestra.`}
+          </p>
         </div>
 
         {/* Mazo favorito */}

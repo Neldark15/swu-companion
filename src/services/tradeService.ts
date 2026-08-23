@@ -22,6 +22,7 @@
  */
 
 import { supabase, isSupabaseReady } from './supabase'
+import { updateMissionProgress } from './missionService'
 import { PLAYSET_SIZE, getCardsByIds } from './swuApi'
 
 /**
@@ -101,6 +102,14 @@ export async function addToWishlist(
   opts?: { priority?: number; maxPrice?: number | null; note?: string | null },
 ): Promise<{ ok: boolean; error?: string }> {
   if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
+
+  /* ¿Ya la tenía marcada? El upsert no lo dice, y sin preguntarlo volver a
+   * guardar la MISMA carta contaría de nuevo: la misión se cumpliría tocando
+   * el corazón de una sola carta las veces que hagan falta. */
+  const { data: yaEstaba } = await supabase
+    .from('wishlist').select('card_id')
+    .eq('user_id', userId).eq('card_id', cardId).maybeSingle()
+
   const { error } = await supabase.from('wishlist').upsert({
     user_id: userId,
     card_id: cardId,
@@ -109,6 +118,8 @@ export async function addToWishlist(
     note: opts?.note ?? null,
   })
   if (error) return { ok: false, error: error.message }
+
+  if (!yaEstaba) void updateMissionProgress(userId, 'carta_deseada').catch(() => {})
   return { ok: true }
 }
 

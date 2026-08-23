@@ -17,7 +17,7 @@
  *   Logros Ocultos, Títulos cosméticos, Notificaciones
  */
 
-import { diaCalendarioSV } from './horaSV'
+import { diaCalendarioSV, diaSinZonaMas } from './horaSV'
 
 // ─── TYPES ──────────────────────────────────────────────────────────
 
@@ -477,6 +477,50 @@ export function getAspectBars(stats: PlayerStats): AspectBar[] {
       tierProgress: tierInfo.tierProgress,
     }
   })
+}
+
+/**
+ * Cuenta la visita de hoy: días conectados y racha.
+ *
+ * ── Estos contadores estaban MUERTOS ──────────────────────────────────
+ *
+ * `loginDays` y `currentStreak` se escribían UNA vez, en `createDefaultStats`,
+ * y ningún código los volvía a tocar. Medido en producción: los **38** perfiles
+ * tienen `login_days = 1` y `current_streak = 0`, sin una sola excepción.
+ *
+ * O sea que colgaban de ahí, inalcanzables desde el día que se escribieron:
+ * los logros `vig_6` (7 días), `vig_7` (30) y `vig_8` (100), tres cosméticos
+ * (`loginDays >= 7`, `>= 100`, `bestStreak >= 10`) y el número de racha que
+ * Inicio le enseña a la gente, que siempre fue 0. Es el mismo fallo que ya se
+ * documentó con `arenaMatchesLogged` (§3h-ter): un contador sin nadie que lo
+ * incremente.
+ *
+ * ── Detalles que importan ─────────────────────────────────────────────
+ *
+ * Devuelve `null` cuando hoy ya se contó. Que sea PURA y que el llamador
+ * decida qué hacer con el resultado es lo que la vuelve probable: una racha
+ * solo se puede verificar simulando días, no abriendo la app 30 veces.
+ *
+ * El «ayer» sale de `diaSinZonaMas`, NO de `diaCalendarioSVMas`: esa toma un
+ * instante, y pasarle la clave `'2026-08-20'` la parsea como medianoche UTC,
+ * que en El Salvador todavía es el 19. Con ese desfase la racha nunca pasaba
+ * de 1 — lo cazó la prueba de 30 días corridos, no la lectura.
+ */
+export function registrarVisita(stats: PlayerStats, hoy: string): PlayerStats | null {
+  if (stats.lastLoginDate === hoy) return null
+
+  const ayer = diaSinZonaMas(hoy, -1)
+  // Si venías de ayer la racha sigue; si no, hoy es el día 1 de una nueva.
+  // Nunca arranca en 0: estar hoy acá ya es un día.
+  const racha = stats.lastLoginDate === ayer ? (stats.currentStreak || 0) + 1 : 1
+
+  return {
+    ...stats,
+    loginDays: (stats.loginDays || 0) + 1,
+    currentStreak: racha,
+    bestStreak: Math.max(stats.bestStreak || 0, racha),
+    lastLoginDate: hoy,
+  }
 }
 
 export function createDefaultStats(profileId: string): PlayerStats {

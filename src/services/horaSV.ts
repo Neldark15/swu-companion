@@ -451,6 +451,26 @@ export function partesDeDiaSinZona(v: string | null | undefined): DiaSinZona | n
 }
 
 /**
+ * Corre una clave `YYYY-MM-DD` tantos días, sin pasar por ninguna zona.
+ *
+ * Hace falta aparte de `diaCalendarioSVMas` porque esa toma un INSTANTE, y una
+ * clave de día no lo es. Pasarle `'2026-08-20'` la hace parsear medianoche
+ * **UTC**, que en El Salvador todavía es el 19: el «ayer» salía con un día de
+ * menos y una racha de días seguidos nunca pasaba de 1. Medido con una prueba
+ * que simula 30 días corridos; a ojo no se ve.
+ *
+ * `Date.UTC` normaliza el desborde —el 0 de septiembre es el 31 de agosto, el
+ * 32 de enero es el 1 de febrero—, así que los cambios de mes, de año y el 29
+ * de febrero salen solos.
+ */
+export function diaSinZonaMas(clave: string | null | undefined, dias: number): string {
+  const p = partesDeDiaSinZona(clave)
+  if (!p) return ''
+  const t = new Date(Date.UTC(p.anio, p.mes - 1, p.dia + dias))
+  return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}-${String(t.getUTCDate()).padStart(2, '0')}`
+}
+
+/**
  * El instante del mediodía salvadoreño de ese día, solo para poder reusar los
  * formateadores de arriba y no duplicar acá una lista de nombres de meses.
  *

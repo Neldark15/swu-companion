@@ -38,6 +38,7 @@ import { CartaDelDia } from './CartaDelDia'
 import { DondeJugar } from './DondeJugar'
 import { ProximosEventos } from './ProximosEventos'
 import { AvisoPerfil } from '../profile/AvisoPerfil'
+import { AvisoUbicacion } from '../profile/AvisoUbicacion'
 import { AvisoSobreDiario } from '../sobres/AvisoSobreDiario'
 import { AvisoMensajes } from '../mensajes/AvisoMensajes'
 import { AvisoEncuesta } from '../encuesta/AvisoEncuesta'
@@ -402,6 +403,7 @@ export function HomePage() {
           muestra el perfil incompleto— y no en /perfil: quien no encuentra la
           personalización tampoco va a entrar a buscarla. */}
       <AvisoPerfil />
+      <AvisoUbicacion />
 
       {/* ── Acción principal ── */}
       <div className="px-4 pt-3 flex gap-3">

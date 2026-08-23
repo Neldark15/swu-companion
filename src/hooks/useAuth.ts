@@ -1,10 +1,12 @@
 import { create } from 'zustand'
+import { diaCalendarioSV } from '../services/horaSV'
+import { updateMissionProgress } from '../services/missionService'
 import { persist } from 'zustand/middleware'
 import { db, type UserProfile } from '../services/db'
 import { supabase, isSupabaseReady } from '../services/supabase'
 import { syncProfileToCloud, syncStatsToCloud, pullAllFromCloud, addMonthlyXp, sumarXpEnLaNube } from '../services/sync'
 import { createPasskey, authenticateWithPasskey, authenticateWithAnyPasskey } from '../services/crypto'
-import { createDefaultStats } from '../services/gamification'
+import { createDefaultStats, registrarVisita } from '../services/gamification'
 import { getPermisos } from '../services/events'
 import type { User } from '@supabase/supabase-js'
 
@@ -182,6 +184,7 @@ export const useAuth = create<AuthState>()(
           })()
 
           pullAllFromCloud(user.id, profile.id).catch(() => {})
+          void contarVisita(user.id, profile.id)
         }
 
         try {
@@ -457,6 +460,7 @@ export const useAuth = create<AuthState>()(
 
         // Pull all data from cloud in background
         pullAllFromCloud(user.id, profile.id).catch(() => {})
+        void contarVisita(user.id, profile.id)
 
         return { ok: true }
       },
@@ -646,6 +650,40 @@ export const useAuth = create<AuthState>()(
  * Devuelve el total nuevo, o `null` si NO se pudo acreditar — quien llame
  * tiene que poder deshacer lo que hubiera marcado por adelantado.
  */
+/**
+ * Cuenta que hoy entraste: racha de días, y la misión «Pasar lista».
+ *
+ * Se llama desde los DOS sitios donde queda sesión establecida —el arranque
+ * con sesión guardada y el ingreso explícito—. Es idempotente por día:
+ * `registrarVisita` devuelve `null` si `lastLoginDate` ya es hoy, y
+ * `updateMissionProgress` se salta la misión si ya está completada.
+ *
+ * Existe porque `loginDays` y `currentStreak` estaban MUERTOS: se escribían
+ * una vez en `createDefaultStats` y nadie los volvía a tocar. Los 38 perfiles
+ * de producción tenían `login_days = 1` y `current_streak = 0`, sin
+ * excepción — o sea que tres logros (7, 30 y 100 días), tres cosméticos y el
+ * número de racha que Inicio enseña llevaban muertos desde el primer día.
+ *
+ * Se traga sus errores: no poder contar una visita jamás puede impedir entrar.
+ */
+async function contarVisita(userId: string, profileId: string): Promise<void> {
+  try {
+    const stats = await db.playerStats.get(profileId)
+    if (!stats) return
+
+    const hoy = diaCalendarioSV(new Date())
+    const nuevos = registrarVisita(stats, hoy)
+    if (nuevos) {
+      await db.playerStats.put(nuevos)
+      syncStatsToCloud(userId, nuevos).catch(() => {})
+    }
+
+    // Va SIEMPRE, no solo cuando la racha cambió: la misión vive en
+    // `user_missions` con su propia clave de día y su propia idempotencia.
+    void updateMissionProgress(userId, 'dia_visitado').catch(() => {})
+  } catch { /* contar la visita nunca puede romper el ingreso */ }
+}
+
 export async function acreditarXp(
   cantidad: number,
   motivo?: string,

@@ -24,6 +24,9 @@ import { acabadoDe, type AcabadoCredencial } from './acabadosCredencial'
 
 /** Fecha de alta ya resuelta, por id de cuenta. Sobrevive al cambio de pantalla. */
 const altaPorCuenta = new Map<string, string>()
+/* Mismo truco que `altaPorCuenta`: caché de módulo para que las cuatro
+   pantallas que dibujan la placa no pidan el mismo campo cuatro veces. */
+const subnombrePorCuenta = new Map<string, string | null>()
 
 /** «12 ENE 2026» — corto, en mayúsculas, como cualquier placa impresa. */
 export function fechaDespliegue(cuando: number | string): string {
@@ -50,6 +53,8 @@ export function useDatosCredencial(
   // pintar cuando la consulta termina.
   const [pedida, setPedida] = useState<string | null>(null)
   const alta = altaPorCuenta.get(idCuenta) ?? pedida
+  const [subPedido, setSubPedido] = useState<string | null>(null)
+  const subnombre = subnombrePorCuenta.get(idCuenta) ?? subPedido
   // «Hoy», congelado al montar (inicializador perezoso): `Date.now()` en el
   // cuerpo del render es impuro y el compilador de React lo veta.
   const [hoy] = useState(() => Date.now())
@@ -66,10 +71,18 @@ export function useDatosCredencial(
       // decía una fecha y en la compu otra, y borrar los datos del sitio la
       // reseteaba a hoy. En una credencial que se imprime, eso es un dato
       // inventado. `profiles.created_at` es la de verdad.
+      //
+      // El SUB-NOMBRE viaja en este mismo select y no en uno propio: es la
+      // misma fila y el mismo momento, y un segundo viaje por un campo de
+      // texto sería pagar dos veces por lo mismo.
       const { data, error } = await supabase
-        .from('profiles').select('created_at').eq('id', idCuenta).maybeSingle()
-      if (error) { console.warn('[credencial] no se pudo leer la fecha de alta:', error.message); return }
-      if (!data?.created_at) return
+        .from('profiles').select('created_at, subnombre').eq('id', idCuenta).maybeSingle()
+      if (error) { console.warn('[credencial] no se pudo leer la fila del perfil:', error.message); return }
+      if (!data) return
+      const sub = (data.subnombre as string | null) ?? null
+      subnombrePorCuenta.set(idCuenta, sub)
+      if (vivo) setSubPedido(sub)
+      if (!data.created_at) return
       altaPorCuenta.set(idCuenta, data.created_at)
       if (vivo) setPedida(data.created_at)
     })()
@@ -92,6 +105,7 @@ export function useDatosCredencial(
       // que hay sin red, y un guion en la placa se ve peor que un día corrido.
       desplegado: fechaDespliegue(alta ?? perfil.createdAt ?? hoy),
       avatar: perfil.avatar,
+      subnombre,
       mazo: mostrarMazo && liderGuardado ? liderGuardado : null,
     },
   }

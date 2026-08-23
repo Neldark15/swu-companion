@@ -10,6 +10,7 @@
  */
 
 import { db } from './db'
+import { updateMissionProgress } from './missionService'
 import { supabase, isSupabaseReady } from './supabase'
 import { getPricesForCards, type PriceInfo, formatPrice, precioPromedio } from './pricing'
 
@@ -85,6 +86,17 @@ export async function updateCollectionQuantity(
   userId?: string,
 ): Promise<void> {
   try {
+    /* La cantidad ANTERIOR, para saber si esto es un alta o una baja.
+     *
+     * El llamador no lo dice: la misma función la usan el botón +, el −, el
+     * ×3 de la rejilla, el detalle de carta, Mi Botín y el escáner. Sin
+     * comparar, restar una copia contaría como agregarla y la misión subiría
+     * tocando +/− sobre la misma carta.
+     *
+     * Va acá adentro y no en las cuatro pantallas a propósito: cuatro copias
+     * de la misma regla es como se separan (§3c). */
+    const antes = (await db.collection.get(cardId))?.quantity ?? 0
+
     if (quantity <= 0) {
       // Remove from collection
       await db.collection.delete(cardId)
@@ -113,6 +125,11 @@ export async function updateCollectionQuantity(
             quantity,
           })
       }
+    }
+    // Solo cuando SUBE, y solo con sesión: sin ella la colección es local y
+    // no hay a quién acreditarle nada.
+    if (userId && quantity > antes) {
+      void updateMissionProgress(userId, 'carta_agregada', quantity - antes).catch(() => {})
     }
   } catch (e) {
     console.warn('[Collection] Failed to update quantity:', e)
@@ -439,7 +456,11 @@ export async function markCardForSale(
   // Verify the card is owned with qty > 0
   const { data: existing } = await supabase
     .from('collection')
-    .select('quantity')
+    // `for_sale` viaja en el mismo viaje que ya se hacía: el UPDATE de abajo
+    // es idempotente y volver a guardar una carta YA publicada llega igual al
+    // final. Sin saber cómo estaba, reguardar la misma carta contaría como
+    // publicación nueva.
+    .select('quantity, for_sale')
     .eq('user_id', userId)
     .eq('card_id', cardId)
     .single()
@@ -472,6 +493,8 @@ export async function markCardForSale(
     .eq('card_id', cardId)
 
   if (error) return { ok: false, error: error.message }
+
+  if (!existing.for_sale) void updateMissionProgress(userId, 'carta_en_venta').catch(() => {})
 
   // Anunciar en el feed del hub — así el grupo se entera de que hay algo
   // nuevo en venta sin tener que entrar a Contrabando a revisar.

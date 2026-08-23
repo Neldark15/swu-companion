@@ -30,6 +30,15 @@ export interface DatosCredencial {
   nombre: string
   /** Apodo entre comillas. */
   apodo: string
+  /**
+   * La línea chica bajo el apodo. `profiles.subnombre`.
+   *
+   * No sale de `settings` como el apodo y la ubicación: la credencial se
+   * exporta a PNG y se comparte, así que quién puede llamarse cómo tiene que
+   * decidirlo el servidor. El disparador `trg_profiles_subnombre` reserva
+   * «The Creator» y sus disfraces para el creador de la plataforma.
+   */
+  subnombre?: string | null
   ubicacion: string
   rango: string
   /** Fecha de despliegue YA formateada («12 ENE 2026»). */
@@ -73,6 +82,9 @@ export function CredencialSVG({ datos, tema, emblema, acabado, nivel, className 
 
   const nombre = datos.nombre.toUpperCase()
   const apodo = `"${datos.apodo.toUpperCase()}"`
+  /* Se corta a 24 acá además del CHECK de la base: la placa la dibujan también
+     los bancos y las vistas previas, que no pasan por Postgres. */
+  const subnombre = (datos.subnombre ?? '').trim().slice(0, 24)
   const ubicacion = datos.ubicacion.toUpperCase()
   const rango = datos.rango.toUpperCase()
   const mazo = datos.mazo ? datos.mazo.toUpperCase() : null
@@ -335,7 +347,30 @@ export function CredencialSVG({ datos, tema, emblema, acabado, nivel, className 
         {/* ── Columna de datos, a la derecha de la foto ── */}
         <text x="196" y="100" fontFamily={FUENTE} fontSize="9" letterSpacing="1.2" fill={tema.grabado}>APODO</text>
         <text x="196" y="118" fontFamily={FUENTE} fontSize="13" fontStyle="italic" fill={tema.texto}>{apodo}</text>
-        <SublineaAurebesh texto={datos.apodo} x={196} y={124} alto={8} color={tema.grabado} maxAncho={172} />
+        {/* ── El sub-nombre OCUPA el lugar de la sublínea Aurebesh del apodo ──
+            No caben los dos, y no es cuestión de apretar: medidas las cajas
+            reales en `/banco-credencial`, entre la Aurebesh (termina en 132) y
+            el rótulo UBICACION (arranca en 140,9) quedan **8,9 unidades**, y un
+            renglón de cuerpo 10 mide 13,6 de alto. El primer intento lo puso
+            igual en y=140 y el DetectorChoques lo cazó en las 27 placas:
+            pisaba la Aurebesh por 2,6 y UBICACION por 2,1.
+            Sin la Aurebesh el hueco es de 121,8 a 140,9 —19,1— y a cuerpo 12 la
+            caja mide 16,3, o sea 1,4 de aire arriba y abajo.
+            Se cambia una por otro y no se elige de una vez: la Aurebesh es el
+            MISMO apodo transliterado, o sea adorno; el sub-nombre es un dato.
+            Quien no se ponga uno conserva su sublínea intacta.
+            En ACENTO y no en `tema.texto`: si compartiera color con el apodo,
+            los dos renglones se leerían como una sola frase partida. */}
+        {subnombre ? (
+          <text
+            x="196" y="136" fontFamily={FUENTE} fontSize="12" fontWeight="700"
+            letterSpacing="0.4" fill={tema.acento}
+          >
+            {subnombre}
+          </text>
+        ) : (
+          <SublineaAurebesh texto={datos.apodo} x={196} y={124} alto={8} color={tema.grabado} maxAncho={172} />
+        )}
 
         <text x="196" y="150" fontFamily={FUENTE} fontSize="9" letterSpacing="1.2" fill={tema.grabado}>UBICACION</text>
         <text x="196" y="166" fontFamily={FUENTE} fontSize="12" fill={tema.texto}>{ubicacion}</text>

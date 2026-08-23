@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { updateMissionProgress } from '../../services/missionService'
 import { X, Copy, Check, FileJson, FileText, FileSpreadsheet, Image as ImageIcon, Loader2, Share2 } from 'lucide-react'
 import { exportDeckAsSwudbJson, exportDeckAsMeleeText, exportDeckAsSwudbCsv } from '../../services/deckImportExport'
 import { generarImagenMazo, nombreArchivoMazo, entregarImagen } from '../../services/deckImagen'
@@ -25,7 +26,7 @@ export function ExportDeckModal({ open, deck, onClose }: Props) {
   const areaRef = useRef<HTMLTextAreaElement>(null)
   const [generandoImg, setGenerandoImg] = useState(false)
   const [avisoImg, setAvisoImg] = useState<string | null>(null)
-  const { currentProfile } = useAuth()
+  const { currentProfile, supabaseUser } = useAuth()
 
   useEffect(() => {
     // La imagen no se genera sola al elegir la pestaña: son ~30 descargas de
@@ -58,6 +59,11 @@ export function ExportDeckModal({ open, deck, onClose }: Props) {
       const blob = await generarImagenMazo(deck, currentProfile?.name ?? '')
       const como = await entregarImagen(blob, nombreArchivoMazo(deck), deck.name)
       setAvisoImg(como === 'compartida' ? '¡Listo, compartida!' : 'Imagen descargada.')
+      /* Cuenta compartida Y descargada: las dos son «sacaste la hoja del
+         mazo», y cuál de las dos ocurre no lo elige la persona sino si el
+         teléfono tiene hoja de compartir. Premiar solo una sería premiar el
+         navegador. */
+      if (supabaseUser?.id) void updateMissionProgress(supabaseUser.id, 'mazo_compartido').catch(() => {})
     } catch (e) {
       setAvisoImg(e instanceof Error ? e.message : 'No se pudo generar la imagen.')
     } finally {

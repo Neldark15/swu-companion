@@ -27,263 +27,32 @@ import {
  * No caducan: su `period_key` es la constante `once`, así que la fila que se
  * crea al completarla es la prueba permanente de que ya se hizo.
  */
-export type MissionType = 'daily' | 'weekly' | 'unique'
+/* El catálogo, las claves de período y el sorteo viven en
+   `misionesCatalogo.ts` (puro, sin red, probado sobre 365 días simulados).
+   Se re-exportan enteros para no tocar a los archivos que ya importan de acá. */
+export type {
+  MissionType, Dificultad, ObjectiveType, RewardType, MissionTemplate, UserMission,
+} from './misionesCatalogo'
+export {
+  BONUS_POR_TIPO, CLAVE_UNICA,
+  DAILY_MISSIONS, WEEKLY_MISSIONS, UNIQUE_MISSIONS,
+  getDailyMissionTemplates, getWeeklyMissionTemplates,
+  getTodayKey, getWeekKey, clavePeriodo, sortearMisiones, semanaDe,
+} from './misionesCatalogo'
 
-/** Bonus por terminar una misión, además del XP propio de cada una. */
-export const BONUS_POR_TIPO: Record<MissionType, number> = {
-  daily: 20,
-  weekly: 60,
-  unique: 0,   // las únicas ya llevan su recompensa en `rewardXp`
-}
-
-/** El `period_key` de las únicas. No cambia nunca: por eso son únicas. */
-export const CLAVE_UNICA = 'once'
-/**
- * Los objetivos que la app SABE observar. Cada uno tiene un llamador real de
- * `updateMissionProgress`; si agregás uno, agregá el llamador en el MISMO
- * commit o nace siendo una tarea imposible en pantalla.
- *
- * Se fueron cuatro que estaban declarados y no los disparaba nadie ni los usaba
- * ninguna plantilla —`card_collected`, `card_searched`, `price_checked`,
- * `set_explored`—: tipos muertos que solo servían para que alguien creyera que
- * había por dónde.
- */
-export type ObjectiveType =
-  | 'match_played' | 'match_won' | 'gift_sent' | 'deck_created' | 'card_favorited'
-  | 'sobre_abierto' | 'muro_publicado' | 'chat_enviado' | 'amistosa_registrada'
-
-export type RewardType = 'xp' | 'title' | 'xp_title'
-
-export interface MissionTemplate {
-  id: string
-  type: MissionType
-  name: string
-  description: string
-  objectiveType: ObjectiveType
-  objectiveValue: number
-  rewardXp: number
-  icon: string
-  rewardTitle?: string  // título desbloqueado al reclamar
-}
-
-export interface UserMission {
-  missionId: string
-  template: MissionTemplate
-  progress: number
-  completed: boolean
-  completedAt?: string
-  claimed: boolean
-}
-
-// ─── MISSION CATALOG ────────────────────────────────────────────────
-
-/**
- * Las diarias. Se sortean 4 por día.
- *
- * ── POR QUÉ CAMBIÓ EL CATÁLOGO ENTERO ────────────────────────────────
- *
- * El anterior pedía cosas que nadie hace a diario. Medido sobre 30 días de
- * producción, lo que la comunidad hace de verdad es:
- *
- *     publicar en el muro   322 veces · 18 personas
- *     abrir un sobre         54 ·  4      (y hay 259 sin abrir esperando)
- *     crear un mazo          27 · 11
- *     escribir en el chat    18 ·  5
- *     registrar amistosa     16 ·  6
- *
- * Y el catálogo viejo pedía «marcar 5 cartas favoritas en un día» y «20 en una
- * semana». En seis meses se registraron DIEZ filas de misión en toda la app.
- *
- * La regla nueva: una diaria tiene que ser algo que harías igual. El sobre lo
- * recibe todo el mundo a las 8 de la mañana y abrirlo es un toque; publicar en
- * el muro ya lo hacen 18 de 28. Nada pide «3 partidas» ni «5 favoritas».
- */
-export const DAILY_MISSIONS: MissionTemplate[] = [
-  { id: 'd_sobre1',    type: 'daily', name: 'Botín del día',        description: 'Abrir 1 sobre',                 objectiveType: 'sobre_abierto',      objectiveValue: 1, rewardXp: 20, icon: '📦' },
-  { id: 'd_muro1',     type: 'daily', name: 'Señal en la red',      description: 'Publicar algo en el muro',      objectiveType: 'muro_publicado',     objectiveValue: 1, rewardXp: 15, icon: '📡' },
-  { id: 'd_fav1',      type: 'daily', name: 'Ojo de Coleccionista', description: 'Marcar 1 carta favorita',       objectiveType: 'card_favorited',     objectiveValue: 1, rewardXp: 10, icon: '⭐' },
-  { id: 'd_chat1',     type: 'daily', name: 'Frecuencia abierta',   description: 'Escribir en una sala de chat',  objectiveType: 'chat_enviado',       objectiveValue: 1, rewardXp: 15, icon: '💬' },
-  { id: 'd_amistosa1', type: 'daily', name: 'Duelo de práctica',    description: 'Registrar una amistosa',        objectiveType: 'amistosa_registrada', objectiveValue: 1, rewardXp: 25, icon: '⚔️' },
-  { id: 'd_deck1',     type: 'daily', name: 'Diseño Rápido',        description: 'Crear o importar un mazo',      objectiveType: 'deck_created',       objectiveValue: 1, rewardXp: 20, icon: '🔧' },
-  { id: 'd_play1',     type: 'daily', name: 'Orden de Patrulla',    description: 'Jugar 1 partida',               objectiveType: 'match_played',       objectiveValue: 1, rewardXp: 20, icon: '🎮' },
-  { id: 'd_win1',      type: 'daily', name: 'Victoria Táctica',     description: 'Ganar 1 partida',               objectiveType: 'match_won',          objectiveValue: 1, rewardXp: 25, icon: '🏆' },
-  { id: 'd_sobre3',    type: 'daily', name: 'Fiebre de sobres',     description: 'Abrir 3 sobres',                objectiveType: 'sobre_abierto',      objectiveValue: 3, rewardXp: 30, icon: '🎁' },
-  { id: 'd_gift1',     type: 'daily', name: 'Diplomacia Galáctica', description: 'Enviar 1 regalo',               objectiveType: 'gift_sent',          objectiveValue: 1, rewardXp: 15, icon: '🤝' },
-]
-
-/**
- * MISIONES ÚNICAS — los hitos de una cuenta, una sola vez.
- *
- * Se eligieron mirando lo que la gente YA hace y no se le reconocía: de 38
- * perfiles, 14 tienen mazo, 11 han abierto sobres y 19 tienen algo de XP.
- * Todas se apoyan en objetivos que ya tienen quien los dispare — una misión
- * sin llamador es una tarea imposible en pantalla (§3h-bis).
- */
-export const UNIQUE_MISSIONS: MissionTemplate[] = [
-  { id: 'u_deck1',      type: 'unique', name: 'Primer mazo',        description: 'Armá tu primer mazo',              objectiveType: 'deck_created',        objectiveValue: 1,  rewardXp: 100, icon: '🛠️' },
-  { id: 'u_sobre1',     type: 'unique', name: 'Primer sobre',       description: 'Abrí tu primer sobre',             objectiveType: 'sobre_abierto',       objectiveValue: 1,  rewardXp: 75,  icon: '📦' },
-  { id: 'u_amistosa1',  type: 'unique', name: 'Primera amistosa',   description: 'Registrá tu primera amistosa',     objectiveType: 'amistosa_registrada', objectiveValue: 1,  rewardXp: 100, icon: '🤝' },
-  { id: 'u_muro1',      type: 'unique', name: 'Primera señal',      description: 'Publicá algo en el muro',          objectiveType: 'muro_publicado',      objectiveValue: 1,  rewardXp: 60,  icon: '📡' },
-  { id: 'u_fav10',      type: 'unique', name: 'Ojo entrenado',      description: 'Marcá 10 cartas favoritas',        objectiveType: 'card_favorited',      objectiveValue: 10, rewardXp: 120, icon: '⭐' },
-  { id: 'u_sobre25',    type: 'unique', name: 'Contrabandista',     description: 'Abrí 25 sobres',                   objectiveType: 'sobre_abierto',       objectiveValue: 25, rewardXp: 250, icon: '🎁' },
-  { id: 'u_deck5',      type: 'unique', name: 'Arquitecto',         description: 'Armá 5 mazos',                     objectiveType: 'deck_created',        objectiveValue: 5,  rewardXp: 200, icon: '📐' },
-  { id: 'u_amistosa10', type: 'unique', name: 'Veterano de mesa',   description: 'Registrá 10 amistosas',            objectiveType: 'amistosa_registrada', objectiveValue: 10, rewardXp: 300, icon: '⚔️' },
-  { id: 'u_chat10',     type: 'unique', name: 'Voz de la red',      description: 'Escribí 10 veces en el chat',      objectiveType: 'chat_enviado',        objectiveValue: 10, rewardXp: 120, icon: '💬' },
-  { id: 'u_play10',     type: 'unique', name: 'Piloto curtido',     description: 'Jugá 10 partidas',                 objectiveType: 'match_played',        objectiveValue: 10, rewardXp: 250, icon: '🎮' },
-]
-
-export const WEEKLY_MISSIONS: MissionTemplate[] = [
-  { id: 'w_sobre7',    type: 'weekly', name: 'Almacén Imperial',    description: 'Abrir 7 sobres',            objectiveType: 'sobre_abierto',       objectiveValue: 7,  rewardXp: 60, icon: '📦' },
-  { id: 'w_muro5',     type: 'weekly', name: 'Voz de la Alianza',   description: 'Publicar 5 veces en el muro', objectiveType: 'muro_publicado',    objectiveValue: 5,  rewardXp: 50, icon: '📡' },
-  { id: 'w_amistosa3', type: 'weekly', name: 'Sala de Guerra',      description: 'Registrar 3 amistosas',     objectiveType: 'amistosa_registrada', objectiveValue: 3,  rewardXp: 70, icon: '⚔️' },
-  { id: 'w_deck2',     type: 'weekly', name: 'Laboratorio Táctico', description: 'Crear 2 mazos',             objectiveType: 'deck_created',        objectiveValue: 2,  rewardXp: 40, icon: '🔬' },
-  { id: 'w_win5',      type: 'weekly', name: 'Campaña de Victoria', description: 'Ganar 5 partidas',          objectiveType: 'match_won',           objectiveValue: 5,  rewardXp: 60, icon: '🏅' },
-  { id: 'w_fav10',     type: 'weekly', name: 'Gran Curador',        description: 'Marcar 10 favoritas',       objectiveType: 'card_favorited',      objectiveValue: 10, rewardXp: 40, icon: '💎' },
-]
-
-/** Simple seeded PRNG (mulberry32) */
-function seededRandom(seed: number): () => number {
-  return () => {
-    seed |= 0; seed = seed + 0x6D2B79F5 | 0
-    let t = Math.imul(seed ^ seed >>> 15, 1 | seed)
-    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t
-    return ((t ^ t >>> 14) >>> 0) / 4294967296
-  }
-}
-
-/** Create a numeric seed from a string */
-function hashString(str: string): number {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash |= 0
-  }
-  return Math.abs(hash)
-}
-
-/**
- * El día de hoy en El Salvador (`YYYY-MM-DD`). La clave de las misiones diarias.
- *
- * ── Lo que había acá ──────────────────────────────────────────────────
- *
- * Este archivo era el ÚNICO del repo que intentaba fijar la zona, y la cuenta
- * estaba al revés. Hacía `getTimezoneOffset() + (-6 * 60)` y le sumaba eso al
- * instante. Medido, con el reloj de El Salvador:
- *
- *   dispositivo en SV     → getTimezoneOffset() = 360 → corrección 0 h    ✗
- *   dispositivo en UTC    → getTimezoneOffset() =   0 → corrección −6 h   ✓
- *   dispositivo en Tokio  → getTimezoneOffset() =−540 → corrección −15 h  ✗
- *
- * O sea que solo acertaba con el dispositivo en UTC — el único lugar donde no
- * está nadie de esta comunidad. En un teléfono puesto en El Salvador devolvía
- * el día de UTC: las misiones diarias se reiniciaban **a las 6 de la tarde**,
- * en plena hora de jugar, y una misión completada a las 7 p. m. contaba para
- * el día siguiente.
- *
- * La zona ya no se calcula a mano en ningún lado: se le pregunta al sistema.
- */
-export function getTodayKey(): string {
-  return diaCalendarioSV(new Date())
-}
-
-/**
- * La semana a la que pertenece un día del calendario SV (`2026-08-08`),
- * escrita como `YYYY-Wnn`.
- *
- * Se saca aparte —y toma el día por parámetro— para que el contador de abajo
- * pueda preguntarle por días futuros. Es LA definición de dónde cae el borde
- * de la semana, y tiene que haber una sola.
- *
- * La fórmula cuenta semanas que empiezan en **domingo**: la clave cambia al
- * pasar de sábado a domingo. Se deja tal cual estaba a propósito. Cambiarla a
- * lunes cambiaría el string de la semana EN CURSO, y `period_key` es parte de
- * la clave con la que se guarda el progreso en `user_missions`: todo el mundo
- * perdería de golpe lo que llevara avanzado, y encima le cambiarían las
- * misiones a media semana (el set sale de `hashString('weekly_' + weekKey)`).
- * El desacuerdo estaba en el contador, no acá.
- */
-function semanaDe(diaSV: string): string {
-  const [anio, mes, dia] = diaSV.split('-').map(Number)
-  // Aritmética pura de calendario sobre el día SV: sin zona que la corra.
-  const hoy = Date.UTC(anio, mes - 1, dia)
-  /*
-   * La MISMA fórmula de siempre, pero evaluada en el DOMINGO en que empieza la
-   * semana en vez de en el día en curso.
-   *
-   * El borde se rompía cada 1 de enero, porque el año de la clave salía del
-   * día y el número de semana se reiniciaba con él:
-   *
-   *   2026-12-31 (jueves)  → 2026-W53
-   *   2027-01-01 (viernes) → 2027-W01   ← la clave cambiaba un VIERNES
-   *   2027-01-03 (domingo) → 2027-W02   ← y otra vez el domingo
-   *
-   * O sea dos cambios en una misma semana. `period_key` es parte de la clave
-   * con la que se guarda el progreso en `user_missions`, así que todo el mundo
-   * perdía a media semana lo que llevara avanzado y encima le cambiaban las
-   * misiones (el set sale de `hashString('weekly_' + weekKey)`) — justo el
-   * desacuerdo que este archivo decía haber cerrado.
-   *
-   * Anclar al domingo lo arregla SIN mover la clave de ninguna semana ya en
-   * curso: para cualquier día, el domingo que lo contiene es el mismo que
-   * antes, así que la fórmula devuelve el mismo string. Verificado día a día.
-   */
-  const domingo = hoy - new Date(hoy).getUTCDay() * 86_400_000
-  const anioSemana = new Date(domingo).getUTCFullYear()
-  const inicioAnio = Date.UTC(anioSemana, 0, 1)
-  const diaDelAnio = Math.round((domingo - inicioAnio) / 86_400_000)
-  const semana = Math.ceil((diaDelAnio + new Date(inicioAnio).getUTCDay() + 1) / 7)
-  return `${anioSemana}-W${String(semana).padStart(2, '0')}`
-}
-
-/**
- * La semana corriente (`YYYY-Wnn`), contada en El Salvador. La clave de las
- * misiones semanales.
- *
- * Arrastraba el mismo desfase de `getTodayKey`, y encima mezclaba `getDay()`
- * —del dispositivo— con un instante ya corrido: dos relojes distintos en la
- * misma cuenta.
- */
-export function getWeekKey(): string {
-  return semanaDe(getTodayKey())
-}
-
-/**
- * El `period_key` que le toca a una misión según su tipo.
- *
- * Existe para que la regla viva en UN sitio: estaba escrita como
- * `type === 'daily' ? dayKey : weekKey` en cuatro lugares, y con un tercer
- * tipo ese ternario mandaba las únicas al cajón de las semanales — o sea que
- * habrían caducado cada lunes.
- */
-export function clavePeriodo(tipo: MissionType): string {
-  if (tipo === 'unique') return CLAVE_UNICA
-  return tipo === 'daily' ? getTodayKey() : getWeekKey()
-}
-
-
-/** Select N random items from array using seed */
-function selectWithSeed<T>(items: T[], count: number, seed: number): T[] {
-  const rng = seededRandom(seed)
-  const shuffled = [...items].sort(() => rng() - 0.5)
-  return shuffled.slice(0, count)
-}
+import {
+  BONUS_POR_TIPO, CLAVE_UNICA,
+  DAILY_MISSIONS, WEEKLY_MISSIONS, UNIQUE_MISSIONS,
+  getDailyMissionTemplates, getWeeklyMissionTemplates,
+  getTodayKey, getWeekKey, clavePeriodo, semanaDe,
+  type ObjectiveType, type MissionTemplate, type UserMission,
+} from './misionesCatalogo'
 
 // ─── PUBLIC FUNCTIONS ───────────────────────────────────────────────
 
-/** Get today's daily missions for a user */
-export function getDailyMissionTemplates(): MissionTemplate[] {
-  const dayKey = getTodayKey()
-  const seed = hashString(`daily_${dayKey}`)
-  return selectWithSeed(DAILY_MISSIONS, 4, seed)
-}
 
-/** Get this week's weekly missions */
-export function getWeeklyMissionTemplates(): MissionTemplate[] {
-  const weekKey = getWeekKey()
-  const seed = hashString(`weekly_${weekKey}`)
-  return selectWithSeed(WEEKLY_MISSIONS, 3, seed)
-}
+
+
 
 /** Load user's mission progress from Supabase */
 export async function getUserMissions(userId: string): Promise<{
