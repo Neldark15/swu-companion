@@ -8,7 +8,7 @@ import { MesasPanel } from './MesasPanel'
 import {
   getMesasDeRonda, ultimaRonda, cambiarTipoTorneo, type MesaArmada,
 } from '../../services/mesasService'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback} from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Play, SkipForward, Clock, Users, Trophy, GitBranch, UserMinus } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
@@ -55,7 +55,18 @@ export default function TournamentDashboard() {
      Centro lo ve una sola persona, asi que ningun otro organizador podia. */
   const [mesas, setMesas] = useState<MesaArmada[]>([])
   const [rondaMesas, setRondaMesas] = useState<{ id: string; numero: number } | null>(null)
-  const [activeTab, setActiveTab] = useState<Tab>('rounds')
+  /* Un torneo de MESAS abre en su propia pestaña.
+   *
+   * El tablero abría siempre en «Rondas», que lee `tournament_pairings` — y un
+   * torneo de mesas no tiene ni uno. El organizador entraba en pleno torneo,
+   * leía «no hay emparejamientos» y no tenía forma de saber que sus mesas
+   * estaban en otra pestaña.
+   *
+   * Se DERIVA en vez de moverla con un efecto: `null` es «todavía no eligió»,
+   * y ahí manda el tipo del torneo. En cuanto toca una pestaña, manda ella.
+   * Un efecto que escribe estado dispara renders en cascada y además pelearía
+   * con el clic. */
+  const [tabElegida, setActiveTab] = useState<Tab | null>(null)
   const [selectedRound, setSelectedRound] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
@@ -161,7 +172,8 @@ export default function TournamentDashboard() {
      * multijugador partido en parejas, y nadie se enteraba hasta mirar las
      * mesas. Es el único else de todo el sistema que ESCRIBE. */
     if (esDeMesas(event.tournament_type)) {
-      showMessage('Este torneo es de mesas: se arma desde el Centro de Temporada.')
+      showMessage('Este torneo es de mesas: se arma en la pestaña «Mesas».')
+      setActiveTab('mesas')
       return
     }
 
@@ -286,6 +298,8 @@ export default function TournamentDashboard() {
     )
   }
 
+  const activeTab: Tab = tabElegida ?? (esDeMesas(event.tournament_type) ? 'mesas' : 'rounds')
+
   const isNotStarted = event.status === 'open' || event.current_round === 0
   const isFinished = event.status === 'finished'
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -385,8 +399,28 @@ export default function TournamentDashboard() {
 
       {/* Content */}
       <div className="max-w-lg lg:max-w-5xl mx-auto px-4 lg:px-6 mt-4">
+        {/* En un torneo de mesas, Rondas y Pairings leen `tournament_pairings`,
+            que está vacía por construcción. Decir «no hay emparejamientos»
+            es cierto y aun así engaña: parece que falta algo. */}
+        {(activeTab === 'rounds' || activeTab === 'pairings') && esDeMesas(event.tournament_type) && (
+          <div className="rounded-xl border border-swu-amber/40 bg-swu-amber/10 p-4 space-y-2">
+            <p className="text-sm font-bold text-swu-text">Este torneo es de mesas</p>
+            <p className="text-xs leading-relaxed text-swu-muted">
+              Se juega en mesas de 3 o 4, así que no hay emparejamientos uno contra
+              uno que mostrar acá. Las mesas y los puestos están en la pestaña
+              «Mesas».
+            </p>
+            <button
+              onClick={() => setActiveTab('mesas')}
+              className="min-h-[44px] rounded-lg bg-swu-accent px-4 text-sm font-semibold text-white"
+            >
+              Ir a Mesas
+            </button>
+          </div>
+        )}
+
         {/* ── Rounds Tab ── */}
-        {activeTab === 'rounds' && (
+        {activeTab === 'rounds' && !esDeMesas(event.tournament_type) && (
           <div className="space-y-3">
             {/* Initialize button */}
             {isNotStarted && event.status === 'open' && (
@@ -454,7 +488,7 @@ export default function TournamentDashboard() {
         )}
 
         {/* ── Pairings Tab ── */}
-        {activeTab === 'pairings' && (
+        {activeTab === 'pairings' && !esDeMesas(event.tournament_type) && (
           <div>
             {/* Round selector */}
             {rounds.length > 1 && (
