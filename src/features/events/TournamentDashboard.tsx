@@ -338,8 +338,11 @@ export default function TournamentDashboard() {
   tabs.push({ id: 'mesas', label: 'Mesas', icon: <LayoutGrid size={16} /> })
 
   // Build player name map for bracket
+  /* Llaveado por la FILA de clasificación (`s.id`), que es lo que ahora
+   * lleva el pareo. Con `user_id` los invitados colapsaban en la clave `null`
+   * y el cuadro les ponía el nombre de otro — o «TBD». Por `id` entran todos. */
   const playerNames = new Map<string, string>()
-  standings.forEach(s => playerNames.set(s.user_id, s.player_name))
+  standings.forEach(s => playerNames.set(s.id, s.player_name))
 
   return (
     <div className="min-h-screen bg-swu-bg pb-20">
@@ -556,11 +559,17 @@ export default function TournamentDashboard() {
             {!isFinished && standings.length > 0 && (
               <div className="mt-4 space-y-1">
                 <p className="text-xs text-swu-muted mb-2">Retirar jugador:</p>
+                {/* La llave es `s.id` (la fila de clasificación) y no `s.user_id`:
+                    con dos invitados, dos `key={null}` son la misma llave y React
+                    reusa la fila equivocada al reordenar. */}
                 {standings.filter(s => !s.dropped).map((s) => (
-                  <div key={s.user_id} className="flex items-center justify-between py-1">
+                  <div key={s.id} className="flex items-center justify-between py-1">
                     <span className="text-xs text-swu-text">{s.player_name}</span>
                     <button
-                      onClick={() => handleDropPlayer(s.user_id)}
+                      // Retirar a un invitado todavía no se puede: la baja se
+                      // escribe por `user_id`. Se desactiva en vez de fallar.
+                      disabled={!s.user_id}
+                      onClick={() => { if (s.user_id) void handleDropPlayer(s.user_id) }}
                       className="text-xs px-2 py-0.5 text-red-400 hover:bg-red-500/10 rounded"
                     >
                       <UserMinus size={14} />
@@ -615,7 +624,21 @@ export default function TournamentDashboard() {
             {esDeMesas(event.tournament_type) ? (
               <MesasPanel
                 eventId={event.id}
-                cerrado={event.status === 'finished'}
+                /*
+                 * Un torneo cerrado SIN resultados sigue siendo anotable.
+                 *
+                 * El del 22/8 se cerró con las 2 mesas armadas y los 8 puestos
+                 * en NULL: la partida se jugó y el resultado no entró nunca.
+                 * Con `cerrado = status === 'finished'` a secas, la pantalla
+                 * tapaba la única forma de recuperarlo — y el servidor sí lo
+                 * permite (`guardar_puestos_mesa` solo pide permiso de
+                 * organizador, no mira el estado).
+                 *
+                 * Se abre SOLO mientras no haya un puesto anotado: en cuanto
+                 * hay uno, el torneo vuelve a estar cerrado de verdad y nadie
+                 * puede reescribir un podio ya repartido.
+                 */
+                cerrado={event.status === 'finished' && standings.some(s => s.puesto != null)}
                 standings={standings}
                 ronda={rondaMesas}
                 mesas={mesas}

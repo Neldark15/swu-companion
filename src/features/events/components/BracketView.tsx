@@ -73,7 +73,9 @@ function BracketMatch({
   pairing: CloudPairing
   getName: (id: string | null) => string
 }) {
-  const hasResult = !!pairing.winner_id
+  /* Por FILA de clasificación, no por cuenta: si el que ganó no tiene cuenta,
+     `winner_id` queda null y el cuadro dibujaba la mesa como no jugada. */
+  const hasResult = !!pairing.winner_standing
   const isBye = pairing.score === 'BYE'
 
   return (
@@ -81,12 +83,12 @@ function BracketMatch({
       {/* Player 1 */}
       <div
         className={`px-3 py-2 text-xs border-b border-swu-border/50 flex justify-between items-center ${
-          hasResult && pairing.winner_id === pairing.player1_id
+          hasResult && pairing.winner_standing === pairing.player1_standing
             ? 'bg-green-500/10 text-green-400 font-bold'
             : 'text-swu-text'
         }`}
       >
-        <span className="truncate max-w-[100px]">{getName(pairing.player1_id)}</span>
+        <span className="truncate max-w-[100px]">{getName(pairing.player1_standing)}</span>
         {hasResult && pairing.score && !isBye && (
           <span className="text-swu-muted ml-1">{pairing.score.split('-')[0]}</span>
         )}
@@ -95,7 +97,7 @@ function BracketMatch({
       {/* Player 2 */}
       <div
         className={`px-3 py-2 text-xs flex justify-between items-center ${
-          hasResult && pairing.winner_id === pairing.player2_id
+          hasResult && pairing.winner_standing === pairing.player2_standing
             ? 'bg-green-500/10 text-green-400 font-bold'
             : isBye
             ? 'text-swu-muted italic'
@@ -103,7 +105,7 @@ function BracketMatch({
         }`}
       >
         <span className="truncate max-w-[100px]">
-          {isBye ? 'BYE' : getName(pairing.player2_id)}
+          {isBye ? 'BYE' : getName(pairing.player2_standing)}
         </span>
         {hasResult && pairing.score && !isBye && (
           <span className="text-swu-muted ml-1">{pairing.score.split('-')[1]}</span>

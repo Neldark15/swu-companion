@@ -20,7 +20,15 @@ import type { TournamentPlayer } from '../types'
 export interface CloudStanding {
   id: string
   event_id: string
-  user_id: string
+  /**
+   * `null` para quien juega SIN CUENTA — y en la sala real es un tercio.
+   *
+   * Estuvo declarado como `string` a secas mientras la columna siempre admitió
+   * null. Esa mentira es la razón de que el compilador jamás señalara el caso
+   * del invitado: todo el motor de pareos llavea por este campo, y con el tipo
+   * mintiendo, `Map.get(null)` y `id: null` pasaban sin una advertencia.
+   */
+  user_id: string | null
   player_name: string
   points: number
   match_wins: number
@@ -33,6 +41,8 @@ export interface CloudStanding {
   gw_pct: number
   dropped: boolean
   seed: number | null
+  /** Puesto final. `null` mientras no se haya cerrado la clasificación. */
+  puesto: number | null
 }
 
 export interface CloudPairing {
@@ -40,6 +50,18 @@ export interface CloudPairing {
   round_id: string
   event_id: string
   table_number: number | null
+  /**
+   * QUIÉN JUEGA: `tournament_standings.id`. Nunca null salvo BYE de verdad.
+   *
+   * Es distinto de `player1_id`, que dice QUÉ CUENTA puede reportar el
+   * resultado. Un invitado tiene lo primero y no lo segundo — y confundirlos
+   * es lo que hacía que el motor leyera «rival invitado» como «BYE» y
+   * regalara la partida 2-0.
+   */
+  player1_standing: string | null
+  player2_standing: string | null
+  winner_standing: string | null
+  /** QUÉ CUENTA. `null` para quien juega sin cuenta. Solo para permisos. */
   player1_id: string | null
   player2_id: string | null
   winner_id: string | null
@@ -192,27 +214,41 @@ export async function generateSwissPairings(
     return { ok: false, error: 'No hay suficientes jugadores activos' }
   }
 
-  // Get previous pairings to know opponent history
+  /* TODO lo que sigue se llavea por `tournament_standings.id` y NO por
+   * `user_id`.
+   *
+   * Con `user_id`, las filas de los invitados colapsan en la única clave
+   * `null`: el `Set` de emparejados de `swiss.ts` marca al primero y a partir
+   * de ahí da por emparejados a TODOS los demás. Medido sobre 8 jugadores con
+   * 3 invitados: dos personas desaparecen de la ronda —sin mesa, sin bye y
+   * sin un solo error—. Y el historial de rivales queda compartido, así que
+   * evitar revanchas trata a todos los invitados como la misma persona.
+   *
+   * `swiss.ts` no se toca: nunca le importó qué SIGNIFICA el id, solo que sea
+   * único. El fallo estaba acá, en lo que se le pasaba. */
   const { data: prevPairings } = await supabase
     .from('tournament_pairings')
-    .select('player1_id, player2_id')
+    .select('player1_standing, player2_standing')
     .eq('event_id', eventId)
 
   // Build opponent map
   const opponentMap = new Map<string, string[]>()
   for (const s of standings) {
-    opponentMap.set(s.user_id, [])
+    opponentMap.set(s.id, [])
   }
   for (const p of prevPairings || []) {
-    if (p.player1_id && p.player2_id) {
-      opponentMap.get(p.player1_id)?.push(p.player2_id)
-      opponentMap.get(p.player2_id)?.push(p.player1_id)
+    if (p.player1_standing && p.player2_standing) {
+      opponentMap.get(p.player1_standing)?.push(p.player2_standing)
+      opponentMap.get(p.player2_standing)?.push(p.player1_standing)
     }
   }
 
+  /** De la fila de clasificación a la cuenta. Solo para poblar los permisos. */
+  const cuentaDe = new Map<string, string | null>(standings.map(s => [s.id, s.user_id]))
+
   // Convert to TournamentPlayer format for swiss.ts
   const players: TournamentPlayer[] = standings.map(s => ({
-    id: s.user_id,
+    id: s.id,
     name: s.player_name,
     points: s.points,
     matchWins: s.match_wins,
@@ -221,7 +257,7 @@ export async function generateSwissPairings(
     gameWins: s.game_wins,
     gameLosses: s.game_losses,
     byes: s.byes,
-    opponentIds: opponentMap.get(s.user_id) || [],
+    opponentIds: opponentMap.get(s.id) || [],
   }))
 
   // Generate pairings using existing Swiss algorithm
@@ -237,15 +273,26 @@ export async function generateSwissPairings(
   if (rErr || !round) return { ok: false, error: `Error creando ronda: ${rErr?.message}` }
 
   // Insert pairings
-  const dbPairings = pairings.map((p, idx) => ({
-    round_id: round.id,
-    event_id: eventId,
-    table_number: idx + 1,
-    player1_id: p.player1Id,
-    player2_id: p.player2Id,
-    winner_id: p.player2Id === null ? p.player1Id : null, // Auto-win for byes
-    score: p.player2Id === null ? '2-0' : null,
-  }))
+  /* Ahora `p.player1Id`/`p.player2Id` son ids de CLASIFICACIÓN, así que
+   * `player2Id === null` por fin significa lo único que debería significar:
+   * no hay rival. Las columnas de cuenta se derivan, y quedan en null cuando
+   * el jugador no tiene: escribir ahí un id de clasificación no daría error
+   * —no hay FK que lo frene— y corrompería en silencio. */
+  const dbPairings = pairings.map((p, idx) => {
+    const esBye = p.player2Id === null
+    return {
+      round_id: round.id,
+      event_id: eventId,
+      table_number: idx + 1,
+      player1_standing: p.player1Id,
+      player2_standing: p.player2Id,
+      winner_standing: esBye ? p.player1Id : null,
+      player1_id: cuentaDe.get(p.player1Id) ?? null,
+      player2_id: p.player2Id ? (cuentaDe.get(p.player2Id) ?? null) : null,
+      winner_id: esBye ? (cuentaDe.get(p.player1Id) ?? null) : null,
+      score: esBye ? '2-0' : null,
+    }
+  })
 
   const { error: pErr } = await supabase
     .from('tournament_pairings')
@@ -259,10 +306,11 @@ export async function generateSwissPairings(
     .update({ current_round: roundNum, updated_at: new Date().toISOString() })
     .eq('id', eventId)
 
-  // Auto-apply bye results to standings
+  // Auto-apply bye results to standings. `p.player1Id` ya es la FILA de
+  // clasificación, así que un bye de alguien sin cuenta también se acredita.
   for (const p of pairings) {
     if (p.player2Id === null && p.player1Id) {
-      await applyByeResult(eventId, p.player1Id)
+      await applyByeResult(p.player1Id)
     }
   }
 
@@ -297,9 +345,11 @@ export async function generateEliminationBracket(
     return { ok: false, error: 'No hay suficientes jugadores' }
   }
 
-  // Convert to BracketPlayer format
+  // Convert to BracketPlayer format — por FILA de clasificación, igual que el
+  // suizo: con `user_id`, dos invitados son el mismo jugador para el cuadro.
+  const cuentaDe = new Map<string, string | null>(standings.map(s => [s.id, s.user_id]))
   const bracketPlayers: BracketPlayer[] = standings.map(s => ({
-    id: s.user_id,
+    id: s.id,
     name: s.player_name,
     seed: s.seed || 1,
   }))
@@ -317,15 +367,21 @@ export async function generateEliminationBracket(
   if (rErr || !round) return { ok: false, error: `Error creando ronda: ${rErr?.message}` }
 
   // Insert pairings
-  const dbPairings = pairings.map((p, idx) => ({
-    round_id: round.id,
-    event_id: eventId,
-    table_number: idx + 1,
-    player1_id: p.player1Id,
-    player2_id: p.player2Id,
-    winner_id: p.isBye ? (p.player1Id || p.player2Id) : null,
-    score: p.isBye ? 'BYE' : null,
-  }))
+  const dbPairings = pairings.map((p, idx) => {
+    const ganador = p.isBye ? (p.player1Id || p.player2Id) : null
+    return {
+      round_id: round.id,
+      event_id: eventId,
+      table_number: idx + 1,
+      player1_standing: p.player1Id,
+      player2_standing: p.player2Id,
+      winner_standing: ganador,
+      player1_id: p.player1Id ? (cuentaDe.get(p.player1Id) ?? null) : null,
+      player2_id: p.player2Id ? (cuentaDe.get(p.player2Id) ?? null) : null,
+      winner_id: ganador ? (cuentaDe.get(ganador) ?? null) : null,
+      score: p.isBye ? 'BYE' : null,
+    }
+  })
 
   const { error: pErr } = await supabase
     .from('tournament_pairings')
@@ -380,14 +436,19 @@ export async function advanceEliminationRound(
 
   const roundPairings = currentPairings.filter(p => p.round_id === currentRound.id)
 
-  // Check all matches have winners
-  const incomplete = roundPairings.filter(p => !p.winner_id)
+  /* Se exige `winner_standing`, no `winner_id`.
+   *
+   * Con la columna de cuenta, una mesa GANADA POR UN INVITADO se veía como
+   * «sin resultado» y el cuadro no podía avanzar nunca: el torneo quedaba
+   * trabado con un error que decía «faltan resultados» sobre mesas ya
+   * jugadas. */
+  const incomplete = roundPairings.filter(p => !p.winner_standing)
   if (incomplete.length > 0) {
     return { ok: false, error: `Faltan ${incomplete.length} resultados por reportar` }
   }
 
-  // Collect winners
-  const winnerIds = roundPairings.map(p => p.winner_id as string)
+  // Collect winners — por fila de clasificación, así avanza también un invitado.
+  const winnerIds = roundPairings.map(p => p.winner_standing as string)
 
   // If only 1 winner, tournament is complete
   if (winnerIds.length <= 1) {
@@ -426,16 +487,29 @@ export async function advanceEliminationRound(
 
   if (nrErr || !nextRound) return { ok: false, error: nrErr?.message || 'Error' }
 
+  /* Los ganadores que llegan acá ya son filas de clasificación (vienen de
+   * `winner_standing`), así que hay que traducir a cuenta para las columnas
+   * de permisos. */
+  const { data: clasif } = await supabase
+    .from('tournament_standings').select('id, user_id').eq('event_id', eventId)
+  const cuentaDe = new Map<string, string | null>((clasif ?? []).map(c => [c.id, c.user_id]))
+
   // Insert next round pairings
-  const dbPairings = nextPairings.map((p, idx) => ({
-    round_id: nextRound.id,
-    event_id: eventId,
-    table_number: idx + 1,
-    player1_id: p.player1Id,
-    player2_id: p.player2Id,
-    winner_id: p.isBye ? (p.player1Id || p.player2Id) : null,
-    score: p.isBye ? 'BYE' : null,
-  }))
+  const dbPairings = nextPairings.map((p, idx) => {
+    const ganador = p.isBye ? (p.player1Id || p.player2Id) : null
+    return {
+      round_id: nextRound.id,
+      event_id: eventId,
+      table_number: idx + 1,
+      player1_standing: p.player1Id,
+      player2_standing: p.player2Id,
+      winner_standing: ganador,
+      player1_id: p.player1Id ? (cuentaDe.get(p.player1Id) ?? null) : null,
+      player2_id: p.player2Id ? (cuentaDe.get(p.player2Id) ?? null) : null,
+      winner_id: ganador ? (cuentaDe.get(ganador) ?? null) : null,
+      score: p.isBye ? 'BYE' : null,
+    }
+  })
 
   const { error: pErr } = await supabase
     .from('tournament_pairings')
@@ -588,7 +662,8 @@ async function getEventNameAndCode(eventId: string): Promise<{ name: string | nu
  */
 export async function submitPairingResult(
   pairingId: string,
-  winnerId: string | null,
+  /** La FILA de clasificación que ganó, no la cuenta. `null` = empate. */
+  winnerStanding: string | null,
   score: string,        // "2-1"
   reporterId: string
 ): Promise<{ ok: boolean; needsConfirmation: boolean; error?: string }> {
@@ -607,9 +682,11 @@ export async function submitPairingResult(
     return { ok: false, needsConfirmation: false, error: 'No participas en este emparejamiento' }
   }
 
-  // Bye → auto-resolve, no opponent to confirm
-  if (!pairing.player2_id) {
-    return finalizeResult(pairingId, winnerId, score, reporterId, reporterId)
+  /* Bye → se resuelve solo. Se mira `player2_standing` y NO `player2_id`:
+   * con la columna de cuenta, un rival INVITADO se leía como «no hay
+   * oponente» y la mesa se cerraba sola sin jugarse. */
+  if (!pairing.player2_standing) {
+    return finalizeResult(pairingId, winnerStanding, score, reporterId, reporterId)
       .then(r => ({ ok: r.ok, needsConfirmation: false, error: r.error }))
   }
 
@@ -622,7 +699,15 @@ export async function submitPairingResult(
   const { error: uErr } = await supabase
     .from('tournament_pairings')
     .update({
-      winner_id: winnerId,
+      winner_standing: winnerStanding,
+      /* La columna de cuenta se DERIVA y queda null si ganó un invitado. Eso
+       * está bien porque el empate ya no se lee de acá: se lee de
+       * `winner_standing`. Antes se deducía de `winner_id === null` y, cuando
+       * el que ganaba no tenía cuenta, el rival cobraba EMPATE por una
+       * partida que había perdido. */
+      winner_id: winnerStanding === pairing.player1_standing ? pairing.player1_id
+               : winnerStanding === pairing.player2_standing ? pairing.player2_id
+               : null,
       score,
       reported_by: reporterId,
       reported_at: new Date().toISOString(),
@@ -646,7 +731,7 @@ export async function submitPairingResult(
       table: pairing.table_number,
       pairingId,
       score,
-      winnerId,
+      winnerStanding,
       reporterId,
     }
   )
@@ -681,7 +766,7 @@ export async function confirmPairingResult(
     (pairing.player2_id === confirmerId && pairing.reported_by === pairing.player1_id)
   if (!isOpponent) return { ok: false, error: 'Solo el oponente del reportador puede confirmar' }
 
-  return finalizeResult(pairingId, pairing.winner_id, pairing.score ?? '0-0', pairing.reported_by, confirmerId)
+  return finalizeResult(pairingId, pairing.winner_standing, pairing.score ?? '0-0', pairing.reported_by, confirmerId)
 }
 
 /**
@@ -745,7 +830,8 @@ export async function disputePairingResult(
  */
 async function finalizeResult(
   pairingId: string,
-  winnerId: string | null,
+  /** La FILA de clasificación que ganó. `null` = empate. Ver abajo. */
+  winnerStanding: string | null,
   score: string,
   reporterId: string,
   confirmerId: string
@@ -765,7 +851,12 @@ async function finalizeResult(
   const { error: uErr } = await supabase
     .from('tournament_pairings')
     .update({
-      winner_id: winnerId,
+      winner_standing: winnerStanding,
+      // La cuenta se deriva; queda null si el que ganó no tiene. El empate ya
+      // no se lee de acá (ver `isDraw` más abajo).
+      winner_id: winnerStanding === pairing.player1_standing ? pairing.player1_id
+               : winnerStanding === pairing.player2_standing ? pairing.player2_id
+               : null,
       score,
       reported_by: reporterId,
       reported_at: pairing.reported_at ?? new Date().toISOString(),
@@ -776,20 +867,22 @@ async function finalizeResult(
 
   if (uErr) return { ok: false, error: uErr.message }
 
-  // Apply to standings
+  /* Se aplica por FILA de clasificación, no por cuenta: el lado invitado
+   * tenía la columna en null, su `if` no entraba, y su fila se quedaba
+   * congelada en ceros toda la noche sin un solo error. */
   const [s1, s2] = score.split('-').map(Number).map(n => n || 0)
-  if (pairing.player1_id) {
-    await updatePlayerStanding(eventId, pairing.player1_id, {
-      isWinner: winnerId === pairing.player1_id,
-      isDraw: winnerId === null,
+  if (pairing.player1_standing) {
+    await updatePlayerStanding(pairing.player1_standing, {
+      isWinner: winnerStanding === pairing.player1_standing,
+      isDraw: winnerStanding === null,
       gameWins: s1,
       gameLosses: s2,
     })
   }
-  if (pairing.player2_id) {
-    await updatePlayerStanding(eventId, pairing.player2_id, {
-      isWinner: winnerId === pairing.player2_id,
-      isDraw: winnerId === null,
+  if (pairing.player2_standing) {
+    await updatePlayerStanding(pairing.player2_standing, {
+      isWinner: winnerStanding === pairing.player2_standing,
+      isDraw: winnerStanding === null,
       gameWins: s2,
       gameLosses: s1,
     })
@@ -808,7 +901,7 @@ async function finalizeResult(
       table: pairing.table_number,
       pairingId,
       score,
-      winnerId,
+      winnerStanding,
       player1_id: pairing.player1_id,
       player2_id: pairing.player2_id,
     }
@@ -893,14 +986,20 @@ export function subscribeToBroadcasts(onNew: (b: TournamentBroadcast) => void): 
  * Use for admin overrides (e.g., resolving a dispute, fixing a no-show).
  * For the normal player flow, use submitPairingResult + confirmPairingResult.
  */
+/**
+ * Reporta el resultado de una mesa.
+ *
+ * `winnerStanding` es la fila de `tournament_standings`, NO la cuenta: es la
+ * única forma de decir «ganó el invitado». `null` es empate.
+ */
 export async function reportResult(
   pairingId: string,
-  winnerId: string | null,
+  winnerStanding: string | null,
   score: string,
   reportedBy: string
 ): Promise<{ ok: boolean; error?: string }> {
   if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
-  return finalizeResult(pairingId, winnerId, score, reportedBy, reportedBy)
+  return finalizeResult(pairingId, winnerStanding, score, reportedBy, reportedBy)
 }
 
 // ─── Advance Swiss Round ────────────────────────────────────
@@ -923,10 +1022,13 @@ export async function advanceSwissRound(
 
   const { data: pairings } = await supabase
     .from('tournament_pairings')
-    .select('winner_id, player2_id')
+    .select('winner_standing, player2_standing')
     .eq('round_id', currentRound.id)
 
-  const incomplete = (pairings || []).filter(p => p.player2_id !== null && !p.winner_id)
+  /* Una mesa está pendiente si TIENE rival y no tiene ganador. Con las
+   * columnas de cuenta, una mesa con un invitado enfrente se contaba como bye
+   * («no hay rival») y la ronda se daba por completa con partidas sin jugar. */
+  const incomplete = (pairings || []).filter(p => p.player2_standing !== null && !p.winner_standing)
   if (incomplete.length > 0) {
     return { ok: false, error: `Faltan ${incomplete.length} resultados` }
   }
@@ -1103,15 +1205,19 @@ export async function getRoundPairings(
   // Get player names from standings
   const { data: standings } = await supabase
     .from('tournament_standings')
-    .select('user_id, player_name')
+    .select('id, player_name')
     .eq('event_id', eventId)
 
-  const nameMap = new Map((standings || []).map(s => [s.user_id, s.player_name]))
+  /* El nombre sale de la FILA de clasificación.
+   *
+   * Con `user_id`, el nombre de un invitado quedaba en `null` y la pantalla
+   * dibujaba «BYE» o «TBD» donde había una persona sentada. */
+  const nameMap = new Map((standings || []).map(s => [s.id, s.player_name]))
 
   return pairings.map(p => ({
     ...p,
-    player1_name: p.player1_id ? nameMap.get(p.player1_id) || 'Jugador' : null,
-    player2_name: p.player2_id ? nameMap.get(p.player2_id) || 'Jugador' : null,
+    player1_name: p.player1_standing ? nameMap.get(p.player1_standing) || 'Jugador' : null,
+    player2_name: p.player2_standing ? nameMap.get(p.player2_standing) || 'Jugador' : null,
   }))
 }
 
@@ -1317,15 +1423,25 @@ export function subscribeToEvent(
 
 // ─── Internal Helpers ───────────────────────────────────────
 
-async function applyByeResult(eventId: string, playerId: string) {
-  const { data: standing } = await supabase
+/**
+ * Acredita un BYE. Recibe la FILA DE CLASIFICACIÓN, no la cuenta.
+ *
+ * Buscaba con `.eq('user_id', playerId)`, así que un bye de alguien sin cuenta
+ * no acreditaba nada: la consulta no encontraba fila y salía por el `return`
+ * en silencio. Por `id` siempre hay exactamente una.
+ */
+async function applyByeResult(standingId: string) {
+  const { data: standing, error } = await supabase
     .from('tournament_standings')
     .select('*')
-    .eq('event_id', eventId)
-    .eq('user_id', playerId)
+    .eq('id', standingId)
     .single()
 
-  if (!standing) return
+  // §2f: sin mirar `error`, un bye que no se acredita se ve igual que uno que sí.
+  if (error || !standing) {
+    console.warn('[torneo] BYE sin acreditar, no se encontró la clasificación:', error?.message)
+    return
+  }
 
   await supabase
     .from('tournament_standings')
@@ -1335,20 +1451,24 @@ async function applyByeResult(eventId: string, playerId: string) {
       game_wins: standing.game_wins + 2,
       byes: standing.byes + 1,
     })
-    .eq('event_id', eventId)
-    .eq('user_id', playerId)
+    .eq('id', standingId)
 }
 
+/**
+ * Aplica un resultado a la clasificación. Recibe la FILA, no la cuenta.
+ *
+ * Filtraba por `user_id`, así que el lado invitado nunca recibía la victoria,
+ * la derrota ni los juegos: su fila se quedaba congelada en ceros toda la
+ * noche, sin un error.
+ */
 async function updatePlayerStanding(
-  eventId: string,
-  playerId: string,
+  standingId: string,
   result: { isWinner: boolean; isDraw: boolean; gameWins: number; gameLosses: number }
 ) {
   const { data: standing } = await supabase
     .from('tournament_standings')
     .select('*')
-    .eq('event_id', eventId)
-    .eq('user_id', playerId)
+    .eq('id', standingId)
     .single()
 
   if (!standing) return
@@ -1371,8 +1491,7 @@ async function updatePlayerStanding(
   await supabase
     .from('tournament_standings')
     .update(update)
-    .eq('event_id', eventId)
-    .eq('user_id', playerId)
+    .eq('id', standingId)
 }
 
 async function recalculateTiebreakers(eventId: string) {
@@ -1384,29 +1503,32 @@ async function recalculateTiebreakers(eventId: string) {
 
   if (!standings) return
 
-  // Get all pairings for opponent mapping
+  /* Por FILA de clasificación. Con `user_id` se saltaba todo pareo donde
+   * faltara la cuenta, así que el OMW% de quien enfrentó a un invitado se
+   * calculaba sobre menos rivales de los que tuvo — un desempate mal contado
+   * cambia el podio y nadie lo nota. */
   const { data: pairings } = await supabase
     .from('tournament_pairings')
-    .select('player1_id, player2_id')
+    .select('player1_standing, player2_standing')
     .eq('event_id', eventId)
 
   if (!pairings) return
 
   // Build opponent map
   const opponentMap = new Map<string, string[]>()
-  for (const s of standings) opponentMap.set(s.user_id, [])
+  for (const s of standings) opponentMap.set(s.id, [])
   for (const p of pairings) {
-    if (p.player1_id && p.player2_id) {
-      opponentMap.get(p.player1_id)?.push(p.player2_id)
-      opponentMap.get(p.player2_id)?.push(p.player1_id)
+    if (p.player1_standing && p.player2_standing) {
+      opponentMap.get(p.player1_standing)?.push(p.player2_standing)
+      opponentMap.get(p.player2_standing)?.push(p.player1_standing)
     }
   }
 
-  const standingMap = new Map(standings.map(s => [s.user_id, s]))
+  const standingMap = new Map(standings.map(s => [s.id, s]))
 
   // Calculate tiebreakers for each player
   for (const s of standings) {
-    const opponents = opponentMap.get(s.user_id) || []
+    const opponents = opponentMap.get(s.id) || []
     let omwTotal = 0
     let omwCount = 0
 
@@ -1431,7 +1553,8 @@ async function recalculateTiebreakers(eventId: string) {
     await supabase
       .from('tournament_standings')
       .update({ omw_pct: omwPct, gw_pct: gwPct })
-      .eq('event_id', eventId)
-      .eq('user_id', s.user_id)
+      // Por `id`: con `user_id` el update de un invitado afectaba 0 filas y
+      // PostgREST devuelve éxito con 0 filas (§2u).
+      .eq('id', s.id)
   }
 }

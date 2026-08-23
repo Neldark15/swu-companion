@@ -99,8 +99,11 @@ export default function TournamentPublicView() {
 
   // Build bracket data
   const [pairingsByRound, setPairingsByRound] = useState<Map<number, CloudPairing[]>>(new Map())
+  /* Llaveado por la FILA de clasificación (`s.id`), que es lo que ahora
+   * lleva el pareo. Con `user_id` los invitados colapsaban en la clave `null`
+   * y el cuadro les ponía el nombre de otro — o «TBD». Por `id` entran todos. */
   const playerNames = new Map<string, string>()
-  standings.forEach(s => playerNames.set(s.user_id, s.player_name))
+  standings.forEach(s => playerNames.set(s.id, s.player_name))
 
   useEffect(() => {
     if (!event?.id || event.tournament_type !== 'elimination' || rounds.length === 0) return

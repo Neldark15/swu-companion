@@ -121,7 +121,13 @@ export function TorneoCentro() {
 
   const nombres = useMemo(() => {
     const m = new Map<string, string>()
-    for (const s of standings) m.set(s.user_id, s.player_name)
+  /* El mapa se llavea por `user_id` y por eso EXCLUYE a los invitados.
+   *
+   * No es un descuido: se consulta con `pairing.player1_id`, y esa columna es
+   * FK a `auth.users`, así que hoy un invitado no puede estar en un pareo.
+   * Meterlos igual sería peor que dejarlos fuera — `Map.set(null, nombre)`
+   * colapsa a TODOS los invitados en una sola entrada y gana el último. */
+    for (const s of standings) if (s.user_id) m.set(s.user_id, s.player_name)
     return m
   }, [standings])
 
@@ -361,7 +367,10 @@ function Inscritos({
           ))}
 
           <button
-            onClick={() => void onSemillas(orden.map(o => o.user_id))}
+            /* Sembrar escribe por `user_id`, así que un invitado no puede
+               llevar semilla. Se filtran en vez de mandar nulls, que el
+               servidor rechazaría con un error que nadie sabría leer. */
+            onClick={() => void onSemillas(orden.map(o => o.user_id).filter((x): x is string => !!x))}
             disabled={ocupado || evento.status === 'finished'}
             className="flex min-h-[44px] items-center gap-2 rounded-lg border border-swu-border px-4
                        text-sm font-semibold text-swu-text disabled:opacity-50"

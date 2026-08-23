@@ -27,7 +27,7 @@ export function PairingsView({ pairings, canReport, onReport, currentUserId }: P
         <PairingCard
           key={p.id}
           pairing={p}
-          canReport={canReport && !p.winner_id}
+          canReport={canReport && !p.winner_standing}
           onReport={onReport}
           currentUserId={currentUserId}
         />
@@ -52,10 +52,13 @@ function PairingCard({
   const [score2, setScore2] = useState(0)
   const [submitting, setSubmitting] = useState(false)
 
-  const isBye = !pairing.player2_id
+  /* BYE es «no hay nadie enfrente», y eso lo dice `player2_standing`.
+   * Con `player2_id` —que es la CUENTA— un rival sin cuenta se dibujaba como
+   * BYE: la mesa aparecía resuelta 2-0 y la partida no se jugaba. */
+  const isBye = !pairing.player2_standing
   const isMyMatch =
     currentUserId === pairing.player1_id || currentUserId === pairing.player2_id
-  const hasResult = !!pairing.winner_id || !!pairing.score
+  const hasResult = !!pairing.winner_standing || !!pairing.score
 
   const handleSubmit = async (winnerId: string | null) => {
     if (!onReport) return
@@ -93,7 +96,7 @@ function PairingCard({
       <div className="flex items-center justify-between gap-2">
         <div
           className={`flex-1 text-center py-1.5 rounded ${
-            pairing.winner_id === pairing.player1_id
+            pairing.winner_standing === pairing.player1_standing
               ? 'bg-green-500/10 text-green-400 font-bold'
               : 'text-swu-text'
           }`}
@@ -107,7 +110,7 @@ function PairingCard({
 
         <div
           className={`flex-1 text-center py-1.5 rounded ${
-            pairing.winner_id === pairing.player2_id
+            pairing.winner_standing === pairing.player2_standing
               ? 'bg-green-500/10 text-green-400 font-bold'
               : 'text-swu-text'
           }`}
@@ -180,7 +183,7 @@ function PairingCard({
           {/* Winner buttons */}
           <div className="flex gap-2">
             <button
-              onClick={() => handleSubmit(pairing.player1_id)}
+              onClick={() => handleSubmit(pairing.player1_standing)}
               disabled={submitting}
               className="flex-1 text-xs py-1.5 bg-green-600/20 text-green-400 rounded hover:bg-green-600/30 disabled:opacity-50"
             >
@@ -194,7 +197,7 @@ function PairingCard({
               Empate
             </button>
             <button
-              onClick={() => handleSubmit(pairing.player2_id)}
+              onClick={() => handleSubmit(pairing.player2_standing)}
               disabled={submitting}
               className="flex-1 text-xs py-1.5 bg-green-600/20 text-green-400 rounded hover:bg-green-600/30 disabled:opacity-50"
             >

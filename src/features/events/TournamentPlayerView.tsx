@@ -109,7 +109,7 @@ export function TournamentPlayerView() {
         // Toast: new pairing for me (different id from before, or first one)
         if (newMine && newMine.id !== previousPairingId) {
           const opponentName = newMine.player1_id === userId
-            ? (newMine.player2_name || 'Sin oponente (BYE)')
+            ? (newMine.player2_name || (newMine.player2_standing ? 'Oponente' : 'Sin oponente (BYE)'))
             : (newMine.player1_name || 'Oponente')
           addNotification({
             type: 'info',
@@ -175,17 +175,26 @@ export function TournamentPlayerView() {
     return unsub
   }, [event?.id, event?.current_round, userId, isParticipant, myPairing?.id, myPairing?.confirmed_at, myPairing?.reported_at, addNotification, code])
 
-  const opponentId = useMemo(() => {
+  /** Mi propia FILA de clasificación en esta mesa. Es lo que se reporta. */
+  const miStanding = useMemo(() => {
     if (!myPairing || !userId) return null
-    return myPairing.player1_id === userId ? myPairing.player2_id : myPairing.player1_id
+    return myPairing.player1_id === userId ? myPairing.player1_standing : myPairing.player2_standing
+  }, [myPairing, userId])
+
+  /* El rival por FILA, no por cuenta: un invitado tiene fila y no tiene
+   * cuenta, y con `player2_id` salía null — o sea que la pantalla le decía
+   * «BYE» a alguien que tenía una persona sentada enfrente. */
+  const rivalStanding = useMemo(() => {
+    if (!myPairing || !userId) return null
+    return myPairing.player1_id === userId ? myPairing.player2_standing : myPairing.player1_standing
   }, [myPairing, userId])
 
   const opponentName = useMemo(() => {
     if (!myPairing) return '—'
     return myPairing.player1_id === userId
-      ? (myPairing.player2_name || (opponentId === null ? 'BYE' : 'Oponente'))
+      ? (myPairing.player2_name || (rivalStanding === null ? 'BYE' : 'Oponente'))
       : (myPairing.player1_name || 'Oponente')
-  }, [myPairing, userId, opponentId])
+  }, [myPairing, userId, rivalStanding])
 
   const myState = useMemo<'idle' | 'waiting_opponent' | 'confirm_pending' | 'confirmed' | 'disputed'>(() => {
     if (!myPairing) return 'idle'
@@ -205,11 +214,14 @@ export function TournamentPlayerView() {
       return
     }
     const winnerSelf = me > opp
-    const winnerId = winnerSelf ? userId : opponentId
+    // Se manda la FILA, no la cuenta: si gana el invitado, su cuenta es null y
+    // el servidor leería «empate» — el rival cobraba un empate por una
+    // partida que perdió.
+    const ganador = winnerSelf ? miStanding : rivalStanding
     const scoreStr = `${me}-${opp}`
     setError(null)
     setSubmitting(true)
-    const r = await submitPairingResult(myPairing.id, winnerId, scoreStr, userId)
+    const r = await submitPairingResult(myPairing.id, ganador, scoreStr, userId)
     setSubmitting(false)
     if (!r.ok) {
       setError(r.error ?? 'Error al enviar resultado')
@@ -335,7 +347,7 @@ export function TournamentPlayerView() {
               </p>
               <p className="text-[11px] text-swu-muted">Te avisamos cuando salgan las parejas.</p>
             </div>
-          ) : opponentId === null ? (
+          ) : rivalStanding === null ? (
             // BYE
             <div className="bg-swu-green/10 border border-swu-green/30 rounded-2xl p-5 text-center space-y-2">
               <CheckCircle2 size={28} className="mx-auto text-swu-green" />
