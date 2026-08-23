@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  ArrowLeft, ExternalLink, Trash2, Edit3, Trophy, Calendar,
+  ArrowLeft, ExternalLink, Trash2, Trophy, Calendar,
   MapPin, Users, Swords, Bookmark,
 } from 'lucide-react'
 import {
@@ -217,13 +217,11 @@ export function MeleeDetailPage() {
 
         {/* Actions */}
         <div className="flex gap-2">
-          <button
-            onClick={() => navigate(`/events/melee/edit/${t.id}`)}
-            className="flex-1 py-2.5 rounded-xl text-xs font-medium border border-swu-border
-                       bg-swu-surface text-swu-muted flex items-center justify-center gap-1.5"
-          >
-            <Edit3 size={14} /> Editar
-          </button>
+          {/* No hay botón «Editar»: apuntaba a `/events/melee/edit/:id`, una
+              ruta que NO existe, así que el toque caía en el comodín y te
+              dejaba en Inicio sin decir nada. Un botón que te expulsa en
+              silencio es peor que no tenerlo. Cuando exista la pantalla de
+              edición (`updateMeleeTournament` ya está en meleeService), vuelve. */}
           {!confirmDelete ? (
             <button
               onClick={() => setConfirmDelete(true)}

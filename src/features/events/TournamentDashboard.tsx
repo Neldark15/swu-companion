@@ -316,7 +316,9 @@ export default function TournamentDashboard() {
 
   const activeTab: Tab = tabElegida ?? (esDeMesas(event.tournament_type) ? 'mesas' : 'rounds')
 
-  const isNotStarted = event.status === 'open' || event.current_round === 0
+  /* `sembrado` reemplazó a `isNotStarted`, que mezclaba estado y datos y
+     por eso trababa el arranque. Ver el comentario del botón. */
+  const sembrado = standings.length > 0
   const isFinished = event.status === 'finished'
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'rounds', label: 'Rondas', icon: <Play size={16} /> },
@@ -441,7 +443,19 @@ export default function TournamentDashboard() {
         {activeTab === 'rounds' && !esDeMesas(event.tournament_type) && (
           <div className="space-y-3">
             {/* Initialize button */}
-            {isNotStarted && event.status === 'open' && (
+            {/* El botón se decide contra los DATOS, no contra el estado.
+              *
+              * Estaba gateado por `status === 'open'`, y «Activar» desde
+              * /admin/events cambia la columna SIN sembrar la clasificación:
+              * el torneo quedaba en 'active' con cero standings y el único
+              * botón que podía arrancarlo ya no se dibujaba. Candado circular.
+              *
+              * Y NO se puede relajar a `current_round === 0`:
+              * `initializeTournament` termina dejando `current_round: 0`, así
+              * que el botón reaparecería justo después de sembrar y un segundo
+              * toque insertaría la clasificación DOS veces. `standings.length`
+              * es lo único que no miente. */}
+            {!sembrado && !isFinished && (
               <button
                 onClick={handleInitialize}
                 disabled={actionLoading}

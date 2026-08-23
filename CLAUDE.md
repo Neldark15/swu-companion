@@ -1668,3 +1668,52 @@ es exactamente lo que el organizador copia a la pestaña Mesas del torneo.
 
 Banco en `/banco-mesa-contador` (solo desarrollo): la puerta de instalación
 tapa `/contador/mesa` en un navegador normal.
+
+### 3l. `/torneos` es la puerta para ORGANIZAR, no solo el archivo
+
+Reporte de Nel: «el modulo de Torneos parece que muestra los torneos que se han
+realizado pero necesito un modulo donde hacer los torneos». Diagnóstico:
+**faltaba puerta, no capacidad.** Todo lo de llevar un torneo ya vivía en
+`/events/dashboard/:code` —sembrar, suizo, cuadro, mesas, temporizador, cerrar
+y repartir— **sin una sola entrada de menú**: se llegaba desde `/admin/events`
+o tecleando el código.
+
+**Y había un candado circular.** El botón hacia el tablero estaba gateado por
+`status === 'active'` en las DOS listas que lo ofrecían (`EventsPage.tsx:419`,
+`AdminEventsPage.tsx:170`), pero activar un torneo requiere entrar al tablero.
+Un torneo «activado» desde el panel quedaba inarrancable. En `/torneos` →
+Organizar, «Llevar el torneo» **no mira el estado**.
+
+**El botón «Iniciar Torneo» se decide por DATOS.** Era
+`isNotStarted && status === 'open'`. No se puede relajar a `!isFinished`:
+`initializeTournament` termina dejando `current_round: 0`, así que el botón
+reaparecería tras sembrar y un segundo toque insertaría la clasificación DOS
+veces. La condición correcta es `standings.length === 0`.
+
+**El conteo de inscritos SOLO se muestra a un admin.** Medido con RLS real:
+`reg_select` deja ver `event_registrations` únicamente a los admin — un jugador
+normal y un visitante anónimo ven **0 filas de 8**. La consulta no falla,
+devuelve 0, así que pintarlo anuncia vacío un torneo con gente. **El mismo
+defecto sigue vivo en `EventsPage`**, que es anterior.
+
+**Dos enlaces que expulsaban en silencio:** el «Ir al Torneo» del lobby iba a
+`/events/tournament/live`, que cae en la ruta del motor LOCAL y dice «Torneo no
+encontrado»; y el «Editar» de melee iba a una ruta inexistente y te dejaba en
+Inicio. El primero corregido, el segundo retirado.
+
+**«Mis Torneos» del Perfil llevaba a una pantalla que NUNCA carga.**
+`TournamentListPage` ordena por `updatedAt` y ninguna de las 10 versiones del
+esquema Dexie lo indexa: SchemaError, sin `.catch()`, spinner eterno. Repuntado
+a `/torneos`.
+
+**El motor LOCAL (Dexie) se congela, no se retira.** Uso medido: 2 sesiones en
+toda la vida de la app. Pero una fue Rodorigo el 8/8 — la noche en que el
+evento `SWUDYP5` quedó en la nube con 4 inscritos y **0 rondas / 0 pareos / 0
+clasificación**. No eligió el motor local por gusto: **el de la nube no sabe
+emparejar a un jugador sin cuenta en vivo** (`tournamentCloud.ts:213` llavea el
+suizo por `s.user_id`, y dos invitados colapsan en `null`). Se retira cuando
+ese hueco esté cerrado y haya corrido un sábado con invitados, no antes.
+
+**Y lo local NO se puede migrar desde el servidor.** Vive en el IndexedDB del
+aparato de quien lo corrió; en la nube no dejó rastro (`tournaments_finished`
+sigue en 0 para todos). Recuperarlo exige una exportación desde ESE aparato.

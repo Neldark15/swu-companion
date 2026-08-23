@@ -66,7 +66,7 @@ const GROUPS: MoreGroup[] = [
       { to: '/misiones', label: 'Misiones', sub: 'Órdenes del día', icon: DeathStarIcon },
       { to: '/contador', label: 'Contador de daños', sub: 'Duelo en mesa real', icon: ChanceCubeIcon },
       { to: '/amistosas', label: 'Amistosas', sub: 'Historial cara a cara', icon: BlasterIcon },
-      { to: '/torneos', label: 'Torneos', sub: 'Archivo de la comunidad', icon: MandoTrophyIcon },
+      { to: '/torneos', label: 'Torneos', sub: 'Archivo y organizar', icon: MandoTrophyIcon },
       { to: '/calendario', label: 'Calendario', sub: 'Los torneos del mes', icon: AgendaIcon },
       { to: '/pedidos', label: 'Pedidos', sub: 'Carrito y ventas', icon: PedidoIcon },
       { to: '/mensajes', label: 'Mensajes', sub: 'Conversaciones privadas', icon: TransmisionIcon },

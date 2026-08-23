@@ -400,7 +400,10 @@ export function EventLobbyPage() {
 
         {event.status === 'active' && (
           <button
-            onClick={() => navigate('/events/tournament/live')}
+            /* Iba a `/events/tournament/live`, que cae en la ruta del motor
+               LOCAL (`/events/tournament/:id` con id='live') y muestra «Torneo
+               no encontrado». La vista del jugador en la nube es ésta. */
+            onClick={() => navigate(`/events/play/${code}`)}
             className="w-full py-3.5 rounded-xl bg-swu-green text-white font-bold text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
           >
             <Trophy size={20} /> Ir al Torneo
