@@ -1973,3 +1973,83 @@ eterno.
 en cada arranque en frío (§2v): sin esa guarda el emergente saltaría un instante
 en cada apertura para TODO el mundo, que es justo lo que enseña a cerrar avisos
 sin leerlos.
+
+### 3q. La identidad de un jugador DENTRO de un torneo no es su cuenta
+
+`tournament_pairings.player1_id` / `player2_id` / `winner_id` son FK a
+**auth.users**, y hasta 2026-08-23 todo el motor llaveaba a los jugadores por
+`user_id` — que es NULL para quien juega sin cuenta, y en la sala real es un
+tercio de la gente. **No es que «no se pudiera»: el motor INVENTABA
+resultados.** Tres fallos, los tres sin un solo error a la vista:
+
+1. **Un invitado en el lado 2 se leía como BYE.** Se guardaba con
+   `player2_id = NULL`, que es exactamente la condición de bye: ganador
+   automático 2-0 y +3 puntos, +1 victoria, +2 juegos y +1 bye acreditados por
+   una partida que hay que jugar.
+2. **Con N invitados, las N filas colapsan en la clave `null`.** Medido con el
+   algoritmo real sobre 8 jugadores con 3 invitados: **solo 5 quedaban
+   sentados y salían 2 byes falsos**. Tres personas desaparecían de la ronda —
+   sin mesa, sin bye y sin error. Con la llave nueva: 8 de 8, 4 mesas, 0 byes,
+   0 revanchas en la ronda 2 (`scripts/suizo-invitados.test.mts`).
+3. **Si ganaba el invitado, el rival cobraba EMPATE.** `winner_id` quedaba
+   NULL y el código deducía el empate de `winner_id === null`: +1 punto y +1
+   empate por una partida perdida. Es literalmente el torneo del 8/8, donde el
+   campeón no tenía cuenta — por eso esa noche se usó el motor local de Dexie.
+
+**La identidad pasa a ser `tournament_standings.id`**: una fila por jugador y
+por evento, existe con cuenta o sin ella, **nunca es null**. Así `null`
+recupera su único significado honesto: no hay rival.
+
+**Las columnas viejas se quedan y NO son una copia.** Responden otra pregunta:
+
+| columna | pregunta |
+|---|---|
+| `player*_standing`, `winner_standing` | **quién juega** |
+| `player*_id`, `winner_id` | **qué cuenta** puede reportar / confirmar / disputar (`auth.uid()`) |
+
+Un invitado tiene lo primero y no lo segundo. `winner_standing` es
+imprescindible y no un adorno: sin él no hay forma de decir «ganó el invitado»
+y el empate sigue siendo indistinguible (fallo 3).
+
+**`swiss.ts` y `elimination.ts` NO se tocaron**, y eso es lo que confirma el
+diagnóstico: a esos archivos nunca les importó qué SIGNIFICA el id, solo que
+fuera único. El fallo estaba en lo que se les pasaba. La verificación
+adversarial refutó 3 de 10 hallazgos justamente ahí.
+
+**Si tocás pareos, la regla es una:** todo lo que pregunte «¿hay rival?»,
+«¿quién ganó?» o «¿de quién es este nombre?» va por `*_standing`. Solo los
+permisos van por `*_id`. Un `player2_id is null` en una condición de BYE es el
+bug volviendo.
+
+Backfill verificado: 12 pareos históricos, **0 divergencias** entre la llave
+vieja y la nueva.
+
+Y `CloudStanding.user_id` pasó a `string | null`, que es lo que la columna
+siempre admitió. Esa mentira de tipos es la razón de que el compilador jamás
+señalara el caso del invitado: `Map.get(null)` y `id: null` pasaban sin una
+advertencia. Al corregirla salieron 5 sitios, ninguno sospechado antes.
+
+**Un torneo cerrado SIN resultados sigue siendo anotable** (`MesasPanel`): el
+del 22/8 se cerró con las 2 mesas armadas y los 8 puestos en NULL, y la
+pantalla tapaba la única forma de recuperarlo aunque el servidor sí lo
+permitía. Se reabre solo mientras no haya un puesto anotado; con uno, el
+torneo vuelve a estar cerrado de verdad.
+
+### 3r. Verificar el deploy con `curl` en bucle dispara el escudo de Vercel
+
+Sondear `https://swusv.com` cada 15 s para comparar el hash del bundle acaba
+en **403 «Vercel Security Checkpoint»**. Es el escudo antibots contra **la IP
+que sondea**, no una configuración del proyecto —`swusv.com` no tiene
+protección de despliegue, solo la SSO de los dominios de vista previa— así que
+la comunidad no lo ve. Pero deja de servir para verificar, y encima confunde:
+parece que el sitio se cayó.
+
+**Verificá por la API de Vercel**, no golpeando el dominio: la lista de
+despliegues da `state: READY` y el `githubCommitSha`, que es la prueba directa
+de que ese commit está en producción.
+
+Y si igual comparás hashes: **`ls dist/assets/index-*.js | head -1` agarra el
+archivo equivocado.** Hay dos que empiezan con `index-` (el de entrada de
+~385 KB y un chunk de ~16 KB), y el orden alfabético no distingue. El bueno es
+el que referencia `dist/index.html`:
+`grep -o 'assets/index-[A-Za-z0-9_-]*\.js' dist/index.html`.
