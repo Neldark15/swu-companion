@@ -2053,3 +2053,30 @@ archivo equivocado.** Hay dos que empiezan con `index-` (el de entrada de
 ~385 KB y un chunk de ~16 KB), y el orden alfabético no distingue. El bueno es
 el que referencia `dist/index.html`:
 `grep -o 'assets/index-[A-Za-z0-9_-]*\.js' dist/index.html`.
+
+### 3s. Ranking por SEDE, y la trampa de las sobrecargas de Postgres
+
+`ranking_unificado` acepta `p_sede`. Con sede puesta la tabla es la de esa
+tienda; sin ella, la de siempre. El selector vive arriba del de ventana de
+tiempo en `/rank`, y **solo aparece con más de una sede** (un selector de un
+botón es ruido).
+
+**Con sede, las AMISTOSAS quedan fuera, y no es un olvido.** Una amistosa se
+juega en la casa de cualquiera y **no tiene sede**: `duelos_amistosos` no tiene
+columna para eso y no debería tenerla. Repartirlas entre tiendas sería inventar
+dónde se jugaron, y ponerlas en TODAS haría que la suma de los rankings por
+sede no diera nunca el global. La leyenda lo dice con todas las letras cuando
+hay una sede elegida — quien vea menos puntos en la tabla de su tienda que en
+la general merece saber por qué.
+
+**AGREGAR UN PARÁMETRO CON DEFAULT NO REEMPLAZA LA FUNCIÓN: CREA UNA SEGUNDA.**
+`create or replace function f(a, b, c default null)` deja conviviendo `f(a,b)`
+y `f(a,b,c)`, y entonces `f()` es ambiguo: Postgres se niega con **«function
+… is not unique»** y la app deja de poder llamarla. Hay que `drop function` de
+la firma vieja, **en el mismo archivo y antes del create**.
+
+Y una del MCP de Supabase que conviene saber: **cada llamada es UNA
+transacción**. Si el `select` de verificación al final falla, el `drop` y el
+`create` de arriba se revierten con él — el susto de «dejé el ranking sin
+función» no era real, pero tampoco había quedado aplicado nada. Migración en
+una llamada, verificación en otra.
