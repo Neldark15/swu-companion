@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { db, type UserProfile } from '../services/db'
 import { supabase, isSupabaseReady } from '../services/supabase'
-import { syncProfileToCloud, syncStatsToCloud, pullAllFromCloud, addMonthlyXp } from '../services/sync'
+import { syncProfileToCloud, syncStatsToCloud, pullAllFromCloud, addMonthlyXp, sumarXpEnLaNube } from '../services/sync'
 import { createPasskey, authenticateWithPasskey, authenticateWithAnyPasskey } from '../services/crypto'
 import { createDefaultStats } from '../services/gamification'
 import { getPermisos } from '../services/events'
@@ -617,17 +617,57 @@ export const useAuth = create<AuthState>()(
 
 // ─── HELPER: Add XP with cloud sync ─────────────────────────────
 
-export async function addXpWithSync(profileId: string, xpAmount: number) {
-  const stats = await db.playerStats.get(profileId)
-  if (!stats) return
+/**
+ * Acredita XP: lo suma en el SERVIDOR y baja el total resultante al aparato.
+ *
+ * ── Por qué el orden es ese y no al revés ─────────────────────────────
+ *
+ * Esta función se llamaba `addXpWithSync`, sumaba en Dexie y subía la fila
+ * ENTERA de `player_stats` con `syncStatsToCloud`. Eso es el fallo que se
+ * midió en las misiones: el upsert de la fila completa pisa lo que otro
+ * camino ya había escrito en la nube (§3c, dos casas para una verdad).
+ * Nelson tenía 7 misiones cobradas y 2 registradas — 5 pagos perdidos, y
+ * como la misión queda `claimed`, irrecuperables.
+ *
+ * Ahora manda `sumar_xp` (`xp = xp + n`, atómico) y lo que devuelve se
+ * ESCRIBE encima de lo local. La nube es la autoridad y el aparato la copia,
+ * así que dos teléfonos de la misma persona no pueden divergir.
+ *
+ * ── Y no tenía un solo llamador ───────────────────────────────────────
+ *
+ * Cero, en toda la app. Era exactamente la función que las misiones
+ * necesitaban para que el número subiera en pantalla, y nunca se enchufó —
+ * la misma forma que «una misión sin llamador es una tarea imposible».
+ *
+ * No recibe `profileId`: lo saca del store, que es lo que la vuelve
+ * llamable desde un servicio (los servicios no conocen el id local de
+ * Dexie, solo el de Supabase).
+ *
+ * Devuelve el total nuevo, o `null` si NO se pudo acreditar — quien llame
+ * tiene que poder deshacer lo que hubiera marcado por adelantado.
+ */
+export async function acreditarXp(
+  cantidad: number,
+  motivo?: string,
+): Promise<{ xp: number; nivel: number } | null> {
+  const { supabaseUser, currentProfileId } = useAuth.getState()
+  if (!supabaseUser) return null
 
-  stats.xp += xpAmount
-  await db.playerStats.put(stats)
+  const resultado = await sumarXpEnLaNube(cantidad, motivo)
+  if (!resultado) return null
 
-  // Sync to cloud
-  const { supabaseUser } = useAuth.getState()
-  if (supabaseUser) {
-    syncStatsToCloud(supabaseUser.id, stats).catch(() => {})
-    addMonthlyXp(supabaseUser.id, xpAmount).catch(() => {})
+  // El aparato copia lo que dijo el servidor; no vuelve a sumar por su cuenta.
+  if (currentProfileId) {
+    const stats = await db.playerStats.get(currentProfileId)
+    if (stats) {
+      stats.xp = resultado.xp
+      stats.level = resultado.nivel
+      await db.playerStats.put(stats)
+    }
   }
+
+  // El ranking mensual va aparte y sí es un delta: mide lo GANADO este mes.
+  addMonthlyXp(supabaseUser.id, cantidad).catch(() => {})
+
+  return resultado
 }

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "stingerTransitionFrame": 17,
+  "protectedRegions": {
+    "table": [420, 172, 1500, 820],
+    "topHud": [20, 20, 1900, 172],
+    "bottomHud": [20, 820, 1900, 1000]
+  },
+  "compositions": [
+    {"id":"ambient","filename":"SWU-SV-Fondo-Ambiental-Loop-1920x1080.mp4","width":1920,"height":1080,"fps":30,"frames":600,"profile":"h264","loop":true},
+    {"id":"energy-frame","filename":"SWU-SV-Marco-Energia-Alpha-1920x1080.webm","width":1920,"height":1080,"fps":30,"frames":360,"profile":"vp9-alpha","loop":true},
+    {"id":"holographic-logo","filename":"SWU-SV-Logo-Holografico-Alpha-8s.webm","width":1920,"height":1080,"fps":30,"frames":240,"profile":"vp9-alpha","loop":true},
+    {"id":"stinger","filename":"SWU-SV-Stinger-Portal-1.2s.webm","width":1920,"height":1080,"fps":30,"frames":36,"profile":"vp9-alpha","loop":false},
+    {"id":"starting","filename":"SWU-SV-Empezamos-Pronto-Loop-20s.mp4","width":1920,"height":1080,"fps":30,"frames":600,"profile":"h264","loop":true},
+    {"id":"break","filename":"SWU-SV-Volvemos-Pronto-Loop-20s.mp4","width":1920,"height":1080,"fps":30,"frames":600,"profile":"h264","loop":true},
+    {"id":"preview","filename":"SWU-SV-PREVIA-Paquete-Animado.mp4","width":1920,"height":1080,"fps":30,"frames":1200,"profile":"h264","loop":false}
+  ]
+}

@@ -1,0 +1,708 @@
+{
+  "assets": [
+    {
+      "filename": "SWU-SV-Fondo-Ambiental-Loop-1920x1080.mp4",
+      "findings": [],
+      "id": "ambient",
+      "metrics": {
+        "loop": {
+          "codecBoundaryEnergy": 0.0022306363098323345,
+          "codecBoundaryFrame": 60,
+          "codecBoundaryLeadingEnergy": 8.120133315969724e-06,
+          "codecBoundaryTrailingEnergy": 1.6626700016786344e-05,
+          "codecResidualAllowance": 0.002214009609815548,
+          "codecResidualEnergy": 0.002214009609815548,
+          "codecResidualMeanLimit": 0.00392156862745098,
+          "endpointSsim": 0.9991499316214889,
+          "frames": [
+            0,
+            1,
+            598,
+            599
+          ],
+          "leadingStepDetail": {
+            "fractionAboveOneCode": 0.019654706790123457,
+            "maxDelta": 0.3960784375667572,
+            "meanDelta": 0.0002193098043790087
+          },
+          "leadingStepEnergy": 0.00012407457688823342,
+          "localizedExcessFraction": 0.0,
+          "localizedExcessFractionLimit": 0.0001,
+          "localizedExcessThreshold": 0.12549019607843137,
+          "localizedTileGrid": [
+            16,
+            9
+          ],
+          "localizedTileMeanLimit": 0.03137254901960784,
+          "localizedTilePeakMean": 0.00678403303027153,
+          "localizedTileSampling": "sliding-all-offsets",
+          "localizedTileWindow": [
+            120,
+            120
+          ],
+          "neighborClassification": "motion",
+          "numericalEpsilon": 1e-12,
+          "permittedSeamEnergy": 0.006679212528160417,
+          "seamDetail": {
+            "fractionAboveOneCode": 0.3331057098765432,
+            "maxDelta": 0.1294117569923401,
+            "meanDelta": 0.004207168240100145
+          },
+          "seamEnergy": 0.0025990488938987255,
+          "staticFallbackApplied": false,
+          "trailingStepDetail": {
+            "fractionAboveOneCode": 0.17781394675925927,
+            "maxDelta": 0.46666666865348816,
+            "meanDelta": 0.0034120238851755857
+          },
+          "trailingStepEnergy": 0.002976801944896579
+        },
+        "stream": {
+          "audioStreamCount": 0,
+          "avgFrameRate": "30/1",
+          "codec": "h264",
+          "colorPrimaries": "bt709",
+          "colorSpace": "bt709",
+          "colorTransfer": "bt709",
+          "decodedFrames": 600,
+          "frameTiming": {
+            "decodedTimingFrames": 600,
+            "expectedTimingFrames": 600,
+            "maxDurationErrorSeconds": 0.0,
+            "maxScheduleErrorSeconds": 0.0,
+            "timeBase": "1/15360",
+            "toleranceSeconds": 3.255208333333333e-05,
+            "uniform": true
+          },
+          "height": 1080,
+          "pixelFormat": "yuv420p",
+          "rFrameRate": "30/1",
+          "videoStreamCount": 1,
+          "width": 1920
+        }
+      },
+      "ok": true,
+      "path": "outputs/SWU-SV-Paquete-Animaciones-OBS/SWU-SV-Fondo-Ambiental-Loop-1920x1080.mp4",
+      "review": {
+        "contactTileSize": [
+          384,
+          216
+        ],
+        "outputs": [
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/ambient-contact.png",
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/ambient-frame-300-1280x720.png",
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/ambient-frame-300-854x480.png"
+        ],
+        "representativeFrame": 300,
+        "selected_frames": [
+          0,
+          150,
+          300,
+          449,
+          599
+        ]
+      },
+      "sha256": "f1ff6b8e1810f79e7b65c28b6ac2a45d42032177e0f1e5dfd8a172c5c76b9b3d"
+    },
+    {
+      "filename": "SWU-SV-Marco-Energia-Alpha-1920x1080.webm",
+      "findings": [],
+      "id": "energy-frame",
+      "metrics": {
+        "alpha": {
+          "decoder": "libvpx-vp9",
+          "frames": {
+            "0": {
+              "coverage": 0.3331327160493827,
+              "max": 255,
+              "min": 0
+            },
+            "359": {
+              "coverage": 0.3331327160493827,
+              "max": 255,
+              "min": 0
+            },
+            "89": {
+              "coverage": 0.3331327160493827,
+              "max": 255,
+              "min": 0
+            }
+          },
+          "normalFrames": [
+            0,
+            89,
+            359
+          ]
+        },
+        "loop": {
+          "endpointSsim": 0.9999999076157474,
+          "frames": [
+            0,
+            1,
+            358,
+            359
+          ],
+          "leadingStepDetail": {
+            "fractionAboveOneCode": 1.3020833333333334e-05,
+            "maxDelta": 0.0156862773001194,
+            "meanDelta": 2.2505146546336618e-07
+          },
+          "leadingStepEnergy": 1.3947516208645538e-07,
+          "localizedExcessFraction": 0.0,
+          "localizedExcessFractionLimit": 0.0001,
+          "localizedExcessThreshold": 0.12549019607843137,
+          "localizedTileGrid": [
+            16,
+            9
+          ],
+          "localizedTileMeanLimit": 0.03137254901960784,
+          "localizedTilePeakMean": 0.00011928110325243324,
+          "localizedTileSampling": "sliding-all-offsets",
+          "localizedTileWindow": [
+            120,
+            120
+          ],
+          "neighborClassification": "codec-static",
+          "numericalEpsilon": 1e-12,
+          "permittedSeamEnergy": 1e-05,
+          "seamDetail": {
+            "fractionAboveOneCode": 0.00022858796296296296,
+            "maxDelta": 0.0156862773001194,
+            "meanDelta": 3.093984560109675e-06
+          },
+          "seamEnergy": 1.6448612996100564e-06,
+          "staticFallbackApplied": true,
+          "trailingStepDetail": {
+            "fractionAboveOneCode": 0.0,
+            "maxDelta": 0.0,
+            "meanDelta": 0.0
+          },
+          "trailingStepEnergy": 0.0
+        },
+        "stream": {
+          "audioStreamCount": 0,
+          "avgFrameRate": "30/1",
+          "codec": "vp9",
+          "colorPrimaries": null,
+          "colorSpace": null,
+          "colorTransfer": null,
+          "decodedFrames": 360,
+          "frameTiming": {
+            "decodedTimingFrames": 360,
+            "expectedTimingFrames": 360,
+            "maxDurationErrorSeconds": 0.0003333333333333333,
+            "maxScheduleErrorSeconds": 0.0003333333333333333,
+            "timeBase": "1/1000",
+            "toleranceSeconds": 0.0005,
+            "uniform": true
+          },
+          "height": 1080,
+          "pixelFormat": "yuv420p",
+          "rFrameRate": "30/1",
+          "videoStreamCount": 1,
+          "width": 1920
+        }
+      },
+      "ok": true,
+      "path": "outputs/SWU-SV-Paquete-Animaciones-OBS/SWU-SV-Marco-Energia-Alpha-1920x1080.webm",
+      "review": {
+        "contactTileSize": [
+          384,
+          216
+        ],
+        "outputs": [
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/energy-frame-contact-dark-navy.png",
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/energy-frame-contact-light-gray.png",
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/energy-frame-frame-180-1280x720.png",
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/energy-frame-frame-180-854x480.png"
+        ],
+        "representativeFrame": 180,
+        "selected_frames": [
+          0,
+          90,
+          180,
+          269,
+          359
+        ]
+      },
+      "sha256": "cb4fe3d46470180ffaf845eeb428db9e19d8ad7965794a614f75654924d0841e"
+    },
+    {
+      "filename": "SWU-SV-Logo-Holografico-Alpha-8s.webm",
+      "findings": [],
+      "id": "holographic-logo",
+      "metrics": {
+        "alpha": {
+          "decoder": "libvpx-vp9",
+          "frames": {
+            "0": {
+              "coverage": 0.006286651234567901,
+              "max": 255,
+              "min": 0
+            },
+            "239": {
+              "coverage": 0.006829668209876543,
+              "max": 255,
+              "min": 0
+            },
+            "59": {
+              "coverage": 0.006675347222222222,
+              "max": 255,
+              "min": 0
+            }
+          },
+          "normalFrames": [
+            0,
+            59,
+            239
+          ]
+        },
+        "loop": {
+          "endpointSsim": 0.9998590176924225,
+          "frames": [
+            0,
+            1,
+            238,
+            239
+          ],
+          "leadingStepDetail": {
+            "fractionAboveOneCode": 0.0018089313271604937,
+            "maxDelta": 0.9843137264251709,
+            "meanDelta": 7.5976611697115e-05
+          },
+          "leadingStepEnergy": 4.2480351112317294e-05,
+          "localizedExcessFraction": 4.822530864197531e-07,
+          "localizedExcessFractionLimit": 0.0001,
+          "localizedExcessThreshold": 0.12549019607843137,
+          "localizedTileGrid": [
+            16,
+            9
+          ],
+          "localizedTileMeanLimit": 0.03137254901960784,
+          "localizedTilePeakMean": 0.004599536303430796,
+          "localizedTileSampling": "sliding-all-offsets",
+          "localizedTileWindow": [
+            120,
+            120
+          ],
+          "neighborClassification": "motion",
+          "numericalEpsilon": 1e-12,
+          "permittedSeamEnergy": 6.372052766847594e-05,
+          "seamDetail": {
+            "fractionAboveOneCode": 0.005327932098765432,
+            "maxDelta": 0.1294117569923401,
+            "meanDelta": 8.425434498349205e-05
+          },
+          "seamEnergy": 3.5207787732360885e-05,
+          "staticFallbackApplied": false,
+          "trailingStepDetail": {
+            "fractionAboveOneCode": 0.0016396604938271604,
+            "maxDelta": 0.9019607901573181,
+            "meanDelta": 7.354265108006075e-05
+          },
+          "trailingStepEnergy": 4.103122773813084e-05
+        },
+        "stream": {
+          "audioStreamCount": 0,
+          "avgFrameRate": "30/1",
+          "codec": "vp9",
+          "colorPrimaries": null,
+          "colorSpace": null,
+          "colorTransfer": null,
+          "decodedFrames": 240,
+          "frameTiming": {
+            "decodedTimingFrames": 240,
+            "expectedTimingFrames": 240,
+            "maxDurationErrorSeconds": 0.0003333333333333333,
+            "maxScheduleErrorSeconds": 0.0003333333333333333,
+            "timeBase": "1/1000",
+            "toleranceSeconds": 0.0005,
+            "uniform": true
+          },
+          "height": 1080,
+          "pixelFormat": "yuv420p",
+          "rFrameRate": "30/1",
+          "videoStreamCount": 1,
+          "width": 1920
+        }
+      },
+      "ok": true,
+      "path": "outputs/SWU-SV-Paquete-Animaciones-OBS/SWU-SV-Logo-Holografico-Alpha-8s.webm",
+      "review": {
+        "contactTileSize": [
+          384,
+          216
+        ],
+        "outputs": [
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/holographic-logo-contact-dark-navy.png",
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/holographic-logo-contact-light-gray.png",
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/holographic-logo-frame-120-1280x720.png",
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/holographic-logo-frame-120-854x480.png"
+        ],
+        "representativeFrame": 120,
+        "selected_frames": [
+          0,
+          60,
+          120,
+          179,
+          239
+        ]
+      },
+      "sha256": "89e03fec8fbdf5eead945ee87eb0774aeadb753a3d5e9d121a8d2a1644faf2dc"
+    },
+    {
+      "filename": "SWU-SV-Stinger-Portal-1.2s.webm",
+      "findings": [],
+      "id": "stinger",
+      "metrics": {
+        "alpha": {
+          "coverageAlphaMinimum": 250,
+          "coverageFloorMinimum": 128,
+          "decoder": "libvpx-vp9",
+          "frames": {
+            "0": {
+              "coverage": 8.728780864197531e-05,
+              "max": 129,
+              "min": 0
+            },
+            "35": {
+              "coverage": 9.403935185185185e-05,
+              "max": 129,
+              "min": 0
+            },
+            "8": {
+              "coverage": 0.6176765046296296,
+              "max": 255,
+              "min": 0
+            }
+          },
+          "normalFrames": [
+            0,
+            8,
+            35
+          ],
+          "stingerCoverage": {
+            "17": 1.0,
+            "18": 1.0,
+            "19": 1.0
+          },
+          "stingerMinimumAlpha": {
+            "17": 254,
+            "18": 255,
+            "19": 255
+          }
+        },
+        "stingerCutFrame": 16,
+        "stream": {
+          "audioStreamCount": 0,
+          "avgFrameRate": "30/1",
+          "codec": "vp9",
+          "colorPrimaries": null,
+          "colorSpace": null,
+          "colorTransfer": null,
+          "decodedFrames": 36,
+          "frameTiming": {
+            "decodedTimingFrames": 36,
+            "expectedTimingFrames": 36,
+            "maxDurationErrorSeconds": 0.0003333333333333333,
+            "maxScheduleErrorSeconds": 0.0003333333333333333,
+            "timeBase": "1/1000",
+            "toleranceSeconds": 0.0005,
+            "uniform": true
+          },
+          "height": 1080,
+          "pixelFormat": "yuv420p",
+          "rFrameRate": "30/1",
+          "videoStreamCount": 1,
+          "width": 1920
+        }
+      },
+      "ok": true,
+      "path": "outputs/SWU-SV-Paquete-Animaciones-OBS/SWU-SV-Stinger-Portal-1.2s.webm",
+      "review": {
+        "contactTileSize": [
+          384,
+          216
+        ],
+        "outputs": [
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/stinger-contact-dark-navy.png",
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/stinger-contact-light-gray.png",
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/stinger-frame-18-1280x720.png",
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/stinger-frame-18-854x480.png"
+        ],
+        "representativeFrame": 18,
+        "selected_frames": [
+          0,
+          9,
+          18,
+          26,
+          35
+        ]
+      },
+      "sha256": "11557ae2ddf13f028bdd94f8935138c61d61055bda7839832f96d106fd517a73"
+    },
+    {
+      "filename": "SWU-SV-Empezamos-Pronto-Loop-20s.mp4",
+      "findings": [],
+      "id": "starting",
+      "metrics": {
+        "loop": {
+          "codecBoundaryEnergy": 0.00334594096057117,
+          "codecBoundaryFrame": 60,
+          "codecBoundaryLeadingEnergy": 2.959710400318727e-06,
+          "codecBoundaryTrailingEnergy": 2.3247752324095927e-05,
+          "codecResidualAllowance": 0.003322693208247074,
+          "codecResidualEnergy": 0.003322693208247074,
+          "codecResidualMeanLimit": 0.00392156862745098,
+          "endpointSsim": 0.9992355415558963,
+          "frames": [
+            0,
+            1,
+            598,
+            599
+          ],
+          "leadingStepDetail": {
+            "fractionAboveOneCode": 0.024055266203703702,
+            "maxDelta": 0.2392157018184662,
+            "meanDelta": 0.00025576812913641334
+          },
+          "leadingStepEnergy": 0.00013052983558736742,
+          "localizedExcessFraction": 0.0,
+          "localizedExcessFractionLimit": 0.0001,
+          "localizedExcessThreshold": 0.12549019607843137,
+          "localizedTileGrid": [
+            16,
+            9
+          ],
+          "localizedTileMeanLimit": 0.03137254901960784,
+          "localizedTilePeakMean": 0.01276535913348198,
+          "localizedTileSampling": "sliding-all-offsets",
+          "localizedTileWindow": [
+            120,
+            120
+          ],
+          "neighborClassification": "motion",
+          "numericalEpsilon": 1e-12,
+          "permittedSeamEnergy": 0.003518487962628125,
+          "seamDetail": {
+            "fractionAboveOneCode": 0.4559201388888889,
+            "maxDelta": 0.250980406999588,
+            "meanDelta": 0.005694444291293621
+          },
+          "seamEnergy": 0.003359208581969142,
+          "staticFallbackApplied": false,
+          "trailingStepDetail": {
+            "fractionAboveOneCode": 0.00021701388888888888,
+            "maxDelta": 0.12941177189350128,
+            "meanDelta": 2.8443478186090942e-06
+          },
+          "trailingStepEnergy": 1.698917685644119e-06
+        },
+        "stream": {
+          "audioStreamCount": 0,
+          "avgFrameRate": "30/1",
+          "codec": "h264",
+          "colorPrimaries": "bt709",
+          "colorSpace": "bt709",
+          "colorTransfer": "bt709",
+          "decodedFrames": 600,
+          "frameTiming": {
+            "decodedTimingFrames": 600,
+            "expectedTimingFrames": 600,
+            "maxDurationErrorSeconds": 0.0,
+            "maxScheduleErrorSeconds": 0.0,
+            "timeBase": "1/15360",
+            "toleranceSeconds": 3.255208333333333e-05,
+            "uniform": true
+          },
+          "height": 1080,
+          "pixelFormat": "yuv420p",
+          "rFrameRate": "30/1",
+          "videoStreamCount": 1,
+          "width": 1920
+        }
+      },
+      "ok": true,
+      "path": "outputs/SWU-SV-Paquete-Animaciones-OBS/SWU-SV-Empezamos-Pronto-Loop-20s.mp4",
+      "review": {
+        "contactTileSize": [
+          384,
+          216
+        ],
+        "outputs": [
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/starting-contact.png",
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/starting-frame-300-1280x720.png",
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/starting-frame-300-854x480.png"
+        ],
+        "representativeFrame": 300,
+        "selected_frames": [
+          0,
+          150,
+          300,
+          449,
+          599
+        ]
+      },
+      "sha256": "f841328aca5e46e823cb89b2e96f6ee3f588015e66ae264c610473c17b3f7dff"
+    },
+    {
+      "filename": "SWU-SV-Volvemos-Pronto-Loop-20s.mp4",
+      "findings": [],
+      "id": "break",
+      "metrics": {
+        "loop": {
+          "codecBoundaryEnergy": 0.003335826564580202,
+          "codecBoundaryFrame": 60,
+          "codecBoundaryLeadingEnergy": 1.3313966746864025e-06,
+          "codecBoundaryTrailingEnergy": 2.1148533051018603e-05,
+          "codecResidualAllowance": 0.0033146780315291835,
+          "codecResidualEnergy": 0.0033146780315291835,
+          "codecResidualMeanLimit": 0.00392156862745098,
+          "endpointSsim": 0.9992406902389332,
+          "frames": [
+            0,
+            1,
+            598,
+            599
+          ],
+          "leadingStepDetail": {
+            "fractionAboveOneCode": 0.025267168209876543,
+            "maxDelta": 0.22745096683502197,
+            "meanDelta": 0.0002618255966808647
+          },
+          "leadingStepEnergy": 0.00012992150732316077,
+          "localizedExcessFraction": 8.198302469135803e-06,
+          "localizedExcessFractionLimit": 0.0001,
+          "localizedExcessThreshold": 0.12549019607843137,
+          "localizedTileGrid": [
+            16,
+            9
+          ],
+          "localizedTileMeanLimit": 0.03137254901960784,
+          "localizedTilePeakMean": 0.012762544676661491,
+          "localizedTileSampling": "sliding-all-offsets",
+          "localizedTileWindow": [
+            120,
+            120
+          ],
+          "neighborClassification": "motion",
+          "numericalEpsilon": 1e-12,
+          "permittedSeamEnergy": 0.0035095602935139246,
+          "seamDetail": {
+            "fractionAboveOneCode": 0.45599971064814815,
+            "maxDelta": 0.2392156720161438,
+            "meanDelta": 0.005689472425729036
+          },
+          "seamEnergy": 0.003353630658239126,
+          "staticFallbackApplied": false,
+          "trailingStepDetail": {
+            "fractionAboveOneCode": 0.00021653163580246914,
+            "maxDelta": 0.08235293626785278,
+            "meanDelta": 2.407483179922565e-06
+          },
+          "trailingStepEnergy": 1.3030289665039163e-06
+        },
+        "stream": {
+          "audioStreamCount": 0,
+          "avgFrameRate": "30/1",
+          "codec": "h264",
+          "colorPrimaries": "bt709",
+          "colorSpace": "bt709",
+          "colorTransfer": "bt709",
+          "decodedFrames": 600,
+          "frameTiming": {
+            "decodedTimingFrames": 600,
+            "expectedTimingFrames": 600,
+            "maxDurationErrorSeconds": 0.0,
+            "maxScheduleErrorSeconds": 0.0,
+            "timeBase": "1/15360",
+            "toleranceSeconds": 3.255208333333333e-05,
+            "uniform": true
+          },
+          "height": 1080,
+          "pixelFormat": "yuv420p",
+          "rFrameRate": "30/1",
+          "videoStreamCount": 1,
+          "width": 1920
+        }
+      },
+      "ok": true,
+      "path": "outputs/SWU-SV-Paquete-Animaciones-OBS/SWU-SV-Volvemos-Pronto-Loop-20s.mp4",
+      "review": {
+        "contactTileSize": [
+          384,
+          216
+        ],
+        "outputs": [
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/break-contact.png",
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/break-frame-300-1280x720.png",
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/break-frame-300-854x480.png"
+        ],
+        "representativeFrame": 300,
+        "selected_frames": [
+          0,
+          150,
+          300,
+          449,
+          599
+        ]
+      },
+      "sha256": "4986daeff7b6d0abea8d47884ea7d73b2a83f5edb04e2359cb38d47583f4b075"
+    },
+    {
+      "filename": "SWU-SV-PREVIA-Paquete-Animado.mp4",
+      "findings": [],
+      "id": "preview",
+      "metrics": {
+        "stream": {
+          "audioStreamCount": 0,
+          "avgFrameRate": "30/1",
+          "codec": "h264",
+          "colorPrimaries": "bt709",
+          "colorSpace": "bt709",
+          "colorTransfer": "bt709",
+          "decodedFrames": 1200,
+          "frameTiming": {
+            "decodedTimingFrames": 1200,
+            "expectedTimingFrames": 1200,
+            "maxDurationErrorSeconds": 0.0,
+            "maxScheduleErrorSeconds": 0.0,
+            "timeBase": "1/15360",
+            "toleranceSeconds": 3.255208333333333e-05,
+            "uniform": true
+          },
+          "height": 1080,
+          "pixelFormat": "yuv420p",
+          "rFrameRate": "30/1",
+          "videoStreamCount": 1,
+          "width": 1920
+        }
+      },
+      "ok": true,
+      "path": "outputs/SWU-SV-Paquete-Animaciones-OBS/SWU-SV-PREVIA-Paquete-Animado.mp4",
+      "review": {
+        "contactTileSize": [
+          384,
+          216
+        ],
+        "outputs": [
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/preview-contact.png",
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/preview-frame-600-1280x720.png",
+          "outputs/SWU-SV-Paquete-Animaciones-OBS/REVISION-VISUAL/preview-frame-600-854x480.png"
+        ],
+        "representativeFrame": 600,
+        "selected_frames": [
+          0,
+          300,
+          600,
+          899,
+          1199
+        ]
+      },
+      "sha256": "2870efe54ff8a9da003781a6eee322c493e33050589164dab1f8ba8058167bf6"
+    }
+  ],
+  "ok": true,
+  "outputDirectory": "outputs/SWU-SV-Paquete-Animaciones-OBS",
+  "schemaVersion": 2
+}

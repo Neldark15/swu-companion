@@ -1,0 +1,5 @@
+RESPALDO PRORES NO REQUERIDO EN ESTA ETAPA
+
+Los tres medios VP9 transparentes pasaron la validación de ALPHA_MODE=1, decodificación RGBA con libvpx-vp9, píxeles transparentes/visibles y cobertura del stinger.
+
+ProRes 4444 se generará únicamente si la prueba posterior en OBS detecta pérdida de alfa, halos/bordes oscuros o un inicio tardío de la transición. Hasta entonces, los WebM VP9 son la entrega principal validada.

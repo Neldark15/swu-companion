@@ -292,6 +292,7 @@ export default function App() {
             {import.meta.env.DEV && <Route path="/banco-consola" element={<BancoConsola />} />}
             {import.meta.env.DEV && <Route path="/banco-encuesta" element={<BancoEncuesta />} />}
             {import.meta.env.DEV && <Route path="/banco-iconos" element={<BancoIconos />} />}
+            {import.meta.env.DEV && <Route path="/banco-misiones" element={<MissionsPage />} />}
             {import.meta.env.DEV && <Route path="/banco-mesa-contador" element={<MesaContador />} />}
             <Route path="/play/tracker/:mode" element={<P><TrackerPage /></P>} />
             <Route path="/play/saved" element={<P><SavedMatchesPage /></P>} />

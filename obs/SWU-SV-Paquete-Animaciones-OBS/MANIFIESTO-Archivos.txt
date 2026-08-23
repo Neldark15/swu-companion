@@ -1,0 +1,32 @@
+MANIFIESTO DE ARCHIVOS — SWU SV OBS
+
+Medios (un video, sin audio):
+- SWU-SV-Fondo-Ambiental-Loop-1920x1080.mp4
+  Propósito: fondo ambiental continuo de partida
+  Códec: H.264 / yuv420p / BT.709; duración: 20 s / 600 frames; alfa: no; loop: sí; dimensiones/fps: 1920x1080, 30 fps.
+- SWU-SV-Marco-Energia-Alpha-1920x1080.webm
+  Propósito: marco energético transparente sobre la cámara
+  Códec: VP9 WebM con alfa; duración: 12 s / 360 frames; alfa: sí; loop: sí; dimensiones/fps: 1920x1080, 30 fps.
+- SWU-SV-Logo-Holografico-Alpha-8s.webm
+  Propósito: logo holográfico transparente
+  Códec: VP9 WebM con alfa; duración: 8 s / 240 frames; alfa: sí; loop: sí; dimensiones/fps: 1920x1080, 30 fps.
+- SWU-SV-Stinger-Portal-1.2s.webm
+  Propósito: transición de portal entre escenas
+  Códec: VP9 WebM con alfa; duración: 1.2 s / 36 frames; alfa: sí; loop: no; dimensiones/fps: 1920x1080, 30 fps.
+- SWU-SV-Empezamos-Pronto-Loop-20s.mp4
+  Propósito: pantalla de espera «EMPEZAMOS PRONTO»
+  Códec: H.264 / yuv420p / BT.709; duración: 20 s / 600 frames; alfa: no; loop: sí; dimensiones/fps: 1920x1080, 30 fps.
+- SWU-SV-Volvemos-Pronto-Loop-20s.mp4
+  Propósito: pantalla de pausa «VOLVEMOS PRONTO»
+  Códec: H.264 / yuv420p / BT.709; duración: 20 s / 600 frames; alfa: no; loop: sí; dimensiones/fps: 1920x1080, 30 fps.
+- SWU-SV-PREVIA-Paquete-Animado.mp4
+  Propósito: vista previa de todo el paquete
+  Códec: H.264 / yuv420p / BT.709; duración: 40 s / 1200 frames; alfa: no; loop: no; dimensiones/fps: 1920x1080, 30 fps.
+
+Soporte:
+- LEEME-Animaciones-OBS.md: configuración y solución de problemas en OBS.
+- validation-report.json: resultado automatizado de los siete medios.
+- REVISION-VISUAL/: contactos y fotogramas para revisión visual.
+- MASTER-FUENTES/: renderer, pruebas, manifiestos, fuentes originales verificadas y checkpoints reproducibles.
+- RESPALDO-COMPATIBILIDAD/NO-REQUERIDO.txt: estado del respaldo ProRes.
+- SHA256SUMS.txt: SHA-256 de cada archivo del paquete salvo este mismo archivo.

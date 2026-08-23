@@ -1,0 +1,823 @@
+<title>Temporada SWU El Salvador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --papel:       #eaeef2;
+    --panel:       #ffffff;
+    --panel-hondo: #dfe6ec;
+    --linea:       #c8d3dc;
+    --linea-fina:  #e0e7ed;
+    --tinta:       #16202b;
+    --tinta-suave: #46545f;
+    --tinta-tenue: #4d5c69;
+    --acento:      #8a5c00;
+    --acento-piso: #f6eeda;
+    --roto:        #9c2b32;
+    --roto-piso:   #f8e6e7;
+    --arregla:     #14654a;
+    --arregla-piso:#e0f0e9;
+    --ojo:         #2c5a8f;
+    --ojo-piso:    #e2ebf5;
+
+    --display: "Familjen Grotesk", "Helvetica Neue", sans-serif;
+    --texto:   "Source Serif 4", Georgia, serif;
+    --mono:    "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --papel:       #0d1319;
+      --panel:       #151d25;
+      --panel-hondo: #101820;
+      --linea:       #2a3742;
+      --linea-fina:  #1e2831;
+      --tinta:       #e6ecf1;
+      --tinta-suave: #a3b0bb;
+      --tinta-tenue: #8593a0;
+      --acento:      #e0aa46;
+      --acento-piso: #241c0c;
+      --roto:        #ef8f95;
+      --roto-piso:   #2b1315;
+      --arregla:     #63cfa6;
+      --arregla-piso:#0d2620;
+      --ojo:         #7fb1e8;
+      --ojo-piso:    #121e2c;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --papel:       #0d1319;
+    --panel:       #151d25;
+    --panel-hondo: #101820;
+    --linea:       #2a3742;
+    --linea-fina:  #1e2831;
+    --tinta:       #e6ecf1;
+    --tinta-suave: #a3b0bb;
+    --tinta-tenue: #8593a0;
+    --acento:      #e0aa46;
+    --acento-piso: #241c0c;
+    --roto:        #ef8f95;
+    --roto-piso:   #2b1315;
+    --arregla:     #63cfa6;
+    --arregla-piso:#0d2620;
+    --ojo:         #7fb1e8;
+    --ojo-piso:    #121e2c;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--papel);
+    color: var(--tinta);
+    font-family: var(--texto);
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .hoja {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 2.5rem 1.1rem 5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+  }
+
+  /* ── Portada ── */
+  .portada { display: flex; flex-direction: column; gap: .9rem; }
+  .sello {
+    font-family: var(--mono);
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--acento);
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: clamp(2rem, 7vw, 3rem);
+    line-height: 1.04;
+    letter-spacing: -.02em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .bajada { font-size: 1.12rem; color: var(--tinta-suave); margin: 0; max-width: 36rem; }
+
+  .marcador {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--linea);
+    border: 1px solid var(--linea);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: .4rem;
+  }
+  .marcador > div { background: var(--panel); padding: .8rem .9rem; }
+  .marcador b {
+    display: block;
+    font-family: var(--mono);
+    font-size: 1.6rem;
+    font-weight: 600;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .marcador span { display: block; font-size: .85rem; color: var(--tinta-suave); margin-top: .25rem; line-height: 1.3; }
+  .m-roto b    { color: var(--roto); }
+  .m-arregla b { color: var(--arregla); }
+
+  /* ── Secciones ── */
+  section { display: flex; flex-direction: column; gap: 1rem; }
+  h2 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 1.45rem;
+    line-height: 1.15;
+    letter-spacing: -.012em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--mono);
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .17em;
+    text-transform: uppercase;
+    color: var(--tinta-tenue);
+    margin: 0;
+    padding-bottom: .45rem;
+    border-bottom: 1px solid var(--linea);
+  }
+  p { margin: 0; max-width: 38rem; }
+  strong { font-weight: 600; }
+  em { font-style: italic; }
+
+  /* ── Hallazgos ── */
+  .hallazgo {
+    background: var(--panel);
+    border: 1px solid var(--linea);
+    border-radius: 3px;
+    padding: 1rem 1.05rem;
+    display: flex;
+    flex-direction: column;
+    gap: .55rem;
+  }
+  .chapa {
+    font-family: var(--mono);
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    padding: .2rem .45rem;
+    border-radius: 2px;
+    width: fit-content;
+  }
+  .c-rompe   { color: var(--roto);    background: var(--roto-piso); }
+  .c-ajusta  { color: var(--acento);  background: var(--acento-piso); }
+  .c-ojo     { color: var(--ojo);     background: var(--ojo-piso); }
+  .c-ok      { color: var(--arregla); background: var(--arregla-piso); }
+  .hallazgo h4 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 1.05rem;
+    line-height: 1.3;
+    margin: 0;
+    text-wrap: pretty;
+  }
+  .hallazgo p { font-size: .97rem; line-height: 1.55; color: var(--tinta-suave); max-width: none; }
+  .hallazgo p + p { margin-top: -.1rem; }
+  .arreglo {
+    font-size: .95rem;
+    line-height: 1.5;
+    color: var(--tinta);
+    background: var(--arregla-piso);
+    border-left: 2px solid var(--arregla);
+    padding: .55rem .7rem;
+    border-radius: 0 2px 2px 0;
+  }
+  .arreglo::before {
+    content: "Arreglo · ";
+    font-family: var(--mono);
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--arregla);
+  }
+
+  /* ── Tablas ── */
+  .tabla-caja { overflow-x: auto; border: 1px solid var(--linea); border-radius: 3px; background: var(--panel); }
+  table { width: 100%; min-width: 30rem; border-collapse: collapse; font-size: .93rem; }
+  caption {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--tinta-tenue);
+    padding: .7rem .85rem .5rem;
+  }
+  th {
+    font-family: var(--mono);
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--tinta-tenue);
+    text-align: right;
+    padding: .45rem .6rem;
+    border-bottom: 1px solid var(--linea);
+    white-space: nowrap;
+  }
+  th:first-child { text-align: left; }
+  td {
+    padding: .5rem .6rem;
+    border-bottom: 1px solid var(--linea-fina);
+    text-align: right;
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--tinta);
+  }
+  td:first-child { text-align: left; font-family: var(--texto); color: var(--tinta); }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.mal  { color: var(--roto); font-weight: 600; }
+  td.bien { color: var(--arregla); font-weight: 600; }
+  .nota-tabla { font-size: .85rem; color: var(--tinta-tenue); line-height: 1.45; max-width: none; }
+
+  /* ── Listas ── */
+  ul.lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .55rem; }
+  /* Con `grid` de dos columnas y el guion como ::before, un `<b>` dentro del
+     renglón se convertía en un TERCER hijo de la rejilla: la negrita saltaba a
+     la segunda columna, alineada a la derecha, y el resto del texto caía en una
+     fila nueva. El guion va posicionado y el texto fluye normal. */
+  ul.lista li {
+    position: relative;
+    padding-left: 1.25rem;
+    font-size: .97rem; line-height: 1.5; color: var(--tinta-suave);
+  }
+  ul.lista li::before {
+    content: "—";
+    position: absolute; left: 0; top: 0;
+    color: var(--tinta-tenue); font-family: var(--mono);
+  }
+  ul.lista b { color: var(--tinta); }
+
+  /* ── Bloque de código ── */
+  pre {
+    margin: 0;
+    background: var(--panel-hondo);
+    border: 1px solid var(--linea);
+    border-radius: 3px;
+    padding: .9rem 1rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: .82rem;
+    line-height: 1.65;
+    color: var(--tinta);
+  }
+  pre .c { color: var(--tinta-tenue); }
+  pre .n { color: var(--arregla); font-weight: 600; }
+
+  /* ── Cierre ── */
+  .cierre { border-top: 2px solid var(--linea); padding-top: 1.6rem; display: flex; flex-direction: column; gap: .8rem; }
+  .pie { font-family: var(--mono); font-size: .7rem; letter-spacing: .05em; color: var(--tinta-tenue); }
+  a { color: var(--acento); text-underline-offset: 2px; }
+
+  @media (max-width: 30rem) {
+    body { font-size: 16px; }
+    .hoja { padding: 2rem .85rem 4rem; gap: 2.5rem; }
+    .marcador { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="hoja">
+
+  <header class="portada">
+    <div class="sello">Liga de temporada · El Salvador</div>
+    <h1>Temporada SWU El Salvador</h1>
+    <p class="bajada">
+      Seis sábados, del 29 de agosto al 3 de octubre, con entrada gratis. Los
+      puntos y los horarios, recalculados. Ser gratis arregla el peor error del
+      plan original — y deja a la moneda sin nada que vender.
+    </p>
+    <div class="marcador">
+      <div class="m-arregla"><b>6</b><span>fechas: 29 ago · 5, 12, 19, 26 sep · 3 oct</span></div>
+      <div class="m-arregla"><b>$0</b><span>de inscripción, y eso arregla el peor error del plan</span></div>
+      <div class="m-roto"><b>0</b><span>cosas escasas que la moneda pueda vender hoy</span></div>
+      <div><b>4</b><span>huecos de reglamento sin resolver (byes, drops, empates)</span></div>
+    </div>
+  </header>
+
+  <section>
+    <h3>Antes que nada</h3>
+    <h2>Lo que está bien y no hay que tocar</h2>
+    <ul class="lista">
+      <li><b>La doble moneda.</b> Separar el ranking (Season Points) de la recompensa
+        (créditos) resuelve el problema clásico de una liga chica: quien pierde
+        temprano deja de venir. Es lo mejor del documento.</li>
+      <li><b>El Vault.</b> Por lo mismo: convierte la derrota en progreso acumulable.</li>
+      <li><b>Los 55 minutos por ronda Bo3.</b> Lo verifiqué contra las regulaciones
+        de torneo: es el número correcto.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h3>El calendario</h3>
+    <h2>El 29 de agosto funciona, y ser gratis es lo que lo hace posible</h2>
+    <p>
+      Son ocho días, no siete. La objeción de que «no alcanza para convocar»
+      valía cuando había que cobrar $5, surtir un Vault con producto físico y
+      publicar precios. <strong>Sin dinero de por medio no hay nada de eso que
+      preparar</strong>: hace falta convocar y tener las reglas escritas, y eso
+      cabe en ocho días.
+    </p>
+    <div class="tabla-caja">
+      <table>
+        <caption>Las seis fechas</caption>
+        <thead><tr><th>Fecha</th><th>Día</th><th>Nota</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>sábado 29 de agosto</td><td>—</td></tr>
+          <tr><td>2</td><td>sábado 5 de septiembre</td><td>—</td></tr>
+          <tr><td>3</td><td>sábado 12 de septiembre</td><td class="mal">semana patria</td></tr>
+          <tr><td>4</td><td>sábado 19 de septiembre</td><td class="mal">semana patria</td></tr>
+          <tr><td>5</td><td>sábado 26 de septiembre</td><td>—</td></tr>
+          <tr><td>6</td><td>sábado 3 de octubre</td><td>cierre</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="hallazgo">
+      <span class="chapa c-ok">Mejora</span>
+      <h4>Cerrar el 3 de octubre baja mucho el riesgo de Homeworlds</h4>
+      <p>
+        La propuesta que te pasaron cerraba el 10 de octubre, de lleno en el mes
+        del set nuevo. Cerrando el <strong>3 de octubre</strong> la temporada
+        termina antes: ASH salió un día 17, así que si Homeworlds sigue el patrón
+        de mediados de mes, la liga entera se juega en el meta de ASH.
+      </p>
+      <p>
+        Queda un cabo suelto: <strong>el día exacto de Homeworlds no está
+        anunciado</strong>. Si saliera el 2 de octubre, la última fecha cae
+        encima.
+      </p>
+      <div class="arreglo">
+        Anunciar desde el principio que la temporada se juega <strong>en el meta
+        de ASH</strong>. Si Homeworlds sale antes del 3 de octubre, esa última
+        fecha se juega igual con ASH — decidido de antemano, no improvisado a
+        mitad de liga.
+      </div>
+    </div>
+
+    <div class="hallazgo">
+      <span class="chapa c-ajusta">Ajusta</span>
+      <h4>Las fechas 3 y 4 caen en la semana patria</h4>
+      <p>
+        El 15 de septiembre de 2026 es martes, así que el 12 y el 19 quedan
+        pegados al fin de semana patrio: desfiles, familia y viajes. Con descarte
+        de una sola fecha, quien falte a las dos queda fuera de la pelea aunque
+        el reglamento diga que puede faltar a una.
+      </p>
+      <div class="arreglo">
+        Contar las <strong>mejores 4 de 6</strong> en vez de 5 de 6. Con dos
+        fechas en riesgo un solo descarte no alcanza — y como no hay inscripción
+        que perder, aflojar el descarte no cuesta nada.
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Horarios</h3>
+    <h2>La tabla de horarios olvidó el top cut</h2>
+    <p>
+      Los 55 minutos son correctos y las cuentas de las suizas también. Pero un
+      torneo Premier pasa de suizas a <strong>eliminación directa</strong>, y esa
+      parte no está en la tabla. Con registro de 3:00 a 3:20 y bloques de 65
+      minutos (55 de ronda + 10 de pareos y reporte):
+    </p>
+    <div class="tabla-caja">
+      <table>
+        <caption>Hora real de cierre</caption>
+        <thead>
+          <tr><th>Jugadores</th><th>Suizas</th><th>Fin de suizas</th><th>Cut</th><th>Fin real</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>6 – 8</td><td>3</td><td>6:35 pm</td><td>—</td><td class="bien">6:35 pm</td></tr>
+          <tr><td>9 – 16</td><td>4</td><td>7:40 pm</td><td>Top 4</td><td class="mal">9:50 pm</td></tr>
+          <tr><td>17 – 32</td><td>5</td><td>8:45 pm</td><td>Top 8</td><td class="mal">12:40 am</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="nota-tabla">
+      El documento daba solo la columna «fin de suizas». Con 16 jugadores el torneo
+      termina a las <strong>9:50 pm</strong>, no a las 7:40. Con 20 o más, pasada la
+      medianoche.
+    </p>
+
+    <div class="hallazgo">
+      <span class="chapa c-ajusta">Ajusta</span>
+      <h4>El Double Feature no cabe ni en Bo1</h4>
+      <p>
+        Dos bloques Bo3 con 16 jugadores terminan a las <strong>12:20 am</strong> —
+        no cerca de las 10:15 como estimaba la corrección. Y el remedio que propone
+        tampoco alcanza: en Bo1 de 40 minutos, esos mismos 16 jugadores terminan a
+        las <strong>10:20 pm</strong>.
+      </p>
+      <div class="arreglo">
+        El Double Feature solo cabe con <strong>8 jugadores o menos</strong> (Bo1
+        termina 8:40 pm) o arrancando <strong>a mediodía</strong>. Con 16 personas y
+        empezando a las 3, no existe.
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Los puntos</h3>
+    <h2>El sistema propuesto, calculado hasta el final</h2>
+    <p>
+      Asistencia&nbsp;4 · victoria de ronda&nbsp;3 · empate&nbsp;1 · bonus
+      1.º&nbsp;+6, 2.º&nbsp;+4, 3.º–4.º&nbsp;+2 (solo con 8 o más; con menos,
+      1.º&nbsp;+3). Esto es lo que produce:
+    </p>
+    <div class="tabla-caja">
+      <table>
+        <caption>Techo y piso por tamaño de torneo</caption>
+        <thead>
+          <tr><th>Jugadores</th><th>Rondas</th><th>Campeón</th><th>2.º</th><th>Top 4</th><th>Asiste y pierde todo</th><th>Ratio</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>6</td><td>3</td><td>16</td><td>10</td><td>10</td><td>4</td><td>4,0×</td></tr>
+          <tr><td>8</td><td>3</td><td>19</td><td>14</td><td>12</td><td>4</td><td>4,8×</td></tr>
+          <tr><td>12</td><td>4</td><td>22</td><td>17</td><td>15</td><td>4</td><td>5,5×</td></tr>
+          <tr><td>16</td><td>4</td><td>22</td><td>17</td><td>15</td><td>4</td><td>5,5×</td></tr>
+          <tr><td>24</td><td>5</td><td>25</td><td>20</td><td>18</td><td>4</td><td>6,2×</td></tr>
+          <tr><td>32</td><td>5</td><td>25</td><td>20</td><td>18</td><td>4</td><td>6,2×</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="nota-tabla">
+      Esta parte funciona: el ratio sube con el tamaño, así que ganar entre 24 vale
+      más que ganar entre 6, que era el defecto original. Pero hay dos agujeros.
+    </p>
+
+    <div class="hallazgo">
+      <span class="chapa c-rompe">Rompe</span>
+      <h4>Twin Suns rinde un 30 % menos, y eso decide quién va a esa fecha</h4>
+      <p>
+        Con asistencia 4 + 3 por pod ganado y sin bonus, el techo de Twin Suns es
+        <strong>13 puntos</strong> con 8 jugadores contra 19 de una fecha normal, y
+        <strong>16 contra 22</strong> con 12 o 16. Rinde entre el <strong>68 % y el
+        73 %</strong>.
+      </p>
+      <p>
+        El efecto es el contrario del que se busca: quien vaya a la fecha de Twin
+        Suns y la gane queda por detrás de quien fue a una normal y la ganó
+        igual. Nadie que pelee la temporada va a elegir esa fecha.
+      </p>
+      <div class="arreglo">
+        Subir el pod ganado a <strong>5 puntos</strong> (techo 19 con 3 rondas, 24
+        con 4) o dejar Twin Suns <strong>fuera de la tabla de temporada</strong>,
+        pagando solo créditos. Lo que no se puede es que cuente y valga menos.
+      </div>
+    </div>
+
+    <div class="hallazgo">
+      <span class="chapa c-ajusta">Ajusta</span>
+      <h4>El Double Feature sí decide la temporada</h4>
+      <p>
+        Con «mejor resultado 100 % + segundo 40 %», el techo de esa fecha sube a
+        <strong>26,6 puntos</strong> con 8 jugadores (30,8 con 16). Ganando las
+        cinco mejores fechas de una temporada de 8 personas se llega a 95, así que
+        los <strong>+7,6 son el 8 % de toda la temporada</strong>.
+      </p>
+      <p>
+        La corrección afirma que «premia sin decidir la temporada». Con dos
+        punteros separados por menos de 8 puntos —lo normal en una liga de seis
+        fechas— <strong>sí la decide</strong>, y la decide quien pudo quedarse
+        hasta medianoche, no quien jugó mejor.
+      </p>
+      <div class="arreglo">
+        Segundo resultado al <strong>20 %</strong> (+3,8 máximo) o convertir el
+        Double Feature en una fecha de <strong>solo créditos</strong>, sin Season
+        Points. Un día doble premia con producto, no con campeonato.
+      </div>
+    </div>
+
+    <div class="hallazgo">
+      <span class="chapa c-ojo">Falta</span>
+      <h4>Cuatro huecos de reglamento que van a aparecer en la fecha 1</h4>
+      <ul class="lista">
+        <li><b>Byes.</b> Con número impar alguien recibe un bye cada ronda.
+          ¿Vale 3 puntos como una victoria? Si vale, el sorteo reparte puntos; si
+          no vale, castiga por un número impar que no eligió. (Recomendado: vale
+          3, es el estándar y el sorteo ya lo compensa.)</li>
+        <li><b>Drops.</b> Si alguien se va después de la ronda 2, ¿conserva sus
+          puntos? ¿Sus rivales siguientes cobran victoria? (Recomendado: conserva
+          lo ganado, no cobra asistencia si se va antes de la ronda 2, y el rival
+          emparejado cobra victoria.)</li>
+        <li><b>Empates intencionales.</b> Con 1 punto por empate y bonus por
+          posición, dos jugadores punteros pueden pactar empate en la última ronda
+          y asegurar top 4. (Recomendado: prohibirlos en la última ronda, o subir
+          el empate a 1 y bajar el bonus.)</li>
+        <li><b>Menos de 6 jugadores.</b> El documento no dice qué pasa si un
+          sábado llegan 4. (Recomendado: se juega, cuenta para créditos, no
+          otorga bonus de posición.)</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h3>La moneda</h3>
+    <h2>Ser gratis arregla un agujero y abre otro</h2>
+
+    <div class="hallazgo">
+      <span class="chapa c-ok">Se arregla solo</span>
+      <h4>El error más caro del plan desaparece sin hacer nada</h4>
+      <p>
+        El peor problema del documento era el <strong>descuento de
+        inscripción</strong>: el Vault se financiaba con $2 de cada entrada, así
+        que un descuento de $5 no era un premio comprado con esa bolsa —
+        <em>era una inscripción que no entraba</em>. Se contaba dos veces, y con
+        diez canjes el organizador ponía $30 de su bolsillo.
+      </p>
+      <p>
+        Sin inscripción no hay descuento que dar. El agujero no se tapa: deja de
+        existir.
+      </p>
+    </div>
+
+    <div class="hallazgo">
+      <span class="chapa c-rompe">Rompe</span>
+      <h4>Sin dinero, la moneda se queda sin nada que vender</h4>
+      <p>
+        La bolsa del Vault pasa de $144 a <strong>cero</strong>. La salida obvia
+        es que los créditos compren cosas digitales, que cuestan $0 producir.
+        Pero lo digital que la app YA tiene no sirve de moneda, y los números lo
+        dicen claro:
+      </p>
+      <div class="tabla-caja">
+        <table>
+          <caption>Lo que la app podría vender hoy</caption>
+          <thead><tr><th>Premio digital</th><th>Cómo se consigue hoy</th><th>¿Sirve de moneda?</th></tr></thead>
+          <tbody>
+            <tr><td>Sobres</td><td>1 a 3 GRATIS cada día</td><td class="mal">no: no es escaso</td></tr>
+            <tr><td>7 acabados de credencial</td><td>por nivel (1, 4, 7, 11, 16, 21, 26)</td><td class="mal">no: ya atados al nivel</td></tr>
+            <tr><td>Marcos de perfil</td><td>por nivel</td><td class="mal">no: ya atados al nivel</td></tr>
+            <tr><td>14 títulos</td><td>por logros</td><td class="mal">no: ya atados a logros</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Lo de los sobres no es una impresión: hay <strong>259 sin abrir</strong>
+        esperando, 8,9 por persona, y en toda la vida de la app
+        <strong>solo 4 personas han abierto alguno</strong>. Premiar con sobres
+        es premiar con algo que ya sobra y que nadie está reclamando.
+      </p>
+      <p>
+        Y lo otro es peor de lo que parece: <strong>todo lo cosmético de la app
+        se desbloquea por NIVEL</strong>. Meter una moneda que compre cosméticos
+        crea un segundo sistema de desbloqueo compitiendo con el que ya existe —
+        y el nivel deja de significar lo que significaba.
+      </p>
+      <div class="arreglo">
+        La Temporada I va <strong>sin moneda</strong>. Ranking, títulos y
+        cosméticos exclusivos que se GANAN por resultado, no que se compran.
+        La doble moneda es buena idea y se queda guardada para cuando haya algo
+        escaso que vender: dinero, o cosméticos que solo existan esa temporada.
+      </div>
+    </div>
+
+    <div class="hallazgo">
+      <span class="chapa c-ok">Ya está construido</span>
+      <h4>Los torneos ya reparten premios, y son gratis</h4>
+      <p>
+        Cerrar un torneo en la app ya acredita <strong>3 sobres al campeón y 1 a
+        cada quien más</strong>, más XP, y ya tolera a los jugadores sin cuenta
+        (que son 3 de los 8 que han competido). Eso no hay que inventarlo.
+      </p>
+      <div class="arreglo">
+        La liga se monta encima de lo que ya funciona. Lo único nuevo de verdad
+        son los Season Points y, si se quiere, <strong>un cosmético exclusivo de
+        Temporada I</strong> — que es la única cosa escasa que se puede fabricar
+        sin dinero: escasa <em>por tiempo</em>, no por precio.
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Impresión 3D</h3>
+    <h2>Con impresora, el límite deja de ser el dinero</h2>
+    <p>
+      Un set de tokens de referencia son <strong>55 piezas</strong>: 18 de daño,
+      18 modificadores, 7 de experiencia, 5 recordatorios, 4 escudos, 2 de
+      acción épica y 1 de iniciativa. Es lo que un jugador de SWU usa
+      <em>todas</em> las partidas, y hay gente vendiéndolos — o sea que tienen
+      valor de verdad, no simbólico.
+    </p>
+    <div class="tabla-caja">
+      <table>
+        <caption>Lo que cuesta imprimirlo · estimado</caption>
+        <thead><tr><th>Cantidad</th><th>Material</th><th>Filamento a $22/kg</th></tr></thead>
+        <tbody>
+          <tr><td>Una pieza</td><td>0,6 g</td><td>—</td></tr>
+          <tr><td>Un set de 55</td><td>32 g</td><td class="bien">$0,71</td></tr>
+          <tr><td>12 sets</td><td>0,39 kg</td><td class="bien">$8,48</td></tr>
+          <tr><td>Un rollo de 1 kg</td><td>—</td><td>~31 sets</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="nota-tabla">
+      Estimado sobre discos de 20 × 3 mm con relleno efectivo del 50 %. El
+      número real depende de tu impresora y tus ajustes; el orden de magnitud no.
+      Compará: la bolsa entera de la temporada, con inscripción de $5, eran $144.
+    </p>
+
+    <div class="hallazgo">
+      <span class="chapa c-rompe">Cuidado</span>
+      <h4>El problema del Vault con impresora no es el costo: es la promesa</h4>
+      <p>
+        Una tienda promete que si juntás los créditos, te llevás la pieza. Una
+        impresora no puede prometer eso: un trofeo de 18 horas que falla en la
+        hora 17 son <strong>18 horas perdidas</strong> y una promesa que no se
+        puede cumplir ese sábado.
+      </p>
+      <div class="arreglo">
+        El Vault se surte con lo que <strong>ya está impreso</strong>, no con lo
+        que se podría imprimir. El campo <code>stock</code> del esquema es
+        literal: lo que hay en la caja. Si no hay, no aparece en el catálogo.
+        Así la impresora puede fallar sin que falle la temporada.
+      </div>
+    </div>
+
+    <div class="hallazgo">
+      <span class="chapa c-ojo">Orden</span>
+      <h4>Tokens primero, trofeo al final</h4>
+      <ul class="lista">
+        <li><b>Set de tokens · 3–5 h.</b> Lo usa todo el mundo, todas las
+          partidas. Si falla, se pierden 30 minutos, no una tarde.</li>
+        <li><b>Soporte de líder y base · 1–2 h.</b> Lo mismo: se usa siempre y
+          es rápido.</li>
+        <li><b>Trofeo de Temporada I · 10–20 h.</b> Una sola persona, una sola
+          vez. Es el que más ilusión hace y el que más caro sale si falla —
+          por eso va de último, con las seis fechas por delante para
+          imprimirlo.</li>
+      </ul>
+      <div class="arreglo">
+        Empezar imprimiendo <strong>un set</strong> esta semana. Un set impreso y
+        en la mano vale más que un catálogo anunciado, y te dice el tiempo real
+        de tu impresora antes de comprometer nada.
+      </div>
+    </div>
+
+    <div class="hallazgo">
+      <span class="chapa c-ojo">Diseño</span>
+      <h4>Que las piezas sean genéricas o tuyas</h4>
+      <p>
+        Un token de daño es una pieza de juego y no tiene dueño. Un trofeo con el
+        logo de Lucasfilm o con un personaje, sí. Y los modelos que se bajan de
+        internet traen licencia propia — muchas prohíben el uso comercial, aunque
+        acá se regale.
+      </p>
+      <div class="arreglo">
+        Diseño propio o genérico, sin marcas. Es la misma decisión que ya se tomó
+        en la app cuando se redibujó el dorso de las cartas en vez de copiar el
+        oficial.
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Most Wanted</h3>
+    <h2>La lista de baneos no se puede calcular todavía</h2>
+    <div class="hallazgo">
+      <span class="chapa c-ojo">Falta</span>
+      <h4>No hay datos locales de los que sacarla</h4>
+      <p>
+        La idea de banear por <strong>presencia local</strong> en vez de meta
+        mundial es buena y es un dato que ninguna otra app tiene. Pero hoy la base
+        tiene <strong>8 resultados de torneo en toda su historia</strong> y 6
+        amistosas confirmadas. No alcanza para nombrar cinco líderes dominantes sin
+        inventarlos.
+      </p>
+      <div class="arreglo">
+        Fechas 1 y 2 <strong>sin lista</strong>, registrando líder y base de cada
+        jugador. La lista se publica antes de la fecha 3, calculada sobre lo que se
+        vio de verdad. Eso además convierte las dos primeras fechas en algo que
+        contar: «así se armó la lista».
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Implementación</h3>
+    <h2>El esquema, con cinco correcciones</h2>
+    <p>
+      Las dos reglas de arquitectura del documento son correctas y hay que
+      conservarlas: <strong>los Season Points se calculan, nunca se guardan</strong>,
+      y <strong>los créditos son un ledger inmutable</strong>. Lo demás necesita
+      ajustes.
+    </p>
+    <pre><span class="c">-- la liga NO es la temporada de set que ya existe en la app</span>
+<span class="c">-- sin inscripcion: no hay valor_credito_usd ni reparto que guardar</span>
+<span class="n">ligas</span>        (id, nombre, inicio, fin, descartes)
+fechas       (id, liga_id, fecha, formato, peso_sp, rondas, bloque,
+              <span class="n">opcional bool</span>)                 <span class="c">← la del 12 de septiembre</span>
+resultados   (fecha_id, <span class="n">jugador_id null</span>, <span class="n">nombre text</span>,
+              w, d, l, <span class="n">byes</span>, <span class="n">se_fue_en_ronda</span>,
+              posicion, lider_id, base_id,
+              <span class="n">unique (fecha_id, coalesce(jugador_id::text, 'n:'||lower(nombre)))</span>)
+<span class="c">-- ledger, vault_items y canjes NO se construyen todavia: no hay nada
+-- escaso que vender. Se guardan para cuando lo haya.</span></pre>
+    <ul class="lista">
+      <li><b>Los jugadores sin cuenta tienen que entrar.</b> De los 8 que han
+        quedado alguna vez en una clasificación, <strong>3 no tienen cuenta</strong>
+        — incluido el campeón. Un esquema con solo <code>jugador_id</code> los deja
+        fuera. La app ya resolvió esto en el ranking: agrupa por nombre normalizado
+        y el historial se une solo el día que se registran.</li>
+      <li><b><code>leader_usage</code> sobra.</b> Es derivable de
+        <code>resultados.lider_id</code>. Dos fuentes de la misma verdad terminan
+        discrepando; el Most Wanted sale de una consulta, no de una tabla.</li>
+      <li><b><code>posicion</code> contradice su propia regla.</b> El documento dice
+        que los puntos se calculan y no se guardan, pero la posición <em>es</em> un
+        valor derivado y ahí está guardado. O se calcula con w/d/l y desempates, o
+        se acepta que es un dato capturado a mano y se dice.</li>
+      <li><b>Faltan <code>byes</code> y <code>se_fue_en_ronda</code>.</b> Sin esos
+        dos campos, la función de puntos no puede resolver los casos borde de más
+        arriba por mucho que se escriba el reglamento.</li>
+    </ul>
+
+    <div class="hallazgo">
+      <span class="chapa c-rompe">Choca</span>
+      <h4>«Temporada» ya significa otra cosa en la app</h4>
+      <p>
+        Ayer se construyó la tabla <code>temporadas</code>, que va de la salida de un
+        set a la del siguiente —ASH abierta desde el 17 de julio— y alimenta el
+        ranking por temporada, año y mes. Esta liga es <strong>otro objeto</strong>:
+        seis fechas, con inscripción y créditos.
+      </p>
+      <p>
+        Llamarlas igual es cómo la app terminó con dos tablas de posiciones que se
+        llamaban «Consejo Jedi» y ordenaban distinto.
+      </p>
+      <div class="arreglo">
+        La liga se llama <strong>liga</strong> y tiene tabla propia. El ranking por
+        temporada de set se queda como está. Una fecha de liga puede además contar
+        para la temporada de set — pero son dos preguntas distintas y cada una
+        tiene su tabla.
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Lo que queda</h3>
+    <h2>Temporada I, como queda</h2>
+    <ul class="lista">
+      <li><b>Seis sábados.</b> 29 de agosto · 5, 12, 19 y 26 de septiembre · 3
+        de octubre. Se juega en el meta de ASH, dicho desde el anuncio.</li>
+      <li><b>Entrada gratis.</b> Es un ancla, no una promoción — así que nada
+        del diseño puede depender de que entre dinero.</li>
+      <li><b>Mejores 4 de 6.</b> Dos descartes, no uno, porque dos de las seis
+        fechas caen en la semana patria.</li>
+      <li><b>Horario.</b> Registro 3:00–3:20. Hasta 8 jugadores, 3 suizas sin
+        cut, cierre 6:35 pm. De 9 a 16, 4 suizas + top 4, cierre 9:50 pm — y
+        decirlo al anunciar. Con más de 16, arrancar a mediodía.</li>
+      <li><b>Puntos.</b> Asistencia 4 · victoria 3 · empate 1 · bonus 6/4/2 con
+        8 o más jugadores; con menos, solo 1.º +3. Twin Suns a 5 por pod
+        ganado. Double Feature al 20 % del segundo resultado, o solo premios.</li>
+      <li><b>Premios digitales.</b> Los que la app ya reparte sola: 3 sobres al
+        campeón, 1 a cada quien más, y XP.</li>
+      <li><b>Premios impresos.</b> Set de tokens para el podio de cada fecha y
+        trofeo para el campeón de temporada — <em>de lo que ya esté impreso</em>.
+        12 sets son $8,48 de filamento; el costo real es el tiempo de impresora.</li>
+      <li><b>Los cuatro títulos.</b> Mutuamente excluyentes en el orden Champion
+        → Meta Breaker → Master of Formats → Holocron Master, como propone la
+        corrección. Ahí no hay nada que arreglar, y con todo gratis son
+        <em>el</em> premio de la temporada.</li>
+      <li><b>Most Wanted.</b> Sin lista las dos primeras fechas; se publica
+        antes de la tercera con los líderes que se hayan visto de verdad.</li>
+      <li><b>Lo que NO se construye ahora.</b> Créditos, catálogo y canjes. Con
+        piezas impresas el Vault ya tiene qué vender, pero necesita
+        <code>stock</code> real primero: primero se imprime, después se abre la
+        tienda.</li>
+    </ul>
+  </section>
+
+  <footer class="cierre">
+    <p>
+      <strong>Lo único que queda por decidir</strong> es qué se imprime primero.
+      La recomendación es un set de tokens esta semana: es lo que más se usa, lo
+      más rápido de imprimir y lo que te dice el tiempo real de tu impresora
+      antes de comprometer un trofeo de veinte horas. Todo lo demás del plan ya
+      está resuelto o ya está construido en la app.
+    </p>
+    <p class="pie">Holocrón SWU · revisión del plan de temporada · agosto 2026</p>
+  </footer>
+
+</div>

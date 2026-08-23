@@ -1,16 +1,22 @@
 /**
- * Missions Page — "Órdenes del Día" + "Campañas Semanales"
- * Shows daily/weekly missions with progress, claim buttons, and reset timers
+ * Misiones — «Órdenes del Día», «Campañas Semanales» y «Hazañas».
+ *
+ * Las Hazañas son de UNA sola vez (`period_key = 'once'`) y por eso se
+ * muestran TODAS, no una selección sorteada: son hitos, y esconder uno ya
+ * cumplido le quitaría a alguien la prueba de haberlo hecho. Tampoco llevan
+ * reloj de reinicio — no se reinician nunca, y poner uno ahí sería prometer
+ * que la hazaña vuelve.
  */
 
 import { useState, useEffect } from 'react'
-import { Target, Clock, Gift, CheckCircle, Loader2 } from 'lucide-react'
+import { Target, Clock, Gift, CheckCircle, Loader2, Infinity as InfinityIcon } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import {
   getUserMissions,
   claimMissionReward,
   getTimeUntilDailyReset,
   getTimeUntilWeeklyReset,
+  BONUS_POR_TIPO,
   type UserMission,
 } from '../../services/missionService'
 
@@ -18,6 +24,7 @@ export default function MissionsPage() {
   const { supabaseUser } = useAuth()
   const [daily, setDaily] = useState<UserMission[]>([])
   const [weekly, setWeekly] = useState<UserMission[]>([])
+  const [unicas, setUnicas] = useState<UserMission[]>([])
   const [loading, setLoading] = useState(true)
   const [claiming, setClaiming] = useState<string | null>(null)
   // Arrancan con la hora REAL, no en cero: si no, el reloj muestra 0h 0m
@@ -31,13 +38,18 @@ export default function MissionsPage() {
   // ni siquiera podía conservar la memoización.
   const userId = supabaseUser?.id
   useEffect(() => {
-    if (!userId) return
     let vivo = true
     void (async () => {
-      const data = await getUserMissions(userId)
+      /* Sin sesión se pinta el CATÁLOGO en cero, no un spinner. Antes el
+       * efecto salía con `if (!userId) return` y `loading` se quedaba en true
+       * para siempre: una rueda girando donde debería verse qué hay por
+       * hacer. En producción `AuthGate` no deja llegar hasta acá, pero es lo
+       * que hace mirable `/banco-misiones`. */
+      const data = await getUserMissions(userId ?? '')
       if (!vivo) return
       setDaily(data.daily)
       setWeekly(data.weekly)
+      setUnicas(data.unicas)
       setLoading(false)
     })()
     return () => { vivo = false }
@@ -65,12 +77,19 @@ export default function MissionsPage() {
         missions.map(m => m.missionId === missionId ? { ...m, claimed: true } : m)
       setDaily(prev => update(prev))
       setWeekly(prev => update(prev))
+      setUnicas(prev => update(prev))
     }
     setClaiming(null)
   }
 
   const dailyCompleted = daily.filter(m => m.completed).length
   const weeklyCompleted = weekly.filter(m => m.completed).length
+  const unicasHechas = unicas.filter(m => m.completed).length
+  /* Las pendientes arriba: una lista de 10 con las cumplidas al principio
+     empuja abajo del pliegue justo lo único sobre lo que se puede actuar. */
+  const unicasOrdenadas = [...unicas].sort(
+    (a, b) => Number(a.completed) - Number(b.completed),
+  )
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0a0a1a] to-[#1a1a2e] pb-24">
@@ -82,7 +101,7 @@ export default function MissionsPage() {
           </div>
           <div>
             <h1 className="text-base font-bold text-white">Misiones</h1>
-            <p className="text-[11px] text-white/40">Órdenes del Día y Campañas Semanales</p>
+            <p className="text-[11px] text-white/40">Diarias, semanales y hazañas de una sola vez</p>
           </div>
         </div>
       </div>
@@ -146,6 +165,34 @@ export default function MissionsPage() {
               ))}
             </div>
           </section>
+
+          {/* Hazañas — una sola vez, nunca se reinician */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-violet-400">Hazañas</span>
+                <span className="text-[10px] text-white/30 bg-white/5 px-2 py-0.5 rounded-full">
+                  {unicasHechas}/{unicas.length}
+                </span>
+              </div>
+              {/* Donde las otras dos llevan reloj, acá va lo contrario: no vuelven. */}
+              <div className="flex items-center gap-1 text-[10px] text-white/30">
+                <InfinityIcon size={10} />
+                <span>Una sola vez</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {unicasOrdenadas.map(m => (
+                <MissionCard
+                  key={m.missionId}
+                  mission={m}
+                  onClaim={handleClaim}
+                  claiming={claiming === m.missionId}
+                />
+              ))}
+            </div>
+          </section>
         </div>
       )}
     </div>
@@ -159,6 +206,10 @@ function MissionCard({ mission, onClaim, claiming }: {
 }) {
   const { template, progress, completed, claimed } = mission
   const pct = Math.min((progress / template.objectiveValue) * 100, 100)
+  /* Lo que se anuncia tiene que ser lo que se paga: `claimMissionReward`
+     abona `rewardXp + BONUS_POR_TIPO[type]`, y la tarjeta enseñaba solo el
+     primero — o sea 20 XP de menos en cada diaria y 60 en cada semanal. */
+  const xpTotal = template.rewardXp + BONUS_POR_TIPO[template.type]
 
   return (
     <div className={`rounded-xl border p-3 transition-all ${
@@ -173,7 +224,7 @@ function MissionCard({ mission, onClaim, claiming }: {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="text-xs font-semibold text-white/90 truncate">{template.name}</p>
-            <span className="text-[10px] text-amber-400 font-medium shrink-0">+{template.rewardXp} XP</span>
+            <span className="text-[10px] text-amber-400 font-medium shrink-0">+{xpTotal} XP</span>
           </div>
           <p className="text-[11px] text-white/40 mt-0.5">{template.description}</p>
 

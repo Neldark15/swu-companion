@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {"id":"logo-png","path":"/Users/nelson/Claude/swu-companion/obs/SWU-SV-Logo-OBS-1024.png","copyAs":"SWU-SV-Logo-OBS-1024.png","sha256":"f991101a34309934e0e862318c6c3db7160fdc552fbda6bc96b27df37a538646"},
+    {"id":"youtube-banner","path":"/Users/nelson/Claude/swu-companion/obs/SWU-SV-YouTube-Banner-2048x1152.png","copyAs":"SWU-SV-YouTube-Banner-2048x1152.png","sha256":"dc6b526d457886bbcac4e5606af4215209897dfbc03ab24b5d6577c31142aa21"},
+    {"id":"camera-background","path":"/Users/nelson/Claude/swu-companion/obs/SWU-El-Salvador-Fondo-v2-Camara-16x9.png","copyAs":"SWU-El-Salvador-Fondo-v2-Camara-16x9.png","sha256":"c0f26dd5704f8282572bd3e56ad02adf202674ec7c852649a2a955c02174e861"},
+    {"id":"stream-frame","path":"/Users/nelson/Claude/swu-companion/public/stream/marco.webp","copyAs":"marco.webp","sha256":"517cb5b299289f59e0903693896cf9bef1208ca7b27b4633a215f365305b8234"},
+    {"id":"stream-logo","path":"/Users/nelson/Claude/swu-companion/public/stream/logo.webp","copyAs":"logo.webp","sha256":"db5e9aa1ea4d216719152d1f2840bfb6df55737d87fa962e4dbf152fc2d489be"},
+    {"id":"stream-background","path":"/Users/nelson/Claude/swu-companion/public/stream/fondo.jpg","copyAs":"fondo.jpg","sha256":"c9efcf2701812744d0701e141f9e1686a25ded7ff43509dc2534ad9fa2002940"}
+  ]
+}

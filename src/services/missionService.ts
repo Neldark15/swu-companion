@@ -7,6 +7,8 @@
  */
 
 import { supabase, isSupabaseReady } from './supabase'
+import { contarMisionEnLaNube } from './sync'
+import { acreditarXp } from '../hooks/useAuth'
 import { notifyMissionComplete } from './notificationService'
 import {
   diaCalendarioSV, diaCalendarioSVMas, inicioDelDiaSVenUTC, inicioDelDiaSiguienteSVenUTC,
@@ -14,7 +16,28 @@ import {
 
 // ─── TYPES ──────────────────────────────────────────────────────────
 
-export type MissionType = 'daily' | 'weekly'
+/**
+ * `unique` son las que se hacen UNA VEZ en la vida de la cuenta.
+ *
+ * Las diarias premian volver; las únicas premian *empezar*. Sin ellas, quien
+ * abre la app por primera vez ve tareas que dan 20 XP y una barra de nivel
+ * que no se mueve — y los hitos que de verdad importan (armar el primer mazo,
+ * jugar el primer torneo, completar un set) no se reconocían en ningún lado.
+ *
+ * No caducan: su `period_key` es la constante `once`, así que la fila que se
+ * crea al completarla es la prueba permanente de que ya se hizo.
+ */
+export type MissionType = 'daily' | 'weekly' | 'unique'
+
+/** Bonus por terminar una misión, además del XP propio de cada una. */
+export const BONUS_POR_TIPO: Record<MissionType, number> = {
+  daily: 20,
+  weekly: 60,
+  unique: 0,   // las únicas ya llevan su recompensa en `rewardXp`
+}
+
+/** El `period_key` de las únicas. No cambia nunca: por eso son únicas. */
+export const CLAVE_UNICA = 'once'
 /**
  * Los objetivos que la app SABE observar. Cada uno tiene un llamador real de
  * `updateMissionProgress`; si agregás uno, agregá el llamador en el MISMO
@@ -86,6 +109,27 @@ export const DAILY_MISSIONS: MissionTemplate[] = [
   { id: 'd_win1',      type: 'daily', name: 'Victoria Táctica',     description: 'Ganar 1 partida',               objectiveType: 'match_won',          objectiveValue: 1, rewardXp: 25, icon: '🏆' },
   { id: 'd_sobre3',    type: 'daily', name: 'Fiebre de sobres',     description: 'Abrir 3 sobres',                objectiveType: 'sobre_abierto',      objectiveValue: 3, rewardXp: 30, icon: '🎁' },
   { id: 'd_gift1',     type: 'daily', name: 'Diplomacia Galáctica', description: 'Enviar 1 regalo',               objectiveType: 'gift_sent',          objectiveValue: 1, rewardXp: 15, icon: '🤝' },
+]
+
+/**
+ * MISIONES ÚNICAS — los hitos de una cuenta, una sola vez.
+ *
+ * Se eligieron mirando lo que la gente YA hace y no se le reconocía: de 38
+ * perfiles, 14 tienen mazo, 11 han abierto sobres y 19 tienen algo de XP.
+ * Todas se apoyan en objetivos que ya tienen quien los dispare — una misión
+ * sin llamador es una tarea imposible en pantalla (§3h-bis).
+ */
+export const UNIQUE_MISSIONS: MissionTemplate[] = [
+  { id: 'u_deck1',      type: 'unique', name: 'Primer mazo',        description: 'Armá tu primer mazo',              objectiveType: 'deck_created',        objectiveValue: 1,  rewardXp: 100, icon: '🛠️' },
+  { id: 'u_sobre1',     type: 'unique', name: 'Primer sobre',       description: 'Abrí tu primer sobre',             objectiveType: 'sobre_abierto',       objectiveValue: 1,  rewardXp: 75,  icon: '📦' },
+  { id: 'u_amistosa1',  type: 'unique', name: 'Primera amistosa',   description: 'Registrá tu primera amistosa',     objectiveType: 'amistosa_registrada', objectiveValue: 1,  rewardXp: 100, icon: '🤝' },
+  { id: 'u_muro1',      type: 'unique', name: 'Primera señal',      description: 'Publicá algo en el muro',          objectiveType: 'muro_publicado',      objectiveValue: 1,  rewardXp: 60,  icon: '📡' },
+  { id: 'u_fav10',      type: 'unique', name: 'Ojo entrenado',      description: 'Marcá 10 cartas favoritas',        objectiveType: 'card_favorited',      objectiveValue: 10, rewardXp: 120, icon: '⭐' },
+  { id: 'u_sobre25',    type: 'unique', name: 'Contrabandista',     description: 'Abrí 25 sobres',                   objectiveType: 'sobre_abierto',       objectiveValue: 25, rewardXp: 250, icon: '🎁' },
+  { id: 'u_deck5',      type: 'unique', name: 'Arquitecto',         description: 'Armá 5 mazos',                     objectiveType: 'deck_created',        objectiveValue: 5,  rewardXp: 200, icon: '📐' },
+  { id: 'u_amistosa10', type: 'unique', name: 'Veterano de mesa',   description: 'Registrá 10 amistosas',            objectiveType: 'amistosa_registrada', objectiveValue: 10, rewardXp: 300, icon: '⚔️' },
+  { id: 'u_chat10',     type: 'unique', name: 'Voz de la red',      description: 'Escribí 10 veces en el chat',      objectiveType: 'chat_enviado',        objectiveValue: 10, rewardXp: 120, icon: '💬' },
+  { id: 'u_play10',     type: 'unique', name: 'Piloto curtido',     description: 'Jugá 10 partidas',                 objectiveType: 'match_played',        objectiveValue: 10, rewardXp: 250, icon: '🎮' },
 ]
 
 export const WEEKLY_MISSIONS: MissionTemplate[] = [
@@ -204,6 +248,20 @@ export function getWeekKey(): string {
   return semanaDe(getTodayKey())
 }
 
+/**
+ * El `period_key` que le toca a una misión según su tipo.
+ *
+ * Existe para que la regla viva en UN sitio: estaba escrita como
+ * `type === 'daily' ? dayKey : weekKey` en cuatro lugares, y con un tercer
+ * tipo ese ternario mandaba las únicas al cajón de las semanales — o sea que
+ * habrían caducado cada lunes.
+ */
+export function clavePeriodo(tipo: MissionType): string {
+  if (tipo === 'unique') return CLAVE_UNICA
+  return tipo === 'daily' ? getTodayKey() : getWeekKey()
+}
+
+
 /** Select N random items from array using seed */
 function selectWithSeed<T>(items: T[], count: number, seed: number): T[] {
   const rng = seededRandom(seed)
@@ -231,14 +289,23 @@ export function getWeeklyMissionTemplates(): MissionTemplate[] {
 export async function getUserMissions(userId: string): Promise<{
   daily: UserMission[]
   weekly: UserMission[]
+  /* Las únicas van TODAS, no una selección: no rotan, y esconder un hito que
+     ya se cumplió sería quitarle a alguien la prueba de haberlo hecho. */
+  unicas: UserMission[]
 }> {
   const dailyTemplates = getDailyMissionTemplates()
   const weeklyTemplates = getWeeklyMissionTemplates()
 
-  if (!isSupabaseReady()) {
+  /* Sin id no se sale a la red: `.eq('user_id', '')` es un 400 de PostgREST
+   * («invalid input syntax for type uuid»), y el catálogo en cero es la misma
+   * respuesta sin el viaje ni el error rojo en consola. */
+  if (!userId || !isSupabaseReady()) {
+    const vacia = (t: MissionTemplate): UserMission =>
+      ({ missionId: t.id, template: t, progress: 0, completed: false, claimed: false })
     return {
-      daily: dailyTemplates.map(t => ({ missionId: t.id, template: t, progress: 0, completed: false, claimed: false })),
-      weekly: weeklyTemplates.map(t => ({ missionId: t.id, template: t, progress: 0, completed: false, claimed: false })),
+      daily: dailyTemplates.map(vacia),
+      weekly: weeklyTemplates.map(vacia),
+      unicas: UNIQUE_MISSIONS.map(vacia),
     }
   }
 
@@ -246,11 +313,16 @@ export async function getUserMissions(userId: string): Promise<{
   const weekKey = getWeekKey()
 
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('user_missions')
       .select('mission_id, progress, completed, completed_at, claimed')
       .eq('user_id', userId)
-      .in('period_key', [dayKey, weekKey])
+      .in('period_key', [dayKey, weekKey, CLAVE_UNICA])
+
+    /* §2f otra vez: sin mirar `error`, `data` viene null y TODA la pantalla
+     * sale en 0/N. Eso no se distingue de «todavía no hiciste nada», que es
+     * justo el síntoma que se reportó. */
+    if (error) console.warn('[Misiones] No se pudo leer el progreso:', error.message)
 
     const progressMap = new Map<string, { progress: number; completed: boolean; completedAt?: string; claimed: boolean }>()
     if (data) {
@@ -275,15 +347,18 @@ export async function getUserMissions(userId: string): Promise<{
         claimed: saved?.claimed || false,
       }
     }
-
     return {
       daily: dailyTemplates.map(mapTemplate),
       weekly: weeklyTemplates.map(mapTemplate),
+      unicas: UNIQUE_MISSIONS.map(mapTemplate),
     }
   } catch {
+    const vacia = (t: MissionTemplate): UserMission =>
+      ({ missionId: t.id, template: t, progress: 0, completed: false, claimed: false })
     return {
-      daily: dailyTemplates.map(t => ({ missionId: t.id, template: t, progress: 0, completed: false, claimed: false })),
-      weekly: weeklyTemplates.map(t => ({ missionId: t.id, template: t, progress: 0, completed: false, claimed: false })),
+      daily: dailyTemplates.map(vacia),
+      weekly: weeklyTemplates.map(vacia),
+      unicas: UNIQUE_MISSIONS.map(vacia),
     }
   }
 }
@@ -298,15 +373,15 @@ export async function updateMissionProgress(
 
   const dailyTemplates = getDailyMissionTemplates()
   const weeklyTemplates = getWeeklyMissionTemplates()
-  const allRelevant = [...dailyTemplates, ...weeklyTemplates].filter(t => t.objectiveType === objectiveType)
+  /* Las únicas van enteras: no se rotan, así que una acción tiene que poder
+     avanzar el hito aunque ese día no haya salido ninguna diaria del tema. */
+  const allRelevant = [...dailyTemplates, ...weeklyTemplates, ...UNIQUE_MISSIONS]
+    .filter(t => t.objectiveType === objectiveType)
 
   if (allRelevant.length === 0) return
 
-  const dayKey = getTodayKey()
-  const weekKey = getWeekKey()
-
   for (const template of allRelevant) {
-    const periodKey = template.type === 'daily' ? dayKey : weekKey
+    const periodKey = clavePeriodo(template.type)
 
     try {
       // Upsert mission progress
@@ -324,24 +399,33 @@ export async function updateMissionProgress(
       const nowCompleted = newProgress >= template.objectiveValue
       const completedAt = nowCompleted ? new Date().toISOString() : null
 
-      if (existing) {
-        await supabase
-          .from('user_missions')
-          .update({ progress: newProgress, completed: nowCompleted, completed_at: completedAt })
-          .eq('user_id', userId)
-          .eq('mission_id', template.id)
-          .eq('period_key', periodKey)
-      } else {
-        await supabase.from('user_missions').insert({
-          user_id: userId,
-          mission_id: template.id,
-          period_key: periodKey,
-          mission_type: template.type,
-          progress: newProgress,
-          completed: nowCompleted,
-          completed_at: completedAt,
-          claimed: false,
-        })
+      /* §2f: hay que MIRAR `error`. Sin esto, el CHECK
+       * `mission_type in ('daily','weekly')` rebotaba cada única con un 23514
+       * y el fallo se veía idéntico a «esta misión todavía no avanza»: la
+       * función entera habría quedado desplegada y muerta, sin un solo
+       * mensaje. Ese CHECK ya se amplió, pero la ceguera era el bug de
+       * verdad — la próxima restricción nueva se vería igual de bien. */
+      const { error: errEscritura } = existing
+        ? await supabase
+            .from('user_missions')
+            .update({ progress: newProgress, completed: nowCompleted, completed_at: completedAt })
+            .eq('user_id', userId)
+            .eq('mission_id', template.id)
+            .eq('period_key', periodKey)
+        : await supabase.from('user_missions').insert({
+            user_id: userId,
+            mission_id: template.id,
+            period_key: periodKey,
+            mission_type: template.type,
+            progress: newProgress,
+            completed: nowCompleted,
+            completed_at: completedAt,
+            claimed: false,
+          })
+
+      if (errEscritura) {
+        console.warn(`[Misiones] No se pudo guardar "${template.id}" (${template.type}):`, errEscritura.message)
+        continue
       }
 
       if (nowCompleted) {
@@ -379,11 +463,11 @@ export async function claimMissionReward(
 ): Promise<{ success: boolean; xpAwarded: number; error?: string }> {
   if (!isSupabaseReady()) return { success: false, xpAwarded: 0, error: 'Sin conexión' }
 
-  const allTemplates = [...DAILY_MISSIONS, ...WEEKLY_MISSIONS]
+  const allTemplates = [...DAILY_MISSIONS, ...WEEKLY_MISSIONS, ...UNIQUE_MISSIONS]
   const template = allTemplates.find(t => t.id === missionId)
   if (!template) return { success: false, xpAwarded: 0, error: 'Misión no encontrada' }
 
-  const periodKey = template.type === 'daily' ? getTodayKey() : getWeekKey()
+  const periodKey = clavePeriodo(template.type)
 
   try {
     const { data } = await supabase
@@ -405,32 +489,35 @@ export async function claimMissionReward(
       .eq('mission_id', missionId)
       .eq('period_key', periodKey)
 
-    // Award XP + bonus XP for mission completion
-    const bonusXp = template.type === 'daily' ? 20 : 60
+    /* El XP se SUMA en el servidor; antes se leía el total, se sumaba y se
+     * escribía de vuelta — y `syncStatsToCloud`, que hace un upsert de la
+     * fila entera desde el Dexie local, lo pisaba con el valor viejo del
+     * aparato. Medido: 8 de 11 personas con misiones cobradas perdieron
+     * pagos, y como la misión queda `claimed`, no se podían volver a cobrar.
+     *
+     * `acreditarXp` manda `sumar_xp` (`xp = xp + n`) y BAJA el total nuevo a
+     * Dexie. Las dos mitades hacen falta: sin la suma en el servidor el XP se
+     * pierde, y sin la bajada el número de la pantalla —que sale de Dexie— no
+     * se mueve hasta el siguiente inicio de sesión, que se ve exactamente
+     * igual que si no se hubiera pagado. */
+    const bonusXp = BONUS_POR_TIPO[template.type]
     const totalXp = template.rewardXp + bonusXp
 
-    const { data: stats } = await supabase
-      .from('player_stats')
-      .select('xp, daily_missions_completed, weekly_missions_completed')
-      .eq('user_id', userId)
-      .single()
-
-    if (stats) {
-      const updates: Record<string, number | string> = {
-        xp: (stats.xp || 0) + totalXp,
-        updated_at: new Date().toISOString(),
-      }
-      if (template.type === 'daily') {
-        updates.daily_missions_completed = (stats.daily_missions_completed || 0) + 1
-      } else {
-        updates.weekly_missions_completed = (stats.weekly_missions_completed || 0) + 1
-      }
-
+    const sumado = await acreditarXp(totalXp, `mision:${missionId}`)
+    if (!sumado) {
+      /* No se pudo pagar. Se DESMARCA el cobro: dejarla `claimed` sin haber
+       * pagado es exactamente cómo se perdieron los 15 pagos anteriores —
+       * marcada como cobrada y sin XP, imposible de reintentar. */
       await supabase
-        .from('player_stats')
-        .update(updates)
+        .from('user_missions')
+        .update({ claimed: false })
         .eq('user_id', userId)
+        .eq('mission_id', missionId)
+        .eq('period_key', periodKey)
+      return { success: false, xpAwarded: 0, error: 'No se pudo acreditar el XP; intentá de nuevo.' }
     }
+
+    await contarMisionEnLaNube(template.type)
 
     return { success: true, xpAwarded: totalXp }
   } catch (e) {

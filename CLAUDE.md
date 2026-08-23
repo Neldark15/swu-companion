@@ -661,7 +661,7 @@ Migraciones en `supabase/migrations/`. Aplicarlas vía SQL Editor en Supabase da
 
 ---
 
-*Última actualización: 2026-08-07*
+*Última actualización: 2026-08-23*
 
 ### 2y. La credencial ES la tarjeta de jugador, y se gira en 3D
 
@@ -1717,3 +1717,83 @@ ese hueco esté cerrado y haya corrido un sábado con invitados, no antes.
 **Y lo local NO se puede migrar desde el servidor.** Vive en el IndexedDB del
 aparato de quien lo corrió; en la nube no dejó rastro (`tournaments_finished`
 sigue en 0 para todos). Recuperarlo exige una exportación desde ESE aparato.
+
+### 3m. Misiones: el XP tenía DOS casas, y las hazañas casi nacen mudas
+
+Reporte de Nel: «no está subiendo la XP». No era la pantalla: el XP se pagaba
+y se perdía.
+
+**`claimMissionReward` leía el XP de la nube, sumaba y escribía de vuelta.**
+`syncStatsToCloud` hace un upsert de la fila ENTERA de `player_stats` desde el
+Dexie del aparato, así que el siguiente sincronizado devolvía el XP al valor
+viejo. §3c otra vez: dos fuentes de una verdad.
+
+La prueba estaba en la base y se puede repetir: `daily_missions_completed` se
+escribía en el MISMO update que `xp`, y **8 de 11 personas** con misiones
+cobradas tenían el contador por debajo de sus cobros reales. Nelson: 7
+cobradas, 2 registradas → **5 pagos perdidos**. Y como la misión queda
+`claimed`, eran irrecuperables.
+
+Hoy:
+- **`sumar_xp(n, motivo)`** hace `xp = xp + n` del lado del servidor, deriva el
+  nivel y topa en **500 por llamada** — sin ese tope, un cliente manipulado se
+  regala el ranking.
+- **`statsToSnake` dejó de mandar `xp`, `level` y los dos contadores de
+  misión.** Un upsert no puede pisar lo que no envía. La bajada
+  (`statsFromSnake`) sí los sigue leyendo: la nube manda, el aparato copia.
+- **Si el pago falla, la misión se DESMARCA.** Dejarla `claimed` sin haber
+  pagado es exactamente cómo se perdieron los 15 pagos.
+
+**`acreditarXp` (en useAuth.ts) es el único camino, y hay que llamarlo.** Se
+llamaba `addXpWithSync`, hacía justo lo contrario (sumaba local y subía la fila
+entera) y **no tenía un solo llamador en toda la app** — la misma forma que
+«una misión sin llamador es una tarea imposible». Suma en el servidor y BAJA el
+total resultante a Dexie: las dos mitades hacen falta, porque el número de la
+pantalla sale de Dexie y sin la bajada no se mueve hasta el próximo inicio de
+sesión, que se ve igual que si no se hubiera pagado.
+
+**Quedan dos leer-sumar-escribir vivos y NO se pueden convertir**:
+`awardMatchResult` y `awardTournamentFinish` reciben un `supabaseUserId` que
+puede ser de OTRA persona (el tracker local recorre a todos), y `acreditarXp`
+escribe en el Dexie de quien está sentado al teclado. Están en el motor local
+congelado (§3l); se arreglan cuando ese motor se retire.
+
+**Las HAZAÑAS (`type: 'unique'`, `period_key = 'once'`).** Irrepetibles por el
+único `(user_id, mission_id, period_key)` — no hace falta una columna de «ya la
+hizo». Tres cosas medidas:
+
+- **El CHECK las habría dejado mudas.** `user_missions_mission_type_check` solo
+  aceptaba `daily` y `weekly`: cada insert rebotaba con 23514, y
+  `updateMissionProgress` **no desestructuraba `error`** (§2f), así que el
+  fallo se veía IDÉNTICO a «esta misión todavía no avanza». Toda la función
+  construida, desplegada y muerta sin un solo mensaje. Es el mismo par del
+  §3h-sexies: **tocar el tipo en el cliente sin ampliar el CHECK no falla al
+  entrar, falla al escribir.** El CHECK ya está ampliado y el `error` ya se
+  mira — lo segundo era el bug de verdad.
+- **Van TODAS a pantalla, no una selección sorteada.** Son hitos: esconder uno
+  ya cumplido le quita a alguien la prueba de haberlo hecho. Las pendientes se
+  ordenan primero.
+- **`clavePeriodo(tipo)` vive en un solo sitio.** La regla estaba escrita como
+  `type === 'daily' ? dayKey : weekKey` en cuatro lugares, y con un tercer tipo
+  ese ternario mandaba las hazañas al cajón semanal: habrían caducado cada
+  lunes.
+
+**Se sembraron desde la historia real** (101 filas, 30 personas, 62 ya
+cumplidas). Sin sembrar, las 26 personas que ya publicaron en el muro abrirían
+Misiones y verían «Primera señal 0/1», desbloqueable solo al publicar OTRA vez
+— un contador que miente. Se sembró el PROGRESO, nunca el cobro: `claimed`
+queda en false y cada quien reclama y ve su número. **Consecuencia a la vista:
+al reclamar, `acreditarXp` también suma al ranking MENSUAL**, así que el mes de
+la siembra recibe hasta 905 XP viejos de una persona. El ranking de verdad no
+se toca — `ranking_unificado()` mide jugar, no XP (§3c).
+
+**`u_play10` no se siembra**: las partidas del Contador viven en el Dexie del
+aparato y la nube no las conoce. Arranca en 0, que es lo único afirmable.
+
+**Y lo que se anuncia es lo que se paga.** La tarjeta enseñaba `rewardXp` a
+secas y el cobro real es `rewardXp + BONUS_POR_TIPO[type]`: 20 XP de menos en
+cada diaria y 60 en cada semanal.
+
+Banco en **`/banco-misiones`** (solo desarrollo): la página entera sin sesión,
+con el catálogo en cero. Antes el efecto salía con `if (!userId) return` y
+dejaba un spinner eterno.

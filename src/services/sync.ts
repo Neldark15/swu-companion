@@ -29,11 +29,27 @@ function getCurrentMonth(): string {
 }
 
 /** Convert camelCase PlayerStats to snake_case for Supabase */
+/**
+ * La fila de stats que el cliente PUEDE escribir.
+ *
+ * ── Lo que ya NO manda, y por qué ─────────────────────────────────────
+ *
+ * `xp`, `level` y los contadores de misiones **son del servidor**. Esto era
+ * un upsert de fila ENTERA desde el Dexie local, y el XP tenía dos casas:
+ * `claimMissionReward` lo sumaba en la nube sin tocar Dexie, y el siguiente
+ * upsert lo pisaba con el valor viejo del aparato.
+ *
+ * No es teoría: medido en producción, **8 de 11 personas con misiones
+ * cobradas perdieron pagos** — Nelson tenía 7 diarias cobradas y solo 2
+ * registradas. Y como la misión queda marcada `claimed`, ese XP no se podía
+ * volver a cobrar.
+ *
+ * Ahora el XP se suma con la RPC `sumar_xp`, que hace `xp = xp + n` en el
+ * servidor. Un upsert no puede pisar lo que no envía.
+ */
 function statsToSnake(stats: PlayerStats, userId: string) {
   return {
     user_id: userId,
-    xp: stats.xp,
-    level: stats.level,
     wins: stats.wins,
     losses: stats.losses,
     matches_played: stats.matchesPlayed,
@@ -59,8 +75,8 @@ function statsToSnake(stats: PlayerStats, userId: string) {
     beskar_received: stats.beskarReceived,
     holocron_received: stats.holocronReceived,
     cristal_kyber_received: stats.cristalKyberReceived,
-    daily_missions_completed: stats.dailyMissionsCompleted,
-    weekly_missions_completed: stats.weeklyMissionsCompleted,
+    // Los contadores de misiones también son del servidor: se escriben en el
+    // MISMO update que el XP, así que mandarlos desde acá los pisaba igual.
     social_reputation: stats.socialReputation,
     active_title: stats.activeTitle,
     unlocked_titles: stats.unlockedTitles,
@@ -825,4 +841,33 @@ export async function pullAllFromCloud(userId: string, localProfileId: string) {
   })
 
   console.log('[Sync] Full pull complete')
+}
+
+/**
+ * Suma XP en el SERVIDOR (`xp = xp + n`), en vez de escribir el total.
+ *
+ * Es la única forma de que dos caminos que dan XP no se pisen. Devuelve el
+ * XP y el nivel nuevos, o `null` si no se pudo — y `null` NO es cero: quien
+ * llame no debe pintar un total inventado.
+ */
+export async function sumarXpEnLaNube(
+  cantidad: number,
+  motivo?: string,
+): Promise<{ xp: number; nivel: number } | null> {
+  if (!isSupabaseReady() || cantidad <= 0) return null
+  const { data, error } = await supabase.rpc('sumar_xp', {
+    p_cantidad: Math.round(cantidad),
+    p_motivo: motivo ?? null,
+  })
+  // §2f: supabase-js NO lanza ante un error de PostgREST.
+  if (error) return null
+  const r = data as { ok?: boolean; xp?: number; nivel?: number } | null
+  if (!r?.ok || typeof r.xp !== 'number') return null
+  return { xp: r.xp, nivel: r.nivel ?? 1 }
+}
+
+/** Suma 1 al contador de misiones del tipo dado, también en el servidor. */
+export async function contarMisionEnLaNube(tipo: string): Promise<void> {
+  if (!isSupabaseReady()) return
+  await supabase.rpc('contar_mision', { p_tipo: tipo })
 }

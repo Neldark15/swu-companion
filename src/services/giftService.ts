@@ -5,6 +5,7 @@
  */
 
 import { supabase, isSupabaseReady } from './supabase'
+import { acreditarXp } from '../hooks/useAuth'
 import { updateMissionProgress } from './missionService'
 import { addRelationshipPoints } from './relationshipService'
 import { inicioDelDiaSVenUTC, inicioDelDiaSiguienteSVenUTC } from './horaSV'
@@ -207,26 +208,39 @@ export async function sendGift(
   }
 }
 
-/** Update sender's player_stats after sending a gift (+5 XP bonus + reputation) */
+/**
+ * Los +5 XP y la reputación de quien manda un regalo.
+ *
+ * El XP va por `acreditarXp` y NO por este update. Era el mismo
+ * leer-sumar-escribir que perdía los pagos de las misiones: entre el select
+ * y el update, cualquier otro camino que tocara el XP quedaba pisado con el
+ * valor viejo. Y de paso el `level` no se recalculaba nunca acá, así que
+ * regalar podía dejarte con XP de nivel 9 y la insignia de 8.
+ *
+ * Los otros dos contadores sí siguen en un update directo: son de esta
+ * acción y de nadie más, así que no hay con qué chocar.
+ */
 async function updateSenderStats(senderId: string) {
   try {
+    await acreditarXp(5, 'regalo enviado')
+
     const { data } = await supabase
       .from('player_stats')
-      .select('xp, gifts_sent, social_reputation')
+      .select('gifts_sent, social_reputation')
       .eq('user_id', senderId)
       .single()
 
     if (!data) return
 
-    await supabase
+    const { error } = await supabase
       .from('player_stats')
       .update({
-        xp: (data.xp || 0) + 5,
         gifts_sent: (data.gifts_sent || 0) + 1,
         social_reputation: (data.social_reputation || 0) + 2, // +2 rep for sending
         updated_at: new Date().toISOString(),
       })
       .eq('user_id', senderId)
+    if (error) console.warn('[Gift] No se pudo contar el regalo:', error.message)
   } catch (e) {
     console.warn('[Gift] Failed to update sender stats:', e)
   }
