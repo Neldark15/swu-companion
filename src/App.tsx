@@ -291,6 +291,7 @@ export default function App() {
             {import.meta.env.DEV && <Route path="/banco-calendario" element={<CalendarioPage />} />}
             {import.meta.env.DEV && <Route path="/banco-pedidos" element={<PedidosPage />} />}
             {import.meta.env.DEV && <Route path="/banco-prestamos" element={<PrestamosPage />} />}
+            {import.meta.env.DEV && <Route path="/banco-ranking-sede" element={<RankingPage />} />}
             {import.meta.env.DEV && <Route path="/banco-carrito" element={<BancoCarrito />} />}
             {import.meta.env.DEV && <Route path="/banco-mensajes" element={<MensajesPage />} />}
             {import.meta.env.DEV && <Route path="/banco-consola" element={<BancoConsola />} />}

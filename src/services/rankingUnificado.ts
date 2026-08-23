@@ -58,15 +58,27 @@ export const REGLA_PUNTOS = '3 por victoria en torneo · 1 por empate · 1 por v
 
 /**
  * @param dias  Ventana. `null` = de siempre.
+ * @param sede  Id de la tienda. `null` = todas.
+ *
+ * Con SEDE puesta el ranking es SOLO de torneos: una amistosa se juega en la
+ * casa de cualquiera y no tiene sede. Repartirlas entre tiendas sería
+ * inventar dónde se jugaron, y ponerlas en todas haría que la suma de los
+ * rankings por sede no diera nunca el global. La pantalla lo dice.
  */
-export async function getRankingUnificado(dias: number | null = null): Promise<Resultado<FilaRanking[]>> {
+export async function getRankingUnificado(
+  dias: number | null = null,
+  sede: string | null = null,
+): Promise<Resultado<FilaRanking[]>> {
   if (!isSupabaseReady()) return { ok: false, mensaje: 'Sin conexión con la nube.' }
 
   const desde = dias === null
     ? '2000-01-01T00:00:00Z'
     : new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString()
 
-  const { data, error } = await supabase.rpc('ranking_unificado', { p_desde: desde })
+  const { data, error } = await supabase.rpc('ranking_unificado', {
+    p_desde: desde,
+    p_sede: sede,
+  })
 
   // Gotcha 2f: supabase-js no lanza ante un error de PostgREST. Sin mirar
   // `error`, un fallo se ve igual que «todavía nadie jugó».

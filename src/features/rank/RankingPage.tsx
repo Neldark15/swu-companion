@@ -36,6 +36,7 @@ import {
 } from '../../services/rankingUnificado'
 import { getGlobalLeaderboard, type GlobalLeaderboardEntry } from '../../services/sync'
 import { useAuth } from '../../hooks/useAuth'
+import { listarSedes, type Sede } from '../../services/venuesService'
 import { Avatar } from '../../components/ui/Avatar'
 import { colorDePersona } from '../../services/avatars'
 import { IconXp } from '../../components/icons/SWUIcons'
@@ -130,6 +131,9 @@ export function RankingPage() {
   const { currentProfile } = useAuth()
   const [pestana, setPestana] = useState<'ranking' | 'progreso'>('ranking')
   const [dias, setDias] = useState<number | null>(null)
+  /** `null` = todas las sedes (el ranking de siempre). */
+  const [sede, setSede] = useState<string | null>(null)
+  const [sedes, setSedes] = useState<Sede[]>([])
   const [filas, setFilas] = useState<FilaRanking[]>([])
   const [progreso, setProgreso] = useState<GlobalLeaderboardEntry[]>([])
   const [cargando, setCargando] = useState(true)
@@ -137,14 +141,24 @@ export function RankingPage() {
 
   const miId = currentProfile?.id ?? ''
 
+  // Las sedes se piden UNA vez: son dos filas y no cambian mientras mirás.
+  useEffect(() => {
+    let vivo = true
+    void (async () => {
+      const v = await listarSedes()
+      if (vivo) setSedes(v)
+    })()
+    return () => { vivo = false }
+  }, [])
+
   const cargar = useCallback(async () => {
     setCargando(true)
     setError(null)
-    const r = await getRankingUnificado(dias)
+    const r = await getRankingUnificado(dias, sede)
     if (r.ok) setFilas(r.datos)
     else setError(r.mensaje)
     setCargando(false)
-  }, [dias])
+  }, [dias, sede])
 
   // Envuelto en una función asíncrona a propósito: llamarlo en seco desde el
   // cuerpo del efecto encadena un render antes de que React pinte, y el lint
@@ -212,6 +226,30 @@ export function RankingPage() {
 
       {pestana === 'ranking' ? (
         <>
+          {/* ── Sede ──
+              Va ARRIBA de la ventana de tiempo porque cambia QUÉ se mide, no
+              cuánto: la de tiempo recorta el mismo ranking, esta lo cambia por
+              otro. Solo aparece si hay más de una tienda; con una sola, un
+              selector de un botón es ruido. */}
+          {sedes.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto">
+              {[{ id: null as string | null, name: 'Todas' }, ...sedes].map((v) => (
+                <button
+                  key={v.id ?? 'todas'}
+                  onClick={() => setSede(v.id)}
+                  className={`clip-chapa min-h-[44px] shrink-0 px-3 text-[12px] font-bold transition-colors ${
+                    sede === v.id ? 'text-swu-accent-texto' : 'text-swu-muted'
+                  }`}
+                  style={sede === v.id
+                    ? { backgroundColor: 'color-mix(in srgb, var(--color-swu-accent) 18%, var(--color-swu-bg))', backgroundImage: LUSTRE }
+                    : { backgroundColor: 'var(--color-swu-bg)', backgroundImage: VETA }}
+                >
+                  {v.name}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="flex gap-2">
             {VENTANAS.map((v) => (
               <button
@@ -232,7 +270,10 @@ export function RankingPage() {
           <p className="clip-chapa flex items-start gap-1.5 px-3 py-2 text-[11px] text-swu-muted"
              style={{ backgroundColor: 'var(--color-swu-bg)', backgroundImage: VETA }}>
             <Info size={13} className="mt-0.5 shrink-0 text-swu-accent-texto" />
-            <span>{REGLA_PUNTOS}. Las amistosas cuentan solo si el rival las confirmó.</span>
+            <span>
+              {REGLA_PUNTOS}. Las amistosas cuentan solo si el rival las confirmó.
+              {sede !== null && ' En el ranking de una sede solo cuentan sus torneos: una amistosa no se juega en ninguna tienda.'}
+            </span>
           </p>
 
           {error && (
