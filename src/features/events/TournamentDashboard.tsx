@@ -10,7 +10,7 @@ import {
 } from '../../services/mesasService'
 import { useState, useEffect, useCallback} from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Play, SkipForward, Clock, Users, Trophy, GitBranch, UserMinus } from 'lucide-react'
+import { ArrowLeft, Play, SkipForward, Clock, Users, Trophy, GitBranch, UserMinus, LayoutGrid} from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import {
   getEventTournamentInfo,
@@ -119,8 +119,23 @@ export default function TournamentDashboard() {
   // Realtime subscriptions
   useEffect(() => {
     if (!event?.id) return
+    /* Las mesas no tienen canal propio de tiempo real, y no hace falta abrirlo:
+     * `guardar_puestos_mesa` recalcula `tournament_standings` y `armar_mesas`
+     * toca `official_events.current_round`, así que las dos acciones ya
+     * disparan uno de estos callbacks. Sin esto, el segundo organizador
+     * seguía viendo la ronda anterior y anotaba encima de ella. */
+    const refrescarMesas = async () => {
+      if (!esDeMesas(event.tournament_type)) return
+      const ronda = await ultimaRonda(event.id)
+      setRondaMesas(ronda)
+      setMesas(ronda ? await getMesasDeRonda(ronda.id) : [])
+    }
+
     const unsub = subscribeToEvent(event.id, {
-      onStandingsChange: () => getStandings(event.id).then(setStandings),
+      onStandingsChange: () => {
+        getStandings(event.id).then(setStandings)
+        void refrescarMesas()
+      },
       onPairingsChange: () => {
         if (selectedRound > 0) {
           getRoundPairings(event.id, selectedRound).then(setPairings)
@@ -128,10 +143,11 @@ export default function TournamentDashboard() {
       },
       onEventChange: () => {
         if (code) getEventTournamentInfo(code).then(ev => ev && setEvent(ev))
+        void refrescarMesas()
       },
     })
     return unsub
-  }, [event?.id, selectedRound, code])
+  }, [event?.id, event?.tournament_type, selectedRound, code])
 
   // Load pairings when selected round changes
   useEffect(() => {
@@ -315,7 +331,9 @@ export default function TournamentDashboard() {
      tipo: escondida detras del tipo, la herramienta existia y no aparecia en
      ningun lado para quien no hubiera acertado al crear el torneo. Adentro se
      ofrece convertir. */
-  tabs.push({ id: 'mesas', label: 'Mesas', icon: <Users size={16} /> })
+  // Ícono propio: 'pairings' ya usa Users, y en móvil el rótulo va oculto,
+  // así que dos pestañas con el mismo dibujo son indistinguibles.
+  tabs.push({ id: 'mesas', label: 'Mesas', icon: <LayoutGrid size={16} /> })
 
   // Build player name map for bracket
   const playerNames = new Map<string, string>()
@@ -577,8 +595,9 @@ export default function TournamentDashboard() {
         )}
 
         {/* ── Bracket Tab ── */}
+        {/* ── Mesas Tab ── */}
         {activeTab === 'mesas' && (
-          <div className="px-4">
+          <div>
             {esDeMesas(event.tournament_type) ? (
               <MesasPanel
                 eventId={event.id}
@@ -589,13 +608,18 @@ export default function TournamentDashboard() {
                 ocupado={actionLoading}
                 onCambio={() => { void fetchData() }}
                 onAviso={showMessage}
-                onError={setError}
+                /* `showMessage(m, true)` y no `setError` crudo: es el único que
+                   programa el borrado a los 4 s. Con setError el rojo quedaba
+                   pegado toda la sesión, incluso después de que la acción
+                   siguiente saliera bien. */
+                onError={m => showMessage(m, true)}
               />
             ) : (
               <ConvertirAMesas
                 event={event}
+                sembrado={standings.length > 0}
                 onHecho={() => { showMessage('Torneo convertido a mesas'); void fetchData() }}
-                onError={setError}
+                onError={m => showMessage(m, true)}
               />
             )}
           </div>
@@ -649,14 +673,23 @@ function BracketViewLoader({
 /* ── Convertir un torneo a mesas ───────────────────────────────────── */
 
 function ConvertirAMesas({
-  event, onHecho, onError,
+  event, sembrado, onHecho, onError,
 }: {
   event: CloudEvent
+  /** Si ya hay clasificación. El servidor rechaza la conversión con una sola fila. */
+  sembrado: boolean
   onHecho: () => void
   onError: (m: string) => void
 }) {
   const [yendo, setYendo] = useState(false)
-  const arrancado = event.status === 'finished' || event.current_round > 0
+  /* La MISMA regla que el servidor.
+   *
+   * Miraba solo `current_round > 0`, pero `cambiar_tipo_torneo` rechaza en
+   * cuanto hay UNA fila de clasificación — y `initializeTournament` siembra
+   * las standings dejando `current_round` en 0. En esa ventana el panel
+   * afirmaba «todavía no sembró la clasificación» siendo falso, y el botón
+   * fallaba contra el servidor. */
+  const arrancado = event.status === 'finished' || event.current_round > 0 || sembrado
 
   return (
     <div className="rounded-xl border border-swu-border bg-swu-surface p-4 space-y-2.5">
@@ -677,10 +710,25 @@ function ConvertirAMesas({
         <>
           <p className="text-xs leading-relaxed text-swu-muted">
             Todavía no sembró la clasificación, así que se puede convertir sin
-            perder el código, los inscritos ni la sede.
+            perder el código, los inscritos ni la sede. <strong>Es de una sola
+            dirección</strong>: para volver a suizo habría que borrar el torneo
+            y crearlo otra vez.
           </p>
           <button
             onClick={async () => {
+              /* Confirmación obligatoria: desde la app NO hay vuelta.
+               *
+               * `cambiarTipoTorneo` solo se llama con 'mesas' en toda la app;
+               * ningún sitio la llama con 'swiss'. Una vez convertido, este
+               * panel deja de renderizarse y la única marcha atrás es el SQL
+               * Editor o borrar el torneo. En la misma pantalla, retirar a un
+               * jugador y finalizar el torneo SÍ confirman — esto era el único
+               * acto irreversible que no preguntaba nada. */
+              if (!confirm(
+                `Convertir «${event.name}» a torneo de MESAS (Twin Suns).\n\n` +
+                'Desde la app no se puede volver a suizo: habría que borrar el ' +
+                'torneo y crearlo de nuevo.\n\n¿Seguro?'
+              )) return
               setYendo(true)
               const r = await cambiarTipoTorneo(event.id, 'mesas')
               setYendo(false)

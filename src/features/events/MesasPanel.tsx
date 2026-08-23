@@ -63,6 +63,7 @@ export function MesasPanel({
     (elegida !== null ? composicion(n, elegida) : null) ?? opciones[0] ?? null
 
   const yaArmada = mesas.length > 0
+  const hayPuntos = activos.some(s => s.points > 0)
   const todasAnotadas = yaArmada && mesas.every(m => m.anotada)
 
   async function armar() {
@@ -74,9 +75,13 @@ export function MesasPanel({
       activos.map(s => ({
         userId: s.user_id ?? null,
         nombre: s.player_name,
-        // Ronda 1: por semilla. Después: por puntos, para que la serpentina
-        // reparta según la tabla y no según quién se inscribió antes.
-        orden: (ronda?.numero ?? 0) === 0 ? -(s.seed ?? 999) : s.points,
+        /* Por puntos si ya hay puntos; si no, por semilla.
+         *
+         * Antes la condición era «¿ya existe una ronda?», y eso fallaba justo
+         * en el caso que el botón «Volver a repartir» existe para cubrir: la
+         * ronda 1 ya existe pero nadie tiene puntos todavía, así que ordenaba
+         * por 0 para todos y la serpentina repartía por orden alfabético. */
+        orden: hayPuntos ? s.points : -(s.seed ?? 999),
       })),
       sel,
     ).map(a => ({ user_id: a.userId, player_name: a.nombre, mesa: a.mesa }))
@@ -91,7 +96,8 @@ export function MesasPanel({
   if (n === 0) {
     return (
       <p className="text-sm text-swu-muted">
-        Primero hay que sembrar la clasificación, en la pestaña de Inscritos.
+        Todavía no hay clasificación. Apretá «Iniciar Torneo» en la pestaña
+        Rondas para sembrarla con los inscritos, y volvé acá.
       </p>
     )
   }
@@ -103,8 +109,16 @@ export function MesasPanel({
         <HudPanel compact tone={opciones.length === 0 ? 'red' : 'amber'}>
           <div className="space-y-3 p-3.5">
             <div>
+              {/* Tres estados, no dos: sin mesas se ARMA la primera; con
+                  mesas a medio anotar se REARMA la misma; con todo anotado el
+                  botón crea la SIGUIENTE. Decía «Rearmar la ronda 1» justo
+                  cuando iba a crear la 2. */}
               <p className="text-sm font-bold text-swu-text">
-                {yaArmada ? `Rearmar la ronda ${ronda?.numero ?? 1}` : `Armar la ronda ${(ronda?.numero ?? 0) + 1}`}
+                {!yaArmada
+                  ? `Armar la ronda ${(ronda?.numero ?? 0) + 1}`
+                  : todasAnotadas
+                    ? `Armar la ronda ${(ronda?.numero ?? 1) + 1}`
+                    : `Rearmar la ronda ${ronda?.numero ?? 1}`}
               </p>
               <p className="text-xs text-swu-muted">
                 {n} jugador{n === 1 ? '' : 'es'} activo{n === 1 ? '' : 's'}
@@ -152,7 +166,13 @@ export function MesasPanel({
                              text-sm font-semibold text-white disabled:opacity-50"
                 >
                   {yaArmada && !todasAnotadas ? <Shuffle size={15} /> : <Play size={15} />}
-                  {guardando ? 'Armando…' : yaArmada && !todasAnotadas ? 'Volver a repartir' : 'Armar mesas'}
+                  {guardando
+                    ? 'Armando…'
+                    : yaArmada && !todasAnotadas
+                      ? 'Volver a repartir'
+                      : yaArmada
+                        ? `Armar la ronda ${(ronda?.numero ?? 1) + 1}`
+                        : 'Armar mesas'}
                 </button>
               </>
             )}
@@ -168,7 +188,14 @@ export function MesasPanel({
           </p>
           {mesas.map(m => (
             <Mesa
-              key={m.mesa}
+              /* La clave lleva la RONDA, no solo el número de mesa.
+               *
+               * `armar_mesas` numera las mesas desde 1 en cada ronda, así que
+               * con `key={m.mesa}` React reutilizaba la MISMA instancia entre
+               * rondas — y el estado de puestos, que se inicializa una sola vez,
+               * llegaba a la ronda 2 con lo anotado en la 1. Guardar ahí habría
+               * escrito los puestos de la ronda anterior como si fueran nuevos. */
+              key={`${ronda?.id ?? 'r'}-${m.mesa}`}
               mesa={m}
               rondaId={ronda?.id ?? ''}
               bloqueada={cerrado}
@@ -182,7 +209,7 @@ export function MesasPanel({
 
       {/* ── Clasificación final ── */}
       {yaArmada && !cerrado && (
-        <HudPanel compact>
+        <HudPanel compact tone={todasAnotadas ? 'amber' : 'neutral'}>
           <div className="space-y-2 p-3.5">
             <p className="text-sm font-bold text-swu-text">Fijar la clasificación final</p>
             <p className="text-xs leading-relaxed text-swu-muted">
@@ -198,11 +225,12 @@ export function MesasPanel({
                 if (r.ok) { onAviso(`Clasificación fijada para ${r.datos} jugadores`); onCambio() }
                 else onError(r.mensaje)
               }}
-              disabled={ocupado || guardando}
+              disabled={ocupado || guardando || !todasAnotadas}
               className="flex min-h-[44px] items-center gap-2 rounded-lg border border-swu-border
-                         px-4 text-sm font-semibold text-swu-text disabled:opacity-50"
+                         px-4 text-sm font-semibold text-swu-text disabled:opacity-40"
             >
-              <Trophy size={15} /> Fijar clasificación
+              <Trophy size={15} />
+              {todasAnotadas ? 'Fijar clasificación' : 'Faltan puestos por anotar'}
             </button>
           </div>
         </HudPanel>
@@ -224,10 +252,20 @@ function Mesa({
   onError: (m: string) => void
 }) {
   const k = mesa.jugadores.length
-  // Lo que se está editando. Arranca de lo guardado.
-  const [puestos, setPuestos] = useState<Record<string, number | null>>(() =>
-    Object.fromEntries(mesa.jugadores.map(j => [j.player_name, j.puesto])),
-  )
+
+  /* Lo que se está editando, DERIVADO de lo guardado.
+   *
+   * El inicializador perezoso corre una sola vez, así que si llegan datos
+   * nuevos sin que el componente se desmonte (una recarga tras guardar, o el
+   * refresco de otro admin) seguía mostrando lo viejo. Se guarda junto a la
+   * foto sobre la que se editó: cuando esa foto cambia, lo editado deja de
+   * aplicar solo. */
+  const foto = mesa.jugadores.map(j => `${j.id}:${j.puesto}`).join('|')
+  const [editado, setEditado] = useState<{ foto: string; v: Record<string, number | null> } | null>(null)
+  const guardadoActual = Object.fromEntries(mesa.jugadores.map(j => [j.player_name, j.puesto]))
+  const puestos = editado?.foto === foto ? editado.v : guardadoActual
+  const setPuestos = (f: (p: Record<string, number | null>) => Record<string, number | null>) =>
+    setEditado({ foto, v: f(puestos) })
   const [guardando, setGuardando] = useState(false)
 
   const asignados = Object.values(puestos).filter(p => p !== null) as number[]

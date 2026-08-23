@@ -321,10 +321,36 @@ language plpgsql
 security definer
 set search_path to 'public'
 as $$
-declare v_n int;
+declare v_n int; v_tipo text; v_sin int; v_mesas int;
 begin
   if not public.puede_operar_torneo() then
     return jsonb_build_object('ok', false, 'error', 'No tenes permiso para operar este torneo.');
+  end if;
+
+  -- NO se puede fijar un podio sin puestos anotados.
+  --
+  -- En un torneo de mesas recién armado todos tienen `points = 0`, así que el
+  -- orden real pasaría a ser `player_name asc`: un podio ALFABÉTICO. Y como
+  -- `_repartir_premios` ahora obedece la columna `puesto`, ese podio inventado
+  -- repartiría XP y sobres. El botón de la pantalla también está gateado, pero
+  -- la guarda que cuenta es esta.
+  select tournament_type into v_tipo from public.official_events where id = p_evento;
+  if v_tipo is null then
+    return jsonb_build_object('ok', false, 'error', 'El torneo no existe.');
+  end if;
+
+  if v_tipo = 'mesas' then
+    select count(*), count(*) filter (where puesto is null)
+      into v_mesas, v_sin
+      from public.tournament_mesas where event_id = p_evento;
+    if v_mesas = 0 then
+      return jsonb_build_object('ok', false, 'error',
+        'Todavia no hay mesas armadas: no hay de donde sacar la clasificacion.');
+    end if;
+    if v_sin > 0 then
+      return jsonb_build_object('ok', false, 'error',
+        format('Faltan %s puesto(s) por anotar. Sin eso todos tienen 0 puntos y la clasificacion saldria por orden alfabetico.', v_sin));
+    end if;
   end if;
 
   with orden as (
