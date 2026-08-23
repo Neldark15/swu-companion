@@ -57,6 +57,7 @@ const BancoAvisos = lazy(() => import('./components/ui/BancoAvisos').then(m => (
 const BancoCarrito = lazy(() => import('./features/mercado/BancoCarrito').then(m => ({ default: m.BancoCarrito })))
 const MensajesPage = lazy(() => import('./features/mensajes/MensajesPage').then(m => ({ default: m.MensajesPage })))
 const PedidosPage = lazy(() => import('./features/mercado/PedidosPage').then(m => ({ default: m.PedidosPage })))
+const PrestamosPage = lazy(() => import('./features/prestamos/PrestamosPage').then(m => ({ default: m.PrestamosPage })))
 const CalendarioPage = lazy(() => import('./features/calendario/CalendarioPage').then(m => ({ default: m.CalendarioPage })))
 const TorneosPage = lazy(() => import('./features/torneos/TorneosPage').then(m => ({ default: m.TorneosPage })))
 const TorneoDetallePage = lazy(() => import('./features/torneos/TorneoDetallePage').then(m => ({ default: m.TorneoDetallePage })))
@@ -237,6 +238,7 @@ export default function App() {
                 requiere cuenta para mirarlo. */}
             <Route path="/mensajes" element={<P><MensajesPage /></P>} />
             <Route path="/pedidos" element={<P><PedidosPage /></P>} />
+            <Route path="/prestamos" element={<P><PrestamosPage /></P>} />
             <Route path="/calendario" element={<CalendarioPage />} />
             <Route path="/torneos" element={<TorneosPage />} />
             <Route path="/torneos/:code" element={<TorneoDetallePage />} />
@@ -288,6 +290,7 @@ export default function App() {
             {import.meta.env.DEV && <Route path="/banco-avisos" element={<BancoAvisos />} />}
             {import.meta.env.DEV && <Route path="/banco-calendario" element={<CalendarioPage />} />}
             {import.meta.env.DEV && <Route path="/banco-pedidos" element={<PedidosPage />} />}
+            {import.meta.env.DEV && <Route path="/banco-prestamos" element={<PrestamosPage />} />}
             {import.meta.env.DEV && <Route path="/banco-carrito" element={<BancoCarrito />} />}
             {import.meta.env.DEV && <Route path="/banco-mensajes" element={<MensajesPage />} />}
             {import.meta.env.DEV && <Route path="/banco-consola" element={<BancoConsola />} />}

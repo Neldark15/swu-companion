@@ -53,6 +53,7 @@ const secondaryNav: NavItem[] = [
   { id: '/sobres', label: 'Sobredosis', sub: 'Abrir sobres', icon: SobreIcon },
   { id: '/binder-digital', label: 'Binder digital', sub: 'Lo que abriste', icon: BinderIcon },
   { id: '/explore', label: 'Contrabando', sub: 'Explorar', icon: BountyIcon },
+  { id: '/prestamos', label: 'Préstamos', sub: 'Quién tiene tus cartas', icon: CargoIcon },
   { id: '/espionaje', label: 'Espionaje', sub: 'Transmisiones', icon: SpyIcon },
   { id: '/misiones', label: 'Misiones', sub: 'Órdenes del Día', icon: DeathStarIcon },
   { id: '/decks', label: 'Mis Decks', sub: 'Constructor', icon: DeckCardsIcon },

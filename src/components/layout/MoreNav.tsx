@@ -69,6 +69,7 @@ const GROUPS: MoreGroup[] = [
       { to: '/torneos', label: 'Torneos', sub: 'Archivo y organizar', icon: MandoTrophyIcon },
       { to: '/calendario', label: 'Calendario', sub: 'Los torneos del mes', icon: AgendaIcon },
       { to: '/pedidos', label: 'Pedidos', sub: 'Carrito y ventas', icon: PedidoIcon },
+      { to: '/prestamos', label: 'Préstamos', sub: 'Quién tiene tus cartas', icon: PedidoIcon },
       { to: '/mensajes', label: 'Mensajes', sub: 'Conversaciones privadas', icon: TransmisionIcon },
     ],
   },
