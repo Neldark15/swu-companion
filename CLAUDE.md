@@ -2080,3 +2080,91 @@ transacción**. Si el `select` de verificación al final falla, el `drop` y el
 `create` de arriba se revierten con él — el susto de «dejé el ranking sin
 función» no era real, pero tampoco había quedado aplicado nada. Migración en
 una llamada, verificación en otra.
+
+### 3t. Los íconos de misión: uno por OBJETIVO, y cuatro que no se leían
+
+El catálogo llevaba **27 emoji**, y un emoji **lo dibuja el sistema
+operativo**: 🛰️ en un iPhone y en un Android son dos dibujos distintos, y los
+que un Android no tiene salen como un cuadrito. Era la única superficie donde
+la app no controlaba su propio aspecto — justo la lista que se abre a diario.
+
+Son **16 íconos, uno por `objectiveType`**, no uno por misión: antes «abrir 1
+sobre» y «abrir 3 sobres» tenían dos dibujos para la MISMA acción. Cuántas
+veces ya lo dice el contador de al lado.
+
+**El ícono de una misión es el de LA PANTALLA donde se hace.** Eso identifica
+en vez de decorar, y es coherente con el botón que ya dice el nombre de la
+pantalla. Por eso la mayoría reusa `SWIcons` / `SWUIcons`.
+
+**Pero reusar no siempre sirve, y solo se ve MIRANDO.** Cuatro se redibujaron:
+
+| ícono reusado | qué se leía a 15-22 px |
+|---|---|
+| `SobreIcon` | un **calendario** (dentado + banda diagonal = hoja arrancada) |
+| `SalasIcon` | una **molécula** — es un grafo de nodos, no «hablar» |
+| `IconDualBlades` | un **aspa suelta**: no se ve dónde empieza cada hoja |
+| `BountyIcon` | un **casco** — sirve para «Contrabando», no para «marcá una carta que querés» |
+
+Lo que arregla cada uno: el sobre lleva una **carta asomando** (un sobre
+cerrado es un rectángulo; uno abierto es un rectángulo con algo saliendo); el
+chat es un bocadillo con cola; la amistosa marca las **dos empuñaduras** para
+que se lea «dos cosas cruzadas» y no «una X»; y «la busco» es una carta con una
+**mira**.
+
+**UN ÍCONO NO PUEDE DEPENDER DEL COLOR DE FONDO.** El primer «la busco»
+rellenaba la mira con `var(--color-swu-bg)` para tapar el borde de la carta que
+tenía debajo. Sobre la chapa clara ese disco salía oscuro y se comía la cruz.
+Se redibujó sin solapamiento. La fila «sobre fondo claro» del banco existe
+exactamente para cazar eso.
+
+Banco en **`/banco-iconos-mision`** (solo desarrollo): los 16 en los tres
+tamaños reales (15 la franja de Inicio, 22 la tarjeta, 34 para ver el
+balance del trazo) y la fila sobre fondo claro.
+
+**El mapa `ICONO_POR_OBJETIVO` vive en `iconoMision.ts`, aparte.** Un módulo
+que exporta componentes Y una constante rompe el Fast Refresh de Vite — la
+misma separación que ya hubo que hacer entre `piezas.tsx` y `estado.ts` del
+Contador. Y tampoco puede vivir en `misionesCatalogo.ts`: ese es puro y sin
+red, y meterle JSX lo ataría a React, que es lo que impide probarlo en Node.
+
+**El sorteo NO repite objetivo en un mismo día.** «Abrir 1 sobre» y «abrir 3
+sobres» juntos son la misma tarea dos veces —haciendo la segunda se cumple la
+primera sola— así que una de las seis ranuras no pedía nada nuevo. Y con un
+ícono por objetivo, además, se verían dos tarjetas con el mismo dibujo: eso se
+lee como un error de la app, no como dos misiones. Si el filtro dejara ranuras
+sin llenar se completa permitiendo repetir: preferir una lista corta a una con
+repetidos sería castigar al que juega por una regla de presentación.
+
+### 3u. La animación de Misiones: CSS propio, y qué se apaga con movimiento reducido
+
+Va en **CSS plano** en `index.css`, no en `@utility` —Tailwind solo emite una
+utilidad si DETECTA la clase escrita, y las armadas con plantilla no las ve
+(§3i)— y no con framer-motion, que en este repo solo se usa en el overlay.
+
+**Todo se apoya en `transform` y `opacity`.** Son las dos propiedades que el
+compositor anima sin recalcular el diseño. La barra de progreso usa
+`transform: scaleX(var(--p))` sobre una barra al 100 % de ancho y **no**
+`width`: animar el ancho es un reflow por frame, y acá hay hasta 20 filas.
+
+Las cinco piezas: entrada escalonada (`--i` con tope de 12, o la fila 20
+tardaría dos segundos), la barra que crece, el ícono que **respira** solo
+cuando la misión está completa y sin cobrar —lo único que se mueve solo, así
+que señala sin competir—, un destello que cruza la tarjeta al reclamar, y el
+**XP que despega**: sin eso, cobrar solo apaga un botón y no se ve que el pago
+ocurrió.
+
+**El destello se dispara UNA vez**, comparando contra un `useRef` del estado
+anterior. Con `claimed` a secas volvería a correr en cada repintado de la lista
+y la tarjeta parpadearía sola para siempre.
+
+**`prefers-reduced-motion` da MENOS movimiento, no cero.** La entrada queda en
+un fundido sin desplazamiento y la barra se acorta a 1 ms; lo que se apaga es
+lo que **se repite solo** —el latido y el giro largo—, que es lo que de verdad
+marea. Las seis clases tienen su regla.
+
+**Verificar contra el CSS CONSTRUIDO, nunca contra el fuente ni contra el dev
+server** (§3i otra vez). El servidor de desarrollo sirve el CSS sin pasar por
+el empaquetador: una clase puede estar ahí y no llegar al bundle.
+`grep -c` con un glob y `awk` da cero por el formato de salida, no porque falte
+— usá `grep -o PATRÓN archivo | wc -l` sobre el `.css` que referencia
+`dist/index.html`.
