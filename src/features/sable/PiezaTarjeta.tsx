@@ -23,6 +23,10 @@ import type { ParteTaller } from '../../services/sableService'
 
 interface Props {
   parte: ParteTaller
+  /** El color de la hoja puesta: los testigos y gemas del mango se prenden de
+      él, también en la miniatura. Sin esto, la tarjeta enseñaría un testigo
+      azul mientras el sable lo tiene verde. */
+  colorHoja?: string
   puesta: boolean
   delta: Stats | null
   ocupado: boolean
@@ -34,7 +38,7 @@ function conSigno(n: number): string {
   return n > 0 ? `+${n}` : String(n)
 }
 
-export function PiezaTarjeta({ parte, puesta, delta, ocupado, alElegir }: Props) {
+export function PiezaTarjeta({ parte, colorHoja, puesta, delta, ocupado, alElegir }: Props) {
   const r = rarezaDe(parte.rareza)
   const cambia = delta && (delta.potencia || delta.control || delta.energia)
 
@@ -60,7 +64,7 @@ export function PiezaTarjeta({ parte, puesta, delta, ocupado, alElegir }: Props)
           pieza torneada y su identidad es el COLOR, que ya se ve en la hoja. */}
       <div className="flex items-center gap-2">
         {parte.tipo !== 'color' && (
-          <MiniaturaPieza tipo={parte.tipo} id={parte.id} size={44} />
+          <MiniaturaPieza tipo={parte.tipo} id={parte.id} size={44} colorHoja={colorHoja} />
         )}
         <span className="min-w-0 flex-1 truncate text-[13px] font-black tracking-tight text-swu-text">
           {parte.nombre}

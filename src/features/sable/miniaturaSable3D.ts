@@ -22,7 +22,8 @@
 
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
-import { piezasDeSable, type Diseno } from './partesSable'
+import { piezasDeSable, colorDeHoja, type Diseno } from './partesSable'
+import { abrirTallerTres, vestirPieza } from './herrajesTres'
 
 /** `null` si este navegador no puede dibujar en 3D: la barra usa su SVG. */
 export function renderizarMango(d: Diseno, anchoPx = 216, altoPx = 66): string | null {
@@ -55,27 +56,28 @@ export function renderizarMango(d: Diseno, anchoPx = 216, altoPx = 66): string |
     scene.add(focoCalido, focoFrio)
     basura.push(focoCalido, focoFrio)
 
-    // La roughness fija reemplaza al mapa de vetas de la escena grande: a este
-    // tamaño el promedio del mapa ES el material.
-    const matAcero = new THREE.MeshStandardMaterial({ color: 0xc9ced6, metalness: 0.92, roughness: 0.4 })
-    const matAgarre = new THREE.MeshStandardMaterial({ color: 0x23252b, metalness: 0.2, roughness: 0.82 })
-    const matLaton = new THREE.MeshStandardMaterial({ color: 0xd29a4a, metalness: 0.95, roughness: 0.34 })
-    const geoAro = new THREE.TorusGeometry(1.78, 0.13, 8, 40)
-    basura.push(matAcero, matAgarre, matLaton, geoAro)
+    /* El MISMO taller que la escena grande, sin las texturas procedurales: a
+       este tamaño el moleteado es ruido subpíxel y su promedio ya está en la
+       rugosidad del material. Antes acá había tres materiales a mano y un aro
+       de radio fijo, y por eso el mango de la barra ya no era el del taller. */
+    const taller = abrirTallerTres(false)
+    basura.push({ dispose: () => taller.soltar() })
+    taller.alumbrar(colorDeHoja(d.color).halo)
 
     const sueltas = piezasDeSable(d)
     const altoTotal = sueltas.reduce((s, p) => s + p.alto, 0)
     const grupo = new THREE.Group()
-    sueltas.forEach((sp, i) => {
+    /* Cuántos píxeles mide una unidad del mango en esta foto. Con esto,
+       `vestirPieza` deja fuera los herrajes que no llegarían ni a un píxel: a
+       este tamaño un aro de 0,10 es una línea sucia, no un aro. */
+    const pxPorUnidad = anchoPx / (altoTotal * 1.15)
+    sueltas.forEach((sp) => {
       // 48 segmentos y no 96: a 22 px nadie distingue la diferencia.
       const geo = new THREE.LatheGeometry(sp.puntos.map(([r, y]) => new THREE.Vector2(r, y)), 48)
       basura.push(geo)
-      const malla = new THREE.Mesh(geo, i === 1 ? matAgarre : matAcero)
+      const malla = new THREE.Mesh(geo, taller.material(sp.material))
       malla.position.y = -altoTotal / 2 + sp.base
-      const aro = new THREE.Mesh(geoAro, matLaton)
-      aro.rotation.x = Math.PI / 2
-      aro.position.y = sp.alto * (i === 1 ? 0.5 : 0.28)
-      malla.add(aro)
+      vestirPieza(malla, sp, taller, pxPorUnidad)
       grupo.add(malla)
     })
     /* Acostado con el EMISOR a la DERECHA —de ahí sale la hoja de la barra— y

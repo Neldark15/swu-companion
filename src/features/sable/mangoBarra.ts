@@ -12,15 +12,23 @@
  */
 
 interface EntradaMango {
-  /** Qué piezas son. El COLOR no entra: el cristal va dentro del mango. */
+  /** Qué mango es: las tres piezas y el color del cristal. */
   clave: string
   png: string
 }
 
-const LS = 'sable_minibarra_v1'
+/* La VERSIÓN va en la clave, y subirla al cambiar cómo se dibuja el mango no
+   es opcional: el PNG vive en localStorage y sobrevive al deploy, al service
+   worker y a la recarga. Sin subirla, quien ya tenía su foto seguiría viendo
+   para siempre el mango viejo —sin herrajes y todo gris— en el Inicio, mientras
+   el taller le enseña otro. v2 = materiales por pieza + herrajes. */
+const LS = 'sable_minibarra_v2'
 
-export function claveDeMango(d: { emisor: string; cuerpo: string; pomo: string }): string {
-  return `${d.emisor}|${d.cuerpo}|${d.pomo}`
+/* El COLOR entra en la clave desde que los testigos y las gemas del mango se
+   prenden del color del cristal: dos diseños con las mismas piezas y distinta
+   hoja ya no dan la misma foto. */
+export function claveDeMango(d: { emisor: string; cuerpo: string; pomo: string; color?: string }): string {
+  return `${d.emisor}|${d.cuerpo}|${d.pomo}|${d.color ?? ''}`
 }
 
 export function mangoCacheado(): EntradaMango | null {

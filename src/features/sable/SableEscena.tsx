@@ -47,7 +47,10 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
-import { piezasDeSable, colorDeHoja, type Diseno } from './partesSable'
+import {
+  piezasDeSable, colorDeHoja, MATERIALES, type Diseno, type MaterialId,
+} from './partesSable'
+import { abrirTallerTres, vestirPieza, radioMaximo } from './herrajesTres'
 
 export type Orientacion = 'vertical' | 'diagonal' | 'horizontal'
 export type Vista = 'sable' | 'cristal'
@@ -79,55 +82,6 @@ const POSES: Record<Orientacion, THREE.Quaternion> = {
   vertical: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0)),
   diagonal: new THREE.Quaternion().setFromEuler(new THREE.Euler(0.1, 0, -0.42)),
   horizontal: new THREE.Quaternion().setFromEuler(new THREE.Euler(0.12, 0, -Math.PI / 2)),
-}
-
-/** Rombos en relieve para el bump del agarre. Gris medio = plano. */
-function texturaMoleteado(): THREE.CanvasTexture {
-  const S = 128
-  const c = document.createElement('canvas')
-  c.width = c.height = S
-  const x = c.getContext('2d')!
-  x.fillStyle = '#808080'
-  x.fillRect(0, 0, S, S)
-  x.lineWidth = 5
-  // Dos familias de diagonales: el cruce dibuja los rombos del moleteado.
-  for (const [inclinacion, tono] of [[1, '#b4b4b4'], [-1, '#4a4a4a']] as const) {
-    x.strokeStyle = tono
-    for (let i = -S; i < S * 2; i += 16) {
-      x.beginPath()
-      x.moveTo(i, 0)
-      x.lineTo(i + inclinacion * S, S)
-      x.stroke()
-    }
-  }
-  const t = new THREE.CanvasTexture(c)
-  t.wrapS = t.wrapT = THREE.RepeatWrapping
-  t.repeat.set(10, 4)
-  return t
-}
-
-/** Vetas del acero cepillado, como roughness: la veta refleja distinto. */
-function texturaCepillado(): THREE.CanvasTexture {
-  const S = 128
-  const c = document.createElement('canvas')
-  c.width = c.height = S
-  const x = c.getContext('2d')!
-  x.fillStyle = '#3c3c3c'
-  x.fillRect(0, 0, S, S)
-  for (let i = 0; i < 340; i++) {
-    const y = Math.random() * S
-    const tono = 40 + Math.floor(Math.random() * 60)
-    x.strokeStyle = `rgba(${tono},${tono},${tono},0.5)`
-    x.lineWidth = 1
-    x.beginPath()
-    x.moveTo(0, y)
-    x.lineTo(S, y + (Math.random() - 0.5) * 2)
-    x.stroke()
-  }
-  const t = new THREE.CanvasTexture(c)
-  t.wrapS = t.wrapT = THREE.RepeatWrapping
-  t.repeat.set(3, 2)
-  return t
 }
 
 export function SableEscena({
@@ -168,7 +122,11 @@ export function SableEscena({
     caja.appendChild(renderer.domElement)
 
     const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 400)
+    /* `near` a 2 y no a 0,5: el punto más cercano de verdad está a ~13 (la
+       vista del cristal), así que medio metro de cerca no compraba nada y
+       gastaba precisión del búfer de profundidad. Con 4× más precisión, un
+       herraje que atraviesa la superficie no parpadea al girar. */
+    const camera = new THREE.PerspectiveCamera(38, 1, 2, 400)
 
     /* ── El cielo: un campo de estrellas, receta de la Galaxia (§2s) ──
        Puntos estáticos con la textura de disco suave; se dibujan en una llamada
@@ -228,19 +186,11 @@ export function SableEscena({
     focoFrio.position.set(-8, -3, 5)
     scene.add(focoCalido, focoFrio)
 
-    // ── Materiales PBR ──
-    const texMoleteado = texturaMoleteado()
-    const texCepillado = texturaCepillado()
-    const matAcero = new THREE.MeshStandardMaterial({
-      color: 0xc9ced6, metalness: 0.92, roughness: 0.9, roughnessMap: texCepillado,
-    })
-    const matAgarre = new THREE.MeshStandardMaterial({
-      color: 0x23252b, metalness: 0.2, roughness: 0.82,
-      bumpMap: texMoleteado, bumpScale: 0.9,
-    })
-    const matLaton = new THREE.MeshStandardMaterial({
-      color: 0xd29a4a, metalness: 0.95, roughness: 0.34,
-    })
+    /* ── Materiales y herrajes: los pone el TALLER ──
+       Un solo constructor para la escena y para la foto de la barra de XP. Los
+       materiales nacen una vez y se comparten, que es lo que deja reconstruir
+       los herrajes al cambiar de pieza sin recompilar un shader (§3y). */
+    const taller = abrirTallerTres(true)
 
     /* El sable vive en un GRUPO que es lo que rota; el pedestal queda fuera
        para seguir siendo suelo. */
@@ -248,34 +198,15 @@ export function SableEscena({
     grupoSable.quaternion.copy(POSES[orientacion])
     scene.add(grupoSable)
 
-    /* El aro de latón va de HIJO de su pieza: viaja solo cuando el sable se
-       abre, sin recolocarlo por cuadro. */
-    const geoAro = new THREE.TorusGeometry(1.78, 0.13, 10, 48)
-    /* ── CABLES: el detalle chico que pidió Nel ──
-       Dos medio-aros finos abrazando el cuello de la empuñadura, con colores de
-       aislante (rojo quemado y verdeazul — la misma paleta de cables que ya usa
-       la app en las tripas de los perfiles). Son toros PARCIALES: una geometría
-       cada uno, hijos de su pieza, así viajan solos en la vista explotada. */
-    const geoCable = new THREE.TorusGeometry(1.72, 0.09, 6, 26, 2.4)
-    const matCable1 = new THREE.MeshStandardMaterial({ color: 0x8a3327, metalness: 0.1, roughness: 0.62 })
-    const matCable2 = new THREE.MeshStandardMaterial({ color: 0x2e5158, metalness: 0.1, roughness: 0.62 })
-
-    const piezas = ([0, 1, 2] as const).map(i => {
-      const malla = new THREE.Mesh(new THREE.BufferGeometry(), i === 1 ? matAgarre : matAcero)
-      const anillo = new THREE.Mesh(geoAro, matLaton)
-      anillo.rotation.x = Math.PI / 2
-      malla.add(anillo)
-      if (i === 1) {
-        const c1 = new THREE.Mesh(geoCable, matCable1)
-        c1.rotation.set(Math.PI / 2 + 0.14, 0, 0.4)
-        c1.position.y = 12.6
-        const c2 = new THREE.Mesh(geoCable, matCable2)
-        c2.rotation.set(Math.PI / 2 - 0.11, 0, 2.4)
-        c2.position.y = 11.9
-        malla.add(c1, c2)
-      }
+    /* Los herrajes —botones, cables, aros, aletas, gemas— ya no están cableados
+       acá: cada pieza del catálogo declara los suyos y `vestirPieza` los cuelga
+       de su malla. Antes había un aro para todas y dos cables fijos en el
+       cuerpo, o sea que las treinta piezas llevaban los mismos tres adornos en
+       el mismo sitio. */
+    const piezas = ([0, 1, 2] as const).map(() => {
+      const malla = new THREE.Mesh(new THREE.BufferGeometry(), taller.material('acero'))
       grupoSable.add(malla)
-      return { malla, anillo, base: 0, alto: 0 }
+      return { malla, base: 0, alto: 0 }
     })
 
     /* ── EL ALMA: el hilo de energía que une las piezas al abrirse ──
@@ -383,7 +314,6 @@ export function SableEscena({
       for (let i = 0; i < piezas.length; i++) {
         const p = piezas[i]
         p.malla.position.y = -altoTotal / 2 + p.base + separacion * HUECO * i
-        p.anillo.position.y = p.alto * (i === 1 ? 0.5 : 0.28)
       }
       // El alma une la base del pomo con la boca del emisor, y crece con la
       // separación. Cerrado no existe: dentro del mango no hay nada que unir.
@@ -426,7 +356,12 @@ export function SableEscena({
         piezas[i].malla.geometry = nueva
         piezas[i].base = sp.base
         piezas[i].alto = sp.alto
+        vestirPieza(piezas[i].malla, sp, taller)
       })
+      // El bulto REAL, herrajes incluidos: las garras de GARRA y el plato de
+      // ESCUDO se salen bastante más que el torneado, y el encuadre los tiene
+      // que contar o los corta.
+      gordo = radioMaximo(sueltas)
       const c = colorDeHoja(d.color)
       matHalo.color.set(c.halo)
       matBruma.color.set(c.halo)
@@ -439,6 +374,8 @@ export function SableEscena({
       matCristal.emissive.set(c.halo)
       matCristalGlow.color.set(c.halo)
       matAlma.color.set(c.halo)
+      // Los testigos y las gemas del mango se prenden del color de TU cristal.
+      taller.alumbrar(c.halo)
       for (const p of peanas) p.position.y = -altoTotal / 2 - 3.2
       colocarPiezas()
       colocarHoja()
@@ -504,6 +441,8 @@ export function SableEscena({
        centrado en el origen del grupo. Unas multiplicaciones, cero asignación
        de memoria — apto para gama baja. */
     const ejeSable = new THREE.Vector3()
+    /** Lo que se sale del eje la pieza más gorda. Lo mide `rehacer`. */
+    let gordo = 2.5
     const TAN_MEDIO = Math.tan(THREE.MathUtils.degToRad(38 / 2))
     function encuadrar(): void {
       // El cristal mide 5 fijos y su pedestal vive en el mundo: encuadre fijo,
@@ -519,8 +458,8 @@ export function SableEscena({
          el fit lineal solo, medido, cortaba la hoja en cuanto la deriva la
          sacaba del plano de pantalla. */
       const cerca = Math.abs(ejeSable.z) * mitad
-      const enAncho = Math.abs(ejeSable.x) * mitad + 2.5
-      const enAlto = Math.abs(ejeSable.y) * mitad + 2.5
+      const enAncho = Math.abs(ejeSable.x) * mitad + gordo + 0.9
+      const enAlto = Math.abs(ejeSable.y) * mitad + gordo + 0.9
       distMeta = Math.max(
         26,
         cerca + enAncho / (TAN_MEDIO * camera.aspect),
@@ -533,7 +472,13 @@ export function SableEscena({
       if (import.meta.env.DEV) {
         ;(window as unknown as Record<string, unknown>).__sable = {
           dist, distMeta, aspecto: camera.aspect, mitad, cerca, enAncho, enAlto,
-          eje: [ejeSable.x, ejeSable.y, ejeSable.z], hoja, altoTotal,
+          eje: [ejeSable.x, ejeSable.y, ejeSable.z], hoja, altoTotal, gordo,
+          // Lo que hay que vigilar al agregar herrajes: las llamadas de dibujo
+          // y, sobre todo, que las geometrías DEJEN de crecer — si suben cambio
+          // tras cambio, el caché del taller no está cacheando y hay fuga.
+          llamadas: renderer.info.render.calls,
+          programas: renderer.info.programs?.length ?? 0,
+          geometrias: renderer.info.memory.geometries,
         }
       }
       const medio = (punta + fondo) / 2
@@ -699,6 +644,25 @@ export function SableEscena({
     }
     lienzo.addEventListener('webglcontextlost', alPerderContexto)
 
+    /* ── CALENTAR LOS SHADERS AL MONTAR ──
+       three enlaza un programa por material la primera vez que lo DIBUJA, y
+       `glLinkProgram` es síncrono: 30-200 ms de hilo principal parado. Sin
+       esto, ese tirón caía justo al tocar una pieza de un material que todavía
+       no había salido — con el dedo en la pantalla, que es el peor momento.
+       Acá se pagan los once de una vez, antes del primer cuadro, con mallas
+       diminutas que `compile()` recorre y que se quitan enseguida.
+       `compile()` sí; `compileAsync` NO — revienta desde su propio setTimeout y
+       no hay forma de atraparlo (§3y). */
+    const calentar = new THREE.Group()
+    const geoCalentar = new THREE.SphereGeometry(0.001, 3, 2)
+    for (const id of Object.keys(MATERIALES) as MaterialId[]) {
+      calentar.add(new THREE.Mesh(geoCalentar, taller.material(id)))
+    }
+    scene.add(calentar)
+    renderer.compile(scene, camera)
+    scene.remove(calentar)
+    geoCalentar.dispose()
+
     ajustar()
     rehacer(diseno)
     explotar(explotado)
@@ -731,16 +695,14 @@ export function SableEscena({
       lienzo.removeEventListener('webglcontextlost', alPerderContexto)
 
       for (const p of piezas) p.malla.geometry.dispose()
-      geoAro.dispose(); geoNucleo.dispose(); geoHalo.dispose(); geoBruma.dispose()
+      taller.soltar()
+      geoNucleo.dispose(); geoHalo.dispose(); geoBruma.dispose()
       geoDisco.dispose(); geoPeana1.dispose(); geoPeana2.dispose()
       geoCristal.dispose(); matCristal.dispose(); matCristalGlow.dispose()
-      geoCable.dispose(); matCable1.dispose(); matCable2.dispose()
       geoAlma.dispose(); matAlma.dispose()
       geoEstrellas.dispose(); matEstrellas.dispose(); texPunto.dispose()
-      matAcero.dispose(); matAgarre.dispose(); matLaton.dispose()
       matNucleo.dispose(); matHalo.dispose(); matBruma.dispose()
       matPeana.dispose(); matDisco.dispose()
-      texMoleteado.dispose(); texCepillado.dispose()
       envRT.dispose()
       focoCalido.dispose(); focoFrio.dispose()
       renderer.dispose()

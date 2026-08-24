@@ -46,7 +46,7 @@ import { SableEscena, type Orientacion, type Vista } from './SableEscena'
 import { PiezaTarjeta } from './PiezaTarjeta'
 import { BarraStats } from './BarraStats'
 import { ConsejoHuyang } from './ConsejoHuyang'
-import { POR_DEFECTO, type Diseno } from './partesSable'
+import { POR_DEFECTO, colorDeHoja, type Diseno } from './partesSable'
 import {
   arrancarZumbido, pararZumbido, afinarZumbido, sonarEncendido, sonarApagado,
   sonarPieza, alternarSilencioSable, sableEnSilencio,
@@ -206,6 +206,7 @@ export function SablePage() {
      caber en la misma pantalla que el sable — ese era exactamente el reclamo
      de Nel («escrolear hacia abajo y perder la visual»). En color y prueba,
      donde abajo casi no hay nada, el visor recupera su tamaño grande. */
+  const tonoHoja = colorDeHoja(diseno.color).halo
   const comprando = paso === 'piezas' || paso === 'cristal'
   const altoVisor = comprando
     ? 'h-[40vh] min-h-[300px] max-h-[520px]'
@@ -343,6 +344,7 @@ export function SablePage() {
               <div key={p.id} className="flex w-44 shrink-0 snap-start">
                 <PiezaTarjeta
                   parte={p}
+                  colorHoja={tonoHoja}
                   puesta={diseno[ranura] === p.id}
                   delta={deltaDe(partes, puestas, p)}
                   ocupado={ocupado}

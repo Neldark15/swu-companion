@@ -17,6 +17,7 @@
 
 import {
   perfilDeSable, perfilValido, piezasDeSable, IDS_CONOCIDOS, COLORES, POR_DEFECTO,
+  perfilDePieza, asientoDe, radioEn, mallasDeHerrajes, MATERIALES,
 } from '../src/features/sable/partesSable.ts'
 
 let fallos = 0
@@ -75,6 +76,76 @@ for (const emisor of IDS_CONOCIDOS.emisor) {
 }
 if (piezasMal) { fallos += piezasMal }
 else console.log('  ✓ todas cerradas por los dos extremos')
+
+/* ── LOS HERRAJES ──
+   Un botón, un cable o una aleta se pegan ENCIMA de la pieza, y fallan de tres
+   maneras que no dan ningún error: FLOTANDO (separados del metal, satélites),
+   ENTERRADOS (dentro del metal, invisibles) o TAPADOS (una costilla vecina más
+   alta que ellos se los come). Las tres se ven horrible y ninguna revienta.
+
+   Acá se comprueban las tres con los números, sobre las 30 piezas, en un
+   segundo. Mirarlas de a una en el navegador es el trabajo que esto ahorra —y
+   además cubre la pieza que nadie iba a girar hasta el ángulo justo. */
+console.log('\n── Los herrajes: ni flotando, ni enterrados, ni tapados ──')
+const TOPE_MALLAS = 6
+let piezasVistas = 0, herrajesVistos = 0, mallasPeor = 0
+for (const tipo of ['emisor', 'cuerpo', 'pomo'] as const) {
+  for (const id of IDS_CONOCIDOS[tipo]) {
+    const { puntos, alto, material, herrajes } = perfilDePieza(tipo, id)
+    piezasVistas++
+
+    if (!(material in MATERIALES)) {
+      fallos++; console.log(`  ✗ ${id}: material desconocido «${material}»`)
+    }
+
+    const mallas = mallasDeHerrajes(herrajes)
+    if (mallas > mallasPeor) mallasPeor = mallas
+    // Techo de mallas POR PIEZA: tres piezas en pantalla por sable, así que el
+    // peor caso son 3×TOPE llamadas de dibujo extra. Sin techo, «un remache más»
+    // se repite treinta veces y el teléfono de gama baja lo paga sin avisar.
+    if (mallas > TOPE_MALLAS) {
+      fallos++
+      console.log(`  ✗ ${id}: ${mallas} mallas de herraje, el techo es ${TOPE_MALLAS}`)
+    }
+
+    for (const h of herrajes) {
+      herrajesVistos++
+      const donde = `${id} · ${h.tipo} y=${h.y}`
+      if (!(h.y >= 0 && h.y <= 1)) {
+        fallos++; console.log(`  ✗ ${donde}: la altura tiene que ir de 0 a 1`)
+        continue
+      }
+      if (!(h.material in MATERIALES)) {
+        fallos++; console.log(`  ✗ ${donde}: material desconocido «${h.material}»`)
+      }
+      const { apoyo, dentro, fuera, sombra } = asientoDe(puntos, h, alto)
+      if (![apoyo, dentro, fuera, sombra].every(Number.isFinite)) {
+        fallos++; console.log(`  ✗ ${donde}: el asiento no da un número`)
+        continue
+      }
+      if (dentro >= apoyo) {
+        fallos++
+        console.log(`  ✗ ${donde}: FLOTA — su cara interna (${dentro.toFixed(2)}) no llega al apoyo (${apoyo.toFixed(2)})`)
+      }
+      if (fuera <= apoyo) {
+        fallos++
+        console.log(`  ✗ ${donde}: ENTERRADO — su cara externa (${fuera.toFixed(2)}) no sale del metal (${apoyo.toFixed(2)})`)
+      }
+      if (fuera < sombra) {
+        fallos++
+        console.log(`  ✗ ${donde}: EN UN POZO — sale a ${fuera.toFixed(2)} y las paredes de al lado piden ${sombra.toFixed(2)} para verlo`)
+      }
+    }
+  }
+}
+if (piezasVistas !== 30) {
+  console.log(`\n❌ se revisaron ${piezasVistas} piezas y el catálogo tiene 30 — este resultado no dice nada\n`)
+  process.exit(1)
+}
+if (!fallos) {
+  console.log(`  ✓ ${herrajesVistos} herrajes en ${piezasVistas} piezas, todos apoyados y visibles`)
+  console.log(`  ✓ la pieza más cargada lleva ${mallasPeor} mallas (techo ${TOPE_MALLAS})`)
+}
 
 console.log('\n── Caídas y coherencia ──')
 function comprobar(nombre: string, ok: boolean, detalle = ''): void {
