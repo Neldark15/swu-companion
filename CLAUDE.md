@@ -2772,3 +2772,35 @@ importa: el push SÍ llega (lo manda el servidor y el SW viejo lo entrega igual)
 pero al abrirlo, quien no haya actualizado cae en la pantalla vieja. Verificado
 en producción el primer día: la página cacheada no traía la tarjeta hasta borrar
 el SW a mano.
+
+
+### 4e. `revoke from public` NO le quita el EXECUTE a `anon` en Supabase
+
+El §3i mandaba revocar EXECUTE de PUBLIC «y no solo de `anon`», porque Postgres
+concede a PUBLIC y `anon` es miembro. Es cierto y **está incompleto**: Supabase
+además tiene `ALTER DEFAULT PRIVILEGES` que concede EXECUTE **directamente** a
+`anon` y `authenticated` sobre toda función nueva de `public`. Un grant directo
+no se quita revocando de PUBLIC — son dos concesiones distintas.
+
+Medido el 2026-08-24: las siete funciones del Taller salían con
+`anon=X/postgres` en `pg_proc.proacl` **pese al `revoke ... from public`** de su
+propia migración. No era una fuga (las siete comprueban `auth.uid() is null`
+adentro), pero la capa de grants no estaba haciendo su trabajo.
+
+**La forma correcta es `revoke all on function ... from anon, public;`** y
+después conceder a quien toca.
+
+Y el alcance: **33 de las 94 funciones de `public` tienen `anon=X`**. Varias a
+propósito —hay pantallas públicas (overlay, blog, sedes, `/envivo`)—, así que
+esto NO se arregla en masa: se revisa función por función preguntando «¿alguien
+sin sesión tiene algo que hacer acá?». Revocar las 33 de un saque rompería las
+públicas.
+
+Para auditarlo:
+
+```sql
+select p.proname, pg_get_function_identity_arguments(p.oid), p.proacl::text
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname='public' and p.proacl::text like '%anon=X%'
+order by p.proname;
+```
