@@ -60,15 +60,20 @@ export function ChatTransmision() {
   const recargar = useCallback(() => setRecarga(n => n + 1), [])
 
   useEffect(() => {
+    // Sin sesión ni se pide: el grant lo corta y sería un viaje para nada.
+    if (!currentProfileId) return
     let vivo = true
     void (async () => {
       const r = await leerSala('global', null, TOPE)
       if (vivo && r.ok) setMensajes(r.datos)
     })()
     return () => { vivo = false }
-  }, [recarga])
+  }, [recarga, currentProfileId])
 
-  useEffect(() => escucharSala('global', null, recargar), [recargar])
+  useEffect(() => {
+    if (!currentProfileId) return
+    return escucharSala('global', null, recargar)
+  }, [recargar, currentProfileId])
 
   /* Bajar al último cuando llega algo, SOLO si ya estabas abajo. El efecto se
      dispara con los mensajes, no con un temporizador: así no hay ningún cuadro
@@ -121,7 +126,17 @@ export function ChatTransmision() {
           onScroll={alScrollear}
           className="flex min-h-[120px] flex-1 flex-col gap-2 overflow-y-auto px-3 pb-2"
         >
-          {mensajes.length === 0 ? (
+          {/* SIN SESIÓN NO SE DICE «no hay mensajes»: se dice la verdad.
+              Medido — un anónimo no puede leer `galaxia_mensajes` (lo corta el
+              grant), así que la lista le llega vacía aunque la conversación
+              esté viva. Enseñarle el vacío sería afirmar algo falso sobre la
+              comunidad, y encima desanimaría justo a quien todavía no entró. */}
+          {!currentProfileId ? (
+            <p className="m-auto px-6 text-center text-[12px] text-swu-muted">
+              El chat es para quien tiene cuenta. Entrá y vas a ver lo que se
+              está comentando.
+            </p>
+          ) : mensajes.length === 0 ? (
             <p className="m-auto px-6 text-center text-[12px] text-swu-muted">
               Todavía no hay mensajes. Estrenalo vos.
             </p>
