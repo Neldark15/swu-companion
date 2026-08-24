@@ -466,6 +466,63 @@ const POMOS: Record<string, Pieza> = {
       { tipo: 'anillo', y: 0.86, grosor: 0.09, material: 'laton' },
     ],
   },
+  // ── Tanda brillante (2026-08-24): las que EMITEN ──
+  pom_ascua: {
+    alto: 3.8,
+    // ASCUA (épico). Un brasero: base angosta que se abre como cono hasta un
+    // borde recto de 1,36·R, escalón franco y cuello. No es CRISOL con otro
+    // nombre —CRISOL se abre de golpe y se queda— y no es NÚCLEO, que es un bulbo
+    // liso con ventanas del color del cristal.
+    // Es la única pieza de JADE del catálogo, y el material es la mitad del
+    // argumento: la brasa ámbar sobre piedra verde oscura es el contraste que no
+    // existe sobre cobre ni sobre bronce, donde el ámbar se lee como una mancha
+    // del metal. Los tres carbones van en la banda RECTA del borde, apoyados en la
+    // cresta (salen a 2,356 contra una sombra de 2,120), y laten desfasados entre
+    // sí: nunca están los tres igual, así que el pomo no se queda quieto.
+    // Las tres bandas negras van giradas 1,05 para caer ENTRE los carbones y
+    // puentean el cuello hundido: es lo que hace que se lea como algo que se ató
+    // para que no se abriera. Salen a 2,516, por encima del borde del cuenco.
+    puntos: h => [
+      [0, 0], [R * 0.64, 0], [R * 0.64, h * 0.08],
+      [R * 1.36, h * 0.44], [R * 1.36, h * 0.56],
+      [R * 0.94, h * 0.62], [R * 0.94, h * 0.80],
+      [R * 1.12, h * 0.86], [R * 1.12, h * 0.92], [R, h],
+    ],
+    material: 'jade',
+    herrajes: [
+      { tipo: 'gema', y: 0.50, radio: 0.24, vueltas: 3, material: 'brasa' },
+      { tipo: 'aleta', y: 0.72, alto: 1.90, ancho: 0.36, salida: 0.34, giro: 1.05, vueltas: 3, material: 'negro' },
+    ],
+  },
+  pom_semilla: {
+    alto: 4.2,
+    // SEMILLA (épico). Un reloj de arena: brida ancha abajo, garganta de 0,78·R al
+    // medio y brida arriba. Ningún pomo del catálogo se estrecha en el centro —los
+    // nueve son bulbos, conos o discos— y por eso esta silueta se distingue en
+    // negro plano, que es la prueba que importa en una tarjeta de 44 px.
+    // En la garganta va UNA sola semilla blanca de radio 0,28, sostenida por tres
+    // uñas de acero giradas para no taparla. `nucleo` es blanco propio y no toma el
+    // color del cristal: es la única masa de luz grande que se puede poner sin que
+    // con un cristal rojo el pomo se vuelva una lámpara roja. No late: la semilla
+    // está quieta y encendida, y esa quietud es lo que la separa de las brasas y
+    // los destellos del resto de la tanda.
+    // Las uñas NO sobresalen del contorno (1,807 contra 1,952) y está bien así:
+    // viven dentro de la garganta, que es una hondonada abierta y ancha —la prueba
+    // de línea de visión lo confirma—, y ahí se leen como una montura y no como
+    // púas. El aro de acero ciñe la brida de abajo, que es donde se atornilla.
+    puntos: h => [
+      [0, 0], [R * 1.22, 0], [R * 1.22, h * 0.12],
+      [R * 0.78, h * 0.30], [R * 0.78, h * 0.62],
+      [R * 1.18, h * 0.80], [R * 1.18, h * 0.88], [R, h],
+    ],
+    material: 'bronce',
+    herrajes: [
+      { tipo: 'aleta', y: 0.46, alto: 1.60, ancho: 0.30, salida: 0.44, vueltas: 3, material: 'acero' },
+      { tipo: 'gema', y: 0.46, radio: 0.28, giro: 1.05, material: 'nucleo' },
+      { tipo: 'anillo', y: 0.06, grosor: 0.14, material: 'acero' },
+    ],
+  },
+
 }
 
 /* ── Cuerpos (el medio, lo que se agarra) ──────────────────────────── */
@@ -657,6 +714,64 @@ const CUERPOS: Record<string, Pieza> = {
       { tipo: 'boton', y: 0.40, radio: 0.17, salida: 0.13, giro: 3.0, material: 'luz' },
     ],
   },
+  // ── Tanda brillante (2026-08-24): las que EMITEN ──
+  cue_caldera: {
+    alto: 14,
+    // CALDERA (épico). Dos placas gordas de 1,32·R y, entre ellas, una ventana de
+    // inspección: la carcasa se abre A PROPÓSITO sobre el disipador, no está rota.
+    // El espinazo es 0,90·R y no 0,80·R —a 0,80 la proporción del agarre se iba a
+    // 12:1 y el mango volvía a parecer varilla justo donde cae la mano—; el
+    // contraste se recupera engordando las placas.
+    // El hueco es LARGO (0,38 a 0,62) porque si las placas quedan cerca ensombrecen
+    // lo que hay en el fondo: así las cuatro brasas salen a 1,630 y la sombra solo
+    // pide 1,415. Son cuatro y de radio 0,20, no cinco de 0,13: menos puntos y más
+    // grandes es lo único que se lee tanto en la escena como en la tarjeta.
+    // Brasa sobre ACERO, nunca sobre cobre o bronce: ámbar sobre cálido a cuatro
+    // píxeles se lee como una mancha del propio metal. El botón es `luz` —la
+    // constante que ata los diez cuerpos a tu cristal— y va en la placa de arriba,
+    // donde se ve y donde la mano no lo pisa.
+    puntos: h => [
+      [R, 0], [R, h * 0.10],
+      [R * 1.32, h * 0.14], [R * 1.32, h * 0.34],
+      [R * 0.90, h * 0.38], [R * 0.90, h * 0.62],
+      [R * 1.32, h * 0.66], [R * 1.32, h * 0.86],
+      [R, h * 0.90], [R, h],
+    ],
+    material: 'acero',
+    herrajes: [
+      { tipo: 'anillo', y: 0.24, grosor: 0.18, material: 'laton' },
+      { tipo: 'destello', y: 0.50, radio: 0.20, vueltas: 4, material: 'brasa' },
+      { tipo: 'boton', y: 0.76, radio: 0.22, salida: 0.18, material: 'luz' },
+    ],
+  },
+  cue_espina: {
+    alto: 14,
+    // ESPINA (épico). El primer cuerpo que se ADELGAZA de abajo hacia arriba: un
+    // collar de 1,28·R junto al pomo y una caída continua hasta 0,94·R bajo el
+    // emisor. Los diez cuerpos que hay son tubos de sección pareja, así que la
+    // novedad la pone la proporción y no otra tanda de ondas de `repetir()`.
+    // Tres púas de bronce y no seis: con seis el mango deja de leerse de un
+    // vistazo y se vuelve un cepillo, y cada vuelta cuesta una malla del techo.
+    // Salen 0,36 desde 2,048 hasta 2,408, o sea que rompen el contorno de verdad
+    // —una púa que no sobrepasa la silueta no existe cuando alguien gira la pieza
+    // en la tienda— y su meseta es larga para que muerdan parejo en todo el alto.
+    // El botón y el aro tienen cada uno su tramo liso: entre púas se los tragan
+    // los vecinos, que es lo que ya le pasó a VÉRTEBRA.
+    puntos: h => [
+      [R, 0], [R, h * 0.06],
+      [R * 1.28, h * 0.12], [R * 1.28, h * 0.30],
+      [R * 1.10, h * 0.36], [R * 1.02, h * 0.62],
+      [R * 0.94, h * 0.80], [R * 0.94, h * 0.88],
+      [R, h * 0.94], [R, h],
+    ],
+    material: 'negro',
+    herrajes: [
+      { tipo: 'aleta', y: 0.21, alto: 2.20, ancho: 0.34, salida: 0.36, vueltas: 3, material: 'bronce' },
+      { tipo: 'anillo', y: 0.46, grosor: 0.16, material: 'acero' },
+      { tipo: 'boton', y: 0.84, radio: 0.22, salida: 0.18, material: 'luz' },
+    ],
+  },
+
 }
 
 /* ── Emisores (arriba, de donde sale la hoja) ──────────────────────── */
@@ -831,6 +946,59 @@ const EMISORES: Record<string, Pieza> = {
       { tipo: 'boton', y: 0.88, radio: 0.12, salida: 0.08, vueltas: 2, material: 'laton' },
     ],
   },
+  // ── Tanda brillante (2026-08-24): las que EMITEN ──
+  emi_vigilia: {
+    alto: 5.4,
+    // VIGILIA (épico). Hueso partido y grapado: la garganta baja a 0,78·R —el
+    // talle más fino de todos los emisores, que hoy no bajan de 0,95·R— y esa
+    // garganta ES la grieta. La vena de plasma va METIDA adentro, no encima: por
+    // fuera se leería como una luz de tablero; hundida se lee como algo que sigue
+    // vivo bajo el hueso. El canal mide 1,40 de largo justamente para que la línea
+    // de visión entre y la vena se vea de costado (sale a 1,428 y la sombra pide
+    // 1,322). Las tres grapas de bronce cruzan la garganta y sobresalen del
+    // contorno (2,258 contra un rMax de 2,080): son estructura, no adorno. El aro
+    // va casi en la boca, apoyado en el nudillo, y es de 0,14 —no de 0,09— porque
+    // un aro que cuenta algo tiene que verse también en la tarjeta.
+    puntos: h => [
+      [R, 0],
+      [R * 1.10, h * 0.07], [R * 1.10, h * 0.18],
+      [R * 0.78, h * 0.26], [R * 0.78, h * 0.52],
+      [R * 1.30, h * 0.60], [R * 1.30, h * 0.74],
+      [R * 1.04, h * 0.82], [R * 1.04, h], [R * 0.62, h],
+    ],
+    material: 'hueso',
+    herrajes: [
+      { tipo: 'cable', y: 0.39, grosor: 0.18, arco: 4.4, material: 'plasma' },
+      { tipo: 'aleta', y: 0.39, alto: 2.10, ancho: 0.34, salida: 0.34, vueltas: 3, material: 'bronce' },
+      { tipo: 'anillo', y: 0.90, grosor: 0.14, material: 'bronce' },
+    ],
+  },
+  emi_candil: {
+    alto: 5.6,
+    // CANDIL (épico). El único emisor del catálogo cuyo punto MÁS ancho es la
+    // boca: tallo largo de 0,84·R que se abre a 1,46·R y remata en un labio recto.
+    // ESCUDO tiene su plato abajo y CORONA se vuelve a cerrar arriba; esto es una
+    // tulipa de lámpara y por eso se reconoce en negro plano.
+    // Los cinco destellos van en el TALLO y no en la campana por dos medidas: en
+    // el tallo no caen en pozo (salen a 1,534 y la sombra pide 1,319) y quedan
+    // 3,5 unidades por debajo de la boca, o sea fuera de la bruma de la hoja, que
+    // es tierra quemada para cualquier herraje emisivo. Radio 0,20 y no 0,13: a
+    // 0,13 la tarjeta de la tienda los descarta y la pieza se vende sin su luz.
+    // El blanco de núcleo sobre grafito es el mayor contraste posible y nunca se
+    // vuelve rojo con un cristal rojo, que es la razón de no usar plasma acá.
+    puntos: h => [
+      [R, 0], [R * 1.14, h * 0.08], [R * 1.14, h * 0.20],
+      [R * 0.84, h * 0.24], [R * 0.84, h * 0.52],
+      [R * 1.46, h * 0.86], [R * 1.46, h * 0.92],
+      [R * 1.30, h], [R * 0.60, h],
+    ],
+    material: 'grafito',
+    herrajes: [
+      { tipo: 'destello', y: 0.38, radio: 0.20, vueltas: 5, material: 'nucleo' },
+      { tipo: 'anillo', y: 0.14, grosor: 0.13, material: 'laton' },
+    ],
+  },
+
 }
 
 /* ── Colores de hoja ───────────────────────────────────────────────── */
