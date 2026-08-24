@@ -2434,3 +2434,67 @@ ninguno lo abrió nunca. No es que la personalización esté escondida para quie
 juega —de los activos, casi todos personalizaron—: es que **la mitad de la
 comunidad nunca arrancó**. Ese es un problema distinto y más grande, y no lo
 resuelve un aviso.
+
+### 4a. Abrir un sobre da 50 XP — y el XP se acredita DENTRO de `abrir_sobre()`
+
+Pedido de Nel: «abrir sobres debería dar 50 XP por booster».
+
+**Se acredita en el servidor, no en el cliente.** El camino del cliente
+(`acreditarXp` en useAuth.ts) existe y funciona, pero acá no sirve: acreditaría
+50 XP cada vez que el NAVEGADOR lo pida, sin que nada compruebe que se abrió un
+sobre. Dentro de `abrir_sobre()` el XP queda atado a la apertura real —el mismo
+`update … where disponibles > 0` que ya cobró el sobre— y el cliente no puede
+afirmar nada. Efecto secundario que conviene: si el reparto de XP reventara, la
+transacción entera se revierte y **el sobre no se pierde**.
+
+**Reusa `sumar_xp`, no copia la derivación del nivel.** Ya había TRES copias del
+bucle que deriva el nivel (`sumar_xp`, `_repartir_premios`, el cliente viejo).
+Una cuarta es el §3c otra vez. `sumar_xp` saca la cuenta de `auth.uid()` —el
+mismo `yo`— y ya trae el tope de 500 por llamada.
+
+**El mensual va aparte porque es un DELTA.** `player_stats.xp` es un total y
+`monthly_xp.xp_gained` es lo ganado en el mes; `sumar_xp` no lo toca (su llamador
+del cliente lo hace por su cuenta). Si algún día `sumar_xp` empieza a escribir el
+mensual, hay que quitar el insert de `abrir_sobre` **y** el `addMonthlyXp` de
+`acreditarXp` **a la vez**, o el mes se cuenta doble.
+
+**`abrir_sobre` devuelve el TOTAL, no el delta** (`xp`, `nivel`, `xp_ganado`): el
+número de la pantalla sale de Dexie, así que sin bajar el total no se mueve hasta
+el próximo inicio de sesión — y eso se ve igual que si no se hubiera pagado
+(§3m). El espejo lo hace **la PÁGINA** (`espejarXpEnDexie`), nunca `sobres.ts`:
+que el servicio importara el store de sesión sería un ciclo, igual que con el
+saldo (§3v).
+
+**Y `xp` se lee con `?? null`, nunca con `Number(...)`.** `Number(null)` es 0, y
+un XP de 0 es un número plausible que la pantalla copiaría a Dexie **borrándole
+el XP real** a quien abrió el sobre. Nulo tiene que seguir siendo nulo: pasa
+cuando la cuenta no tiene ficha de jugador, y en ese caso el sobre SÍ se abrió.
+
+Probado con `set local role authenticated` en transacción revertida: xp
+5491→5541 (+50), nivel 10→11, mensual 2430→2480 (+50), sobres 5→4, y el objeto
+devuelto trae `xp_ganado=50` con las 5 cartas.
+
+**LO QUE SE ANUNCIA TIENE QUE SER LO QUE SE PAGA, y `FUENTES` ya mentía.** La
+lista de «Cómo se ganan» de `SobresPage` decía «Ganar un torneo → 3 sobres /
+Jugar un torneo → 1 sobre» **después** de que `_repartir_premios` pasara a dar 5
+parejo para todos (§4b). Si tocás los montos del servidor, tocá esa lista en el
+mismo commit — es el mismo fallo que el §3m documenta en las misiones.
+
+### 4b. El premio de torneo: 500 XP y 5 sobres, parejo
+
+Decisión de Nel (2026-08-23). Antes: 50 XP a todos y 3 sobres al 1.º / 1 al
+resto. Los dos montos van como **constantes nombradas** en
+`_repartir_premios`, porque el conteo del resumen (`v_sobres`, lo que devuelve la
+función) repetía la MISMA expresión cableada — con dos copias la segunda se
+olvida y el número que informa el reparto empieza a mentir, igual que el
+«enviados» de `enviarPush` (§3i).
+
+**Ganar sigue valiendo, pero en otro sitio:** el puesto pesa en
+`ranking_points` (10/7/5/3/1 + victorias*3 + empates) y en la tabla de la
+temporada, que sale de `tournament_standings.puesto`. Lo que pasó a ser de
+PARTICIPACIÓN es el XP y los sobres.
+
+Verificado en SAN220826 (8 jugadores, todos con cuenta): `{ok:true,
+premiados:8, sobres:40, sin_cuenta:0}`, los 8 subieron exactamente +500 XP y +5
+sobres contra la foto previa, y el pestillo aguantó — segundo intento rechazado y
+`tournament_results` en 8 filas, no 16.

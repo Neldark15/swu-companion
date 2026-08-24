@@ -52,6 +52,16 @@ interface Props {
   alCerrar: () => void
   /** Quiere abrir otro de una vez. */
   alRepetir?: () => void
+  /**
+   * Cuánto XP pagó ESTE sobre. Lo acredita el servidor dentro de
+   * `abrir_sobre()`; acá solo se enseña.
+   *
+   * Se enseña en el RESUMEN y no durante el revelado a propósito: mientras las
+   * cartas van saliendo, la atención está en la carta, y un número flotando al
+   * lado compite con lo único que la pantalla quiere que se mire. Al final ya
+   * no compite con nada.
+   */
+  xpGanado?: number
 }
 
 /** Los índices ordenados de menos a más raro, para que el sobre suba. */
@@ -66,7 +76,7 @@ function ordenDeRevelado(cartas: CartaSacada[]): number[] {
     })
 }
 
-export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir }: Props) {
+export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir, xpGanado = 0 }: Props) {
   const [fase, setFase] = useState<Fase>('sellado')
   const [pos, setPos] = useState(0)
   const [girada, setGirada] = useState(false)
@@ -420,6 +430,12 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir 
           </div>
         ))}
       </div>
+
+      {xpGanado > 0 && (
+        <p className="mt-5 text-center text-[13px] font-bold text-swu-amber">
+          +{xpGanado} XP
+        </p>
+      )}
 
       <div className="mt-7 flex flex-col gap-2 sm:flex-row sm:justify-center">
         {alRepetir && (

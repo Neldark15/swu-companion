@@ -178,6 +178,19 @@ export interface SobreAbierto {
   cartas: CartaSacada[]
   /** Cuántos sobres quedan DESPUÉS de abrir este. */
   saldo: number
+  /**
+   * El XP TOTAL que quedó, no el delta. Lo acredita `abrir_sobre()` del lado
+   * del servidor y viaja de vuelta porque la pantalla pinta el XP desde Dexie:
+   * sin bajar el total, el número no se mueve hasta el próximo inicio de sesión
+   * y eso se ve igual que si no se hubiera pagado (§3m).
+   *
+   * `null` cuando el servidor no pudo acreditarlo (una cuenta sin ficha de
+   * jugador). En ese caso el sobre SÍ se abrió: no se trata como un fallo.
+   */
+  xp: number | null
+  nivel: number | null
+  /** Cuánto se ganó por este sobre. 0 si no se pudo acreditar. */
+  xpGanado: number
 }
 
 /** Una fila del binder digital. */
@@ -253,6 +266,12 @@ export async function abrirSobre(): Promise<SobreAbierto> {
 
   return {
     saldo: Number(data.saldo ?? 0),
+    // `?? null` y no `Number(...)`: con `Number(null)` sale 0, y un XP de 0 es
+    // un número plausible que la pantalla copiaría a Dexie, borrándole el XP
+    // real a quien abrió el sobre. Nulo tiene que seguir siendo nulo.
+    xp: data.xp != null ? Number(data.xp) : null,
+    nivel: data.nivel != null ? Number(data.nivel) : null,
+    xpGanado: Number(data.xp_ganado ?? 0),
     cartas: crudas.map(c => {
       const ficha = fichas.get(c.card_id) ?? null
       return {

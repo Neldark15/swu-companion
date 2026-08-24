@@ -690,6 +690,28 @@ async function contarVisita(userId: string, profileId: string): Promise<void> {
   } catch { /* contar la visita nunca puede romper el ingreso */ }
 }
 
+/**
+ * Copia a Dexie el XP y el nivel que dijo el SERVIDOR. No suma nada.
+ *
+ * Hace falta porque el número que se ve en pantalla sale de Dexie: sin bajar el
+ * total, el XP no se mueve hasta el próximo inicio de sesión, y eso se ve igual
+ * que si el pago no hubiera ocurrido (§3m).
+ *
+ * Está aparte de `acreditarXp` porque hay pagos que el servidor hace SOLO, sin
+ * que el cliente los pida: `abrir_sobre()` acredita 50 XP dentro de la misma
+ * transacción que consume el sobre. Ese camino no necesita sumar —ya está
+ * sumado— pero sí necesita el espejo.
+ */
+export async function espejarXpEnDexie(xp: number, nivel: number): Promise<void> {
+  const { currentProfileId } = useAuth.getState()
+  if (!currentProfileId) return
+  const stats = await db.playerStats.get(currentProfileId)
+  if (!stats) return
+  stats.xp = xp
+  stats.level = nivel
+  await db.playerStats.put(stats)
+}
+
 export async function acreditarXp(
   cantidad: number,
   motivo?: string,
@@ -701,14 +723,7 @@ export async function acreditarXp(
   if (!resultado) return null
 
   // El aparato copia lo que dijo el servidor; no vuelve a sumar por su cuenta.
-  if (currentProfileId) {
-    const stats = await db.playerStats.get(currentProfileId)
-    if (stats) {
-      stats.xp = resultado.xp
-      stats.level = resultado.nivel
-      await db.playerStats.put(stats)
-    }
-  }
+  if (currentProfileId) await espejarXpEnDexie(resultado.xp, resultado.nivel)
 
   // El ranking mensual va aparte y sí es un delta: mide lo GANADO este mes.
   addMonthlyXp(supabaseUser.id, cantidad).catch(() => {})

@@ -20,7 +20,7 @@ import { Link } from 'react-router-dom'
 import { ChevronLeft, Package, Library, Volume2, VolumeX, Trophy } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { EmptyState } from '../../components/ui/EmptyState'
-import { useAuth } from '../../hooks/useAuth'
+import { useAuth, espejarXpEnDexie } from '../../hooks/useAuth'
 import { ensureCards } from '../../services/swuApi'
 import {
   abrirSobre, misSobres, tamanoBinder, totalColeccionable,
@@ -30,13 +30,24 @@ import { CajaDeSobres } from './CajaDeSobres'
 import { AperturaSobre } from './AperturaSobre'
 import { alternarSilencio, estaEnSilencio } from './sonido'
 
-/** De dónde salen los sobres. Se enseña siempre: un juego sin forma de ganar aburre. */
+/** De dónde salen los sobres. Se enseña siempre: un juego sin forma de ganar aburre.
+ *
+ * ESTA LISTA TIENE QUE DECIR LO QUE DE VERDAD SE PAGA. Decía «Ganar un torneo →
+ * 3 sobres / Jugar un torneo → 1 sobre» después de que `_repartir_premios` pasara
+ * a dar 5 parejo para todos: la pantalla anunciaba un premio que ya no existía.
+ * Es el mismo fallo que el §3m documenta en las misiones, donde la tarjeta
+ * enseñaba `rewardXp` a secas y el cobro real era 20 o 60 XP más.
+ *
+ * Si tocás los montos del servidor, tocá esto en el mismo commit. */
 const FUENTES = [
   { que: 'Al entrar a la comunidad', cuanto: '7 sobres, una sola vez' },
+  { que: 'Cada mañana a las 8:00', cuanto: '1 sobre · 3 con los avisos puestos' },
   { que: 'Una amistosa confirmada', cuanto: '1 sobre para cada uno' },
-  { que: 'Ganar un torneo', cuanto: '3 sobres' },
-  { que: 'Jugar un torneo', cuanto: '1 sobre' },
+  { que: 'Jugar un torneo', cuanto: '5 sobres y 500 XP' },
 ]
+
+/** Lo que paga abrir UN sobre. Lo acredita `abrir_sobre()` en el servidor. */
+const XP_POR_SOBRE = 50
 
 export function SobresPage() {
   const usuario = useAuth(s => s.supabaseUser)
@@ -49,6 +60,7 @@ export function SobresPage() {
   const [abriendo, setAbriendo] = useState<number | null>(null)
   const [cartas, setCartas] = useState<CartaSacada[] | null>(null)
   const [fallo, setFallo] = useState<string | null>(null)
+  const [xpGanado, setXpGanado] = useState(0)
 
   /* Se sube para volver a consultar: al cerrar una apertura, o al tocar
    * «revisá otra vez». Es una dependencia real del efecto, que es como el
@@ -97,6 +109,7 @@ export function SobresPage() {
       setAbriendo(indice)
       setCartas(null)
       setFallo(null)
+      setXpGanado(0)
       abrirSobre()
         .then(r => {
           setCartas(r.cartas)
@@ -105,6 +118,18 @@ export function SobresPage() {
              el servidor. Una insignia que no baja al hacer justo lo que pide
              enseña a ignorarla. */
           useSobres.getState().fijar(r.saldo)
+
+          /* El XP lo acreditó el SERVIDOR dentro de `abrir_sobre()`; acá solo
+             se copia el total que devolvió. El espejo lo hace la PÁGINA y no
+             `sobres.ts` por lo mismo que el saldo (§3v): que el servicio
+             importara el store de sesión sería un ciclo.
+             Y no se vuelve a sumar nada del lado del aparato: el servidor manda,
+             el teléfono copia — que es justo la regla que arregló los 20 pagos
+             de misión perdidos (§3m). */
+          setXpGanado(r.xpGanado)
+          if (r.xp != null && r.nivel != null) {
+            void espejarXpEnDexie(r.xp, r.nivel)
+          }
         })
         .catch((e: unknown) => {
           setFallo(e instanceof Error ? e.message : 'No se pudo abrir el sobre')
@@ -166,6 +191,7 @@ export function SobresPage() {
           indiceSobre={abriendo}
           cartas={cartas}
           fallo={fallo}
+          xpGanado={xpGanado}
           alCerrar={cerrar}
           alRepetir={saldo && saldo > 0 ? otroMas : undefined}
         />
@@ -226,6 +252,14 @@ export function SobresPage() {
                 </div>
               ))}
             </div>
+            {/* Va DEBAJO de la lista y no como una fila más: las de arriba
+                dicen cómo se GANAN sobres, y esto es lo que paga ABRIRLOS —
+                otra cosa. Y se dice, porque un premio que nadie sabe que
+                existe no motiva a nadie. */}
+            <p className="mt-2 px-1 text-[11px] leading-snug text-swu-muted">
+              Y cada sobre que abrís te da{' '}
+              <span className="font-bold text-swu-amber">{XP_POR_SOBRE} XP</span>.
+            </p>
           </div>
 
           <Link
