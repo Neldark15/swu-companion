@@ -83,9 +83,10 @@ const GalaxyPage = lazy(() => import('./features/galaxy/GalaxyPage').then(m => (
    la geometría del mundo y la escena solo las necesita quien entra. */
 const PlanetaPage = lazy(() => import('./features/planeta/PlanetaPage').then(m => ({ default: m.PlanetaPage })))
 const GalaxiaPage = lazy(() => import('./features/galaxia/GalaxiaPage').then(m => ({ default: m.GalaxiaPage })))
-/* El Taller de sables. En pruebas y para UNA sola persona: la puerta es
-   `sable_probadores` y vive DENTRO de las RPC, no acá. Sin entrada de menú a
-   propósito — se entra tecleando /sable, igual que /temporada. */
+/* El Taller de sables. Abierto a toda la comunidad desde 2026-08-24, con
+   entrada en Inicio, en el menú y desde el sable de la barra de XP. La puerta
+   es tener sesión y vive DENTRO de las RPC (`sable_abierto()`), no acá. Lo que
+   sigue cerrado son las piezas `oculta`: los legendarios y el cristal rojo. */
 const SablePage = lazy(() => import('./features/sable/SablePage').then(m => ({ default: m.SablePage })))
 // La trivia, con pantalla propia: vivía enterrada al fondo del Perfil siendo lo
 // segundo más usado de la app (15 de 38 personas). §3l otra vez.

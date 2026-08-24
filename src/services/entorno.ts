@@ -99,11 +99,10 @@ const RUTAS_LIBRES = [
   // sería cerrarle la puerta justo a quien todavía no tiene la app.
   /^\/calendario/,
   /^\/aurebesh/,
-  // El Taller de sables está EN PRUEBAS y lo ve una sola persona
-  // (`sable_probadores`, sin escotilla de admin). Va libre por lo mismo que los
-  // bancos: es una pantalla 3D que hay que revisar en un teléfono, y la puerta
-  // tapaba justo lo que hay que mirar. La cerradura de verdad no es esta lista
-  // sino el `es_probador_sable()` que está DENTRO de cada RPC.
+  // El Taller de sables: pantalla 3D que hay que poder revisar en un teléfono
+  // sin la puerta de instalación encima, igual que los bancos. Está abierto a
+  // toda la comunidad, pero el que no tenga sesión igual no puede comprar ni
+  // guardar: eso lo decide `sable_abierto()` DENTRO de cada RPC, no esta lista.
   /^\/sable/,
   /^\/u\//,
   /^\/blog/,
