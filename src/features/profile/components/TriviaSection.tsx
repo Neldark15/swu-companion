@@ -38,6 +38,7 @@ import {
   temaRespondidasHoy, marcarTemaRespondida, TEMAS,
   type TriviaQuestion, type TriviaProgress, type TemaTrivia, type ProgresoTema,
 } from '../../../services/trivia'
+import { ICONO_POR_TEMA } from '../../trivia/iconoTema'
 import { diaCalendarioSV } from '../../../services/horaSV'
 
 interface TriviaSectionProps {
@@ -386,7 +387,15 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
       <div className="bg-swu-surface rounded-xl border border-swu-border p-4 space-y-2.5">
         <div className="flex items-baseline justify-between">
           <p className="text-[11px] font-bold text-swu-text uppercase tracking-wider">Medallas por tema</p>
-          <p className="text-[9px] text-swu-muted">practicá sin XP · 🥉10 🥈25 🥇50</p>
+          {/* Las medallas del rótulo van con el MISMO Award coloreado que la
+              medalla ganada de cada fila: emoji de sistema acá y vector allá
+              eran dos dibujos para la misma cosa. */}
+          <p className="flex items-center gap-1 text-[9px] text-swu-muted">
+            practicá sin XP ·
+            <Award size={10} className={COLOR_MEDALLA.bronce} />10
+            <Award size={10} className={COLOR_MEDALLA.plata} />25
+            <Award size={10} className={COLOR_MEDALLA.oro} />50
+          </p>
         </div>
 
         <div className="grid grid-cols-2 gap-2">
@@ -404,7 +413,10 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
                            p-2.5 text-left transition-colors active:scale-[0.98]
                            disabled:opacity-45 hover:border-swu-amber/30"
               >
-                <span className="text-base leading-none">{t.emoji}</span>
+                {(() => {
+                  const { Icono, clase } = ICONO_POR_TEMA[t.id]
+                  return <Icono size={18} className={`shrink-0 ${clase}`} />
+                })()}
                 <span className="min-w-0 flex-1">
                   <span className="block text-[11px] font-bold text-swu-text">{t.nombre}</span>
                   <span className="block text-[9px] text-swu-muted">

@@ -28,13 +28,16 @@ function hoySV(): string {
 export type { PreguntaTrivia as TriviaQuestion, TemaTrivia } from './triviaBanco'
 
 /** Los temas con su nombre en pantalla, en el orden del selector. */
-export const TEMAS: { id: TemaTrivia; nombre: string; emoji: string }[] = [
-  { id: 'jedi',      nombre: 'Jedi',      emoji: '🟢' },
-  { id: 'sith',      nombre: 'Sith',      emoji: '🔴' },
-  { id: 'criaturas', nombre: 'Criaturas', emoji: '👾' },
-  { id: 'planetas',  nombre: 'Planetas',  emoji: '🪐' },
-  { id: 'naves',     nombre: 'Naves',     emoji: '🚀' },
-  { id: 'juego',     nombre: 'SWU',       emoji: '🃏' },
+/* Sin campo `emoji`: los temas se dibujan con íconos propios
+   (`features/trivia/iconoTema.ts`, §3t). Un emoji lo pinta el sistema
+   operativo y era distinto en cada teléfono. */
+export const TEMAS: { id: TemaTrivia; nombre: string }[] = [
+  { id: 'jedi',      nombre: 'Jedi' },
+  { id: 'sith',      nombre: 'Sith' },
+  { id: 'criaturas', nombre: 'Criaturas' },
+  { id: 'planetas',  nombre: 'Planetas' },
+  { id: 'naves',     nombre: 'Naves' },
+  { id: 'juego',     nombre: 'SWU' },
 ]
 
 export interface TriviaProgress {

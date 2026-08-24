@@ -14,6 +14,8 @@ import { PiezaTarjeta } from './PiezaTarjeta'
 import { MiniaturaPieza } from './MiniaturaPieza'
 import { IDS_CONOCIDOS } from './partesSable'
 import { PASOS, sumarStats, deltaDe, type Paso } from './kyber'
+import { ICONO_POR_TEMA } from '../trivia/iconoTema'
+import { TEMAS } from '../../services/trivia'
 import type { ParteTaller } from '../../services/sableService'
 
 const PARTES: ParteTaller[] = [
@@ -38,6 +40,26 @@ export function BancoKyber() {
         <h1 className="text-lg font-black text-swu-text">Taller Kyber — piezas de pantalla</h1>
         <p className="text-[12px] text-swu-muted">Datos sintéticos. La escena 3D vive en /banco-sable-3d.</p>
       </div>
+
+      <section>
+        <h2 className="mb-2 text-[11px] font-black uppercase tracking-widest text-swu-muted">
+          Íconos de tema de la Trivia (antes eran emoji de sistema)
+        </h2>
+        <div className="flex flex-wrap items-end gap-5 rounded-xl border border-swu-border bg-swu-surface p-4">
+          {TEMAS.map(t => {
+            const { Icono, clase } = ICONO_POR_TEMA[t.id]
+            return (
+              <div key={t.id} className="flex flex-col items-center gap-1.5">
+                <span className="flex gap-3">
+                  <Icono size={18} className={clase} />
+                  <Icono size={28} className={clase} />
+                </span>
+                <span className="font-mono text-[9px] text-swu-muted">{t.nombre}</span>
+              </div>
+            )
+          })}
+        </div>
+      </section>
 
       <section>
         <h2 className="mb-2 text-[11px] font-black uppercase tracking-widest text-swu-muted">Los cuatro pasos</h2>
