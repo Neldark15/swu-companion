@@ -89,24 +89,69 @@ export function useDatosCredencial(
     return () => { vivo = false }
   }, [idCuenta])
 
-  const titulo = stats ? getTitleById(stats.activeTitle)?.name : undefined
-  const pais = perfil.country ? getCountryByCode(perfil.country)?.name : undefined
-  const nivel = stats ? calculateLevel(stats.xp).level : 1
+  return armarCredencial({
+    nombre: perfil.name,
+    pais: perfil.country,
+    avatar: perfil.avatar,
+    stats,
+    apodoElegido,
+    ubicacionElegida,
+    lider: mostrarMazo ? liderGuardado : null,
+    subnombre,
+    alta: alta ?? perfil.createdAt ?? hoy,
+  })
+}
+
+/** Lo que hace falta para armar una placa, venga de quien venga. */
+export interface FuenteCredencial {
+  nombre: string
+  pais?: string | null
+  avatar: string
+  stats: PlayerStats | null
+  /** El apodo elegido. Vacío = se usa el título activo. */
+  apodoElegido: string
+  /** La ubicación elegida. Vacío = se usa el país de la cuenta. */
+  ubicacionElegida: string
+  /** El líder del mazo favorito, o `null` si no se muestra. */
+  lider: string | null
+  subnombre: string | null
+  /** Fecha de despliegue, ya resuelta. */
+  alta: string | number
+}
+
+/**
+ * El ARMADO de la placa, en un solo sitio y sin hooks.
+ *
+ * Existe porque la credencial dejó de ser solo tuya: Espionaje enseña la de
+ * OTRA persona, y esa no puede salir de `useSettings` —esos son los ajustes de
+ * ESTE aparato— ni de `useAuth`. Sin esta función habría dos armados, y el
+ * comentario del §2y ya avisa cómo termina eso: la tarjeta se separa de sí
+ * misma y las dos pantallas enseñan jugadores distintos.
+ *
+ * Los reemplazos por defecto («Recluta», «Borde Exterior») viven acá, así que
+ * una placa ajena rellena los huecos igual que la propia.
+ */
+export function armarCredencial(f: FuenteCredencial): {
+  datos: DatosCredencial; nivel: number; acabado: AcabadoCredencial
+} {
+  const titulo = f.stats ? getTitleById(f.stats.activeTitle)?.name : undefined
+  const pais = f.pais ? getCountryByCode(f.pais)?.name : undefined
+  const nivel = f.stats ? calculateLevel(f.stats.xp).level : 1
 
   return {
     nivel,
     acabado: acabadoDe(nivel),
     datos: {
-      nombre: perfil.name || 'Jugador',
-      apodo: apodoElegido.trim() || titulo || 'Recluta',
-      ubicacion: ubicacionElegida.trim() || pais || 'Borde Exterior',
-      rango: stats ? calculateLevel(stats.xp).rank.name : 'Iniciado del Borde Exterior',
+      nombre: f.nombre || 'Jugador',
+      apodo: f.apodoElegido.trim() || titulo || 'Recluta',
+      ubicacion: f.ubicacionElegida.trim() || pais || 'Borde Exterior',
+      rango: f.stats ? calculateLevel(f.stats.xp).rank.name : 'Iniciado del Borde Exterior',
       // Mientras la fecha real no llegue va la del espejo local: es la única
       // que hay sin red, y un guion en la placa se ve peor que un día corrido.
-      desplegado: fechaDespliegue(alta ?? perfil.createdAt ?? hoy),
-      avatar: perfil.avatar,
-      subnombre,
-      mazo: mostrarMazo && liderGuardado ? liderGuardado : null,
+      desplegado: fechaDespliegue(f.alta),
+      avatar: f.avatar,
+      subnombre: f.subnombre,
+      mazo: f.lider,
     },
   }
 }

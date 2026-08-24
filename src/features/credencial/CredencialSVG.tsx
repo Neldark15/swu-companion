@@ -290,7 +290,10 @@ export function CredencialSVG({ datos, tema, emblema, acabado, nivel, className 
           medio y su texto lleva repujado, no grabado. */}
       <g filter={`url(#${uid}-grabadoTexto)`}>
         {/* ── Cabecera ── */}
-        <text x="84" y="46" fontFamily={FUENTE} fontSize="13" fontWeight="700" letterSpacing="3" fill={tema.acento}>
+        {/* `acentoTexto` y no `acento`: a 13 px el acento crudo daba 3,17 en
+            Sith y 3,06 en Rebelde, por debajo del 4,5 de WCAG. Mismo matiz,
+            más luz. Ver `scripts/contraste-credencial.mjs`. */}
+        <text x="84" y="46" fontFamily={FUENTE} fontSize="13" fontWeight="700" letterSpacing="3" fill={tema.acentoTexto}>
           HOLOCRON SWU
         </text>
         <text x="84" y="59" fontFamily={FUENTE} fontSize="9" letterSpacing="1.6" fill={tema.texto} opacity="0.7">
@@ -364,7 +367,7 @@ export function CredencialSVG({ datos, tema, emblema, acabado, nivel, className 
         {subnombre ? (
           <text
             x="196" y="136" fontFamily={FUENTE} fontSize="12" fontWeight="700"
-            letterSpacing="0.4" fill={tema.acento}
+            letterSpacing="0.4" fill={tema.acentoTexto}
           >
             {subnombre}
           </text>
@@ -388,6 +391,8 @@ export function CredencialSVG({ datos, tema, emblema, acabado, nivel, className 
             <text x="326" y="82" fontFamily={FUENTE} fontSize="9" letterSpacing="1.2" fill={tema.grabado}>
               NIVEL
             </text>
+            {/* Este SÍ va con el acento crudo: 26 px es texto grande (umbral
+                WCAG 3,0) y los veinte temas lo pasan de sobra. */}
             <text x="326" y="112" fontFamily={FUENTE} fontSize="26" fontWeight="800" fill={tema.acento}>
               {nivel}
             </text>

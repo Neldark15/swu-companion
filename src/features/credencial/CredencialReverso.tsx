@@ -144,7 +144,8 @@ export function CredencialReverso({ datos, tema, emblema, acabado, className }: 
           Y x=56 y no 24: el agujero de llavero vive en (32,30) con radio 10 y
           se comía las primeras letras. */}
       <rect data-fondo x="50" y="22" width="316" height="20" rx="2" fill={tema.panel} opacity="0.85" />
-      <text x="56" y="36" fontFamily={FUENTE} fontSize="9" letterSpacing="3" fill={tema.acento} opacity="0.9">
+      {/* 9 px: el texto más chico de la placa, así que `acentoTexto`. */}
+      <text x="56" y="36" fontFamily={FUENTE} fontSize="9" letterSpacing="3" fill={tema.acentoTexto} opacity="0.9">
         HOLOCRON SWU · ARCHIVO GALACTICO
       </text>
 

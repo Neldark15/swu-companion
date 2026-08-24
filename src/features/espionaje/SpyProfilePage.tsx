@@ -23,6 +23,8 @@ import { getTitleById, getTitleRarity } from '../../services/cosmeticsService'
 import { statsFromSnake, getPublicDecks, type PublicDeck } from '../../services/sync'
 import { GiftIcon } from '../../components/icons/GiftIcon'
 import { DeckVisualViewer } from './DeckVisualViewer'
+import { CredencialInteractiva } from '../credencial/CredencialInteractiva'
+import { useCredencialAjena } from '../credencial/useCredencialAjena'
 import { ProfileFrame } from '../profile/components/ProfileFrame'
 import { MeleeRecordDeUsuario } from '../profile/MeleeRecord'
 import { Avatar } from '../../components/ui/Avatar'
@@ -47,6 +49,7 @@ export function SpyProfilePage() {
   const [selectedGift, setSelectedGift] = useState<GiftType | null>(null)
   const [bond, setBond] = useState<{ points: number; level: number; levelInfo: RelationshipLevel } | null>(null)
   const [publicDecks, setPublicDecks] = useState<PublicDeck[]>([])
+  const credencial = useCredencialAjena(userId)
 
   // Load target player data
   useEffect(() => {
@@ -140,6 +143,27 @@ export function SpyProfilePage() {
       </div>
 
       <div className="max-w-lg lg:max-w-3xl mx-auto px-4 lg:px-6 py-4 space-y-5">
+        {/* ── LA CREDENCIAL, PRIMERO ──
+            Es la identidad de jugador de esta app: la placa que cada quien
+            configura, imprime y comparte. Hasta acá solo se veía la PROPIA, y
+            entrar al perfil de otro daba una ficha genérica —avatar, nombre y
+            cuatro números— que no se parecía a lo que esa persona armó.
+            Va arriba de todo, antes de las estadísticas y de los mazos: es lo
+            que uno viene a ver cuando abre el perfil de alguien.
+            Se dibuja solo cuando está completa; a medias sería indistinguible
+            de la placa real de alguien que no configuró nada. */}
+        {credencial && (
+          <CredencialInteractiva
+            datos={credencial.datos}
+            tema={credencial.tema}
+            emblema={credencial.emblema}
+            acabado={credencial.acabado}
+            nivel={credencial.nivel}
+            conPista={false}
+            className="w-full"
+          />
+        )}
+
         {/* Player card */}
         <div className="bg-swu-surface rounded-2xl border border-swu-border p-5">
           <div className="flex items-center gap-4">
