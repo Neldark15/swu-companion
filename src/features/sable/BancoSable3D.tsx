@@ -49,6 +49,9 @@ export function BancoSable3D() {
           onClick={() => setExplotado(v => !v)}
           className="rounded-xl border border-swu-border bg-swu-surface px-3 py-2 text-[12px] font-bold text-swu-text"
         >{explotado ? 'Armar' : 'Explotar'}</button>
+        <span className="self-center text-[11px] text-swu-muted">
+          La hoja CRECE desde el emisor; abrir el sable la recoge y armarlo la devuelve.
+        </span>
       </div>
 
       {RANURAS.map(([tipo, ids]) => (

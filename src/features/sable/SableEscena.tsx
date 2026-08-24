@@ -205,16 +205,19 @@ export function SableEscena({ diseno, encendido, explotado = false, onSinWebGL, 
       matDisco.color.set(c.halo)
 
       // La hoja arranca en la boca del emisor, no en el centro del mango.
-      const base = altoTotal / 2
-      nucleo.position.y = base + LARGO / 2
-      halo.position.y = base + LARGO / 2
       for (const p of peanas) p.position.y = -altoTotal / 2 - 3.2
+      colocarHoja()
       pedirCuadro()
     }
 
     /* Coloca las tres piezas según cuánto está abierto el sable. `separacion` la
        anima el bucle, así que esto se llama por cuadro mientras se abre. */
     let separacion = 0, separacionMeta = 0
+    /** Cuánto salió la hoja, 0..1. La anima el bucle (ver `colocarHoja`). */
+    let hoja = 0, hojaMeta = 0
+    /** Si la pantalla pidió hoja encendida. Se recuerda porque abrir el sable la
+        recoge sin que nadie apague: al volver a armar tiene que reaparecer. */
+    let encendidoActual = false
     function colocarPiezas(): void {
       const HUECO = 4.6
       for (let i = 0; i < piezas.length; i++) {
@@ -226,18 +229,44 @@ export function SableEscena({ diseno, encendido, explotado = false, onSinWebGL, 
 
     function explotar(v: boolean): void {
       separacionMeta = v ? 1 : 0
-      // Abierto hace falta más distancia: la fila de piezas es más larga.
-      
+      /* Se re-pide el encendido con el valor que la pantalla tenía pedido: abrir
+         el sable RECOGE la hoja (no tiene de dónde salir) pero eso no es
+         apagarla, así que al volver a armar tiene que reaparecer sola. Sin esto,
+         quien abre el sable en el paso de Prueba se queda sin hoja para siempre
+         hasta tocar el interruptor otra vez. Y de paso `encender` recalcula la
+         distancia de cámara, que también cambia al abrir. */
+      encender(encendidoActual)
+    }
+
+    /* LA HOJA CRECE, no aparece.
+       `hoja` va de 0 a 1 y la anima el bucle; la cápsula se escala en Y y se
+       recoloca para que el nacimiento quede clavado en la boca del emisor. Sin
+       recolocar, escalar una cápsula la estira hacia los DOS lados y la hoja
+       saldría también hacia abajo, atravesando el mango. */
+    function encender(v: boolean): void {
+      encendidoActual = v
+      const abierto = separacionMeta > 0.12
+      hojaMeta = v && !abierto ? 1 : 0
+      // Encendida se aleja para que entre la hoja; abierta, lo justo para la
+      // fila de piezas; armada y apagada, cerca del mango.
+      distMeta = v && !abierto ? 104 : (abierto ? 62 : 42)
       arrancar()
     }
 
-    function encender(v: boolean): void {
-      nucleo.visible = v
-      halo.visible = v
-      // Encendido se aleja para que entre la hoja; apagado se acerca al mango,
-      // que es lo que se está armando.
-      distMeta = v ? 108 : (separacionMeta > 0 ? 62 : 46)
-      pedirCuadro()
+    function colocarHoja(): void {
+      const visible = hoja > 0.004
+      nucleo.visible = visible
+      halo.visible = visible
+      if (!visible) return
+      nucleo.scale.y = hoja
+      halo.scale.y = hoja
+      // El nacimiento se queda en la boca del emisor y la punta viaja.
+      const nace = altoTotal / 2
+      nucleo.position.y = nace + (LARGO * hoja) / 2
+      halo.position.y = nace + (LARGO * hoja) / 2
+      // El halo entra un poco después que el núcleo: primero sale la hoja y
+      // después prende el resplandor. Al revés se ve como un flash.
+      matHalo.opacity = 0.48 * Math.min(1, Math.max(0, (hoja - 0.15) / 0.6))
     }
 
     // ── Cámara orbital a mano ──
@@ -293,6 +322,20 @@ export function SableEscena({ diseno, encendido, explotado = false, onSinWebGL, 
         colocarPiezas()
       } else if (separacion !== separacionMeta) {
         separacion = separacionMeta; colocarPiezas()
+      }
+      /* La hoja sube RÁPIDO y baja rápido: un sable no se enciende despacio.
+         Ritmo fijo por segundo y no suavizado exponencial, que nunca llega y
+         dejaría la punta temblando cerca del final. */
+      if (hoja !== hojaMeta) {
+        const paso = dt * (hojaMeta > hoja ? 2.6 : 3.4)
+        hoja = hojaMeta > hoja ? Math.min(hojaMeta, hoja + paso) : Math.max(hojaMeta, hoja - paso)
+        colocarHoja()
+      }
+      /* El parpadeo del zumbido: la hoja late un poco. Es el detalle que la
+         separa de un tubo de neón — y va solo cuando está fuera del todo, o el
+         latido pelearía con el crecimiento. */
+      if (hoja === 1) {
+        matHalo.opacity = 0.48 + Math.sin(ahora * 0.011) * 0.05
       }
       // Giro lento solo si nadie está tocando y no hay «menos movimiento».
       if (punteros.size === 0 && !reducido.matches) theta += dt * 0.18

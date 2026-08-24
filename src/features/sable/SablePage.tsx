@@ -36,14 +36,20 @@
  * después descubre que no tiene el cristal.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronLeft, Lock, Power, Save, Package, RotateCw } from 'lucide-react'
+import {
+  ChevronLeft, Lock, Power, Save, Package, RotateCw, Volume2, VolumeX,
+} from 'lucide-react'
 import { CreditoIcon } from '../../components/icons/CreditoIcon'
 import { SableEscena } from './SableEscena'
 import { PiezaTarjeta } from './PiezaTarjeta'
 import { BarraStats } from './BarraStats'
 import { POR_DEFECTO, type Diseno } from './partesSable'
+import {
+  arrancarZumbido, pararZumbido, afinarZumbido, sonarEncendido, sonarApagado,
+  sonarPieza, alternarSilencioSable, sableEnSilencio,
+} from './sonidoSable'
 import {
   PASOS, RANURAS_MANGO, sumarStats, deltaDe, rarezaDe, type Paso,
 } from './kyber'
@@ -62,6 +68,7 @@ export function SablePage() {
   const [aviso, setAviso] = useState<string | null>(null)
   const [sinWebGL, setSinWebGL] = useState(false)
   const [ocupado, setOcupado] = useState(false)
+  const [silencio, setSilencio] = useState(sableEnSilencio)
 
   /* Se sube para volver a consultar. Es una dependencia real del efecto, que es
      como el resto de la app hace las recargas — un `useCallback` llamado DESDE
@@ -105,6 +112,36 @@ export function SablePage() {
   const encendido = paso === 'prueba'
   const explotado = paso === 'piezas'
 
+  /* El tono del zumbido sale del CRISTAL: cada uno suena distinto, y eso es la
+     mitad de por qué vale la pena cambiarlo. Se deriva del orden de la pieza para
+     que sea estable y no un número inventado en la línea que lo usa. */
+  const tonoCristal = useMemo(() => {
+    const c = partes.find(p => p.id === diseno.color)
+    return c ? 0.86 + (c.orden - 1) * 0.075 : 1
+  }, [partes, diseno.color])
+
+  /** Si ya sonó una vez: sin esto suena el apagado al ENTRAR a la pantalla. */
+  const hubo = useRef(false)
+
+  /* EL ZUMBIDO SE APAGA SIEMPRE AL SALIR. Un sable que sigue sonando después de
+     cerrar la pantalla es el peor error posible acá: no hay botón que lo calle y
+     la persona no sabe de dónde sale el ruido. Por eso el `return` de este efecto
+     no tiene condición. */
+  useEffect(() => {
+    if (encendido && !silencio) {
+      /* Si ya venía encendido y lo único que cambió es el cristal, se AFINA en
+         vez de re-arrancar: cortar y volver a encender por cambiar de color se
+         oye como un fallo. `arrancarZumbido` es idempotente, así que la primera
+         vez arranca y las siguientes solo afinan. */
+      if (hubo.current) afinarZumbido(tonoCristal)
+      else sonarEncendido()
+      arrancarZumbido(tonoCristal)
+    }
+    else { pararZumbido(); if (!silencio && hubo.current) sonarApagado() }
+    hubo.current = encendido
+    return () => { pararZumbido() }
+  }, [encendido, silencio, tonoCristal])
+
   const deLaRanura = useCallback(
     (tipo: ParteTaller['tipo']) =>
       partes.filter(p => p.tipo === tipo).sort((a, b) => a.orden - b.orden),
@@ -113,7 +150,11 @@ export function SablePage() {
 
   const tocar = useCallback(async (p: ParteTaller) => {
     setAviso(null)
-    if (p.tengo) { setDiseno(d => ({ ...d, [p.tipo]: p.id })); return }
+    if (p.tengo) {
+      setDiseno(d => ({ ...d, [p.tipo]: p.id }))
+      if (!silencio) sonarPieza()
+      return
+    }
     setOcupado(true)
     const r = await comprarParte(p.id)
     if (!r.ok) { setAviso(r.mensaje ?? 'No se pudo comprar'); setOcupado(false); return }
@@ -123,7 +164,7 @@ export function SablePage() {
     setDiseno(d => ({ ...d, [p.tipo]: p.id }))
     setAviso(`${p.nombre} es tuya`)
     setOcupado(false)
-  }, [recargar])
+  }, [recargar, silencio])
 
   const guardar = useCallback(async () => {
     setOcupado(true); setAviso(null)
@@ -171,10 +212,21 @@ export function SablePage() {
             NIVEL {taller.nivel}
           </p>
         </div>
-        <span className="flex shrink-0 items-center gap-1.5 rounded-lg border border-swu-amber/40 bg-swu-amber/10 px-2.5 py-1 text-[12px] font-black tabular-nums text-swu-amber">
-          <CreditoIcon size={15} />
-          {taller.saldo.toLocaleString('es-SV')}
-        </span>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setSilencio(alternarSilencioSable())}
+            className="rounded-lg p-1.5 text-swu-muted hover:text-swu-text"
+            aria-label={silencio ? 'Activar sonido' : 'Silenciar'}
+            aria-pressed={silencio}
+          >
+            {silencio ? <VolumeX size={16} /> : <Volume2 size={16} />}
+          </button>
+          <span className="flex items-center gap-1.5 rounded-lg border border-swu-amber/40 bg-swu-amber/10 px-2.5 py-1 text-[12px] font-black tabular-nums text-swu-amber">
+            <CreditoIcon size={15} />
+            {taller.saldo.toLocaleString('es-SV')}
+          </span>
+        </div>
       </div>
 
       {/* ── Los cuatro pasos ── */}
