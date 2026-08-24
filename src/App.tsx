@@ -107,6 +107,12 @@ const BancoAvatares = import.meta.env.DEV
 const TraductorPage = lazy(() =>
   import('./features/aurebesh/TraductorPage').then(m => ({ default: m.TraductorPage })),
 )
+const BancoSable3D = import.meta.env.DEV
+  ? lazy(() => import('./features/sable/BancoSable3D').then(m => ({ default: m.BancoSable3D })))
+  : null
+const BancoCredito = import.meta.env.DEV
+  ? lazy(() => import('./features/sable/BancoCredito').then(m => ({ default: m.BancoCredito })))
+  : null
 const BancoSable = import.meta.env.DEV
   ? lazy(() => import('./features/profile/components/BancoSable').then(m => ({ default: m.BancoSable })))
   : () => null
@@ -290,6 +296,8 @@ export default function App() {
             {import.meta.env.DEV && <Route path="/banco-marcos" element={<BancoMarcos />} />}
             {import.meta.env.DEV && <Route path="/banco-avatares" element={<BancoAvatares />} />}
             {import.meta.env.DEV && <Route path="/banco-sable" element={<BancoSable />} />}
+            {import.meta.env.DEV && BancoCredito && <Route path="/banco-credito" element={<BancoCredito />} />}
+            {import.meta.env.DEV && BancoSable3D && <Route path="/banco-sable-3d" element={<BancoSable3D />} />}
             {import.meta.env.DEV && <Route path="/banco-sobres" element={<BancoSobres />} />}
             {import.meta.env.DEV && <Route path="/banco-amistosas" element={<BancoAmistosas />} />}
             {import.meta.env.DEV && <Route path="/banco-copias" element={<BancoCopias />} />}

@@ -35,23 +35,33 @@
 
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
-import { perfilDeSable, colorDeHoja, type Diseno } from './partesSable'
+import { piezasDeSable, colorDeHoja, type Diseno } from './partesSable'
 
 interface Props {
   diseno: Diseno
   /** Enciende la hoja. Apagada solo se ve el mango, que es lo que se arma. */
   encendido: boolean
+  /**
+   * Separa las piezas a lo largo del eje. 0 = armado, 1 = abierto del todo.
+   *
+   * Es la vista que pidió Nel: las piezas flotando en fila con el hueco entre
+   * ellas, para ver QUÉ se está cambiando. Se anima con suavizado exponencial en
+   * el bucle, no con una transición de CSS — el sable vive en un lienzo y el CSS
+   * no puede tocar una malla.
+   */
+  explotado?: boolean
   onSinWebGL?: () => void
   className?: string
 }
 
-export function SableEscena({ diseno, encendido, onSinWebGL, className = '' }: Props) {
+export function SableEscena({ diseno, encendido, explotado = false, onSinWebGL, className = '' }: Props) {
   const cajaRef = useRef<HTMLDivElement>(null)
   const alFallarRef = useRef(onSinWebGL)
   /** El mando: la escena no se reconstruye al cambiar de pieza (§3y). */
   const mandoRef = useRef<{
     rehacer: (d: Diseno) => void
     encender: (v: boolean) => void
+    explotar: (v: boolean) => void
   } | null>(null)
 
   useEffect(() => { alFallarRef.current = onSinWebGL })
@@ -96,15 +106,36 @@ export function SableEscena({ diseno, encendido, onSinWebGL, className = '' }: P
     const matDetalle = new THREE.MeshPhongMaterial({
       color: 0x2b2f36, specular: 0x666666, shininess: 40,
     })
-    let geoMango: THREE.LatheGeometry | null = null
-    const mango = new THREE.Mesh(new THREE.BufferGeometry(), matMango)
-    scene.add(mango)
+    /* TRES mallas y no una: la vista explotada necesita separarlas, y no hay
+       forma de abrir una pieza torneada única. Con separación 0 se ven pegadas,
+       así que es UN solo camino de código para las dos vistas. */
+    const piezas: { malla: THREE.Mesh; base: number; alto: number }[] = []
+    for (let i = 0; i < 3; i++) {
+      const m = new THREE.Mesh(new THREE.BufferGeometry(), matMango)
+      scene.add(m)
+      piezas.push({ malla: m, base: 0, alto: 0 })
+    }
 
     // Un aro oscuro en el cuerpo: rompe el gris y da escala. Geometría fija.
     const geoAro = new THREE.TorusGeometry(1.16, 0.1, 8, 36)
     const aro = new THREE.Mesh(geoAro, matDetalle)
     aro.rotation.x = Math.PI / 2
     scene.add(aro)
+
+    /* ── El pedestal ──
+       Dos aros concéntricos planos debajo del sable. Es lo que hace que el mango
+       flote SOBRE algo en vez de flotar en la nada, y en los dos mockups es lo
+       que da la sensación de taller. Van con mezcla aditiva y sin escribir
+       profundidad: son luz proyectada, no un objeto. */
+    const matPeana = new THREE.MeshBasicMaterial({
+      color: 0xff9d2e, transparent: true, opacity: 0.5,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+    })
+    const geoPeana1 = new THREE.RingGeometry(7.2, 8.4, 48)
+    const geoPeana2 = new THREE.RingGeometry(11.5, 11.9, 48)
+    const peana1 = new THREE.Mesh(geoPeana1, matPeana)
+    const peana2 = new THREE.Mesh(geoPeana2, matPeana)
+    for (const p of [peana1, peana2]) { p.rotation.x = -Math.PI / 2; scene.add(p) }
 
     // ── La hoja: cápsulas, para que la punta salga redonda sola ──
     const LARGO = 78
@@ -122,29 +153,55 @@ export function SableEscena({ diseno, encendido, onSinWebGL, className = '' }: P
     halo.renderOrder = 1
     scene.add(nucleo, halo)
 
+    let altoTotal = 26
     function rehacer(d: Diseno): void {
-      const { puntos, alto } = perfilDeSable(d)
-      const vec = puntos.map(([r, y]) => new THREE.Vector2(r, y))
-      const nueva = new THREE.LatheGeometry(vec, 48)
-      // La vieja se libera SIEMPRE: cada cambio de pieza crea una geometría, y
-      // sin esto armar un sable probando piezas fuga una por toque.
-      geoMango?.dispose()
-      geoMango = nueva
-      mango.geometry = nueva
+      const sueltas = piezasDeSable(d)
+      altoTotal = sueltas.reduce((s, p) => s + p.alto, 0)
 
-      // El mango se centra en su propio alto para que gire sobre su medio.
-      mango.position.y = -alto / 2
-      aro.position.y = -alto / 2 + alto * 0.42
+      sueltas.forEach((sp, i) => {
+        const vec = sp.puntos.map(([r, y]) => new THREE.Vector2(r, y))
+        const nueva = new THREE.LatheGeometry(vec, 48)
+        // La vieja se libera SIEMPRE: cada cambio de pieza crea geometría, y sin
+        // esto probar piezas fuga una por toque.
+        piezas[i].malla.geometry.dispose()
+        piezas[i].malla.geometry = nueva
+        piezas[i].base = sp.base
+        piezas[i].alto = sp.alto
+      })
+      colocarPiezas()
+      aro.position.y = -altoTotal / 2 + altoTotal * 0.42
 
       const c = colorDeHoja(d.color)
       matHalo.color.set(c.halo)
       matNucleo.color.set(c.nucleo)
 
       // La hoja arranca en la boca del emisor, no en el centro del mango.
-      const base = alto / 2
+      const base = altoTotal / 2
       nucleo.position.y = base + LARGO / 2
       halo.position.y = base + LARGO / 2
+      peana1.position.y = -altoTotal / 2 - 3.5
+      peana2.position.y = -altoTotal / 2 - 3.6
       pedirCuadro()
+    }
+
+    /* Coloca las tres piezas según cuánto está abierto el sable. `separacion` la
+       anima el bucle, así que esto se llama por cuadro mientras se abre. */
+    let separacion = 0, separacionMeta = 0
+    function colocarPiezas(): void {
+      const HUECO = 4.2
+      for (let i = 0; i < piezas.length; i++) {
+        const p = piezas[i]
+        p.malla.position.y = -altoTotal / 2 + p.base + separacion * HUECO * i
+      }
+      // Con el sable abierto el aro del cuerpo viaja con su pieza.
+      aro.visible = separacion < 0.35
+    }
+
+    function explotar(v: boolean): void {
+      separacionMeta = v ? 1 : 0
+      // Abierto hace falta más distancia: la fila de piezas es más larga.
+      if (!nucleo.visible) distMeta = v ? 62 : 46
+      arrancar()
     }
 
     function encender(v: boolean): void {
@@ -152,7 +209,7 @@ export function SableEscena({ diseno, encendido, onSinWebGL, className = '' }: P
       halo.visible = v
       // Encendido se aleja para que entre la hoja; apagado se acerca al mango,
       // que es lo que se está armando.
-      distMeta = v ? 108 : 46
+      distMeta = v ? 108 : (separacionMeta > 0 ? 62 : 46)
       pedirCuadro()
     }
 
@@ -200,6 +257,12 @@ export function SableEscena({ diseno, encendido, onSinWebGL, className = '' }: P
       // Suavizado exponencial, independiente del ritmo de cuadro.
       if (Math.abs(dist - distMeta) > 0.05) dist += (distMeta - dist) * Math.min(1, dt * 6)
       else dist = distMeta
+      if (Math.abs(separacion - separacionMeta) > 0.002) {
+        separacion += (separacionMeta - separacion) * Math.min(1, dt * 5)
+        colocarPiezas()
+      } else if (separacion !== separacionMeta) {
+        separacion = separacionMeta; colocarPiezas()
+      }
       // Giro lento solo si nadie está tocando y no hay «menos movimiento».
       if (punteros.size === 0 && !reducido.matches) theta += dt * 0.18
       colocarCamara()
@@ -257,10 +320,11 @@ export function SableEscena({ diseno, encendido, onSinWebGL, className = '' }: P
     ajustar()
     rehacer(diseno)
     encender(encendido)
+    explotar(explotado)
     colocarCamara()
     reevaluar()
 
-    mandoRef.current = { rehacer, encender }
+    mandoRef.current = { rehacer, encender, explotar }
 
     return () => {
       mandoRef.current = null
@@ -278,9 +342,11 @@ export function SableEscena({ diseno, encendido, onSinWebGL, className = '' }: P
       // navegador no puede dibujar en 3D» para siempre (§2s).
       lienzo.removeEventListener('webglcontextlost', alPerderContexto)
 
-      geoMango?.dispose()
+      for (const p of piezas) p.malla.geometry.dispose()
       geoAro.dispose(); geoNucleo.dispose(); geoHalo.dispose()
+      geoPeana1.dispose(); geoPeana2.dispose()
       matMango.dispose(); matDetalle.dispose(); matNucleo.dispose(); matHalo.dispose()
+      matPeana.dispose()
       foco1.dispose(); foco2.dispose()
       renderer.dispose()
       // `dispose()` NO suelta el contexto: lo suelta el navegador cuando quiere,
@@ -296,6 +362,7 @@ export function SableEscena({ diseno, encendido, onSinWebGL, className = '' }: P
 
   useEffect(() => { mandoRef.current?.rehacer(diseno) }, [diseno])
   useEffect(() => { mandoRef.current?.encender(encendido) }, [encendido])
+  useEffect(() => { mandoRef.current?.explotar(explotado) }, [explotado])
 
   return <div ref={cajaRef} className={`relative overflow-hidden ${className}`} />
 }

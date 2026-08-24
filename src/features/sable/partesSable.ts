@@ -254,6 +254,58 @@ export function colorDeHoja(id: string): ColorHoja {
   return COLORES[id] ?? COLORES[POR_DEFECTO.color]
 }
 
+/** Una pieza suelta, para la vista explotada. */
+export interface PiezaSuelta {
+  clave: 'pomo' | 'cuerpo' | 'emisor'
+  /** Puntos con el 0 en la BASE de la pieza, no del mango. */
+  puntos: Punto[]
+  alto: number
+  /** A qué altura del mango armado empieza. */
+  base: number
+}
+
+/**
+ * Las tres piezas por separado.
+ *
+ * El mango armado es UNA sola `LatheGeometry` (ver `perfilDeSable`) porque así
+ * no hay costura entre pomo, cuerpo y emisor. Pero la vista EXPLOTADA necesita
+ * separarlas, y para eso hacen falta tres geometrías — no hay forma de abrir una
+ * pieza torneada única.
+ *
+ * La escena usa SIEMPRE estas tres y las junta con separación 0 cuando el sable
+ * está armado: un solo camino de código en vez de dos. Cuesta dos llamadas de
+ * dibujo más, que sobre una escena de tres mallas y dos cápsulas no se nota — y
+ * es mucho más barato que mantener dos formas de construir el mismo mango, que
+ * es como se separan las cosas en este repo (§2y).
+ *
+ * Los perfiles NO se cierran en el eje al separarse: una pieza torneada abierta
+ * deja ver el hueco por dentro, y eso es lo correcto — es lo que se ve al
+ * desarmar un sable de verdad. Cerrarlas las volvería bolitas macizas.
+ */
+export function piezasDeSable(d: Diseno): PiezaSuelta[] {
+  const pomo = POMOS[d.pomo] ?? POMOS[POR_DEFECTO.pomo]
+  const cuerpo = CUERPOS[d.cuerpo] ?? CUERPOS[POR_DEFECTO.cuerpo]
+  const emisor = EMISORES[d.emisor] ?? EMISORES[POR_DEFECTO.emisor]
+
+  const claves = ['pomo', 'cuerpo', 'emisor'] as const
+  const piezas = [pomo, cuerpo, emisor]
+  const salida: PiezaSuelta[] = []
+  let base = 0
+  for (let i = 0; i < piezas.length; i++) {
+    const p = piezas[i]
+    // Misma red de seguridad que en `perfilDeSable`: la deriva de coma flotante
+    // dentro de una pieza también invierte una normal y deja un aro negro.
+    let techo = -Infinity
+    const puntos: Punto[] = p.puntos(p.alto).map(([r, y]) => {
+      const alt = Math.max(y, techo); techo = alt
+      return [r, alt] as Punto
+    })
+    salida.push({ clave: claves[i], puntos, alto: p.alto, base })
+    base += p.alto
+  }
+  return salida
+}
+
 /**
  * ¿Este perfil es dibujable? Las dos reglas que `LatheGeometry` no perdona.
  *

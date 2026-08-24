@@ -28,7 +28,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronLeft, Check, Lock, Power, Save, Coins } from 'lucide-react'
+import { ChevronLeft, Check, Lock, Power, Save } from 'lucide-react'
+import { CreditoIcon } from '../../components/icons/CreditoIcon'
 import { SableEscena } from './SableEscena'
 import { POR_DEFECTO, type Diseno } from './partesSable'
 import {
@@ -136,8 +137,8 @@ export function SablePage() {
           <ChevronLeft size={18} /> Inicio
         </Link>
         <span className="flex items-center gap-1.5 rounded-lg border border-swu-amber/40 bg-swu-amber/10 px-2.5 py-1 text-[12px] font-bold text-swu-amber">
-          <Coins size={13} />
-          {taller.saldo.toLocaleString('es-SV')} XP
+          <CreditoIcon size={15} />
+          {taller.saldo.toLocaleString('es-SV')}
         </span>
       </div>
 
@@ -209,12 +210,12 @@ export function SablePage() {
                         // El precio se enseña SIEMPRE en la pieza que no tenés:
                         // un botón que cobra sin decir cuánto se toca una vez y
                         // no se vuelve a tocar nunca.
-                        : `${p.precio.toLocaleString('es-SV')} XP`}
+                        : `${p.precio.toLocaleString('es-SV')} cr`}
                     </span>
                   </span>
                   {puesta
                     ? <Check size={15} className="shrink-0 text-swu-accent-texto" />
-                    : !p.tengo && <Coins size={14} className="shrink-0 text-swu-amber" />}
+                    : !p.tengo && <CreditoIcon size={15} className="shrink-0 text-swu-amber" />}
                 </button>
               )
             })}
