@@ -83,6 +83,10 @@ const GalaxyPage = lazy(() => import('./features/galaxy/GalaxyPage').then(m => (
    la geometría del mundo y la escena solo las necesita quien entra. */
 const PlanetaPage = lazy(() => import('./features/planeta/PlanetaPage').then(m => ({ default: m.PlanetaPage })))
 const GalaxiaPage = lazy(() => import('./features/galaxia/GalaxiaPage').then(m => ({ default: m.GalaxiaPage })))
+/* El Taller de sables. En pruebas y para UNA sola persona: la puerta es
+   `sable_probadores` y vive DENTRO de las RPC, no acá. Sin entrada de menú a
+   propósito — se entra tecleando /sable, igual que /temporada. */
+const SablePage = lazy(() => import('./features/sable/SablePage').then(m => ({ default: m.SablePage })))
 const LabPage = lazy(() => import('./features/lab/LabPage').then(m => ({ default: m.LabPage })))
 const MesaPage = lazy(() => import('./features/mesa/MesaPage').then(m => ({ default: m.MesaPage })))
 // Banco de pruebas de la mesa 3D. Solo en desarrollo: se cae del bundle de
@@ -357,6 +361,11 @@ export default function App() {
                 `profiles` exige sesión salvo perfiles públicos, y la escena
                 necesita saber cuál planeta es el de quien mira. */}
             <Route path="/galaxia" element={<P><GalaxiaPage /></P>} />
+            {/* Va DENTRO de AppLayout y con <P> a propósito: fuera de la
+                cáscara no corre `initAuth()` y `auth.uid()` llegaría nulo a las
+                RPC, así que el taller diría «no está abierto» hasta al dueño
+                (misma trampa que documenta /estudio). */}
+            <Route path="/sable" element={<P><SablePage /></P>} />
             {/* Ruta HERMANA de /galaxia, no superposición: así el router
                 desmonta la Galaxia y su forceContextLoss() corre solo. */}
             <Route path="/planeta/:userId" element={<P><PlanetaPage /></P>} />
