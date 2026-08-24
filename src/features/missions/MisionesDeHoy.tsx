@@ -26,7 +26,8 @@
 
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight } from 'lucide-react'
+import { ICONO_POR_OBJETIVO } from '../../components/icons/iconoMision'
+import { IrIcon } from '../../components/icons/MisionIcons'
 import { getUserMissions, type UserMission } from '../../services/missionService'
 
 interface Props {
@@ -70,25 +71,35 @@ export function MisionesDeHoy({ userId }: Props) {
       </span>
 
       <span className="flex flex-shrink-0 items-center gap-1" aria-hidden>
-        {diarias.map(m => (
-          <span
-            key={m.missionId}
-            title={`${m.template.name} · ${m.progress}/${m.template.objectiveValue}`}
-            className={`flex h-7 w-7 items-center justify-center rounded-full text-[13px]
-                        transition-opacity ${
-              m.completed ? 'bg-swu-amber/25' : 'bg-swu-bg opacity-40 grayscale'
-            }`}
-          >
-            {m.template.icon}
-          </span>
-        ))}
+        {/* El ícono es el del OBJETIVO, el mismo que en /misiones: la franja
+            y la lista tienen que hablar el mismo idioma o son dos cosas. El
+            `grayscale` se fue con los emoji — un SVG que hereda el color se
+            apaga bajando el color, que es más limpio que desaturar. */}
+        {diarias.map((m, i) => {
+          const Icono = ICONO_POR_OBJETIVO[m.template.objectiveType]
+          return (
+            <span
+              key={m.missionId}
+              style={{ ['--i' as string]: i }}
+              title={`${m.template.name} · ${m.progress}/${m.template.objectiveValue}`}
+              className={`mision-entra flex h-7 w-7 items-center justify-center rounded-full
+                          transition-colors ${
+                m.completed
+                  ? 'bg-swu-amber/25 text-swu-amber'
+                  : 'bg-swu-bg text-swu-muted/45'
+              }`}
+            >
+              <Icono size={15} />
+            </span>
+          )
+        })}
       </span>
 
       <span className="flex flex-shrink-0 items-center gap-1">
         <span className="font-mono text-[11px] font-bold tabular-nums text-swu-amber">
           {hechas}/{diarias.length}
         </span>
-        <ChevronRight size={15} className="text-swu-muted" />
+        <IrIcon size={15} className="text-swu-muted" />
       </span>
     </button>
   )

@@ -1294,3 +1294,105 @@ input:focus, textarea:focus, select:focus {
   .bahia-cuerpo { transition: none; }
   .bahia-hueco[data-abierta='true'] > .bahia-cuerpo > .grid > * { animation: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   MISIONES — la animación
+   ═══════════════════════════════════════════════════════════════════
+
+   Va como CSS PLANO y no como `@utility`: Tailwind solo emite una utilidad
+   si DETECTA la clase escrita en el código, y las que se arman con plantilla
+   (`clase-${algo}`) no las ve. Ya pasó con los ocho bloques `foil-*` (§3i).
+
+   Todo se apoya en `transform` y `opacity`, que son las dos propiedades que
+   el compositor puede animar sin volver a calcular el diseño. Nada de animar
+   `height`, `top` ni `width`: cada frame de esos es un reflow de la lista
+   entera, y acá hay hasta 20 tarjetas.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Entrada escalonada ──
+   Las tarjetas no aparecen todas juntas: entran en cascada. El retardo lo
+   pone la lista con `--i` (el índice), tope de 12 para que la número 20 no
+   tarde dos segundos en llegar. */
+@keyframes mision-entra {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+.mision-entra {
+  animation: mision-entra 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+/* ── La barra de progreso crece ──
+   Se anima `transform: scaleX` sobre una barra al 100% de ancho, y NO el
+   `width`: animar el ancho recalcula el diseño en cada frame. `transform-origin`
+   a la izquierda o crece desde el centro para los dos lados. */
+.mision-barra {
+  transform-origin: left center;
+  transform: scaleX(var(--p, 0));
+  transition: transform 620ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Lista para cobrar: el ícono respira ──
+   Solo cuando la misión está completa y sin cobrar. Es la única cosa de la
+   pantalla que se mueve sola, así que señala sin competir con nada. */
+@keyframes mision-late {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.09); }
+}
+.mision-lista { animation: mision-late 2.1s ease-in-out infinite; }
+
+/* ── El destello del cobro ──
+   Una banda clara que cruza la tarjeta UNA vez al reclamar. Va sobre un
+   pseudo-elemento para no tocar el fondo de la tarjeta, y se apaga sola. */
+@keyframes mision-cobrada {
+  from { transform: translate3d(-120%, 0, 0); }
+  to   { transform: translate3d(220%, 0, 0); }
+}
+.mision-destello { position: relative; overflow: hidden; }
+.mision-destello::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 45%;
+  background: linear-gradient(
+    100deg,
+    transparent,
+    color-mix(in srgb, var(--color-swu-accent) 38%, transparent),
+    transparent
+  );
+  animation: mision-cobrada 900ms ease-out 1 both;
+  pointer-events: none;
+}
+
+/* ── El XP que sube ──
+   El número del premio despega hacia arriba y se desvanece. Es el acuse de
+   que el pago ocurrió: sin él, cobrar solo apaga un botón. */
+@keyframes mision-xp-sube {
+  0%   { opacity: 0; transform: translate3d(0, 4px, 0) scale(0.9); }
+  22%  { opacity: 1; transform: translate3d(0, -2px, 0) scale(1.06); }
+  70%  { opacity: 1; transform: translate3d(0, -14px, 0) scale(1); }
+  100% { opacity: 0; transform: translate3d(0, -26px, 0) scale(0.95); }
+}
+.mision-xp { animation: mision-xp-sube 1.5s cubic-bezier(0.22, 1, 0.36, 1) 1 both; }
+
+/* ── El giro de «cargando» ── */
+@keyframes mision-gira { to { transform: rotate(360deg); } }
+.mision-gira { animation: mision-gira 900ms linear infinite; }
+
+/*  Quien pidió menos movimiento recibe MENOS, no cero: la entrada se queda
+    en un fundido corto (sin desplazamiento) y la barra sigue siendo legible
+    porque su valor final no depende de la transición. Lo que se apaga es lo
+    que se repite solo — el latido y el giro largo — que es lo que de verdad
+    marea. */
+@media (prefers-reduced-motion: reduce) {
+  .mision-entra {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .mision-barra { transition-duration: 1ms; }
+  .mision-lista { animation: none; }
+  .mision-destello::after { animation-duration: 1ms; opacity: 0; }
+  .mision-xp { animation-duration: 900ms; }
+  .mision-gira { animation-duration: 2.4s; }
+}

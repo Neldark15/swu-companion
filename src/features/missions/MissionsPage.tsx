@@ -8,9 +8,13 @@
  * que la hazaña vuelve.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { Target, Clock, Gift, CheckCircle, Loader2, Infinity as InfinityIcon, ArrowRight } from 'lucide-react'
+import { ICONO_POR_OBJETIVO } from '../../components/icons/iconoMision'
+import {
+  DianaIcon, RelojIcon, CobrarIcon, SelloHechoIcon,
+  SiempreIcon, IrIcon, CargandoIcon,
+} from '../../components/icons/MisionIcons'
 import { useAuth } from '../../hooks/useAuth'
 import {
   getUserMissions,
@@ -98,7 +102,7 @@ export default function MissionsPage() {
       <div className="sticky top-0 z-10 bg-[#0a0a1a]/90 backdrop-blur-md border-b border-white/5 px-4 py-3">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-cyan-500/15 flex items-center justify-center">
-            <Target size={18} className="text-cyan-400" />
+            <DianaIcon size={18} className="text-cyan-400" />
           </div>
           <div>
             <h1 className="text-base font-bold text-white">Misiones</h1>
@@ -109,7 +113,7 @@ export default function MissionsPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="animate-spin text-white/30" size={24} />
+          <span className="mision-gira inline-flex text-white/30"><CargandoIcon size={24} /></span>
         </div>
       ) : (
         <div className="px-4 py-4 space-y-6">
@@ -123,15 +127,16 @@ export default function MissionsPage() {
                 </span>
               </div>
               <div className="flex items-center gap-1 text-[10px] text-white/30">
-                <Clock size={10} />
+                <RelojIcon size={11} />
                 <span>Reinicio en {dailyTimer.hours}h {dailyTimer.minutes}m</span>
               </div>
             </div>
 
             <div className="space-y-2">
-              {daily.map(m => (
+              {daily.map((m, i) => (
                 <MissionCard
                   key={m.missionId}
+                  indice={i}
                   mission={m}
                   onClaim={handleClaim}
                   claiming={claiming === m.missionId}
@@ -150,15 +155,16 @@ export default function MissionsPage() {
                 </span>
               </div>
               <div className="flex items-center gap-1 text-[10px] text-white/30">
-                <Clock size={10} />
+                <RelojIcon size={11} />
                 <span>Reinicio en {weeklyTimer.days}d {weeklyTimer.hours}h</span>
               </div>
             </div>
 
             <div className="space-y-2">
-              {weekly.map(m => (
+              {weekly.map((m, i) => (
                 <MissionCard
                   key={m.missionId}
+                  indice={i}
                   mission={m}
                   onClaim={handleClaim}
                   claiming={claiming === m.missionId}
@@ -178,15 +184,16 @@ export default function MissionsPage() {
               </div>
               {/* Donde las otras dos llevan reloj, acá va lo contrario: no vuelven. */}
               <div className="flex items-center gap-1 text-[10px] text-white/30">
-                <InfinityIcon size={10} />
+                <SiempreIcon size={11} />
                 <span>Una sola vez</span>
               </div>
             </div>
 
             <div className="space-y-2">
-              {unicasOrdenadas.map(m => (
+              {unicasOrdenadas.map((m, i) => (
                 <MissionCard
                   key={m.missionId}
+                  indice={i}
                   mission={m}
                   onClaim={handleClaim}
                   claiming={claiming === m.missionId}
@@ -200,64 +207,116 @@ export default function MissionsPage() {
   )
 }
 
-function MissionCard({ mission, onClaim, claiming }: {
+function MissionCard({ mission, onClaim, claiming, indice }: {
   mission: UserMission
   onClaim: (id: string) => void
   claiming: boolean
+  /** Posición en la lista: mueve el retardo de la entrada escalonada. */
+  indice: number
 }) {
   const { template, progress, completed, claimed } = mission
-  const pct = Math.min((progress / template.objectiveValue) * 100, 100)
+  const pct = Math.min(progress / template.objectiveValue, 1)
   /* Lo que se anuncia tiene que ser lo que se paga: `claimMissionReward`
      abona `rewardXp + BONUS_POR_TIPO[type]`, y la tarjeta enseñaba solo el
      primero — o sea 20 XP de menos en cada diaria y 60 en cada semanal. */
   const xpTotal = template.rewardXp + BONUS_POR_TIPO[template.type]
 
+  /* El ícono sale del OBJETIVO, no de la misión.
+   *
+   * Antes cada plantilla traía un emoji propio, y un emoji lo dibuja el
+   * sistema operativo: el mismo catálogo se veía distinto en cada teléfono, y
+   * los que no existen salían como un cuadrito. Además «abrir 1 sobre» y
+   * «abrir 3 sobres» llevaban dos dibujos para la MISMA acción. */
+  const Icono = ICONO_POR_OBJETIVO[template.objectiveType]
+
+  /* El destello del cobro se dispara UNA vez, al pasar de no-cobrada a
+     cobrada. Con `claimed` a secas volvería a correr en cada repintado de la
+     lista y la tarjeta parpadearía sola para siempre. */
+  const [reciénCobrada, setReciénCobrada] = useState(false)
+  const cobradaAntes = useRef(claimed)
+  useEffect(() => {
+    const eraNueva = claimed && !cobradaAntes.current
+    cobradaAntes.current = claimed
+    if (!eraNueva) return
+    /* El `setState` va detrás de un temporizador y no en el cuerpo del efecto:
+       la regla `react-hooks/set-state-in-effect` lo veta ahí, y de paso el
+       destello arranca un frame después de que la tarjeta ya se repintó como
+       cobrada — que es cuando se ve. */
+    const enciende = setTimeout(() => setReciénCobrada(true), 0)
+    const apaga = setTimeout(() => setReciénCobrada(false), 1600)
+    return () => { clearTimeout(enciende); clearTimeout(apaga) }
+  }, [claimed])
+
+  const listaParaCobrar = completed && !claimed
+
   return (
-    <div className={`rounded-xl border p-3 transition-all ${
-      claimed
-        ? 'border-white/5 bg-white/[0.02] opacity-60'
-        : completed
-        ? 'border-green-500/30 bg-green-500/5'
-        : 'border-white/10 bg-white/[0.03]'
-    }`}>
+    <div
+      style={{ ['--i' as string]: Math.min(indice, 12) }}
+      className={`mision-entra rounded-xl border p-3 transition-colors ${
+        reciénCobrada ? 'mision-destello' : ''
+      } ${
+        claimed
+          ? 'border-white/5 bg-white/[0.02] opacity-60'
+          : completed
+          ? 'border-green-500/30 bg-green-500/5'
+          : 'border-white/10 bg-white/[0.03]'
+      }`}
+    >
       <div className="flex items-start gap-3">
-        <span className="text-lg shrink-0">{template.icon}</span>
+        <span
+          className={`shrink-0 ${listaParaCobrar ? 'mision-lista text-green-300' : 'text-swu-accent-texto'}`}
+        >
+          <Icono size={22} />
+        </span>
+
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="text-xs font-semibold text-white/90 truncate">{template.name}</p>
-            <span className="text-[10px] text-amber-400 font-medium shrink-0">+{xpTotal} XP</span>
+            <span className="relative text-[10px] text-amber-400 font-medium shrink-0">
+              +{xpTotal} XP
+              {/* El XP despega al cobrar: sin esto, reclamar solo apaga un
+                  botón y no se ve que el pago ocurrió. */}
+              {reciénCobrada && (
+                <span className="mision-xp pointer-events-none absolute left-0 top-0 whitespace-nowrap font-bold text-green-300">
+                  +{xpTotal} XP
+                </span>
+              )}
+            </span>
           </div>
           <p className="text-[11px] text-white/40 mt-0.5">{template.description}</p>
 
-          {/* Progress bar */}
+          {/* Progreso. La barra se anima con `scaleX` y NO con `width`: animar
+              el ancho recalcula el diseño en cada frame, y acá hay 20 filas. */}
           <div className="mt-2 flex items-center gap-2">
             <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all duration-500 ${
+                style={{ ['--p' as string]: pct }}
+                className={`mision-barra h-full w-full rounded-full ${
                   completed ? 'bg-green-500' : 'bg-cyan-500'
                 }`}
-                style={{ width: `${pct}%` }}
               />
             </div>
-            <span className="text-[10px] text-white/40 shrink-0 w-12 text-right">
+            <span className="text-[10px] text-white/40 shrink-0 w-12 text-right tabular-nums">
               {progress}/{template.objectiveValue}
             </span>
           </div>
         </div>
 
-        {/* Action button */}
+        {/* Acción */}
         <div className="shrink-0 ml-1">
           {claimed ? (
-            <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
-              <CheckCircle size={14} className="text-green-400/60" />
+            <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-green-400/60">
+              <SelloHechoIcon size={15} />
             </div>
           ) : completed ? (
             <button
               onClick={() => onClaim(mission.missionId)}
               disabled={claiming}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-green-500/20 border border-green-500/30 text-green-300 text-[10px] font-bold hover:bg-green-500/30 transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-green-500/20 border border-green-500/30 text-green-300 text-[10px] font-bold hover:bg-green-500/30 active:scale-95 transition-transform"
             >
-              {claiming ? <Loader2 size={12} className="animate-spin" /> : <Gift size={12} />}
+              {claiming
+                ? <span className="mision-gira inline-flex"><CargandoIcon size={13} /></span>
+                : <CobrarIcon size={13} />}
               <span>Reclamar</span>
             </button>
           ) : (
@@ -270,16 +329,13 @@ function MissionCard({ mission, onClaim, claiming }: {
              * botón dice «Escribir al grupo…». Nel, que construyó esto, no
              * supo cómo cumplirla. Una misión que no se sabe dónde se hace no
              * es difícil: es invisible.
-             *
-             * Va en TODAS las misiones y no solo en esa, porque el problema no
-             * era el texto de una: era que ninguna decía adónde ir.
              */
             <Link
               to={template.ruta}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-cyan-500/15 border border-cyan-500/25 text-cyan-300 text-[10px] font-bold hover:bg-cyan-500/25 transition-colors whitespace-nowrap"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-cyan-500/15 border border-cyan-500/25 text-cyan-300 text-[10px] font-bold hover:bg-cyan-500/25 active:scale-95 transition-transform whitespace-nowrap"
             >
               <span>{template.donde}</span>
-              <ArrowRight size={11} />
+              <IrIcon size={12} />
             </Link>
           )}
         </div>

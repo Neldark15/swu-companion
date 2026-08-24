@@ -387,10 +387,45 @@ export function sortearMisiones(
   const faciles = barajar(items.filter(m => m.dificultad === 'toque'), rng)
   const resto = barajar(items.filter(m => m.dificultad !== 'toque'), rng)
 
-  const piso = faciles.slice(0, Math.min(minFaciles, faciles.length, total))
-  const pool = barajar([...faciles.slice(piso.length), ...resto], rng)
+  /* NO SE REPITE OBJETIVO en un mismo sorteo.
+   *
+   * «Abrir 1 sobre» y «Abrir 3 sobres» el mismo día son la misma tarea dos
+   * veces: haciendo la segunda se cumple la primera sola, así que una de las
+   * seis ranuras del día no pedía nada nuevo. Y desde que el ícono es uno por
+   * OBJETIVO, además se verían dos tarjetas con el mismo dibujo — que se lee
+   * como un error de la app, no como dos misiones.
+   *
+   * Se toma la primera de cada objetivo. Como el montón viene barajado, cuál
+   * sea la elegida es distinto cada día. */
+  const tomar = (de: MissionTemplate[], cuantas: number, ya: Set<ObjectiveType>) => {
+    const out: MissionTemplate[] = []
+    for (const m of de) {
+      if (out.length >= cuantas) break
+      if (ya.has(m.objectiveType)) continue
+      ya.add(m.objectiveType)
+      out.push(m)
+    }
+    return out
+  }
 
-  return [...piso, ...pool.slice(0, Math.max(0, total - piso.length))]
+  const usados = new Set<ObjectiveType>()
+  const piso = tomar(faciles, Math.min(minFaciles, total), usados)
+  const pool = barajar([...faciles.slice(piso.length), ...resto], rng)
+  const relleno = tomar(pool, total - piso.length, usados)
+
+  /* Si por el filtro no se llenaron las ranuras —pasa si el montón tiene menos
+   * objetivos distintos que ranuras— se completa permitiendo repetir. Preferir
+   * una lista corta a una con repetidos sería castigar al que juega por una
+   * regla de presentación. */
+  const salida = [...piso, ...relleno]
+  if (salida.length < total) {
+    const puestos = new Set(salida.map(m => m.id))
+    for (const m of [...faciles, ...resto]) {
+      if (salida.length >= total) break
+      if (!puestos.has(m.id)) { puestos.add(m.id); salida.push(m) }
+    }
+  }
+  return salida
 }
 
 
