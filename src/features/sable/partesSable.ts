@@ -262,6 +262,59 @@ export function colorDeHoja(id: string): ColorHoja {
   return COLORES[id] ?? COLORES[POR_DEFECTO.color]
 }
 
+/**
+ * El perfil de UNA pieza sola, por tipo e id.
+ *
+ * Lo usan las miniaturas de las tarjetas. Cae al de fábrica ante un id
+ * desconocido, por lo mismo que `perfilDeSable`: los ids vienen de la base y un
+ * deploy viejo puede no conocer una pieza nueva (§2g).
+ */
+export function perfilDePieza(tipo: 'emisor' | 'cuerpo' | 'pomo', id: string): { puntos: Punto[]; alto: number } {
+  const tabla = tipo === 'emisor' ? EMISORES : tipo === 'cuerpo' ? CUERPOS : POMOS
+  const porDefecto = tipo === 'emisor' ? POR_DEFECTO.emisor
+    : tipo === 'cuerpo' ? POR_DEFECTO.cuerpo : POR_DEFECTO.pomo
+  const p = tabla[id] ?? tabla[porDefecto]
+  let techo = -Infinity
+  const puntos = p.puntos(p.alto).map(([r, y]) => {
+    const alt = Math.max(y, techo); techo = alt
+    return [r, alt] as Punto
+  })
+  return { puntos, alto: p.alto }
+}
+
+/**
+ * La SILUETA de una pieza como `path` de SVG, para la miniatura de su tarjeta.
+ *
+ * ── Por qué no se dibuja aparte ───────────────────────────────────────
+ *
+ * El perfil de torneado ES el contorno: una pieza girada 360° se ve, de lado,
+ * exactamente como su perfil espejado. Así que la miniatura sale del MISMO dato
+ * que la malla 3D, y no hay forma de que se separen — que es justo lo que pasa
+ * cuando alguien dibuja «un iconito parecido» al lado (§2y, la tarjeta que se
+ * fue separando de sí misma).
+ *
+ * Se recorre el perfil por un lado, se cierra arriba y se vuelve por el espejo.
+ * El resultado está en un cuadro de `ancho` × `alto` con el eje al medio.
+ */
+export function siluetaDePieza(
+  tipo: 'emisor' | 'cuerpo' | 'pomo', id: string, ancho = 40, alto = 64,
+): string {
+  const { puntos, alto: h } = perfilDePieza(tipo, id)
+  const rMax = Math.max(...puntos.map(([r]) => r)) || 1
+  // Margen para que el trazo no quede pegado al borde de la caja.
+  const escalaX = (ancho / 2 - 1.5) / rMax
+  const escalaY = (alto - 3) / h
+  const cx = ancho / 2
+  // El SVG crece hacia abajo y el perfil hacia arriba: se invierte la Y o la
+  // pieza sale de cabeza.
+  const px = (r: number) => (cx + r * escalaX).toFixed(2)
+  const py = (y: number) => (alto - 1.5 - y * escalaY).toFixed(2)
+
+  const ida = puntos.map(([r, y]) => `${px(r)} ${py(y)}`)
+  const vuelta = [...puntos].reverse().map(([r, y]) => `${px(-r)} ${py(y)}`)
+  return `M ${ida.join(' L ')} L ${vuelta.join(' L ')} Z`
+}
+
 /** Una pieza suelta, para la vista explotada. */
 export interface PiezaSuelta {
   clave: 'pomo' | 'cuerpo' | 'emisor'

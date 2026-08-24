@@ -11,6 +11,8 @@
 import { useState } from 'react'
 import { BarraStats } from './BarraStats'
 import { PiezaTarjeta } from './PiezaTarjeta'
+import { MiniaturaPieza } from './MiniaturaPieza'
+import { IDS_CONOCIDOS } from './partesSable'
 import { PASOS, sumarStats, deltaDe, type Paso } from './kyber'
 import type { ParteTaller } from '../../services/sableService'
 
@@ -60,6 +62,26 @@ export function BancoKyber() {
         <h2 className="mb-2 text-[11px] font-black uppercase tracking-widest text-swu-muted">La barra de stats</h2>
         <BarraStats stats={stats} />
         <p className="mt-1 text-[11px] text-swu-muted">Suma de las cuatro piezas puestas: {stats.potencia} / {stats.control} / {stats.energia}.</p>
+      </section>
+
+      <section>
+        <h2 className="mb-2 text-[11px] font-black uppercase tracking-widest text-swu-muted">
+          Miniaturas: la silueta REAL de cada pieza
+        </h2>
+        <div className="flex flex-wrap items-end gap-4 rounded-xl border border-swu-border bg-swu-surface p-4">
+          {(['emisor', 'cuerpo', 'pomo'] as const).flatMap(tipo =>
+            IDS_CONOCIDOS[tipo].map(id => (
+              <div key={id} className="flex flex-col items-center gap-1">
+                <MiniaturaPieza tipo={tipo} id={id} size={56} />
+                <span className="font-mono text-[9px] text-swu-muted">{id.replace(/^[a-z]+_/, '')}</span>
+              </div>
+            )),
+          )}
+        </div>
+        <p className="mt-1.5 text-[11px] text-swu-muted">
+          Salen del MISMO perfil que la malla 3D: si dos se ven iguales acá, se
+          ven iguales en el sable.
+        </p>
       </section>
 
       <section>

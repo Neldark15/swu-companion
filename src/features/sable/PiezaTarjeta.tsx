@@ -17,6 +17,7 @@
 
 import { Check, Lock } from 'lucide-react'
 import { CreditoIcon } from '../../components/icons/CreditoIcon'
+import { MiniaturaPieza } from './MiniaturaPieza'
 import { rarezaDe, type Stats } from './kyber'
 import type { ParteTaller } from '../../services/sableService'
 
@@ -54,9 +55,17 @@ export function PiezaTarjeta({ parte, puesta, delta, ocupado, alElegir }: Props)
           : !parte.tengo && <Lock size={13} className="shrink-0 text-swu-muted" />}
       </div>
 
-      <span className="truncate text-[13px] font-black tracking-tight text-swu-text">
-        {parte.nombre}
-      </span>
+      {/* La miniatura sale del MISMO perfil que la malla 3D, así que no puede
+          separarse del sable. Los cristales no la llevan: un cristal no es una
+          pieza torneada y su identidad es el COLOR, que ya se ve en la hoja. */}
+      <div className="flex items-center gap-2">
+        {parte.tipo !== 'color' && (
+          <MiniaturaPieza tipo={parte.tipo} id={parte.id} size={44} />
+        )}
+        <span className="min-w-0 flex-1 truncate text-[13px] font-black tracking-tight text-swu-text">
+          {parte.nombre}
+        </span>
+      </div>
 
       {/* El pie dice UNA cosa según el estado. Tres estados, tres frases. */}
       {puesta ? (
