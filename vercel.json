@@ -25,6 +25,10 @@
     {
       "path": "/api/vencer-pedidos",
       "schedule": "17 13 * * *"
+    },
+    {
+      "path": "/api/transmision-avisar",
+      "schedule": "*/5 * * * *"
     }
   ],
   "functions": {

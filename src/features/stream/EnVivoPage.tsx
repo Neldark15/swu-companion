@@ -26,6 +26,7 @@ import {
 } from '../../types/stream'
 import { leerOverlay, suscribirOverlay } from '../../services/streamOverlay'
 import { imgCarta } from '../../services/streamCartas'
+import { TransmisionDestacada } from './TransmisionDestacada'
 
 /** Mismo código que usa el estudio y el overlay. */
 const CODIGO = 'SV01'
@@ -89,6 +90,15 @@ export function EnVivoPage() {
         </span>
         <h1 className="text-lg font-black tracking-tight">Transmisión</h1>
       </header>
+
+      {/* ── La transmisión DESTACADA ──
+          Un directo de fuera (el «Meta Check-In» de Fantasy Flight, por
+          ejemplo), con su cuenta atrás. Va ARRIBA de la nuestra a propósito:
+          cuando la nuestra está fuera del aire —que es casi siempre, porque
+          solo transmitimos en torneos— esta pantalla no tenía nada que
+          enseñar, y ahora sí. Se esconde sola cuando no hay ninguna a la
+          vista, así que en día de torneo no le roba el sitio al marcador. */}
+      <TransmisionDestacada />
 
       {/* ── El video ── */}
       {hayTransmision ? (
