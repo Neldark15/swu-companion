@@ -26,6 +26,7 @@ import { useNavigate } from 'react-router-dom'
 import { UserPlus, X } from 'lucide-react'
 import { Sheet } from '../../components/ui/Sheet'
 import { useAuth } from '../../hooks/useAuth'
+import { useSettings } from '../../hooks/useSettings'
 import { supabase, isSupabaseReady } from '../../services/supabase'
 import { getPersonalizacion, type Personalizacion } from '../../services/profileCustomService'
 import {
@@ -48,6 +49,12 @@ export function AvisoPerfil() {
   const [abierto, setAbierto] = useState(false)
   const [oculto, setOculto] = useState(() => avisoSilenciado())
   const [recarga, setRecarga] = useState(0)
+
+  // La credencial NO vive en columnas: tema, emblema y apodo están en el JSON
+  // de `settings`, que en el aparato es este store.
+  const credTema = useSettings(s => s.credencialTema)
+  const credEmblema = useSettings(s => s.credencialEmblema)
+  const credApodo = useSettings(s => s.credencialApodo)
 
   useEffect(() => {
     if (!miId || !isSupabaseReady()) return
@@ -72,6 +79,17 @@ export function AvisoPerfil() {
     pais: currentProfile?.country,
     bio,
     personalizacion: perso,
+    /* Se compara contra los VALORES POR DEFECTO (`jedi` / `jedi-order` / vacío),
+       no contra cadena vacía: el store siempre tiene un valor, así que «tiene
+       tema» es cierto para todo el mundo desde el primer arranque y el pedido
+       nunca se activaría. Alcanza con que UNA de las tres se haya movido.
+
+       Efecto lateral asumido: quien elija a propósito el tema Jedi y nada más
+       cuenta como «no elegido». Se prefiere ese falso negativo —que a lo sumo
+       enseña la tarjeta una vez más y se descarta— antes que dar por
+       personalizada la credencial de quien nunca la tocó. */
+    credencialElegida:
+      credTema !== 'jedi' || credEmblema !== 'jedi-order' || credApodo.trim() !== '',
   })
 
   // Silenciado, completo, o todavía sin datos → no se dibuja nada.

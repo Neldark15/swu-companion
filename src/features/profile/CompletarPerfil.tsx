@@ -18,7 +18,7 @@
 
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, ChevronRight, Globe2, Sparkles, Orbit, PenLine, ImageIcon } from 'lucide-react'
+import { Check, ChevronRight, Globe2, Sparkles, Orbit, PenLine, ImageIcon, IdCard } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase, isSupabaseReady } from '../../services/supabase'
@@ -44,6 +44,7 @@ const ICONO: Record<Faltante, React.ReactNode> = {
   planeta: <Orbit size={16} />,
   bio: <PenLine size={16} />,
   cartas: <ImageIcon size={16} />,
+  credencial: <IdCard size={16} />,
 }
 
 export function CompletarPerfil({ faltantes, personalizacion, onCerrar, onGuardado }: Props) {
@@ -51,11 +52,14 @@ export function CompletarPerfil({ faltantes, personalizacion, onCerrar, onGuarda
   const navigate = useNavigate()
   const miId = auth.supabaseUser?.id ?? ''
 
-  // Solo los pasos que el asistente sabe resolver. `cartas` (portada o vitrina)
-  // necesita el buscador de cartas y vive en su pantalla; empujarlo acá sería
-  // meter media pantalla de Explorar dentro de una hoja.
+  // Solo los pasos que el asistente sabe resolver. El reparto sale de
+  // `enElAsistente` del catálogo y ya NO de una lista de nombres cableada acá:
+  // con el nombre a mano, agregar un pedido nuevo lo mandaba en silencio al
+  // asistente —que no sabe resolverlo— y el paso salía en blanco.
+  // `cartas` necesita el buscador y `credencial` su propia pantalla; meter
+  // cualquiera de las dos en una hoja sería duplicar media app.
   const pasos = useMemo(
-    () => ORDEN.filter(f => faltantes.includes(f) && f !== 'cartas'),
+    () => ORDEN.filter(f => faltantes.includes(f) && CATALOGO[f].enElAsistente),
     [faltantes],
   )
 
@@ -63,7 +67,7 @@ export function CompletarPerfil({ faltantes, personalizacion, onCerrar, onGuarda
   // asistente lo saltaba y, si era lo único que quedaba, decía «ya está listo» —
   // que era FALSO y dejaba al usuario sin saber qué le faltaba ni cómo hacerlo.
   const pendientesFuera = useMemo(
-    () => faltantes.filter(f => f === 'cartas'),
+    () => ORDEN.filter(f => faltantes.includes(f) && !CATALOGO[f].enElAsistente),
     [faltantes],
   )
 
@@ -127,25 +131,39 @@ export function CompletarPerfil({ faltantes, personalizacion, onCerrar, onGuarda
           <div>
             <p className="text-[15px] font-black tracking-tight text-swu-text">Te falta esto</p>
             <p className="mt-0.5 text-[12px] text-swu-muted">
-              Se elige con el buscador de cartas, dentro de tu perfil.
+              Esto se arma en su propia pantalla. Tocá cada uno para ir.
             </p>
           </div>
           <ul className="space-y-2">
+            {/* Cada pendiente lleva a SU pantalla. Antes el ícono estaba
+                cableado a la portada y el único botón mandaba a `/profile`:
+                con dos pendientes distintos, uno de los dos habría llevado al
+                sitio equivocado sin decir nada. */}
             {pendientesFuera.map(f => (
-              <li key={f} className="flex items-start gap-2.5 rounded-xl border border-swu-border bg-swu-surface p-3">
-                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-swu-accent/15 text-swu-accent-texto">
-                  <ImageIcon size={16} />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-[13px] font-bold text-swu-text">{CATALOGO[f].label}</p>
-                  <p className="text-[11px] text-swu-muted">{CATALOGO[f].porque}</p>
-                </div>
+              <li key={f}>
+                <button
+                  onClick={() => { onCerrar(); navigate(CATALOGO[f].ruta ?? '/profile') }}
+                  className="flex w-full items-start gap-2.5 rounded-xl border border-swu-border
+                             bg-swu-surface p-3 text-left transition-transform active:scale-[0.99]"
+                >
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-swu-accent/15 text-swu-accent-texto">
+                    {ICONO[f]}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-bold text-swu-text">{CATALOGO[f].label}</p>
+                    <p className="text-[11px] text-swu-muted">{CATALOGO[f].porque}</p>
+                  </div>
+                  <ChevronRight size={16} className="mt-1 shrink-0 text-swu-muted" />
+                </button>
               </li>
             ))}
           </ul>
           <div className="flex gap-2">
             <Button variant="ghost" block onClick={onCerrar}>Ahora no</Button>
-            <Button variant="primary" block onClick={() => { onCerrar(); navigate('/profile?editar=perfil') }}>
+            <Button
+              variant="primary" block
+              onClick={() => { onCerrar(); navigate(CATALOGO[pendientesFuera[0]].ruta ?? '/profile') }}
+            >
               Ir a personalizar
             </Button>
           </div>

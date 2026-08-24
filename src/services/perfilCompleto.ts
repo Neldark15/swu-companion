@@ -39,10 +39,12 @@ export interface FaltanteInfo {
   porque: string
   /** Se resuelve dentro del asistente, o hay que mandar a otra pantalla. */
   enElAsistente: boolean
+  /** A dónde se manda cuando `enElAsistente` es falso. */
+  ruta?: string
 }
 
 export type Faltante =
-  | 'pais' | 'aspectos' | 'planeta' | 'bio' | 'cartas'
+  | 'pais' | 'aspectos' | 'planeta' | 'bio' | 'cartas' | 'credencial'
 
 /**
  * El catálogo, en el orden en que conviene pedirlo: primero lo que la app usa
@@ -80,17 +82,47 @@ export const CATALOGO: Record<Faltante, Omit<FaltanteInfo, 'id'>> = {
     label: 'Una carta destacada',
     porque: 'Elegí una portada o armá tu vitrina — con cualquiera alcanza.',
     enElAsistente: false,
+    ruta: '/profile?editar=perfil',
+  },
+  /*
+   * La credencial faltaba en esta lista, y era la ausencia más cara.
+   *
+   * Es la pieza de identidad MÁS vista de la app: se dibuja en Inicio, en Mi
+   * Perfil, en Espionaje, en el ranking y en La Galaxia, y encima es la única
+   * que se exporta a PNG y se comparte por fuera (§3b). Aun así el aviso de
+   * «completá tu perfil» pedía bio, planeta y aspectos y NUNCA la mencionaba.
+   *
+   * Se ve en los números (38 perfiles, 2026-08-23): lo que el aviso pide anda
+   * en 14-15 personas —aspectos 15, planeta 14, bio 14— y lo que no pide se
+   * queda atrás: tema de credencial 12, apodo 8, vitrina 0. Pedirlo es la
+   * palanca más barata que hay, porque la pantalla que lo resuelve ya existe
+   * y ya está completa.
+   */
+  credencial: {
+    label: 'El estilo de tu credencial',
+    porque: 'Es la tarjeta que ve el resto y la que se comparte. Elegí tema, emblema y apodo.',
+    enElAsistente: false,
+    ruta: '/credencial',
   },
 }
 
 /** El orden en que se piden. */
-export const ORDEN: Faltante[] = ['pais', 'aspectos', 'planeta', 'bio', 'cartas']
+export const ORDEN: Faltante[] = ['pais', 'aspectos', 'planeta', 'bio', 'cartas', 'credencial']
 
 /** Lo que hace falta saber para decidir. Se arma en la pantalla. */
 export interface EstadoPerfil {
   pais: string | null | undefined
   bio: string | null | undefined
   personalizacion: Personalizacion | null
+  /**
+   * ¿Eligió algo de su credencial? (tema, emblema o apodo).
+   *
+   * Viene de fuera y no de `personalizacion` porque esos tres NO son columnas:
+   * viven en el JSON de `profiles.settings`, que en el aparato es `useSettings`.
+   * Alcanza con UNA de las tres: la idea es saber si la persona pasó por ahí
+   * alguna vez, no obligarla a llenar el formulario entero.
+   */
+  credencialElegida: boolean
 }
 
 export interface Completitud {
@@ -125,6 +157,7 @@ export function calcularCompletitud(e: EstadoPerfil): Completitud {
   if (!e.bio?.trim()) falta.push('bio')
   // «cartas» se cumple con la portada O con al menos una carta en vitrina.
   if (!p.banner_card_id && !p.showcase_cards?.length) falta.push('cartas')
+  if (!e.credencialElegida) falta.push('credencial')
 
   const faltantes = ORDEN.filter(f => falta.includes(f)).map(id => ({ id, ...CATALOGO[id] }))
   const total = ORDEN.length

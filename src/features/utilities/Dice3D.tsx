@@ -200,6 +200,18 @@ export function Dice3D({ valores, tirada, className = '' }: Props) {
         mm.dispose()
       }
       renderer.dispose()
+      // `dispose()` suelta los recursos PERO NO el contexto: el contexto se
+      // libera cuando el navegador quiere, y hasta entonces cuenta contra el
+      // tope (~16 en Chrome). Este panel vive dentro de `{dado.abierto && …}`
+      // en ContadorPage, así que fugaba UNO POR CADA abrir/cerrar, no por
+      // visita — y al llegar al tope Chrome mata los MÁS VIEJOS, que es como
+      // la Galaxia terminaba diciendo «este navegador no puede dibujar en 3D».
+      // Era el único de los cuatro renderers del repo sin esta línea.
+      //
+      // Acá va después de `dispose()` y sin más cuidado porque este archivo NO
+      // engancha `webglcontextlost`; donde sí lo hay (§2s) tiene que ir DESPUÉS
+      // de quitar el listener, o la pérdida provocada dispara el fallback.
+      renderer.forceContextLoss()
       renderer.domElement.remove()
     }
   }, [])

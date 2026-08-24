@@ -242,6 +242,21 @@ interface Cuerpo {
 interface Mando {
   seleccionar: (id: string | null) => void
   encuadrar: (todo: boolean) => void
+  /**
+   * Aplica una lente SIN reconstruir la escena.
+   *
+   * Cambiar de lente solo mueve dos números por planeta —`orbita` y
+   * `magnitud`— pero `conLente` devuelve arreglos nuevos, y con `sistemas` en
+   * las dependencias del efecto de montaje eso disparaba la limpieza completa:
+   * `forceContextLoss()`, contexto nuevo, las dos texturas de canvas otra vez,
+   * y three recompilando y enlazando los ~6 programas. `glLinkProgram` es
+   * SÍNCRONO: en un Adreno/Mali de gama media son decenas de ms por programa,
+   * con el hilo principal parado. Ese era el congelón al tocar una pestaña.
+   *
+   * Acá no se toca ni un shader: se reescriben los campos derivados de la
+   * lente sobre los MISMOS `cuerpos` y se vuelve a colocar.
+   */
+  reacomodar: (sistemas: SistemaSolar[]) => void
 }
 
 interface Props {
@@ -279,6 +294,34 @@ export function GalaxiaEscena({
   // `sistemas`, que ya viene memoizado de la pantalla: si se recalculara en
   // cada render, el efecto de montaje se dispararía en cada toque.
   const planetas = useMemo(() => sistemas.flatMap(s => s.planetas), [sistemas])
+
+  /**
+   * Qué obliga a RECONSTRUIR la escena, que no es lo mismo que «cambió algo».
+   *
+   * `conLente` devuelve arreglos nuevos en cada toque de pestaña, así que
+   * `sistemas` como dependencia significaba reconstruir —y recompilar los
+   * shaders— cuatro veces por curiosear. Pero la lente solo mueve `orbita` y
+   * `magnitud`, y eso se reescribe en caliente (ver `reacomodar`).
+   *
+   * Lo que sí exige empezar de cero es lo que se hornea UNA vez al construir:
+   * cuántas instancias hay, qué jugador ocupa cada índice, el color por
+   * instancia (`nivel`), cuántas lunas cuelgan de cada planeta (`logros`), el
+   * texto de cada rótulo y quién es «yo». Por eso van todos en la clave.
+   *
+   * Los planetas se ordenan POR ID antes de serializar: si se dejaran en el
+   * orden de la lente, la clave cambiaría con cada pestaña y no habríamos
+   * arreglado nada.
+   */
+  const claveEstructural = useMemo(
+    () => sistemas.map(s =>
+      `${s.nombre}|${s.bandera}|${s.planetas.length}|` +
+      s.planetas
+        .map(p => `${p.id}:${p.nivel}:${p.logros}:${p.esYo ? 1 : 0}:${p.nombre}`)
+        .sort()
+        .join(','),
+    ).join(';'),
+    [sistemas],
+  )
 
   const cajaRef = useRef<HTMLDivElement>(null)
   const etiquetaYoRef = useRef<HTMLDivElement>(null)
@@ -532,7 +575,14 @@ export function GalaxiaEscena({
     // chico. TODAS las lunas de TODOS los planetas van en UN InstancedMesh:
     // una llamada de dibujo, igual que los planetas. Las matrices se
     // actualizan por cuadro (son ~80 con 20 jugadores; la Mesa mueve más).
-    interface Luna { planeta: number; rLocal: number; vel: number; fase: number; inclinacion: number }
+    /**
+     * `desfase` y no `rLocal`: la distancia de la luna a su planeta se DERIVA
+     * del radio del planeta en cada cuadro, en vez de copiarse al construir.
+     * Como la lente cambia el radio (`magnitud`), un `rLocal` copiado quedaba
+     * viejo en cuanto el planeta cambiaba de tamaño y las lunas se metían
+     * dentro de la bola o se despegaban. Derivado no puede quedar viejo.
+     */
+    interface Luna { planeta: number; desfase: number; vel: number; fase: number; inclinacion: number }
     const lunas: Luna[] = []
     planetas.forEach((p, i) => {
       const n = Math.min(9, Math.max(0, p.logros))
@@ -540,7 +590,7 @@ export function GalaxiaEscena({
         lunas.push({
           planeta: i,
           // Escalonadas en dos pisos para que 9 no se pisen entre sí.
-          rLocal: cuerpos[i].radio + 0.34 + (m % 2) * 0.17,
+          desfase: 0.34 + (m % 2) * 0.17,
           // Cada una a su ritmo, y más rápido que los planetas: son chicas y
           // el movimiento es lo único que las separa visualmente del fondo.
           vel: 0.65 + (m * 0.11) % 0.5,
@@ -771,11 +821,14 @@ export function GalaxiaEscena({
           const l = lunas[i]
           const c = cuerpos[l.planeta]
           const a = l.fase + tiempo * l.vel
+          // Derivado del radio VIGENTE del planeta: al cambiar de lente el
+          // planeta cambia de tamaño y la luna lo sigue sin que nadie la toque.
+          const rLocal = c.radio + l.desfase
           matriz.identity()
           matriz.setPosition(
-            c.x + Math.cos(a) * l.rLocal,
-            Math.sin(a) * l.rLocal * Math.sin(l.inclinacion),
-            c.z + Math.sin(a) * l.rLocal * Math.cos(l.inclinacion),
+            c.x + Math.cos(a) * rLocal,
+            Math.sin(a) * rLocal * Math.sin(l.inclinacion),
+            c.z + Math.sin(a) * rLocal * Math.cos(l.inclinacion),
           )
           mallaLunas.setMatrixAt(i, matriz)
         }
@@ -900,7 +953,16 @@ export function GalaxiaEscena({
       if (animando) return
       animando = true
       ultimo = 0
-      bucle()
+      // Se PROGRAMA el primer cuadro, no se pinta acá. Llamando `bucle()`
+      // directo, el `render()` —con su compilación de shaders— caía dentro de
+      // quien llamó a `arrancar()`, que puede ser el efecto de montaje.
+      // Un cuadro de rAF después el navegador ya pintó el resto de la pantalla.
+      //
+      // Y se cancela el cuadro suelto pendiente: `ajustar()` deja uno agendado
+      // al montar, así que sin esto el arranque pintaba dos veces.
+      cancelAnimationFrame(rafSuelto)
+      sueltoPendiente = false
+      rafBucle = requestAnimationFrame(bucle)
     }
 
     function parar(): void {
@@ -1147,6 +1209,28 @@ export function GalaxiaEscena({
     colocar()
     colocarCamara()
     recolocar = false
+
+    /* El primer DIBUJO se difiere un cuadro; el resto no.
+     *
+     * `colocar()` y `colocarCamara()` de arriba siguen síncronos a propósito:
+     * si no, un toque anterior al primer cuadro proyectaría con la matriz vieja
+     * y seleccionaría el planeta equivocado EN SILENCIO.
+     *
+     * Lo que se saca del efecto es el `render()`, que es donde three compila y
+     * ENLAZA los ~6 programas — `glLinkProgram` es síncrono y en una GPU móvil
+     * de gama media son decenas de ms por programa. Corriendo dentro del efecto
+     * bloquea el montaje entero; en un rAF el navegador ya pintó el resto de la
+     * pantalla antes de tragarse la compilación. Lo hace `arrancar()`.
+     *
+     * SE PROBÓ `renderer.compileAsync()` Y NO SE PUEDE USAR ACÁ. Revienta con
+     * esta escena: su `checkMaterialsReady` lee
+     * `properties.get(material).currentProgram` y llama `program.isReady()`
+     * sobre un `undefined` (three 0.185.1, three.module.js:17497). Y el error no
+     * se puede atrapar —lo tira desde su propio `setTimeout`, fuera de la
+     * promesa— así que ni un `.catch()` lo contiene: queda un error rojo en
+     * consola y la promesa NUNCA resuelve. Verificado en `/banco-galaxia`. Si
+     * alguna vez se reintenta, hay que comprobarlo ahí primero.
+     */
     reevaluar()
     pedirCuadro()
 
@@ -1161,6 +1245,52 @@ export function GalaxiaEscena({
         pedirCuadro()
       },
       encuadrar: (todo: boolean) => { encuadrar(todo); pedirCuadro() },
+
+      reacomodar: (nuevos) => {
+        /* SE EMPAREJA POR ID, NUNCA POR ÍNDICE.
+           `conLente` REORDENA `s.planetas`, pero el color por instancia
+           (`setColorAt`, hecho una vez al construir) y el reparto de lunas
+           (`planeta: i`) se hornearon con el orden ORIGINAL. Recorrer `cuerpos`
+           por índice y escribir encima le pondría a cada instancia los datos de
+           otro jugador: los planetas quedarían pintados con el rango de un
+           vecino y el de 9 logros mostraría 3 lunas. Emparejando por id, el
+           mapeo índice↔jugador no se toca y las dos cosas siguen correctas
+           gratis. */
+        const porId = new Map<string, { orbita: number; magnitud: number }>()
+        for (const s of nuevos) {
+          for (const p of s.planetas) porId.set(p.id, { orbita: p.orbita, magnitud: p.magnitud })
+        }
+
+        let cambio = false
+        for (const c of cuerpos) {
+          const n = porId.get(c.id)
+          if (!n) continue
+          const { k, hueco, cupo } = acomodo(n.orbita)
+          const radio = radioPlaneta(n.magnitud)
+          const rOrbita = radioAnillo(k)
+          const angBase = (hueco / cupo) * Math.PI * 2 + k * AUREO
+          const velocidad = velocidadAnillo(k)
+          if (c.radio !== radio || c.rOrbita !== rOrbita ||
+              c.angBase !== angBase || c.velocidad !== velocidad) {
+            c.radio = radio
+            c.rOrbita = rOrbita
+            c.angBase = angBase
+            c.velocidad = velocidad
+            cambio = true
+          }
+        }
+        // Sin cambio no se pide cuadro: este mando también corre al montar,
+        // justo después de que el efecto construyó con estos mismos valores.
+        if (!cambio) return
+
+        /* Los anillos NO se rehacen, y no es un descuido: la lente es una
+           PERMUTACIÓN —reasigna `orbita = i` dentro de cada sistema—, así que
+           el conjunto de órbitas por sistema es idéntico y `acomodo()` produce
+           los mismos anillos. `kMax`, el búfer de `geoOrbitas`, la opacidad de
+           las órbitas y `gajos` son invariantes entre lentes. */
+        colocar()
+        pedirCuadro()
+      },
     }
 
     return () => {
@@ -1220,13 +1350,34 @@ export function GalaxiaEscena({
       renderer.domElement.remove()
       miId = null
     }
-  }, [sistemas, planetas])
+    /* La dependencia es la CLAVE, no `sistemas`.
+       `sistemas` cambia de identidad en cada toque de lente (`conLente` hace
+       `.map()`), y tenerlo acá significaba reconstruir la escena entera cuatro
+       veces por curiosear: contexto nuevo, texturas resubidas y three
+       recompilando los ~6 programas con `glLinkProgram` SÍNCRONO. Ese era el
+       congelón. La clave solo cambia cuando de verdad hay que rehornear algo
+       (quién está, su nivel, sus logros, su nombre); la lente va por
+       `reacomodar`.
+
+       El cuerpo sigue leyendo `sistemas`/`planetas` de la closure y es
+       correcto: React crea esta closure en el render en que la clave cambió,
+       así que trae los valores de ESE render. Cuando la clave no cambia, el
+       efecto no corre y los datos vigentes entran por `reacomodar`. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claveEstructural])
 
   // La selección la manda la pantalla: se le pasa a la escena por el mando en
   // vez de reconstruirla, que costaría recompilar shaders en cada toque.
   useEffect(() => {
     mandoRef.current?.seleccionar(seleccion)
   }, [seleccion])
+
+  // Y la lente, igual: por el mando. Va DESPUÉS del efecto de montaje —React
+  // los corre en orden de declaración— así que en un cambio estructural el
+  // mando ya existe cuando esto llama.
+  useEffect(() => {
+    mandoRef.current?.reacomodar(sistemas)
+  }, [sistemas])
 
   useEffect(() => {
     mandoRef.current?.encuadrar(amplitud === 'galaxia')

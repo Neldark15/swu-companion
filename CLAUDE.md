@@ -2340,3 +2340,97 @@ avisó «0 placas medidas, este resultado no dice nada» en vez de dar verde.
 **Trampa del banco:** con la pestaña del navegador en segundo plano
 `window.innerWidth` es **0** y todas las placas miden 0 — el detector dice que
 no midió nada y parece un bug del código. Hay que traer la pestaña al frente.
+
+### 3y. La Galaxia trababa por RECOMPILAR shaders, no por memoria
+
+Reporte de Nel: «traba algunos celulares con menos memoria, pero no le quités
+calidad». Medido antes de tocar nada: la escena es **diminuta** —4 soles (SV 28,
+ES 5, MX 1, AR 1), ~35 planetas de 20 gajos, 620 estrellas y dos texturas de 32²
+y 128²—. El búfer de dibujo son ~2,2 MB. **La memoria de GPU no era el cuello.**
+
+Eran dos cosas distintas, y ninguna es «menos memoria»:
+
+- **`Dice3D` fugaba un contexto WebGL por cada apertura.** Era el ÚNICO de los
+  cuatro renderers del repo sin `forceContextLoss()` — y `dispose()` NO suelta el
+  contexto. El panel vive dentro de `{dado.abierto && …}` en `ContadorPage`, así
+  que fugaba por cada abrir/cerrar, no por visita. Chrome corta a los 16 y mata
+  **los más viejos**: por eso la Galaxia terminaba en el fallback «este navegador
+  no puede dibujar en 3D». Eso no la trababa, la **mataba**.
+- **Tocar una lente reconstruía la escena entera.** `conLente` hace `.map()`, así
+  que `sistemas` cambia de identidad en cada toque, y estaba en las dependencias
+  del efecto de montaje: limpieza completa, contexto nuevo, texturas resubidas y
+  three recompilando y ENLAZANDO los ~6 programas. `glLinkProgram` es **síncrono**
+  —decenas de ms por programa en un Adreno/Mali— con el hilo principal parado.
+  Las cuatro pestañas están pegadas encima del lienzo.
+
+**La dependencia es ahora una CLAVE ESTRUCTURAL** (quién está, su nivel, sus
+logros, su nombre; los planetas ordenados **por id** antes de serializar, o la
+clave cambiaría con cada lente y no se arreglaría nada). La lente entra por
+`mando.reacomodar()`.
+
+**Y ahí la regla que no se puede relajar: `reacomodar` empareja por ID, NUNCA por
+índice.** `conLente` REORDENA `s.planetas`, pero el color por instancia
+(`setColorAt`, una vez al construir) y el reparto de lunas (`planeta: i`) se
+hornean con el orden original. Por índice, cada planeta quedaría pintado con el
+rango de un vecino y el de 9 logros mostraría 3 lunas — sin un solo error.
+
+Los anillos NO se rehacen a propósito: la lente es una **permutación** (reasigna
+`orbita = i` dentro de cada sistema), así que `kMax`, el búfer de `geoOrbitas`,
+la opacidad y `gajos` son invariantes entre lentes.
+
+**Las lunas guardan `desfase`, no `rLocal`.** La distancia se deriva del radio
+VIGENTE del planeta en cada cuadro. Copiada al construir quedaba vieja en cuanto
+la lente cambiaba el tamaño, y las lunas se metían dentro de la bola.
+
+**`renderer.compileAsync()` NO SE PUEDE USAR ACÁ.** Revienta con esta escena:
+`checkMaterialsReady` lee `properties.get(material).currentProgram` y llama
+`program.isReady()` sobre un `undefined` (three 0.185.1, three.module.js:17497).
+Y **el error no se puede atrapar** —three lo tira desde su propio `setTimeout`,
+fuera de la promesa— así que ni un `.catch()` lo contiene: queda error rojo en
+consola y la promesa nunca resuelve. Se probó, se verificó en `/banco-galaxia` y
+se echó para atrás. Lo que sí queda es que `arrancar()` **programa** el primer
+cuadro en vez de pintarlo síncrono dentro del efecto.
+
+**Trampa al verificar en el banco:** leer `document.querySelector('canvas')` en
+el MISMO tick del `.click()` da un falso positivo — React todavía no re-renderizó.
+Hay que separar el clic y la lectura en dos llamadas. Con la medición bien hecha:
+cambiar de lente conserva el lienzo, y cambiar de 5 a 2 soles lo reemplaza (que
+es lo correcto: eso sí es estructural).
+
+**Lo que NO se hizo y por qué:** bajar el ritmo a 30 Hz en reposo tiene costo
+visual y su premisa está razonada, no medida. Y estos arreglos atacan tirones
+**discretos** (entrar, tocar una lente, morir); si algún teléfono va entrecortado
+de forma continua, hace falta una grabación de 20 s del panel Performance en ESE
+teléfono antes de tocar nada más.
+
+### 3z. El aviso de «completá tu perfil» no pedía la credencial
+
+La credencial es la pieza de identidad más vista de la app —Inicio, Mi Perfil,
+Espionaje, el ranking y La Galaxia— y la única que se exporta a PNG y se comparte
+por fuera (§3b). El catálogo de `perfilCompleto.ts` pedía país, aspectos, planeta,
+bio y una carta destacada, y **nunca la mencionaba**.
+
+Se ve en los números (38 perfiles, 2026-08-23): lo que el aviso pide ronda las
+14-15 personas (aspectos 15, planeta 14, bio 14) y lo que no pide se queda atrás
+(tema de credencial 12, apodo 8, **vitrina 0**).
+
+**`credencialElegida` viene de FUERA y no de `personalizacion`**: tema, emblema y
+apodo no son columnas, viven en el JSON de `settings` (en el aparato,
+`useSettings`). Y se compara contra los VALORES POR DEFECTO (`jedi`,
+`jedi-order`, vacío), no contra cadena vacía: el store siempre tiene valor, así
+que «tiene tema» sería cierto para todos desde el primer arranque.
+
+**El reparto asistente / fuera del asistente estaba cableado POR NOMBRE**
+(`f !== 'cartas'`). Un pedido nuevo caía por descarte dentro del asistente —que
+no sabe resolverlo— y el paso salía en blanco. Ahora sale de `enElAsistente`, y
+todo lo que no está en el asistente lleva su propia `ruta`: el botón mandaba
+siempre a `/profile`, y con dos pendientes distintos uno habría ido al sitio
+equivocado sin decir nada. Probado en `scripts/perfil-completo.test.mts`.
+
+**PERO EL NÚMERO QUE IMPORTA ES OTRO, Y CONVIENE NO OLVIDARLO:** los **19 de 38**
+perfiles sin ninguna personalización tienen también **0 cartas registradas y 0
+sobres abiertos**, y 14 de ellos 0 XP. Reciben su sobre diario todos los días y
+ninguno lo abrió nunca. No es que la personalización esté escondida para quien
+juega —de los activos, casi todos personalizaron—: es que **la mitad de la
+comunidad nunca arrancó**. Ese es un problema distinto y más grande, y no lo
+resuelve un aviso.
