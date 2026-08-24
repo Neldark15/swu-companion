@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
+import { InsigniaSobres } from '../ui/InsigniaSobres'
 import {
   EmpireIcon,
   HelmetIcon,
@@ -111,6 +112,9 @@ export function SideNav() {
           <div className={`text-sm font-semibold truncate ${active ? 'text-swu-accent-texto' : ''}`}>{item.label}</div>
           <div className="text-[10px] text-swu-muted font-mono tracking-wider truncate">{item.sub}</div>
         </div>
+        {/* La insignia solo en Sobredosis: es el único módulo que acumula algo
+            que se pierde de vista. Ponerla en más sitios la volvería decoración. */}
+        {item.id === '/sobres' && <InsigniaSobres className="flex-shrink-0" />}
         {active && <div className="w-1 h-6 rounded-full bg-swu-accent flex-shrink-0" />}
       </button>
     )

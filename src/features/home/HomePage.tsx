@@ -40,6 +40,7 @@ import { ProximosEventos } from './ProximosEventos'
 import { AvisoPerfil } from '../profile/AvisoPerfil'
 import { AvisoUbicacion } from '../profile/AvisoUbicacion'
 import { AvisoSobreDiario } from '../sobres/AvisoSobreDiario'
+import { SobresAcumulados } from '../sobres/SobresAcumulados'
 import { AvisoMensajes } from '../mensajes/AvisoMensajes'
 import { AvisoEncuesta } from '../encuesta/AvisoEncuesta'
 import { MisionesDeHoy } from '../missions/MisionesDeHoy'
@@ -332,6 +333,11 @@ export function HomePage() {
       <AvisoEncuesta userId={miIdAuth} />
       <AvisoMensajes userId={miIdAuth} />
       <AvisoSobreDiario userId={miIdAuth} />
+      {/* Y DESPUÉS, lo acumulado. Son dos cosas distintas: el de arriba avisa
+          que hoy cayó uno —una novedad, que se agota al leerla y por eso se
+          calla— y este dice cuántos tenés guardados, que es un estado y no se
+          agota. No se puede descartar: se va solo cuando abrís. */}
+      <SobresAcumulados />
       {/* Va DESPUÉS del sobre: el sobre es de lo que hay que enterarse,
           las misiones son lo que se puede hacer con eso. Y una de ellas
           es justamente abrirlo. */}

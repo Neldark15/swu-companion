@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useSobres, olvidarSaldoSobres } from './useSobres'
 import { diaCalendarioSV } from '../services/horaSV'
 import { updateMissionProgress } from '../services/missionService'
 import { persist } from 'zustand/middleware'
@@ -185,6 +186,7 @@ export const useAuth = create<AuthState>()(
 
           pullAllFromCloud(user.id, profile.id).catch(() => {})
           void contarVisita(user.id, profile.id)
+          void useSobres.getState().cargar(user.id)
         }
 
         try {
@@ -461,6 +463,7 @@ export const useAuth = create<AuthState>()(
         // Pull all data from cloud in background
         pullAllFromCloud(user.id, profile.id).catch(() => {})
         void contarVisita(user.id, profile.id)
+        void useSobres.getState().cargar(user.id)
 
         return { ok: true }
       },
@@ -589,6 +592,9 @@ export const useAuth = create<AuthState>()(
         // Sin esto, volver a entrar con la misma cuenta sin recargar se saltaría
         // el trabajo pesado (Dexie + rol + pull) por creerlo ya hecho.
         usuarioAplicado = null
+        // El saldo de sobres no es de nadie hasta que alguien entre: sin esto,
+        // la insignia seguiría mostrando los sobres de la cuenta anterior.
+        olvidarSaldoSobres()
         set({ currentProfile: null, currentProfileId: null, supabaseUser: null, role: 'user', isAdmin: false, esAutorBlog: false, isRecoveryMode: false, rolListo: false })
       },
 

@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
+import { InsigniaSobres } from '../ui/InsigniaSobres'
 import { type LucideIcon } from 'lucide-react'
 import { CargoIcon, BountyIcon, HolonetIcon, BaseIcon } from '../SWIcons'
 import { useT } from '../../services/i18n'
@@ -91,18 +92,32 @@ export function TabBar() {
               {active && (
                 <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-swu-accent" aria-hidden />
               )}
-              {tab.img ? (
-                <img
-                  src={tab.img}
-                  alt=""
-                  aria-hidden
-                  className={`w-[22px] h-[22px] object-contain transition-opacity ${
-                    active ? 'opacity-100 brightness-125' : 'opacity-50'
-                  }`}
-                />
-              ) : tab.icon ? (
-                <tab.icon size={22} strokeWidth={active ? 2.5 : 2} />
-              ) : null}
+              {/* Un PUNTO en Perfil, no una cifra.
+                  Sobredosis vive dentro de Perfil → Más, así que sin esto la
+                  insignia queda a dos toques de distancia: existiría y no se
+                  vería, que es exactamente el problema que vino a arreglar.
+                  Va sin número porque acá no se puede decir de qué es; el
+                  número está donde se puede leer, un nivel más adentro. */}
+              {/* El punto se ancla al ÍCONO, no al botón.
+                  Colgado del botón —que ocupa todo el ancho de la pestaña— el
+                  punto se iba a la esquina superior derecha de la celda y se
+                  leía como una mancha suelta en el borde de la pantalla, no
+                  como una insignia de Perfil. */}
+              <span className="relative inline-flex">
+                {tab.id === '/profile' && <InsigniaSobres forma="punto" />}
+                {tab.img ? (
+                  <img
+                    src={tab.img}
+                    alt=""
+                    aria-hidden
+                    className={`w-[22px] h-[22px] object-contain transition-opacity ${
+                      active ? 'opacity-100 brightness-125' : 'opacity-50'
+                    }`}
+                  />
+                ) : tab.icon ? (
+                  <tab.icon size={22} strokeWidth={active ? 2.5 : 2} />
+                ) : null}
+              </span>
               <span className={`text-[10px] leading-none ${active ? 'font-bold' : 'font-medium'}`}>
                 {t(tab.label, TAB_EN[tab.label] ?? tab.label)}
               </span>

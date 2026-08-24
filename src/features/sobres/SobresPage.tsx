@@ -15,6 +15,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react'
+import { useSobres } from '../../hooks/useSobres'
 import { Link } from 'react-router-dom'
 import { ChevronLeft, Package, Library, Volume2, VolumeX, Trophy } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
@@ -70,6 +71,11 @@ export function SobresPage() {
       ])
       if (!vivo) return
       setSaldo(s)
+      /* Se llama por `getState()` y NO por un selector: la página ya lleva su
+         propio `saldo` en estado, así que suscribirse al store solo agregaría
+         renders — y de paso el selector devuelve una identidad nueva que le
+         rompe la memoización al compilador de React. */
+      useSobres.getState().fijar(s)
       setPiezas(p)
       setTotal(t)
     })()
@@ -95,6 +101,10 @@ export function SobresPage() {
         .then(r => {
           setCartas(r.cartas)
           setSaldo(r.saldo)
+          /* La insignia del menú baja EN EL ACTO, con el número que devolvió
+             el servidor. Una insignia que no baja al hacer justo lo que pide
+             enseña a ignorarla. */
+          useSobres.getState().fijar(r.saldo)
         })
         .catch((e: unknown) => {
           setFallo(e instanceof Error ? e.message : 'No se pudo abrir el sobre')

@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { InsigniaSobres } from '../ui/InsigniaSobres'
 import {
   AgendaIcon,
   AnuncioIcon,
@@ -103,10 +104,13 @@ export function MoreNav() {
     <button
       key={item.to}
       onClick={() => navigate(item.to)}
-      className="flex flex-col items-start gap-1.5 p-3 rounded-xl bg-swu-bg border border-swu-border
+      className="relative flex flex-col items-start gap-1.5 p-3 rounded-xl bg-swu-bg border border-swu-border
                  text-left min-h-20 active:scale-[0.98] transition-transform
                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent"
     >
+      {item.to === '/sobres' && (
+        <InsigniaSobres className="absolute right-2 top-2" />
+      )}
       <item.icon size={20} className="text-swu-muted" />
       <span className="text-xs font-semibold text-swu-text leading-tight">{item.label}</span>
       <span className="text-[10px] text-swu-muted leading-tight">{item.sub}</span>

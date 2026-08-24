@@ -76,6 +76,7 @@ const EspionajePage = lazy(() => import('./features/espionaje/EspionajePage').th
 const SpyProfilePage = lazy(() => import('./features/espionaje/SpyProfilePage').then(m => ({ default: m.SpyProfilePage })))
 const MissionsPage = lazy(() => import('./features/missions/MissionsPage'))
 const BancoIconosMision = lazy(() => import('./features/missions/BancoIconosMision').then(m => ({ default: m.BancoIconosMision })))
+const BancoSaldo = lazy(() => import('./features/sobres/BancoSaldo').then(m => ({ default: m.BancoSaldo })))
 const GalaxyPage = lazy(() => import('./features/galaxy/GalaxyPage').then(m => ({ default: m.GalaxyPage })))
 /* El modo planeta va en su PROPIO chunk perezoso: three ya es compartido, pero
    la geometría del mundo y la escena solo las necesita quien entra. */
@@ -300,6 +301,7 @@ export default function App() {
             {import.meta.env.DEV && <Route path="/banco-iconos" element={<BancoIconos />} />}
             {import.meta.env.DEV && <Route path="/banco-misiones" element={<MissionsPage />} />}
             {import.meta.env.DEV && <Route path="/banco-iconos-mision" element={<BancoIconosMision />} />}
+            {import.meta.env.DEV && <Route path="/banco-saldo" element={<BancoSaldo />} />}
             {import.meta.env.DEV && <Route path="/banco-ubicacion" element={<BancoUbicacion />} />}
             {import.meta.env.DEV && <Route path="/banco-mesa-contador" element={<MesaContador />} />}
             <Route path="/play/tracker/:mode" element={<P><TrackerPage /></P>} />
