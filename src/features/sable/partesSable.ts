@@ -1025,6 +1025,23 @@ export const COLORES: Record<string, ColorHoja> = {
   col_cian:     { nucleo: '#eefcff', halo: '#19d8e0' },
   col_naranja:  { nucleo: '#fff4e8', halo: '#ff8c1a' },
   col_magenta:  { nucleo: '#fff0fa', halo: '#ff4fd8' },
+  /* ── Tercera tanda: «muchos colores menos el rojo» ──
+     Siete más, elegidos por SEPARACIÓN de tono, no por gusto: entre dos
+     cristales de la tienda tiene que haber suficiente distancia para que se
+     distingan en una miniatura de 44 px. Turquesa cae entre cian y verde; lima
+     entre verde y amarillo; índigo entre azul y púrpura; lavanda es púrpura
+     lavado; oro es ámbar profundo, más caliente que amarillo y más frío que
+     naranja; menta es verde pálido; violeta es púrpura profundo.
+
+     El rojo sigue siendo el único que no se compra: se gana sangrando. Y
+     ninguno de estos se le arrima — el más cálido es el oro, que es metal. */
+  col_turquesa: { nucleo: '#eafffb', halo: '#0fdba0' },
+  col_lima:     { nucleo: '#f6ffe4', halo: '#a8f024' },
+  col_indigo:   { nucleo: '#eef0ff', halo: '#4a5cff' },
+  col_lavanda:  { nucleo: '#f9f2ff', halo: '#c9a6ff' },
+  col_oro:      { nucleo: '#fff8e6', halo: '#ffb020' },
+  col_menta:    { nucleo: '#f0fff7', halo: '#7cf5b0' },
+  col_violeta:  { nucleo: '#f3eaff', halo: '#7c3aed' },
 }
 
 /* ── Armar el perfil completo ──────────────────────────────────────── */

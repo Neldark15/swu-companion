@@ -37,7 +37,7 @@
  * después descubre que no tiene el cristal.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ChevronLeft, Lock, Power, Save, Package, RotateCw, Volume2, VolumeX,
@@ -53,7 +53,7 @@ import {
   sonarPieza, alternarSilencioSable, sableEnSilencio,
 } from './sonidoSable'
 import {
-  PASOS, RANURAS_MANGO, sumarStats, deltaDe, rarezaDe, type Paso,
+  PASOS, RANURAS_MANGO, sumarStats, deltaDe, rarezaDe, pesoDeRareza, type Paso,
 } from './kyber'
 import {
   abrirTaller, comprarParte, guardarSable,
@@ -155,9 +155,17 @@ export function SablePage() {
     return () => { pararZumbido() }
   }, [encendido, silencio, tonoCristal])
 
+  /* La tira va de COMÚN a LEGENDARIO, y dentro de cada rareza del más barato
+     al más caro (pedido de Nel). Se ordena ACÁ y no con la columna `orden` de
+     la base: `orden` se asigna al dar de alta cada tanda y las tandas nuevas
+     quedaban al final aunque fueran épicas — un derivado no puede quedar viejo
+     (§3c), y el orden correcto ES un derivado de rareza y precio. */
   const deLaRanura = useCallback(
     (tipo: ParteTaller['tipo']) =>
-      partes.filter(p => p.tipo === tipo).sort((a, b) => a.orden - b.orden),
+      partes.filter(p => p.tipo === tipo).sort((a, b) =>
+        pesoDeRareza(a.rareza) - pesoDeRareza(b.rareza)
+        || a.precio - b.precio
+        || a.orden - b.orden),
     [partes],
   )
 
@@ -400,19 +408,37 @@ export function SablePage() {
               )
             })}
           </div>
-          <div className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
-            {deLaRanura(ranura).map(p => (
-              <div key={p.id} className="flex w-44 shrink-0 snap-start">
-                <PiezaTarjeta
-                  parte={p}
-                  colorHoja={tonoHoja}
-                  puesta={diseno[ranura] === p.id}
-                  delta={deltaDe(partes, puestas, p)}
-                  ocupado={ocupado}
-                  alElegir={() => void tocar(p)}
-                />
-              </div>
-            ))}
+          {/* La tira va de común a legendario, y cada vez que cambia la
+              rareza se planta un rótulo vertical. Sin él, treinta tarjetas
+              ordenadas se leen como una lista larga y no como una escalera:
+              el separador es lo que hace VER que la cosa sube. */}
+          <div className="-mx-4 flex snap-x items-stretch gap-2 overflow-x-auto px-4 pb-1">
+            {deLaRanura(ranura).map((p, i, lista) => {
+              const abre = i === 0 || lista[i - 1].rareza !== p.rareza
+              const r = rarezaDe(p.rareza)
+              return (
+                <Fragment key={p.id}>
+                  {abre && (
+                    <div className="flex shrink-0 items-center pl-1 pr-0.5">
+                      <span
+                        className={`text-[9px] font-black uppercase tracking-[0.25em] ${r.texto}`}
+                        style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+                      >{r.rotulo}</span>
+                    </div>
+                  )}
+                  <div className="flex w-44 shrink-0 snap-start">
+                    <PiezaTarjeta
+                      parte={p}
+                      colorHoja={tonoHoja}
+                      puesta={diseno[ranura] === p.id}
+                      delta={deltaDe(partes, puestas, p)}
+                      ocupado={ocupado}
+                      alElegir={() => void tocar(p)}
+                    />
+                  </div>
+                </Fragment>
+              )
+            })}
           </div>
         </div>
       )}
@@ -456,7 +482,7 @@ export function SablePage() {
               {diseno.cristalVisto ? 'Puesto' : 'Apagado'}
             </span>
           </button>
-          <div className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
+          <div className="-mx-4 flex snap-x items-stretch gap-2 overflow-x-auto px-4 pb-1">
             {cristales.map(c => (
               <div key={c.id} className="flex w-44 shrink-0 snap-start">
                 <PiezaTarjeta

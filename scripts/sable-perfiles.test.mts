@@ -23,6 +23,7 @@ import {
   perfilDePieza, asientoDe, radioEn, mallasDeHerrajes, MATERIALES, emite,
   type MaterialId,
 } from '../src/features/sable/partesSable.ts'
+import { semillaDe } from '../src/features/sable/cristalTres.ts'
 
 let fallos = 0
 const problemas: string[] = []
@@ -192,8 +193,38 @@ comprobar('un id desconocido cae al de fábrica sin reventar',
 comprobar('el diseño de fábrica es dibujable',
   perfilValido(perfilDeSable(POR_DEFECTO).puntos).length === 0)
 
-comprobar('hay 9 colores de hoja', Object.keys(COLORES).length === 9,
+comprobar('hay 16 colores de hoja', Object.keys(COLORES).length === 16,
   `hay ${Object.keys(COLORES).length}`)
+
+/* Dos cristales que se parecen demasiado son dos piezas que nadie distingue en
+   una miniatura de 44 px — y una de las dos es plata gastada al pedo. Se mide
+   la distancia de tono en el espacio del propio hex: si dos halos están a menos
+   de 28 de distancia euclídea en RGB, la tienda tiene un duplicado. */
+{
+  const halos = Object.entries(COLORES).map(([id, c]) => {
+    const n = parseInt(c.halo.slice(1), 16)
+    return { id, r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }
+  })
+  let masCerca = Infinity, par = ''
+  for (let i = 0; i < halos.length; i++) {
+    for (let j = i + 1; j < halos.length; j++) {
+      const d = Math.hypot(halos[i].r - halos[j].r, halos[i].g - halos[j].g, halos[i].b - halos[j].b)
+      if (d < masCerca) { masCerca = d; par = `${halos[i].id} vs ${halos[j].id}` }
+    }
+  }
+  comprobar(`los cristales se distinguen entre sí (el par más cercano: ${par}, ${masCerca.toFixed(0)})`,
+    masCerca >= 28)
+}
+
+/* Y la ROCA: cada color tiene su forma, y siempre la misma. Sin esto, una
+   semilla mal derivada daría el mismo cristal para todos —o peor, uno distinto
+   en cada render, que rompería el caché de la foto del mango. */
+{
+  const semillas = Object.keys(COLORES).map(semillaDe)
+  comprobar('cada cristal tiene su propia semilla', new Set(semillas).size === semillas.length)
+  comprobar('la semilla es estable entre llamadas',
+    Object.keys(COLORES).every(id => semillaDe(id) === semillaDe(id)))
+}
 
 /* ── EL CRISTAL A LA VISTA ──
    Los herrajes sintéticos de la ventana no están en el catálogo, así que el

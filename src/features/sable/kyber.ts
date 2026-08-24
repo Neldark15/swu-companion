@@ -49,6 +49,19 @@ export function rarezaDe(clave: string): Rareza {
   return RAREZAS[clave] ?? RAREZAS.comun
 }
 
+/**
+ * El peso de una rareza para ORDENAR: común primero, legendario al final.
+ *
+ * Deriva del orden de las claves de `RAREZAS` en vez de repetir la lista: si
+ * algún día entra una rareza nueva, ordena sola. Una desconocida va al final —
+ * mejor que una pieza rara aparezca de última a que aparezca entre las comunes
+ * como si fuera barata.
+ */
+const PESO_RAREZA = new Map(Object.keys(RAREZAS).map((clave, i) => [clave, i]))
+export function pesoDeRareza(clave: string): number {
+  return PESO_RAREZA.get(clave) ?? PESO_RAREZA.size
+}
+
 /* ── Los pasos ───────────────────────────────────────────────────────
  *
  * Cuatro y en este orden, y el orden importa: el CRISTAL va antes del color

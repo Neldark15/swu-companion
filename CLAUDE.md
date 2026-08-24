@@ -2852,3 +2852,49 @@ magenta es rosa franco. El rojo sigue siendo solo del sangrado.
 
 **Postgres escribe en serpiente y el cliente en camello** — la traducción vive
 en `sableService.miDisenoSable`, en el borde, no en cada pantalla.
+
+
+### 4h. El cristal kyber es una ROCA, y la tienda va de común a legendario
+
+**La forma.** El cristal era una `LatheGeometry` de 6 lados: un huso hexagonal
+perfecto, simétrico hasta el último micrón. Un cuarzo real no es eso — es un
+prisma de seis caras DESPAREJAS rematado por una pirámide cuyo ápice casi nunca
+cae en el centro. `cristalTres.geometriaDeCristal` lo construye a mano,
+triángulo por triángulo, **sin índices**: así `computeVertexNormals` deja una
+normal por cara y las aristas salen vivas. Indexada, three promedia y el
+cristal sale redondeado como un caramelo.
+
+**La irregularidad sale de una SEMILLA, nunca de `Math.random`.** La semilla se
+deriva del id del color (FNV-1a), así que el ámbar es siempre la misma piedra y
+—esto es lo que importa— la foto del mango que se cachea sale idéntica en cada
+render. Con azar, el caché nunca acertaría.
+
+**Las vetas** van como `emissiveMap`, no como `map`: se busca que la luz salga
+por las grietas, no que la piedra tenga un dibujo encima. Como el emisivo
+multiplica el color, **una sola textura sirve para los dieciséis colores**.
+
+**Las esquirlas** (cinco astillas orbitando) comparten geometría y material con
+la roca: cinco llamadas de dibujo y ni un shader más. Sin ellas el cristal es un
+objeto de vitrina; con ellas, algo que irradia.
+
+**Nada de transparencia.** `transmission` duplica el render (pasa la escena a un
+target aparte por cuadro) y esto corre en gama baja. La ilusión son tres capas
+opacas: roca facetada + cáscara aditiva + vetas emisivas.
+
+#### Los colores se eligen por DISTANCIA, no por gusto
+
+La prueba mide la distancia euclídea en RGB entre todos los pares de halos y
+exige **28 mínimo**: dos cristales parecidos son dos piezas que nadie distingue
+en una miniatura de 44 px, y una de las dos es plata gastada. Cazó un duplicado
+real —turquesa a 26 del cian— y hubo que correrlo. El par más cercano hoy es
+amarillo vs oro, a 34.
+
+#### El orden de la tienda es DERIVADO
+
+Las tiras van de común a legendario y, dentro de cada rareza, del más barato al
+más caro. Se ordena en el cliente (`pesoDeRareza` + precio) y **no** con la
+columna `orden` de la base: `orden` se asigna al dar de alta cada tanda, así que
+las tandas nuevas quedaban al final aunque fueran comunes. Un derivado no puede
+quedar viejo (§3c), y el orden correcto ES un derivado de rareza y precio.
+`pesoDeRareza` deriva del orden de las claves de `RAREZAS`: si entra una rareza
+nueva, ordena sola.

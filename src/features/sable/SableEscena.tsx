@@ -51,6 +51,7 @@ import {
   piezasDeSable, colorDeHoja, MATERIALES, type Diseno, type MaterialId,
 } from './partesSable'
 import { abrirTallerTres, vestirPieza, radioMaximo } from './herrajesTres'
+import { geometriaDeCristal, texturaDeVetas, semillaDe } from './cristalTres'
 
 export type Orientacion = 'vertical' | 'diagonal' | 'horizontal'
 export type Vista = 'sable' | 'cristal'
@@ -266,37 +267,50 @@ export function SableEscena({
     /* ── EL CRISTAL KYBER: tallado, no traslúcido ──
        El vidrio de verdad sería `MeshPhysicalMaterial` con `transmission`, pero
        la transmisión DUPLICA el render (pasa la escena entera a un target aparte
-       por cuadro) y este módulo tiene que correr en gama baja. El truco barato
-       que se ve caro: UNA LatheGeometry de 6 lados —sección hexagonal, como un
-       cristal de verdad— con `flatShading` para que cada faceta agarre el
-       entorno por su lado, EMISIVO del color (el kyber brilla desde adentro), y
-       una cáscara aditiva por fuera como resplandor: la misma receta de tres
-       capas de la hoja. Total: dos llamadas de dibujo. */
-    /* Perfil ANGULOSO a propósito: pocos puntos y quiebres francos. Con un
-       perfil redondeado las 6 caras se funden y el cristal parece una pastilla —
-       medido mirándolo, no leyendo. */
-    const perfilCristal = [
-      [0, 0], [0.78, 1.15], [0.92, 3.3], [0.5, 4.55], [0, 5.4],
-    ].map(([r, y]) => new THREE.Vector2(r, y))
-    const geoCristal = new THREE.LatheGeometry(perfilCristal, 6)
-    /* El emisivo va BAJO: es lo que deja que cada faceta agarre el entorno por
-       su lado. A 0.5 el brillo interior aplanaba el tallado y el cristal parecía
-       una pastilla; el latido del bucle se mueve alrededor de este valor. */
+       por cuadro) y este módulo tiene que correr en gama baja. Lo que da la
+       ilusión son capas OPACAS: la roca facetada que refleja el entorno, una
+       cáscara aditiva que la envuelve, y las vetas internas en una textura
+       emisiva. La misma receta de tres capas de la hoja. */
+    /* La roca se construye a mano en `cristalTres`: prisma hexagonal de caras
+       desparejas con terminación piramidal arriba y abajo, irregular por una
+       semilla derivada del id del color. Cada cristal del catálogo es una
+       piedra distinta, y siempre la misma. */
+    let geoCristal = geometriaDeCristal(semillaDe(diseno.color))
+    const texVetas = texturaDeVetas()
+    /* El emisivo va BAJO y MULTIPLICADO por la textura de vetas: es lo que deja
+       que cada faceta agarre el entorno por su lado y que la luz parezca salir
+       por las grietas. A 0.5 plano el brillo interior aplanaba el tallado y el
+       cristal parecía una pastilla. */
     const matCristal = new THREE.MeshStandardMaterial({
-      flatShading: true, metalness: 0.15, roughness: 0.22, envMapIntensity: 1.4,
-      color: 0x2b8cff, emissive: 0x2b8cff, emissiveIntensity: 0.22,
+      flatShading: true, metalness: 0.15, roughness: 0.18, envMapIntensity: 1.6,
+      color: 0x2b8cff, emissive: 0x2b8cff, emissiveIntensity: 0.34,
+      emissiveMap: texVetas,
     })
     const matCristalGlow = new THREE.MeshBasicMaterial({
       color: 0x2b8cff, transparent: true, opacity: 0.16,
       blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.BackSide,
     })
     const cristal = new THREE.Mesh(geoCristal, matCristal)
-    cristal.position.y = -2.7
     const cristalGlow = new THREE.Mesh(geoCristal, matCristalGlow)
-    cristalGlow.scale.setScalar(1.24)
-    cristalGlow.position.y = -2.7 * 1.24
+    cristalGlow.scale.setScalar(1.22)
+
+    /* ── LAS ESQUIRLAS ──
+       Cinco astillas de la misma piedra girando alrededor. Es el «que emanen
+       brillos» resuelto con geometría y no con un efecto: comparten geometría y
+       material con la roca, así que cuestan cinco llamadas de dibujo y ni un
+       shader más. Sin ellas el cristal flota solo y se ve como un objeto de
+       vitrina; con ellas, como algo que irradia. */
+    const esquirlas = Array.from({ length: 5 }, (_, i) => {
+      const m = new THREE.Mesh(geoCristal, matCristal)
+      m.scale.setScalar(0.13 + (i % 3) * 0.035)
+      m.userData.fase = (i / 5) * Math.PI * 2
+      m.userData.radio = 2.6 + (i % 2) * 0.7
+      m.userData.altura = -1.2 + i * 0.62
+      return m
+    })
+
     const grupoCristal = new THREE.Group()
-    grupoCristal.add(cristal, cristalGlow)
+    grupoCristal.add(cristal, cristalGlow, ...esquirlas)
     // Nace inclinado: de frente y derecho, un hexágono enseña una cara plana y
     // parece redondo. En diagonal se ven las aristas, que son el cristal.
     grupoCristal.quaternion.setFromEuler(new THREE.Euler(0.4, 0.5, 0.28))
@@ -378,6 +392,15 @@ export function SableEscena({
       matDisco.color.set(c.halo)
       /* El cuerpo va más oscuro que el emisivo: si los dos fueran el halo puro,
          las facetas se aplanan a un solo tono y el tallado desaparece. */
+      /* La ROCA cambia con el cristal: cada color tiene su forma. Se destruye
+         la vieja y se reparte la nueva a las siete mallas (roca, cáscara y
+         cinco esquirlas) — el material no se toca, así que no recompila (§3y). */
+      const nueva = geometriaDeCristal(semillaDe(d.color))
+      geoCristal.dispose()
+      geoCristal = nueva
+      cristal.geometry = nueva
+      cristalGlow.geometry = nueva
+      for (const e of esquirlas) e.geometry = nueva
       matCristal.color.set(c.halo).multiplyScalar(0.38)
       matCristal.emissive.set(c.halo)
       matCristalGlow.color.set(c.halo)
@@ -453,10 +476,26 @@ export function SableEscena({
     let gordo = 2.5
     const TAN_MEDIO = Math.tan(THREE.MathUtils.degToRad(38 / 2))
     function encuadrar(): void {
-      // El cristal mide 5 fijos y su pedestal vive en el mundo: encuadre fijo,
-      // mirando al punto medio entre ambos (con el centro del cristal, el
-      // pedestal quedaba cortado por el borde de abajo).
-      if (vistaActual === 'cristal') { distMeta = 15; centroMeta.set(0, -2.3, 0); return }
+      /* EL CRISTAL SE ENCUADRA MIDIENDO, igual que el sable. Los números fijos
+         de antes (dist 15, centro −2,3) estaban calibrados para el huso
+         hexagonal viejo, que medía 5,4 y no tenía esquirlas. La roca nueva va
+         de −2,7 a 3,5 y sus astillas orbitan hasta 3,4 del eje: con el encuadre
+         viejo la piedra salía enorme y cortada por arriba.
+
+         Se cuenta lo que hay: la roca, las esquirlas y el pedestal de abajo, y
+         se pide la distancia que mete todo en el peor de los dos ejes. */
+      if (vistaActual === 'cristal') {
+        const arriba = 3.5, abajo = -5.4          // punta de la roca / pedestal
+        const ancho = 3.4 + 0.5                   // órbita de las esquirlas
+        const medio = (arriba + abajo) / 2
+        const altoMitad = (arriba - abajo) / 2
+        distMeta = Math.max(
+          ancho / (TAN_MEDIO * camera.aspect),
+          altoMitad / TAN_MEDIO,
+        ) * 1.12
+        centroMeta.set(0, medio, 0)
+        return
+      }
       const punta = altoTotal / 2 + separacion * HUECO * 2 + hoja * (LARGO + 2)
       const fondo = -altoTotal / 2
       const mitad = (punta - fondo) / 2
@@ -558,6 +597,13 @@ export function SableEscena({
            que la hoja y la explosión (§3u). */
         taller.latir(null)
         for (const m of titilando) m.scale.setScalar(1)
+        // Las esquirlas se plantan en su sitio en vez de amontonarse en el
+        // centro: sin bucle, «quieto» tiene que seguir siendo legible (§3u).
+        for (const e of esquirlas) {
+          const a = e.userData.fase as number
+          const rad = e.userData.radio as number
+          e.position.set(Math.cos(a) * rad, e.userData.altura as number, Math.sin(a) * rad)
+        }
         encuadrar()
         dist = distMeta
         centro.copy(centroMeta)
@@ -609,7 +655,15 @@ export function SableEscena({
       // escala — mover no invalida nada del compositor de three.
       if (vistaActual === 'cristal') {
         grupoCristal.position.y = Math.sin(ahora * 0.0014) * 0.45
-        matCristal.emissiveIntensity = 0.22 + Math.sin(ahora * 0.004) * 0.06
+        matCristal.emissiveIntensity = 0.34 + Math.sin(ahora * 0.004) * 0.08
+        // Las esquirlas orbitan y cabecean, cada una con su desfase.
+        for (const e of esquirlas) {
+          const f = e.userData.fase as number
+          const rad = e.userData.radio as number
+          const a = ahora * 0.00055 + f
+          e.position.set(Math.cos(a) * rad, (e.userData.altura as number) + Math.sin(a * 2) * 0.4, Math.sin(a) * rad)
+          e.rotation.set(a * 1.7, a * 2.3, 0)
+        }
       }
       /* El encuadre va DESPUÉS de mover todo (hoja, separación, giro) y la
          cámara lo persigue con freno: al girar en horizontal la distancia
@@ -728,6 +782,7 @@ export function SableEscena({
       geoNucleo.dispose(); geoHalo.dispose(); geoBruma.dispose()
       geoDisco.dispose(); geoPeana1.dispose(); geoPeana2.dispose()
       geoCristal.dispose(); matCristal.dispose(); matCristalGlow.dispose()
+      texVetas.dispose()
       geoAlma.dispose(); matAlma.dispose()
       geoEstrellas.dispose(); matEstrellas.dispose(); texPunto.dispose()
       matNucleo.dispose(); matHalo.dispose(); matBruma.dispose()
