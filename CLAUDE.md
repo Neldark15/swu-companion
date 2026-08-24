@@ -2898,3 +2898,71 @@ las tandas nuevas quedaban al final aunque fueran comunes. Un derivado no puede
 quedar viejo (§3c), y el orden correcto ES un derivado de rareza y precio.
 `pesoDeRareza` deriva del orden de las claves de `RAREZAS`: si entra una rareza
 nueva, ordena sola.
+
+
+### 4i. TERRAFORMAR el planeta (`/terraformar`)
+
+Se eligió ampliar el planeta antes que construir otro taller, y la medición lo
+decidió: **19 de 39 cuentas ya habían tocado su planeta** contra 2 que habían
+forjado un sable. Es la personalización más usada de la app. Ampliar lo que la
+gente ya usa vale más que estrenar un módulo y esperar que prenda (§3l).
+
+**La línea entre gratis y pago no es el precio, es el relato.** GEOLOGÍA
+—familia, mares, cráteres, anillos, lunas— es lo que tu mundo ES: salió de la
+semilla de tu id y sigue gratis, en Mi Perfil. TERRAFORMACIÓN —ciudades, nubes,
+auroras— es lo que le HACÉS, y eso cuesta. **Nada que ya era gratis pasó a
+costar**: mismo criterio que dejó visibles las piezas legendarias ya compradas.
+
+#### Una sola billetera
+
+`creditos_saldo()` resta lo gastado en piezas de sable **y** en el planeta. Con
+dos cuentas separadas alguien gastaría los mismos créditos dos veces y las dos
+pantallas cuadrarían por separado. `sable_saldo_xp()` queda como nombre viejo
+que delega — lo llaman tres RPC y renombrarlo es riesgo sin ganancia.
+
+#### El guardia va en un TRIGGER, no en la pantalla
+
+`profiles` se escribe DIRECTO desde el cliente (hay policy de UPDATE), así que
+sin trigger cualquiera se pone METRÓPOLIS desde la consola. `planeta_clampar`
+**baja** `planet_cities/clouds/auroras` al grado que de verdad se posee. Clampa
+en vez de rechazar: rechazar tumbaría la grabación entera del perfil —vitrina,
+aspectos, acento— por un campo cosmético.
+
+#### LOS GRANTS DE `profiles` SON POR COLUMNA
+
+Esto costó un bug en producción y vale para cualquier columna nueva de esa
+tabla. **La policy dice qué FILAS podés tocar; el grant dice qué COLUMNAS.**
+Hacen falta las dos, y el error de Postgres habla de la TABLA, que despista:
+
+```
+permission denied for table profiles
+```
+
+`planet_rings` y `planet_moons` se desplegaron sin los grants y **no
+guardaban**. Había una segunda causa superpuesta, del lado del cliente:
+`guardarPersonalizacion` tiene una **lista blanca** de campos y tampoco estaban
+ahí — un campo que no esté en esa lista se descarta EN SILENCIO. La pantalla
+dejaba elegir, la vista previa cambiaba y nada llegaba a la base.
+
+Al agregar una columna a `profiles` hay que tocar CUATRO sitios:
+1. `alter table` + `check`
+2. `grant select (col) ... to authenticated, anon`
+3. `grant update (col) ... to authenticated`
+4. la lista blanca de `guardarPersonalizacion` y `COLUMNAS` de lectura
+
+#### El shader: espacio de MUNDO, no de vista
+
+Las ciudades salen donde `dot(normal, dirSol) < 0`. `normalMatrix` lleva la
+normal a espacio de VISTA y `dirSol` es una dirección del MUNDO: comparadas así
+el lado nocturno se movía con la CÁMARA en vez de con el sol y las ciudades no
+aparecían nunca. Va `mat3(modelMatrix) * normal`.
+
+Y ojo con los comentarios dentro de un shader: viven en un template literal, y
+una comilla invertida lo corta. Sin comillas invertidas ahí adentro.
+
+#### El banco tiene modo NOCHE
+
+Ciudades y auroras viven en la cara que no se ve, y girar la cámara no alcanza
+porque el sol está fijo en el mundo: habría que dar media vuelta exacta.
+`deNoche` pone el sol detrás. Sin eso no hay forma de revisar lo que esta
+pantalla vende.
