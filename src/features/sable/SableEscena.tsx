@@ -155,7 +155,7 @@ export function SableEscena({ diseno, encendido, explotado = false, onSinWebGL, 
     const geoPeana1 = new THREE.RingGeometry(9.4, 10.1, 44)
     const geoPeana2 = new THREE.RingGeometry(12.4, 12.7, 44)
     // El disco va MÁS tenue que los aros: es el resplandor del suelo, no un aro.
-    const matDisco = matPeana.clone(); matDisco.opacity = 0.13
+    const matDisco = matPeana.clone(); matDisco.opacity = 0.22
     const peanas = [
       new THREE.Mesh(geoDisco, matDisco),
       new THREE.Mesh(geoPeana1, matPeana),
@@ -166,7 +166,12 @@ export function SableEscena({ diseno, encendido, explotado = false, onSinWebGL, 
     // ── La hoja: cápsulas, para que la punta salga redonda sola ──
     const LARGO = 78
     const geoNucleo = new THREE.CapsuleGeometry(0.6, LARGO, 4, 12)
-    const geoHalo = new THREE.CapsuleGeometry(1.45, LARGO, 4, 12)
+    const geoHalo = new THREE.CapsuleGeometry(1.5, LARGO, 4, 12)
+    /* Una TERCERA capa, ancha y muy tenue: es el bloom. Con solo núcleo y halo
+       la hoja se lee como un tubo blanco con un borde de color; el color de un
+       sable vive en la bruma que lo rodea, no en el filo. Tres capas aditivas
+       cuestan tres llamadas de dibujo sobre una escena de seis — nada. */
+    const geoBruma = new THREE.CapsuleGeometry(3.1, LARGO * 0.98, 4, 10)
     const matNucleo = new THREE.MeshBasicMaterial({ color: 0xffffff })
     const matHalo = new THREE.MeshBasicMaterial({
       color: 0x2b8cff, transparent: true, opacity: 0.5,
@@ -174,10 +179,16 @@ export function SableEscena({ diseno, encendido, explotado = false, onSinWebGL, 
       // Sin esto el halo escribe profundidad y tapa el núcleo que lleva dentro.
       depthWrite: false,
     })
+    const matBruma = new THREE.MeshBasicMaterial({
+      color: 0x2b8cff, transparent: true, opacity: 0.2,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    })
     const nucleo = new THREE.Mesh(geoNucleo, matNucleo)
     const halo = new THREE.Mesh(geoHalo, matHalo)
-    halo.renderOrder = 1
-    grupoSable.add(nucleo, halo)
+    const bruma = new THREE.Mesh(geoBruma, matBruma)
+    halo.renderOrder = 2
+    bruma.renderOrder = 1
+    grupoSable.add(nucleo, halo, bruma)
 
     let altoTotal = 26
     function rehacer(d: Diseno): void {
@@ -198,6 +209,7 @@ export function SableEscena({ diseno, encendido, explotado = false, onSinWebGL, 
 
       const c = colorDeHoja(d.color)
       matHalo.color.set(c.halo)
+      matBruma.color.set(c.halo)
       matNucleo.color.set(c.nucleo)
       // El pedestal se tiñe del cristal: la forja toma el color de lo que estás
       // armando, y así el cristal se ve incluso con la hoja apagada.
@@ -249,7 +261,11 @@ export function SableEscena({ diseno, encendido, explotado = false, onSinWebGL, 
       hojaMeta = v && !abierto ? 1 : 0
       // Encendida se aleja para que entre la hoja; abierta, lo justo para la
       // fila de piezas; armada y apagada, cerca del mango.
-      distMeta = v && !abierto ? 104 : (abierto ? 62 : 42)
+      /* Encendida NO se encuadra el sable entero, y es deliberado. El objeto mide
+         104 de largo (26 de mango + 78 de hoja): para que entrara habría que irse
+         a ~150 y ahí el mango —que es lo que la persona acaba de armar— queda
+         diminuto. La hoja se sale por arriba, igual que en los mockups. */
+      distMeta = v && !abierto ? 106 : (abierto ? 48 : 36)
       arrancar()
     }
 
@@ -257,16 +273,19 @@ export function SableEscena({ diseno, encendido, explotado = false, onSinWebGL, 
       const visible = hoja > 0.004
       nucleo.visible = visible
       halo.visible = visible
+      bruma.visible = visible
       if (!visible) return
-      nucleo.scale.y = hoja
-      halo.scale.y = hoja
-      // El nacimiento se queda en la boca del emisor y la punta viaja.
       const nace = altoTotal / 2
-      nucleo.position.y = nace + (LARGO * hoja) / 2
-      halo.position.y = nace + (LARGO * hoja) / 2
-      // El halo entra un poco después que el núcleo: primero sale la hoja y
-      // después prende el resplandor. Al revés se ve como un flash.
-      matHalo.opacity = 0.48 * Math.min(1, Math.max(0, (hoja - 0.15) / 0.6))
+      for (const m of [nucleo, halo, bruma]) {
+        m.scale.y = hoja
+        // El nacimiento se queda clavado en la boca del emisor y la punta viaja.
+        m.position.y = nace + (LARGO * hoja) / 2
+      }
+      // El resplandor entra DESPUÉS que el núcleo: primero sale la hoja y luego
+      // prende. Al revés se ve como un flash.
+      const prende = Math.min(1, Math.max(0, (hoja - 0.15) / 0.6))
+      matHalo.opacity = 0.6 * prende
+      matBruma.opacity = 0.2 * prende
     }
 
     // ── Cámara orbital a mano ──
@@ -314,6 +333,25 @@ export function SableEscena({ diseno, encendido, explotado = false, onSinWebGL, 
     function pintar(ahora = performance.now()): void {
       const dt = ultimo ? Math.min(0.05, (ahora - ultimo) / 1000) : 0
       ultimo = ahora
+
+      /* SIN BUCLE SE LLEGA DE GOLPE, no a medias.
+         `pintar` se llama de dos formas: desde `bucle` (animando) y desde
+         `pedirCuadro`, que dibuja UN cuadro y para. En el segundo caso, suavizar
+         deja la hoja a medio salir y la cámara a medio camino PARA SIEMPRE, hasta
+         que algo vuelva a pedir un cuadro.
+         Pasa de verdad en dos casos: con `prefers-reduced-motion` —donde el bucle
+         no corre nunca— y con la pestaña en segundo plano. El primero es un bug de
+         accesibilidad: movimiento reducido significa llegar sin transición, NO
+         quedarse congelado a mitad (§3u). */
+      const alGolpe = !animando || reducido.matches
+      if (alGolpe) {
+        dist = distMeta
+        if (separacion !== separacionMeta) { separacion = separacionMeta; colocarPiezas() }
+        if (hoja !== hojaMeta) { hoja = hojaMeta; colocarHoja() }
+        colocarCamara()
+        renderer.render(scene, camera)
+        return
+      }
       // Suavizado exponencial, independiente del ritmo de cuadro.
       if (Math.abs(dist - distMeta) > 0.05) dist += (distMeta - dist) * Math.min(1, dt * 6)
       else dist = distMeta
@@ -335,7 +373,9 @@ export function SableEscena({ diseno, encendido, explotado = false, onSinWebGL, 
          separa de un tubo de neón — y va solo cuando está fuera del todo, o el
          latido pelearía con el crecimiento. */
       if (hoja === 1) {
-        matHalo.opacity = 0.48 + Math.sin(ahora * 0.011) * 0.05
+        const late = Math.sin(ahora * 0.011)
+        matHalo.opacity = 0.6 + late * 0.06
+        matBruma.opacity = 0.2 + late * 0.035
       }
       // Giro lento solo si nadie está tocando y no hay «menos movimiento».
       if (punteros.size === 0 && !reducido.matches) theta += dt * 0.18
@@ -418,9 +458,10 @@ export function SableEscena({ diseno, encendido, explotado = false, onSinWebGL, 
 
       for (const p of piezas) p.malla.geometry.dispose()
       geoAro.dispose(); geoNucleo.dispose(); geoHalo.dispose()
+      geoBruma.dispose()
       geoDisco.dispose(); geoPeana1.dispose(); geoPeana2.dispose()
       matAcero.dispose(); matAgarre.dispose(); matLaton.dispose()
-      matNucleo.dispose(); matHalo.dispose()
+      matNucleo.dispose(); matHalo.dispose(); matBruma.dispose()
       matPeana.dispose(); matDisco.dispose()
       foco1.dispose(); foco2.dispose()
       renderer.dispose()
