@@ -2168,3 +2168,63 @@ el empaquetador: una clase puede estar ahí y no llegar al bundle.
 `grep -c` con un glob y `awk` da cero por el formato de salida, no porque falte
 — usá `grep -o PATRÓN archivo | wc -l` sobre el `.css` que referencia
 `dist/index.html`.
+
+### 3v. El saldo de sobres tenía que VERSE — 333 esperando y 26 personas sin abrir ninguno
+
+Censo del 2026-08-23, y es el número que ordenó todo lo demás:
+
+| | |
+|---|---|
+| sobres esperando sin abrir | **333** |
+| personas que nunca abrieron ninguno | **26 de 38** |
+| promedio acumulado | 9 · el que más, **21** |
+| activos esa misma semana | **24 de 38** |
+
+O sea que **no se habían ido**: publicaban en el muro y no recogían el regalo.
+La causa no era el reparto —el cron de las 8:00 funciona y los sobres están en
+la cuenta— sino que **el saldo era invisible fuera de `/sobres`**. Verificado:
+no había insignia en ningún menú ni número en Inicio.
+
+**DOS AVISOS, NO UNO. La distinción es de fondo y conviene no borrarla:**
+
+- **`AvisoSobreDiario` anuncia un HECHO NUEVO** («hoy cayó tu sobre»). Salta
+  una vez, la mañana que cae, y se marca en `localStorage` para no repetirse.
+  **Está bien que se calle**: una novedad se agota al leerla.
+- **`SobresAcumulados` anuncia un ESTADO** («tenés N guardados»). Un estado no
+  se agota al leerlo, así que **no se marca, no se descarta y no tiene botón de
+  cerrar**. Desaparece sola al abrir un sobre, que es la única forma honesta de
+  que un recordatorio se vaya. Arranca en **2**: con 1 ya está el otro aviso.
+
+**El saldo vive en UN store (`useSobres`)** y se dibuja en cuatro sitios
+(sidebar, menú de móvil, un punto en la pestaña Perfil y la franja de Inicio).
+Con una consulta por sitio serían cuatro viajes por navegación y —peor— cuatro
+respuestas que se pueden separar: la insignia diciendo 3 y la franja 2.
+
+**Baja EN EL ACTO al abrir**, con el `saldo` que devuelve `abrir_sobre()` (el
+del servidor, no una resta local). Una insignia que no baja al hacer justo lo
+que pide enseña a ignorarla. Lo fija la PÁGINA y no el servicio: `sobres.ts`
+importando el store sería un ciclo. Y se olvida al cerrar sesión, o mostraría
+los sobres de la cuenta anterior.
+
+**El punto va en la pestaña Perfil** porque Sobredosis vive dentro de
+Perfil → Más: sin eso la insignia quedaría a dos toques, o sea existiendo sin
+verse — que es exactamente el problema que vino a arreglar. Va **sin número**
+porque ahí no se puede decir de qué es; el número está un nivel más adentro,
+donde se puede leer.
+
+**Dos bugs que SOLO se vieron mirando la pantalla:**
+
+- **Un `/* */` suelto en posición de hijo de JSX es TEXTO, no comentario.** Mi
+  nota salió impresa en el menú lateral, tres veces. En posición de *atributo*
+  sí es contexto JS y es válido — por eso el de `TabBar` está bien y el de
+  `SideNav` no lo estaba. Comentario en JSX: `{/* … */}`.
+- **El punto colgaba del BOTÓN de la pestaña**, que ocupa todo el ancho de la
+  celda: caía en el borde de la pantalla y se leía como una mancha suelta.
+  Va anclado al ÍCONO, dentro de su propio `<span className="relative">`.
+
+**«25 cartas brillantes esperando» no es una cifra inventada**: son 5 cartas
+por sobre, medido sobre las 183 aperturas reales (min 5, máx 5). Si el sobre
+cambia de tamaño, ese texto miente.
+
+Banco en **`/banco-saldo`** (solo desarrollo): 0, 1, 2, 5, 9 y 21 a un toque.
+Ver la insignia con 9 de verdad sería esperar nueve días.
