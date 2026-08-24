@@ -192,8 +192,45 @@ comprobar('un id desconocido cae al de fábrica sin reventar',
 comprobar('el diseño de fábrica es dibujable',
   perfilValido(perfilDeSable(POR_DEFECTO).puntos).length === 0)
 
-comprobar('hay 6 colores de hoja', Object.keys(COLORES).length === 6,
+comprobar('hay 9 colores de hoja', Object.keys(COLORES).length === 9,
   `hay ${Object.keys(COLORES).length}`)
+
+/* ── EL CRISTAL A LA VISTA ──
+   Los herrajes sintéticos de la ventana no están en el catálogo, así que el
+   barrido de arriba no los toca: se validan acá, sobre TODOS los cuerpos, con
+   el mismo asiento. Una ventana que flote o quede en un pozo en un solo cuerpo
+   es exactamente el bug que nadie encontraría a mano. */
+console.log('\n── La ventana del cristal, en todos los cuerpos ──')
+let ventanasMal = 0
+for (const cuerpo of IDS_CONOCIDOS.cuerpo) {
+  const sueltas = piezasDeSable({
+    emisor: 'emi_estandar', cuerpo, pomo: 'pom_plano', color: 'col_azul', cristalVisto: true,
+  })
+  const sp = sueltas.find(x => x.clave === 'cuerpo')!
+  const gema = sp.herrajes.find(h => h.tipo === 'gema' && h.material === 'plasma')
+  if (!gema) { ventanasMal++; console.log(`  ✗ ${cuerpo}: la ventana no se agregó`); continue }
+  const { apoyo, dentro, fuera, sombra } = asientoDe(sp.perfil, gema, sp.alto)
+  if (dentro >= apoyo || fuera <= apoyo || fuera < sombra) {
+    ventanasMal++
+    console.log(`  ✗ ${cuerpo}: ventana mal apoyada (dentro ${dentro.toFixed(2)}, fuera ${fuera.toFixed(2)}, apoyo ${apoyo.toFixed(2)}, sombra ${sombra.toFixed(2)})`)
+  }
+}
+if (ventanasMal) fallos += ventanasMal
+else console.log(`  ✓ la ventana asienta en los ${IDS_CONOCIDOS.cuerpo.length} cuerpos`)
+
+/* Y la cadena de acabados: por-pieza le gana al global, y el global al propio. */
+{
+  const base = { emisor: 'emi_estandar', cuerpo: 'cue_liso', pomo: 'pom_plano', color: 'col_azul' }
+  const conGlobal = piezasDeSable({ ...base, acabado: 'jade' })
+  const conAmbos = piezasDeSable({ ...base, acabado: 'jade', acabadoCuerpo: 'cuero' })
+  comprobar('el acabado global repinta las tres piezas',
+    conGlobal.every(p => p.material === 'jade'))
+  comprobar('el acabado por pieza le gana al global',
+    conAmbos.find(p => p.clave === 'cuerpo')!.material === 'cuero'
+    && conAmbos.find(p => p.clave === 'emisor')!.material === 'jade')
+  comprobar('un acabado inventado cae al material propio',
+    piezasDeSable({ ...base, acabadoPomo: 'inventado' }).find(p => p.clave === 'pomo')!.material === 'acero')
+}
 
 comprobar('cada color trae núcleo y halo distintos',
   Object.values(COLORES).every(c => c.nucleo !== c.halo && /^#[0-9a-f]{6}$/i.test(c.nucleo) && /^#[0-9a-f]{6}$/i.test(c.halo)))

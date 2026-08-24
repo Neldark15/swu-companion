@@ -90,6 +90,8 @@ export function SablePage() {
           emisor: t.diseno.emisor, cuerpo: t.diseno.cuerpo,
           pomo: t.diseno.pomo, color: t.diseno.color,
           acabado: t.diseno.acabado,
+          acabadoEmisor: t.diseno.acabadoEmisor, acabadoCuerpo: t.diseno.acabadoCuerpo,
+          acabadoPomo: t.diseno.acabadoPomo, cristalVisto: t.diseno.cristalVisto,
         })
         setNombre(t.diseno.nombre ?? '')
       }
@@ -103,9 +105,10 @@ export function SablePage() {
      los `useMemo`/`useCallback` de abajo cambiarían siempre — o sea, memoización
      que no memoiza nada. */
   const partes = useMemo(() => taller?.partes ?? [], [taller])
-  /* El ACABADO queda fuera a propósito: es color, no pieza, no cuesta créditos
-     y no toca los stats. Meterlo acá haría que cambiar de color recalculara
-     todo y, peor, invitaría a que algún día sumara potencia. */
+  /* El ACABADO y el CRISTAL A LA VISTA quedan fuera a propósito: son color,
+     no pieza, no cuestan créditos y no tocan los stats. Meterlos acá haría que
+     cambiar de color recalculara todo y, peor, invitaría a que algún día
+     sumaran potencia. */
   const puestas = useMemo(
     () => [diseno.emisor, diseno.cuerpo, diseno.pomo, diseno.color],
     [diseno.emisor, diseno.cuerpo, diseno.pomo, diseno.color],
@@ -336,31 +339,44 @@ export function SablePage() {
           sigue». El `-mx-4 px-4` deja que la tira sangre hasta el borde. */}
       {paso === 'piezas' && (
         <div className="mt-3">
-          {/* ── EL ACABADO ──
-              Pedido de Nel: «permite colores de empuñadura». Repinta las tres
-              piezas; los herrajes NO, porque el latón de los aros y el testigo
-              del cristal son lo que evita que un mango de un solo material se
-              vea como un tubo pintado.
+          <div className="mb-2 flex gap-1.5">
+            {RANURAS_MANGO.map(({ tipo, rotulo }) => (
+              <button
+                key={tipo}
+                onClick={() => setRanura(tipo)}
+                className={`flex-1 rounded-xl border px-2 py-2 text-[11px] font-black uppercase tracking-wider
+                            ${ranura === tipo
+                              ? 'border-swu-amber bg-swu-amber/15 text-swu-amber'
+                              : 'border-swu-border bg-swu-surface text-swu-muted'}`}
+              >{rotulo}</button>
+            ))}
+          </div>
+          {/* ── EL COLOR, de la pieza que estás mirando ──
+              Nel: «que empuñaduras puedan combinar colores, que los otros
+              elementos también se puedan personalizar». La tira aplica a la
+              RANURA ACTIVA — emisor, cuerpo o pomo, cada uno con su color — y
+              por eso vive debajo de las pestañas: elegís la pieza, elegís su
+              color. «ORIGINAL» devuelve esa pieza a su material de catálogo.
 
-              «ORIGINAL» va primero y es el valor de fábrica: cada pieza con el
-              material que trae escrito —CORTEZA de cuero, CORONA de latón—, que
-              es la identidad que distingue una pieza de otra. El color es una
-              decisión de más, no el punto de partida.
-
-              Es GRATIS. El sumidero de créditos son las piezas; cobrar por
-              elegir un color, en una comunidad con menores, no vale lo que
-              recauda. */}
-          <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-swu-muted">
-            Color de la empuñadura
-          </p>
+              El acabado GLOBAL viejo no se muestra pero tampoco se pierde: es
+              lo que las PWA sin actualizar siguen guardando, y la cadena
+              por-pieza → global → propio lo respeta (partesSable). Gratis,
+              como todo color: el sumidero de créditos son las piezas. */}
+          <div className="mb-2 flex items-center gap-2">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-swu-muted">
+              Color de {ranura === 'emisor' ? 'este emisor' : ranura === 'cuerpo' ? 'esta empuñadura' : 'este pomo'}
+            </p>
+          </div>
           <div className="-mx-4 mb-3 flex gap-1.5 overflow-x-auto px-4 pb-1">
             {[{ id: null, nombre: 'ORIGINAL' }, ...(taller.acabados ?? [])].map(a => {
-              const puesto = (diseno.acabado ?? null) === a.id
+              const campo = ranura === 'emisor' ? 'acabadoEmisor'
+                : ranura === 'cuerpo' ? 'acabadoCuerpo' : 'acabadoPomo'
+              const puesto = (diseno[campo] ?? null) === a.id
               const m = a.id ? materialDe(a.id) : null
               return (
                 <button
                   key={a.id ?? 'original'}
-                  onClick={() => setDiseno(d => ({ ...d, acabado: a.id }))}
+                  onClick={() => setDiseno(d => ({ ...d, [campo]: a.id }))}
                   className={`flex shrink-0 items-center gap-1.5 rounded-xl border px-2.5 py-1.5
                               text-[10px] font-black uppercase tracking-wider
                               ${puesto
@@ -373,8 +389,8 @@ export function SablePage() {
                     style={m
                       ? { background: m.plano, borderColor: m.borde }
                       : {
-                          // «Original» no tiene un color: son tres. La muestra
-                          // los enseña partidos, que es lo que significa.
+                          // «Original» no tiene un color: es volver al del
+                          // catálogo. La muestra partida es eso.
                           background: 'linear-gradient(135deg,#aeb6c0 0 33%,#54382a 33% 66%,#c08c42 66%)',
                           borderColor: '#6b7280',
                         }}
@@ -383,18 +399,6 @@ export function SablePage() {
                 </button>
               )
             })}
-          </div>
-          <div className="mb-2 flex gap-1.5">
-            {RANURAS_MANGO.map(({ tipo, rotulo }) => (
-              <button
-                key={tipo}
-                onClick={() => setRanura(tipo)}
-                className={`flex-1 rounded-xl border px-2 py-2 text-[11px] font-black uppercase tracking-wider
-                            ${ranura === tipo
-                              ? 'border-swu-amber bg-swu-amber/15 text-swu-amber'
-                              : 'border-swu-border bg-swu-surface text-swu-muted'}`}
-              >{rotulo}</button>
-            ))}
           </div>
           <div className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
             {deLaRanura(ranura).map(p => (
@@ -420,6 +424,38 @@ export function SablePage() {
             El cristal es el corazón del sable: decide el color de la hoja y es lo
             que más pesa en los stats.
           </p>
+          {/* «Que el cristal pueda estar visto en medio de la empuñadura»
+              (Nel). Dos ventanas al kyber en el centro del cuerpo, latiendo
+              del color de tu hoja. Cosmético y gratis, como todo color. */}
+          <button
+            type="button"
+            onClick={() => setDiseno(d => ({ ...d, cristalVisto: !d.cristalVisto }))}
+            aria-pressed={!!diseno.cristalVisto}
+            className={`mb-3 flex min-h-[48px] w-full items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left
+                        ${diseno.cristalVisto
+                          ? 'border-swu-amber bg-swu-amber/10'
+                          : 'border-swu-border bg-swu-surface'}`}
+          >
+            <span
+              className="h-4 w-4 shrink-0 rotate-45 rounded-[3px] border"
+              style={{
+                background: diseno.cristalVisto ? tonoHoja : 'transparent',
+                borderColor: tonoHoja,
+                boxShadow: diseno.cristalVisto ? `0 0 8px ${tonoHoja}` : 'none',
+              }}
+            />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[12px] font-black uppercase tracking-wider text-swu-text">
+                Cristal a la vista
+              </span>
+              <span className="block text-[11px] text-swu-muted">
+                Dos ventanas al kyber en el centro de la empuñadura, latiendo con tu color.
+              </span>
+            </span>
+            <span className={`text-[10px] font-black uppercase ${diseno.cristalVisto ? 'text-swu-amber' : 'text-swu-muted'}`}>
+              {diseno.cristalVisto ? 'Puesto' : 'Apagado'}
+            </span>
+          </button>
           <div className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
             {cristales.map(c => (
               <div key={c.id} className="flex w-44 shrink-0 snap-start">

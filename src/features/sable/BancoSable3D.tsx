@@ -27,6 +27,10 @@ export function BancoSable3D() {
   const [explotado, setExplotado] = useState(true)
   const [orientacion, setOrientacion] = useState<Orientacion>('diagonal')
   const [vista, setVista] = useState<Vista>('sable')
+  // Los cosméticos nuevos, para poder mirarlos sin cuenta: el cristal a la
+  // vista y un combinado de acabados por pieza.
+  const [visto, setVisto] = useState(false)
+  const [combinado, setCombinado] = useState(false)
 
   return (
     <div className="min-h-screen bg-swu-bg p-5">
@@ -36,7 +40,11 @@ export function BancoSable3D() {
       </p>
 
       <SableEscena
-        diseno={d}
+        diseno={{
+          ...d,
+          cristalVisto: visto,
+          ...(combinado ? { acabadoEmisor: 'laton', acabadoCuerpo: 'cuero', acabadoPomo: 'negro' } : {}),
+        }}
         encendido={encendido}
         explotado={explotado}
         orientacion={orientacion}
@@ -57,6 +65,14 @@ export function BancoSable3D() {
           onClick={() => setVista(v => (v === 'sable' ? 'cristal' : 'sable'))}
           className="rounded-xl border border-swu-border bg-swu-surface px-3 py-2 text-[12px] font-bold text-swu-text"
         >{vista === 'sable' ? 'Ver cristal' : 'Ver sable'}</button>
+        <button
+          onClick={() => setVisto(v => !v)}
+          className={`rounded-xl border px-3 py-2 text-[12px] font-bold ${visto ? 'border-swu-amber bg-swu-amber/15 text-swu-amber' : 'border-swu-border bg-swu-surface text-swu-text'}`}
+        >Cristal a la vista</button>
+        <button
+          onClick={() => setCombinado(v => !v)}
+          className={`rounded-xl border px-3 py-2 text-[12px] font-bold ${combinado ? 'border-swu-amber bg-swu-amber/15 text-swu-amber' : 'border-swu-border bg-swu-surface text-swu-text'}`}
+        >Combinar colores</button>
         {(['vertical', 'diagonal', 'horizontal'] as const).map(o => (
           <button
             key={o}

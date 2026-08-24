@@ -49,7 +49,10 @@ export interface Taller {
   acabados: Acabado[]
   diseno: {
     emisor: string; cuerpo: string; pomo: string; color: string
-    acabado: string | null; nombre: string | null
+    acabado: string | null
+    acabadoEmisor: string | null; acabadoCuerpo: string | null; acabadoPomo: string | null
+    cristalVisto: boolean
+    nombre: string | null
   } | null
 }
 
@@ -79,14 +82,26 @@ export async function abrirTaller(): Promise<Taller | null> {
  */
 export async function miDisenoSable(): Promise<{
   emisor: string; cuerpo: string; pomo: string; color: string; acabado: string | null
+  acabadoEmisor: string | null; acabadoCuerpo: string | null; acabadoPomo: string | null
+  cristalVisto: boolean
 } | null> {
   if (!isSupabaseReady()) return null
   const { data, error } = await supabase
     .from('sable_diseno')
-    .select('emisor, cuerpo, pomo, color, acabado')
+    .select('emisor, cuerpo, pomo, color, acabado, acabado_emisor, acabado_cuerpo, acabado_pomo, cristal_visto')
     .maybeSingle()
   if (error) { console.warn('[Sable] no se pudo leer el diseño:', error.message); return null }
-  return data ?? null
+  if (!data) return null
+  // Postgres escribe en serpiente y el cliente en camello: se traduce acá, en
+  // el borde, y no en cada pantalla.
+  return {
+    emisor: data.emisor, cuerpo: data.cuerpo, pomo: data.pomo, color: data.color,
+    acabado: data.acabado ?? null,
+    acabadoEmisor: data.acabado_emisor ?? null,
+    acabadoCuerpo: data.acabado_cuerpo ?? null,
+    acabadoPomo: data.acabado_pomo ?? null,
+    cristalVisto: data.cristal_visto === true,
+  }
 }
 
 export interface Resultado { ok: boolean; mensaje?: string; saldo?: number }
@@ -101,13 +116,22 @@ export async function comprarParte(parteId: string): Promise<Resultado> {
 }
 
 export async function guardarSable(
-  d: { emisor: string; cuerpo: string; pomo: string; color: string; acabado?: string | null },
+  d: {
+    emisor: string; cuerpo: string; pomo: string; color: string
+    acabado?: string | null
+    acabadoEmisor?: string | null; acabadoCuerpo?: string | null; acabadoPomo?: string | null
+    cristalVisto?: boolean
+  },
   nombre?: string,
 ): Promise<Resultado> {
   if (!isSupabaseReady()) return { ok: false, mensaje: 'Sin conexión con el servidor' }
   const { data, error } = await supabase.rpc('guardar_sable', {
     p_emisor: d.emisor, p_cuerpo: d.cuerpo, p_pomo: d.pomo, p_color: d.color,
     p_nombre: nombre?.trim() || null, p_acabado: d.acabado ?? null,
+    p_acabado_emisor: d.acabadoEmisor ?? null,
+    p_acabado_cuerpo: d.acabadoCuerpo ?? null,
+    p_acabado_pomo: d.acabadoPomo ?? null,
+    p_cristal_visto: d.cristalVisto ?? false,
   })
   if (error) return { ok: false, mensaje: error.message }
   const r = data as { ok: boolean; error?: string } | null

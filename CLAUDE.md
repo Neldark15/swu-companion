@@ -2825,3 +2825,30 @@ Dos salidas, y hay que tomar una a propósito:
 
 Lo que NO se puede es dejar las dos con cuerpos distintos: son dos verdades, y
 cuál te toca depende de cuándo actualizaste (§2g).
+
+
+### 4g. Personalización del sable: la cadena de acabados y el cristal a la vista
+
+Pedido de Nel («aumenta todo»): combinar colores POR PIEZA, más colores de
+hoja, y el kyber visible en medio de la empuñadura.
+
+**La cadena de resolución del material es una sola y vive en `piezasDeSable`:**
+`acabado de la pieza → acabado global → material propio del catálogo`. El
+global (`sable_diseno.acabado`) NO se retiró al llegar los por-pieza: es lo que
+una PWA sin actualizar sigue guardando (§2g), y la cadena lo respeta. Cualquier
+acabado desconocido cae al siguiente eslabón, nunca revienta.
+
+**El cristal a la vista es un booleano, no una pieza.** `piezasDeSable` le
+inyecta al cuerpo dos herrajes SINTÉTICOS (gema de plasma radio 0,44 ×2 + aro
+de marco) cuando `cristalVisto` está puesto. Por eso lo dibujan gratis los DOS
+renderizadores, el asiento lo apoya midiendo como a cualquier herraje, viaja
+con la pieza en la vista explotada, y la prueba lo valida contra los 12
+cuerpos. La primera versión (radio 0,3) se leía como un remache de color: la
+ventana es EL punto del sable cuando está puesta, y a ese tamaño no lo era.
+
+**Los 3 colores nuevos** (HIELO cian, FRAGUA naranja, AURORA ROSA magenta) son
+épicos y ninguno se arrima al rojo: cian es hielo, naranja es fragua (canon),
+magenta es rosa franco. El rojo sigue siendo solo del sangrado.
+
+**Postgres escribe en serpiente y el cliente en camello** — la traducción vive
+en `sableService.miDisenoSable`, en el borde, no en cada pantalla.

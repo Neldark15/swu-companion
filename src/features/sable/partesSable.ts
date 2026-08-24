@@ -1017,6 +1017,14 @@ export const COLORES: Record<string, ColorHoja> = {
   col_purpura:  { nucleo: '#f7eaff', halo: '#a855f7' },
   col_amarillo: { nucleo: '#fffbea', halo: '#ffd21e' },
   col_blanco:   { nucleo: '#ffffff', halo: '#cfe6ff' },
+  /* ── Segunda tanda (2026-08-24): «aumenta la forma de colores» ──
+     Tres más, y ninguno se arrima al ROJO, que sigue siendo el color que se
+     gana sangrando: el cian es hielo, el naranja es fuego de fragua (existe en
+     el canon y nadie lo confunde con una hoja sith), y el magenta es rosa
+     franco, no carmesí. */
+  col_cian:     { nucleo: '#eefcff', halo: '#19d8e0' },
+  col_naranja:  { nucleo: '#fff4e8', halo: '#ff8c1a' },
+  col_magenta:  { nucleo: '#fff0fa', halo: '#ff4fd8' },
 }
 
 /* ── Armar el perfil completo ──────────────────────────────────────── */
@@ -1027,17 +1035,38 @@ export interface Diseno {
   pomo: string
   color: string
   /**
-   * El ACABADO: repinta las tres piezas del mismo material.
+   * El ACABADO: repinta las piezas de otro material.
    *
    * Nulo —el valor por defecto— es «cada pieza con el suyo», que es la
    * identidad que el catálogo trae escrita: CORTEZA de cuero, CORONA de latón,
    * CÚPULA esmaltada. Elegir un acabado es una decisión de quien arma el sable,
    * y por eso el valor de fábrica no es un color sino la ausencia de uno.
    *
-   * Los HERRAJES no se repintan: el latón de los aros y el testigo del cristal
-   * son lo que evita que un mango de un solo material se vea como un tubo.
+   * Desde 2026-08-24 se puede COMBINAR: cada pieza puede llevar su propio
+   * acabado («aumenta la forma de colores, que empuñaduras puedan combinar
+   * colores» — Nel). El global sigue existiendo y es lo que una PWA vieja
+   * guarda; el por-pieza, si está, le gana. La cadena completa es:
+   * acabado de la pieza → acabado global → material propio de la pieza.
+   *
+   * Los HERRAJES no se repintan nunca: el latón de los aros y el testigo del
+   * cristal son lo que evita que un mango de un solo material se vea tubo.
    */
   acabado?: string | null
+  acabadoEmisor?: string | null
+  acabadoCuerpo?: string | null
+  acabadoPomo?: string | null
+  /**
+   * EL CRISTAL A LA VISTA: dos ventanas en el centro de la empuñadura por las
+   * que se ve el kyber, del color de tu hoja y latiendo («que el cristal pueda
+   * estar visto en medio de la empuñadura» — Nel).
+   *
+   * No es una malla especial: son herrajes SINTÉTICOS que `piezasDeSable` le
+   * agrega al cuerpo — una gema de plasma por cara y su marco. Así lo dibujan
+   * gratis los DOS renderizadores (la escena y la foto de la barra de XP), el
+   * asiento los apoya midiendo como a cualquier herraje, y viajan con la pieza
+   * en la vista explotada.
+   */
+  cristalVisto?: boolean
 }
 
 export const POR_DEFECTO: Diseno = {
@@ -1190,7 +1219,14 @@ export function piezasDeSable(d: Diseno): PiezaSuelta[] {
   const piezas = [pomo, cuerpo, emisor]
   // Un acabado que este deploy no conoce se ignora en vez de pintar de gris:
   // los ids vienen del servidor y la PWA instalada tarda en actualizarse (§2g).
-  const acabado = d.acabado && d.acabado in MATERIALES ? (d.acabado as MaterialId) : null
+  const valido = (a: string | null | undefined): MaterialId | null =>
+    a && a in MATERIALES ? (a as MaterialId) : null
+  const global = valido(d.acabado)
+  const porPieza: Record<'pomo' | 'cuerpo' | 'emisor', MaterialId | null> = {
+    pomo: valido(d.acabadoPomo),
+    cuerpo: valido(d.acabadoCuerpo),
+    emisor: valido(d.acabadoEmisor),
+  }
   const salida: PiezaSuelta[] = []
   let base = 0
   for (let i = 0; i < piezas.length; i++) {
@@ -1212,9 +1248,25 @@ export function piezasDeSable(d: Diseno): PiezaSuelta[] {
     const perfil = puntos.slice()
     if (puntos[0][0] > 0) puntos.unshift([0, puntos[0][1]])
     if (puntos[puntos.length - 1][0] > 0) puntos.push([0, puntos[puntos.length - 1][1]])
+    let herrajes = p.herrajes ?? []
+    /* La ventana del cristal va en el CUERPO y a media altura: dos gemas de
+       plasma enfrentadas (giradas para no chocar con el botón, que casi
+       siempre vive en giro 0) y un aro oscuro de marco. Sintéticas y no
+       catálogo: son del DISEÑO, no de la pieza. */
+    if (claves[i] === 'cuerpo' && d.cristalVisto) {
+      herrajes = [
+        ...herrajes,
+        /* Radio 0,44: la ventana es EL punto del sable cuando está puesta —
+           más chica se leía como un remache de color, no como el kyber. El
+           giro de 90° la saca del meridiano del botón, que casi siempre vive
+           en giro 0. */
+        { tipo: 'gema', y: 0.5, radio: 0.44, vueltas: 2, giro: Math.PI / 2, material: 'plasma' },
+        { tipo: 'anillo', y: 0.5, grosor: 0.09, material: 'negro' },
+      ]
+    }
     salida.push({
       clave: claves[i], puntos, alto: p.alto, base,
-      material: acabado ?? p.material, herrajes: p.herrajes ?? [], perfil,
+      material: porPieza[claves[i]] ?? global ?? p.material, herrajes, perfil,
     })
     base += p.alto
   }

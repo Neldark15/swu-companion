@@ -28,9 +28,18 @@ const LS = 'sable_minibarra_v2'
    prenden del color del cristal: dos diseños con las mismas piezas y distinta
    hoja ya no dan la misma foto. */
 export function claveDeMango(
-  d: { emisor: string; cuerpo: string; pomo: string; color?: string; acabado?: string | null },
+  d: {
+    emisor: string; cuerpo: string; pomo: string; color?: string
+    acabado?: string | null
+    acabadoEmisor?: string | null; acabadoCuerpo?: string | null; acabadoPomo?: string | null
+    cristalVisto?: boolean
+  },
 ): string {
-  return `${d.emisor}|${d.cuerpo}|${d.pomo}|${d.color ?? ''}|${d.acabado ?? ''}`
+  return [
+    d.emisor, d.cuerpo, d.pomo, d.color ?? '', d.acabado ?? '',
+    d.acabadoEmisor ?? '', d.acabadoCuerpo ?? '', d.acabadoPomo ?? '',
+    d.cristalVisto ? 'v' : '',
+  ].join('|')
 }
 
 export function mangoCacheado(): EntradaMango | null {
@@ -64,7 +73,7 @@ let enVuelo: Promise<string | null> | null = null
 
 /** La foto del mango: del caché si sirve, renderizada (una sola vez) si no. */
 export function fotoDelMango(
-  d: { emisor: string; cuerpo: string; pomo: string; color: string; acabado?: string | null },
+  d: Parameters<typeof claveDeMango>[0] & { color: string },
 ): Promise<string | null> {
   const clave = claveDeMango(d)
   const cache = mangoCacheado()
