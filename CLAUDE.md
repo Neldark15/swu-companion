@@ -2804,3 +2804,24 @@ from pg_proc p join pg_namespace n on n.oid = p.pronamespace
 where n.nspname='public' and p.proacl::text like '%anon=X%'
 order by p.proname;
 ```
+
+
+### 4f. Agregar un argumento con default a una RPC NO es compatible hacia atrás
+
+Parece que sí y no lo es. `guardar_sable` pasó de 5 argumentos a 6 (`p_acabado`
+con default) y eso creó una **sobrecarga**: quedaron las dos funciones, y la
+vieja con el cuerpo viejo. PostgREST resuelve por NOMBRE de argumento, así que
+la PWA instalada que todavía manda 5 caía en la vieja — que seguía exigiendo
+`es_probador_sable()` y respondía «El taller todavia no esta abierto» **el día
+que se abrió el taller**. Podía entrar y comprar (esas RPC no cambiaron de
+firma) y no podía guardar: el peor final posible de una sesión de armado.
+
+Dos salidas, y hay que tomar una a propósito:
+
+1. **Soltar la vieja** (`drop function ... (firma vieja)`). PostgREST cae en la
+   nueva y los argumentos que faltan toman su default. Es lo que se hizo acá.
+2. **Reescribir la vieja para que delegue** en la nueva, si de verdad hace falta
+   mantener las dos puertas.
+
+Lo que NO se puede es dejar las dos con cuerpos distintos: son dos verdades, y
+cuál te toca depende de cuándo actualizaste (§2g).
