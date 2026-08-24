@@ -1,0 +1,19 @@
+-- EL ROJO NO SE COMPRA — decisión de Nel (2026-08-24).
+-- Aplicada en producción por MCP (`sable_rojo_oculto`); queda escrita acá (§3o).
+--
+-- Un sable rojo no se elige en la tienda: se consigue SANGRANDO un cristal, que
+-- será otra mecánica más adelante. Por eso `col_rojo` NO se borra —el sangrado
+-- del futuro insertará el cristal directo en `sable_inventario`, saltándose la
+-- tienda, y además `sable_inventario`/`sable_diseno` tienen FK a la pieza—:
+-- se marca `oculta` y deja de ofrecerse y de poder comprarse.
+--
+--   alter table public.sable_partes add column oculta boolean not null default false;
+--   update public.sable_partes set oculta = true where id = 'col_rojo';
+--
+-- `sable_taller()` la excluye del listado y del conteo `cuantasHay` — SALVO que
+-- ya sea tuya: esconderle a alguien una pieza repartida sería quitarle lo suyo.
+-- `comprar_parte_sable()` la rebota aunque el id llegue a mano:
+-- «Ese cristal no se compra: se gana de otra forma.»
+--
+-- Verificado con `set local role authenticated` (revertido): el listado no trae
+-- col_rojo, cuantasHay pasó de 14 a 13, y comprarlo devuelve el mensaje.

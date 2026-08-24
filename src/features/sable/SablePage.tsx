@@ -42,7 +42,7 @@ import {
   ChevronLeft, Lock, Power, Save, Package, RotateCw, Volume2, VolumeX,
 } from 'lucide-react'
 import { CreditoIcon } from '../../components/icons/CreditoIcon'
-import { SableEscena } from './SableEscena'
+import { SableEscena, type Orientacion, type Vista } from './SableEscena'
 import { PiezaTarjeta } from './PiezaTarjeta'
 import { BarraStats } from './BarraStats'
 import { POR_DEFECTO, type Diseno } from './partesSable'
@@ -69,6 +69,7 @@ export function SablePage() {
   const [sinWebGL, setSinWebGL] = useState(false)
   const [ocupado, setOcupado] = useState(false)
   const [silencio, setSilencio] = useState(sableEnSilencio)
+  const [orientacion, setOrientacion] = useState<Orientacion>('diagonal')
 
   /* Se sube para volver a consultar. Es una dependencia real del efecto, que es
      como el resto de la app hace las recargas — un `useCallback` llamado DESDE
@@ -111,6 +112,9 @@ export function SablePage() {
      invertido — abierto se ve QUÉ se está cambiando. */
   const encendido = paso === 'prueba'
   const explotado = paso === 'piezas'
+  /* En el paso del cristal, la escena enseña EL CRISTAL: es lo que se está
+     eligiendo, y hasta ahora era la única pieza que no se veía nunca. */
+  const vista: Vista = paso === 'cristal' ? 'cristal' : 'sable'
 
   /* El tono del zumbido sale del CRISTAL: cada uno suena distinto, y eso es la
      mitad de por qué vale la pena cambiarlo. Se deriva del orden de la pieza para
@@ -268,6 +272,8 @@ export function SablePage() {
             diseno={diseno}
             encendido={encendido}
             explotado={explotado}
+            orientacion={orientacion}
+            vista={vista}
             onSinWebGL={() => setSinWebGL(true)}
             className="h-[38vh] min-h-[240px] max-h-[440px] w-full rounded-2xl border border-swu-border bg-gradient-to-b from-[#100c07] to-[#1d1408]"
           />
@@ -275,9 +281,30 @@ export function SablePage() {
               donde no tapa el sable, y solo mientras no se está probando. */}
           {!encendido && (
             <span className="pointer-events-none absolute bottom-2 left-3 flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-swu-muted/80">
-              <RotateCw size={11} /> Arrastrá para rotar
+              <RotateCw size={11} /> Arrastralo en cualquier dirección
             </span>
           )}
+        </div>
+      )}
+
+      {/* Las tres poses. El arrastre libre puede salirse de ellas cuando
+          quiera: esto es un atajo, no un modo. */}
+      {!sinWebGL && vista === 'sable' && (
+        <div className="mt-2 flex items-center justify-center gap-1.5">
+          {([
+            ['vertical', 'Vertical'],
+            ['diagonal', 'Diagonal'],
+            ['horizontal', 'Horizontal'],
+          ] as const).map(([id, rotulo]) => (
+            <button
+              key={id}
+              onClick={() => setOrientacion(id)}
+              className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider
+                          ${orientacion === id
+                            ? 'border-swu-amber bg-swu-amber/15 text-swu-amber'
+                            : 'border-swu-border bg-swu-surface text-swu-muted'}`}
+            >{rotulo}</button>
+          ))}
         </div>
       )}
 

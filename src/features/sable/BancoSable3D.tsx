@@ -11,7 +11,7 @@
  */
 
 import { useState } from 'react'
-import { SableEscena } from './SableEscena'
+import { SableEscena, type Orientacion, type Vista } from './SableEscena'
 import { IDS_CONOCIDOS, POR_DEFECTO, type Diseno } from './partesSable'
 
 const RANURAS = [
@@ -25,6 +25,8 @@ export function BancoSable3D() {
   const [d, setD] = useState<Diseno>(POR_DEFECTO)
   const [encendido, setEncendido] = useState(false)
   const [explotado, setExplotado] = useState(true)
+  const [orientacion, setOrientacion] = useState<Orientacion>('diagonal')
+  const [vista, setVista] = useState<Vista>('sable')
 
   return (
     <div className="min-h-screen bg-swu-bg p-5">
@@ -37,6 +39,8 @@ export function BancoSable3D() {
         diseno={d}
         encendido={encendido}
         explotado={explotado}
+        orientacion={orientacion}
+        vista={vista}
         className="h-[52vh] min-h-[320px] w-full rounded-2xl border border-swu-border bg-gradient-to-b from-[#0d0b08] to-[#1c1408]"
       />
 
@@ -49,6 +53,21 @@ export function BancoSable3D() {
           onClick={() => setExplotado(v => !v)}
           className="rounded-xl border border-swu-border bg-swu-surface px-3 py-2 text-[12px] font-bold text-swu-text"
         >{explotado ? 'Armar' : 'Explotar'}</button>
+        <button
+          onClick={() => setVista(v => (v === 'sable' ? 'cristal' : 'sable'))}
+          className="rounded-xl border border-swu-border bg-swu-surface px-3 py-2 text-[12px] font-bold text-swu-text"
+        >{vista === 'sable' ? 'Ver cristal' : 'Ver sable'}</button>
+        {(['vertical', 'diagonal', 'horizontal'] as const).map(o => (
+          <button
+            key={o}
+            onClick={() => setOrientacion(o)}
+            className={`rounded-xl border px-3 py-2 text-[12px] font-bold ${
+              orientacion === o
+                ? 'border-swu-amber bg-swu-amber/15 text-swu-amber'
+                : 'border-swu-border bg-swu-surface text-swu-text'
+            }`}
+          >{o}</button>
+        ))}
         <span className="self-center text-[11px] text-swu-muted">
           La hoja CRECE desde el emisor; abrir el sable la recoge y armarlo la devuelve.
         </span>
