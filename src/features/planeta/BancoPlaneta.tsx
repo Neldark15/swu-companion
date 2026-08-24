@@ -45,10 +45,12 @@ export function BancoPlaneta() {
   const [familia, setFamilia] = useState<string | null>(null)
   const [mares, setMares] = useState<number | null>(null)
   const [crateres, setCrateres] = useState<number | null>(null)
+  const [anillos, setAnillos] = useState<number | null>(null)
+  const [lunas, setLunas] = useState<number | null>(null)
   const id = IDS[i]
   const rasgos = useMemo(
-    () => rasgosDe(id, { familia, mares, crateres, acento }),
-    [id, familia, mares, crateres, acento],
+    () => rasgosDe(id, { familia, mares, crateres, anillos, lunas, acento }),
+    [id, familia, mares, crateres, anillos, lunas, acento],
   )
 
   return (
@@ -110,6 +112,28 @@ export function BancoPlaneta() {
         <div className="inline-block rounded-lg border border-white/10 bg-black/60 px-2.5 py-1.5
                         font-mono text-[10px] leading-relaxed text-white/80 backdrop-blur">
           <div>{nombrePorDefecto(id)} · <b className="text-swu-cyan">{fps} fps</b> · fam <b className="text-swu-amber">{rasgos.familia}</b></div>
+
+        {/* Anillos y lunas: la semilla los deja en minoría, así que sin estos
+            botones habría que probar decenas de ids para ver uno con anillos. */}
+        {([
+          ['anillos', anillos, setAnillos, 3],
+          ['lunas', lunas, setLunas, 3],
+        ] as const).map(([et, val, set, max]) => (
+          <div key={et} className="flex flex-wrap items-center gap-1.5">
+            <span className="w-16 font-mono text-[11px] text-swu-muted">{et}</span>
+            <button
+              onClick={() => set(null)}
+              className={`rounded-lg border px-2 py-1 text-[10px] font-bold ${val == null ? 'border-swu-amber text-swu-amber' : 'border-swu-border text-swu-muted'}`}
+            >auto</button>
+            {Array.from({ length: max + 1 }, (_, n) => (
+              <button
+                key={n}
+                onClick={() => set(n)}
+                className={`rounded-lg border px-2 py-1 text-[10px] font-bold ${val === n ? 'border-swu-amber text-swu-amber' : 'border-swu-border text-swu-muted'}`}
+              >{n}</button>
+            ))}
+          </div>
+        ))}
           <div>
             mares {rasgos.nivelMares.toFixed(3)} · giro {rasgos.giro.toFixed(2)} ·
             cráteres ×{rasgos.densidadCrateres.toFixed(2)}

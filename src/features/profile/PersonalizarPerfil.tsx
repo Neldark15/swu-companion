@@ -80,19 +80,21 @@ function Deslizador({ etiqueta, valor, onCambio }: {
 }
 
 /** El mundo tal como va a quedar, en chico y girando. */
-function VistaPreviaPlaneta({ userId, familia, mares, crateres, acento }: {
+function VistaPreviaPlaneta({ userId, familia, mares, crateres, anillos, lunas, acento }: {
   userId: string
   familia: string | null
   mares: number | null
   crateres: number | null
+  anillos: number | null
+  lunas: number | null
   acento: string | null
 }) {
   /* Se reconstruye la malla en cada cambio, y eso es a propósito: mover el
      deslizador tiene que MOSTRAR el mundo nuevo, no una aproximación. La escena
      elige sola un detalle bajo si el aparato es flojo. */
   const rasgos = useMemo(
-    () => rasgosDe(userId, { familia, mares, crateres, acento }),
-    [userId, familia, mares, crateres, acento],
+    () => rasgosDe(userId, { familia, mares, crateres, anillos, lunas, acento }),
+    [userId, familia, mares, crateres, anillos, lunas, acento],
   )
   return (
     <div className="overflow-hidden rounded-xl border border-swu-border">
@@ -231,6 +233,8 @@ export function PersonalizarPerfil() {
           familia={p.planet_family}
           mares={p.planet_seas}
           crateres={p.planet_craters}
+          anillos={p.planet_rings}
+          lunas={p.planet_moons}
           acento={p.accent}
         />
 
@@ -286,6 +290,47 @@ export function PersonalizarPerfil() {
             valor={p.planet_craters}
             onCambio={v => guardarPlaneta({ planet_craters: v }, false)}
           />
+
+          {/* ── ANILLOS Y LUNAS ──
+              No van de deslizador: son CUENTAS, no cantidades. Un deslizador de
+              0 a 100 para «cuántas lunas» obliga a adivinar dónde cae el 2.
+
+              Y «Semilla» es un valor de verdad, no la ausencia de uno: significa
+              «lo que le tocó a mi id», que es lo que tienen los 39 mundos hoy.
+              Sin ese botón, entrar al panel una vez te quitaría para siempre la
+              posibilidad de volver a lo que te tocó. */}
+          {([
+            ['Anillos', 'planet_rings', p.planet_rings, ['Ninguno', 'Fino', 'Doble', 'Ancho']],
+            ['Lunas', 'planet_moons', p.planet_moons, ['Ninguna', '1', '2', '3']],
+          ] as const).map(([etiqueta, campo, valor, rotulos]) => (
+            <div key={campo}>
+              <div className="mb-1.5 flex items-center justify-between">
+                <span className="text-[11px] font-bold text-swu-text">{etiqueta}</span>
+                <span className="text-[10px] text-swu-muted">
+                  {valor == null ? 'Semilla' : rotulos[valor] ?? valor}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => guardarPlaneta({ [campo]: null }, false)}
+                  className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider
+                              ${valor == null
+                                ? 'border-swu-accent bg-swu-accent/15 text-swu-accent-texto'
+                                : 'border-swu-border bg-swu-surface text-swu-muted'}`}
+                >Semilla</button>
+                {rotulos.map((r, i) => (
+                  <button
+                    key={r}
+                    onClick={() => guardarPlaneta({ [campo]: i }, false)}
+                    className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider
+                                ${valor === i
+                                  ? 'border-swu-accent bg-swu-accent/15 text-swu-accent-texto'
+                                  : 'border-swu-border bg-swu-surface text-swu-muted'}`}
+                  >{r}</button>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
 
         <h4 className="mt-3 mb-1.5 text-[10px] font-mono tracking-wider uppercase text-swu-muted/60">

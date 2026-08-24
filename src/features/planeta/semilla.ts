@@ -68,6 +68,16 @@ export interface AjustesPlaneta {
   crateres?: number | null
   /** El acento del perfil, de donde sale la familia por defecto. */
   acento?: string | null
+  /**
+   * Anillos: 0 = ninguno, 1..3 = los tres estilos. `null` = lo decide la semilla.
+   *
+   * Con `null` la mayoría de los mundos NO lleva anillos, y eso es a propósito:
+   * si los tuviera casi todo el mundo dejarían de significar algo. Se los pone
+   * quien quiere que su planeta se distinga de lejos.
+   */
+  anillos?: number | null
+  /** Lunas: 0..3. `null` = lo decide la semilla. */
+  lunas?: number | null
 }
 
 /** Los rasgos de un mundo: todo lo que lo hace distinto de los demás. */
@@ -90,6 +100,10 @@ export interface RasgosMundo {
   nivelMares: number
   /** Cuál quedó, después de resolver ajuste → acento → semilla. Para la UI. */
   familia: FamiliaPlaneta
+  /** 0 = sin anillos; 1..3 = estilo. */
+  anillos: number
+  /** Cuántas lunas, 0..3. */
+  lunas: number
 }
 
 /**
@@ -165,6 +179,14 @@ export function rasgosDe(userId: string, ajustes?: AjustesPlaneta): RasgosMundo 
   const cratSemilla = 0.7 + rnd() * 0.6
   const inclinacion = (rnd() - 0.5) * 0.8
   const maresSemilla = 0.44 + rnd() * 0.18
+  /* Los rasgos NUEVOS se sacan AL FINAL de la secuencia, nunca en el medio.
+     Meter una tirada antes correría todas las de abajo y le cambiaría la forma
+     al mundo de las 19 personas que ya tienen el suyo — un planeta que se
+     reescribe solo el día que agregamos anillos. */
+  const anillosSemilla = rnd()
+  const anillosEstilo = 1 + Math.floor(rnd() * 3)
+  const lunasSemilla = rnd()
+  const lunasCuantas = 1 + Math.floor(rnd() * 3)
 
   /* 0-100 del panel a los rangos que la geometría entiende.
    *
@@ -176,6 +198,15 @@ export function rasgosDe(userId: string, ajustes?: AjustesPlaneta): RasgosMundo 
   const nivelMares = ajustes?.mares == null
     ? maresSemilla
     : 0.70 - (Math.min(100, Math.max(0, ajustes.mares)) / 100) * 0.36
+  /* Anillos y lunas: el ajuste manda; si no hay, decide la semilla. Los cortes
+     (0.82 y 0.55) están puestos para que sean MINORÍA — un cielo donde todos
+     tienen anillos es un cielo sin anillos. */
+  const anillos = ajustes?.anillos == null
+    ? (anillosSemilla > 0.82 ? anillosEstilo : 0)
+    : Math.min(3, Math.max(0, Math.round(ajustes.anillos)))
+  const lunas = ajustes?.lunas == null
+    ? (lunasSemilla > 0.55 ? lunasCuantas : 0)
+    : Math.min(3, Math.max(0, Math.round(ajustes.lunas)))
   const densidadCrateres = ajustes?.crateres == null
     ? cratSemilla
     : 0.35 + (Math.min(100, Math.max(0, ajustes.crateres)) / 100) * 1.15
@@ -191,6 +222,8 @@ export function rasgosDe(userId: string, ajustes?: AjustesPlaneta): RasgosMundo 
     inclinacion,
     nivelMares,
     familia,
+    anillos,
+    lunas,
   }
 }
 

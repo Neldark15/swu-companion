@@ -50,12 +50,17 @@ export interface Personalizacion {
      panel tiene su mundo igual. */
   planet_family: FamiliaPlaneta | null
   planet_seas: number | null
+  /** 0 = sin anillos, 1..3 estilo, null = lo decide la semilla. */
+  planet_rings: number | null
+  /** 0..3 lunas, null = lo decide la semilla. */
+  planet_moons: number | null
   planet_craters: number | null
 }
 
 export const VACIA: Personalizacion = {
   showcase_cards: [], favorite_aspects: [], banner_card_id: null, accent: 'cyan',
   planet_name: null, planet_family: null, planet_seas: null, planet_craters: null,
+  planet_rings: null, planet_moons: null,
 }
 
 /**
@@ -65,7 +70,7 @@ export const VACIA: Personalizacion = {
  * `select('*')` pide todas y PostgREST responde «permission denied for table
  * profiles», tumbando la pantalla entera. Ya pasó una vez.
  */
-const COLUMNAS = 'showcase_cards, favorite_aspects, banner_card_id, accent, planet_name, planet_family, planet_seas, planet_craters'
+const COLUMNAS = 'showcase_cards, favorite_aspects, banner_card_id, accent, planet_name, planet_family, planet_seas, planet_craters, planet_rings, planet_moons'
 
 /** Normaliza lo que venga de la base: columnas nuevas pueden llegar nulas. */
 function normalizar(row: Partial<Personalizacion> | null): Personalizacion {
@@ -79,6 +84,8 @@ function normalizar(row: Partial<Personalizacion> | null): Personalizacion {
     planet_family: row.planet_family ?? null,
     planet_seas: row.planet_seas ?? null,
     planet_craters: row.planet_craters ?? null,
+    planet_rings: row.planet_rings ?? null,
+    planet_moons: row.planet_moons ?? null,
   }
 }
 

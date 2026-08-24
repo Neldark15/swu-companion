@@ -133,6 +133,77 @@ export function PlanetaEscena({ rasgos, onSinWebGL, onFps, className = '' }: Pro
     })
     escena.add(new THREE.Mesh(geoAtmosfera, matAtmosfera))
 
+    /* ── ANILLOS ──
+       Un disco plano con bandas y huecos, inclinado con el eje del planeta.
+       Lo que lo vende no es el disco: son los HUECOS. Un anillo macizo se lee
+       como un plato; las divisiones son lo que dice «esto son millones de
+       piedras dando vueltas».
+
+       Las UV de `RingGeometry` vienen mapeadas sobre la caja envolvente, o sea
+       que una textura de bandas saldría en cuadrícula. Se reescriben acá: `u`
+       pasa a ser la distancia radial normalizada, que es la única forma de que
+       las bandas sean concéntricas. */
+    const desechosAnillo: { dispose(): void }[] = []
+    if (rasgos.anillos > 0) {
+      const dentro = RADIO_MUNDO * 1.35
+      const fuera = RADIO_MUNDO * (1.9 + rasgos.anillos * 0.18)
+      const geoAnillo = new THREE.RingGeometry(dentro, fuera, 96, 1)
+      const pos = geoAnillo.getAttribute('position')
+      const uv = geoAnillo.getAttribute('uv')
+      for (let i = 0; i < pos.count; i++) {
+        const d = Math.hypot(pos.getX(i), pos.getY(i))
+        uv.setXY(i, (d - dentro) / (fuera - dentro), 0.5)
+      }
+
+      const cv = document.createElement('canvas')
+      cv.width = 128; cv.height = 1
+      const cx = cv.getContext('2d')!
+      const base = new THREE.Color(rasgos.altiplano)
+      for (let i = 0; i < 128; i++) {
+        const t = i / 127
+        /* Tres senos de periodo distinto: el batido entre ellos da bandas
+           irregulares y huecos, en vez del rayado regular de uno solo. */
+        const b = Math.sin(t * 41 + rasgos.s01 * 9) * 0.5
+          + Math.sin(t * 17 + rasgos.s01 * 4) * 0.32
+          + Math.sin(t * 7) * 0.18
+        const a = Math.max(0, Math.min(1, 0.5 + b)) * (1 - Math.abs(t - 0.45) * 0.7)
+        cx.fillStyle = `rgba(${Math.round(base.r * 255)},${Math.round(base.g * 255)},${Math.round(base.b * 255)},${a.toFixed(3)})`
+        cx.fillRect(i, 0, 1, 1)
+      }
+      const texAnillo = new THREE.CanvasTexture(cv)
+      const matAnillo = new THREE.MeshBasicMaterial({
+        map: texAnillo, transparent: true, side: THREE.DoubleSide,
+        depthWrite: false, opacity: 0.85,
+      })
+      const anillo = new THREE.Mesh(geoAnillo, matAnillo)
+      // Acostado en el ecuador y con la MISMA inclinación que el eje: si el
+      // planeta está ladeado y el anillo no, se ve como un aro puesto encima.
+      anillo.rotation.x = Math.PI / 2
+      anillo.rotation.y = rasgos.inclinacion
+      escena.add(anillo)
+      desechosAnillo.push(geoAnillo, matAnillo, texAnillo)
+    }
+
+    /* ── LUNAS ──
+       Esferas chicas en órbitas de radio, velocidad e inclinación distintas.
+       Comparten geometría y material: tres lunas son tres llamadas de dibujo,
+       no tres de todo. El material es el altiplano del planeta apagado — una
+       luna del color del mundo dice que salieron del mismo sistema. */
+    const geoLuna = new THREE.SphereGeometry(RADIO_MUNDO * 0.11, 12, 8)
+    const matLuna = new THREE.MeshLambertMaterial({
+      color: new THREE.Color(rasgos.altiplano).multiplyScalar(0.72),
+    })
+    const lunas = Array.from({ length: rasgos.lunas }, (_, i) => {
+      const m = new THREE.Mesh(geoLuna, matLuna)
+      m.userData.radio = RADIO_MUNDO * (1.75 + i * 0.42)
+      m.userData.vel = 0.00013 - i * 0.000028
+      m.userData.fase = (i / Math.max(1, rasgos.lunas)) * Math.PI * 2 + rasgos.giro
+      m.userData.inc = rasgos.inclinacion + (i - 1) * 0.28
+      m.scale.setScalar(1 - i * 0.18)
+      escena.add(m)
+      return m
+    })
+
     /**
      * Estrellas: UN solo `Points` con 1.400 vértices.
      *
@@ -286,6 +357,19 @@ export function PlanetaEscena({ rasgos, onSinWebGL, onFps, className = '' }: Pro
       const dt = Math.min(0.05, (ahora - ultimo) / 1000)
       ultimo = ahora
 
+      // Las lunas orbitan. Cada una en su plano y a su velocidad: en órbitas
+      // idénticas se leerían como un collar rígido, no como satélites.
+      for (const m of lunas) {
+        const a = ahora * (m.userData.vel as number) + (m.userData.fase as number)
+        const r = m.userData.radio as number
+        const inc = m.userData.inc as number
+        m.position.set(
+          Math.cos(a) * r,
+          Math.sin(a) * r * Math.sin(inc),
+          Math.sin(a) * r * Math.cos(inc),
+        )
+      }
+
       if (autoGiro) objetivo.theta += dt * 0.055
 
       // Suavizado exponencial independiente de los FPS: con un `lerp` de factor
@@ -357,6 +441,9 @@ export function PlanetaEscena({ rasgos, onSinWebGL, onFps, className = '' }: Pro
       matAtmosfera.dispose()
       geoEstrellas.dispose()
       matEstrellas.dispose()
+      geoLuna.dispose()
+      matLuna.dispose()
+      for (const d of desechosAnillo) d.dispose()
       renderer.dispose()
 
       // El listener PRIMERO, y recién después soltar el contexto: al revés, la
