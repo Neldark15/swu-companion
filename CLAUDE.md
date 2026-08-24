@@ -2228,3 +2228,115 @@ cambia de tamaño, ese texto miente.
 
 Banco en **`/banco-saldo`** (solo desarrollo): 0, 1, 2, 5, 9 y 21 a un toque.
 Ver la insignia con 9 de verdad sería esperar nueve días.
+
+### 3w. Más filtros en el constructor, y la penalización de aspecto que NO se puede calcular
+
+`searchCards` ya aceptaba tipo, arena, palabra clave, rasgo, rareza y set — y
+el constructor exponía **tres** (texto, aspecto, coste). Otra vez: la capacidad
+estaba y no se veía.
+
+Se agregan tipo, arena, palabra clave, rasgo y «de mis aspectos» detrás de un
+**«Más filtros» que lleva el NÚMERO de activos adentro**. Un panel plegado que
+no avisa que hay algo puesto es cómo alguien busca diez minutos sin entender
+por qué no aparece su carta. Aspecto y coste se quedan a la vista.
+
+**Las listas se DERIVAN de la base** (`vocabularioDeCartas`), no se escriben a
+mano: una lista fija se queda vieja con cada set y el filtro deja de ofrecer lo
+nuevo **sin dar ningún error** — que es cómo Twin Suns desapareció de Explorar
+(§3j).
+
+Medido sobre las 2.314 canónicas: **58 rasgos** y **16 palabras clave**, todas
+con 23 cartas o más. Por eso las palabras clave van como fichas y los rasgos
+llevan buscador; se ordenan **por cuántas cartas los llevan**, no alfabético.
+
+**«DE MIS ASPECTOS» NO ES «SIN PENALIZACIÓN», Y NO PUEDE SERLO.**
+
+La pregunta de verdad al armar es «¿qué puedo jugar sin pagar de más?». No se
+puede responder con estos datos, y conviene que quede escrito para que nadie
+lo intente:
+
+- **CR 8.1.2**: un ícono REPETIDO cuenta doble. *Protector* (SOR #41) lleva
+  **dos** de Vigilance, y con un solo ícono en el mazo cuesta +2.
+- **El API no expone el conteo.** Devuelve `aspects: ['Vigilance']` para
+  Protector — una lista **sin repetidos**. Verificado: 0 de 9.185 impresiones
+  traen un aspecto duplicado.
+
+Así que el filtro se llama por lo que hace y la línea de ayuda dice que las
+demás se pueden jugar igual pagando 2 de más por ícono. **Si algún día el API
+expone los íconos, ESE es el momento de convertirlo en penalización**; antes,
+renombrarlo es mentir.
+
+Ese filtro se aplica en la PANTALLA y no en `searchCards`: el motor filtra por
+UN aspecto y esto pregunta que **todos** los de la carta estén entre los del
+mazo. Y solo aparece si el mazo ya tiene líder o base — un control que no puede
+filtrar nada enseña a desconfiar del resto.
+
+**Ahora basta CUALQUIER filtro para buscar.** Antes hacía falta texto, aspecto
+o coste: elegir «Evento» y no ver nada se habría leído como que el filtro no
+funciona.
+
+Verificado contra el catálogo real, 7 combinaciones, **ninguna vacía**: unidad
+terrestre con Sentinel 109 · evento de Command coste 2 → 21 · vehículo espacial
+394 · mejora con rasgo Weapon 46 · Rebel con Ambush 10 · solo Vigilance+Heroism
+516, y de esas 71 unidades de coste 3.
+
+El tipo y las ayudas viven en `filtrosAvanzados.ts`. Un módulo que exporta
+componentes Y constantes rompe el Fast Refresh — **y RE-EXPORTARLAS lo rompe
+igual**, cosa que costó descubrir. Tercera vez que hace falta esta separación.
+
+Banco en **`/banco-filtros`**.
+
+### 3x. La credencial ajena, y el acento que no pasaba contraste
+
+**Espionaje enseña la CREDENCIAL, y primero.** Es la identidad de jugador de
+esta app y hasta 2026-08-23 solo se veía la propia: entrar al perfil de alguien
+daba una ficha genérica —avatar, nombre y cuatro números— que no se parecía a
+lo que esa persona armó.
+
+**`useDatosCredencial` NO sirve para otra persona.** Lee apodo, ubicación, tema
+y mazo de `useSettings`, que son los ajustes de ESTE aparato: usarlo para mirar
+a otro le pondría a su placa MI apodo y MI tema, y como los dos son textos
+plausibles **no se vería como un error** sino como que esa persona eligió lo
+mismo que yo.
+
+Los ajustes ajenos salen de `profiles.settings`, donde la app ya los sincroniza
+(medido: de 38 perfiles, **12 con tema, 8 con apodo, 4 con ubicación**). El
+ARMADO se extrajo a **`armarCredencial()`**, pura y sin hooks, y las dos
+pantallas la comparten. Duplicarlo es exactamente lo que el §2y advierte.
+
+Tres cuidados en `useCredencialAjena`, cada uno un bug evitado:
+- **El join de `player_stats` devuelve ARRAY** aunque sea 1:1 (gotcha 1). Sin
+  desenvolverlo, la placa dice nivel 1 para alguien de nivel 8, sin error.
+- **El tema y el emblema se VALIDAN** contra sus listas: vienen de un JSON que
+  escribe el cliente, y un emblema inexistente deja un hueco negro.
+- **Si apagó «mostrar mazo», no se muestra.** Publicar lo que decidió esconder
+  no es un detalle de implementación.
+
+**VEINTE TEMAS.** Seis nuevos —Dagobah, Hermanas de la Noche, Tatooine,
+Kashyyyk, Mustafar, Coruscante— elegidos por MATIZ que no existía: verde puro,
+magenta, arena clara, verde azulado, naranja encendido y añil.
+
+**Y al medirlos apareció un problema viejo.** El archivo afirma que «el `texto`
+sobre `panel` pasa AA en las catorce» y **es cierto** (13,07 a 16,49). Pero el
+**`acento` sobre `panel`** daba **3,17 en Sith, 3,06 en Rebelde y 3,67 en
+Hoth** — bajo el 4,5 de WCAG— y ahí van cuatro textos reales: el encabezado,
+el sub-nombre (§3ñ), la línea del dorso y el rótulo del nivel.
+
+Los temas ganan **`acentoTexto`**: el mismo acento con más luz, conservando
+matiz y saturación exactos (Sith sigue en 358°, Rebelde en 4°, Hoth en 207°).
+El acento crudo se queda para las FORMAS y para el número de nivel, que a 26 px
+es texto grande (umbral 3,0) y todos lo pasan.
+
+**`scripts/contraste-credencial.mjs`** lo vuelve comprobable: mide los tres
+pares, exige 4,5 al texto y 3,0 al grabado, y avisa si dos temas comparten
+acento. **20/20 pasan.** Corrélo al agregar un tema.
+
+**Y ese guion casi miente.** Al agregar `acentoTexto` su patrón dejó de casar y
+dijo **«0 temas · TODOS PASAN»** — verde sobre nada medido, que es el peor
+resultado posible porque parece el mejor. Ahora se planta si lee cero. Es el
+mismo fallo que ya tuvo el DetectorChoques (§2z) — que esta vez lo hizo bien y
+avisó «0 placas medidas, este resultado no dice nada» en vez de dar verde.
+
+**Trampa del banco:** con la pestaña del navegador en segundo plano
+`window.innerWidth` es **0** y todas las placas miden 0 — el detector dice que
+no midió nada y parece un bug del código. Hay que traer la pestaña al frente.
