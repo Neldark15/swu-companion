@@ -487,6 +487,11 @@ export function SableEscena({
           llamadas: renderer.info.render.calls,
           programas: renderer.info.programs?.length ?? 0,
           geometrias: renderer.info.memory.geometries,
+          // Los destellos y su escala: es la forma de comprobar desde la
+          // consola que TITILAN y que lo hacen DESFASADOS entre sí — dos
+          // escalas idénticas significan que el desfase no llegó.
+          destellos: titilando.length,
+          escalas: titilando.map(m => +m.scale.x.toFixed(3)),
         }
       }
       const medio = (punta + fondo) / 2

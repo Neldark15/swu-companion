@@ -372,12 +372,14 @@ const POMOS: Record<string, Pieza> = {
       [0, 0], [R * 0.6, 0], [R * 1.3, h * 0.28], [R * 1.32, h * 0.55],
       [R * 1.0, h * 0.8], [R, h],
     ],
-    // NÚCLEO (épico). Tres ventanas del color de TU cristal: el bulbo deja
-    // de ser un contrapeso y pasa a ser lo que el nombre promete.
+    // NÚCLEO (épico). Tres ventanas al reactor, del color de TU cristal, que
+    // LATEN: se llama núcleo desde el primer día y hasta ahora solo estaba
+    // encendido. `plasma` en vez de `luz` es esa diferencia — un testigo avisa,
+    // un núcleo respira.
     material: 'grafito',
     herrajes: [
       { tipo: 'anillo', y: 0.55, grosor: 0.12, material: 'cobre' },
-      { tipo: 'gema', y: 0.40, radio: 0.22, vueltas: 3, material: 'luz' },
+      { tipo: 'gema', y: 0.40, radio: 0.22, vueltas: 3, material: 'plasma' },
     ],
   },
   pom_anillo: {
@@ -643,14 +645,15 @@ const CUERPOS: Record<string, Pieza> = {
     // geometría entera; esto es la aproximación honesta.)
     puntos: h => [[R, 0], ...repetir(h * 0.86, 9, R * 0.96, R * 1.18).map(
       ([r, y]) => [r, y + h * 0.07] as Punto), [R, h]],
-    // ESPIRAL (épico). Bronce, y tres cables inclinados a la misma mano:
-    // el torno no puede hacer una hélice, pero tres cables sí la
-    // sugieren — es la vuelta honesta a la limitación de arriba.
+    // ESPIRAL (épico). Bronce, y tres cables inclinados a la misma mano: el
+    // torno no puede hacer una hélice, pero tres cables sí la sugieren. Los
+    // cuatro destellos de la cintura corren en secuencia alrededor del eje y
+    // rematan la lectura: la rosca deja de sugerirse y se ve girar.
     material: 'bronce',
     herrajes: [
       { tipo: 'cable', y: 0.22, grosor: 0.09, arco: 5.6, inclina: 0.16, material: 'negro' },
       { tipo: 'cable', y: 0.55, grosor: 0.09, arco: 5.6, inclina: 0.16, material: 'negro' },
-      { tipo: 'cable', y: 0.85, grosor: 0.09, arco: 5.6, inclina: 0.16, material: 'negro' },
+      { tipo: 'destello', y: 0.70, radio: 0.11, vueltas: 4, material: 'brasa' },
       { tipo: 'boton', y: 0.40, radio: 0.17, salida: 0.13, giro: 3.0, material: 'luz' },
     ],
   },
