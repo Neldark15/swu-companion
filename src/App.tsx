@@ -87,6 +87,9 @@ const GalaxiaPage = lazy(() => import('./features/galaxia/GalaxiaPage').then(m =
    `sable_probadores` y vive DENTRO de las RPC, no acá. Sin entrada de menú a
    propósito — se entra tecleando /sable, igual que /temporada. */
 const SablePage = lazy(() => import('./features/sable/SablePage').then(m => ({ default: m.SablePage })))
+// La trivia, con pantalla propia: vivía enterrada al fondo del Perfil siendo lo
+// segundo más usado de la app (15 de 38 personas). §3l otra vez.
+const TriviaPage = lazy(() => import('./features/trivia/TriviaPage').then(m => ({ default: m.TriviaPage })))
 const LabPage = lazy(() => import('./features/lab/LabPage').then(m => ({ default: m.LabPage })))
 const MesaPage = lazy(() => import('./features/mesa/MesaPage').then(m => ({ default: m.MesaPage })))
 // Banco de pruebas de la mesa 3D. Solo en desarrollo: se cae del bundle de
@@ -378,6 +381,7 @@ export default function App() {
                 RPC, así que el taller diría «no está abierto» hasta al dueño
                 (misma trampa que documenta /estudio). */}
             <Route path="/sable" element={<P><SablePage /></P>} />
+            <Route path="/trivia" element={<P><TriviaPage /></P>} />
             {/* Ruta HERMANA de /galaxia, no superposición: así el router
                 desmonta la Galaxia y su forceContextLoss() corre solo. */}
             <Route path="/planeta/:userId" element={<P><PlanetaPage /></P>} />

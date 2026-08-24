@@ -59,7 +59,7 @@ import { ChatRegion } from './ChatRegion'
 /* Avatar helper: detect image-based avatar vs emoji */
 
 /** Las familias de módulos, en el orden en que se muestran. */
-type Categoria = 'jugar' | 'competir' | 'construir' | 'coleccion' | 'comunidad'
+type Categoria = 'jugar' | 'competir' | 'construir' | 'coleccion' | 'minijuegos' | 'comunidad'
 
 const CATEGORIAS: {
   id: Categoria; titulo: string
@@ -72,6 +72,9 @@ const CATEGORIAS: {
   { id: 'competir',  titulo: 'Competir',  icono: MandoTrophyIcon, tono: 'amber' },
   { id: 'construir', titulo: 'Construir', icono: DeckCardsIcon,   tono: 'cyan' },
   { id: 'coleccion', titulo: 'Colección', icono: CargoIcon,       tono: 'purple' },
+  // Mini Juegos junta lo que se juega DENTRO de la app: la trivia, abrir
+  // sobres y el Taller. Pedido de Nel — antes estaban regados en tres familias.
+  { id: 'minijuegos', titulo: 'Mini Juegos', icono: ChanceCubeIcon, tono: 'purple' },
   { id: 'comunidad', titulo: 'Comunidad', icono: StarfighterIcon, tono: 'red' },
 ]
 
@@ -169,15 +172,19 @@ const mainSystems: Sistema[] = [
 
   // ── Colección: lo que uno tiene y lo que se cambia ──
   { icon: CargoIcon,       label: 'Mi Botín',     tone: 'green',  to: '/collection', cat: 'coleccion', auth: true },
-  // Sobredosis va PRIMERO dentro de Colección junto a Mi Botín, y no en «Jugar»,
-  // porque lo que se hace acá es coleccionar: abrir sobres es el medio.
-  { icon: SobreIcon,       label: 'Sobredosis',   tone: 'amber',  to: '/sobres',     cat: 'coleccion', auth: true },
+
   { icon: BinderIcon,   label: 'Binder digital', tone: 'cyan', to: '/binder-digital', cat: 'coleccion', auth: true },
   { icon: BountyIcon,      label: 'Contrabando',  tone: 'red',    to: '/explore',    cat: 'coleccion', auth: true },
   // Acceso directo al mercado: llegar a comprar/vender exigía entrar a
   // Contrabando y después cambiar de pestaña.
   { icon: KyberIcon,       label: 'Mercancía',    tone: 'amber',  to: '/explore?tab=market', cat: 'coleccion', auth: true },
   { icon: PedidoIcon,       label: 'Pedidos',      tone: 'green',  to: '/pedidos',    cat: 'coleccion', auth: true },
+
+  // ── Mini Juegos: lo que se juega dentro de la app ──
+  { icon: HolocronIcon,   label: 'Trivia',       tone: 'cyan',   to: '/trivia',  cat: 'minijuegos', auth: true },
+  { icon: SobreIcon,      label: 'Sobredosis',   tone: 'amber',  to: '/sobres',  cat: 'minijuegos', auth: true },
+  // El Taller Kyber, en pruebas: solo lo ve quien está en `sable_probadores`.
+  { icon: SaberIcon, label: 'Taller Kyber', tone: 'amber', to: '/sable', cat: 'minijuegos', auth: true, probador: true },
 
   // ── Comunidad: mirar a los demás ──
   { icon: StarfighterIcon, label: 'La Galaxia',   tone: 'cyan',   to: '/galaxia',    cat: 'comunidad', auth: true },
@@ -188,8 +195,6 @@ const mainSystems: Sistema[] = [
   { icon: AurebeshIcon,     label: 'Aurebesh',    tone: 'cyan',   to: '/aurebesh',   cat: 'comunidad' },
   { icon: SpyIcon,         label: 'Espionaje',    tone: 'purple', to: '/espionaje',  cat: 'comunidad', auth: true },
   { icon: ArticuloIcon,     label: 'Blog',         tone: 'amber',  to: '/blog',       cat: 'comunidad' },
-  // El Taller Kyber, en pruebas: solo lo ve quien está en `sable_probadores`.
-  { icon: SaberIcon, label: 'Taller Kyber', tone: 'amber', to: '/sable', cat: 'comunidad', auth: true, probador: true },
 ]
 
 /**
@@ -218,7 +223,7 @@ interface Marcador {
 
 /** Traducción de los rótulos de módulo y categoría al inglés (Fase i18n). */
 const CAT_EN: Record<string, string> = {
-  'Jugar': 'Play', 'Competir': 'Compete', 'Construir': 'Build', 'Colección': 'Collection', 'Comunidad': 'Community',
+  'Jugar': 'Play', 'Competir': 'Compete', 'Construir': 'Build', 'Colección': 'Collection', 'Mini Juegos': 'Mini Games', 'Comunidad': 'Community',
   'Solo administradores': 'Administrators only',
 }
 

@@ -19,7 +19,6 @@ import { ProfileFrame } from './components/ProfileFrame'
 import { BannerPortadaUsuario } from './BannerPortada'
 import { AspectBars } from './components/AspectBars'
 import { AchievementGrid } from './components/AchievementGrid'
-import { TriviaSection } from './components/TriviaSection'
 import { CONTINENTS, getCountryByCode } from '../../data/regions'
 import { MoreNav } from '../../components/layout/MoreNav'
 import { WhatsappSetting } from './WhatsappSetting'
@@ -1085,20 +1084,10 @@ export function ProfilePage() {
         </div>
       )}
 
-      {/* Archivos Jedi — Trivia diaria */}
-      {auth.supabaseUser && (
-        <div className="bg-swu-surface rounded-2xl p-4 border border-swu-border">
-          <TriviaSection
-            userId={auth.supabaseUser.id}
-            onXpGained={(xp) => {
-              if (playerStats) {
-                const updated = { ...playerStats, xp: playerStats.xp + xp }
-                setPlayerStats(updated)
-              }
-            }}
-          />
-        </div>
-      )}
+      {/* La trivia se mudó a su propia pantalla (/trivia, en Mini Juegos de
+          Inicio): era lo segundo más usado de la app y vivía enterrada acá al
+          fondo. Y de paso su XP pasó a acreditarse de verdad — el callback de
+          esta pantalla hacía setState y el pago se esfumaba al recargar. */}
 
       {/* Action buttons */}
       <div className="grid grid-cols-2 gap-2">
