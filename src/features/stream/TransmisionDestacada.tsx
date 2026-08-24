@@ -24,6 +24,7 @@ import { urlIncrustarYoutube } from '../../types/stream'
 import {
   transmisionDestacada, momentoDe, faltaTexto, horaLocal, type Transmision,
 } from '../../services/transmisiones'
+import { ChatTransmision } from './ChatTransmision'
 
 export function TransmisionDestacada() {
   const [t, setT] = useState<Transmision | null>(null)
@@ -111,6 +112,10 @@ export function TransmisionDestacada() {
         <Youtube size={16} className="text-swu-red-texto" />
         Abrirlo en YouTube
       </a>
+
+      {/* El chat va DEBAJO del video y con su propio alto: así no lo tapa y no
+          hay que mover la página para escribir. */}
+      <ChatTransmision />
     </section>
   )
 }
