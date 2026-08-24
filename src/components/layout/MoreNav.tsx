@@ -31,7 +31,6 @@ import {
   TransmisionIcon,
 } from '../SWIcons'
 import { useAuth } from '../../hooks/useAuth'
-import { useEsProbadorSable } from '../../features/sable/useEsProbador'
 import type { ComponentType } from 'react'
 
 /**
@@ -99,12 +98,10 @@ const GROUPS: MoreGroup[] = [
 
 export function MoreNav() {
   const navigate = useNavigate()
-  const { isAdmin, supabaseUser } = useAuth()
-  /* El Taller Kyber está en pruebas y lo ve una sola cuenta. La entrada se
-     dibuja SOLO para quien puede entrar — no por seguridad (la cerradura está
-     dentro de cada RPC) sino porque un enlace que a todos les dice «cerrado» es
-     ruido en un menú de veinte. */
-  const puedeTaller = useEsProbadorSable(supabaseUser?.id)
+  const { isAdmin } = useAuth()
+  /* El Taller Kyber ya no tiene guardia: está abierto a toda la comunidad
+     desde 2026-08-24. Lo que sigue cerrado son las piezas `oculta` (los cinco
+     legendarios y el cristal rojo), que es otra cosa. */
 
   const tile = (item: MoreItem) => (
     <button
@@ -133,7 +130,7 @@ export function MoreNav() {
           <div className="grid grid-cols-3 gap-2">
             {group.items.map(tile)}
             {/* El Taller va en «Comunidad», donde lo pidió Nel. */}
-            {group.title === 'Comunidad' && puedeTaller && tile({
+            {group.title === 'Comunidad' && tile({
               to: '/sable', label: 'Taller Kyber', sub: 'Armá tu sable', icon: SaberIcon,
             })}
           </div>

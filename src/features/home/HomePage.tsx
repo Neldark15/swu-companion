@@ -50,7 +50,6 @@ import { PopupOferta } from '../sobres/OfertaSobresDiarios'
 import { TarjetaJugador } from '../profile/TarjetaJugador'
 import { HUD_TEXTO, type HudTone } from '../../components/hudTones'
 import { useAuth } from '../../hooks/useAuth'
-import { useEsProbadorSable } from '../sable/useEsProbador'
 import { type PlayerStats, calculateLevel } from '../../services/gamification'
 import { db } from '../../services/db'
 import { WelcomeHome } from './components/WelcomeHome'
@@ -119,15 +118,6 @@ interface Sistema {
   auth?: boolean
   /** Solo para administradores. Los demás ni ven la casilla. */
   admin?: boolean
-  /**
-   * Solo para quien está en `sable_probadores` (el Taller Kyber, en pruebas).
-   *
-   * No es seguridad: la cerradura vive dentro de cada RPC del taller y un gate
-   * de cliente se salta con la consola. Es que una casilla que a todos les dice
-   * «cerrado» es ruido en una cuadrícula de veinte — y esconderle el módulo a su
-   * dueño es peor.
-   */
-  probador?: boolean
 }
 
 /**
@@ -183,8 +173,10 @@ const mainSystems: Sistema[] = [
   // ── Mini Juegos: lo que se juega dentro de la app ──
   { icon: HolocronIcon,   label: 'Trivia',       tone: 'cyan',   to: '/trivia',  cat: 'minijuegos', auth: true },
   { icon: SobreIcon,      label: 'Sobredosis',   tone: 'amber',  to: '/sobres',  cat: 'minijuegos', auth: true },
-  // El Taller Kyber, en pruebas: solo lo ve quien está en `sable_probadores`.
-  { icon: SaberIcon, label: 'Taller Kyber', tone: 'amber', to: '/sable', cat: 'minijuegos', auth: true, probador: true },
+  // El Taller Kyber, abierto a la comunidad desde 2026-08-24 («que sea
+  // accesible para la comunidad el poder editar el sable»). Lo que sigue
+  // cerrado son las piezas `oculta`, no la puerta.
+  { icon: SaberIcon, label: 'Taller Kyber', tone: 'amber', to: '/sable', cat: 'minijuegos', auth: true },
 
   // ── Comunidad: mirar a los demás ──
   { icon: StarfighterIcon, label: 'La Galaxia',   tone: 'cyan',   to: '/galaxia',    cat: 'comunidad', auth: true },
@@ -232,7 +224,6 @@ export function HomePage() {
   const { currentProfile, supabaseUser, isAdmin } = useAuth()
   /* El Taller Kyber está en pruebas: su casilla se dibuja SOLO para quien puede
      entrar. La cerradura de verdad sigue estando dentro de cada RPC del taller. */
-  const puedeTaller = useEsProbadorSable(supabaseUser?.id)
   const tI = useT()
   const [bahias, setBahias] = useState<Set<Categoria>>(bahiasGuardadas)
 
@@ -502,7 +493,7 @@ export function HomePage() {
       {CATEGORIAS.map(({ id, titulo, icono: IconoCat, tono }) => {
         const items = mainSystems.filter(
           s => s.cat === id && (!s.auth || currentProfile)
-            && (!s.admin || isAdmin) && (!s.probador || puedeTaller),
+            && (!s.admin || isAdmin),
         )
         if (items.length === 0) return null
         // El chat de región cuenta como una casilla más: la cifra de la

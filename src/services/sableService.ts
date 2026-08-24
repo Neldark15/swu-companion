@@ -32,6 +32,12 @@ export interface ParteTaller {
   energia: number
 }
 
+/** Un acabado de empuñadura. El COLOR vive en `partesSable`; acá el id. */
+export interface Acabado {
+  id: string
+  nombre: string
+}
+
 export interface Taller {
   saldo: number
   xpTotal: number
@@ -40,8 +46,10 @@ export interface Taller {
   cuantasTengo: number
   cuantasHay: number
   partes: ParteTaller[]
+  acabados: Acabado[]
   diseno: {
-    emisor: string; cuerpo: string; pomo: string; color: string; nombre: string | null
+    emisor: string; cuerpo: string; pomo: string; color: string
+    acabado: string | null; nombre: string | null
   } | null
 }
 
@@ -57,25 +65,25 @@ export async function abrirTaller(): Promise<Taller | null> {
   return {
     saldo: r.saldo ?? 0, xpTotal: r.xpTotal ?? 0, nivel: r.nivel ?? 1,
     cuantasTengo: r.cuantasTengo ?? 0, cuantasHay: r.cuantasHay ?? 0,
-    partes: r.partes ?? [], diseno: r.diseno ?? null,
+    partes: r.partes ?? [], acabados: r.acabados ?? [], diseno: r.diseno ?? null,
   }
 }
 
 /**
  * El diseño guardado del PROPIO usuario, o `null` si nunca forjó uno.
  *
- * Va por la tabla y no por `sable_taller()` a propósito: la RPC exige ser
- * probador, pero TU diseño es tuyo — la policy de `sable_diseno` ya limita el
- * SELECT a `user_id = auth.uid()`, así que esta lectura no delata nada de
- * nadie y le sirve a la barra de XP de cualquier cuenta.
+ * Va por la tabla y no por `sable_taller()` a propósito: la RPC devuelve el
+ * catálogo entero —treinta piezas, diez acabados, saldo— y la barra de XP solo
+ * necesita cuatro campos. La policy de `sable_diseno` ya limita el SELECT a
+ * `user_id = auth.uid()`, así que esta lectura no delata nada de nadie.
  */
 export async function miDisenoSable(): Promise<{
-  emisor: string; cuerpo: string; pomo: string; color: string
+  emisor: string; cuerpo: string; pomo: string; color: string; acabado: string | null
 } | null> {
   if (!isSupabaseReady()) return null
   const { data, error } = await supabase
     .from('sable_diseno')
-    .select('emisor, cuerpo, pomo, color')
+    .select('emisor, cuerpo, pomo, color, acabado')
     .maybeSingle()
   if (error) { console.warn('[Sable] no se pudo leer el diseño:', error.message); return null }
   return data ?? null
@@ -93,12 +101,13 @@ export async function comprarParte(parteId: string): Promise<Resultado> {
 }
 
 export async function guardarSable(
-  d: { emisor: string; cuerpo: string; pomo: string; color: string }, nombre?: string,
+  d: { emisor: string; cuerpo: string; pomo: string; color: string; acabado?: string | null },
+  nombre?: string,
 ): Promise<Resultado> {
   if (!isSupabaseReady()) return { ok: false, mensaje: 'Sin conexión con el servidor' }
   const { data, error } = await supabase.rpc('guardar_sable', {
     p_emisor: d.emisor, p_cuerpo: d.cuerpo, p_pomo: d.pomo, p_color: d.color,
-    p_nombre: nombre?.trim() || null,
+    p_nombre: nombre?.trim() || null, p_acabado: d.acabado ?? null,
   })
   if (error) return { ok: false, mensaje: error.message }
   const r = data as { ok: boolean; error?: string } | null

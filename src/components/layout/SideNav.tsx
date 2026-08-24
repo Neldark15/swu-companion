@@ -32,7 +32,6 @@ import {
 } from '../SWIcons'
 import { NotificationBell } from '../ui/NotificationBell'
 import { useAuth } from '../../hooks/useAuth'
-import { useEsProbadorSable } from '../../features/sable/useEsProbador'
 import type { ComponentType } from 'react'
 
 type IconComp = ComponentType<{ size?: number; className?: string; strokeWidth?: number }>
@@ -77,12 +76,10 @@ const secondaryNav: NavItem[] = [
 export function SideNav() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { isAdmin, supabaseUser } = useAuth()
-  /* El Taller Kyber está en pruebas y lo ve una sola cuenta. La entrada se
-     dibuja SOLO para quien puede entrar — no por seguridad (la cerradura vive
-     dentro de cada RPC) sino porque un enlace que a todos les dice «cerrado»
-     es ruido en un menú de veinte. */
-  const puedeTaller = useEsProbadorSable(supabaseUser?.id)
+  const { isAdmin } = useAuth()
+  /* El Taller Kyber ya no tiene guardia: está abierto a toda la comunidad
+     desde 2026-08-24. Lo que sigue cerrado son las piezas `oculta` (los cinco
+     legendarios y el cristal rojo), que es otra cosa. */
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/'
@@ -153,7 +150,7 @@ export function SideNav() {
           <span className="text-[9px] text-swu-muted/60 font-mono tracking-[0.25em] uppercase">Sistemas</span>
         </div>
         {secondaryNav.map(renderItem)}
-        {puedeTaller && renderItem({
+        {renderItem({
           id: '/sable', label: 'Taller Kyber', sub: 'Armá tu sable', icon: SaberIcon,
         })}
 

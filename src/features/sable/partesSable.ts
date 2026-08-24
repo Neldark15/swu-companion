@@ -814,6 +814,18 @@ export interface Diseno {
   cuerpo: string
   pomo: string
   color: string
+  /**
+   * El ACABADO: repinta las tres piezas del mismo material.
+   *
+   * Nulo —el valor por defecto— es «cada pieza con el suyo», que es la
+   * identidad que el catálogo trae escrita: CORTEZA de cuero, CORONA de latón,
+   * CÚPULA esmaltada. Elegir un acabado es una decisión de quien arma el sable,
+   * y por eso el valor de fábrica no es un color sino la ausencia de uno.
+   *
+   * Los HERRAJES no se repintan: el latón de los aros y el testigo del cristal
+   * son lo que evita que un mango de un solo material se vea como un tubo.
+   */
+  acabado?: string | null
 }
 
 export const POR_DEFECTO: Diseno = {
@@ -964,6 +976,9 @@ export function piezasDeSable(d: Diseno): PiezaSuelta[] {
 
   const claves = ['pomo', 'cuerpo', 'emisor'] as const
   const piezas = [pomo, cuerpo, emisor]
+  // Un acabado que este deploy no conoce se ignora en vez de pintar de gris:
+  // los ids vienen del servidor y la PWA instalada tarda en actualizarse (§2g).
+  const acabado = d.acabado && d.acabado in MATERIALES ? (d.acabado as MaterialId) : null
   const salida: PiezaSuelta[] = []
   let base = 0
   for (let i = 0; i < piezas.length; i++) {
@@ -987,7 +1002,7 @@ export function piezasDeSable(d: Diseno): PiezaSuelta[] {
     if (puntos[puntos.length - 1][0] > 0) puntos.push([0, puntos[puntos.length - 1][1]])
     salida.push({
       clave: claves[i], puntos, alto: p.alto, base,
-      material: p.material, herrajes: p.herrajes ?? [], perfil,
+      material: acabado ?? p.material, herrajes: p.herrajes ?? [], perfil,
     })
     base += p.alto
   }

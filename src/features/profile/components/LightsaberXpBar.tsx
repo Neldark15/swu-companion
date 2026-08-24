@@ -14,8 +14,20 @@
  *
  * La barra siempre es del usuario logueado (Home, Perfil y Ajustes le pasan
  * `currentProfile`), así que leer SU `sable_diseno` acá no miente nunca.
+ *
+ * ── Y TOCARLA ABRE EL TALLER ──────────────────────────────────────────
+ *
+ * Nel: «al tocar el sable desde abajo de la tarjeta de jugador que te permita
+ * ir al taller para modificarlo». El sable entero es el botón. Y lleva su
+ * rótulo debajo, porque un destino que nadie descubre no existe — es la misma
+ * lección que la Trivia, que era lo segundo más usado de la app y estaba
+ * enterrada al fondo del perfil: faltaba puerta, no capacidad (§3l).
+ *
+ * No hay enlace anidado: la credencial de arriba maneja su propio toque con un
+ * `onTocar`, no envolviendo la tarjeta en un `<a>`.
  */
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { calculateLevel } from '../../../services/gamification'
 import { useSettings, SABER_COLORS } from '../../../hooks/useSettings'
 import { POR_DEFECTO } from '../../sable/partesSable'
@@ -27,6 +39,7 @@ interface LightsaberXpBarProps {
 }
 
 export function LightsaberXpBar({ xp }: LightsaberXpBarProps) {
+  const navigate = useNavigate()
   const { level, rank, xpCurrent, xpNeeded, progress } = calculateLevel(xp)
   const { saberColor } = useSettings()
   const { core, glow } = SABER_COLORS[saberColor]
@@ -73,7 +86,13 @@ export function LightsaberXpBar({ xp }: LightsaberXpBarProps) {
           Por eso la hoja baja a 8 px y la empuñadura se encoge con ella: si la
           empuñadura se quedaba en 24 px de alto, pasaba a ser tres veces más
           gruesa que la hoja y parecía un martillo. Los colores no se tocan. */}
-      <div className="relative flex items-center h-5">
+      <button
+        type="button"
+        onClick={() => navigate('/sable')}
+        aria-label="Abrir mi sable en el Taller Kyber"
+        className="group relative flex w-full items-center h-5 rounded-md
+                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-amber/70"
+      >
         {/* Empuñadura.
             Más LARGA que alta (46×14): una empuñadura real es un cilindro
             alargado, y la versión corta se leía como un botón cuadrado pegado
@@ -175,7 +194,13 @@ export function LightsaberXpBar({ xp }: LightsaberXpBarProps) {
             />
           ))}
         </div>
-      </div>
+      </button>
+
+      {/* El rótulo del destino. Nueve píxeles y apagado: es una puerta, no una
+          llamada a la acción — pero sin él, el sable es solo un dibujo. */}
+      <p className="-mt-1 text-center text-[9px] font-bold uppercase tracking-[0.18em] text-swu-muted/70">
+        Tocá el sable para abrirlo en el Taller
+      </p>
 
       {/* Total XP */}
       <div className="flex justify-between text-[10px] text-swu-muted">

@@ -2652,6 +2652,58 @@ vivo por un adorno de 72×22. Claves del arreglo:
   SVG. La promesa compartida renderiza una vez y todas esperan la misma.
 - El SVG dibujado a mano queda de REPUESTO (sin WebGL, primer cuadro sin caché).
 
+#### Los HERRAJES y los materiales por pieza
+
+Nel: «que tengan botones algunos o detalles de cables más estéticos, que tengan
+colores». Antes había TRES materiales cableados por tipo de pieza, o sea que
+los diez cuerpos del catálogo eran diez siluetas del mismo gris. Ahora cada
+pieza declara su `material` (de once) y sus `herrajes` (74 en 30 piezas):
+anillo, botón, caja, cable, aleta y gema. El testigo del botón y las gemas usan
+el material `luz`, que toma el color de TU cristal.
+
+**Ningún herraje declara su radio.** Declara su altura como fracción y
+`asientoDe()` mide el perfil ahí. Dos casos reales obligaron a que además
+ENGORDE hasta cubrir el desnivel que tiene debajo: la campana de VÓRTICE
+despega una aleta recta por abajo (0,07 de aire, un satélite), y las costillas
+de VÉRTEBRA se tragan un riel anclado al centro. Anclar al máximo arregla uno y
+rompe el otro; la cara interna va bajo el MÍNIMO del tramo y la externa sobre el
+MÁXIMO. Aros y cables son la excepción: RUEDAN sobre las crestas, como un fleje.
+
+**El criterio de «tapado» que parecía obvio estaba mal.** La primera versión
+castigaba a todo herraje con un vecino más alto y marcó 17. Pero en una pieza
+TORNEADA toda ranura da la vuelta completa y desde el costado se ve dentro —
+el cable de CAUCE vive en su canal a propósito. Lo que sí esconde es un POZO
+ESTRECHO, así que la medida es la línea de visión a 45°. Quedaron 2 fallos
+reales, los dos de ANCLA.
+
+**Un constructor, dos clientes** (`herrajesTres.ts`): la escena y la foto de la
+barra de XP. La barra filtra por TAMAÑO REAL EN PANTALLA (`pxPorUnidad`): a 8 px
+por unidad un aro de 0,10 mide 0,8 px y ensucia. No son dos mangos: es el mismo
+dato mirado de lejos.
+
+**Materiales una vez, geometrías por medidas.** Cambiar de pieza reconstruye
+`Object3D` y nada más. Los once materiales se CALIENTAN con `renderer.compile()`
+al montar: `glLinkProgram` es síncrono y ese tirón caía al tocar una pieza.
+
+#### Abierto a la comunidad, y el color de la empuñadura
+
+Desde 2026-08-24 el taller es de todos: `es_probador_sable()` fue reemplazada
+por `sable_abierto()` en las tres RPC. **No se hizo que la vieja devolviera true
+para todos** — una función llamada «es probador» que le dice que sí a cualquiera
+es una mentira que el próximo lector va a creer. `sable_probadores` sigue vivo
+para estrenar cosas con una cuenta. Lo que sigue cerrado son las piezas
+`oculta`: los cinco legendarios y el cristal rojo.
+
+El **acabado** (`sable_diseno.acabado` → `sable_acabados`) repinta las tres
+piezas del mismo material; los herrajes NO, porque el latón de los aros es lo
+que evita que un mango de un solo material se vea como un tubo pintado. NULL =
+cada pieza con el suyo, y ese es el valor de fábrica. Gratis: el sumidero son
+las piezas. Un acabado desconocido se guarda como NULL en vez de reventar —
+perder el sable entero por el color sería el peor cambio posible (§2g).
+
+**La barra de XP lleva al taller**: el sable entero es un botón, con su rótulo
+debajo. Un destino que nadie descubre no existe (§3l, la Trivia enterrada).
+
 Bancos: **`/banco-sable-3d`** (las combinaciones sin base ni saldo),
 **`/banco-kyber`** (pasos, stats, la tira de tarjetas), **`/banco-credito`**
 (el escudo imperial con el medidor de tinta) y **`/banco-sable`** (la barra de

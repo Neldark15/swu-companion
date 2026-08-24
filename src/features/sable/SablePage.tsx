@@ -1,16 +1,17 @@
 /**
  * TALLER KYBER — armá tu sable de luz. `/sable`
  *
- * ── Está cerrado, y la cerradura NO está acá ──────────────────────────
+ * ── Abierto a la comunidad (2026-08-24) ───────────────────────────────
  *
- * La pantalla se rinde si `sable_taller()` no devuelve `ok`, pero eso es una
- * CORTINA, no una cerradura: los roles viven en localStorage y un gate de
- * cliente se salta con la consola. Lo que cierra de verdad es el
- * `if not es_probador_sable()` que está DENTRO de cada RPC — la misma lección
- * que costó una prueba en el Centro de Temporada (§3i-bis), donde un admin no
- * curador leía la temporada entera porque el guardia estaba solo en la UI.
+ * Nació cerrado a una cuenta para probarlo. Nel: «que sea accesible para la
+ * comunidad el poder editar el sable». La puerta ahora es tener sesión, y el
+ * guardia sigue DENTRO de cada RPC (`sable_abierto()`), no acá — un gate de
+ * cliente se salta con la consola, y esa lección ya costó una prueba en el
+ * Centro de Temporada (§3i-bis).
  *
- * Y a propósito no hay entrada en ningún menú: se entra tecleando `/sable`.
+ * Lo que sigue cerrado son las piezas con `oculta`: los cinco legendarios,
+ * guardados para su estreno, y el cristal rojo, que se gana sangrando. Abrir
+ * el taller no fue estrenar el catálogo.
  *
  * ── Se paga con CRÉDITOS, que son tu XP ───────────────────────────────
  *
@@ -46,7 +47,7 @@ import { SableEscena, type Orientacion, type Vista } from './SableEscena'
 import { PiezaTarjeta } from './PiezaTarjeta'
 import { BarraStats } from './BarraStats'
 import { ConsejoHuyang } from './ConsejoHuyang'
-import { POR_DEFECTO, colorDeHoja, type Diseno } from './partesSable'
+import { POR_DEFECTO, colorDeHoja, materialDe, type Diseno } from './partesSable'
 import {
   arrancarZumbido, pararZumbido, afinarZumbido, sonarEncendido, sonarApagado,
   sonarPieza, alternarSilencioSable, sableEnSilencio,
@@ -88,6 +89,7 @@ export function SablePage() {
         setDiseno({
           emisor: t.diseno.emisor, cuerpo: t.diseno.cuerpo,
           pomo: t.diseno.pomo, color: t.diseno.color,
+          acabado: t.diseno.acabado,
         })
         setNombre(t.diseno.nombre ?? '')
       }
@@ -101,9 +103,12 @@ export function SablePage() {
      los `useMemo`/`useCallback` de abajo cambiarían siempre — o sea, memoización
      que no memoiza nada. */
   const partes = useMemo(() => taller?.partes ?? [], [taller])
+  /* El ACABADO queda fuera a propósito: es color, no pieza, no cuesta créditos
+     y no toca los stats. Meterlo acá haría que cambiar de color recalculara
+     todo y, peor, invitaría a que algún día sumara potencia. */
   const puestas = useMemo(
     () => [diseno.emisor, diseno.cuerpo, diseno.pomo, diseno.color],
-    [diseno],
+    [diseno.emisor, diseno.cuerpo, diseno.pomo, diseno.color],
   )
   const stats = useMemo(() => sumarStats(partes, puestas), [partes, puestas])
 
@@ -190,9 +195,13 @@ export function SablePage() {
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
         <Lock size={26} className="mx-auto mb-3 text-swu-muted" />
-        <p className="text-[15px] font-black text-swu-text">El Taller Kyber está cerrado</p>
+        <p className="text-[15px] font-black text-swu-text">Entrá con tu cuenta</p>
+        {/* El taller está abierto a toda la comunidad: si no carga, o no hay
+            sesión o no hubo red. Decir «está cerrado» mandaba a la gente a
+            esperar una apertura que ya ocurrió. */}
         <p className="mt-1 text-[12px] text-swu-muted">
-          Está en pruebas y lo ve una sola cuenta.
+          El Taller Kyber usa tus créditos y guarda tu sable, así que necesita
+          saber quién sos. Si ya entraste, revisá tu conexión.
         </p>
         <Link to="/" className="mt-5 inline-block text-[13px] text-swu-cyan">Volver a Inicio</Link>
       </div>
@@ -327,6 +336,54 @@ export function SablePage() {
           sigue». El `-mx-4 px-4` deja que la tira sangre hasta el borde. */}
       {paso === 'piezas' && (
         <div className="mt-3">
+          {/* ── EL ACABADO ──
+              Pedido de Nel: «permite colores de empuñadura». Repinta las tres
+              piezas; los herrajes NO, porque el latón de los aros y el testigo
+              del cristal son lo que evita que un mango de un solo material se
+              vea como un tubo pintado.
+
+              «ORIGINAL» va primero y es el valor de fábrica: cada pieza con el
+              material que trae escrito —CORTEZA de cuero, CORONA de latón—, que
+              es la identidad que distingue una pieza de otra. El color es una
+              decisión de más, no el punto de partida.
+
+              Es GRATIS. El sumidero de créditos son las piezas; cobrar por
+              elegir un color, en una comunidad con menores, no vale lo que
+              recauda. */}
+          <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-swu-muted">
+            Color de la empuñadura
+          </p>
+          <div className="-mx-4 mb-3 flex gap-1.5 overflow-x-auto px-4 pb-1">
+            {[{ id: null, nombre: 'ORIGINAL' }, ...(taller.acabados ?? [])].map(a => {
+              const puesto = (diseno.acabado ?? null) === a.id
+              const m = a.id ? materialDe(a.id) : null
+              return (
+                <button
+                  key={a.id ?? 'original'}
+                  onClick={() => setDiseno(d => ({ ...d, acabado: a.id }))}
+                  className={`flex shrink-0 items-center gap-1.5 rounded-xl border px-2.5 py-1.5
+                              text-[10px] font-black uppercase tracking-wider
+                              ${puesto
+                                ? 'border-swu-amber bg-swu-amber/15 text-swu-amber'
+                                : 'border-swu-border bg-swu-surface text-swu-muted'}`}
+                  aria-pressed={puesto}
+                >
+                  <span
+                    className="h-3.5 w-3.5 shrink-0 rounded-full border"
+                    style={m
+                      ? { background: m.plano, borderColor: m.borde }
+                      : {
+                          // «Original» no tiene un color: son tres. La muestra
+                          // los enseña partidos, que es lo que significa.
+                          background: 'linear-gradient(135deg,#aeb6c0 0 33%,#54382a 33% 66%,#c08c42 66%)',
+                          borderColor: '#6b7280',
+                        }}
+                  />
+                  {a.nombre}
+                </button>
+              )
+            })}
+          </div>
           <div className="mb-2 flex gap-1.5">
             {RANURAS_MANGO.map(({ tipo, rotulo }) => (
               <button

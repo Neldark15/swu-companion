@@ -27,8 +27,10 @@ const LS = 'sable_minibarra_v2'
 /* El COLOR entra en la clave desde que los testigos y las gemas del mango se
    prenden del color del cristal: dos diseños con las mismas piezas y distinta
    hoja ya no dan la misma foto. */
-export function claveDeMango(d: { emisor: string; cuerpo: string; pomo: string; color?: string }): string {
-  return `${d.emisor}|${d.cuerpo}|${d.pomo}|${d.color ?? ''}`
+export function claveDeMango(
+  d: { emisor: string; cuerpo: string; pomo: string; color?: string; acabado?: string | null },
+): string {
+  return `${d.emisor}|${d.cuerpo}|${d.pomo}|${d.color ?? ''}|${d.acabado ?? ''}`
 }
 
 export function mangoCacheado(): EntradaMango | null {
@@ -62,7 +64,7 @@ let enVuelo: Promise<string | null> | null = null
 
 /** La foto del mango: del caché si sirve, renderizada (una sola vez) si no. */
 export function fotoDelMango(
-  d: { emisor: string; cuerpo: string; pomo: string; color: string },
+  d: { emisor: string; cuerpo: string; pomo: string; color: string; acabado?: string | null },
 ): Promise<string | null> {
   const clave = claveDeMango(d)
   const cache = mangoCacheado()
