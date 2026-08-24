@@ -110,21 +110,25 @@ export function BancoKyber() {
         <h2 className="mb-2 text-[11px] font-black uppercase tracking-widest text-swu-muted">
           Tarjetas: los tres estados y las cuatro rarezas
         </h2>
-        <div className="grid grid-cols-2 gap-2">
+        {/* La MISMA tira horizontal que usa la página: si acá se desliza y las
+            tarjetas salen parejas, allá también. */}
+        <div className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
           {PARTES.filter(p => p.tipo === 'emisor').map(p => (
-            <PiezaTarjeta
-              key={p.id}
-              parte={p}
-              puesta={p.id === 'emi_estandar'}
-              delta={deltaDe(PARTES, PUESTAS, p)}
-              ocupado={false}
-              alElegir={() => {}}
-            />
+            <div key={p.id} className="flex w-44 shrink-0 snap-start">
+              <PiezaTarjeta
+                parte={p}
+                puesta={p.id === 'emi_estandar'}
+                delta={deltaDe(PARTES, PUESTAS, p)}
+                ocupado={false}
+                alElegir={() => {}}
+              />
+            </div>
           ))}
         </div>
         <p className="mt-1.5 text-[11px] text-swu-muted">
           AURORA está puesta · OBSIDIAN la tenés sin poner · VÓRTICE y KRAKEN se compran.
-          El delta es lo que convierte un precio en una decisión.
+          El delta es lo que convierte un precio en una decisión. La tira se
+          desliza de izquierda a derecha, como en el taller.
         </p>
       </section>
     </div>

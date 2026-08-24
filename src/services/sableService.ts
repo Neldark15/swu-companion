@@ -61,6 +61,26 @@ export async function abrirTaller(): Promise<Taller | null> {
   }
 }
 
+/**
+ * El diseño guardado del PROPIO usuario, o `null` si nunca forjó uno.
+ *
+ * Va por la tabla y no por `sable_taller()` a propósito: la RPC exige ser
+ * probador, pero TU diseño es tuyo — la policy de `sable_diseno` ya limita el
+ * SELECT a `user_id = auth.uid()`, así que esta lectura no delata nada de
+ * nadie y le sirve a la barra de XP de cualquier cuenta.
+ */
+export async function miDisenoSable(): Promise<{
+  emisor: string; cuerpo: string; pomo: string; color: string
+} | null> {
+  if (!isSupabaseReady()) return null
+  const { data, error } = await supabase
+    .from('sable_diseno')
+    .select('emisor, cuerpo, pomo, color')
+    .maybeSingle()
+  if (error) { console.warn('[Sable] no se pudo leer el diseño:', error.message); return null }
+  return data ?? null
+}
+
 export interface Resultado { ok: boolean; mensaje?: string; saldo?: number }
 
 export async function comprarParte(parteId: string): Promise<Resultado> {

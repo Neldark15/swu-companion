@@ -181,7 +181,9 @@ export function SableEscena({
       const u = Math.random() * 2 - 1
       const a = Math.random() * Math.PI * 2
       const s = Math.sqrt(1 - u * u)
-      const r = 120 + Math.random() * 80
+      // El radio arranca en 150: con el encuadre automático la cámara llega a
+      // ~210 (hoja horizontal) y estrellas a 120 quedarían DETRÁS de ella.
+      const r = 150 + Math.random() * 180
       posEstrellas[i * 3] = Math.cos(a) * s * r
       posEstrellas[i * 3 + 1] = u * r
       posEstrellas[i * 3 + 2] = Math.sin(a) * s * r
@@ -448,7 +450,6 @@ export function SableEscena({
       if (vistaActual === 'cristal') { hojaMeta = 0; arrancar(); return }
       const abierto = separacionMeta > 0.12
       hojaMeta = v && !abierto ? 1 : 0
-      distMeta = v && !abierto ? 106 : (abierto ? 48 : 36)
       arrancar()
     }
 
@@ -464,10 +465,7 @@ export function SableEscena({
         p.position.y = esCristal ? -5.2 : -altoTotal / 2 - 3.2
         p.scale.setScalar(esCristal ? 0.55 : 1)
       }
-      // La cámara mira al punto medio entre el cristal y su pedestal; con el
-      // centro del sable, el pedestal quedaba cortado por el borde de abajo.
-      centro.y = esCristal ? -2.3 : -1.6
-      if (esCristal) { hojaMeta = 0; distMeta = 15 }
+      if (esCristal) hojaMeta = 0
       else encender(encendidoActual)
       arrancar()
     }
@@ -483,12 +481,64 @@ export function SableEscena({
       arrancar()
     }
 
-    // ── Cámara FIJA, apenas elevada. El que rota es el sable. ──
+    // ── La cámara no orbita: retrocede y acompaña. El que rota es el sable. ──
     let dist = 36, distMeta = 36
     const centro = new THREE.Vector3(0, -1.6, 0)
+    const centroMeta = new THREE.Vector3(0, -1.6, 0)
     function colocarCamara(): void {
-      camera.position.set(0, centro.y + dist * 0.30, dist)
+      camera.position.set(centro.x, centro.y + dist * 0.30, centro.z + dist)
       camera.lookAt(centro)
+    }
+
+    /* ── ENCUADRE QUE MIDE, no que supone ──
+       Nel, sable en mano: «se corta el sable, el zoom podría ser más pequeño».
+       Tenía razón dos veces: las distancias fijas por estado (36/48/106)
+       suponían una pose, y con arrastre libre + hoja de 78 la horizontal
+       desbordaba el visor VERTICAL, cuyo FOV estrecho es el de ANCHO. Acá, por
+       cuadro: se proyecta la media-longitud actual del sable (mango +
+       separación + hoja, la que HAY, no la meta — así la cámara retrocede
+       mientras la hoja crece) sobre los ejes de pantalla según su cuaternión,
+       y se pide la distancia que hace caber el peor eje en su FOV. El 0.45·|z|
+       cubre la punta que se acerca a la cámara al inclinarlo. También mueve el
+       CENTRO al medio real del objeto: con la hoja puesta el sable ya no está
+       centrado en el origen del grupo. Unas multiplicaciones, cero asignación
+       de memoria — apto para gama baja. */
+    const ejeSable = new THREE.Vector3()
+    const TAN_MEDIO = Math.tan(THREE.MathUtils.degToRad(38 / 2))
+    function encuadrar(): void {
+      // El cristal mide 5 fijos y su pedestal vive en el mundo: encuadre fijo,
+      // mirando al punto medio entre ambos (con el centro del cristal, el
+      // pedestal quedaba cortado por el borde de abajo).
+      if (vistaActual === 'cristal') { distMeta = 15; centroMeta.set(0, -2.3, 0); return }
+      const punta = altoTotal / 2 + separacion * HUECO * 2 + hoja * (LARGO + 2)
+      const fondo = -altoTotal / 2
+      const mitad = (punta - fondo) / 2
+      ejeSable.set(0, 1, 0).applyQuaternion(grupoSable.quaternion)
+      /* `cerca` SE SUMA fuera de la división: el extremo que se inclina hacia
+         la cámara queda a `dist − cerca` de ella y la perspectiva lo agranda —
+         el fit lineal solo, medido, cortaba la hoja en cuanto la deriva la
+         sacaba del plano de pantalla. */
+      const cerca = Math.abs(ejeSable.z) * mitad
+      const enAncho = Math.abs(ejeSable.x) * mitad + 2.5
+      const enAlto = Math.abs(ejeSable.y) * mitad + 2.5
+      distMeta = Math.max(
+        26,
+        cerca + enAncho / (TAN_MEDIO * camera.aspect),
+        cerca + enAlto / TAN_MEDIO,
+      ) * 1.08
+      /* Solo en DEV: los números del encuadre en `window.__sable`, para medir
+         desde la consola del banco en vez de adivinar mirando screenshots. Así
+         se cazó que el fit lineal no cubría la punta inclinada a cámara. Vite
+         elimina el bloque entero en producción. */
+      if (import.meta.env.DEV) {
+        ;(window as unknown as Record<string, unknown>).__sable = {
+          dist, distMeta, aspecto: camera.aspect, mitad, cerca, enAncho, enAlto,
+          eje: [ejeSable.x, ejeSable.y, ejeSable.z], hoja, altoTotal,
+        }
+      }
+      const medio = (punta + fondo) / 2
+      // El −1.6 baja apenas la mirada para que el pedestal entre en el cuadro.
+      centroMeta.set(ejeSable.x * medio, ejeSable.y * medio - 1.6, ejeSable.z * medio)
     }
 
     // ── Gestos: arrastre = girar el OBJETO, en ejes de pantalla ──
@@ -539,17 +589,19 @@ export function SableEscena({
          SIEMPRE. Movimiento reducido es llegar sin transición (§3u). */
       const alGolpe = !animando || reducido.matches
       if (alGolpe) {
-        dist = distMeta
+        // Primero los VALORES, después el encuadre: al revés, la cámara
+        // encuadraría el estado de hace un cuadro.
         if (separacion !== separacionMeta) { separacion = separacionMeta; colocarPiezas() }
         if (hoja !== hojaMeta) { hoja = hojaMeta; colocarHoja() }
         if (enViaje) { grupoSable.quaternion.copy(qMeta); enViaje = false }
+        encuadrar()
+        dist = distMeta
+        centro.copy(centroMeta)
         colocarCamara()
         renderer.render(scene, camera)
         return
       }
 
-      if (Math.abs(dist - distMeta) > 0.05) dist += (distMeta - dist) * Math.min(1, dt * 6)
-      else dist = distMeta
       if (Math.abs(separacion - separacionMeta) > 0.002) {
         separacion += (separacionMeta - separacion) * Math.min(1, dt * 5)
         colocarPiezas()
@@ -585,6 +637,13 @@ export function SableEscena({
         grupoCristal.position.y = Math.sin(ahora * 0.0014) * 0.45
         matCristal.emissiveIntensity = 0.22 + Math.sin(ahora * 0.004) * 0.06
       }
+      /* El encuadre va DESPUÉS de mover todo (hoja, separación, giro) y la
+         cámara lo persigue con freno: al girar en horizontal la distancia
+         respira despacio en vez de saltar. */
+      encuadrar()
+      if (Math.abs(dist - distMeta) > 0.05) dist += (distMeta - dist) * Math.min(1, dt * 6)
+      else dist = distMeta
+      centro.lerp(centroMeta, Math.min(1, dt * 6))
       colocarCamara()
       renderer.render(scene, camera)
     }
@@ -645,6 +704,12 @@ export function SableEscena({
     explotar(explotado)
     cambiarVista(vista)
     encender(encendido)
+    // El primer cuadro nace YA encuadrado: sin esto la cámara entra volando
+    // desde la distancia de fábrica. `ajustar()` corrió antes, así que el
+    // aspecto del visor ya es el real.
+    encuadrar()
+    dist = distMeta
+    centro.copy(centroMeta)
     colocarCamara()
     reevaluar()
 

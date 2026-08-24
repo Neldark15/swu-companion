@@ -1,9 +1,26 @@
 /**
  * LightsaberXpBar — XP progress bar styled as a lightsaber blade
  * with customizable color, glow effects, and hilt.
+ *
+ * ── La empuñadura es LA TUYA, en 3D ───────────────────────────────────
+ *
+ * Nel: «esta barra podría ser la empuñadura que uno hace en el Taller Kyber…
+ * no esa que parece dibujo, que se vea 3D». La empuñadura ya no es el SVG
+ * genérico: es una FOTO del mango del propio usuario —sus piezas forjadas, o
+ * las de fábrica si nunca forjó— renderizada con el motor del taller
+ * (`miniaturaSable3D`, importado DINÁMICO para no meterle three al Home) y
+ * cacheada en localStorage. El SVG queda de repuesto para navegadores sin
+ * WebGL y para el primer cuadro antes de que exista el caché.
+ *
+ * La barra siempre es del usuario logueado (Home, Perfil y Ajustes le pasan
+ * `currentProfile`), así que leer SU `sable_diseno` acá no miente nunca.
  */
+import { useEffect, useState } from 'react'
 import { calculateLevel } from '../../../services/gamification'
 import { useSettings, SABER_COLORS } from '../../../hooks/useSettings'
+import { POR_DEFECTO } from '../../sable/partesSable'
+import { fotoDelMango, mangoCacheado } from '../../sable/mangoBarra'
+import { miDisenoSable } from '../../../services/sableService'
 
 interface LightsaberXpBarProps {
   xp: number
@@ -13,6 +30,22 @@ export function LightsaberXpBar({ xp }: LightsaberXpBarProps) {
   const { level, rank, xpCurrent, xpNeeded, progress } = calculateLevel(xp)
   const { saberColor } = useSettings()
   const { core, glow } = SABER_COLORS[saberColor]
+
+  /* El caché se lee SÍNCRONO en el estado inicial: si hay foto, el primer
+     cuadro ya sale con ella y el SVG de repuesto ni parpadea. */
+  const [mango, setMango] = useState<string | null>(() => mangoCacheado()?.png ?? null)
+
+  useEffect(() => {
+    let vivo = true
+    void (async () => {
+      const propio = await miDisenoSable()
+      // `fotoDelMango` resuelve del caché, o renderiza UNA vez aunque haya
+      // varias barras montadas (vuelo único — ver mangoBarra.ts).
+      const png = await fotoDelMango(propio ?? POR_DEFECTO)
+      if (vivo && png) setMango(png)
+    })()
+    return () => { vivo = false }
+  }, [])
 
   const pct = Math.max(progress * 100, 3)
 
@@ -47,6 +80,18 @@ export function LightsaberXpBar({ xp }: LightsaberXpBarProps) {
             a la hoja. El largo extra va en el cuerpo del mango — más estrías,
             más zona de agarre — no en el emisor. */}
         <div className="relative z-20 flex-shrink-0">
+          {mango ? (
+            /* La foto 3D del mango propio: 216×66 de render para 72×22 de CSS
+               (3×), que es lo que la deja nítida en retina. El emisor queda a
+               la DERECHA, tocando la hoja, porque así se renderizó. */
+            <img
+              src={mango}
+              alt=""
+              aria-hidden
+              draggable={false}
+              className="block h-[22px] w-[72px] select-none object-contain"
+            />
+          ) : (
           <svg width="46" height="14" viewBox="0 0 46 14" fill="none" aria-hidden>
             {/* Pomo, con su anillo */}
             <rect x="0" y="4" width="5" height="6" rx="1" fill="#222" stroke="#555" strokeWidth="0.5" />
@@ -68,6 +113,7 @@ export function LightsaberXpBar({ xp }: LightsaberXpBarProps) {
             {/* Emisor: se estrecha hacia la hoja, que es de donde sale */}
             <rect x="39" y="3.8" width="7" height="6.4" rx="0.8" fill="#3A3A3E" stroke="#666" strokeWidth="0.5" />
           </svg>
+          )}
         </div>
 
         {/* La hoja */}

@@ -202,6 +202,15 @@ export function SablePage() {
   const cristales = deLaRanura('color')
   const cristalPuesto = cristales.find(c => c.id === diseno.color)
 
+  /* En los pasos de COMPRA el visor cede altura: la tira de piezas tiene que
+     caber en la misma pantalla que el sable — ese era exactamente el reclamo
+     de Nel («escrolear hacia abajo y perder la visual»). En color y prueba,
+     donde abajo casi no hay nada, el visor recupera su tamaño grande. */
+  const comprando = paso === 'piezas' || paso === 'cristal'
+  const altoVisor = comprando
+    ? 'h-[40vh] min-h-[300px] max-h-[520px]'
+    : 'h-[56vh] min-h-[380px] max-h-[680px]'
+
   return (
     <div className="mx-auto max-w-2xl px-4 pt-3 pb-28">
       {/* ── Cabecera ── */}
@@ -263,7 +272,7 @@ export function SablePage() {
 
       {/* ── La forja ── */}
       {sinWebGL ? (
-        <div className="flex h-[56vh] min-h-[380px] items-center justify-center rounded-2xl border border-swu-border bg-swu-surface px-6 text-center text-[12px] text-swu-muted">
+        <div className={`flex ${altoVisor} items-center justify-center rounded-2xl border border-swu-border bg-swu-surface px-6 text-center text-[12px] text-swu-muted`}>
           Este navegador no puede dibujar en 3D. Las piezas se pueden comprar y
           equipar igual.
         </div>
@@ -276,7 +285,7 @@ export function SablePage() {
             orientacion={orientacion}
             vista={vista}
             onSinWebGL={() => setSinWebGL(true)}
-            className="h-[56vh] min-h-[380px] max-h-[680px] w-full rounded-2xl border border-swu-border bg-gradient-to-b from-[#0a0a14] to-[#151322]"
+            className={`${altoVisor} w-full rounded-2xl border border-swu-border bg-gradient-to-b from-[#0a0a14] to-[#151322]`}
           />
           {/* La pista del gesto. Va DENTRO del lienzo y abajo a la izquierda,
               donde no tapa el sable, y solo mientras no se está probando. */}
@@ -309,25 +318,14 @@ export function SablePage() {
         </div>
       )}
 
-      <div className="mt-2">
-        <BarraStats stats={stats} />
-      </div>
-
-      {/* El consejo del Arquitecto. `key={paso}` remonta el componente al
-          cambiar de paso: así el consejo rota SIN setState en un efecto. */}
-      <div className="mt-2">
-        <ConsejoHuyang key={paso} paso={paso} />
-      </div>
-
-      {aviso && (
-        <p className="mt-2 rounded-xl border border-swu-border bg-swu-surface px-3 py-2 text-center text-[12px] text-swu-text">
-          {aviso}
-        </p>
-      )}
-
-      {/* ── Paso 1: las piezas del mango ── */}
+      {/* ── Paso 1: las piezas del mango ──
+          La tira es HORIZONTAL y se desliza: Nel probándolo — «las piezas me
+          gustaría verlas en horizontal, deslizar de izquierda a derecha para no
+          escrolear hacia abajo y perder la visual del sable». La tarjeta tiene
+          ancho fijo para que asomen dos y media, que es lo que dice «esto
+          sigue». El `-mx-4 px-4` deja que la tira sangre hasta el borde. */}
       {paso === 'piezas' && (
-        <div className="mt-4">
+        <div className="mt-3">
           <div className="mb-2 flex gap-1.5">
             {RANURAS_MANGO.map(({ tipo, rotulo }) => (
               <button
@@ -340,16 +338,17 @@ export function SablePage() {
               >{rotulo}</button>
             ))}
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
             {deLaRanura(ranura).map(p => (
-              <PiezaTarjeta
-                key={p.id}
-                parte={p}
-                puesta={diseno[ranura] === p.id}
-                delta={deltaDe(partes, puestas, p)}
-                ocupado={ocupado}
-                alElegir={() => void tocar(p)}
-              />
+              <div key={p.id} className="flex w-44 shrink-0 snap-start">
+                <PiezaTarjeta
+                  parte={p}
+                  puesta={diseno[ranura] === p.id}
+                  delta={deltaDe(partes, puestas, p)}
+                  ocupado={ocupado}
+                  alElegir={() => void tocar(p)}
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -357,21 +356,22 @@ export function SablePage() {
 
       {/* ── Paso 2: el cristal ── */}
       {paso === 'cristal' && (
-        <div className="mt-4">
+        <div className="mt-3">
           <p className="mb-2 text-[11px] text-swu-muted">
             El cristal es el corazón del sable: decide el color de la hoja y es lo
             que más pesa en los stats.
           </p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
             {cristales.map(c => (
-              <PiezaTarjeta
-                key={c.id}
-                parte={c}
-                puesta={diseno.color === c.id}
-                delta={deltaDe(partes, puestas, c)}
-                ocupado={ocupado}
-                alElegir={() => void tocar(c)}
-              />
+              <div key={c.id} className="flex w-44 shrink-0 snap-start">
+                <PiezaTarjeta
+                  parte={c}
+                  puesta={diseno.color === c.id}
+                  delta={deltaDe(partes, puestas, c)}
+                  ocupado={ocupado}
+                  alElegir={() => void tocar(c)}
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -446,6 +446,25 @@ export function SablePage() {
           </button>
         </div>
       )}
+
+      {aviso && (
+        <p className="mt-2 rounded-xl border border-swu-border bg-swu-surface px-3 py-2 text-center text-[12px] text-swu-text">
+          {aviso}
+        </p>
+      )}
+
+      {/* Los stats y el consejo van DEBAJO de la tira de piezas, no encima:
+          arriba empujaban las tarjetas fuera de la pantalla y obligaban al
+          scroll que Nel pidió eliminar. La tira tiene que tocar el sable. */}
+      <div className="mt-3">
+        <BarraStats stats={stats} />
+      </div>
+
+      {/* El consejo del Arquitecto. `key={paso}` remonta el componente al
+          cambiar de paso: así el consejo rota SIN setState en un efecto. */}
+      <div className="mt-2">
+        <ConsejoHuyang key={paso} paso={paso} />
+      </div>
 
       {/* ── De dónde salen los créditos ──
           La lista dice LO QUE DE VERDAD SE PAGA (§3m): estos montos son los de

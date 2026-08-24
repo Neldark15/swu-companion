@@ -2601,6 +2601,58 @@ encender por cambiar de color se oye como un fallo.
 efecto. Un sable que sigue sonando después de cerrar la pantalla no tiene botón
 que lo calle y la persona no sabe de dónde sale el ruido.
 
-Bancos: **`/banco-sable-3d`** (las 64 combinaciones sin base ni saldo),
-**`/banco-kyber`** (pasos, stats y las tarjetas en sus tres estados) y
-**`/banco-credito`** (el escudo imperial con el medidor de tinta).
+#### El encuadre de la cámara MIDE, no supone
+
+Nel, probándolo en su iPhone: «se corta el sable, el zoom podría ser más
+pequeño». Las distancias fijas por estado (36/48/106) suponían una pose; con
+arrastre libre + tres poses + hoja de 78, la horizontal desbordaba el visor
+vertical. Ahora `encuadrar()` corre por cuadro: proyecta la media-longitud
+actual (mango + separación + hoja) sobre los ejes de pantalla según el
+cuaternión y pide la distancia que hace caber el peor eje en su FOV, moviendo
+también el CENTRO al medio real del objeto (con hoja, el sable no está centrado
+en el origen del grupo).
+
+**La trampa que costó una iteración**: el fit lineal NO alcanza — el extremo
+inclinado HACIA la cámara queda a `dist − cerca` de ella y la perspectiva lo
+agranda. El término `cerca = |eje.z| · mitad` se **suma fuera** de la división
+por el FOV. Y las estrellas arrancan en radio 150: con hoja horizontal la
+cámara llega a ~210 y estrellas a 120 quedaban detrás de ella.
+
+**Medir la escena desde el banco**: en DEV, `window.__sable` publica dist,
+aspecto, eje y mitad por cuadro. Ojo con el navegador de pruebas: además de
+`document.hidden`, su rAF a veces NO dispara ni con la pestaña al frente — el
+remedio es un shim (`requestAnimationFrame = setTimeout`) + toggle de
+visibilidad para reencender el bucle. Sin eso, cada screenshot enseña un cuadro
+a MEDIO CAMINO y parece que el encuadre está roto cuando está bien.
+
+#### La tira de piezas es horizontal
+
+«Deslizar de izquierda a derecha para no escrolear hacia abajo y perder la
+visual del sable» (Nel). Las tarjetas van en `-mx-4 flex snap-x overflow-x-auto`
+con envoltorio `flex w-44 shrink-0 snap-start` (el `flex` iguala las alturas);
+en los pasos de compra el visor cede altura (40vh vs 56vh) para que sable y
+tira compartan pantalla.
+
+#### La barra de XP lleva TU mango, en foto
+
+«Esta barra podría ser la empuñadura que uno hace en el taller… que se vea 3D»
+(Nel). `LightsaberXpBar` enseña un PNG del mango del propio usuario renderizado
+con el motor del taller (`miniaturaSable3D.ts`): un renderer que nace, dibuja UN
+cuadro, entrega `toDataURL` y muere con `forceContextLoss` — nada de contexto
+vivo por un adorno de 72×22. Claves del arreglo:
+
+- **El diseño se lee de la TABLA `sable_diseno`, no de `sable_taller()`**: la
+  RPC exige probador, pero tu diseño es tuyo — la policy ya limita el SELECT a
+  `auth.uid()`. Sin diseño forjado se renderiza el de fábrica: todos ven 3D.
+- **`mangoBarra.ts` NO importa three**: la barra vive en el Home; el
+  renderizador entra por `import()` dinámico y solo si el caché de localStorage
+  (una sola entrada, clave = las tres piezas) no sirve.
+- **VUELO ÚNICO obligatorio**: medido en `/banco-sable`, 20 barras montadas =
+  20 contextos WebGL simultáneos y Chrome corta a ~16 — salía UNA foto y 19
+  SVG. La promesa compartida renderiza una vez y todas esperan la misma.
+- El SVG dibujado a mano queda de REPUESTO (sin WebGL, primer cuadro sin caché).
+
+Bancos: **`/banco-sable-3d`** (las combinaciones sin base ni saldo),
+**`/banco-kyber`** (pasos, stats, la tira de tarjetas), **`/banco-credito`**
+(el escudo imperial con el medidor de tinta) y **`/banco-sable`** (la barra de
+XP con la foto del mango).
