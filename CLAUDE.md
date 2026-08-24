@@ -2708,3 +2708,67 @@ Bancos: **`/banco-sable-3d`** (las combinaciones sin base ni saldo),
 **`/banco-kyber`** (pasos, stats, la tira de tarjetas), **`/banco-credito`**
 (el escudo imperial con el medidor de tinta) y **`/banco-sable`** (la barra de
 XP con la foto del mango).
+
+
+### 4d. TRANSMISIONES DESTACADAS — los directos de fuera (`/envivo`)
+
+`/envivo` nació para NUESTRAS partidas: cámara → OBS → YouTube → la página. Como
+solo transmitimos en torneos, la pantalla estaba vacía casi siempre. Ahora arriba
+va la transmisión destacada: un directo ajeno (el «Meta Check-In» de Fantasy
+Flight fue el primero) con su hora, su cuenta atrás, su reproductor y el chat.
+
+**El reproductor va desde ANTES de la hora.** Un directo programado, incrustado,
+enseña su propia sala de espera y ARRANCA SOLO: quien deje la pestaña abierta ve
+el comienzo sin recargar. La cuenta atrás grande es nuestra igual, porque la de
+YouTube vive dentro del iframe y no se ve en la franja de Inicio.
+
+**Los datos NO se suponen.** El título, el canal y la hora salieron de leer la
+propia página de YouTube (`meta[itemprop="startDate"]` y `scheduledStartTime`),
+no de lo que dijera nadie. El id de la fila lleva la fecha para que el siguiente
+directo sea una fila nueva y no una edición del anterior.
+
+#### El aviso, y la trampa que casi pasa
+
+Dos avisos: uno **10 minutos antes** (el que hace que alguien llegue) y uno **al
+arrancar** (el que se pidió). El cron corre cada 5 minutos y es idempotente por
+SELLO — sin `aviso_previo_en`/`aviso_inicio_en`, la misma transmisión mandaría el
+mismo push doce veces por hora.
+
+**`.is(sello, null)` sin mirar el resultado NO protege nada.** La primera versión
+sellaba con esa condición y seguía derecho al envío sin comprobar si el UPDATE
+había tocado alguna fila. Con dos corridas simultáneas, la que perdía la carrera
+mandaba el push igual. Cero filas es «otra ganó», no un error.
+
+Se sella **antes** de enviar: el peor caso así es que alguien no reciba el aviso;
+al revés es que todos lo reciban doce veces, que es cómo se desinstala una app. Y
+hay ventana (`TOLERANCIA_MIN`): si el cron estuvo caído dos horas, al volver sella
+y calla en vez de anunciar algo que ya pasó.
+
+#### Por qué también hay franja en Inicio
+
+Medido el día que se armó: **13 de 39 cuentas tienen push activado**. Un anuncio
+que solo viaja por push llega a un tercio de la comunidad. La franja de Inicio es
+el otro canal — mismo criterio que el sobre diario, donde el push tampoco puede
+ser el único camino porque por definición solo alcanza a quien ya lo tiene puesto.
+
+#### El chat es la sala GLOBAL de siempre
+
+No se creó una sala «transmisión». La Galaxia ya tiene `global` con su RLS, su
+tiempo real y su moderación, y una segunda partiría la conversación en dos: lo
+que se comente viendo el directo se perdería en un cuarto que nadie vuelve a
+abrir. Es la misma sala con otra ropa.
+
+**Que no estorbe y que no haya que scrollear salen de lo mismo**: el chat tiene
+alto propio y scrollea adentro. Y `min-h-0` en la caja de mensajes NO es opcional
+— sin él un hijo de un flex no se deja encoger por debajo de su contenido y
+empuja la barra de escribir fuera de la pantalla, que era exactamente el bug.
+
+#### Lo que el service worker se queda
+
+La app usa `registerType: 'prompt'`: avisa que hay versión nueva y la persona
+decide cuándo recargar (§2g). O sea que **un módulo nuevo no aparece hasta que
+cada quien acepte la actualización**. Para algo con hora —una transmisión— eso
+importa: el push SÍ llega (lo manda el servidor y el SW viejo lo entrega igual),
+pero al abrirlo, quien no haya actualizado cae en la pantalla vieja. Verificado
+en producción el primer día: la página cacheada no traía la tarjeta hasta borrar
+el SW a mano.
