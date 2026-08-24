@@ -126,7 +126,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // sello sin poner y la próxima corrida vuelve a mandarle el push a todos
     // los que YA lo recibieron.
     const sello = tipo === 'inicio' ? 'aviso_inicio_en' : 'aviso_previo_en'
-    const { error: errSello } = await supabase
+    const { data: sellada, error: errSello } = await supabase
       .from('transmisiones')
       .update({ ...caducados, [sello]: new Date().toISOString() })
       .eq('id', f.id)
@@ -135,6 +135,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .maybeSingle()
 
     if (errSello) { avisos.push({ id: f.id, tipo, error: errSello.message }); continue }
+    /* CERO FILAS = otra corrida selló primero, y NO es un error. Sin esta
+       comprobación las dos corridas seguían al envío y la comunidad recibía el
+       mismo aviso dos veces — que es el fallo exacto que los sellos existen
+       para impedir. `.is(sello, null)` sin mirar el resultado no protege nada. */
+    if (!sellada) { avisos.push({ id: f.id, tipo, salteado: 'otra corrida lo selló primero' }); continue }
 
     if (!hayPush) { avisos.push({ id: f.id, tipo, push: 'VAPID no configurado' }); continue }
 
