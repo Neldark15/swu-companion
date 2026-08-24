@@ -20,6 +20,8 @@ import { listFaceUrl, listFaceFit } from '../../services/cardArt'
 import { translateType, translateAspect } from '../../services/translations'
 import type { Deck, DeckCard, Card, TournamentFormat } from '../../types'
 import { ASPECTOS } from '../../services/filtrosCarta'
+import { FiltrosBusqueda } from './FiltrosBusqueda'
+import { SIN_FILTROS, contarActivos, type FiltrosAvanzados } from './filtrosAvanzados'
 import { formatPrice } from '../../services/pricing'
 import {
   precioDeCartas, impresionesDe, resumenImpresiones,
@@ -77,6 +79,7 @@ export function DeckBuilderPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchAspect, setSearchAspect] = useState<string | null>(null)
   const [searchCost, setSearchCost] = useState<number | null>(null)
+  const [filtros, setFiltros] = useState<FiltrosAvanzados>(SIN_FILTROS)
   const [searchResults, setSearchResults] = useState<Card[]>([])
   const [searching, setSearching] = useState(false)
   const [searchTotal, setSearchTotal] = useState(0)
@@ -240,11 +243,15 @@ export function DeckBuilderPage() {
     contarSiNace(toSave)
   }, [supabaseUser, contarSiNace])
 
-  const doSearch = useCallback(async (query: string, aspect: string | null, cost: number | null) => {
+  const doSearch = useCallback(async (
+    query: string, aspect: string | null, cost: number | null,
+    f: FiltrosAvanzados, aspectosMazo: string[],
+  ) => {
     // Antes solo se buscaba con texto escrito. Acá es justamente donde uno
-    // piensa "necesito una unidad Vigilance de coste 3", así que con un
-    // aspecto o un coste elegido ya alcanza para buscar.
-    if (!query.trim() && !aspect && cost === null) {
+    // piensa "necesito una unidad Vigilance de coste 3", así que con CUALQUIER
+    // filtro puesto ya alcanza para buscar — si no, elegir «Evento» y no ver
+    // nada se lee como que el filtro no funciona.
+    if (!query.trim() && !aspect && cost === null && contarActivos(f) === 0) {
       setSearchResults([]); setSearchTotal(0); return
     }
     setSearching(true)
@@ -253,18 +260,52 @@ export function DeckBuilderPage() {
         query: query.trim() || undefined,
         aspect: aspect || undefined,
         cost,
+        type: f.tipo || undefined,
+        arena: f.arena || undefined,
+        keyword: f.palabraClave || undefined,
+        trait: f.rasgo || undefined,
         limit: 30,
       })
-      setSearchResults(cards)
-      setSearchTotal(total)
+
+      /* «De mis aspectos» se aplica ACÁ y no en `searchCards`: el motor filtra
+       * por UN aspecto, y esto pregunta otra cosa —que TODOS los de la carta
+       * estén entre los del mazo—. Meterlo al servicio obligaría a que
+       * conociera el mazo, que no es asunto suyo.
+       *
+       * Ojo con el total: se recorta la página, así que el número que se
+       * enseña deja de ser el del servicio. Se recalcula abajo. */
+      const filtradas = f.soloMisAspectos && aspectosMazo.length > 0
+        ? cards.filter(c => (c.aspects ?? []).every(a => aspectosMazo.includes(a)))
+        : cards
+
+      setSearchResults(filtradas)
+      setSearchTotal(filtradas.length === cards.length ? total : filtradas.length)
     } catch { setSearchResults([]) }
     setSearching(false)
   }, [])
 
+  /* Los aspectos que da el mazo: líder + base. Es lo que decide si una carta
+     entra sin pagar de más (CR 8.1.1). */
+  const [aspectosDelMazo, setAspectosDelMazo] = useState<string[]>([])
   useEffect(() => {
-    const timer = setTimeout(() => doSearch(searchQuery, searchAspect, searchCost), 300)
+    let vivo = true
+    void (async () => {
+      const ids = [...deck.leaders.map(l => l.cardId), ...(deck.base ? [deck.base.cardId] : [])]
+      if (ids.length === 0) { if (vivo) setAspectosDelMazo([]); return }
+      const mapa = await getCardsByIds(ids)
+      if (!vivo) return
+      const set = new Set<string>()
+      for (const c of mapa.values()) for (const a of c.aspects ?? []) set.add(a)
+      setAspectosDelMazo([...set])
+    })()
+    return () => { vivo = false }
+  }, [deck.leaders, deck.base])
+
+  useEffect(() => {
+    const timer = setTimeout(
+      () => doSearch(searchQuery, searchAspect, searchCost, filtros, aspectosDelMazo), 300)
     return () => clearTimeout(timer)
-  }, [searchQuery, searchAspect, searchCost, doSearch])
+  }, [searchQuery, searchAspect, searchCost, filtros, aspectosDelMazo, doSearch])
 
   const addCardToDeck = (card: Card) => {
     // Cache image immediately
@@ -879,6 +920,12 @@ export function DeckBuilderPage() {
                 </button>
               )}
             </div>
+
+            <FiltrosBusqueda
+              valor={filtros}
+              onCambio={setFiltros}
+              aspectosDelMazo={aspectosDelMazo}
+            />
           </div>
 
           {/* DB bootstrap progress — visible while the card database downloads */}

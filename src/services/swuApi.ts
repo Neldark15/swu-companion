@@ -634,6 +634,48 @@ export async function ensureFreshDatabase(): Promise<number> {
  * las 9,057 cartas que ya están en el teléfono, el contador coincide con las
  * filas y la paginación es sobre el resultado ya ordenado.
  */
+/**
+ * Los RASGOS y las PALABRAS CLAVE que existen de verdad en la base.
+ *
+ * Se derivan de las cartas, no se escriben a mano, y eso no es pereza: una
+ * lista fija se queda vieja con cada set y el filtro deja de ofrecer lo nuevo
+ * **sin dar ningún error** — que es exactamente cómo Twin Suns desapareció de
+ * Explorar (§3j). Acá el catálogo manda.
+ *
+ * Se recorren solo las canónicas: las 9.185 impresiones son 2.314 cartas y las
+ * variantes repiten los mismos rasgos.
+ *
+ * Medido el 2026-08-23 sobre las 2.314: **58 rasgos** (Vehicle 465, Underworld
+ * 295, Force 262…) y **16 palabras clave** (Sentinel 175, Raid 111…), todas
+ * con 23 cartas o más. Por eso las palabras clave caben como fichas y los
+ * rasgos necesitan buscador.
+ *
+ * El resultado se cachea a nivel de módulo: es un barrido de la base entera y
+ * el panel de filtros se abre y se cierra muchas veces por sesión.
+ */
+let _vocabulario: { rasgos: string[]; palabrasClave: string[] } | null = null
+
+export async function vocabularioDeCartas(): Promise<{ rasgos: string[]; palabrasClave: string[] }> {
+  if (_vocabulario) return _vocabulario
+  if (!(await isDatabaseComplete())) return { rasgos: [], palabrasClave: [] }
+
+  const rasgos = new Map<string, number>()
+  const claves = new Map<string, number>()
+  await db.cards.each((c) => {
+    if (c.isCanonical === false) return
+    for (const t of c.traits ?? []) rasgos.set(t, (rasgos.get(t) ?? 0) + 1)
+    for (const k of c.keywords ?? []) claves.set(k, (claves.get(k) ?? 0) + 1)
+  })
+
+  // Por cuántas cartas lo llevan, no alfabético: quien abre la lista busca
+  // «Vehicle» o «Rebel» mucho más seguido que «Wookiee».
+  const porUso = (m: Map<string, number>) =>
+    [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([k]) => k)
+
+  _vocabulario = { rasgos: porUso(rasgos), palabrasClave: porUso(claves) }
+  return _vocabulario
+}
+
 export async function searchCards(params: SearchParams): Promise<{ cards: Card[]; total: number }> {
   // NO se espera a `_dbLoadPromise` acá. El refresco semanal corre en segundo
   // plano con la base YA completa: esperarlo dejaba el buscador congelado

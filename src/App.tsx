@@ -53,6 +53,7 @@ const BancoEncuesta = lazy(() => import('./features/encuesta/BancoEncuesta').the
 const BancoConsola = lazy(() => import('./features/home/BancoConsola').then(m => ({ default: m.BancoConsola })))
 const BancoCopias = lazy(() => import('./features/decks/BancoCopias').then(m => ({ default: m.BancoCopias })))
 const BancoPaneles = lazy(() => import('./features/decks/BancoPaneles').then(m => ({ default: m.BancoPaneles })))
+const BancoFiltros = lazy(() => import('./features/decks/BancoFiltros').then(m => ({ default: m.BancoFiltros })))
 const BancoAvisos = lazy(() => import('./components/ui/BancoAvisos').then(m => ({ default: m.BancoAvisos })))
 const BancoCarrito = lazy(() => import('./features/mercado/BancoCarrito').then(m => ({ default: m.BancoCarrito })))
 const MensajesPage = lazy(() => import('./features/mensajes/MensajesPage').then(m => ({ default: m.MensajesPage })))
@@ -289,6 +290,7 @@ export default function App() {
             {import.meta.env.DEV && <Route path="/banco-amistosas" element={<BancoAmistosas />} />}
             {import.meta.env.DEV && <Route path="/banco-copias" element={<BancoCopias />} />}
             {import.meta.env.DEV && <Route path="/banco-paneles" element={<BancoPaneles />} />}
+            {import.meta.env.DEV && <Route path="/banco-filtros" element={<BancoFiltros />} />}
             {import.meta.env.DEV && <Route path="/banco-avisos" element={<BancoAvisos />} />}
             {import.meta.env.DEV && <Route path="/banco-calendario" element={<CalendarioPage />} />}
             {import.meta.env.DEV && <Route path="/banco-pedidos" element={<PedidosPage />} />}
