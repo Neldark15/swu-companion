@@ -32,6 +32,9 @@ import {
   MedalIcon, MetaHoloIcon, PedidoIcon, SaberIcon, SobreIcon, SpyIcon,
   StarfighterIcon, TransmisionIcon,
 } from '../../components/SWIcons'
+// El planeta anillado ya estaba dibujado para el tema «Planetas» de la Trivia.
+// El ícono de una cosa es el de esa cosa: se reusa, no se dibuja otro.
+import { PlanetaAnilladoIcon } from '../trivia/iconosTrivia'
 import { HudPanel, HudCorners, HexIcon } from '../../components/Hud'
 import { NoticiasSection } from './NoticiasSection'
 import { CartaDelDia } from './CartaDelDia'
@@ -181,6 +184,9 @@ const mainSystems: Sistema[] = [
 
   // ── Comunidad: mirar a los demás ──
   { icon: StarfighterIcon, label: 'La Galaxia',   tone: 'cyan',   to: '/galaxia',    cat: 'comunidad', auth: true },
+  // Terraformar va en Comunidad y no en Mini Juegos: tu planeta es tu lugar en
+  // la Galaxia, y ahí es donde la gente lo va a buscar.
+  { icon: PlanetaAnilladoIcon, label: 'Terraformar',  tone: 'green',  to: '/terraformar', cat: 'comunidad', auth: true },
   // La credencial estaba SOLO dentro de Perfil → Personalizar: en móvil son
   // cuatro toques y nadie la encontraba. Acá se ve al abrir la app.
   { icon: CredencialIcon,       label: 'Mi Credencial', tone: 'amber', to: '/credencial', cat: 'comunidad', auth: true },

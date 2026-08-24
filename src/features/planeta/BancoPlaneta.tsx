@@ -47,15 +47,20 @@ export function BancoPlaneta() {
   const [crateres, setCrateres] = useState<number | null>(null)
   const [anillos, setAnillos] = useState<number | null>(null)
   const [lunas, setLunas] = useState<number | null>(null)
+  const [ciudades, setCiudades] = useState<number | null>(0)
+  const [nubes, setNubes] = useState<number | null>(0)
+  const [auroras, setAuroras] = useState<number | null>(0)
+  const [noche, setNoche] = useState(false)
   const id = IDS[i]
   const rasgos = useMemo(
-    () => rasgosDe(id, { familia, mares, crateres, anillos, lunas, acento }),
-    [id, familia, mares, crateres, anillos, lunas, acento],
+    () => rasgosDe(id, { familia, mares, crateres, anillos, lunas, ciudades, nubes, auroras, acento }),
+    [id, familia, mares, crateres, anillos, lunas, ciudades, nubes, auroras, acento],
   )
 
   return (
     <div className="fixed inset-0 flex flex-col bg-[#03040a]">
-      <PlanetaEscena rasgos={rasgos} onFps={setFps} className="flex-1" />
+      <PlanetaEscena
+        deNoche={noche} rasgos={rasgos} onFps={setFps} className="flex-1" />
 
       <div className="absolute inset-x-0 top-0 space-y-2 p-3">
         <div className="flex flex-wrap gap-1.5">
@@ -115,9 +120,17 @@ export function BancoPlaneta() {
 
         {/* Anillos y lunas: la semilla los deja en minoría, así que sin estos
             botones habría que probar decenas de ids para ver uno con anillos. */}
+        <button
+          onClick={() => setNoche(v => !v)}
+          className={`self-start rounded-lg border px-2.5 py-1.5 text-[11px] font-bold ${noche ? 'border-swu-amber text-swu-amber' : 'border-swu-border text-swu-muted'}`}
+        >{noche ? 'viendo la NOCHE' : 'ver la cara nocturna'}</button>
+
         {([
           ['anillos', anillos, setAnillos, 3],
           ['lunas', lunas, setLunas, 3],
+          ['ciudades', ciudades, setCiudades, 3],
+          ['nubes', nubes, setNubes, 3],
+          ['auroras', auroras, setAuroras, 2],
         ] as const).map(([et, val, set, max]) => (
           <div key={et} className="flex flex-wrap items-center gap-1.5">
             <span className="w-16 font-mono text-[11px] text-swu-muted">{et}</span>

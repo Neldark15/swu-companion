@@ -82,6 +82,10 @@ const GalaxyPage = lazy(() => import('./features/galaxy/GalaxyPage').then(m => (
 /* El modo planeta va en su PROPIO chunk perezoso: three ya es compartido, pero
    la geometría del mundo y la escena solo las necesita quien entra. */
 const PlanetaPage = lazy(() => import('./features/planeta/PlanetaPage').then(m => ({ default: m.PlanetaPage })))
+/* Terraformar: la tienda del planeta. Se eligió ampliar el planeta y no
+   estrenar otro módulo porque 19 de 39 cuentas ya lo habían tocado — es la
+   personalización más usada de la app. */
+const TerraformarPage = lazy(() => import('./features/planeta/TerraformarPage').then(m => ({ default: m.TerraformarPage })))
 const GalaxiaPage = lazy(() => import('./features/galaxia/GalaxiaPage').then(m => ({ default: m.GalaxiaPage })))
 /* El Taller de sables. Abierto a toda la comunidad desde 2026-08-24, con
    entrada en Inicio, en el menú y desde el sable de la barra de XP. La puerta
@@ -382,6 +386,7 @@ export default function App() {
                 RPC, así que el taller diría «no está abierto» hasta al dueño
                 (misma trampa que documenta /estudio). */}
             <Route path="/sable" element={<P><SablePage /></P>} />
+            <Route path="/terraformar" element={<P><TerraformarPage /></P>} />
             <Route path="/trivia" element={<P><TriviaPage /></P>} />
             {/* Ruta HERMANA de /galaxia, no superposición: así el router
                 desmonta la Galaxia y su forceContextLoss() corre solo. */}

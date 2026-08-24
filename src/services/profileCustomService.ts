@@ -54,6 +54,11 @@ export interface Personalizacion {
   planet_rings: number | null
   /** 0..3 lunas, null = lo decide la semilla. */
   planet_moons: number | null
+  /* Terraformación: lo COMPRADO y puesto. No son anulables — cero significa
+     «apagado», y el servidor lo baja al grado que de verdad se posee. */
+  planet_cities: number
+  planet_clouds: number
+  planet_auroras: number
   planet_craters: number | null
 }
 
@@ -61,6 +66,7 @@ export const VACIA: Personalizacion = {
   showcase_cards: [], favorite_aspects: [], banner_card_id: null, accent: 'cyan',
   planet_name: null, planet_family: null, planet_seas: null, planet_craters: null,
   planet_rings: null, planet_moons: null,
+  planet_cities: 0, planet_clouds: 0, planet_auroras: 0,
 }
 
 /**
@@ -70,7 +76,7 @@ export const VACIA: Personalizacion = {
  * `select('*')` pide todas y PostgREST responde «permission denied for table
  * profiles», tumbando la pantalla entera. Ya pasó una vez.
  */
-const COLUMNAS = 'showcase_cards, favorite_aspects, banner_card_id, accent, planet_name, planet_family, planet_seas, planet_craters, planet_rings, planet_moons'
+const COLUMNAS = 'showcase_cards, favorite_aspects, banner_card_id, accent, planet_name, planet_family, planet_seas, planet_craters, planet_rings, planet_moons, planet_cities, planet_clouds, planet_auroras'
 
 /** Normaliza lo que venga de la base: columnas nuevas pueden llegar nulas. */
 function normalizar(row: Partial<Personalizacion> | null): Personalizacion {
@@ -86,6 +92,9 @@ function normalizar(row: Partial<Personalizacion> | null): Personalizacion {
     planet_craters: row.planet_craters ?? null,
     planet_rings: row.planet_rings ?? null,
     planet_moons: row.planet_moons ?? null,
+    planet_cities: row.planet_cities ?? 0,
+    planet_clouds: row.planet_clouds ?? 0,
+    planet_auroras: row.planet_auroras ?? 0,
   }
 }
 
@@ -125,6 +134,32 @@ export async function guardarPersonalizacion(
   }
   if (p.planet_craters !== undefined) {
     datos.planet_craters = p.planet_craters == null ? null : Math.round(Math.min(100, Math.max(0, p.planet_craters)))
+  }
+  /* Anillos y lunas: `null` significa «lo que me tocó por semilla», que es un
+     valor con significado propio y distinto de 0 («ninguno»). Van con la misma
+     regla `!== undefined` que los de arriba.
+
+     ESTA LISTA ES BLANCA A PROPÓSITO, y por eso hay que acordarse de ella: un
+     campo que no esté acá se descarta EN SILENCIO. Anillos y lunas se
+     desplegaron sin agregarlos y la pantalla dejaba elegir, la vista previa
+     cambiaba… y nada llegaba a la base. El fallo más caro es el que se ve bien. */
+  if (p.planet_rings !== undefined) {
+    datos.planet_rings = p.planet_rings == null ? null : Math.round(Math.min(3, Math.max(0, p.planet_rings)))
+  }
+  if (p.planet_moons !== undefined) {
+    datos.planet_moons = p.planet_moons == null ? null : Math.round(Math.min(3, Math.max(0, p.planet_moons)))
+  }
+  /* La terraformación NO es anulable: cero es «apagado». Y el tope de acá es
+     cortesía, no seguridad — el que manda es el trigger `planeta_clampar`, que
+     lo baja al grado que de verdad se compró. */
+  if (p.planet_cities !== undefined) {
+    datos.planet_cities = Math.round(Math.min(3, Math.max(0, p.planet_cities ?? 0)))
+  }
+  if (p.planet_clouds !== undefined) {
+    datos.planet_clouds = Math.round(Math.min(3, Math.max(0, p.planet_clouds ?? 0)))
+  }
+  if (p.planet_auroras !== undefined) {
+    datos.planet_auroras = Math.round(Math.min(2, Math.max(0, p.planet_auroras ?? 0)))
   }
 
   const { error } = await supabase.from('profiles').update(datos).eq('id', userId)

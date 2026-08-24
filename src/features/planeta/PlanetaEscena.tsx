@@ -34,6 +34,8 @@ interface Props {
   onSinWebGL?: () => void
   /** Se llama con los FPS medidos, una vez por segundo. Para el rótulo de depuración. */
   onFps?: (fps: number) => void
+  /** SOLO PARA EL BANCO: pone el sol detrás para poder mirar la cara nocturna. */
+  deNoche?: boolean
   className?: string
 }
 
@@ -55,7 +57,7 @@ function detalleSegunAparato(): number {
   return 144
 }
 
-export function PlanetaEscena({ rasgos, onSinWebGL, onFps, className = '' }: Props) {
+export function PlanetaEscena({ rasgos, onSinWebGL, onFps, deNoche = false, className = '' }: Props) {
   const cajaRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -79,6 +81,19 @@ export function PlanetaEscena({ rasgos, onSinWebGL, onFps, className = '' }: Pro
 
     const escena = new THREE.Scene()
     const camara = new THREE.PerspectiveCamera(45, caja.clientWidth / caja.clientHeight, 0.5, 900)
+
+    /** El material de la capa viva, para latir las auroras en el bucle. */
+    let matVidaRef: THREE.ShaderMaterial | null = null
+
+    /* La dirección del sol se decide ACÁ ARRIBA porque la usan tres cosas: la
+       luz, el shader de la capa viva y el relleno. Con `deNoche` va al revés y
+       queda la cara nocturna de frente — es lo único que permite revisar las
+       ciudades y las auroras, porque girar la cámara no alcanza: el sol está
+       fijo en el mundo y habría que dar media vuelta exacta. Solo lo usa el
+       banco. */
+    const dirSolar = deNoche
+      ? new THREE.Vector3(-1, -0.35, -0.6).normalize()
+      : new THREE.Vector3(1, 0.35, 0.6).normalize()
 
     // ── el mundo ──
     const detalle = detalleSegunAparato()
@@ -132,6 +147,163 @@ export function PlanetaEscena({ rasgos, onSinWebGL, onFps, className = '' }: Pro
       depthWrite: false,
     })
     escena.add(new THREE.Mesh(geoAtmosfera, matAtmosfera))
+
+    /* ── LA CAPA VIVA: ciudades de noche y auroras en los polos ──
+       Las DOS en una sola cáscara, y no en dos, porque son la misma pregunta
+       geométrica —¿de qué lado está el sol y a qué latitud estoy?— y separarlas
+       costaría una llamada de dibujo más por nada.
+
+       Las ciudades salen SOLO donde el sol no pega (`ndl < 0`): una ciudad
+       encendida a pleno día no se ve, y dibujarla ahí la delataría como una
+       calcomanía. La textura son puntos agrupados, no una malla regular: la
+       gente se junta en la costa y en los valles, no en cuadrícula.
+
+       Las auroras viven arriba de |lat| 0,72 y laten. El color no es inventado:
+       es el de la atmósfera de la familia, así que un mundo helado tiene
+       auroras violetas y uno de jungla las tiene verdes. */
+    const desechosVida: { dispose(): void }[] = []
+    if (rasgos.ciudades > 0 || rasgos.auroras > 0) {
+      const S = 256
+      const cv = document.createElement('canvas')
+      cv.width = cv.height = S
+      const cx = cv.getContext('2d')!
+      cx.fillStyle = '#000'
+      cx.fillRect(0, 0, S, S)
+      if (rasgos.ciudades > 0) {
+        // Cuantos más grados, más núcleos y más grandes.
+        const nucleos = 14 + rasgos.ciudades * 12
+        let semilla = Math.floor(rasgos.s01 * 100000) >>> 0
+        const rnd = () => {
+          semilla ^= semilla << 13; semilla >>>= 0
+          semilla ^= semilla >> 17
+          semilla ^= semilla << 5; semilla >>>= 0
+          return semilla / 4294967296
+        }
+        for (let n = 0; n < nucleos; n++) {
+          const cxN = rnd() * S
+          // Se evitan los polos: nadie funda una ciudad sobre el hielo.
+          const cyN = S * (0.22 + rnd() * 0.56)
+          const puntos = 6 + Math.floor(rnd() * 18) * rasgos.ciudades
+          const disp = 4 + rnd() * (7 + rasgos.ciudades * 5)
+          for (let k = 0; k < puntos; k++) {
+            const px = cxN + (rnd() - 0.5) * disp * 2
+            const py = cyN + (rnd() - 0.5) * disp
+            const b = 0.35 + rnd() * 0.65
+            cx.fillStyle = `rgba(255,${190 + Math.floor(rnd() * 50)},${120 + Math.floor(rnd() * 70)},${b.toFixed(2)})`
+            cx.fillRect(px, py, 1 + (rnd() < 0.18 ? 1 : 0), 1)
+          }
+        }
+      }
+      const texVida = new THREE.CanvasTexture(cv)
+      texVida.wrapS = THREE.RepeatWrapping
+
+      const geoVida = new THREE.SphereGeometry(RADIO_MUNDO * 1.004, 48, 32)
+      const matVida = new THREE.ShaderMaterial({
+        uniforms: {
+          luces: { value: texVida },
+          dirSol: { value: dirSolar.clone() },
+          tinte: { value: new THREE.Color(rasgos.atmosfera) },
+          conCiudades: { value: rasgos.ciudades > 0 ? 1 : 0 },
+          conAuroras: { value: rasgos.auroras },
+          tiempo: { value: 0 },
+        },
+        vertexShader: `
+          varying vec3 vN; varying vec2 vUv;
+          void main() {
+            /* La normal va a espacio de MUNDO, no de vista: normalMatrix la
+               lleva a vista y dirSol es una direccion del mundo. Comparadas
+               asi, el lado nocturno se movia con la CAMARA en vez de con el
+               sol, y las ciudades no aparecian donde tenian que estar.
+               (Sin acentos ni comillas invertidas: esto vive dentro de un
+               template literal y una comilla invertida lo corta.) */
+            vN = normalize(mat3(modelMatrix) * normal);
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }`,
+        fragmentShader: `
+          uniform sampler2D luces; uniform vec3 dirSol; uniform vec3 tinte;
+          uniform float conCiudades; uniform float conAuroras; uniform float tiempo;
+          varying vec3 vN; varying vec2 vUv;
+          void main() {
+            float ndl = dot(normalize(vN), normalize(dirSol));
+            // La noche, con un borde suave: un corte duro se ve como una línea
+            // dibujada alrededor del planeta.
+            float noche = smoothstep(0.12, -0.28, ndl);
+            vec3 c = vec3(0.0);
+            if (conCiudades > 0.5) {
+              c += texture2D(luces, vUv).rgb * noche * 1.5;
+            }
+            if (conAuroras > 0.5) {
+              float lat = abs(vUv.y - 0.5) * 2.0;
+              float banda = smoothstep(0.72, 0.94, lat) * (1.0 - smoothstep(0.94, 1.0, lat));
+              // Ondas lentas: una aurora quieta es un anillo pintado.
+              float onda = 0.55 + 0.45 * sin(vUv.x * 22.0 + tiempo * 0.6)
+                                 * sin(vUv.x * 7.0 - tiempo * 0.35);
+              c += tinte * banda * onda * (0.35 + noche * 0.75) * conAuroras;
+            }
+            if (c.r + c.g + c.b < 0.004) discard;
+            gl_FragColor = vec4(c, 1.0);
+          }`,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        depthWrite: false,
+      })
+      const capaVida = new THREE.Mesh(geoVida, matVida)
+      capaVida.rotation.z = rasgos.inclinacion
+      escena.add(capaVida)
+      desechosVida.push(geoVida, matVida, texVida)
+      matVidaRef = matVida
+    }
+
+    /* ── NUBES ──
+       Cáscara con ruido, girando MÁS RÁPIDO que el planeta. Esa diferencia de
+       velocidad es lo único que las hace leer como atmósfera y no como pintura
+       sobre la superficie. */
+    let nubes: THREE.Mesh | null = null
+    const desechosNubes: { dispose(): void }[] = []
+    if (rasgos.nubes > 0) {
+      const S = 256
+      const cv = document.createElement('canvas')
+      cv.width = S; cv.height = S / 2
+      const cx = cv.getContext('2d')!
+      cx.fillStyle = 'rgba(0,0,0,0)'
+      cx.fillRect(0, 0, S, S / 2)
+      let semilla = (Math.floor(rasgos.s01 * 77777) ^ 0x9e37) >>> 0
+      const rnd = () => {
+        semilla ^= semilla << 13; semilla >>>= 0
+        semilla ^= semilla >> 17
+        semilla ^= semilla << 5; semilla >>>= 0
+        return semilla / 4294967296
+      }
+      const bancos = 26 + rasgos.nubes * 22
+      for (let n = 0; n < bancos; n++) {
+        const cxN = rnd() * S
+        const cyN = rnd() * (S / 2)
+        // Los bancos se estiran en horizontal: las nubes de un planeta que gira
+        // salen en bandas, no en manchas redondas.
+        const ancho = 12 + rnd() * (26 + rasgos.nubes * 12)
+        const alto = 3 + rnd() * 7
+        const g = cx.createRadialGradient(cxN, cyN, 0, cxN, cyN, ancho)
+        const a = (0.12 + rnd() * 0.3) * (0.5 + rasgos.nubes * 0.28)
+        g.addColorStop(0, `rgba(255,255,255,${a.toFixed(3)})`)
+        g.addColorStop(1, 'rgba(255,255,255,0)')
+        cx.save()
+        cx.translate(cxN, cyN); cx.scale(1, alto / ancho); cx.translate(-cxN, -cyN)
+        cx.fillStyle = g
+        cx.beginPath(); cx.arc(cxN, cyN, ancho, 0, Math.PI * 2); cx.fill()
+        cx.restore()
+      }
+      const texNubes = new THREE.CanvasTexture(cv)
+      texNubes.wrapS = THREE.RepeatWrapping
+      const geoNubes = new THREE.SphereGeometry(RADIO_MUNDO * 1.017, 40, 26)
+      const matNubes = new THREE.MeshLambertMaterial({
+        map: texNubes, transparent: true, depthWrite: false, opacity: 0.9,
+      })
+      nubes = new THREE.Mesh(geoNubes, matNubes)
+      nubes.rotation.z = rasgos.inclinacion
+      escena.add(nubes)
+      desechosNubes.push(geoNubes, matNubes, texNubes)
+    }
 
     /* ── ANILLOS ──
        Un disco plano con bandas y huecos, inclinado con el eje del planeta.
@@ -258,7 +430,7 @@ export function PlanetaEscena({ rasgos, onSinWebGL, onFps, className = '' }: Pro
     // Un sol duro y un relleno frío desde el lado opuesto, para que la mitad en
     // sombra no sea negra plana sino azulada — el planeta se lee como volumen.
     const sol = new THREE.DirectionalLight(0xfff3e0, 2.6)
-    sol.position.set(1, 0.35, 0.6).normalize().multiplyScalar(100)
+    sol.position.copy(dirSolar).multiplyScalar(100)
     escena.add(sol)
     const relleno = new THREE.DirectionalLight(new THREE.Color(rasgos.atmosfera), 0.35)
     relleno.position.set(-1, -0.2, -0.5).normalize().multiplyScalar(100)
@@ -357,6 +529,10 @@ export function PlanetaEscena({ rasgos, onSinWebGL, onFps, className = '' }: Pro
       const dt = Math.min(0.05, (ahora - ultimo) / 1000)
       ultimo = ahora
 
+      // Las auroras respiran y las nubes corren más rápido que el suelo.
+      if (matVidaRef) matVidaRef.uniforms.tiempo.value = ahora * 0.001
+      if (nubes) nubes.rotation.y += dt * 0.018
+
       // Las lunas orbitan. Cada una en su plano y a su velocidad: en órbitas
       // idénticas se leerían como un collar rígido, no como satélites.
       for (const m of lunas) {
@@ -444,6 +620,8 @@ export function PlanetaEscena({ rasgos, onSinWebGL, onFps, className = '' }: Pro
       geoLuna.dispose()
       matLuna.dispose()
       for (const d of desechosAnillo) d.dispose()
+      for (const d of desechosVida) d.dispose()
+      for (const d of desechosNubes) d.dispose()
       renderer.dispose()
 
       // El listener PRIMERO, y recién después soltar el contexto: al revés, la
@@ -453,7 +631,10 @@ export function PlanetaEscena({ rasgos, onSinWebGL, onFps, className = '' }: Pro
       renderer.forceContextLoss()
       lienzo.remove()
     }
-  }, [rasgos, onSinWebGL, onFps])
+    // `deNoche` va en las dependencias: cambia la dirección del sol, que se
+    // lee al construir la escena y al armar el shader de la capa viva. Sin
+    // ella, el botón del banco no haría nada hasta remontar.
+  }, [rasgos, onSinWebGL, onFps, deNoche])
 
   return (
     <div

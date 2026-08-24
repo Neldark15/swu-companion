@@ -78,6 +78,17 @@ export interface AjustesPlaneta {
   anillos?: number | null
   /** Lunas: 0..3. `null` = lo decide la semilla. */
   lunas?: number | null
+  /* ── TERRAFORMACIÓN ──
+     A diferencia de los de arriba, estos NO los decide la semilla: se compran
+     y se ponen. Cero significa «no la tengo» o «la tengo apagada», y el
+     servidor lo baja al grado que de verdad se posee (trigger `planeta_clampar`).
+     Por eso son números planos y no anulables: acá no hay «lo que me tocó». */
+  /** Grado de ciudades encendidas de noche, 0..3. */
+  ciudades?: number | null
+  /** Grado de nubes, 0..3. */
+  nubes?: number | null
+  /** Grado de auroras polares, 0..2. */
+  auroras?: number | null
 }
 
 /** Los rasgos de un mundo: todo lo que lo hace distinto de los demás. */
@@ -104,6 +115,10 @@ export interface RasgosMundo {
   anillos: number
   /** Cuántas lunas, 0..3. */
   lunas: number
+  /** Terraformación: lo comprado y puesto. Nunca sale de la semilla. */
+  ciudades: number
+  nubes: number
+  auroras: number
 }
 
 /**
@@ -224,6 +239,10 @@ export function rasgosDe(userId: string, ajustes?: AjustesPlaneta): RasgosMundo 
     familia,
     anillos,
     lunas,
+    // La terraformación no se sortea: o la compraste y la pusiste, o no está.
+    ciudades: Math.min(3, Math.max(0, Math.round(ajustes?.ciudades ?? 0))),
+    nubes: Math.min(3, Math.max(0, Math.round(ajustes?.nubes ?? 0))),
+    auroras: Math.min(2, Math.max(0, Math.round(ajustes?.auroras ?? 0))),
   }
 }
 
