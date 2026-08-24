@@ -104,10 +104,11 @@ export function TransmisionDestacada() {
         href={`https://www.youtube.com/watch?v=${encodeURIComponent(t.youtube.replace(/^.*[?&]v=|^.*youtu\.be\//, ''))}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex min-h-[44px] items-center justify-center gap-2 px-4 py-2.5
-                   text-[12px] font-bold text-swu-muted hover:text-swu-text"
+        className="m-3 flex min-h-[46px] items-center justify-center gap-2 rounded-xl
+                   border border-swu-border bg-swu-bg px-4 py-2.5
+                   text-[12px] font-black uppercase tracking-wider text-swu-text"
       >
-        <Youtube size={15} />
+        <Youtube size={16} className="text-swu-red-texto" />
         Abrirlo en YouTube
       </a>
     </section>

@@ -48,6 +48,7 @@ import { MosaicoModulo } from './MosaicoModulo'
 import { BahiaModulos } from './BahiaModulos'
 import { PopupOferta } from '../sobres/OfertaSobresDiarios'
 import { TarjetaJugador } from '../profile/TarjetaJugador'
+import { AvisoTransmision } from '../stream/AvisoTransmision'
 import { HUD_TEXTO, type HudTone } from '../../components/hudTones'
 import { useAuth } from '../../hooks/useAuth'
 import { type PlayerStats, calculateLevel } from '../../services/gamification'
@@ -328,6 +329,12 @@ export function HomePage() {
           misma tarjeta del perfil —nivel, rango, país y barra de XP—, que sí
           dice algo nuevo cada vez que entrás. Es el MISMO componente que usa
           Mi Perfil, para que las dos pantallas no se contradigan. */}
+      {/* La transmisión destacada, arriba del todo cuando hay una cerca. El
+          push llega a 13 de 39 cuentas; los otros dos tercios se enteran acá. */}
+      <div className="px-4 pt-4">
+        <AvisoTransmision />
+      </div>
+
       <div className="px-4 pt-4">
         <TarjetaJugador
           perfil={currentProfile}
