@@ -104,6 +104,10 @@ const RUTAS_LIBRES = [
   // toda la comunidad, pero el que no tenga sesión igual no puede comprar ni
   // guardar: eso lo decide `sable_abierto()` DENTRO de cada RPC, no esta lista.
   /^\/sable/,
+  // Terraformar, por lo mismo que /sable: es una pantalla 3D que hay que poder
+  // revisar en un teléfono sin la puerta de instalación encima. La propia
+  // pantalla se rinde con un mensaje claro si no hay sesión.
+  /^\/terraformar/,
   /^\/u\//,
   /^\/blog/,
   /^\/sedes?/,
