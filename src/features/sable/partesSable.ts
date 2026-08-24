@@ -83,6 +83,38 @@ const POMOS: Record<string, Pieza> = {
       [R * 0.92, h * 0.7], [R, h * 0.75], [R, h],
     ],
   },
+  // ── Nuevos (catálogo grande, 2026-08-24) ──
+  pom_taza: {
+    alto: 3.2,
+    // Un crisol: se abre como copa y se recoge al cuello.
+    puntos: h => [[0, 0], [R * 0.7, 0], [R * 1.1, h * 0.15], [R * 1.1, h * 0.45], [R * 0.95, h * 0.6], [R, h]],
+  },
+  pom_disco: {
+    alto: 2.8,
+    // Una moneda plana en la base: el contrapeso más simple que existe.
+    puntos: h => [[0, 0], [R * 1.3, 0], [R * 1.3, h * 0.25], [R * 0.95, h * 0.4], [R, h]],
+  },
+  pom_punta: {
+    alto: 3.8,
+    // Aguja: cierra en punta viva hacia abajo.
+    puntos: h => [[0, 0], [R * 0.3, h * 0.05], [R * 0.7, h * 0.45], [R * 1.05, h * 0.8], [R, h]],
+  },
+  pom_tambor: {
+    alto: 3.6,
+    // Tambor con dos llantas y cintura.
+    puntos: h => [
+      [0, 0], [R * 0.9, 0], [R * 1.2, h * 0.1], [R * 1.2, h * 0.28], [R * 1.05, h * 0.35],
+      [R * 1.05, h * 0.6], [R * 1.2, h * 0.68], [R * 1.2, h * 0.85], [R, h],
+    ],
+  },
+  pom_garra: {
+    alto: 4.2,
+    // GARRA (legendario): dos uñas de perfil, agresivo sin dientes reales.
+    puntos: h => [
+      [0, 0], [R * 0.5, h * 0.08], [R * 1.35, h * 0.3], [R * 1.1, h * 0.45],
+      [R * 1.35, h * 0.62], [R * 1.05, h * 0.75], [R * 1.05, h * 0.9], [R, h],
+    ],
+  },
 }
 
 /* ── Cuerpos (el medio, lo que se agarra) ──────────────────────────── */
@@ -141,6 +173,50 @@ const CUERPOS: Record<string, Pieza> = {
     puntos: h => [[R, 0], ...repetir(h * 0.8, 6, R * 0.94, R * 1.26).map(
       ([r, y]) => [r, y + h * 0.1] as Punto), [R, h]],
   },
+  // ── Nuevos (catálogo grande, 2026-08-24) ──
+  cue_canal: {
+    alto: 14,
+    // Un solo canal ancho al medio: donde caen los dedos.
+    puntos: h => [[R, 0], [R, h * 0.35], [R * 0.88, h * 0.4], [R * 0.88, h * 0.6], [R, h * 0.65], [R, h]],
+  },
+  cue_grip: {
+    alto: 14,
+    // Dos abrazaderas de goma, arriba y abajo.
+    puntos: h => [
+      [R, 0], [R, h * 0.15], [R * 1.12, h * 0.25], [R * 1.12, h * 0.42], [R, h * 0.5],
+      [R, h * 0.55], [R * 1.12, h * 0.65], [R * 1.12, h * 0.82], [R, h * 0.9], [R, h],
+    ],
+  },
+  cue_banda: {
+    alto: 14,
+    // Una cintura gruesa al centro, como venda de agarre.
+    puntos: h => [[R, 0], [R, h * 0.3], [R * 1.18, h * 0.35], [R * 1.18, h * 0.62], [R, h * 0.67], [R, h]],
+  },
+  cue_trenza: {
+    alto: 14,
+    // Trenzado fino: ocho ondas suaves.
+    puntos: h => [[R, 0], ...repetir(h * 0.84, 8, R * 0.98, R * 1.12).map(
+      ([r, y]) => [r, y + h * 0.08] as Punto), [R, h]],
+  },
+  cue_placas: {
+    alto: 14,
+    // Tres placas planas de blindaje, con hombros francos.
+    puntos: h => [
+      [R, 0], [R, h * 0.1],
+      [R * 1.16, h * 0.12], [R * 1.16, h * 0.3], [R, h * 0.32],
+      [R, h * 0.36], [R * 1.16, h * 0.38], [R * 1.16, h * 0.56], [R, h * 0.58],
+      [R, h * 0.62], [R * 1.16, h * 0.64], [R * 1.16, h * 0.82], [R, h * 0.84],
+      [R, h],
+    ],
+  },
+  cue_helice: {
+    alto: 14,
+    // Nueve ondas finas: se lee como rosca. (Una espiral DE VERDAD no cabe en
+    // una pieza torneada — el torno gira lo que le den y una hélice pide otra
+    // geometría entera; esto es la aproximación honesta.)
+    puntos: h => [[R, 0], ...repetir(h * 0.86, 9, R * 0.96, R * 1.18).map(
+      ([r, y]) => [r, y + h * 0.07] as Punto), [R, h]],
+  },
 }
 
 /* ── Emisores (arriba, de donde sale la hoja) ──────────────────────── */
@@ -181,6 +257,62 @@ const EMISORES: Record<string, Pieza> = {
       [R * 1.34, h * 0.42], [R * 1.34, h * 0.52], [R * 1.02, h * 0.58],
       [R * 1.02, h * 0.72], [R * 1.3, h * 0.72], [R * 1.3, h * 0.82],
       [R * 0.9, h * 0.88], [R * 0.9, h], [R * 0.6, h],
+    ],
+  },
+  // ── Nuevos (catálogo grande, 2026-08-24) ──
+  emi_faro: {
+    alto: 5,
+    // El más simple de los pagos: tubo con labio fino.
+    puntos: h => [[R, 0], [R * 1.1, h * 0.15], [R * 1.1, h * 0.8], [R * 0.95, h * 0.85], [R * 0.95, h], [R * 0.62, h]],
+  },
+  emi_campo: {
+    alto: 5.2,
+    // Cúpula: se hincha y se recoge, como campana cerrada.
+    puntos: h => [
+      [R, 0], [R * 1.15, h * 0.2], [R * 1.22, h * 0.5], [R * 1.05, h * 0.75],
+      [R * 0.8, h * 0.9], [R * 0.8, h], [R * 0.55, h],
+    ],
+  },
+  emi_disco: {
+    alto: 5.4,
+    // Un plato de guardia ancho en la base, como tsuba.
+    puntos: h => [
+      [R, 0], [R * 1.5, h * 0.08], [R * 1.5, h * 0.18], [R * 1.02, h * 0.25],
+      [R * 1.02, h * 0.7], [R * 0.9, h * 0.8], [R * 0.9, h], [R * 0.6, h],
+    ],
+  },
+  emi_horquilla: {
+    alto: 5.4,
+    // Dos labios escalonados, como almenas.
+    puntos: h => [
+      [R, 0], [R * 1.18, h * 0.1], [R * 1.18, h * 0.3], [R * 0.95, h * 0.3],
+      [R * 0.95, h * 0.5], [R * 1.24, h * 0.55], [R * 1.24, h * 0.75],
+      [R * 0.88, h * 0.85], [R * 0.88, h], [R * 0.58, h],
+    ],
+  },
+  emi_doble: {
+    alto: 5.4,
+    // Dos bulbos gemelos.
+    puntos: h => [
+      [R, 0], [R * 1.2, h * 0.12], [R * 1.05, h * 0.3], [R * 1.28, h * 0.5],
+      [R * 1.05, h * 0.68], [R * 1.15, h * 0.8], [R * 0.85, h * 0.9], [R * 0.85, h], [R * 0.6, h],
+    ],
+  },
+  emi_corona: {
+    alto: 5.8,
+    // Cuello fino que se abre en corona.
+    puntos: h => [
+      [R, 0], [R * 0.95, h * 0.15], [R * 0.95, h * 0.45], [R * 1.35, h * 0.7],
+      [R * 1.48, h * 0.85], [R * 1.1, h * 0.9], [R * 1.1, h], [R * 0.66, h],
+    ],
+  },
+  emi_titan: {
+    alto: 6,
+    // TITÁN (legendario): tres pisos de blindaje.
+    puntos: h => [
+      [R, 0], [R * 1.3, h * 0.08], [R * 1.3, h * 0.25], [R * 1.05, h * 0.3],
+      [R * 1.45, h * 0.5], [R * 1.45, h * 0.62], [R * 1.15, h * 0.7],
+      [R * 1.5, h * 0.85], [R * 1.0, h * 0.92], [R * 1.0, h], [R * 0.6, h],
     ],
   },
 }
@@ -361,6 +493,15 @@ export function piezasDeSable(d: Diseno): PiezaSuelta[] {
       const alt = Math.max(y, techo); techo = alt
       return [r, alt] as Punto
     })
+    /* SE CIERRAN LOS DOS EXTREMOS. Una pieza torneada abierta deja ver el
+       interior vacío de la malla, y en la vista explotada eso se leía como que
+       el sable estaba HUECO — lo dijo Nel mirándolo. El torno permite radio 0
+       exactamente en los extremos (regla 2 de `perfilValido`), así que la tapa
+       es un punto más a cada lado, al mismo alto que el borde. Dentro del sable
+       armado las tapas quedan escondidas entre piezas y cuestan un anillo de
+       triángulos cada una. */
+    if (puntos[0][0] > 0) puntos.unshift([0, puntos[0][1]])
+    if (puntos[puntos.length - 1][0] > 0) puntos.push([0, puntos[puntos.length - 1][1]])
     salida.push({ clave: claves[i], puntos, alto: p.alto, base })
     base += p.alto
   }

@@ -1,0 +1,31 @@
+-- TALLER KYBER: catálogo de 30 piezas de mango + BONOS de créditos.
+-- Aplicada por MCP el 2026-08-24 (`sable_catalogo_grande_y_bonos` + el arreglo
+-- de `col_blanco`); queda escrita acá (§3o).
+--
+-- ── El reparto pedido por Nel ────────────────────────────────────────
+-- 10 comunes · 10 raros · 5 épicos · 5 legendarios. Los LEGENDARIOS quedan
+-- `oculta = true` («dejalos para después»): la fila existe, la tienda no la
+-- lista y comprarla rebota. El estreno es un UPDATE. La lista: emi_dentado
+-- (KRAKEN), emi_titan (TITÁN), cue_costillas (VÉRTEBRA), pom_anillo (ANCLA),
+-- pom_garra (GARRA).
+--
+-- ── LA TRAMPA QUE YA MORDIÓ: ocultar por rareza se llevó un cristal ──
+-- El barrido `update ... set oculta = true where rareza = 'legendario'`
+-- escondió también a col_blanco (KYBER PURIFICADO), que es un CRISTAL comprable
+-- de rareza legendaria — el único cristal vetado es el rojo. Se repuso con un
+-- UPDATE puntual. Si se esconde por rareza otra vez: `and tipo <> 'color'`.
+--
+-- ── Los BONOS: créditos que NO son XP ────────────────────────────────
+-- Nel pidió 10.000 créditos de prueba. Sumarlos a `player_stats.xp` habría
+-- subido su nivel de 10 a ~14 y ensuciado la pestaña Progreso: el XP es un
+-- historial real y no se infla. `sable_bonos` es tabla aparte y SOLO el saldo
+-- del taller la ve:
+--
+--   saldo = xp − sum(sable_inventario.pagado_xp) + sum(sable_bonos.cantidad)
+--
+-- El grant fue idempotente por motivo ('pruebas del taller').
+--
+-- Piezas ya en manos de gente que una pieza oculta no puede esconder: el
+-- listado de `sable_taller()` incluye ocultas SI ya son tuyas — Nelson compró
+-- ANCLA y VÉRTEBRA probando antes de que se guardaran para el estreno, y
+-- esconderle lo pagado sería quitarle lo suyo.

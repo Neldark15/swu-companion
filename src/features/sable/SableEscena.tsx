@@ -170,6 +170,46 @@ export function SableEscena({
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 400)
 
+    /* ── El cielo: un campo de estrellas, receta de la Galaxia (§2s) ──
+       Puntos estáticos con la textura de disco suave; se dibujan en una llamada
+       y no se tocan por cuadro. El degradado del CSS queda detrás como bruma. */
+    const N_ESTRELLAS = 260
+    const posEstrellas = new Float32Array(N_ESTRELLAS * 3)
+    for (let i = 0; i < N_ESTRELLAS; i++) {
+      // Uniforme sobre la esfera: el coseno del polar sale uniforme, no el
+      // ángulo — repartir el ángulo amontona estrellas en los polos (§2s).
+      const u = Math.random() * 2 - 1
+      const a = Math.random() * Math.PI * 2
+      const s = Math.sqrt(1 - u * u)
+      const r = 120 + Math.random() * 80
+      posEstrellas[i * 3] = Math.cos(a) * s * r
+      posEstrellas[i * 3 + 1] = u * r
+      posEstrellas[i * 3 + 2] = Math.sin(a) * s * r
+    }
+    const geoEstrellas = new THREE.BufferGeometry()
+    geoEstrellas.setAttribute('position', new THREE.BufferAttribute(posEstrellas, 3))
+    const cvPunto = document.createElement('canvas')
+    cvPunto.width = cvPunto.height = 32
+    {
+      const cx = cvPunto.getContext('2d')!
+      const g = cx.createRadialGradient(16, 16, 0, 16, 16, 16)
+      g.addColorStop(0, 'rgba(255,255,255,1)')
+      g.addColorStop(0.4, 'rgba(255,255,255,0.5)')
+      g.addColorStop(1, 'rgba(255,255,255,0)')
+      cx.fillStyle = g
+      cx.fillRect(0, 0, 32, 32)
+    }
+    const texPunto = new THREE.CanvasTexture(cvPunto)
+    const matEstrellas = new THREE.PointsMaterial({
+      // En píxeles del búfer: sin multiplicar por el DPR salen a la mitad (§2s).
+      size: 1.9 * dpr, sizeAttenuation: false, map: texPunto,
+      transparent: true, opacity: 0.8, depthWrite: false,
+      blending: THREE.AdditiveBlending, color: 0xcfe0ff,
+    })
+    const estrellas = new THREE.Points(geoEstrellas, matEstrellas)
+    estrellas.renderOrder = -1
+    scene.add(estrellas)
+
     /* ── El entorno: UNA generación y afuera ── */
     const pmrem = new THREE.PMREMGenerator(renderer)
     const envRT = pmrem.fromScene(new RoomEnvironment(), 0.04)
@@ -209,14 +249,46 @@ export function SableEscena({
     /* El aro de latón va de HIJO de su pieza: viaja solo cuando el sable se
        abre, sin recolocarlo por cuadro. */
     const geoAro = new THREE.TorusGeometry(1.78, 0.13, 10, 48)
+    /* ── CABLES: el detalle chico que pidió Nel ──
+       Dos medio-aros finos abrazando el cuello de la empuñadura, con colores de
+       aislante (rojo quemado y verdeazul — la misma paleta de cables que ya usa
+       la app en las tripas de los perfiles). Son toros PARCIALES: una geometría
+       cada uno, hijos de su pieza, así viajan solos en la vista explotada. */
+    const geoCable = new THREE.TorusGeometry(1.72, 0.09, 6, 26, 2.4)
+    const matCable1 = new THREE.MeshStandardMaterial({ color: 0x8a3327, metalness: 0.1, roughness: 0.62 })
+    const matCable2 = new THREE.MeshStandardMaterial({ color: 0x2e5158, metalness: 0.1, roughness: 0.62 })
+
     const piezas = ([0, 1, 2] as const).map(i => {
       const malla = new THREE.Mesh(new THREE.BufferGeometry(), i === 1 ? matAgarre : matAcero)
       const anillo = new THREE.Mesh(geoAro, matLaton)
       anillo.rotation.x = Math.PI / 2
       malla.add(anillo)
+      if (i === 1) {
+        const c1 = new THREE.Mesh(geoCable, matCable1)
+        c1.rotation.set(Math.PI / 2 + 0.14, 0, 0.4)
+        c1.position.y = 12.6
+        const c2 = new THREE.Mesh(geoCable, matCable2)
+        c2.rotation.set(Math.PI / 2 - 0.11, 0, 2.4)
+        c2.position.y = 11.9
+        malla.add(c1, c2)
+      }
       grupoSable.add(malla)
       return { malla, anillo, base: 0, alto: 0 }
     })
+
+    /* ── EL ALMA: el hilo de energía que une las piezas al abrirse ──
+       En el mockup las piezas flotan ensartadas en un rayo de luz; sin él, la
+       vista explotada son tres pedazos sin relación. Es un cilindro fino con
+       mezcla aditiva del color del cristal, que solo existe mientras el sable
+       está abierto y crece con la separación. */
+    const geoAlma = new THREE.CylinderGeometry(0.16, 0.16, 1, 8, 1, true)
+    const matAlma = new THREE.MeshBasicMaterial({
+      color: 0x2b8cff, transparent: true, opacity: 0.55,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    })
+    const alma = new THREE.Mesh(geoAlma, matAlma)
+    alma.visible = false
+    grupoSable.add(alma)
 
     // ── La hoja: tres capas (núcleo, halo, bruma) ──
     const LARGO = 78
@@ -311,6 +383,17 @@ export function SableEscena({
         p.malla.position.y = -altoTotal / 2 + p.base + separacion * HUECO * i
         p.anillo.position.y = p.alto * (i === 1 ? 0.5 : 0.28)
       }
+      // El alma une la base del pomo con la boca del emisor, y crece con la
+      // separación. Cerrado no existe: dentro del mango no hay nada que unir.
+      const abierto = separacion > 0.03
+      alma.visible = abierto
+      if (abierto) {
+        const arriba = piezas[2]
+        const tope = arriba.malla.position.y + arriba.alto
+        const fondo = piezas[0].malla.position.y
+        alma.scale.y = Math.max(0.001, tope - fondo)
+        alma.position.y = (tope + fondo) / 2
+      }
     }
 
     function colocarHoja(): void {
@@ -353,6 +436,7 @@ export function SableEscena({
       matCristal.color.set(c.halo).multiplyScalar(0.38)
       matCristal.emissive.set(c.halo)
       matCristalGlow.color.set(c.halo)
+      matAlma.color.set(c.halo)
       for (const p of peanas) p.position.y = -altoTotal / 2 - 3.2
       colocarPiezas()
       colocarHoja()
@@ -585,6 +669,9 @@ export function SableEscena({
       geoAro.dispose(); geoNucleo.dispose(); geoHalo.dispose(); geoBruma.dispose()
       geoDisco.dispose(); geoPeana1.dispose(); geoPeana2.dispose()
       geoCristal.dispose(); matCristal.dispose(); matCristalGlow.dispose()
+      geoCable.dispose(); matCable1.dispose(); matCable2.dispose()
+      geoAlma.dispose(); matAlma.dispose()
+      geoEstrellas.dispose(); matEstrellas.dispose(); texPunto.dispose()
       matAcero.dispose(); matAgarre.dispose(); matLaton.dispose()
       matNucleo.dispose(); matHalo.dispose(); matBruma.dispose()
       matPeana.dispose(); matDisco.dispose()

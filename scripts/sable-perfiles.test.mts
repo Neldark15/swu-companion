@@ -16,13 +16,15 @@
  */
 
 import {
-  perfilDeSable, perfilValido, IDS_CONOCIDOS, COLORES, POR_DEFECTO,
+  perfilDeSable, perfilValido, piezasDeSable, IDS_CONOCIDOS, COLORES, POR_DEFECTO,
 } from '../src/features/sable/partesSable.ts'
 
 let fallos = 0
 const problemas: string[] = []
 
-console.log('\n── Las 64 combinaciones de mango ──')
+const ESPERADAS =
+  IDS_CONOCIDOS.emisor.length * IDS_CONOCIDOS.cuerpo.length * IDS_CONOCIDOS.pomo.length
+console.log(`\n── Las ${ESPERADAS} combinaciones de mango ──`)
 let medidas = 0
 for (const emisor of IDS_CONOCIDOS.emisor) {
   for (const cuerpo of IDS_CONOCIDOS.cuerpo) {
@@ -46,11 +48,33 @@ for (const emisor of IDS_CONOCIDOS.emisor) {
 // Un verde que no midió nada es el peor resultado posible porque parece el
 // mejor. Es el fallo que ya tuvieron el DetectorChoques (§2z) y el guion de
 // contraste de la credencial (§3x).
-if (medidas !== 64) {
-  console.log(`\n❌ se midieron ${medidas} combinaciones y deberían ser 64 — este resultado no dice nada\n`)
+if (medidas !== ESPERADAS) {
+  console.log(`\n❌ se midieron ${medidas} combinaciones y deberían ser ${ESPERADAS} — este resultado no dice nada\n`)
   process.exit(1)
 }
 console.log(problemas.length ? problemas.join('\n') : `  ✓ ${medidas} mangos, todos dibujables`)
+
+/* Las piezas SUELTAS (las de la vista explotada) además van CERRADAS: tapa a
+   cada extremo, o el sable se ve hueco al abrirse. Se validan aparte porque las
+   tapas solo existen acá — el perfil pegado no las lleva. */
+console.log('\n── Las piezas sueltas, cerradas y dibujables ──')
+let piezasMal = 0
+for (const emisor of IDS_CONOCIDOS.emisor) {
+  for (const cuerpo of IDS_CONOCIDOS.cuerpo) {
+    for (const pomo of IDS_CONOCIDOS.pomo) {
+      for (const sp of piezasDeSable({ emisor, cuerpo, pomo, color: 'col_azul' })) {
+        const malos = perfilValido(sp.puntos)
+        const abre = sp.puntos[0][0] !== 0 || sp.puntos[sp.puntos.length - 1][0] !== 0
+        if (malos.length || abre) {
+          piezasMal++
+          if (piezasMal <= 5) console.log(`  ✗ ${sp.clave} en ${emisor}+${cuerpo}+${pomo}: ${abre ? 'quedó ABIERTA' : malos[0]}`)
+        }
+      }
+    }
+  }
+}
+if (piezasMal) { fallos += piezasMal }
+else console.log('  ✓ todas cerradas por los dos extremos')
 
 console.log('\n── Caídas y coherencia ──')
 function comprobar(nombre: string, ok: boolean, detalle = ''): void {
@@ -82,6 +106,6 @@ comprobar('el mango cierra abajo (radio 0 en el primer punto)', p[0][0] === 0,
   `arranca en radio ${p[0][0]}`)
 
 console.log(fallos === 0
-  ? `\n✅ 64 mangos + ${Object.keys(COLORES).length} colores · TODO PASA\n`
+  ? `\n✅ ${ESPERADAS} mangos + ${Object.keys(COLORES).length} colores · TODO PASA\n`
   : `\n❌ ${fallos} fallo(s)\n`)
 process.exit(fallos === 0 ? 0 : 1)

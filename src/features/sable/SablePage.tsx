@@ -45,6 +45,7 @@ import { CreditoIcon } from '../../components/icons/CreditoIcon'
 import { SableEscena, type Orientacion, type Vista } from './SableEscena'
 import { PiezaTarjeta } from './PiezaTarjeta'
 import { BarraStats } from './BarraStats'
+import { ConsejoHuyang } from './ConsejoHuyang'
 import { POR_DEFECTO, type Diseno } from './partesSable'
 import {
   arrancarZumbido, pararZumbido, afinarZumbido, sonarEncendido, sonarApagado,
@@ -262,7 +263,7 @@ export function SablePage() {
 
       {/* ── La forja ── */}
       {sinWebGL ? (
-        <div className="flex h-[38vh] min-h-[240px] items-center justify-center rounded-2xl border border-swu-border bg-swu-surface px-6 text-center text-[12px] text-swu-muted">
+        <div className="flex h-[56vh] min-h-[380px] items-center justify-center rounded-2xl border border-swu-border bg-swu-surface px-6 text-center text-[12px] text-swu-muted">
           Este navegador no puede dibujar en 3D. Las piezas se pueden comprar y
           equipar igual.
         </div>
@@ -275,7 +276,7 @@ export function SablePage() {
             orientacion={orientacion}
             vista={vista}
             onSinWebGL={() => setSinWebGL(true)}
-            className="h-[38vh] min-h-[240px] max-h-[440px] w-full rounded-2xl border border-swu-border bg-gradient-to-b from-[#100c07] to-[#1d1408]"
+            className="h-[56vh] min-h-[380px] max-h-[680px] w-full rounded-2xl border border-swu-border bg-gradient-to-b from-[#0a0a14] to-[#151322]"
           />
           {/* La pista del gesto. Va DENTRO del lienzo y abajo a la izquierda,
               donde no tapa el sable, y solo mientras no se está probando. */}
@@ -310,6 +311,12 @@ export function SablePage() {
 
       <div className="mt-2">
         <BarraStats stats={stats} />
+      </div>
+
+      {/* El consejo del Arquitecto. `key={paso}` remonta el componente al
+          cambiar de paso: así el consejo rota SIN setState en un efecto. */}
+      <div className="mt-2">
+        <ConsejoHuyang key={paso} paso={paso} />
       </div>
 
       {aviso && (
@@ -439,6 +446,37 @@ export function SablePage() {
           </button>
         </div>
       )}
+
+      {/* ── De dónde salen los créditos ──
+          La lista dice LO QUE DE VERDAD SE PAGA (§3m): estos montos son los de
+          sumar_xp / abrir_sobre / _repartir_premios / la trivia. Si se toca un
+          monto en el servidor, se toca esta lista en el mismo commit. */}
+      <div className="mt-8">
+        <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.2em] text-swu-muted">
+          <CreditoIcon size={13} />
+          Cómo se ganan créditos
+        </h2>
+        <div className="divide-y divide-swu-border rounded-2xl border border-swu-border bg-swu-surface">
+          {[
+            ['Abrir un sobre en Sobredosis', '50'],
+            ['Cada acierto de la Trivia', '2'],
+            ['Jugar un torneo', '500'],
+            ['Misiones del día', 'según la misión'],
+          ].map(([que, cuanto]) => (
+            <div key={que} className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-[13px] text-swu-text">{que}</span>
+              <span className="flex items-center gap-1 text-[12px] font-black text-swu-amber">
+                {cuanto !== 'según la misión' && <CreditoIcon size={13} />}
+                {cuanto}
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="mt-1.5 px-1 text-[11px] leading-snug text-swu-muted">
+          Los créditos son tu experiencia: todo lo que da XP, da créditos. Y
+          gastarlos acá nunca te baja de nivel.
+        </p>
+      </div>
 
       {/* Cuántas piezas llevás. Va abajo y chico: es progreso, no una tarea. */}
       <p className="mt-6 flex items-center justify-center gap-1.5 text-[11px] text-swu-muted">
