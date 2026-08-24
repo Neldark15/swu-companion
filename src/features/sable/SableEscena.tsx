@@ -203,6 +203,9 @@ export function SableEscena({
        de su malla. Antes había un aro para todas y dos cables fijos en el
        cuerpo, o sea que las treinta piezas llevaban los mismos tres adornos en
        el mismo sitio. */
+    /** Los destellos de las tres piezas. Se rehacen con cada cambio de pieza. */
+    let titilando: THREE.Mesh[] = []
+
     const piezas = ([0, 1, 2] as const).map(() => {
       const malla = new THREE.Mesh(new THREE.BufferGeometry(), taller.material('acero'))
       grupoSable.add(malla)
@@ -346,6 +349,7 @@ export function SableEscena({
 
     function rehacer(d: Diseno): void {
       const sueltas = piezasDeSable(d)
+      const nuevos: THREE.Mesh[] = []
       altoTotal = sueltas.reduce((s, p) => s + p.alto, 0)
       sueltas.forEach((sp, i) => {
         const vec = sp.puntos.map(([r, y]) => new THREE.Vector2(r, y))
@@ -356,8 +360,12 @@ export function SableEscena({
         piezas[i].malla.geometry = nueva
         piezas[i].base = sp.base
         piezas[i].alto = sp.alto
-        vestirPieza(piezas[i].malla, sp, taller)
+        nuevos.push(...vestirPieza(piezas[i].malla, sp, taller))
       })
+      // Se reemplaza la lista entera: las mallas viejas ya salieron del grupo
+      // dentro de `vestirPieza`, y guardar referencias a objetos desprendidos
+      // sería animar cosas que no están en la escena.
+      titilando = nuevos
       // El bulto REAL, herrajes incluidos: las garras de GARRA y el plato de
       // ESCUDO se salen bastante más que el torneado, y el encuadre los tiene
       // que contar o los corta.
@@ -539,12 +547,28 @@ export function SableEscena({
         if (separacion !== separacionMeta) { separacion = separacionMeta; colocarPiezas() }
         if (hoja !== hojaMeta) { hoja = hojaMeta; colocarHoja() }
         if (enViaje) { grupoSable.quaternion.copy(qMeta); enViaje = false }
+        /* SIN BUCLE, EL BRILLO SE QUEDA EN SU VALOR MEDIO, no donde cayó.
+           Con `prefers-reduced-motion` esto corre una sola vez: una brasa
+           clavada en su punto más apagado se ve rota, no quieta. Misma regla
+           que la hoja y la explosión (§3u). */
+        taller.latir(null)
+        for (const m of titilando) m.scale.setScalar(1)
         encuadrar()
         dist = distMeta
         centro.copy(centroMeta)
         colocarCamara()
         renderer.render(scene, camera)
         return
+      }
+
+      /* El latido de lo que emite. El material es compartido, así que una
+         asignación mueve todos los plasmas; los destellos, en cambio, titilan
+         con SU desfase — es lo que hace que una fila de puntos se lea como una
+         chispa corriendo y no como una lámpara prendiéndose. */
+      taller.latir(ahora)
+      for (const m of titilando) {
+        const fase = (m.userData.fase as number) ?? 0
+        m.scale.setScalar(0.95 + Math.sin(ahora * 0.006 + fase) * 0.4)
       }
 
       if (Math.abs(separacion - separacionMeta) > 0.002) {

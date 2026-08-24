@@ -27,7 +27,8 @@
 
 import * as THREE from 'three'
 import {
-  MATERIALES, asientoDe, type Herraje, type MaterialId, type PiezaSuelta,
+  MATERIALES, asientoDe, emite, tomaElColorDelCristal,
+  type Herraje, type MaterialId, type PiezaSuelta,
 } from './partesSable'
 
 /**
@@ -39,8 +40,17 @@ const PX_MINIMOS = 1.2
 
 export interface Taller {
   material: (id: MaterialId) => THREE.MeshStandardMaterial
-  /** Repinta el material `luz` con el color de la hoja. */
+  /** Repinta los materiales que toman el color de la hoja. */
   alumbrar: (hex: string) => void
+  /**
+   * EL LATIDO. Se llama por cuadro con el reloj.
+   *
+   * Pasar `null` es «sin bucle»: deja todo en su valor MEDIO en vez de
+   * congelarlo donde haya quedado. Con `prefers-reduced-motion` el bucle no
+   * corre nunca, y una brasa clavada en su punto más apagado se ve rota, no
+   * quieta — es la misma regla que ya rige la hoja y la explosión (§3u).
+   */
+  latir: (ahora: number | null) => void
   /** La geometría de un herraje, ya orientada. La usa `vestirPieza`; va acá
       para que el caché de geometrías no se escape del taller que las destruye. */
   geometriaDe: (h: Herraje, espesor: number, apoyo: number) => THREE.BufferGeometry
@@ -123,22 +133,29 @@ export function abrirTallerTres(detalle = true): Taller {
       metalness: d.metalico,
       roughness: d.rugoso,
     })
-    if (id === 'luz') {
-      // El kyber no refleja: emite. Sin esto el testigo sería un punto gris.
+    if (emite(id)) {
+      /* Lo que emite no refleja: brilla. Sin `emissive` un testigo sería un
+         punto gris, y sin bajarle el `color` el cuerpo del objeto compite con
+         su propio brillo y el conjunto se lee como plástico claro.
+
+         Las intensidades están escalonadas a propósito: `luz` es un testigo
+         (avisa), `plasma` es energía a la vista (impresiona), `nucleo` es lo
+         más brillante que hay en un mango. Si fueran todas iguales, agregar un
+         reactor no se sentiría distinto a agregar un botón. */
       m.emissive = new THREE.Color(d.hex)
-      m.emissiveIntensity = 0.95
-      m.color.multiplyScalar(0.25)
+      m.emissiveIntensity = id === 'luz' ? 0.95 : id === 'plasma' ? 1.6 : id === 'brasa' ? 1.2 : 1.5
+      m.color.multiplyScalar(id === 'luz' ? 0.25 : 0.18)
     }
     /* El moleteado va SOLO en lo que se agarra. Puesto también en el negro,
        el emisor TITÁN salía escamoso como piel de reptil: el patrón se repite
        10×4 sobre el mango entero, y en una pieza de 6 de alto esa densidad deja
        de leerse como agarre y pasa a ser ruido. Los colores planos (esmalte,
        jade, luz) van lisos: una veta sobre pintura es un error. */
-    if (moleteado && (id === 'grafito' || id === 'cuero')) {
+    if (moleteado && !emite(id) && (id === 'grafito' || id === 'cuero')) {
       m.bumpMap = moleteado
       m.bumpScale = id === 'cuero' ? 0.45 : 0.9
     }
-    if (cepillado && (id === 'acero' || id === 'laton' || id === 'cobre' || id === 'bronce')) {
+    if (cepillado && !emite(id) && (id === 'acero' || id === 'laton' || id === 'cobre' || id === 'bronce')) {
       m.roughnessMap = cepillado
     }
     materiales.set(id, m)
@@ -192,6 +209,11 @@ export function abrirTallerTres(detalle = true): Taller {
         // Octaedro: pocas caras y bien marcadas. Una esfera a este tamaño es un
         // punto de color; las facetas son lo que se lee como piedra.
         return geo(`gem:${n(h.radio)}`, () => new THREE.OctahedronGeometry(h.radio, 0))
+      case 'destello':
+        // Ocho triángulos y afuera. Un destello se lee por su BRILLO y por
+        // cómo late, no por su forma: gastar caras acá sería gastarlas en algo
+        // que a este tamaño nadie distingue.
+        return geo(`des:${n(h.radio)}`, () => new THREE.OctahedronGeometry(h.radio, 0))
     }
   }
 
@@ -199,10 +221,25 @@ export function abrirTallerTres(detalle = true): Taller {
     material,
     geometriaDe: geoDe,
     alumbrar(hex: string) {
-      const m = materiales.get('luz')
-      if (!m) return
-      m.emissive.set(hex)
-      m.color.set(hex).multiplyScalar(0.25)
+      for (const id of ['luz', 'plasma'] as const) {
+        if (!tomaElColorDelCristal(id)) continue
+        const m = materiales.get(id)
+        if (!m) continue
+        m.emissive.set(hex)
+        m.color.set(hex).multiplyScalar(id === 'luz' ? 0.25 : 0.18)
+      }
+    },
+    latir(ahora: number | null) {
+      /* Late el MATERIAL, que es compartido: una sola asignación mueve todos
+         los plasmas de la escena. Los destellos, en cambio, tienen que titilar
+         DESFASADOS entre sí o la fila se ve como una lámpara en vez de una
+         chispa que corre — y eso no se puede hacer desde el material. Lo hace
+         la escena, malla por malla, con el desfase que `vestirPieza` les dejó. */
+      const plasma = materiales.get('plasma')
+      if (plasma) plasma.emissiveIntensity = ahora === null ? 1.6 : 1.6 + Math.sin(ahora * 0.0045) * 0.45
+      const brasa = materiales.get('brasa')
+      // Más lento y desfasado: una brasa respira, no parpadea.
+      if (brasa) brasa.emissiveIntensity = ahora === null ? 1.2 : 1.2 + Math.sin(ahora * 0.0022 + 1.1) * 0.35
     },
     soltar() {
       for (const m of materiales.values()) m.dispose()
@@ -234,12 +271,15 @@ export function vestirPieza(
    * por eso el color sí viaja.
    */
   pxPorUnidad?: number,
-): void {
+): THREE.Mesh[] {
   malla.material = taller.material(pieza.material)
 
   // Copia de `children`: recorrer la lista viva mientras se quita de ella salta
   // uno de cada dos y deja herrajes viejos apilados bajo los nuevos.
   for (const viejo of [...malla.children]) malla.remove(viejo)
+
+  /** Los destellos, para que la escena los haga titilar con su desfase. */
+  const titilan: THREE.Mesh[] = []
 
   for (const h of pieza.herrajes) {
     const { apoyo, dentro, fuera } = asientoDe(pieza.perfil, h, pieza.alto)
@@ -275,9 +315,16 @@ export function vestirPieza(
          local mira siempre hacia afuera, esté donde esté. */
       m.position.set(Math.sin(a) * centro, y, Math.cos(a) * centro)
       m.rotation.y = a
+      if (h.tipo === 'destello') {
+        // El desfase va POR MALLA: es lo único que distingue una chispa que
+        // corre de ocho lucecitas prendiéndose a la vez.
+        m.userData.fase = (i / vueltas) * Math.PI * 2
+        titilan.push(m)
+      }
       malla.add(m)
     }
   }
+  return titilan
 }
 
 /** Cuánto se sale del eje la pieza más gorda, herrajes incluidos. */

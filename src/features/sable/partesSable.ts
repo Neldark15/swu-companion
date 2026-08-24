@@ -90,7 +90,19 @@ export interface Material {
 
 export type MaterialId =
   | 'acero' | 'grafito' | 'negro' | 'laton' | 'cobre' | 'bronce'
-  | 'cuero' | 'hueso' | 'esmalte' | 'jade' | 'luz'
+  | 'cuero' | 'hueso' | 'esmalte' | 'jade'
+  // Los que EMITEN. Ver el bloque de abajo.
+  | 'luz' | 'plasma' | 'brasa' | 'nucleo'
+
+/** ¿Este material emite luz propia? Decide si late y si lleva textura. */
+export function emite(id: MaterialId): boolean {
+  return id === 'luz' || id === 'plasma' || id === 'brasa' || id === 'nucleo'
+}
+
+/** ¿Toma el color del cristal del jugador, en vez de tener el suyo? */
+export function tomaElColorDelCristal(id: MaterialId): boolean {
+  return id === 'luz' || id === 'plasma'
+}
 
 export const MATERIALES: Record<MaterialId, Material> = {
   acero:   { hex: '#c9ced6', metalico: 0.92, rugoso: 0.34, plano: '#aeb6c0', borde: '#e6ebf2' },
@@ -103,10 +115,22 @@ export const MATERIALES: Record<MaterialId, Material> = {
   hueso:   { hex: '#d8cdb4', metalico: 0.05, rugoso: 0.70, plano: '#cfc3a8', borde: '#efe6d2' },
   esmalte: { hex: '#24507f', metalico: 0.10, rugoso: 0.35, plano: '#2a5b90', borde: '#4d8fd6' },
   jade:    { hex: '#2b6b57', metalico: 0.10, rugoso: 0.40, plano: '#2f7460', borde: '#57b294' },
-  /* `luz` NO tiene color propio: lo toma del CRISTAL. Es el detalle que ata la
-     empuñadura a tu hoja — el testigo del botón y la gema del pomo se prenden
-     del color que elegiste. El hex de acá es solo el respaldo. */
+  /* ── LOS QUE EMITEN ──
+     `luz` y `plasma` NO tienen color propio: lo toman del CRISTAL. Es el
+     detalle que ata la empuñadura a tu hoja — el testigo del botón y la gema
+     del pomo se prenden del color que elegiste. Los hex de acá son el respaldo.
+
+     La diferencia entre los dos es de INTENSIDAD y de comportamiento: `luz` es
+     un testigo (se ve encendido y ya), `plasma` es energía a la vista y LATE.
+     Tener dos evita la tentación de subirle el brillo a `luz` hasta que un
+     botón de encendido parezca un reactor.
+
+     `brasa` y `nucleo` sí tienen color propio: metal al rojo… ámbar (nada de
+     rojo saturado, que es color de hoja vetado) y blanco de núcleo. */
   luz:     { hex: '#2b8cff', metalico: 0.00, rugoso: 0.40, plano: '#2b8cff', borde: '#bfe0ff' },
+  plasma:  { hex: '#2b8cff', metalico: 0.00, rugoso: 0.25, plano: '#5fb0ff', borde: '#dff0ff' },
+  brasa:   { hex: '#ff9d2e', metalico: 0.00, rugoso: 0.55, plano: '#ff9d2e', borde: '#ffd9a3' },
+  nucleo:  { hex: '#eaf4ff', metalico: 0.00, rugoso: 0.20, plano: '#eaf4ff', borde: '#ffffff' },
 }
 
 export function materialDe(id: string): Material {
@@ -163,12 +187,22 @@ export type Herraje =
   | { tipo: 'cable'; y: number; grosor: number; arco: number; giro?: number; inclina?: number; material: MaterialId }
   /** Aletas, dientes o respiraderos: tablillas repetidas alrededor del eje. */
   | { tipo: 'aleta'; y: number; alto: number; ancho: number; salida: number; giro?: number; vueltas: number; material: MaterialId }
-  /** Gema engarzada. Facetada a propósito: es lo único que brilla del mango. */
+  /** Gema engarzada. Facetada a propósito para que cada cara agarre distinto. */
   | { tipo: 'gema'; y: number; radio: number; giro?: number; vueltas?: number; material: MaterialId }
+  /**
+   * DESTELLOS: puntitos que TITILAN en secuencia alrededor del eje.
+   *
+   * Cada uno late con su propio desfase, así que la fila entera se lee como una
+   * chispa que corre por el mango — que es lo que pidió Nel («que emitan
+   * brillos destellos»). El desfase se guarda por malla y no por material: los
+   * materiales son compartidos y si el desfase viviera ahí, los ocho puntos
+   * latirían al unísono y se vería como una lámpara, no como una chispa.
+   */
+  | { tipo: 'destello'; y: number; radio: number; vueltas: number; giro?: number; material: MaterialId }
 
 /** Cuántas mallas cuesta un herraje. `vueltas` es la que multiplica. */
 export function mallasDe(h: Herraje): number {
-  return h.tipo === 'aleta' ? h.vueltas
+  return (h.tipo === 'aleta' || h.tipo === 'destello') ? h.vueltas
     : (h.tipo === 'boton' || h.tipo === 'gema') ? (h.vueltas ?? 1)
     : 1
 }
@@ -176,8 +210,7 @@ export function mallasDe(h: Herraje): number {
 /** Cuánto ocupa un herraje a lo largo del mango. Los chatos devuelven ~0. */
 function altoDe(h: Herraje): number {
   return h.tipo === 'caja' || h.tipo === 'aleta' ? h.alto
-    : h.tipo === 'boton' ? h.radio * 2
-    : h.tipo === 'gema' ? h.radio * 2
+    : (h.tipo === 'boton' || h.tipo === 'gema' || h.tipo === 'destello') ? h.radio * 2
     : 0
 }
 
@@ -205,6 +238,9 @@ export function radioEn(puntos: Punto[], y: number): number {
 function salidaDe(h: Herraje): number {
   return h.tipo === 'anillo' || h.tipo === 'cable' ? h.grosor
     : h.tipo === 'gema' ? h.radio * 0.75
+    // Un destello se apoya casi entero AFUERA: es una chispa sobre el metal,
+    // no una piedra engarzada en él.
+    : h.tipo === 'destello' ? h.radio * 0.95
     : h.salida
 }
 
@@ -275,9 +311,14 @@ export function asientoDe(puntos: Punto[], h: Herraje, altoPieza: number): {
   const salida = salidaDe(h)
   const apoyo = propio.max
   const fuera = apoyo + salida
+  /* Cuánto se hunde. La gema muerde poco porque es una piedra engarzada, y el
+     destello menos todavía: es una chispa apoyada, no una pieza embutida. */
+  const mordida = h.tipo === 'gema' ? h.radio * 0.55
+    : h.tipo === 'destello' ? h.radio * 0.45
+    : MORDIDA
   // El aro cuelga de las crestas (es un toro, no puede rellenar el valle); los
   // demás bajan bajo el mínimo de su tramo para morder en toda su superficie.
-  const dentro = rueda ? apoyo - salida : propio.min - (h.tipo === 'gema' ? h.radio * 0.55 : MORDIDA)
+  const dentro = rueda ? apoyo - salida : propio.min - mordida
 
   // La sombra: para cada vecino a distancia `d` del borde del herraje, la línea
   // a 45° pide que el vecino no sobrepase `fuera + d`.

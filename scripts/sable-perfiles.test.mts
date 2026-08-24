@@ -1,5 +1,5 @@
 /**
- * ¿Las 64 combinaciones de mango son dibujables?
+ * ¿Todas las combinaciones de mango son dibujables, y sus herrajes se ven?
  *
  *   npx tsx scripts/sable-perfiles.test.mts
  *
@@ -8,16 +8,20 @@
  * 0 en el medio). No hay error en consola, no hay excepción — solo un sable que
  * se ve mal, y solo en la combinación concreta que lo provoca.
  *
- * Con 4 emisores × 4 cuerpos × 4 pomos son 64 mangos. Mirarlos de a uno en el
- * navegador es exactamente el trabajo que este guion hace en un segundo, y
- * además cubre las combinaciones que a nadie se le ocurriría probar a mano.
+ * Lo mismo con los herrajes: un botón puede quedar flotando, enterrado o en el
+ * fondo de un pozo, y las tres cosas se construyen sin quejarse.
+ *
+ * Las cuentas se DERIVAN del catálogo, nunca se cablean: este archivo ya dijo
+ * «64 combinaciones» mucho después de que fueran 990, y un número quemado
+ * vuelve verde una prueba que dejó de cubrir lo que se agregó.
  *
  * Corrélo al agregar una pieza.
  */
 
 import {
   perfilDeSable, perfilValido, piezasDeSable, IDS_CONOCIDOS, COLORES, POR_DEFECTO,
-  perfilDePieza, asientoDe, radioEn, mallasDeHerrajes, MATERIALES,
+  perfilDePieza, asientoDe, radioEn, mallasDeHerrajes, MATERIALES, emite,
+  type MaterialId,
 } from '../src/features/sable/partesSable.ts'
 
 let fallos = 0
@@ -87,7 +91,16 @@ else console.log('  ✓ todas cerradas por los dos extremos')
    segundo. Mirarlas de a una en el navegador es el trabajo que esto ahorra —y
    además cubre la pieza que nadie iba a girar hasta el ángulo justo. */
 console.log('\n── Los herrajes: ni flotando, ni enterrados, ni tapados ──')
-const TOPE_MALLAS = 6
+let conBrillo = 0, destellos = 0
+/* Techo de mallas de herraje POR PIEZA. Tres piezas en pantalla por sable, así
+   que el peor caso son 3×TOPE llamadas de dibujo extra: con 8, unas 24, que
+   sumadas a la escena (hoja, pedestal, estrellas, alma) quedan bajo las 40 que
+   el estudio de rendimiento marcó como techo seguro en gama baja.
+
+   Subió de 6 a 8 al entrar los destellos: una fila de puntitos titilando pide
+   entre 5 y 8 para leerse como chispa, y con 6 quedaban ralos. Sin techo, «un
+   remache más» se repite treinta veces y el teléfono lo paga sin avisar. */
+const TOPE_MALLAS = 8
 let piezasVistas = 0, herrajesVistos = 0, mallasPeor = 0
 for (const tipo of ['emisor', 'cuerpo', 'pomo'] as const) {
   for (const id of IDS_CONOCIDOS[tipo]) {
@@ -118,6 +131,17 @@ for (const tipo of ['emisor', 'cuerpo', 'pomo'] as const) {
       if (!(h.material in MATERIALES)) {
         fallos++; console.log(`  ✗ ${donde}: material desconocido «${h.material}»`)
       }
+      if (emite(h.material as MaterialId)) conBrillo++
+      if (h.tipo === 'destello') {
+        destellos++
+        /* Un destello suelto no es un destello: es un punto. La gracia está en
+           que la FILA corra alrededor del eje, y con menos de tres no se lee
+           ninguna secuencia. */
+        if (h.vueltas < 3) {
+          fallos++
+          console.log(`  ✗ ${donde}: ${h.vueltas} destello(s) — con menos de 3 no se lee la secuencia`)
+        }
+      }
       const { apoyo, dentro, fuera, sombra } = asientoDe(puntos, h, alto)
       if (![apoyo, dentro, fuera, sombra].every(Number.isFinite)) {
         fallos++; console.log(`  ✗ ${donde}: el asiento no da un número`)
@@ -138,8 +162,14 @@ for (const tipo of ['emisor', 'cuerpo', 'pomo'] as const) {
     }
   }
 }
-if (piezasVistas !== 30) {
-  console.log(`\n❌ se revisaron ${piezasVistas} piezas y el catálogo tiene 30 — este resultado no dice nada\n`)
+/* El conteo se DERIVA del catálogo, no se cablea: un «30» quemado volvería
+   verde una prueba que dejó de cubrir las piezas nuevas — el mismo fallo que
+   ya tuvo el «64» de las combinaciones. Lo que se comprueba es que se haya
+   revisado ALGO y que coincida con lo que el catálogo dice tener. */
+const ENCATALOGO =
+  IDS_CONOCIDOS.emisor.length + IDS_CONOCIDOS.cuerpo.length + IDS_CONOCIDOS.pomo.length
+if (piezasVistas !== ENCATALOGO || piezasVistas === 0) {
+  console.log(`\n❌ se revisaron ${piezasVistas} piezas y el catálogo tiene ${ENCATALOGO} — este resultado no dice nada\n`)
   process.exit(1)
 }
 if (!fallos) {
