@@ -2498,3 +2498,109 @@ Verificado en SAN220826 (8 jugadores, todos con cuenta): `{ok:true,
 premiados:8, sobres:40, sin_cuenta:0}`, los 8 subieron exactamente +500 XP y +5
 sobres contra la foto previa, y el pestillo aguantó — segundo intento rechazado y
 `tournament_results` en 8 filas, no 16.
+
+### 4c. TALLER KYBER — armar un sable de luz (`/sable`)
+
+Módulo en pruebas, **cerrado a una sola cuenta**. Es 3D, tiene economía y tiene
+sonido, así que junta trampas de tres áreas distintas.
+
+**LA PUERTA ES `sable_probadores`, NO `role = 'admin'`.** Hay cuatro admins y
+esto lo ve uno. Y a propósito **no hay escotilla**: un admin que pueda darse la
+llave vuelve la restricción decorativa (§3i-bis). Se reparte insertando la fila
+desde el SQL Editor. El gate de la pantalla es una CORTINA; lo que cierra de
+verdad es el `if not es_probador_sable()` que está DENTRO de cada RPC — sin él,
+cualquier logueado leería el taller, que es exactamente lo que costó una prueba
+en `temporada_tabla()`.
+
+**Va DENTRO de `AppLayout` y con `<P>`, al revés que `/temporada`.** Fuera de la
+cáscara no corre `initAuth()` y `auth.uid()` llegaría nulo a las RPC: el taller
+diría «no está abierto» hasta al dueño. Está en `rutaLibre` para que la puerta de
+instalación no tape una pantalla 3D que hay que revisar en un teléfono, como los
+bancos. Sin entrada de menú: se entra tecleando `/sable`.
+
+**SE PAGA CON CRÉDITOS, QUE SON EL XP.** Medido antes de decidirlo: el XP no
+tenía sumidero en toda la app — solo entraba y lo único que hacía era subir el
+nivel. Se llama «créditos» en pantalla porque en una tienda del universo la
+moneda no se llama «puntos de experiencia», pero es el MISMO número: **no hay dos
+economías**. Pagar con sobres se descartó: competiría con abrirlos, y con 333
+sobres sin abrir eso es lo último que hace falta.
+
+**Y GASTAR NO BAJA DE NIVEL.** `player_stats.level` se DERIVA de `xp`, así que
+restar de ahí degradaría al que compra — comprar un pomo te bajaría de 11 a 10.
+`xp` sigue siendo el total de por vida y el saldo se deriva:
+`total − sum(sable_inventario.pagado_xp)`. El recibo de cada compra ES el cobro;
+si esa fila no se escribe, la pieza queda gratis.
+
+**Los STATS se suman de las piezas y no se guardan** (§3c), y **no afectan a nada
+fuera del taller a propósito**: engancharlos al ranking convertiría gastar
+créditos en comprar ventaja competitiva.
+
+#### La geometría
+
+**El mango son TRES `LatheGeometry`, no una.** Una sola se vería mejor (cero
+costura) pero **una pieza torneada única no se puede abrir**, y la vista explotada
+es el corazón de la pantalla. Van tres siempre, con separación 0 cuando está
+armado: un solo camino de código para las dos vistas.
+
+**`LatheGeometry` no perdona dos cosas y no avisa de ninguna:**
+1. **El alto tiene que ir siempre hacia arriba.** Un `y` menor que el anterior
+   invierte la normal y ese anillo sale **negro**. Para un escalón recto se
+   repite el mismo `y` con otro radio, nunca se baja.
+2. **El radio nunca es 0 en el medio**: pincha la malla.
+
+`scripts/sable-perfiles.test.mts` corre las **64 combinaciones** y cazó a la
+primera una **deriva de coma flotante**: el borde de un bulto cerraba en
+`11.147272727272728` y el siguiente abría en `11.147272727272727`. El alto bajaba
+1×10⁻¹⁵ y eso habría sido **un aro negro en una sola combinación de 64**, sin un
+error en consola. Por eso `repetir()` calcula el borde de cada bulto con la MISMA
+expresión que el principio del siguiente, y `perfilDeSable` lleva además una red
+de seguridad que sujeta el alto.
+
+**Las miniaturas salen del MISMO perfil que la malla** (`siluetaDePieza`): una
+pieza girada 360° se ve de lado como su perfil espejado. No hay forma de que se
+separen — lo contrario de la tarjeta de jugador, que se fue separando de sí misma
+por tener dos dibujos del mismo dato (§2y).
+
+**TRES materiales, y es lo que salva al mango de parecer un tubo:** acero en
+emisor y pomo, agarre oscuro en la empuñadura, latón en los aros. Lo que hace que
+se lea como objeto es el CONTRASTE de material, no el detalle de la silueta. Los
+aros además marcan por dónde se separa: sin ellos la vista explotada parece que
+se rompió. Y el radio de agarre es **1,6 y no 1,05** — a 1,05 la proporción era
+25:1 y se veía como una varilla; un mango real ronda 8:1.
+
+**La hoja son TRES capas** —núcleo casi blanco, halo y una bruma ancha y tenue—
+porque el color de un sable vive en la bruma que lo rodea, no en el filo. Con dos
+capas se leía como un tubo blanco con un borde de color.
+
+#### Dos trampas que costaron tiempo
+
+**SIN BUCLE, LA ANIMACIÓN TIENE QUE LLEGAR DE GOLPE.** `pintar` se llama desde
+`bucle` (animando) y desde `pedirCuadro`, que dibuja UN cuadro y para. Suavizando
+en el segundo caso, la hoja se quedaba a medio salir **para siempre**. Con
+`prefers-reduced-motion` el bucle no corre nunca, así que era un bug de
+accesibilidad de verdad: movimiento reducido es llegar sin transición, no
+congelarse a mitad (§3u).
+
+**EL NAVEGADOR DE PRUEBAS REPORTA `document.hidden === true` SIEMPRE.** La escena
+pausa el bucle a propósito (§2s) y rAF ni dispara, así que el lienzo se queda con
+un cuadro viejo y **parece que el código está roto**. Antes de juzgar una escena
+3D acá hay que fingir visibilidad con `defineProperty` + `visibilitychange`. Es
+primo del §3x, donde la pestaña de fondo daba `innerWidth` 0 y el detector medía
+cero placas — el mismo error con otra cara: **una medición que no midió nada se
+parece muchísimo a una medición que salió bien**.
+
+#### El sonido
+
+Sintetizado, sin un solo archivo (mismo criterio que Sobredosis). El zumbido son
+**dos sierras desafinadas** entre sí unos hercios: ese batido es lo que suena a
+sable — con un solo oscilador se oye un zumbador de puerta. El tono sale del
+CRISTAL, y al cambiarlo se **afina** en vez de re-arrancar: cortar y volver a
+encender por cambiar de color se oye como un fallo.
+
+**El zumbido se apaga SIEMPRE al desmontar**, sin condición en el `return` del
+efecto. Un sable que sigue sonando después de cerrar la pantalla no tiene botón
+que lo calle y la persona no sabe de dónde sale el ruido.
+
+Bancos: **`/banco-sable-3d`** (las 64 combinaciones sin base ni saldo),
+**`/banco-kyber`** (pasos, stats y las tarjetas en sus tres estados) y
+**`/banco-credito`** (el escudo imperial con el medidor de tinta).
