@@ -43,8 +43,16 @@ interface Pieza {
   puntos: (alto: number) => Punto[]
 }
 
-/** El radio «de agarre». Todo lo demás se mide contra esto. */
-const R = 1.05
+/**
+ * El radio «de agarre». Todo lo demás se mide contra esto.
+ *
+ * 1,6 y no 1,05: con el mango de 26 de alto, un radio de 1,05 da una proporción
+ * de 25:1 y el sable se veía como una VARILLA. Un mango de verdad ronda los
+ * 30 cm por 3,5 de diámetro, o sea ~8:1. A 1,6 el diámetro es 3,2 y la
+ * proporción queda en 8:1. Se ve mirándolo en `/banco-sable-3d`; leyendo los
+ * números no.
+ */
+const R = 1.6
 
 /* ── Pomos (abajo) ─────────────────────────────────────────────────── */
 

@@ -100,27 +100,47 @@ export function SableEscena({ diseno, encendido, explotado = false, onSinWebGL, 
     scene.add(foco1, foco2)
 
     // ── El mango ──
-    const matMango = new THREE.MeshPhongMaterial({
-      color: 0x9aa3ad, specular: 0xffffff, shininess: 88, flatShading: false,
+    /* TRES materiales, y es lo que salva al mango de parecer un tubo. La primera
+       versión pintaba las tres piezas con UN gris y el resultado era exactamente
+       eso. Lo que hace que se lea como objeto es el CONTRASTE de material, no el
+       detalle de la silueta:
+       · acero claro y brillante en emisor y pomo — piezas mecanizadas;
+       · agarre oscuro y mate en la empuñadura — es cuero o goma, no metal;
+       · latón en los aros, que además marcan DÓNDE termina cada pieza.
+       Los aros hacen doble trabajo: dan el acento cálido y son la única pista de
+       por dónde se separa el sable. Sin ellos la vista explotada parece que se
+       rompió. */
+    const matAcero = new THREE.MeshPhongMaterial({
+      color: 0xb9c0c9, specular: 0xffffff, shininess: 95,
     })
-    const matDetalle = new THREE.MeshPhongMaterial({
-      color: 0x2b2f36, specular: 0x666666, shininess: 40,
+    const matAgarre = new THREE.MeshPhongMaterial({
+      color: 0x24262c, specular: 0x4a4f57, shininess: 18,
+    })
+    const matLaton = new THREE.MeshPhongMaterial({
+      color: 0xc08b3e, specular: 0xffe6b0, shininess: 70,
     })
     /* TRES mallas y no una: la vista explotada necesita separarlas, y no hay
        forma de abrir una pieza torneada única. Con separación 0 se ven pegadas,
        así que es UN solo camino de código para las dos vistas. */
-    const piezas: { malla: THREE.Mesh; base: number; alto: number }[] = []
-    for (let i = 0; i < 3; i++) {
-      const m = new THREE.Mesh(new THREE.BufferGeometry(), matMango)
-      scene.add(m)
-      piezas.push({ malla: m, base: 0, alto: 0 })
-    }
+    /* El aro de latón va de HIJO de su pieza: así viaja solo cuando el sable se
+       abre, sin tener que recolocarlo por cuadro. */
+    const geoAro = new THREE.TorusGeometry(1.78, 0.13, 8, 40)
+    /* El sable vive en un GRUPO inclinado y el pedestal NO: así se ve en diagonal
+       como en el mockup mientras el suelo sigue siendo suelo. Inclinar la cámara
+       en su lugar torcería también el pedestal. */
+    const grupoSable = new THREE.Group()
+    grupoSable.rotation.z = -0.42
+    grupoSable.rotation.x = 0.1
+    scene.add(grupoSable)
 
-    // Un aro oscuro en el cuerpo: rompe el gris y da escala. Geometría fija.
-    const geoAro = new THREE.TorusGeometry(1.16, 0.1, 8, 36)
-    const aro = new THREE.Mesh(geoAro, matDetalle)
-    aro.rotation.x = Math.PI / 2
-    scene.add(aro)
+    const piezas = ([0, 1, 2] as const).map(i => {
+      const malla = new THREE.Mesh(new THREE.BufferGeometry(), i === 1 ? matAgarre : matAcero)
+      const anillo = new THREE.Mesh(geoAro, matLaton)
+      anillo.rotation.x = Math.PI / 2
+      malla.add(anillo)
+      grupoSable.add(malla)
+      return { malla, anillo, base: 0, alto: 0 }
+    })
 
     /* ── El pedestal ──
        Dos aros concéntricos planos debajo del sable. Es lo que hace que el mango
@@ -131,16 +151,22 @@ export function SableEscena({ diseno, encendido, explotado = false, onSinWebGL, 
       color: 0xff9d2e, transparent: true, opacity: 0.5,
       blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
     })
-    const geoPeana1 = new THREE.RingGeometry(7.2, 8.4, 48)
-    const geoPeana2 = new THREE.RingGeometry(11.5, 11.9, 48)
-    const peana1 = new THREE.Mesh(geoPeana1, matPeana)
-    const peana2 = new THREE.Mesh(geoPeana2, matPeana)
-    for (const p of [peana1, peana2]) { p.rotation.x = -Math.PI / 2; scene.add(p) }
+    const geoDisco = new THREE.CircleGeometry(8.6, 44)
+    const geoPeana1 = new THREE.RingGeometry(9.4, 10.1, 44)
+    const geoPeana2 = new THREE.RingGeometry(12.4, 12.7, 44)
+    // El disco va MÁS tenue que los aros: es el resplandor del suelo, no un aro.
+    const matDisco = matPeana.clone(); matDisco.opacity = 0.13
+    const peanas = [
+      new THREE.Mesh(geoDisco, matDisco),
+      new THREE.Mesh(geoPeana1, matPeana),
+      new THREE.Mesh(geoPeana2, matPeana),
+    ]
+    for (const p of peanas) { p.rotation.x = -Math.PI / 2; scene.add(p) }
 
     // ── La hoja: cápsulas, para que la punta salga redonda sola ──
     const LARGO = 78
-    const geoNucleo = new THREE.CapsuleGeometry(0.42, LARGO, 4, 12)
-    const geoHalo = new THREE.CapsuleGeometry(0.92, LARGO, 4, 12)
+    const geoNucleo = new THREE.CapsuleGeometry(0.6, LARGO, 4, 12)
+    const geoHalo = new THREE.CapsuleGeometry(1.45, LARGO, 4, 12)
     const matNucleo = new THREE.MeshBasicMaterial({ color: 0xffffff })
     const matHalo = new THREE.MeshBasicMaterial({
       color: 0x2b8cff, transparent: true, opacity: 0.5,
@@ -151,7 +177,7 @@ export function SableEscena({ diseno, encendido, explotado = false, onSinWebGL, 
     const nucleo = new THREE.Mesh(geoNucleo, matNucleo)
     const halo = new THREE.Mesh(geoHalo, matHalo)
     halo.renderOrder = 1
-    scene.add(nucleo, halo)
+    grupoSable.add(nucleo, halo)
 
     let altoTotal = 26
     function rehacer(d: Diseno): void {
@@ -169,18 +195,20 @@ export function SableEscena({ diseno, encendido, explotado = false, onSinWebGL, 
         piezas[i].alto = sp.alto
       })
       colocarPiezas()
-      aro.position.y = -altoTotal / 2 + altoTotal * 0.42
 
       const c = colorDeHoja(d.color)
       matHalo.color.set(c.halo)
       matNucleo.color.set(c.nucleo)
+      // El pedestal se tiñe del cristal: la forja toma el color de lo que estás
+      // armando, y así el cristal se ve incluso con la hoja apagada.
+      matPeana.color.set(c.halo)
+      matDisco.color.set(c.halo)
 
       // La hoja arranca en la boca del emisor, no en el centro del mango.
       const base = altoTotal / 2
       nucleo.position.y = base + LARGO / 2
       halo.position.y = base + LARGO / 2
-      peana1.position.y = -altoTotal / 2 - 3.5
-      peana2.position.y = -altoTotal / 2 - 3.6
+      for (const p of peanas) p.position.y = -altoTotal / 2 - 3.2
       pedirCuadro()
     }
 
@@ -188,19 +216,18 @@ export function SableEscena({ diseno, encendido, explotado = false, onSinWebGL, 
        anima el bucle, así que esto se llama por cuadro mientras se abre. */
     let separacion = 0, separacionMeta = 0
     function colocarPiezas(): void {
-      const HUECO = 4.2
+      const HUECO = 4.6
       for (let i = 0; i < piezas.length; i++) {
         const p = piezas[i]
         p.malla.position.y = -altoTotal / 2 + p.base + separacion * HUECO * i
+        p.anillo.position.y = p.alto * (i === 1 ? 0.5 : 0.28)
       }
-      // Con el sable abierto el aro del cuerpo viaja con su pieza.
-      aro.visible = separacion < 0.35
     }
 
     function explotar(v: boolean): void {
       separacionMeta = v ? 1 : 0
       // Abierto hace falta más distancia: la fila de piezas es más larga.
-      if (!nucleo.visible) distMeta = v ? 62 : 46
+      
       arrancar()
     }
 
@@ -214,8 +241,12 @@ export function SableEscena({ diseno, encendido, explotado = false, onSinWebGL, 
     }
 
     // ── Cámara orbital a mano ──
-    let theta = 0.7, phi = 1.42, dist = 46, distMeta = 46
-    const centro = new THREE.Vector3(0, 0, 0)
+    // `phi` por encima del ecuador y `theta` en diagonal: el sable se ve en
+    // escorzo como en el mockup, y no de frente y plano.
+    let theta = 0.62, phi = 1.16, dist = 42, distMeta = 42
+    // El centro se baja un poco: el pedestal vive debajo del mango, y mirar
+    // exactamente al 0 dejaba el pomo y el pedestal pegados al borde de abajo.
+    const centro = new THREE.Vector3(0, -2.4, 0)
     function colocarCamara(): void {
       camera.position.set(
         centro.x + dist * Math.sin(phi) * Math.cos(theta),
@@ -235,7 +266,7 @@ export function SableEscena({ diseno, encendido, explotado = false, onSinWebGL, 
     function alMover(e: PointerEvent) {
       const p = punteros.get(e.pointerId); if (!p) return
       theta -= (e.clientX - p.x) * 0.011
-      phi = Math.max(0.25, Math.min(2.9, phi - (e.clientY - p.y) * 0.009))
+      phi = Math.max(0.3, Math.min(2.6, phi - (e.clientY - p.y) * 0.009))
       punteros.set(e.pointerId, { x: e.clientX, y: e.clientY })
       pedirCuadro()
     }
@@ -344,9 +375,10 @@ export function SableEscena({ diseno, encendido, explotado = false, onSinWebGL, 
 
       for (const p of piezas) p.malla.geometry.dispose()
       geoAro.dispose(); geoNucleo.dispose(); geoHalo.dispose()
-      geoPeana1.dispose(); geoPeana2.dispose()
-      matMango.dispose(); matDetalle.dispose(); matNucleo.dispose(); matHalo.dispose()
-      matPeana.dispose()
+      geoDisco.dispose(); geoPeana1.dispose(); geoPeana2.dispose()
+      matAcero.dispose(); matAgarre.dispose(); matLaton.dispose()
+      matNucleo.dispose(); matHalo.dispose()
+      matPeana.dispose(); matDisco.dispose()
       foco1.dispose(); foco2.dispose()
       renderer.dispose()
       // `dispose()` NO suelta el contexto: lo suelta el navegador cuando quiere,

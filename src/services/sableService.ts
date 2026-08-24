@@ -22,11 +22,23 @@ export interface ParteTaller {
   precio: number
   orden: number
   tengo: boolean
+  rareza: string
+  /* Los stats vienen POR PIEZA y se suman en la pantalla (`kyber.ts`). El
+     servidor no manda el total: sería una segunda copia de algo derivado, y
+     además la pantalla necesita los de cada pieza para poder decir «esta te
+     sube 8 de control» antes de comprarla. */
+  potencia: number
+  control: number
+  energia: number
 }
 
 export interface Taller {
   saldo: number
   xpTotal: number
+  nivel: number
+  /** Cuántas piezas de pago tenés, y cuántas hay. Para el «12 de 14». */
+  cuantasTengo: number
+  cuantasHay: number
   partes: ParteTaller[]
   diseno: {
     emisor: string; cuerpo: string; pomo: string; color: string; nombre: string | null
@@ -42,7 +54,11 @@ export async function abrirTaller(): Promise<Taller | null> {
   if (error) { console.warn('[Sable] no se pudo abrir el taller:', error.message); return null }
   const r = data as (Taller & { ok?: boolean; error?: string }) | null
   if (!r?.ok) return null
-  return { saldo: r.saldo ?? 0, xpTotal: r.xpTotal ?? 0, partes: r.partes ?? [], diseno: r.diseno ?? null }
+  return {
+    saldo: r.saldo ?? 0, xpTotal: r.xpTotal ?? 0, nivel: r.nivel ?? 1,
+    cuantasTengo: r.cuantasTengo ?? 0, cuantasHay: r.cuantasHay ?? 0,
+    partes: r.partes ?? [], diseno: r.diseno ?? null,
+  }
 }
 
 export interface Resultado { ok: boolean; mensaje?: string; saldo?: number }
