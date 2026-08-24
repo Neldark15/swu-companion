@@ -101,8 +101,8 @@ export function ChatTransmision() {
   }, [texto, currentProfileId, enviando, recargar])
 
   return (
-    <div className="flex flex-col border-t border-swu-border">
-      <div className="flex items-center gap-2 px-4 py-2">
+    <div className="flex min-h-0 flex-1 flex-col border-t border-swu-border">
+      <div className="flex shrink-0 items-center gap-2 px-4 py-2">
         <MessageSquare size={13} className="text-swu-muted" />
         <p className="text-[10px] font-black uppercase tracking-widest text-swu-muted">
           Chat de la comunidad
@@ -110,12 +110,16 @@ export function ChatTransmision() {
         <span className="ml-auto text-[10px] text-swu-muted/70">Global · todos los sectores</span>
       </div>
 
-      {/* La caja de mensajes: alto propio y scroll adentro. */}
-      <div className="relative">
+      {/* La caja de mensajes se queda con el alto que sobra y scrollea ADENTRO.
+          `min-h-0` es obligatorio: sin él, un hijo de un flex no se deja
+          encoger por debajo de su contenido y la caja empuja la barra de
+          escribir fuera de la pantalla — que es exactamente el bug que esto
+          arregla. */}
+      <div className="relative flex min-h-0 flex-1 flex-col">
         <div
           ref={cajaRef}
           onScroll={alScrollear}
-          className="flex h-[34vh] min-h-[180px] max-h-[380px] flex-col gap-2 overflow-y-auto px-3 pb-2"
+          className="flex min-h-[120px] flex-1 flex-col gap-2 overflow-y-auto px-3 pb-2"
         >
           {mensajes.length === 0 ? (
             <p className="m-auto px-6 text-center text-[12px] text-swu-muted">
@@ -156,7 +160,7 @@ export function ChatTransmision() {
       {currentProfileId ? (
         <form
           onSubmit={e => { e.preventDefault(); void mandar() }}
-          className="flex items-center gap-2 border-t border-swu-border px-3 py-2"
+          className="flex shrink-0 items-center gap-2 border-t border-swu-border px-3 py-2"
         >
           <input
             value={texto}
@@ -179,8 +183,8 @@ export function ChatTransmision() {
       ) : (
         <Link
           to="/profile"
-          className="flex min-h-[44px] items-center justify-center border-t border-swu-border
-                     px-4 text-[12px] font-bold text-swu-cyan"
+          className="flex min-h-[44px] shrink-0 items-center justify-center border-t
+                     border-swu-border px-4 text-[12px] font-bold text-swu-cyan"
         >
           Entrá con tu cuenta para comentar
         </Link>

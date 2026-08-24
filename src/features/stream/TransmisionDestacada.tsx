@@ -26,6 +26,11 @@ import {
 } from '../../services/transmisiones'
 import { ChatTransmision } from './ChatTransmision'
 
+/** El id suelto, venga como id o como URL de cualquiera de las dos formas. */
+function idYoutube(entrada: string): string {
+  return entrada.replace(/^.*[?&]v=/, '').replace(/^.*youtu\.be\//, '').split(/[?&#]/)[0]
+}
+
 export function TransmisionDestacada() {
   const [t, setT] = useState<Transmision | null>(null)
   const [ahora, setAhora] = useState(() => Date.now())
@@ -57,36 +62,62 @@ export function TransmisionDestacada() {
   const enVivo = momento === 'envivo'
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-swu-border bg-swu-surface">
-      <div className="flex flex-wrap items-center gap-2 border-b border-swu-border px-4 py-3">
-        <span
-          className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider
-                      ${enVivo
-                        ? 'bg-swu-red/20 text-swu-red-texto'
-                        : 'bg-swu-amber/15 text-swu-amber'}`}
-        >
-          {enVivo
-            ? <><Radio size={12} className="animate-pulse" /> En vivo</>
-            : <><CalendarClock size={12} /> Programado</>}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-black text-swu-text">{t.titulo}</p>
-          <p className="truncate text-[11px] text-swu-muted">{t.canal}</p>
-        </div>
-        {/* La cuenta atrás en cifras grandes: es el dato por el que alguien
-            abre esta pantalla antes de la hora. */}
-        {!enVivo && (
-          <div className="text-right">
-            <p className="text-[15px] font-black tabular-nums text-swu-amber">
+    /* ── QUE QUEPA EN LA PANTALLA ──
+       Nel pidió que no haya que scrollear, y en el teléfono eso no sale solo:
+       con el video, un botón de fila entera y un chat de alto fijo, la barra de
+       escribir terminaba DEBAJO del borde. Así que la tarjeta se limita al alto
+       del visor y reparte: el video manda su tamaño, el chat se queda con lo
+       que sobre (`flex-1 min-h-0`) y su barra de escribir queda siempre a la
+       vista. `dvh` y no `vh` porque en móvil la barra del navegador se mueve. */
+    <section className="flex max-h-[calc(100dvh-8.5rem)] flex-col overflow-hidden
+                        rounded-2xl border border-swu-border bg-swu-surface">
+      {/* DOS FILAS, no una. En una sola, la cuenta atrás y el botón de YouTube
+          le comían el ancho al título y en el teléfono quedaba en «S...». El
+          título es lo que dice QUÉ vas a ver: no puede ser lo que se recorta. */}
+      <div className="shrink-0 border-b border-swu-border px-4 py-3">
+        <div className="flex items-center gap-2">
+          <span
+            className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider
+                        ${enVivo
+                          ? 'bg-swu-red/20 text-swu-red-texto'
+                          : 'bg-swu-amber/15 text-swu-amber'}`}
+          >
+            {enVivo
+              ? <><Radio size={12} className="animate-pulse" /> En vivo</>
+              : <><CalendarClock size={12} /> Programado</>}
+          </span>
+
+          {!enVivo && (
+            <span className="text-[15px] font-black tabular-nums text-swu-amber">
               {faltaTexto(inicio - ahora)}
-            </p>
-            <p className="text-[10px] text-swu-muted">{horaLocal(t.empiezaEn)}</p>
-          </div>
-        )}
+            </span>
+          )}
+
+          {/* La salida de emergencia: un canal puede prohibir que lo incrusten
+              y entonces el reproductor sale en negro. Va de ícono y no de fila
+              entera — una fila más era la que dejaba la barra de escribir del
+              chat fuera de la pantalla. */}
+          <a
+            href={`https://www.youtube.com/watch?v=${encodeURIComponent(idYoutube(t.youtube))}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Abrirlo en YouTube"
+            title="Abrirlo en YouTube"
+            className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-xl
+                       border border-swu-border text-swu-red-texto"
+          >
+            <Youtube size={18} />
+          </a>
+        </div>
+
+        <p className="mt-1.5 text-[13px] font-black leading-tight text-swu-text">{t.titulo}</p>
+        <p className="truncate text-[11px] text-swu-muted">
+          {t.canal}{!enVivo && ` · ${horaLocal(t.empiezaEn)}`}
+        </p>
       </div>
 
       {src ? (
-        <div className="relative w-full" style={{ aspectRatio: '16 / 9' }}>
+        <div className="relative w-full shrink-0" style={{ aspectRatio: '16 / 9' }}>
           <iframe
             key={t.id}
             src={src}
@@ -98,23 +129,8 @@ export function TransmisionDestacada() {
         </div>
       ) : null}
 
-      {/* La salida de emergencia. Un canal puede prohibir que lo incrusten, y
-          entonces el iframe de arriba sale en negro diciendo «ver en YouTube»
-          en inglés y chiquito. Este enlace siempre funciona. */}
-      <a
-        href={`https://www.youtube.com/watch?v=${encodeURIComponent(t.youtube.replace(/^.*[?&]v=|^.*youtu\.be\//, ''))}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="m-3 flex min-h-[46px] items-center justify-center gap-2 rounded-xl
-                   border border-swu-border bg-swu-bg px-4 py-2.5
-                   text-[12px] font-black uppercase tracking-wider text-swu-text"
-      >
-        <Youtube size={16} className="text-swu-red-texto" />
-        Abrirlo en YouTube
-      </a>
-
-      {/* El chat va DEBAJO del video y con su propio alto: así no lo tapa y no
-          hay que mover la página para escribir. */}
+      {/* El chat va DEBAJO del video y se queda con el alto que sobra: así no
+          lo tapa y no hay que mover la página para escribir. */}
       <ChatTransmision />
     </section>
   )
