@@ -201,10 +201,14 @@ export function WelcomeHome() {
         </p>
       </div>
 
-      {/* ── Footer ── */}
+      {/* ── Footer ──
+          Sin país. Decía «— EL SALVADOR» y la comunidad ya no es solo de acá:
+          de 38 perfiles, 5 son de España, 1 de México y 1 de Argentina. Un
+          rótulo de país en la portada le dice a esa gente que la app no es
+          para ellos, y no hay nada en el producto que lo justifique. */}
       <div className="px-5 pt-6 text-center">
         <p className="text-[9px] text-swu-muted/40 font-mono tracking-widest">
-          HOLOCRON SWU v1.0 — EL SALVADOR
+          HOLOCRON SWU v1.0
         </p>
       </div>
     </div>
