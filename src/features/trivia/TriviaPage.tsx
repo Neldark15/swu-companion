@@ -28,6 +28,7 @@ import { Link } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useAuth, acreditarXp } from '../../hooks/useAuth'
 import { TriviaSection } from '../profile/components/TriviaSection'
+import { PanelAspectos } from './PanelAspectos'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { HolocronIcon } from '../../components/SWIcons'
 
@@ -73,6 +74,11 @@ export function TriviaPage() {
           onXpGained={(xp) => { void acreditarXp(xp, 'trivia') }}
         />
       </div>
+
+      {/* Los aspectos van DEBAJO del juego, no en el perfil: se suben acá y un
+          progreso que se muestra lejos de donde se gana es un progreso que
+          nadie relaciona con lo que hizo (§3l). */}
+      <PanelAspectos />
     </div>
   )
 }

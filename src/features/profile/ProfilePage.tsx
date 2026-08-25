@@ -12,12 +12,11 @@ import { useSettings } from '../../hooks/useSettings'
 import { PersonalizarPerfil } from './PersonalizarPerfil'
 import { syncStatsToCloud } from '../../services/sync'
 import { isPasskeyReady } from '../../services/crypto'
-import { createDefaultStats, getAspectBars, checkAchievements, calculateLevel, type PlayerStats } from '../../services/gamification'
+import { createDefaultStats, checkAchievements, calculateLevel, type PlayerStats } from '../../services/gamification'
 import { announceProgression, takeProgressionSnapshot } from '../../services/progressionService'
 import { LightsaberXpBar } from './components/LightsaberXpBar'
 import { ProfileFrame } from './components/ProfileFrame'
 import { BannerPortadaUsuario } from './BannerPortada'
-import { AspectBars } from './components/AspectBars'
 import { AchievementGrid } from './components/AchievementGrid'
 import { CONTINENTS, getCountryByCode } from '../../data/regions'
 import { MoreNav } from '../../components/layout/MoreNav'
@@ -988,7 +987,6 @@ export function ProfilePage() {
   // PROFILE VIEW (logged in) — GAMIFIED
   // ═══════════════════════════════════════════════════════════════════
   const levelInfo = playerStats ? calculateLevel(playerStats.xp) : null
-  const aspectBars = playerStats ? getAspectBars(playerStats) : []
 
   const menuItems = [
     { icon: Package, label: 'Mi Botín de Cartas', to: '/collection', count: undefined, highlight: true },
@@ -1070,12 +1068,12 @@ export function ProfilePage() {
         ))}
       </div>
 
-      {/* Aspect Bars */}
-      {aspectBars.length > 0 && (
-        <div className="bg-swu-surface rounded-2xl p-4 border border-swu-border">
-          <AspectBars bars={aspectBars} />
-        </div>
-      )}
+      {/* LAS BARRAS DE ASPECTO SE FUERON A LA TRIVIA.
+          Acá eran ocho barras que nadie podía mover: medido sobre las 39
+          cuentas, seis de los ocho aspectos no los había alcanzado NADIE, y no
+          por poco — Vigilancia pedía 100 partidas y el que más jugó lleva 3.
+          Ahora son seis, se suben acertando preguntas y viven al lado del botón
+          que los mueve. Ver `features/trivia/PanelAspectos.tsx`. */}
 
       {/* Achievements */}
       {playerStats && (
