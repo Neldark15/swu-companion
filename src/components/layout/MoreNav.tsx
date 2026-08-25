@@ -30,6 +30,9 @@ import {
   StarfighterIcon,
   TransmisionIcon,
 } from '../SWIcons'
+// El planeta anillado ya existe: se dibujó para el tema «Planetas» de la
+// Trivia. El ícono de una cosa es el de esa cosa.
+import { PlanetaAnilladoIcon } from '../../features/trivia/iconosTrivia'
 import { useAuth } from '../../hooks/useAuth'
 import type { ComponentType } from 'react'
 
@@ -86,12 +89,28 @@ const GROUPS: MoreGroup[] = [
       // BUSCAR dentro de ella (nombre, país, rankings).
       { to: '/galaxia', label: 'La Galaxia', sub: 'Universo 3D', icon: StarfighterIcon },
       { to: '/galaxy', label: 'Salas', sub: 'Chat y comandantes', icon: SalasIcon },
-      { to: '/sobres', label: 'Sobredosis', sub: 'Abrir sobres', icon: SobreIcon },
       { to: '/binder-digital', label: 'Binder digital', sub: 'Lo que abriste', icon: BinderIcon },
       { to: '/credencial', label: 'Mi Credencial', sub: 'Placa imprimible', icon: CredencialIcon },
+      { to: '/blog', label: 'Blog', sub: 'Análisis y artículos', icon: ArticuloIcon },
+      { to: '/espionaje', label: 'Espionaje', sub: 'Transmisiones', icon: SpyIcon },
+    ],
+  },
+  {
+    /* ── Mini Juegos ──
+       Existe en Inicio desde que Nel juntó lo que se juega DENTRO de la app, y
+       faltaba acá: el menú seguía repartiendo Sobredosis y Aurebesh en
+       Comunidad y colgando el Taller al final, suelto. Dos mapas distintos de
+       la misma app es cómo alguien deja de encontrar las cosas.
+
+       MISMO ORDEN QUE EN INICIO, y no es capricho: primero lo que DA créditos,
+       después lo que los GASTA, al final lo que no hace ninguna de las dos. */
+    title: 'Mini Juegos',
+    items: [
+      { to: '/sobres', label: 'Sobredosis', sub: 'Abrir sobres', icon: SobreIcon },
+      { to: '/trivia', label: 'Trivia', sub: 'Preguntas del canon', icon: HolocronIcon },
+      { to: '/sable', label: 'Taller Kyber', sub: 'Armá tu sable', icon: SaberIcon },
+      { to: '/terraformar', label: 'Terraformar', sub: 'Ponéle vida a tu mundo', icon: PlanetaAnilladoIcon },
       { to: '/aurebesh', label: 'Aurebesh', sub: 'Traductor galáctico', icon: AurebeshIcon },
-            { to: '/blog', label: 'Blog', sub: 'Análisis y artículos', icon: ArticuloIcon },
-{ to: '/espionaje', label: 'Espionaje', sub: 'Transmisiones', icon: SpyIcon },
     ],
   },
 ]
@@ -99,9 +118,6 @@ const GROUPS: MoreGroup[] = [
 export function MoreNav() {
   const navigate = useNavigate()
   const { isAdmin } = useAuth()
-  /* El Taller Kyber ya no tiene guardia: está abierto a toda la comunidad
-     desde 2026-08-24. Lo que sigue cerrado son las piezas `oculta` (los cinco
-     legendarios y el cristal rojo), que es otra cosa. */
 
   const tile = (item: MoreItem) => (
     <button
@@ -129,10 +145,6 @@ export function MoreNav() {
           </h3>
           <div className="grid grid-cols-3 gap-2">
             {group.items.map(tile)}
-            {/* El Taller va en «Comunidad», donde lo pidió Nel. */}
-            {group.title === 'Comunidad' && tile({
-              to: '/sable', label: 'Taller Kyber', sub: 'Armá tu sable', icon: SaberIcon,
-            })}
           </div>
         </section>
       ))}

@@ -24,12 +24,15 @@ import {
   MedalIcon,
   MetaHoloIcon,
   RebelIcon,
-  SaberIcon,
+  AurebeshIcon, SaberIcon,
   SalasIcon,
   SobreIcon,
   SpyIcon,
   StarfighterIcon,
 } from '../SWIcons'
+// El planeta anillado ya existe: se dibujó para el tema «Planetas» de la
+// Trivia. El ícono de una cosa es el de esa cosa.
+import { PlanetaAnilladoIcon } from '../../features/trivia/iconosTrivia'
 import { NotificationBell } from '../ui/NotificationBell'
 import { useAuth } from '../../hooks/useAuth'
 import type { ComponentType } from 'react'
@@ -51,7 +54,10 @@ const mainNav: NavItem[] = [
 
 const secondaryNav: NavItem[] = [
   { id: '/collection', label: 'Mi Botín', sub: 'Colección', icon: CargoIcon },
-  { id: '/sobres', label: 'Sobredosis', sub: 'Abrir sobres', icon: SobreIcon },
+  /* Sobredosis NO va acá: vive en Mini Juegos, más abajo. Estaba en las dos
+     listas y salía dos veces en la misma barra — un menú que repite una entrada
+     te hace dudar de si son la misma pantalla. El Binder sí se queda, porque es
+     dónde MIRÁS lo que abriste, que es otro trabajo. */
   { id: '/binder-digital', label: 'Binder digital', sub: 'Lo que abriste', icon: BinderIcon },
   { id: '/explore', label: 'Contrabando', sub: 'Explorar', icon: BountyIcon },
   { id: '/prestamos', label: 'Préstamos', sub: 'Quién tiene tus cartas', icon: CargoIcon },
@@ -73,13 +79,22 @@ const secondaryNav: NavItem[] = [
   { id: '/calendario', label: 'Calendario', sub: 'Los torneos del mes', icon: AgendaIcon },
 ]
 
+/* Lo que se juega DENTRO de la app. El orden cuenta la economía: primero lo
+   que DA créditos (Sobredosis paga 50 por sobre, la Trivia 2 por acierto),
+   después lo que los GASTA —el Taller y Terraformar comparten la misma bolsa—
+   y al final Aurebesh, que ni da ni gasta. */
+const MINI_JUEGOS = [
+  { id: '/sobres', label: 'Sobredosis', sub: 'Abrir sobres', icon: SobreIcon },
+  { id: '/trivia', label: 'Trivia', sub: 'Preguntas del canon', icon: HolocronIcon },
+  { id: '/sable', label: 'Taller Kyber', sub: 'Armá tu sable', icon: SaberIcon },
+  { id: '/terraformar', label: 'Terraformar', sub: 'Ponéle vida a tu mundo', icon: PlanetaAnilladoIcon },
+  { id: '/aurebesh', label: 'Aurebesh', sub: 'Traductor galáctico', icon: AurebeshIcon },
+]
+
 export function SideNav() {
   const location = useLocation()
   const navigate = useNavigate()
   const { isAdmin } = useAuth()
-  /* El Taller Kyber ya no tiene guardia: está abierto a toda la comunidad
-     desde 2026-08-24. Lo que sigue cerrado son las piezas `oculta` (los cinco
-     legendarios y el cristal rojo), que es otra cosa. */
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/'
@@ -150,9 +165,19 @@ export function SideNav() {
           <span className="text-[9px] text-swu-muted/60 font-mono tracking-[0.25em] uppercase">Sistemas</span>
         </div>
         {secondaryNav.map(renderItem)}
-        {renderItem({
-          id: '/sable', label: 'Taller Kyber', sub: 'Armá tu sable', icon: SaberIcon,
-        })}
+
+        {/* ── Mini Juegos ──
+            Antes el Taller colgaba suelto al final de «Sistemas» y Sobredosis
+            y Aurebesh vivían en otras familias. La sección existe en Inicio y
+            en el menú móvil: faltaba acá, y tres mapas distintos de la misma
+            app es cómo alguien deja de encontrar las cosas.
+
+            MISMO ORDEN QUE EN LOS OTROS DOS: lo que da créditos, lo que los
+            gasta, y lo que no hace ninguna de las dos. */}
+        <div className="px-3 mt-5 mb-2">
+          <span className="text-[9px] text-swu-muted/60 font-mono tracking-[0.25em] uppercase">Mini Juegos</span>
+        </div>
+        {MINI_JUEGOS.map(renderItem)}
 
         {/* Admin-only quick utility (lives in Sistemas section but only visible to admins) */}
         {isAdmin && (

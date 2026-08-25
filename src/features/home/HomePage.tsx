@@ -75,8 +75,9 @@ const CATEGORIAS: {
   { id: 'competir',  titulo: 'Competir',  icono: MandoTrophyIcon, tono: 'amber' },
   { id: 'construir', titulo: 'Construir', icono: DeckCardsIcon,   tono: 'cyan' },
   { id: 'coleccion', titulo: 'Colección', icono: CargoIcon,       tono: 'purple' },
-  // Mini Juegos junta lo que se juega DENTRO de la app: la trivia, abrir
-  // sobres y el Taller. Pedido de Nel — antes estaban regados en tres familias.
+  // Mini Juegos junta lo que se juega DENTRO de la app. Pedido de Nel: antes
+  // estaban regados en tres familias, y Terraformar y Aurebesh todavía andaban
+  // sueltos en Comunidad.
   { id: 'minijuegos', titulo: 'Mini Juegos', icono: ChanceCubeIcon, tono: 'purple' },
   { id: 'comunidad', titulo: 'Comunidad', icono: StarfighterIcon, tono: 'red' },
 ]
@@ -174,24 +175,36 @@ const mainSystems: Sistema[] = [
   { icon: KyberIcon,       label: 'Mercancía',    tone: 'amber',  to: '/explore?tab=market', cat: 'coleccion', auth: true },
   { icon: PedidoIcon,       label: 'Pedidos',      tone: 'green',  to: '/pedidos',    cat: 'coleccion', auth: true },
 
-  // ── Mini Juegos: lo que se juega dentro de la app ──
-  { icon: HolocronIcon,   label: 'Trivia',       tone: 'cyan',   to: '/trivia',  cat: 'minijuegos', auth: true },
+  /* ── Mini Juegos ──
+     EL ORDEN NO ES DECORATIVO: primero lo que DA créditos, después lo que los
+     GASTA, y al final lo que no hace ninguna de las dos. Leída de arriba abajo,
+     la sección enseña la economía sin una sola línea de texto — que es el
+     trabajo que hace un orden bien puesto.
+
+     Sobredosis va primera de las dos que dan porque es la que más paga (50 por
+     sobre contra 2 por acierto) y porque es donde está el cuello de botella
+     medido: 297 sobres sin abrir repartidos entre 24 personas. Trivia paga
+     menos pero se puede jugar sin tener nada.
+
+     Aurebesh cierra: no da ni gasta créditos, se aprende el alfabeto y ya. */
+
+  // Dan créditos
   { icon: SobreIcon,      label: 'Sobredosis',   tone: 'amber',  to: '/sobres',  cat: 'minijuegos', auth: true },
-  // El Taller Kyber, abierto a la comunidad desde 2026-08-24 («que sea
-  // accesible para la comunidad el poder editar el sable»). Lo que sigue
-  // cerrado son las piezas `oculta`, no la puerta.
+  { icon: HolocronIcon,   label: 'Trivia',       tone: 'cyan',   to: '/trivia',  cat: 'minijuegos', auth: true },
+
+  // Los gastan. Comparten la misma bolsa: `creditos_saldo()` resta de las dos.
   { icon: SaberIcon, label: 'Taller Kyber', tone: 'amber', to: '/sable', cat: 'minijuegos', auth: true },
+  { icon: PlanetaAnilladoIcon, label: 'Terraformar', tone: 'green', to: '/terraformar', cat: 'minijuegos', auth: true },
+
+  // Ni da ni gasta: es el único que se puede tocar sin cuenta.
+  { icon: AurebeshIcon,   label: 'Aurebesh',     tone: 'cyan',   to: '/aurebesh', cat: 'minijuegos' },
 
   // ── Comunidad: mirar a los demás ──
   { icon: StarfighterIcon, label: 'La Galaxia',   tone: 'cyan',   to: '/galaxia',    cat: 'comunidad', auth: true },
-  // Terraformar va en Comunidad y no en Mini Juegos: tu planeta es tu lugar en
-  // la Galaxia, y ahí es donde la gente lo va a buscar.
-  { icon: PlanetaAnilladoIcon, label: 'Terraformar',  tone: 'green',  to: '/terraformar', cat: 'comunidad', auth: true },
   // La credencial estaba SOLO dentro de Perfil → Personalizar: en móvil son
   // cuatro toques y nadie la encontraba. Acá se ve al abrir la app.
   { icon: CredencialIcon,       label: 'Mi Credencial', tone: 'amber', to: '/credencial', cat: 'comunidad', auth: true },
   { icon: TransmisionIcon,     label: 'Mensajes',     tone: 'green',  to: '/mensajes',   cat: 'comunidad', auth: true },
-  { icon: AurebeshIcon,     label: 'Aurebesh',    tone: 'cyan',   to: '/aurebesh',   cat: 'comunidad' },
   { icon: SpyIcon,         label: 'Espionaje',    tone: 'purple', to: '/espionaje',  cat: 'comunidad', auth: true },
   { icon: ArticuloIcon,     label: 'Blog',         tone: 'amber',  to: '/blog',       cat: 'comunidad' },
 ]
