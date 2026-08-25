@@ -73,8 +73,8 @@ export function PanelAspectos({ onCobro }: { onCobro?: () => void }) {
         <span className="text-[10px] text-swu-muted/70">Suben acertando</span>
       </div>
       <p className="mb-3 text-[11px] leading-snug text-swu-muted">
-        Cada pregunta que acertás sube el aspecto al que pertenece. Es lo único
-        de la app que se sube sabiendo, no gastando.
+        Cada tema de la trivia alimenta un aspecto. Es lo único de la app que
+        se sube sabiendo, no gastando.
       </p>
 
       {aviso && (

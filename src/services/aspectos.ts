@@ -117,12 +117,23 @@ export function nivelDe(aspecto: Aspecto, aciertos: number): NivelAspecto {
 export const PREMIO_ESCALON = [100, 250, 600, 1500] as const
 
 /**
- * El aspecto de una pregunta que no lo trae escrito.
+ * De qué aspecto es una pregunta.
  *
- * Las 180 del banco viejo no tienen `aspecto`, y retaguetearlas a mano sería
- * un día de trabajo con más riesgo de error que de acierto. El tema ya las
- * agrupa por contenido, así que se deriva de ahí — y las preguntas nuevas sí
- * lo traen explícito, que es donde la precisión rinde.
+ * ── LO QUE DE VERDAD CUENTA ES EL TEMA ────────────────────────────────
+ *
+ * El progreso se acredita por TEMA (`trivia_temas` en el servidor), y este mapa
+ * lo traduce a un nombre de aspecto para la pantalla. Es a propósito: si el
+ * servidor razonara en aspectos, el mapa viviría acá Y en Postgres, y sería
+ * cuestión de tiempo que dijeran cosas distintas (§2y).
+ *
+ * ── Entonces, ¿para qué está el campo `aspecto` de cada pregunta? ─────
+ *
+ * Para el día que una pregunta NO encaje en el aspecto por defecto de su tema
+ * —una de «naves» que en realidad va de contrabando, por ejemplo—. Hoy no lo
+ * usa la progresión: 689 preguntas lo traen escrito y ninguna mueve un aspecto
+ * distinto al de su tema. Está dicho así para que nadie lea el campo y suponga
+ * que ya manda; el día que mande, hará falta que el SERVIDOR sepa el mapa, y
+ * eso es una decisión aparte.
  */
 export const ASPECTO_POR_TEMA: Record<string, Aspecto> = {
   jedi: 'Heroism',

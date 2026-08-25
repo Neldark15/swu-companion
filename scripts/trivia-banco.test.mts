@@ -78,7 +78,7 @@ for (let i = 0; i < palabras.length; i++) {
     const jaccard = comunes / (a.size + b.size - comunes)
     if (jaccard >= 0.75) {
       parecidas++
-      if (parecidas <= 8) console.log(`    ${palabras[i].id} ≈ ${palabras[j].id} (${(jaccard * 100).toFixed(0)}% en común)`)
+      if (parecidas <= 40) console.log(`    ${palabras[i].id} ≈ ${palabras[j].id} (${(jaccard * 100).toFixed(0)}% en común)`)
     }
   }
 }
@@ -116,7 +116,7 @@ for (const q of BANCO_TRIVIA) {
     const cerca = comunes / Math.min(suyas.size, otrasP.size)
     if (cerca < 0.5) continue
     filtra++
-    if (filtra <= 8) console.log(`    el funFact de ${q.id} regala la respuesta de ${otra.id}: «${otra.options[otra.correctIndex]}»`)
+    if (filtra <= 40) console.log(`    el funFact de ${q.id} regala la respuesta de ${otra.id}: «${otra.options[otra.correctIndex]}»`)
   }
 }
 decir(filtra === 0, 'ningún funFact regala la respuesta de una pregunta hermana', `${filtra} filtraciones`)
