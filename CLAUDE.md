@@ -3029,3 +3029,44 @@ que avisarle que lo detectamos.
 preexistente y afecta al XP y al ranking, no solo a la trivia. No se tocó
 porque arreglarlo bien pide decidir qué acción puede pagar cuánto y cada cuánto
 — es un trabajo aparte, no un parche.
+
+
+### 4k. Ampliar el banco de trivia: 24 rincones y dos clases de revisor
+
+El banco pasó de 286 a **689 preguntas** en una sola tanda. Lo que hizo que
+saliera bien no fue el tamaño del enjambre sino dos decisiones:
+
+**1. Repartir el TERRITORIO, no el tema.** A los 24 agentes no se les pidió
+«veinte de jedi»: a cada uno se le dio un rincón —las precuelas, la animación,
+los droides, las naves capitales, las reglas de combate—. Escribiendo a ciegas
+en paralelo sobre el mismo tema, veinticuatro agentes escriben veinticuatro
+preguntas sobre Yoda. Con el territorio repartido, casi no se pisan.
+
+**2. Dos clases de revisor, cada una en lo suyo.**
+
+- **Agentes** para HECHOS y AMBIGÜEDAD, que piden criterio. Cazaron 8 datos
+  falsos: «Palpatine fue gobernador de Naboo» (fue senador), «eso no es una
+  luna» atribuida a Obi-Wan cuando la dice Han, una escena inventada, un
+  diálogo invertido.
+- **Un guion** para REPETIDAS y FILTRACIONES, que piden exhaustividad. Cruza
+  689 contra 689 y encontró 13 pares duplicados —dos «¿cuál es el planeta natal
+  de los wookiees?» idénticas, de agentes distintos— y 17 funFacts que regalaban
+  la respuesta de otra.
+
+**Ninguno de los dos hace bien lo del otro.** Un agente no puede tener 689
+preguntas en la cabeza a la vez; un guion no sabe si Palpatine fue gobernador.
+
+#### El peso
+
+El trozo de Trivia pasó de 35 a **83 KB comprimidos**. Solo lo baja quien abre
+Trivia (el Inicio sigue en 15 KB) y el service worker lo cachea. Si algún día
+molesta, el banco sale del bundle a un JSON aparte —cambia poco y el chunk de
+UI cambia mucho, así que separarlos ahorraría re-descargas.
+
+#### El campo `aspecto` de cada pregunta NO manda
+
+El progreso se acredita por **TEMA** (`trivia_temas`), y el mapa tema→aspecto
+traduce para la pantalla. El campo `aspecto` de las preguntas existe para el día
+que una no encaje en el aspecto por defecto de su tema; hoy no lo usa nadie.
+Está dicho así en `aspectos.ts` porque estaba escrito de forma que invitaba a
+suponer lo contrario.
