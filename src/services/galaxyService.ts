@@ -17,6 +17,15 @@ export interface GalaxyPlayer {
   planetFamily: string | null
   planetSeas: number | null
   planetCraters: number | null
+  planetRings: number | null
+  planetMoons: number | null
+  /* La TERRAFORMACIÓN también viaja: sin esto, el mundo que uno arma en
+     /terraformar se ve terraformado solo ahí, y en la Galaxia y en el perfil
+     de cualquiera sale pelado. Un planeta que se ve distinto según por dónde
+     lo mirás no es el planeta de nadie. */
+  planetCities: number
+  planetClouds: number
+  planetAuroras: number
   /** El acento del perfil: de acá sale la familia por defecto. */
   accent: string | null
   country: string
@@ -131,6 +140,11 @@ async function consultarGalaxyPlayers(limit: number): Promise<GalaxyPlayer[] | n
         planet_family,
         planet_seas,
         planet_craters,
+        planet_rings,
+        planet_moons,
+        planet_cities,
+        planet_clouds,
+        planet_auroras,
         accent,
         player_stats!inner(
           level, xp, wins, losses, matches_played,
@@ -167,6 +181,11 @@ async function consultarGalaxyPlayers(limit: number): Promise<GalaxyPlayer[] | n
         planetFamily: (r.planet_family as string | null) ?? null,
         planetSeas: (r.planet_seas as number | null) ?? null,
         planetCraters: (r.planet_craters as number | null) ?? null,
+        planetRings: (r.planet_rings as number | null) ?? null,
+        planetMoons: (r.planet_moons as number | null) ?? null,
+        planetCities: (r.planet_cities as number | null) ?? 0,
+        planetClouds: (r.planet_clouds as number | null) ?? 0,
+        planetAuroras: (r.planet_auroras as number | null) ?? 0,
         accent: (r.accent as string | null) ?? null,
         country: (settings?.country as string) || '',
         continent: (settings?.continent as string) || '',

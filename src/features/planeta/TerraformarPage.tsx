@@ -43,8 +43,9 @@ import {
   getPersonalizacion, guardarPersonalizacion, type Personalizacion,
 } from '../../services/profileCustomService'
 
-/** Las tres familias de mejora, en el orden en que se leen en el planeta. */
+/** Las capas, en el orden en que se leen mirando el planeta de afuera hacia adentro. */
 const CAPAS = [
+  { tipo: 'anillos' as const, titulo: 'Anillos', pie: 'Lo primero que se ve de un mundo, desde lejos.' },
   { tipo: 'ciudades' as const, titulo: 'Ciudades', pie: 'Se encienden en la cara nocturna.' },
   { tipo: 'nubes' as const, titulo: 'Nubes', pie: 'Corren más rápido que el suelo.' },
   { tipo: 'auroras' as const, titulo: 'Auroras', pie: 'En los polos, del color de tu atmósfera.' },
@@ -52,6 +53,7 @@ const CAPAS = [
 
 /** La columna del perfil donde vive el grado puesto de cada capa. */
 const CAMPO = {
+  anillos: 'planet_rings',
   ciudades: 'planet_cities',
   nubes: 'planet_clouds',
   auroras: 'planet_auroras',
@@ -107,12 +109,19 @@ export function TerraformarPage() {
       ciudades: perfil?.planet_cities ?? 0,
       nubes: perfil?.planet_clouds ?? 0,
       auroras: perfil?.planet_auroras ?? 0,
-      accent: null,
-    } as Parameters<typeof rasgosDe>[1]),
+      /* `acento`, no `accent`. Iba mal escrito detrás de un `as`, y el `as`
+         lo tapaba: la vista previa ignoraba el acento del perfil y elegía la
+         familia por semilla. Un cast que calla un campo mal escrito es peor
+         que no tener tipos. */
+      acento: perfil?.accent ?? null,
+    }),
     [currentProfileId, perfil],
   )
 
-  const poner = useCallback(async (tipo: keyof typeof CAMPO, grado: number) => {
+  /* `null` solo tiene sentido en anillos, y significa «los que me tocaron por
+     semilla» — que es distinto de 0 («ninguno») y sigue siendo gratis. Las
+     otras tres capas no tienen ese estado: o están puestas o están apagadas. */
+  const poner = useCallback(async (tipo: keyof typeof CAMPO, grado: number | null) => {
     if (!perfil || !currentProfileId) return
     const campo = CAMPO[tipo]
     const antes = perfil[campo]
@@ -227,6 +236,27 @@ export function TerraformarPage() {
             <p className="mb-2 text-[11px] text-swu-muted">{capa.pie}</p>
 
             <div className="-mx-4 flex snap-x items-stretch gap-2 overflow-x-auto px-4 pb-1">
+              {/* Los anillos llevan una tarjeta de más: LOS DE TU SEMILLA. Es
+                  gratis y es el valor de fábrica —lo que tu mundo ya tenía—, y
+                  sin ella comprar un estilo sería una puerta de una sola
+                  dirección: no habría forma de volver a los propios. */}
+              {capa.tipo === 'anillos' && (
+                <button
+                  onClick={() => void poner('anillos', null)}
+                  className={`flex w-40 shrink-0 snap-start flex-col gap-1.5 rounded-xl border-2 border-swu-border p-2.5 text-left
+                              ${puesto == null ? 'bg-swu-accent/12' : 'bg-swu-surface'}`}
+                >
+                  <span className="rounded bg-swu-border/40 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-swu-muted">
+                    De fábrica
+                  </span>
+                  <span className="truncate text-[13px] font-black tracking-tight text-swu-text">
+                    LOS DE TU SEMILLA
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-swu-muted">
+                    {puesto == null ? 'Puestos' : 'Gratis · siempre tuyos'}
+                  </span>
+                </button>
+              )}
               {mias.map(m => {
                 const r = rarezaDe(m.rareza)
                 const activa = m.tengo && puesto === m.grado

@@ -23,7 +23,7 @@ import { supabase, isSupabaseReady } from './supabase'
 
 export interface MejoraPlaneta {
   id: string
-  tipo: 'ciudades' | 'nubes' | 'auroras'
+  tipo: 'ciudades' | 'nubes' | 'auroras' | 'anillos'
   nombre: string
   /** Qué valor va a `profiles.planet_*` al ponerla. */
   grado: number

@@ -24,7 +24,8 @@ function sintetico(i: number): PlanetaJugador {
     // Uno de cada tres SIN bautizar, a propósito: el banco tiene que enseñar
     // los dos estados, porque el emergente los dibuja distinto.
     nombrePlaneta: i % 3 === 0 ? '' : `Mundo QA ${i + 1}`,
-    ajustesPlaneta: { familia: null, mares: null, crateres: null, acento: null },
+    ajustesPlaneta: { familia: null, mares: null, crateres: null, anillos: null, lunas: null,
+    ciudades: 0, nubes: 0, auroras: 0, acento: null },
     avatar: '🛰️',
     nivel: niveles[i],
     xp: niveles[i] * 400,

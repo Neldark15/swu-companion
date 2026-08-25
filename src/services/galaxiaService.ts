@@ -68,6 +68,14 @@ export interface PlanetaJugador {
     familia: string | null
     mares: number | null
     crateres: number | null
+    /* Anillos, lunas y terraformación viajan con el resto. Faltaban, y el
+       efecto era que el mundo que alguien arma en /terraformar se veía
+       terraformado SOLO ahí: en la Galaxia y en su perfil salía pelado. */
+    anillos: number | null
+    lunas: number | null
+    ciudades: number
+    nubes: number
+    auroras: number
     acento: string | null
   }
   avatar: string
@@ -431,7 +439,10 @@ export async function getGalaxia(miId?: string): Promise<Galaxia> {
         nombrePlaneta: (j.planetName ?? '').trim(),
         ajustesPlaneta: {
           familia: j.planetFamily, mares: j.planetSeas,
-          crateres: j.planetCraters, acento: j.accent,
+          crateres: j.planetCraters,
+          anillos: j.planetRings, lunas: j.planetMoons,
+          ciudades: j.planetCities, nubes: j.planetClouds, auroras: j.planetAuroras,
+          acento: j.accent,
         },
         avatar: j.avatar,
         nivel: j.level,
