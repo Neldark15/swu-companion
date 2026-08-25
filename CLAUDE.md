@@ -2966,3 +2966,66 @@ Ciudades y auroras viven en la cara que no se ve, y girar la cámara no alcanza
 porque el sol está fijo en el mundo: habría que dar media vuelta exacta.
 `deNoche` pone el sol detrás. Sin eso no hay forma de revisar lo que esta
 pantalla vende.
+
+
+### 4j. LOS ASPECTOS = maestría de trivia (`/trivia`)
+
+Eran ocho contadores renombrados (Vigilancia = partidas, Heroísmo = cartas) y
+apuntados a cosas que en esta comunidad casi no pasan. **Seis de ocho no los
+había alcanzado nadie**, y no por poco: Vigilancia pedía 100 partidas y el que
+más jugó lleva 3. Una escalera cuyo primer escalón está 33 veces más arriba de
+donde llega la gente es decorativa, no difícil.
+
+Ahora son **seis** —los del juego de verdad— y se suben de una sola forma:
+acertando preguntas de ese aspecto. Es la única progresión de la app que no se
+compra ni se acumula por estar.
+
+**Se DERIVAN de `trivia_temas`**, que ya existía y ya lo alimentan las dos
+formas de jugar. Una tabla nueva habría arrancado a todos en cero; derivando,
+el módulo se encendió con 498 aciertos ya acumulados y 6 personas rankeadas.
+
+**El servidor razona en TEMAS; el aspecto es el nombre en pantalla.** El mapa es
+1 a 1, y si el servidor razonara en aspectos ese mapa viviría en dos lados.
+
+#### Tres agujeros que salieron midiendo, no leyendo
+
+**1. La trivia se ganaba sin saber nada.** De 180 preguntas, la correcta caía
+95 veces en la 1ª opción y UNA en la 4ª — contestar siempre la primera acertaba
+el 53 %. `seededShuffle` barajaba las PREGUNTAS y nunca las OPCIONES. Se arregló
+barajando al servir, con la semilla del día mezclada con el id de la pregunta
+(si compartieran semilla, todas se moverían igual y el sesgo volvería).
+
+Y hubo que mezclar bien: `s * 31 + char` dejó 34/17/26/23 % porque los ids se
+parecen muchísimo (`u02`, `u03`, `n110`) y semillas casi iguales dan
+permutaciones casi iguales. **FNV-1a + xorshift32 y `>>> 0`** — `& 0xFFFFFFFF`
+devuelve un entero CON signo y `Math.abs` sobre él vuelve a sesgar el módulo.
+
+**2. Cinco pares duplicados y nueve filtraciones, viejos.** El validador de la
+ampliación anterior comparaba las nuevas contra las viejas pero **no las nuevas
+entre sí**. `scripts/trivia-banco.test.mts` cruza TODAS contra todas.
+
+Una *filtración* es un `funFact` que contiene la respuesta de otra pregunta. El
+criterio exige DOS cosas: que el dato contenga la respuesta **y** que los dos
+enunciados hablen de lo mismo. Sin la segunda, «Anakin Skywalker» —respuesta de
+cinco preguntas— disparaba 70 avisos de los que 61 eran ruido.
+
+**3. Le di valor económico a un contador sin defensa.** `trivia_sumar_tema`
+sumaba sin tope. Mientras solo pintaba una medalla, era vanidad; desde que los
+aspectos pagan 1.500 créditos por escalón, un bucle de consola imprime dinero.
+
+**Esa es la forma más común de crear un agujero: no escribiendo código
+inseguro, sino conectando algo que ya existía a algo que ahora vale.** Al
+agregar un pago, la pregunta obligatoria es *«¿de qué número depende, y ese
+número está defendido?»*.
+
+El tope quedó en 20 por tema y por día (10 del modo por tema + 10 de la diaria
+en el peor caso). Pasado el tope devuelve lo que había en vez de reventar: quien
+llegó jugando no tiene por qué ver un error, y a quien esté en un bucle no hay
+que avisarle que lo detectamos.
+
+#### Lo que queda abierto
+
+`sumar_xp` topa 500 por llamada pero **no limita cuántas llamadas**. Es
+preexistente y afecta al XP y al ranking, no solo a la trivia. No se tocó
+porque arreglarlo bien pide decidir qué acción puede pagar cuánto y cada cuánto
+— es un trabajo aparte, no un parche.
