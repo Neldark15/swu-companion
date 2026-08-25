@@ -6,8 +6,12 @@
 
 import { supabase, isSupabaseReady } from './supabase'
 import { updateMissionProgress } from './missionService'
-import { BANCO_TRIVIA, type PreguntaTrivia, type TemaTrivia } from './triviaBanco'
+import { BANCO_TRIVIA, type TemaTrivia } from './triviaBanco'
 import { diaCalendarioSV, diaCalendarioSVMas } from './horaSV'
+/* El sorteo vive aparte y PURO para poder probarlo con un guion: acá adentro
+   arrastraría el cliente de Supabase. Se reexporta para no tocar a quien ya
+   importaba `getDailyQuestions` desde este archivo. */
+export { getDailyQuestions, getTemaQuestions } from './triviaSorteo'
 
 /**
  * El día de hoy en El Salvador — la clave de la trivia diaria.
@@ -124,15 +128,6 @@ export async function sumarTema(tema: TemaTrivia, correcta: boolean): Promise<Pr
 
 // ─── Sesión por tema (práctica, sin XP) ─────────────────────
 
-/**
- * Las 10 preguntas del tema para HOY, con el mismo barajado con semilla que la
- * diaria: todos los del mismo día ven el mismo orden, y mañana cambia.
- */
-export function getTemaQuestions(userId: string, tema: TemaTrivia): PreguntaTrivia[] {
-  const delTema = BANCO_TRIVIA.filter(q => q.tema === tema)
-  const seed = getDailySeed(userId, `${hoySV()}-${tema}`)
-  return seededShuffle(delTema, seed).slice(0, 10)
-}
 
 /**
  * Qué preguntas de tema ya se respondieron HOY, en este aparato.
@@ -159,36 +154,10 @@ export function marcarTemaRespondida(id: string): void {
 }
 
 /** Semilla del día: la misma persona ve el mismo orden todo el día. */
-function getDailySeed(userId: string, dateStr: string): number {
-  let hash = 0
-  const str = `${userId}-${dateStr}`
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash |= 0
-  }
-  return Math.abs(hash)
-}
 
 /** Shuffle array using seed (Fisher-Yates with seeded random) */
-function seededShuffle<T>(arr: T[], seed: number): T[] {
-  const result = [...arr]
-  let s = seed
-  for (let i = result.length - 1; i > 0; i--) {
-    s = (s * 1664525 + 1013904223) & 0xFFFFFFFF
-    const j = Math.abs(s) % (i + 1);
-    [result[i], result[j]] = [result[j], result[i]]
-  }
-  return result
-}
 
-/** Get today's 10 questions for a user */
-export function getDailyQuestions(userId: string): PreguntaTrivia[] {
-  const today = hoySV()
-  const seed = getDailySeed(userId, today)
-  const shuffled = seededShuffle(TRIVIA_QUESTIONS, seed)
-  return shuffled.slice(0, 10)
-}
+
 
 // ─── Supabase Integration ────────────────────────────────────
 
