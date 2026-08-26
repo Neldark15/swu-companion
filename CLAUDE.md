@@ -3070,3 +3070,48 @@ traduce para la pantalla. El campo `aspecto` de las preguntas existe para el dí
 que una no encaje en el aspecto por defecto de su tema; hoy no lo usa nadie.
 Está dicho así en `aspectos.ts` porque estaba escrito de forma que invitaba a
 suponer lo contrario.
+
+
+### 4l. ESPACIO DE CREADORES — la Liga (demo cerrado)
+
+Pedido de Nel a partir de Alejo (canal PUENTE 3, cuenta **AlejoP3**): un espacio
+donde un creador de contenido lleve SU liga — inscripción, calendario, tabla,
+VODs de YouTube por partida — y a futuro transmita con su marca.
+
+**Estado: DEMO CERRADO.** `puede_ver_creadores()` limita el SELECT de las 4
+tablas a creadores + admins. Para abrirlo al público se cambia ESA función a
+`true` y las policies no se tocan — la puerta es un punto, no veinte. Sin
+entrada de menú: se entra por `/c/puente3` y `/liga/:code`.
+
+#### Decisiones de diseño (del panel de 3 lentes + síntesis)
+
+- **Las partidas de liga NO reusan `duelos_amistosos`.** Los duelos son
+  PRIVADOS por policy (solo los ven los dos que juegan) y prometen
+  estructuralmente no tocar ranking; una liga es espectáculo público y ES un
+  ranking. Se reusan patrones (BO3 0-2, identidad-por-inscripción), no filas.
+- **Round-robin con calendario COMPLETO al cerrar inscripción** (método del
+  círculo, en la RPC). Alejo necesita anunciar «jornada 3: X vs Y» con semanas
+  de antelación para producir contenido. Nada de suizo acá.
+- **El motor jamás inventa resultados** (cicatriz de torneos-invitados):
+  jornada vencida = `sin_jugar`, el WO lo da el creador a mano.
+- **Contrato estructural sin XP**: las tablas de liga no tienen triggers ni
+  tocan player_stats. El creador carga resultados → si la liga pagara por
+  partida, dos coludidos serían impresora de créditos (§4j). El premio va SOLO
+  al cierre por `liga_premiar()` (solo admin, preset 500/250/50, por
+  `sable_bonos`, idempotente por motivo).
+- **Consentimiento en la RPC, no en la UI**: hay menores y las partidas se
+  publican en YouTube. `liga_inscribirse` rechaza sin `p_consiente = true`.
+- **El VOD vive EN la partida** (`vod_youtube_id` de 11 chars normalizado
+  server-side + `vod_t` en segundos): un solo video de la jornada sirve para
+  todas sus partidas con `?start=`.
+- **El logo del creador** es un data URI (mismo patrón que el avatar),
+  subido por `creador_subir_logo` con tope de 200 KB DENTRO de la RPC.
+- **Tabla de posiciones NUNCA almacenada**: `tablaDe()` en el cliente (§2y).
+- **`canal_youtube` lo fija el ADMIN**, no el creador — anti-impersonación,
+  la misma razón por la que `transmisiones` es service-role.
+
+Fases pendientes: 2) cabina propia (una RPC de alta reusando stream_sesiones/
+overlay/operadores + página con «EN VIVo ahora»), 3) presentación de jugadores
+en el overlay (campo opcional en `EstadoOverlay`, NUNCA escena nueva — §2g,
+`normalizarEstado` colapsa escenas desconocidas), 4) confirmación dual,
+emblema de campeón en la credencial, temporadas.

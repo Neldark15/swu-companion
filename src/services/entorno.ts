@@ -108,6 +108,11 @@ const RUTAS_LIBRES = [
   // revisar en un teléfono sin la puerta de instalación encima. La propia
   // pantalla se rinde con un mensaje claro si no hay sesión.
   /^\/terraformar/,
+  // El Espacio de Creadores: Alejo tiene que poder abrir su enlace en el
+  // teléfono sin el muro de instalación. La cerradura real está en las
+  // policies del servidor (demo cerrado), no acá.
+  /^\/c\//,
+  /^\/liga\//,
   /^\/u\//,
   /^\/blog/,
   /^\/sedes?/,

@@ -86,6 +86,11 @@ const PlanetaPage = lazy(() => import('./features/planeta/PlanetaPage').then(m =
    estrenar otro módulo porque 19 de 39 cuentas ya lo habían tocado — es la
    personalización más usada de la app. */
 const TerraformarPage = lazy(() => import('./features/planeta/TerraformarPage').then(m => ({ default: m.TerraformarPage })))
+/* El Espacio de Creadores, en DEMO CERRADO: las policies del servidor solo se
+   lo enseñan a los creadores (AlejoP3) y a los admins. Sin entrada de menú a
+   propósito — se entra por /c/puente3, que es el enlace que Alejo va a usar. */
+const CreadorPage = lazy(() => import('./features/creadores/CreadorPage').then(m => ({ default: m.CreadorPage })))
+const LigaPage = lazy(() => import('./features/creadores/LigaPage').then(m => ({ default: m.LigaPage })))
 const GalaxiaPage = lazy(() => import('./features/galaxia/GalaxiaPage').then(m => ({ default: m.GalaxiaPage })))
 /* El Taller de sables. Abierto a toda la comunidad desde 2026-08-24, con
    entrada en Inicio, en el menú y desde el sable de la barra de XP. La puerta
@@ -387,6 +392,8 @@ export default function App() {
                 (misma trampa que documenta /estudio). */}
             <Route path="/sable" element={<P><SablePage /></P>} />
             <Route path="/terraformar" element={<P><TerraformarPage /></P>} />
+            <Route path="/c/:code" element={<P><CreadorPage /></P>} />
+            <Route path="/liga/:code" element={<P><LigaPage /></P>} />
             <Route path="/trivia" element={<P><TriviaPage /></P>} />
             {/* Ruta HERMANA de /galaxia, no superposición: así el router
                 desmonta la Galaxia y su forceContextLoss() corre solo. */}
