@@ -9,7 +9,8 @@ import {
 import { getPricesForCards, fetchTCGPrices, formatPrice, precioPromedio, type PriceInfo } from '../../services/pricing'
 import { getPersonalizacion, VACIA, type Personalizacion } from '../../services/profileCustomService'
 import { PerfilPersonalizado } from '../profile/PerfilVitrina'
-import { BannerPortada } from '../profile/BannerPortada'
+import { CredencialInteractiva } from '../credencial/CredencialInteractiva'
+import { useCredencialAjena } from '../credencial/useCredencialAjena'
 import { MeleeRecordDeUsuario } from '../profile/MeleeRecord'
 import { CardImage } from '../../components/CardImage'
 import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
@@ -35,6 +36,38 @@ interface CollectionDisplayItem {
   quantity: number
   card: Card | null
   price: PriceInfo | null
+}
+
+/**
+ * La carta favorita, en chiquito y al costado del nombre.
+ *
+ * Era el FONDO del encabezado entero. Con la credencial arriba competían dos
+ * héroes en la misma pantalla, y Nel lo zanjó: «la carta favorita está bien
+ * que la muestres en pequeña». Sigue siendo información —dice algo de quién
+ * es— pero ya no manda.
+ */
+function MiniaturaFavorita({ cardId }: { cardId: string }) {
+  const [carta, setCarta] = useState<{ id: string; card: Card } | null>(null)
+  useEffect(() => {
+    let vivo = true
+    void getCardsByIds([cardId]).then(m => {
+      const c = m.get(cardId)
+      if (vivo && c) setCarta({ id: cardId, card: c })
+    })
+    return () => { vivo = false }
+  }, [cardId])
+  const card = carta && carta.id === cardId ? carta.card : null
+  if (!card) return null
+  const apaisada = listFaceIsLandscape(card)
+  return (
+    <div className={`shrink-0 overflow-hidden rounded-lg border border-swu-border ${apaisada ? 'w-20' : 'w-12'}`}>
+      <CardImage
+        src={listFaceUrl(card)}
+        alt={card.name}
+        className="h-auto w-full"
+      />
+    </div>
+  )
 }
 
 export function PublicProfilePage() {
@@ -65,6 +98,9 @@ export function PublicProfilePage() {
    */
   const [enVenta, setEnVenta] = useState<MarketplaceListing[]>([])
   const [cartasVenta, setCartasVenta] = useState<Map<string, Card>>(new Map())
+  /* La placa del dueño, con SUS ajustes (tema, emblema, apodo): el mismo
+     gancho que ya usa Espionaje. `null` mientras carga o si no se pudo. */
+  const credencial = useCredencialAjena(userId)
 
   const handleRefreshPrices = async () => {
     if (refreshing || items.length === 0) return
@@ -372,16 +408,46 @@ export function PublicProfilePage() {
         {/* Profile loaded */}
         {!loading && profile && !isPrivate && (
           <>
-            {/* Profile header — con la portada elegida de fondo, si la hay */}
-            <div className="relative overflow-hidden bg-swu-surface rounded-xl p-4 border border-swu-border text-center">
-              <BannerPortada cardId={custom.banner_card_id} className="absolute inset-0 h-full w-full opacity-50" />
-              {/* emoji de 36px (text-4xl) en una caja de 64 */}
-              <Avatar avatar={profile.avatar} size={64} escalaEmoji={36 / 64} className="relative mx-auto mb-2" />
-              <div className="relative text-lg font-bold text-swu-text">{profile.name}</div>
-              {profile.bio && (
-                <div className="relative text-sm text-swu-muted mt-1">{profile.bio}</div>
-              )}
-              <div className="relative mt-2 flex justify-center">
+            {/* ── LA CREDENCIAL, PRIMERO ──
+                Pedido de Nel: al abrir el perfil de cualquiera, lo primero es
+                LA PLACA — la misma tarjeta de jugador del Inicio, con el tema,
+                el emblema y el apodo que esa persona configuró. Espionaje ya
+                la enseñaba así; esta pantalla —a la que llegás desde el
+                mercado y las colecciones— daba una ficha genérica, y las dos
+                puertas al mismo jugador enseñaban cosas distintas.
+                Se dibuja solo cuando está completa: a medias sería
+                indistinguible de la placa real de alguien sin configurar. */}
+            {credencial && (
+              <CredencialInteractiva
+                datos={credencial.datos}
+                tema={credencial.tema}
+                emblema={credencial.emblema}
+                acabado={credencial.acabado}
+                nivel={credencial.nivel}
+                conPista={false}
+                className="w-full"
+              />
+            )}
+
+            {/* La ficha de siempre, DEBAJO de la placa. La carta favorita dejó
+                de ser el fondo del encabezado —competía con la credencial— y
+                pasó a miniatura al costado, que es como Nel la quiere: se ve,
+                pero no manda. */}
+            <div className="relative overflow-hidden bg-swu-surface rounded-xl p-4 border border-swu-border">
+              <div className="flex items-center gap-3">
+                {/* emoji de 36px (text-4xl) en una caja de 64 */}
+                <Avatar avatar={profile.avatar} size={64} escalaEmoji={36 / 64} className="shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-lg font-bold text-swu-text truncate">{profile.name}</div>
+                  {profile.bio && (
+                    <div className="text-sm text-swu-muted mt-0.5">{profile.bio}</div>
+                  )}
+                </div>
+                {custom.banner_card_id && (
+                  <MiniaturaFavorita cardId={custom.banner_card_id} />
+                )}
+              </div>
+              <div className="mt-2 flex justify-center">
                 <PerfilPersonalizado p={{ ...custom, showcase_cards: [] }} />
               </div>
             </div>
