@@ -29,6 +29,7 @@ import {
   SpyIcon,
   StarfighterIcon,
   TransmisionIcon,
+  KyberIcon,
 } from '../SWIcons'
 // El planeta anillado ya existe: se dibujó para el tema «Planetas» de la
 // Trivia. El ícono de una cosa es el de esa cosa.
@@ -72,7 +73,10 @@ const GROUPS: MoreGroup[] = [
       { to: '/amistosas', label: 'Amistosas', sub: 'Historial cara a cara', icon: BlasterIcon },
       { to: '/torneos', label: 'Torneos', sub: 'Archivo y organizar', icon: MandoTrophyIcon },
       { to: '/calendario', label: 'Calendario', sub: 'Los torneos del mes', icon: AgendaIcon },
-      { to: '/pedidos', label: 'Pedidos', sub: 'Carrito y ventas', icon: PedidoIcon },
+      /* Una sola entrada de mercado, igual que en Inicio y en la barra de
+         escritorio. Pedidos vive en la cabecera del mercado, con el número de
+         lo que espera un acto tuyo. */
+      { to: '/explore?tab=market', label: 'Mercado', sub: 'Comprar, vender y pedidos', icon: KyberIcon },
       { to: '/prestamos', label: 'Préstamos', sub: 'Quién tiene tus cartas', icon: PedidoIcon },
       { to: '/mensajes', label: 'Mensajes', sub: 'Conversaciones privadas', icon: TransmisionIcon },
     ],

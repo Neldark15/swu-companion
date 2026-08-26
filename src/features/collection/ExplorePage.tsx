@@ -32,7 +32,7 @@ import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import { TradeMatches } from './TradeMatches'
 import { useAuth } from '../../hooks/useAuth'
 import {
-  reservasDelMercado, claveReserva, agregarAlCarrito, misPedidos,
+  reservasDelMercado, claveReserva, agregarAlCarrito, misPedidos, pedidosPendientes,
   type Pedido,
 } from '../../services/mercadoPedidos'
 import { CarritoFlotante } from '../mercado/CarritoFlotante'
@@ -170,6 +170,47 @@ function mensajeVendedor(l: MarketplaceListing, card: Card | undefined): string 
   )
 }
 
+/**
+ * El acceso a Pedidos, con el número de lo que espera un acto tuyo.
+ *
+ * El número no es adorno: es lo que distingue «tengo una tienda» de «alguien
+ * está esperando que le conteste». Sin él habría que entrar a mirar.
+ */
+function BotonPedidos() {
+  const navigate = useNavigate()
+  const { currentProfileId } = useAuth()
+  const [pendientes, setPendientes] = useState(0)
+
+  useEffect(() => {
+    if (!currentProfileId) return
+    let vivo = true
+    void pedidosPendientes().then(p => {
+      if (vivo) setPendientes(p.porResponder + p.porCerrar)
+    })
+    return () => { vivo = false }
+  }, [currentProfileId])
+
+  if (!currentProfileId) return null
+
+  return (
+    <button
+      onClick={() => navigate('/pedidos')}
+      className="relative flex min-h-[36px] items-center gap-1.5 rounded-lg border
+                 border-swu-border px-2.5 text-[12px] font-bold text-swu-text"
+    >
+      <ShoppingCart size={15} />
+      Pedidos
+      {pendientes > 0 && (
+        <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-[20px] items-center
+                         justify-center rounded-full bg-swu-red px-1 text-[10px]
+                         font-black text-white">
+          {pendientes}
+        </span>
+      )}
+    </button>
+  )
+}
+
 export function ExplorePage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -190,6 +231,14 @@ export function ExplorePage() {
           </button>
           <Skull size={20} className="text-red-400" />
           <h1 className="text-lg font-bold text-swu-text flex-1">Contrabando</h1>
+          {/* LA PUERTA A PEDIDOS, SIEMPRE VISIBLE.
+              El carrito flotante solo aparece con algo adentro (`unidades === 0
+              → null`), así que servía al COMPRADOR y dejaba al VENDEDOR sin
+              camino: alguien te pide una carta, tu carrito está vacío, y no hay
+              cómo enterarte desde acá. Al unificar el mercado en una sola
+              casilla de Inicio, esta pasó a ser la única entrada — y una tienda
+              donde no podés ver quién te compró no es una tienda. */}
+          <BotonPedidos />
         </div>
       </div>
 

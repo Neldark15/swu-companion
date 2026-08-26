@@ -10,7 +10,6 @@ import {
   BeskarIcon,
   BinderIcon,
   BlasterIcon,
-  BountyIcon,
   CargoIcon,
   ChanceCubeIcon,
   DatapadIcon,
@@ -29,6 +28,7 @@ import {
   SobreIcon,
   SpyIcon,
   StarfighterIcon,
+  KyberIcon,
 } from '../SWIcons'
 // El planeta anillado ya existe: se dibujó para el tema «Planetas» de la
 // Trivia. El ícono de una cosa es el de esa cosa.
@@ -59,7 +59,12 @@ const secondaryNav: NavItem[] = [
      te hace dudar de si son la misma pantalla. El Binder sí se queda, porque es
      dónde MIRÁS lo que abriste, que es otro trabajo. */
   { id: '/binder-digital', label: 'Binder digital', sub: 'Lo que abriste', icon: BinderIcon },
-  { id: '/explore', label: 'Contrabando', sub: 'Explorar', icon: BountyIcon },
+  /* Una sola entrada de mercado, igual que en Inicio y en el menú móvil.
+     Antes esta barra tenía «Contrabando» y el menú móvil tenía «Pedidos»: dos
+     mapas distintos del mismo módulo, y ninguno de los dos completo. Pedidos
+     vive ahora en la cabecera del mercado, con el número de lo que espera un
+     acto tuyo — que es más de lo que una fila de menú puede decir. */
+  { id: '/explore?tab=market', label: 'Mercado', sub: 'Comprar, vender y pedidos', icon: KyberIcon },
   { id: '/prestamos', label: 'Préstamos', sub: 'Quién tiene tus cartas', icon: CargoIcon },
   { id: '/espionaje', label: 'Espionaje', sub: 'Transmisiones', icon: SpyIcon },
   { id: '/misiones', label: 'Misiones', sub: 'Órdenes del Día', icon: DeathStarIcon },
@@ -98,7 +103,11 @@ export function SideNav() {
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/'
-    return location.pathname.startsWith(path)
+    /* El id puede traer query («/explore?tab=market»): se compara solo la RUTA.
+       `pathname` nunca incluye el query, así que sin este corte la entrada del
+       Mercado jamás se marcaría activa — y una barra que no marca dónde estás
+       es una barra que miente por omisión. */
+    return location.pathname.startsWith(path.split('?')[0])
   }
 
   const renderItem = (item: NavItem) => {

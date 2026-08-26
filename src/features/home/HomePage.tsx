@@ -29,7 +29,7 @@ import {
   BlasterIcon, BountyIcon, CargoIcon, ChanceCubeIcon, CredencialIcon,
   DatapadIcon, DeathStarIcon, DeckCardsIcon, EmisionIcon, EmpireIcon,
   HelmetIcon, HolocronIcon, HolonetIcon, KyberIcon, LabIcon, MandoTrophyIcon,
-  MedalIcon, MetaHoloIcon, PedidoIcon, SaberIcon, SobreIcon, SpyIcon,
+  MedalIcon, MetaHoloIcon, SaberIcon, SobreIcon, SpyIcon,
   StarfighterIcon, TransmisionIcon,
 } from '../../components/SWIcons'
 // El planeta anillado ya estaba dibujado para el tema «Planetas» de la Trivia.
@@ -169,11 +169,23 @@ const mainSystems: Sistema[] = [
   { icon: CargoIcon,       label: 'Mi Botín',     tone: 'green',  to: '/collection', cat: 'coleccion', auth: true },
 
   { icon: BinderIcon,   label: 'Binder digital', tone: 'cyan', to: '/binder-digital', cat: 'coleccion', auth: true },
-  { icon: BountyIcon,      label: 'Contrabando',  tone: 'red',    to: '/explore',    cat: 'coleccion', auth: true },
-  // Acceso directo al mercado: llegar a comprar/vender exigía entrar a
-  // Contrabando y después cambiar de pestaña.
-  { icon: KyberIcon,       label: 'Mercancía',    tone: 'amber',  to: '/explore?tab=market', cat: 'coleccion', auth: true },
-  { icon: PedidoIcon,       label: 'Pedidos',      tone: 'green',  to: '/pedidos',    cat: 'coleccion', auth: true },
+  /* ── UNA SOLA CASILLA PARA EL MERCADO ──
+     Eran TRES y dos de ellas abrían LA MISMA PÁGINA: «Contrabando» iba a
+     /explore (pestaña Colecciones) y «Mercancía» a /explore?tab=market. La
+     tercera, «Pedidos», era la otra mitad del mismo trabajo — comprar y
+     enterarte de que te compraron.
+
+     Tres casillas para un módulo que tocó UNA persona era el mayor derroche de
+     la cuadrícula. Ahora es una, y abre donde está lo que se busca: el mercado.
+     Las Colecciones quedan a una pestaña de distancia, y Pedidos tiene su
+     botón permanente en la cabecera del mercado, con el número de lo que
+     espera un acto tuyo.
+
+     Lo que NO se hizo: esconder Pedidos y ya. El carrito flotante que llevaba
+     ahí solo aparece con algo adentro, así que un vendedor con un pedido
+     entrante se habría quedado sin camino. Unificar casillas sin unificar los
+     destinos es esconder una pantalla, no simplificar. */
+  { icon: KyberIcon, label: 'Mercado', tone: 'amber', to: '/explore?tab=market', cat: 'coleccion', auth: true },
 
   /* ── Mini Juegos ──
      EL ORDEN NO ES DECORATIVO: primero lo que DA créditos, después lo que los
