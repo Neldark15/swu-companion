@@ -56,10 +56,10 @@ import {
 } from '../../services/streamOverlay'
 import { listarSesiones, misSesiones } from '../../services/streamSesiones'
 import {
-  getInscripciones,
+  aplanar,
   getLigaDeCreador,
-  getPartidas,
   tablaDe,
+  verLiga,
   type FilaTabla,
   type Liga,
 } from '../../services/ligaService'
@@ -863,8 +863,13 @@ function PanelPresentarJugador({
         if (!vivo) return
         setLiga(l)
         if (!l) return
-        const [insc, part] = await Promise.all([getInscripciones(l.id), getPartidas(l.id)])
-        if (vivo) setTabla(tablaDe(insc, part))
+        // La liga entera en UN viaje, y la tabla se pliega acá con la misma
+        // función que pinta la clasificación pública: la ficha que sale al
+        // aire no puede salir de una segunda cuenta (§3c).
+        const completa = await verLiga(l.code)
+        if (!vivo || !completa) return
+        const { plazas, partidas } = aplanar(completa)
+        setTabla(tablaDe(plazas, partidas))
       })
     return () => { vivo = false }
   }, [userId])
@@ -902,7 +907,7 @@ function PanelPresentarJugador({
           <div className="flex max-h-44 flex-col gap-1 overflow-y-auto">
             {tabla.map((f, i) => (
               <button
-                key={f.inscId}
+                key={f.plazaId}
                 onClick={() => onAccion({ t: 'ficha', ficha: fichaDe(f, i + 1, liga.nombre) })}
                 className="flex items-center gap-2 rounded-lg border border-swu-border bg-swu-bg px-2.5 py-2 text-left transition hover:border-swu-accent/50"
               >

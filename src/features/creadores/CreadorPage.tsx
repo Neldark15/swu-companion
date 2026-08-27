@@ -17,16 +17,16 @@
  * en el servidor y esta página no se toca.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ChevronLeft, Youtube, Lock, Upload, Trophy, Users, PlayCircle, Radio, Sliders } from 'lucide-react'
+import { ChevronLeft, Youtube, Lock, Upload, Trophy, PlayCircle, Radio, Sliders } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { misSesiones } from '../../services/streamSesiones'
 import {
-  getCreador, getLigaDeCreador, getInscripciones, getPartidas, tablaDe,
+  getCreador, getLigaDeCreador,
   crearLiga, abrirInscripcion, cerrarInscripcion, cerrarLiga, subirLogo,
   abrirCabina, enVivoDe,
-  type Creador, type Liga, type InscripcionLiga, type PartidaLiga, type EnVivoCreador,
+  type Creador, type Liga, type EnVivoCreador,
 } from '../../services/ligaService'
 
 /**
@@ -95,8 +95,6 @@ export function CreadorPage() {
   const { supabaseUser, isAdmin } = useAuth()
   const [creador, setCreador] = useState<Creador | null>(null)
   const [liga, setLiga] = useState<Liga | null>(null)
-  const [inscripciones, setInscripciones] = useState<InscripcionLiga[]>([])
-  const [partidas, setPartidas] = useState<PartidaLiga[]>([])
   const [cargando, setCargando] = useState(true)
   const [aviso, setAviso] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
@@ -117,12 +115,6 @@ export function CreadorPage() {
         const l = await getLigaDeCreador(c.userId)
         if (!vivo) return
         setLiga(l)
-        if (l) {
-          const [ins, par] = await Promise.all([getInscripciones(l.id), getPartidas(l.id)])
-          if (!vivo) return
-          setInscripciones(ins)
-          setPartidas(par)
-        }
       }
       setCargando(false)
     })()
@@ -142,10 +134,6 @@ export function CreadorPage() {
   }, [code])
 
   const soyElCreador = !!creador && supabaseUser?.id === creador.userId
-  const tabla = useMemo(() => tablaDe(inscripciones, partidas), [inscripciones, partidas])
-  const conVod = useMemo(() => partidas.filter(p => p.vodYoutubeId), [partidas])
-  const porNombre = useMemo(
-    () => new Map(inscripciones.map(i => [i.id, i.nombre])), [inscripciones])
 
   const elegirLogo = useCallback(async (file: File | undefined) => {
     if (!file) return
@@ -290,24 +278,11 @@ export function CreadorPage() {
             </span>
           </div>
           {liga.descripcion && <p className="mt-1 text-[12px] text-swu-muted">{liga.descripcion}</p>}
-          <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-swu-muted">
-            <Users size={12} /> {inscripciones.filter(i => !i.retirado).length} / {liga.cupo} inscritos
-          </p>
 
-          {/* Tabla resumida: el detalle vive en /liga/:code */}
-          {tabla.length > 0 && liga.estado !== 'inscripcion' && (
-            <div className="mt-3 divide-y divide-swu-border rounded-xl border border-swu-border">
-              {tabla.slice(0, 5).map((f, i) => (
-                <div key={f.inscId} className="flex items-center gap-2 px-3 py-2">
-                  <span className={`w-5 text-center text-[11px] font-black ${i === 0 ? 'text-swu-amber' : 'text-swu-muted'}`}>{i + 1}</span>
-                  <span className="min-w-0 flex-1 truncate text-[12px] font-bold text-swu-text">{f.nombre}</span>
-                  <span className="text-[11px] tabular-nums text-swu-muted">{f.ganadas}-{f.perdidas}</span>
-                  <span className="w-8 text-right text-[12px] font-black tabular-nums text-swu-text">{f.puntos}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
+          {/* NO hay tabla ni recuento de inscritos acá. La clasificación de la
+              liga internacional es POR GRUPO, y un top 5 global mezclando
+              tiers dice un puesto que no existe. La verdad está en un solo
+              sitio, a un toque: /liga/:code. */}
           <Link
             to={`/liga/${liga.code}`}
             className="mt-3 flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-swu-amber text-[13px] font-black uppercase tracking-wider text-swu-bg"
@@ -346,32 +321,9 @@ export function CreadorPage() {
         </p>
       )}
 
-      {/* ── El estante de VODs ── */}
-      {conVod.length > 0 && (
-        <section className="mt-4">
-          <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.2em] text-swu-muted">
-            <PlayCircle size={13} /> Partidas grabadas
-          </h2>
-          <div className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
-            {conVod.map(p => (
-              <a
-                key={p.id}
-                href={`https://www.youtube.com/watch?v=${p.vodYoutubeId}${p.vodT ? `&t=${p.vodT}` : ''}`}
-                target="_blank" rel="noopener noreferrer"
-                className="w-56 shrink-0 snap-start overflow-hidden rounded-xl border border-swu-border bg-swu-bg"
-              >
-                <img
-                  src={`https://i.ytimg.com/vi/${p.vodYoutubeId}/mqdefault.jpg`}
-                  alt="" className="aspect-video w-full object-cover"
-                />
-                <p className="truncate px-2.5 py-1.5 text-[11px] font-bold text-swu-text">
-                  J{p.jornada} · {porNombre.get(p.localInsc)} vs {porNombre.get(p.visitaInsc)}
-                </p>
-              </a>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* El estante de VODs se fue con la tabla: los videos cuelgan de la
+          partida, y la partida ahora vive dentro de su grupo. Se ven en
+          /liga/:code, donde se sabe quién jugó contra quién. */}
     </div>
   )
 }

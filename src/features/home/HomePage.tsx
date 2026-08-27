@@ -54,7 +54,7 @@ import { TarjetaJugador } from '../profile/TarjetaJugador'
 import { AvisoTransmision } from '../stream/AvisoTransmision'
 import { HUD_TEXTO, type HudTone } from '../../components/hudTones'
 import { soyCurador } from '../../services/centroTemporada'
-import { miCasaDeCreador } from '../../services/ligaService'
+import { miCasaDeCreador, puedoVerLiga } from '../../services/ligaService'
 import { useAuth } from '../../hooks/useAuth'
 import { type PlayerStats, calculateLevel } from '../../services/gamification'
 import { db } from '../../services/db'
@@ -264,6 +264,11 @@ const HERRAMIENTAS_PROPIAS = [
      que solo abre Nel. */
   { icon: ArticuloIcon, label: 'Plan de la liga', tone: 'purple' as HudTone,
     to: '/planes/liga-puente3.html', llave: 'plan' as const, externo: true },
+  /* La Liga Internacional. Mientras el demo esté cerrado la ve una sola
+     cuenta, y sin esta casilla habría que teclear el URL: una capacidad sin
+     puerta es una capacidad que no existe (§3l). */
+  { icon: MandoTrophyIcon, label: 'Liga PUENTE 3', tone: 'amber' as HudTone,
+    to: '/liga/puente3', llave: 'liga' as const },
 ]
 
 interface Marcador {
@@ -289,12 +294,14 @@ export function HomePage() {
      después, y solo a veces, se lee como un parpadeo. */
   const [curador, setCurador] = useState<boolean | null>(null)
   const [miCreador, setMiCreador] = useState<string | null | false>(null)
+  const [veLiga, setVeLiga] = useState<boolean | null>(null)
 
   useEffect(() => {
     if (!supabaseUser) return
     let vivo = true
     void soyCurador().then(r => { if (vivo) setCurador(r === true) })
     void miCasaDeCreador().then(code => { if (vivo) setMiCreador(code ?? false) })
+    void puedoVerLiga().then(v => { if (vivo) setVeLiga(v) })
     return () => { vivo = false }
   }, [supabaseUser])
   /* El Taller Kyber está en pruebas: su casilla se dibuja SOLO para quien puede
@@ -623,6 +630,7 @@ export function HomePage() {
       {(() => {
         const mias = HERRAMIENTAS_PROPIAS
           .filter(h => h.llave === 'curador' ? curador === true
+                     : h.llave === 'liga'    ? veLiga === true
                      : h.llave === 'plan'    ? (curador === true || typeof miCreador === 'string')
                      : typeof miCreador === 'string')
           .map(h => ({

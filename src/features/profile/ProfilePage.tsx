@@ -25,8 +25,8 @@ import { swAvatars } from '../../data/avatars'
 import { isPhotoAvatar, urlAvatarSW } from '../../services/avatars'
 import { MeleeSetting } from './MeleeSetting'
 import { MeleeRecord } from './MeleeRecord'
-import { MiLigaTarjeta } from '../creadores/MiLigaTarjeta'
 import { AvisoForjaSable } from '../sable/AvisoForjaSable'
+import { MiLigaTarjeta } from '../liga/MiLigaTarjeta'
 import { leerEnlaceMelee } from '../../services/meleeProfileService'
 import { Avatar } from '../../components/ui/Avatar'
 
@@ -1130,9 +1130,8 @@ export function ProfilePage() {
         })}
       </div>
 
-      {/* «Mi Liga»: si estás inscrito en la liga de algún creador, acá está
-          cómo vas, contra quién te toca y tus videos. No se dibuja si no
-          jugás ninguna — que es el caso de casi todo el mundo. */}
+      {/* «Mi Liga»: si jugás una liga, acá está cómo vas, qué te espera y tus
+          videos. No se dibuja si no jugás ninguna. */}
       {auth.supabaseUser && <MiLigaTarjeta />}
 
       {/* Los torneos de melee: primero el historial si ya está enlazado, y

@@ -90,7 +90,9 @@ const TerraformarPage = lazy(() => import('./features/planeta/TerraformarPage').
    lo enseñan a los creadores (AlejoP3) y a los admins. Sin entrada de menú a
    propósito — se entra por /c/puente3, que es el enlace que Alejo va a usar. */
 const CreadorPage = lazy(() => import('./features/creadores/CreadorPage').then(m => ({ default: m.CreadorPage })))
-const LigaPage = lazy(() => import('./features/creadores/LigaPage').then(m => ({ default: m.LigaPage })))
+// La liga internacional. La pantalla pública va dentro de AppLayout; el panel
+// de la organización va FUERA, con los de /admin y /temporada (ver abajo).
+const LigaSeccion = lazy(() => import('./features/liga/LigaSeccion').then(m => ({ default: m.LigaSeccion })))
 const GalaxiaPage = lazy(() => import('./features/galaxia/GalaxiaPage').then(m => ({ default: m.GalaxiaPage })))
 /* El Taller de sables. Abierto a toda la comunidad desde 2026-08-24, con
    entrada en Inicio, en el menú y desde el sable de la barra de XP. La puerta
@@ -171,6 +173,11 @@ const TemporadaPage = lazy(() => import('./features/temporada/TemporadaPage').th
 const TorneosLista = lazy(() => import('./features/temporada/TorneosLista').then(m => ({ default: m.TorneosLista })))
 const TorneoCentro = lazy(() => import('./features/temporada/TorneoCentro').then(m => ({ default: m.TorneoCentro })))
 const AyudaCentro = lazy(() => import('./features/temporada/AyudaCentro').then(m => ({ default: m.AyudaCentro })))
+// El panel de la liga. Va con estos y no con la pantalla pública: la
+// organización trabaja de pie en un torneo y no necesita la TabBar, y —como
+// /estudio— fuera de AppLayout `initAuth()` no corre, así que PanelLiga lo
+// llama él mismo. La guarda es `esStaff`, que decide el servidor.
+const PanelLiga = lazy(() => import('./features/liga/PanelLiga').then(m => ({ default: m.PanelLiga })))
 const AdminDashboard = lazy(() => import('./features/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })))
 const AdminUsersPage = lazy(() => import('./features/admin/AdminUsersPage').then(m => ({ default: m.AdminUsersPage })))
 const AdminNewsPage = lazy(() => import('./features/admin/AdminNewsPage').then(m => ({ default: m.AdminNewsPage })))
@@ -240,6 +247,11 @@ export default function App() {
             <Route path="torneo/:code" element={<TorneoCentro />} />
             <Route path=":id" element={<TemporadaPage />} />
           </Route>
+
+          {/* El panel de la liga, fuera de AppLayout por lo mismo. NO usa <P>:
+              AuthGate no corre acá y dejaría la pantalla en «Cargando» para
+              siempre — la misma trampa de /estudio. */}
+          <Route path="/liga/:code/panel" element={<PanelLiga />} />
 
           {/* ── Transmisión — fuera de AppLayout a propósito (ver arriba) ── */}
           {/* Overlay: lo consume OBS sin sesión. Lienzo transparente 1920×1080. */}
@@ -393,7 +405,7 @@ export default function App() {
             <Route path="/sable" element={<P><SablePage /></P>} />
             <Route path="/terraformar" element={<P><TerraformarPage /></P>} />
             <Route path="/c/:code" element={<P><CreadorPage /></P>} />
-            <Route path="/liga/:code" element={<P><LigaPage /></P>} />
+            <Route path="/liga/:code" element={<P><LigaSeccion /></P>} />
             <Route path="/trivia" element={<P><TriviaPage /></P>} />
             {/* Ruta HERMANA de /galaxia, no superposición: así el router
                 desmonta la Galaxia y su forceContextLoss() corre solo. */}
