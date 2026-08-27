@@ -1844,6 +1844,25 @@ la encuentra él, no la encuentra nadie. Cada plantilla lleva `ruta` y `donde`
 botón que lleva ahí. Si agregás una misión, el `donde` se copia del menú, no se
 inventa.
 
+**Y DECIR DÓNDE NO ALCANZA: EL DESTINO SE PUDRE SOLO.** La Trivia vivía DENTRO
+del perfil (`TriviaSection`); cuando se mudó a `/trivia`, las **cinco** misiones
+de trivia se quedaron apuntando a `/profile`. El botón dejaba a la persona en
+una pantalla sin trivia — una tarea imposible otra vez, ahora por el destino en
+vez de por el llamador. Igual «Enviar 1 regalo», que mandaba a La Galaxia cuando
+los regalos se envían desde Espionaje, y cuatro que decían «Contador» cuando el
+menú dice «Contador de daños».
+
+**Un destino equivocado NO FALLA**: navega, pinta algo, y quien lo tocó cree que
+no encontró la sección. Por eso `scripts/misiones-llevan-donde-dicen.mjs` cruza
+tres cosas —que la `ruta` exista en el router, que corresponda al
+`objectiveType` (nunca al NOMBRE, que es de fantasía: «Archivos Jedi» es la
+trivia) y que `donde` sea el rótulo tal como lo escribe el menú—. Ese tercer
+cruce es el que caza una pantalla renombrada. Se planta si lee menos de 40
+misiones: una lectura vacía se parece muchísimo a que todo está bien (§3x).
+
+**`npm run misiones`** corre los dos guardianes. Corrélo al tocar el catálogo,
+al mover una pantalla de ruta y al renombrar una entrada del menú.
+
 **El catálogo salió a `misionesCatalogo.ts`**, puro y sin red, como `mesas.ts`.
 Que estuviera pegado a `supabase` es *la razón* de que el sesgo del barajado no
 se viera nunca: para medirlo había que levantar medio backend.
