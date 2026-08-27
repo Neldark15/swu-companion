@@ -2990,6 +2990,28 @@ Al agregar una columna a `profiles` hay que tocar CUATRO sitios:
 3. `grant update (col) ... to authenticated`
 4. la lista blanca de `guardarPersonalizacion` y `COLUMNAS` de lectura
 
+**Y OLVIDARSE DEL PASO 2 PUEDE TUMBAR ALGO QUE NO TIENE NADA QUE VER.**
+Pasó el 2026-08-27 con `blog_autor`: se agregó la columna sin `grant select`.
+El daño no salió en el blog — salió en el **ROL**. `getPermisos()` pide `role`
+y `blog_autor` en la MISMA consulta («rol y permisos en un solo viaje»), así
+que una columna sin permiso tumba la consulta entera con **42501**, la función
+devuelve `null`, y `initAuth` respeta ese `null` a propósito para no degradar a
+nadie con mala señal (§2v). Resultado: el rol **nunca se resolvía** e `isAdmin`
+quedaba congelado en lo que tuviera guardado el aparato — un admin desde un
+teléfono nuevo perdía el panel para siempre, sin forma de recuperarlo desde la
+app. El síntoma que se reporta es «desapareció la sección de administración»,
+que no se parece en nada a la causa.
+
+Tres cosas que lo hacen difícil de ver, y por eso están anotadas:
+el error habla de la **tabla**, no de la columna; quien llama trata el fallo
+como «no se pudo averiguar», que es lo correcto, así que **no hay un solo
+mensaje rojo**; y el efecto depende de lo que cada aparato tenga persistido, o
+sea que a unos les funciona y a otros no.
+
+`scripts/profiles-columnas-con-permiso.mjs` junta las columnas de los 53
+`.select()` sobre `profiles` que hay en el cliente y escupe la consulta lista
+para pegar en el SQL Editor: lo que devuelva son columnas sin permiso.
+
 #### El shader: espacio de MUNDO, no de vista
 
 Las ciudades salen donde `dot(normal, dirSol) < 0`. `normalMatrix` lleva la
