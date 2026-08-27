@@ -21,8 +21,10 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { SegmentedControl } from '../../components/ui/SegmentedControl'
 import { useIdioma, useT, type Idioma } from '../../services/i18n'
-import { useSettings, ACCENT_COLORS, ACCENT_LABELS, SABER_COLORS } from '../../hooks/useSettings'
-import type { AccentColor, SaberColor } from '../../hooks/useSettings'
+import { useSettings, ACCENT_COLORS, ACCENT_LABELS } from '../../hooks/useSettings'
+import type { AccentColor } from '../../hooks/useSettings'
+import { POR_DEFECTO, hojaEnBarra } from '../../features/sable/partesSable'
+import { miDisenoSable } from '../../services/sableService'
 import {
   TEMAS_FONDO, MARCOS,
   marcoGanado, resolverMarco, esTemaFondo,
@@ -85,14 +87,27 @@ export function SettingsPage() {
   const navigate = useNavigate()
   const {
     accentColor, setAccentColor, fontSize, setFontSize, hapticFeedback, toggleHaptic,
-    saberColor, setSaberColor,
     temaFondo, setTemaFondo, marcoElegido, setMarcoElegido,
   } = useSettings()
+
+  /* El color de la hoja ya no es un ajuste: sale del kyber forjado. Se lee una
+     vez al abrir Ajustes. `null` = todavía no se sabe; `false` = se preguntó y
+     no hay sable, que es el caso de 37 de 41 cuentas. */
+  const [sable, setSable] = useState<{ color: string } | null | false>(null)
   const auth = useAuth()
   const t = useT()
   const idioma = useIdioma((s) => s.idioma)
   const cambiarIdioma = useIdioma((s) => s.cambiarIdioma)
   const [showAbout, setShowAbout] = useState(false)
+
+  useEffect(() => {
+    let vivo = true
+    void miDisenoSable().then(d => { if (vivo) setSable(d ?? false) })
+    return () => { vivo = false }
+  }, [])
+
+  const tieneSable = sable !== null && sable !== false
+  const hojaPropia = hojaEnBarra(tieneSable ? sable.color : POR_DEFECTO.color)
 
   // ── Stats reales para la vista previa y el nivel de los marcos ──
   // Mismo camino que HomePage: la fila de playerStats en Dexie. Sin stats el
@@ -368,49 +383,42 @@ export function SettingsPage() {
             </button>
           </div>
 
-          {/* Saber Color Picker — vive acá porque el sable ES parte de la
-              tarjeta (la barra de XP), no de la app entera. */}
+          {/* ── EL COLOR DE LA HOJA YA NO SE ELIGE ACÁ ──
+              Había una paleta de siete colores que pintaba la barra de XP. Se
+              retiró cuando la hoja pasó a salir del KYBER que se forja en el
+              Taller: dejar el selector habría sido un control que no controla
+              nada, y —lo que de verdad importa— era la última puerta abierta al
+              ROJO, que en este producto no se elige de una lista sino que se
+              gana sangrando un cristal. Cuatro personas lo tenían puesto.
+
+              En su lugar queda el recordatorio, que es lo que Nel pidió: acá
+              es donde alguien venía a cambiar su color, así que es donde tiene
+              que enterarse de dónde sale ahora. */}
           <div className="border-t border-swu-border/30 p-4">
-            <div className="flex items-center gap-3 mb-3">
+            <div className="mb-2 flex items-center gap-3">
               <Zap size={20} className="text-swu-accent-texto" />
-              <span className="text-sm font-medium text-swu-text">Color de sable de luz</span>
+              <span className="text-sm font-medium text-swu-text">Color de tu hoja</span>
             </div>
-            <div className="flex gap-2 justify-center flex-wrap">
-              {(Object.keys(SABER_COLORS) as SaberColor[]).map((color) => (
-                <button
-                  key={color}
-                  onClick={() => setSaberColor(color)}
-                  className="flex flex-col items-center gap-1"
-                >
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${
-                      saberColor === color ? 'scale-110' : 'opacity-70 hover:opacity-100'
-                    }`}
-                    style={{
-                      background: `radial-gradient(circle, ${SABER_COLORS[color].core} 40%, ${SABER_COLORS[color].glow} 100%)`,
-                      boxShadow: saberColor === color
-                        ? `0 0 16px ${SABER_COLORS[color].core}80, 0 0 0 2px var(--color-swu-surface), 0 0 0 4px ${SABER_COLORS[color].core}`
-                        : `0 0 8px ${SABER_COLORS[color].core}30`,
-                    }}
-                  >
-                    {saberColor === color && <Check size={16} className="text-white" strokeWidth={3} style={{ filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.5))' }} />}
-                  </div>
-                  <span className={`text-[9px] font-mono ${saberColor === color ? 'text-swu-text font-bold' : 'text-swu-muted'}`}>
-                    {SABER_COLORS[color].label}
-                  </span>
-                </button>
-              ))}
-            </div>
-            {/* Mini preview bar */}
-            <div className="mt-3 mx-4 h-2 rounded-full overflow-hidden bg-black/40">
-              <div
-                className="h-full rounded-full w-3/4 transition-all duration-500"
+            <div className="flex items-center gap-3">
+              <span
+                className="h-2 flex-1 rounded-full"
                 style={{
-                  background: `linear-gradient(90deg, ${SABER_COLORS[saberColor].glow}, ${SABER_COLORS[saberColor].core} 60%, white)`,
-                  boxShadow: `0 0 8px ${SABER_COLORS[saberColor].core}, 0 0 16px ${SABER_COLORS[saberColor].core}60`,
+                  background: `linear-gradient(90deg, ${hojaPropia.glow}, ${hojaPropia.core} 60%, white)`,
+                  boxShadow: `0 0 8px ${hojaPropia.core}, 0 0 16px ${hojaPropia.core}60`,
                 }}
               />
             </div>
+            <p className="mt-2.5 text-[11px] leading-relaxed text-swu-muted">
+              {tieneSable
+                ? 'Sale del kyber de tu sable. Cambialo en el Taller y la barra cambia con él.'
+                : 'Todavía no forjaste tu sable, así que va el kyber de fábrica. Forjá el tuyo y la barra toma el color de tu cristal.'}
+            </p>
+            <button
+              onClick={() => navigate('/sable')}
+              className="mt-2.5 w-full rounded-xl border border-swu-accent/40 bg-swu-accent/10 px-4 py-2.5 text-sm font-bold text-swu-accent-texto active:scale-[0.98] transition-transform"
+            >
+              {tieneSable ? 'Cambiar mi kyber en el Taller' : 'Forjar mi sable en el Taller'}
+            </button>
           </div>
         </div>
       </div>

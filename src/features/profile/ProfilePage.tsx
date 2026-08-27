@@ -26,6 +26,7 @@ import { isPhotoAvatar, urlAvatarSW } from '../../services/avatars'
 import { MeleeSetting } from './MeleeSetting'
 import { MeleeRecord } from './MeleeRecord'
 import { MiLigaTarjeta } from '../creadores/MiLigaTarjeta'
+import { AvisoForjaSable } from '../sable/AvisoForjaSable'
 import { leerEnlaceMelee } from '../../services/meleeProfileService'
 import { Avatar } from '../../components/ui/Avatar'
 
@@ -1034,6 +1035,12 @@ export function ProfilePage() {
         </div>
         <div className="relative">{playerStats && <LightsaberXpBar xp={playerStats.xp} />}</div>
       </div>
+
+      {/* El recordatorio va PEGADO a la barra que acaba de dibujarse: es la
+          que cambia de mango y de color al forjar, así que el aviso cae a un
+          dedo de su propia consecuencia. Se dibuja solo si no hay sable, y
+          desaparece sola el día que lo hay. */}
+      {auth.supabaseUser && <AvisoForjaSable />}
 
       {/* Country nudge — only if not set; unlocks Comunidades feed */}
       {!currentProfile?.country && (

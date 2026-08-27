@@ -1086,6 +1086,38 @@ export interface Diseno {
   cristalVisto?: boolean
 }
 
+/**
+ * El par de colores con el que se pinta una hoja EN 2D (la barra de XP).
+ *
+ * La escena 3D usa `nucleo` y `halo` tal cual, porque ahí la hoja son tres
+ * capas superpuestas y el blanco del núcleo se ve al trasluz. En una barra
+ * plana de 8 px de alto no hay capas: el color lo tiene que llevar el relleno,
+ * así que el centro va con el HALO —que es el color de verdad— y la raíz con
+ * ese mismo halo oscurecido. Usar `nucleo` acá daría una barra casi blanca en
+ * los dieciséis cristales.
+ *
+ * La raíz se DERIVA en vez de escribirse a mano una vez por cristal: un
+ * cristal nuevo funciona solo, sin que nadie se acuerde de agregar su versión
+ * oscura (§3c — un derivado no puede quedar viejo).
+ *
+ * Un id desconocido cae al cristal de fábrica en lugar de reventar: perder la
+ * barra entera por un color retirado sería el peor cambio posible (§2g).
+ */
+export function hojaEnBarra(colorId: string | null | undefined): { core: string; glow: string } {
+  const c = COLORES[colorId ?? ''] ?? COLORES.col_azul
+  return { core: c.halo, glow: oscurecer(c.halo, 0.42) }
+}
+
+/** Multiplica un `#rrggbb` por un factor. Sin dependencias ni HSL. */
+function oscurecer(hex: string, factor: number): string {
+  const n = parseInt(hex.slice(1), 16)
+  const canal = (desplazamiento: number) =>
+    Math.round(((n >> desplazamiento) & 0xff) * factor)
+      .toString(16)
+      .padStart(2, '0')
+  return `#${canal(16)}${canal(8)}${canal(0)}`
+}
+
 export const POR_DEFECTO: Diseno = {
   emisor: 'emi_estandar', cuerpo: 'cue_liso', pomo: 'pom_plano', color: 'col_azul',
 }

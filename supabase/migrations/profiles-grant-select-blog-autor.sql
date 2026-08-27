@@ -1,0 +1,26 @@
+-- `blog_autor` se quedó SIN grant de SELECT, y eso dejaba sin rol a los admins.
+--
+-- Aplicada en producción el 2026-08-27. Los grants de `profiles` son POR
+-- COLUMNA (§2o, §4i): cuando se agregó `blog_autor` se hizo el `alter table` y
+-- se olvidó el `grant select`, así que para `authenticated` esa columna no
+-- existía.
+--
+-- EL DAÑO NO SE VE EN EL BLOG: SE VE EN EL ROL. `getPermisos()` pide las dos
+-- columnas en la MISMA consulta —«rol y permisos en un solo viaje»— así que una
+-- columna sin permiso tumba la consulta entera con 42501, la función devuelve
+-- `null`, y `initAuth` respeta ese `null` a propósito para no degradar a nadie
+-- con mala señal (§2v). Resultado: el rol NUNCA se resuelve y `isAdmin` se
+-- queda congelado en lo que tuviera guardado el aparato. Un admin que entrara
+-- desde un teléfono nuevo —o que hubiera borrado los datos del sitio— perdía el
+-- panel para siempre, sin forma de recuperarlo desde la app.
+--
+-- Verificado con `set local role authenticated` ANTES de tocar nada:
+--   select role, blog_autor from profiles where id = <Nelson>
+--   -> 42501: permission denied for table profiles
+-- Y DESPUÉS:
+--   -> role: admin · blog_autor: false · email sigue cerrado (42501)
+--
+-- Se concede solo a `authenticated`, que es quien pregunta. `anon` no necesita
+-- saber quién escribe en el blog, y `email` sigue cerrado a los dos (§2j).
+
+grant select (blog_autor) on public.profiles to authenticated;

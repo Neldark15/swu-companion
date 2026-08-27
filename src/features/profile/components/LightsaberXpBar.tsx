@@ -25,12 +25,27 @@
  *
  * No hay enlace anidado: la credencial de arriba maneja su propio toque con un
  * `onTocar`, no envolviendo la tarjeta en un `<a>`.
+ *
+ * ── Y LA HOJA ES DE TU KYBER ──────────────────────────────────────────
+ *
+ * Nel: «la barra de XP será del color del kyber que se elija». El mango ya
+ * salía del sable forjado, pero el COLOR salía de otro lado: `saberColor`, un
+ * ajuste suelto de Ajustes con siete colores propios. O sea que la barra
+ * mostraba tu empuñadura de verdad con una hoja que no tenía nada que ver con
+ * tu cristal.
+ *
+ * Ese ajuste además era la última puerta abierta al ROJO: `SABER_COLORS` lo
+ * ofrecía y **cuatro personas lo tenían puesto**, que era el color más elegido
+ * de los trece que lo tocaron. El rojo es color que se gana sangrando un
+ * cristal, no que se elige de una lista — está cerrado en el servidor desde el
+ * primer día (`comprar_parte_sable` rechaza las piezas ocultas y
+ * `guardar_sable` exige tenerla) y ahora también acá, por construcción: si el
+ * color sale del kyber y no hay kyber rojo comprable, no hay hoja roja.
  */
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { calculateLevel } from '../../../services/gamification'
-import { useSettings, SABER_COLORS } from '../../../hooks/useSettings'
-import { POR_DEFECTO } from '../../sable/partesSable'
+import { POR_DEFECTO, hojaEnBarra } from '../../sable/partesSable'
 import { fotoDelMango, mangoCacheado } from '../../sable/mangoBarra'
 import { miDisenoSable } from '../../../services/sableService'
 
@@ -41,8 +56,12 @@ interface LightsaberXpBarProps {
 export function LightsaberXpBar({ xp }: LightsaberXpBarProps) {
   const navigate = useNavigate()
   const { level, rank, xpCurrent, xpNeeded, progress } = calculateLevel(xp)
-  const { saberColor } = useSettings()
-  const { core, glow } = SABER_COLORS[saberColor]
+  /* Arranca con el cristal de fábrica y se corrige cuando llega el diseño
+     propio, en el MISMO viaje que ya trae el mango. Nadie ve un parpadeo de
+     color: quien no forjó nada se queda en el azul de fábrica, que es
+     justamente el suyo. */
+  const [hoja, setHoja] = useState(() => hojaEnBarra(POR_DEFECTO.color))
+  const { core, glow } = hoja
 
   /* El caché se lee SÍNCRONO en el estado inicial: si hay foto, el primer
      cuadro ya sale con ella y el SVG de repuesto ni parpadea. */
@@ -52,6 +71,7 @@ export function LightsaberXpBar({ xp }: LightsaberXpBarProps) {
     let vivo = true
     void (async () => {
       const propio = await miDisenoSable()
+      if (vivo) setHoja(hojaEnBarra(propio?.color ?? POR_DEFECTO.color))
       // `fotoDelMango` resuelve del caché, o renderiza UNA vez aunque haya
       // varias barras montadas (vuelo único — ver mangoBarra.ts).
       const png = await fotoDelMango(propio ?? POR_DEFECTO)

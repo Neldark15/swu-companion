@@ -74,17 +74,21 @@ export function applyAccentColor(color: AccentColor) {
 }
 
 // ── Saber Colors (for XP bar lightsaber) ──
-export type SaberColor = 'blue' | 'green' | 'red' | 'purple' | 'yellow' | 'white' | 'orange'
-
-export const SABER_COLORS: Record<SaberColor, { core: string; glow: string; label: string }> = {
-  blue:   { core: '#4FC3F7', glow: '#1565C0', label: 'Azul' },
-  green:  { core: '#81C784', glow: '#2E7D32', label: 'Verde' },
-  red:    { core: '#EF5350', glow: '#B71C1C', label: 'Rojo' },
-  purple: { core: '#CE93D8', glow: '#6A1B9A', label: 'Púrpura' },
-  yellow: { core: '#FFF176', glow: '#F9A825', label: 'Amarillo' },
-  white:  { core: '#F5F5F5', glow: '#B0BEC5', label: 'Blanco' },
-  orange: { core: '#FFB74D', glow: '#E65100', label: 'Naranja' },
-}
+/* EL COLOR DE LA HOJA SE RETIRÓ DE LOS AJUSTES (2026-08-27).
+ *
+ * Había un `saberColor` con siete colores propios —incluido el ROJO, que
+ * tenían puesto cuatro personas— y era lo único que pintaba la barra de XP.
+ * Ahora la barra saca el color del KYBER que se forja en el Taller
+ * (`hojaEnBarra` en `features/sable/partesSable.ts`), que es la fuente única y
+ * la que ya decide el 3D. Dos sitios eligiendo el mismo color es el §3c.
+ *
+ * El rojo, de paso, deja de existir también como TIPO: en este producto no se
+ * elige de una lista, se gana sangrando un cristal, y el servidor lo cierra
+ * desde el primer día (`comprar_parte_sable` rechaza las piezas ocultas).
+ *
+ * El valor viejo puede seguir guardado en `profiles.settings.saberColor` y no
+ * molesta: al no validarse, se ignora. No hace falta migrar nada.
+ */
 
 /**
  * La credencial de jugador (/credencial), personalizable de punta a punta.
@@ -123,7 +127,6 @@ interface SettingsState extends AjustesCredencial {
   showResources: boolean
   playerName: string
   accentColor: AccentColor
-  saberColor: SaberColor
   // ── Personalización (catálogos en services/personalizacion.ts) ──
   temaFondo: TemaFondoId
   tinteTarjeta: TinteTarjetaId
@@ -135,7 +138,6 @@ interface SettingsState extends AjustesCredencial {
   toggleCounter: (counter: 'showShields' | 'showExperience' | 'showResources') => void
   setPlayerName: (name: string) => void
   setAccentColor: (c: AccentColor) => void
-  setSaberColor: (c: SaberColor) => void
   setTemaFondo: (t: TemaFondoId) => void
   setTinteTarjeta: (t: TinteTarjetaId) => void
   setMarcoElegido: (m: MarcoElegido) => void
@@ -160,7 +162,6 @@ function debouncedSyncSettings() {
       showResources: state.showResources,
       playerName: state.playerName,
       accentColor: state.accentColor,
-      saberColor: state.saberColor,
       temaFondo: state.temaFondo,
       tinteTarjeta: state.tinteTarjeta,
       marcoElegido: state.marcoElegido,
@@ -187,7 +188,6 @@ export const useSettings = create<SettingsState>()(
       showResources: true,
       playerName: '',
       accentColor: 'red',
-      saberColor: 'blue',
       temaFondo: 'holocron',
       tinteTarjeta: 'auto',
       marcoElegido: 'auto',
@@ -205,7 +205,6 @@ export const useSettings = create<SettingsState>()(
       toggleCounter: (counter) => { set((s) => ({ [counter]: !s[counter] })); debouncedSyncSettings() },
       setPlayerName: (playerName) => { set({ playerName }); debouncedSyncSettings() },
       setAccentColor: (accentColor) => { set({ accentColor }); applyAccentColor(accentColor); debouncedSyncSettings() },
-      setSaberColor: (saberColor) => { set({ saberColor }); debouncedSyncSettings() },
       setTemaFondo: (temaFondo) => { set({ temaFondo }); aplicarTemaFondo(temaFondo); debouncedSyncSettings() },
       setTinteTarjeta: (tinteTarjeta) => { set({ tinteTarjeta }); debouncedSyncSettings() },
       setMarcoElegido: (marcoElegido) => { set({ marcoElegido }); debouncedSyncSettings() },
@@ -266,7 +265,6 @@ export function aplicarSettingsDeNube(nube: Record<string, unknown>): void {
   if (typeof nube.showResources === 'boolean') parche.showResources = nube.showResources
   if (typeof nube.playerName === 'string') parche.playerName = nube.playerName
   if (typeof nube.accentColor === 'string' && nube.accentColor in ACCENT_COLORS) parche.accentColor = nube.accentColor as AccentColor
-  if (typeof nube.saberColor === 'string' && nube.saberColor in SABER_COLORS) parche.saberColor = nube.saberColor as SaberColor
   if (esTemaFondo(nube.temaFondo)) parche.temaFondo = nube.temaFondo
   if (esTinteTarjeta(nube.tinteTarjeta)) parche.tinteTarjeta = nube.tinteTarjeta
   if (esMarcoElegido(nube.marcoElegido)) parche.marcoElegido = nube.marcoElegido
