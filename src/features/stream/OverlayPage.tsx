@@ -1110,12 +1110,20 @@ function CartaDestacadaVista({ carta }: { carta: NonNullable<EstadoOverlay['cart
  *
  * A la IZQUIERDA porque la carta destacada ocupa el centro-abajo y la barra
  * del narrador el pie: las tres pueden coincidir sin taparse.
+ *
+ * ── `ov-sube-lado`, NUNCA `ov-sube` ──────────────────────────────────
+ *
+ * `ovSube` termina en `translate(-50%, 0)`: ese -50% es el centrado de la
+ * carta destacada, no parte de la animación. Aplicado a este panel —que se
+ * ancla por `left` y NO va centrado— lo corría 330 px a la izquierda y la
+ * ficha salía CORTADA POR EL BORDE al aire. Se vio mirando la pantalla; ni
+ * el compilador ni el lint pueden verlo.
  */
 function FichaJugadorVista({ ficha }: { ficha: NonNullable<EstadoOverlay['ficha']> }) {
   const t = useContext(CtxTema)
   return (
     <div
-      className="ov-sube"
+      className="ov-sube-lado"
       style={{
         position: 'absolute',
         left: 120,
