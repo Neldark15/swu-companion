@@ -1,0 +1,844 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Liga Internacional PUENTE 3 · HOLOCRON SWU</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Propuesta de diseño de la Liga Internacional PUENTE 3 sobre HOLOCRON SWU.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;700;900&family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap">
+<style>*,*::before,*::after{box-sizing:border-box}html{background:#0E0E14}</style>
+</head>
+<body>
+<style>
+  :root {
+    --ground:   #0E0E14;
+    --surface:  #16161F;
+    --surface2: #1D1D28;
+    --border:   #2A2A38;
+    --text:     #E7E5E2;
+    --muted:    #8C90A0;
+    --amber:    #E0A82E;
+    --cyan:     #39C7D6;
+    --rojo:     #D2483C;
+    --verde:    #4FBF6A;
+    --purpura:  #A374D9;
+
+    --fuente-titulo: 'Inter Tight', system-ui, -apple-system, sans-serif;
+    --fuente-cuerpo: 'Inter', system-ui, -apple-system, sans-serif;
+    --fuente-dato:   'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+    --medida: 66ch;
+    --chaflan: polygon(0 8px, 8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+  }
+
+  /* Documento de un producto que es oscuro por diseño: se compromete con un
+     solo mundo visual y pinta todo explícitamente, así se sostiene sobre
+     cualquier fondo del visor. */
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--text);
+    font-family: var(--fuente-cuerpo);
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .envoltorio { display: grid; grid-template-columns: 1fr; gap: 0; }
+  @media (min-width: 1040px) {
+    .envoltorio { grid-template-columns: 236px minmax(0, 1fr); }
+  }
+
+  /* ── Riel de índice ── */
+  .riel {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 24px;
+    background: var(--surface);
+  }
+  @media (min-width: 1040px) {
+    .riel {
+      position: sticky; top: 0; align-self: start;
+      height: 100vh; overflow-y: auto;
+      border-bottom: none; border-right: 1px solid var(--border);
+      padding: 32px 20px;
+    }
+  }
+  .riel-marca {
+    font-family: var(--fuente-dato);
+    font-size: 9px; letter-spacing: .26em; text-transform: uppercase;
+    color: var(--amber); margin: 0 0 4px;
+  }
+  .riel-titulo {
+    font-family: var(--fuente-titulo);
+    font-size: 15px; font-weight: 900; letter-spacing: -.01em;
+    margin: 0 0 18px; line-height: 1.25;
+  }
+  /* En el teléfono el índice se pliega: abierto ocupaba la primera pantalla
+     entera, así que abrías el documento y veías un menú en vez del documento.
+     En escritorio no se pliega — ahí el riel es una columna aparte y no le
+     quita nada al texto. */
+  .riel details > summary {
+    list-style: none; cursor: pointer;
+    font-family: var(--fuente-dato); font-size: 10px;
+    letter-spacing: .2em; text-transform: uppercase; color: var(--cyan);
+    display: flex; align-items: center; gap: 8px; padding: 4px 0;
+  }
+  .riel details > summary::-webkit-details-marker { display: none; }
+  .riel details > summary::after { content: '+'; font-size: 13px; }
+  .riel details[open] > summary::after { content: '−'; }
+  .riel nav { display: flex; flex-direction: column; gap: 1px; padding-top: 12px; }
+  @media (min-width: 1040px) {
+    .riel details > summary { display: none; }
+    .riel nav { padding-top: 0; }
+  }
+  .riel a {
+    display: flex; gap: 9px; align-items: baseline;
+    color: var(--muted); text-decoration: none;
+    font-size: 12.5px; padding: 5px 8px; border-radius: 4px;
+    transition: color .12s, background .12s;
+  }
+  .riel a:hover, .riel a:focus-visible { color: var(--text); background: var(--surface2); }
+  .riel a b {
+    font-family: var(--fuente-dato); font-size: 10px; font-weight: 400;
+    color: var(--border); flex: 0 0 14px;
+  }
+  .riel a:hover b { color: var(--cyan); }
+  .riel a.destaca { color: var(--amber); }
+  .riel a.destaca b { color: var(--amber); }
+
+  /* ── Cuerpo ── */
+  main { padding: 34px 24px 96px; min-width: 0; }
+  @media (min-width: 760px)  { main { padding: 52px 44px 120px; } }
+  @media (min-width: 1040px) { main { padding: 60px 56px 140px; } }
+
+  .contenido { max-width: 940px; }
+  .contenido > * { max-width: var(--medida); }
+  .contenido > .ancho, .contenido > .tabla-caja, .contenido > .rejilla,
+  .contenido > .fases, .contenido > pre { max-width: none; }
+
+  h1 {
+    font-family: var(--fuente-titulo);
+    font-size: clamp(30px, 5.4vw, 46px); font-weight: 900;
+    letter-spacing: -.028em; line-height: 1.05;
+    margin: 0 0 14px; text-wrap: balance;
+  }
+  .bajada { font-size: 17px; color: var(--muted); margin: 0 0 8px; text-wrap: balance; }
+
+  h2 {
+    font-family: var(--fuente-titulo);
+    font-size: 23px; font-weight: 800; letter-spacing: -.018em;
+    margin: 62px 0 6px; padding-top: 26px;
+    border-top: 1px solid var(--border);
+    text-wrap: balance; scroll-margin-top: 20px;
+  }
+  h2 .num {
+    font-family: var(--fuente-dato); font-size: 11px; font-weight: 400;
+    color: var(--cyan); letter-spacing: .12em;
+    display: block; margin-bottom: 7px;
+  }
+  h3 {
+    font-family: var(--fuente-titulo);
+    font-size: 16.5px; font-weight: 700; letter-spacing: -.008em;
+    margin: 34px 0 6px; text-wrap: balance;
+  }
+  p { margin: 0 0 14px; }
+  a { color: var(--cyan); }
+
+  strong { color: #FFF; font-weight: 700; }
+  em { color: var(--amber); font-style: normal; font-weight: 500; }
+
+  ul, ol { margin: 0 0 16px; padding-left: 20px; }
+  li { margin-bottom: 7px; }
+  li::marker { color: var(--border); }
+
+  code {
+    font-family: var(--fuente-dato); font-size: .855em;
+    background: var(--surface2); color: var(--cyan);
+    padding: 1px 5px; border-radius: 3px;
+  }
+
+  pre {
+    font-family: var(--fuente-dato); font-size: 12px; line-height: 1.62;
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 18px 20px; overflow-x: auto; margin: 0 0 20px;
+    clip-path: var(--chaflan);
+  }
+  pre code { background: none; padding: 0; color: var(--text); font-size: inherit; }
+  pre .c { color: var(--muted); }
+  pre .k { color: var(--amber); }
+
+  /* ── Rótulo de sección, en el vocabulario HUD de la app ── */
+  .rotulo {
+    font-family: var(--fuente-dato);
+    font-size: 9.5px; letter-spacing: .26em; text-transform: uppercase;
+    color: var(--muted); margin: 0 0 10px;
+  }
+
+  /* ── Tablas ── */
+  .tabla-caja { overflow-x: auto; margin: 0 0 22px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td {
+    text-align: left; padding: 9px 14px 9px 0;
+    border-bottom: 1px solid var(--border); vertical-align: top;
+  }
+  th {
+    font-family: var(--fuente-dato); font-weight: 400;
+    font-size: 9.5px; letter-spacing: .17em; text-transform: uppercase;
+    color: var(--muted); border-bottom-color: var(--muted);
+    white-space: nowrap;
+  }
+  td.n { font-family: var(--fuente-dato); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.si { color: var(--verde); } td.no { color: var(--rojo); }
+  tr:last-child td { border-bottom: none; }
+
+  /* ── Paneles ── */
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 20px 22px; margin: 0 0 22px; clip-path: var(--chaflan);
+  }
+  .panel > :last-child { margin-bottom: 0; }
+  .panel-t {
+    font-family: var(--fuente-dato); font-size: 10px;
+    letter-spacing: .2em; text-transform: uppercase;
+    margin: 0 0 10px; color: var(--muted);
+  }
+  .panel.alerta { border-color: rgba(210,72,60,.5); background: rgba(210,72,60,.07); }
+  .panel.alerta .panel-t { color: var(--rojo); }
+  .panel.clave { border-color: rgba(224,168,46,.45); background: rgba(224,168,46,.06); }
+  .panel.clave .panel-t { color: var(--amber); }
+
+  /* ── Bloqueantes: franja de severidad, porque el estado tiene que leerse
+        en la forma y no solo en el texto ── */
+  .bloqueantes { display: flex; flex-direction: column; gap: 10px; margin: 0 0 24px; }
+  .bloq {
+    display: grid; grid-template-columns: 4px 1fr; gap: 16px;
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 0; overflow: hidden;
+  }
+  .bloq .franja { background: var(--rojo); }
+  .bloq .cuerpo { padding: 15px 18px 15px 0; }
+  .bloq h4 {
+    font-family: var(--fuente-titulo); font-size: 14.5px; font-weight: 700;
+    margin: 0 0 5px; letter-spacing: -.005em;
+  }
+  .bloq p { margin: 0; font-size: 13.5px; color: var(--muted); }
+  .bloq .donde {
+    font-family: var(--fuente-dato); font-size: 10.5px;
+    color: var(--muted); display: block; margin-top: 7px;
+  }
+
+  /* ── Chips de rareza: los colores reales de TONO_POR_RAREZA ── */
+  .chip {
+    display: inline-block; font-family: var(--fuente-dato);
+    font-size: 9.5px; letter-spacing: .15em; text-transform: uppercase;
+    padding: 3px 8px; border: 1px solid; border-radius: 2px;
+    white-space: nowrap;
+  }
+  .chip.comun       { color: var(--muted);   border-color: var(--border); }
+  .chip.infrecuente { color: var(--verde);   border-color: rgba(79,191,106,.4); }
+  .chip.raro        { color: var(--cyan);    border-color: rgba(57,199,214,.4); }
+  .chip.legendario  { color: var(--amber);   border-color: rgba(224,168,46,.45); }
+
+  .tiers { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 20px; }
+
+  /* ── Cifras ── */
+  .rejilla { display: grid; gap: 12px; margin: 0 0 24px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .cifra { background: var(--surface); border: 1px solid var(--border); padding: 15px 16px; clip-path: var(--chaflan); }
+  .cifra .v {
+    font-family: var(--fuente-dato); font-size: 25px; font-weight: 700;
+    font-variant-numeric: tabular-nums; line-height: 1; color: var(--amber);
+  }
+  .cifra .v.frio { color: var(--cyan); }
+  .cifra .e {
+    font-family: var(--fuente-dato); font-size: 9.5px; letter-spacing: .15em;
+    text-transform: uppercase; color: var(--muted); margin-top: 8px; line-height: 1.5;
+  }
+
+  /* ── Fases: es una secuencia de verdad, por eso van numeradas ── */
+  .fases { display: flex; flex-direction: column; gap: 0; margin: 0 0 24px; }
+  .fase { display: grid; grid-template-columns: 62px 1fr; gap: 18px; padding: 20px 0; border-top: 1px solid var(--border); }
+  .fase:last-child { border-bottom: 1px solid var(--border); }
+  .fase .marca {
+    font-family: var(--fuente-dato); font-size: 10px; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--amber); padding-top: 3px;
+  }
+  .fase h4 { font-family: var(--fuente-titulo); font-size: 15.5px; font-weight: 700; margin: 0 0 6px; }
+  .fase p { margin: 0; font-size: 13.5px; color: var(--muted); }
+
+  /* ── Preguntas ── */
+  .preg {
+    border-top: 1px solid var(--border); padding: 22px 0;
+    display: grid; grid-template-columns: 34px 1fr; gap: 14px;
+  }
+  .preg:last-of-type { border-bottom: 1px solid var(--border); }
+  .preg .n {
+    font-family: var(--fuente-dato); font-size: 15px; font-weight: 700;
+    color: var(--amber); font-variant-numeric: tabular-nums; padding-top: 1px;
+  }
+  .preg h4 { font-family: var(--fuente-titulo); font-size: 16px; font-weight: 700; margin: 0 0 9px; text-wrap: balance; }
+  .preg .ops { display: flex; flex-direction: column; gap: 7px; margin-top: 10px; }
+  .preg .op { font-size: 13.5px; color: var(--muted); padding-left: 15px; position: relative; }
+  .preg .op::before {
+    content: ''; position: absolute; left: 0; top: 9px;
+    width: 6px; height: 6px; border: 1px solid var(--border);
+  }
+  .preg .op.rec { color: var(--text); }
+  .preg .op.rec::before { border-color: var(--amber); background: var(--amber); }
+  .preg .op b { color: var(--text); font-weight: 700; }
+  .rec-nota {
+    font-family: var(--fuente-dato); font-size: 9.5px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--amber); margin-left: 7px;
+  }
+
+  .pie {
+    margin-top: 70px; padding-top: 22px; border-top: 1px solid var(--border);
+    font-family: var(--fuente-dato); font-size: 10.5px;
+    color: var(--muted); letter-spacing: .05em; line-height: 1.9;
+  }
+
+  :focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="envoltorio">
+
+  <aside class="riel">
+    <p class="riel-marca">Holocrón SWU</p>
+    <p class="riel-titulo">Liga Internacional<br>PUENTE 3</p>
+    <details id="indice" open>
+    <summary>Índice</summary>
+    <nav>
+      <a href="#bloqueantes" class="destaca"><b>!</b>Lo que hoy la impide</a>
+      <a href="#forma"><b>1</b>La forma de la liga</a>
+      <a href="#identidad"><b>2</b>Identidad: carné y plaza</a>
+      <a href="#resultado"><b>3</b>El resultado</a>
+      <a href="#horarios"><b>4</b>Disponibilidad</a>
+      <a href="#publico"><b>5</b>Lo público</a>
+      <a href="#pantallas"><b>6</b>Pantallas y panel</a>
+      <a href="#creditos"><b>7</b>Los créditos</a>
+      <a href="#esquema"><b>8</b>Esquema</a>
+      <a href="#nose"><b>9</b>Lo que no se hace</a>
+      <a href="#fases"><b>10</b>Fases</a>
+      <a href="#riesgos"><b>11</b>Riesgos abiertos</a>
+      <a href="#preguntas" class="destaca"><b>?</b>Diez preguntas</a>
+    </nav>
+    </details>
+  </aside>
+
+  <main>
+  <div class="contenido">
+
+    <p class="rotulo">Propuesta de diseño · para revisar</p>
+    <h1>Liga Internacional PUENTE 3</h1>
+    <p class="bajada">Una liga abierta de 80 a 120 personas sobre HOLOCRON SWU: cómo se estructura, cómo se anota un resultado en el que se pueda confiar, y qué hay que romper de lo que ya está construido.</p>
+
+    <div class="rejilla ancho">
+      <div class="cifra"><div class="v">7.140</div><div class="e">partidas si 120 personas juegan todas contra todas</div></div>
+      <div class="cifra"><div class="v frio">420</div><div class="e">partidas con grupos de 8</div></div>
+      <div class="cifra"><div class="v frio">7</div><div class="e">partidas por jugador · no cambia si la liga crece a 500</div></div>
+      <div class="cifra"><div class="v">4 de 41</div><div class="e">cuentas que forjaron su sable hoy</div></div>
+    </div>
+
+    <p>Esa constancia —siete partidas por persona, sin importar si son 80 o 500— es la idea de la que cuelga todo lo demás. Los grupos no son una forma de ordenar: son la única razón por la que esta liga puede existir.</p>
+
+    <div class="tiers">
+      <span class="chip comun">Común 1…n</span>
+      <span class="chip infrecuente">Infrecuente 1…n</span>
+      <span class="chip raro">Raro 1…n</span>
+      <span class="chip legendario">Legendario 1…n</span>
+    </div>
+
+
+    <h2 id="bloqueantes"><span class="num">ANTES DE NADA</span>Tres cosas que hoy hacen imposible la liga</h2>
+    <p>Ninguna es código por escribir: es código vivo en producción que hay que cambiar. La tercera es la peor, porque no da error.</p>
+
+    <div class="bloqueantes ancho">
+      <div class="bloq">
+        <div class="franja"></div>
+        <div class="cuerpo">
+          <h4>El cupo está topado en 24</h4>
+          <p>Con <code>check (cupo between 4 and 24)</code>, la inscripción corta con «La liga está llena» en la persona <strong>número 11</strong> (el valor por defecto es 10).</p>
+          <span class="donde">ligas.cupo · espacio-creadores-liga-demo.sql</span>
+        </div>
+      </div>
+      <div class="bloq">
+        <div class="franja"></div>
+        <div class="cuerpo">
+          <h4>Cerrar la inscripción siembra todos contra todos</h4>
+          <p>Y el botón está vivo hoy. Con 120 inscritos, un toque inserta <strong>7.140 filas</strong> y 119 jornadas, y la liga pasa a <code>activa</code> sin vuelta atrás.</p>
+          <span class="donde">liga_cerrar_inscripcion() · CreadorPage.tsx:328</span>
+        </div>
+      </div>
+      <div class="bloq">
+        <div class="franja"></div>
+        <div class="cuerpo">
+          <h4>La tabla de posiciones tiene dos defectos silenciosos</h4>
+          <p>Filtra con lista <strong>negra</strong>, así que cualquier estado nuevo contaría por omisión. Y su <code>else</code> le da <strong>la victoria y 3 puntos a la visita en cada empate</strong> — y un 0-0 es exactamente el estado de una partida sin marcador: 8 de los 10 duelos reales de producción están así.</p>
+          <span class="donde">tablaDe() · ligaService.ts:181 y :189</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel alerta ancho">
+      <p class="panel-t">Lo que produce, en público</p>
+      <p>Una tabla plausible y equivocada. No hay excepción, no hay log, no hay nada rojo: solo un campeón que no es el campeón.</p>
+    </div>
+
+
+    <h2 id="forma"><span class="num">SECCIÓN 1</span>La forma de la liga</h2>
+
+    <h3>Grupos de 8, parametrizable de 6 a 12</h3>
+    <p>Ocho personas son siete partidas en una temporada de set (~13 semanas): <em>una partida cada 13 días</em>. Doce personas son once partidas, o sea una por semana — ese es el techo real de una liga amateur. Por debajo de seis, un solo abandono destruye el grupo.</p>
+    <p>El <code>check (4..24)</code> no protegía a la liga: protegía al round-robin. Se muda a <code>liga_grupos.tamano</code>, que es donde de verdad importa. El cupo de una liga abierta es <code>null</code>.</p>
+
+    <h3>Las rarezas son niveles, no etiquetas</h3>
+    <p>Común → Infrecuente → Raro → Legendario es un orden de escasez que la comunidad ya entiende sin que nadie lo explique. Si fueran cajones de color, «¿por qué estoy en Común?» no tendría respuesta.</p>
+    <p><strong>Pero la forma de la pirámide no se cablea.</strong> Ni el 4×4×8 de tu nota ni una pirámide fija aguantan el rango de población que tenés:</p>
+
+    <div class="tabla-caja ancho">
+      <table>
+        <thead><tr><th>Población</th><th>4×4×8 (tu nota)</th><th>Pirámide fija 8/16/32</th><th>Lo que propongo</th></tr></thead>
+        <tbody>
+          <tr><td class="n">80</td><td>cupo duro de 128, sobran plazas</td><td class="no">8 legendarios = 10 % de la liga</td><td class="si">grupos calculados desde los inscritos</td></tr>
+          <tr><td class="n">120</td><td class="si">128 plazas exactas</td><td class="si">sale 8/16/32/64</td><td class="si">idem</td></tr>
+          <tr><td class="n">400</td><td class="no">imposible</td><td class="no">Común con 424 personas y nadie avisa</td><td class="si">idem</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>El número de grupos por nivel lo calcula un <em>ensayo</em> como fracción de la población viva, se muestra antes de aplicar, y no vive en el <code>default</code> de ninguna columna. Un jsonb con la forma escrita que nadie recalcula es una bomba de tiempo callada.</p>
+
+    <div class="panel ancho">
+      <p class="panel-t">El ascenso y descenso NO entra en la fase 1</p>
+      <p>Se anuncia en pantalla desde el día uno («la temporada 1 decide quién arranca dónde»), pero la regla se escribe recién en la fase 3, con la población real medida en vez de adivinada. Cambiarla antes del primer cierre cuesta cero; después cuesta credibilidad.</p>
+    </div>
+
+    <h3>El número dentro de la rareza no es el huso horario</h3>
+    <p>Uno de los diseños proponía «rareza = división, número = huso». Pierde, con dato medido: hoy son <strong>30 SV · 6 España · 1 MX · 1 AR</strong>, o sea <strong>74 % en un solo huso</strong>. Escalado a 120, «Común 2, 3 y 4» quedarían vacíos o serían el mismo huso con otro nombre.</p>
+    <p>El número es el orden del grupo. El reparto <em>dentro</em> del nivel sí se hace por compatibilidad horaria, en serpentina (1→A, 2→B, 3→B, 4→A…), para que «Raro 1» no salga más duro que «Raro 2».</p>
+
+    <h3>Quien llega tarde nunca entra a un grupo en marcha</h3>
+    <p>El método del círculo con nueve personas mete un hueco y le cambia el número de partidas a los ocho que ya venían jugando. Quien llega tarde queda en lista de espera; cuando hay ocho, se abre un grupo nuevo de Común <em>con su propio reloj</em>. Los grupos son competencias independientes: uno que arranca en la semana 6 no molesta a nadie.</p>
+    <p><strong>Descartado:</strong> heredar la plaza del que abandonó. O heredás un historial que no jugaste, o arrancás tres partidas abajo. Las dos son mentiras en la tabla.</p>
+
+
+    <h2 id="identidad"><span class="num">SECCIÓN 2</span>La identidad: carné y plaza</h2>
+    <p>La cicatriz más cara del proyecto fue el motor de torneos inventando byes y empates porque un <code>user_id</code> nulo colapsaba a todos los invitados en una sola clave. Acá la competencia no es «la liga»: es <em>este grupo de esta temporada</em>.</p>
+
+    <div class="tabla-caja ancho">
+      <table>
+        <thead><tr><th>Nivel</th><th>Tabla</th><th>Qué vive ahí</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Carné</strong></td><td class="n">liga_inscripciones</td><td>una fila por persona y liga, para siempre: nivel, disponibilidad, abandonos, temporadas jugadas</td></tr>
+          <tr><td><strong>Plaza</strong></td><td class="n">liga_plazas</td><td>una fila por temporada y grupo: líder, base, mazo, nombre congelado</td></tr>
+          <tr><td><strong>Permiso</strong></td><td class="n">user_id / auth.uid()</td><td>quién puede escribir. Nada más</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Las partidas apuntan a la <strong>plaza</strong>, y las columnas viejas se <em>dropean</em> con backfill previo. Dejar las cuatro vivas es tener dos llaves de jugador para la misma pregunta — la forma exacta del bug del 8 de agosto.</p>
+
+
+    <h2 id="resultado"><span class="num">SECCIÓN 3</span>El resultado: quién lo pone, quién lo acepta</h2>
+    <p>Es lo que pediste, y es donde los cuatro diseños se equivocaron de forma distinta.</p>
+
+    <h3>La aritmética obliga al autoservicio</h3>
+    <p>Hoy solo el creador puede reportar. <strong>420 partidas × 2 minutos de tecleo = 14 horas</strong> para Alejo por temporada. Que anoten los jugadores no es comodidad: es lo único que escala.</p>
+
+    <pre><code><span class="c">programada</span> ──reporta cualquiera de las dos plazas──▶ <span class="k">reportada</span>
+                                     │
+        ┌────────────────────────────┼────────────────────┐
+   acepta el otro              rechaza el otro       pasan 5 días
+        ▼                            ▼                    ▼
+   <span class="k">confirmada</span>                  <span class="k">disputada</span>            <span class="k">confirmada</span>
+  origen=<span class="c">'acuerdo'</span>              cola del árbitro      origen=<span class="c">'silencio'</span>
+
+<span class="c">programada</span> + vence sin que NADIE reporte ──▶ <span class="k">vencida</span>  (no cuenta)
+árbitro ──▶ confirmada(laudo) │ wo_local │ wo_visita │ anulada</code></pre>
+
+    <p><strong>Cuenta para la tabla, en lista blanca:</strong> <code>confirmada</code>, <code>wo_local</code>, <code>wo_visita</code>. Nada más.</p>
+
+    <h3>La decisión difícil: el silencio sí confirma</h3>
+    <div class="panel clave ancho">
+      <p class="panel-t">El escenario que rompe la liga entera</p>
+      <p>Raro 1, jornada 6. Vamos 12 a 12. Pierdo 1-2 y él lo reporta. Si confirmo, desciendo. Si no toco nada, la partida vence, sale de la tabla y los dos seguimos en 12. <strong>Callarse sale gratis.</strong> Y está medido que el silencio es el modo por defecto de esta comunidad: 8 de los 10 duelos de producción quedaron 0-0 porque nadie marcó al ganador.</p>
+    </div>
+    <p>No confirmar no puede ser mejor negocio que perder. <strong>La distinción que lo hace legítimo:</strong> la cicatriz vieja fue el sistema <em>afirmando</em> algo que nadie dijo. Acá hay una persona que puso un marcador con nombre y apellido, y otra que tuvo cinco días y dos avisos para desmentirlo. Eso no es inventar: es registrar.</p>
+    <p>Por eso son <strong>dos columnas y no una</strong>. La tarjeta pública de una partida con <code>origen='silencio'</code> dice <em>«sin respuesta del rival»</em>, no «confirmada». La tabla pública no puede fingir que los dos firmaron.</p>
+
+    <h3>Los plazos, y el reloj que los hace correr</h3>
+    <ul>
+      <li><strong>5 días</strong> desde el reporte, con recordatorio al tercero. La jornada dura ~13 días, así que quedan 8 de margen.</li>
+      <li>El aviso va por <strong>los dos canales</strong> —push y franja de Inicio— porque el push llega a 13 de 39 cuentas.</li>
+      <li>No hay <code>pg_cron</code> acá: el reloj es un cron de Vercel a las <code>41 13 * * *</code>, que no choca con los seis que ya corren.</li>
+      <li>La condición va <strong>en el WHERE del UPDATE</strong>, no en un <code>if</code> antes: si no, quien reportó puede llamar el endpoint en bucle y bombardear al rival.</li>
+      <li>La función del cron devuelve <strong>destinatarios, no contadores</strong>. Un «recordadas: 37» son 37 personas marcadas como avisadas que no recibieron nada.</li>
+    </ul>
+
+    <h3>Abandono: se descarta la «regla del 50 %»</h3>
+    <p>Un diseño proponía anular todas las partidas de quien abandona, jugadas incluidas. <strong>Es un arma, y la dispara el que abandona:</strong> pierdo mis tres primeras, me voy, y les borro nueve puntos a los tres que me ganaron mientras los que no me enfrentaron no pierden nada. El que iba primero desciende.</p>
+    <p><strong>Lo jugado se jugó.</strong> La plaza queda fuera de clasificación, sus partidas confirmadas siguen contando para el rival, y las pendientes se anulan con motivo visible.</p>
+    <p>Esto además arregla un bug de hoy: <code>tablaDe()</code> <em>borra</em> las partidas contra quien se retira, así que desaparece el resultado del que sí jugó y ganó. En una liga de 24 era ruido; en una de 120 con abandono normal del 30 %, son ~140 encuentros evaporados de la tabla mientras el reparto de premios sí los cuenta.</p>
+
+
+    <h2 id="horarios"><span class="num">SECCIÓN 4</span>Disponibilidad: lo que se guarda y lo que no sale nunca</h2>
+    <p>Pediste guardar los días y horas «para verificar y ordenar mejor». Ese dato solo sirve si se puede <em>cruzar</em>, no solo mirar.</p>
+
+    <div class="tabla-caja ancho">
+      <table>
+        <thead><tr><th>Decisión</th><th>Por qué</th></tr></thead>
+        <tbody>
+          <tr><td class="n">bit(168) = 7 días × 24 h,<br>en hora local + zona IANA</td><td>Una máscara semanal recurrente <strong>no tiene representación UTC estable</strong>: SV↔España pasa de 6 a 4 horas en común solo por el horario de verano español, sin que nadie toque una tecla.</td></tr>
+          <tr><td class="n">resolución de 1 hora,<br>no de 6</td><td>El desfase SV↔España es de 8 h = 1,33 franjas de seis. Redondear hacia arriba declara compatible a gente que <strong>no puede coincidir jamás</strong>; hacia abajo destruye solape real.</td></tr>
+          <tr><td class="n">India, Adelaida y Darwin<br>redondean hacia menos</td><td>Un solape inventado es una partida que no se puede jugar. Mismo criterio que el escáner de cartas: un falso positivo es peor que un silencio.</td></tr>
+          <tr><td class="n">viaja como text con CHECK,<br>el cast a bit va en la RPC</td><td>Postgres <strong>rellena y trunca en silencio</strong> al castear a <code>bit(n)</code>. Una máscara corrida se guarda sin un solo error — y es exactamente lo único que este módulo no puede permitirse.</td></tr>
+          <tr><td class="n">se declara con 28 casillas,<br>no con 168</td><td>7 días × madrugada/mañana/tarde/noche, más cuatro presets. 168 casillas son un formulario odioso en un teléfono; 28 resuelven el caso normal en dos toques y el grabado fino sigue siendo posible.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel alerta ancho">
+      <p class="panel-t">Prohibido por escrito</p>
+      <p><code>bit_count(a.franjas &amp; b.franjas)</code> en SQL. Es una línea, es rapidísima, y compara las 20:00 de Madrid con las 20:00 de San Salvador. Devuelve números plausibles y falsos.</p>
+    </div>
+
+    <h3>La fuga que hay que cerrar antes de escribirla</h3>
+    <p>Un diseño proponía una función que devuelve el solape con el rival. Con una máscara de 168 bits declarada, <strong>la intersección con el otro es la agenda completa del otro</strong>: una llamada, 100 % recuperado. Y el dato que se filtra es a qué horas un menor está solo en su casa.</p>
+    <p>La función devuelve <strong>como mucho seis instantes candidatos</strong> de esa jornada, elegidos en el servidor. Cota: 7 rivales × 6 candidatos = 42 ranuras de 168.</p>
+
+    <h3>Dónde vive y quién la ve</h3>
+    <p>Tabla aparte, <strong>nunca una columna de <code>liga_inscripciones</code></strong>: hoy existe un <code>grant select</code> a nivel de tabla, y un grant así cubre todas las columnas, presentes <em>y futuras</em>. Meter la disponibilidad ahí la publica a toda cuenta logueada el día que se abra el espacio.</p>
+    <p>Sin grant de SELECT para nadie, sin policy de escritura, y <code>anon</code> no la ve nunca ni de rebote.</p>
+
+    <h3>El mínimo para inscribirse: 6 horas semanales</h3>
+    <p>Descarto el «3 bloques en 2 días distintos» que proponía un diseño: alguien que solo tiene libre el domingo de 10 a 16 sería rechazado, y como quiere jugar, marca dos casillas cualquiera del martes. Ahora el armador le arma siete partidas imposibles. <strong>Una regla que empuja a mentir envenena el único cálculo del que cuelga todo esto.</strong></p>
+
+
+    <h2 id="publico"><span class="num">SECCIÓN 5</span>Lo público</h2>
+
+    <div class="panel alerta ancho">
+      <p class="panel-t">Verificado hoy en App.tsx</p>
+      <p><code>/liga/:code</code> y <code>/c/:code</code> están envueltas en <code>&lt;P&gt;</code>, que exige sesión. <strong>La vista pública que pedís es hoy literalmente imposible</strong> — un visitante sin cuenta no obtiene una lista vacía: obtiene «permission denied».</p>
+    </div>
+
+    <p>Y <strong>no se toca la función global que abre el espacio de creadores</strong>: flipearla publicaría de paso las ligas en borrador de cualquier creador presente y futuro. Lo público sale por función con proyección recortada —el patrón ya probado del «en vivo»— en tres piezas:</p>
+    <ol>
+      <li><code>ligas.publica</code>, el interruptor por liga que enciende un admin. Es literalmente lo que pediste: «cuando los administradores la activen». Un punto, con perilla.</li>
+      <li>Dos funciones con <code>execute</code> para <code>anon</code>, revocando de <code>public</code> primero.</li>
+      <li>Sacar las dos rutas de <code>&lt;P&gt;</code>.</li>
+    </ol>
+    <p>Si <code>publica</code> es false, la función devuelve «no hay liga», <strong>no un error</strong>: la pantalla dice «todavía no está abierta» en vez de «se rompió».</p>
+
+    <div class="tabla-caja ancho">
+      <table>
+        <thead><tr><th>Dato</th><th>¿Público?</th><th>Por qué</th></tr></thead>
+        <tbody>
+          <tr><td>tabla, grupos, jornadas, marcadores, VODs</td><td class="si">sí</td><td>es la liga</td></tr>
+          <tr><td>próximos encuentros</td><td class="n">día, no hora</td><td>una página indexable que dice «sábado 20:00 — Menor A vs Menor B» es más precisa que la máscara que se protegió tres párrafos antes</td></tr>
+          <tr><td>hora exacta acordada</td><td class="n">los dos jugadores y la cabina</td><td>pública solo si el creador marca esa partida para transmisión: ahí el consentimiento ya está dado</td></tr>
+          <tr><td>disponibilidad, zona, user_id</td><td class="no">nunca</td><td>ver sección 4</td></tr>
+          <tr><td>lista de mazo</td><td class="n">después del resultado</td><td>ver abajo</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+
+    <h2 id="pantallas"><span class="num">SECCIÓN 6</span>Pantallas, perfil y panel</h2>
+
+    <h3>La unidad visible es el grupo de 8, nunca la lista de 120</h3>
+    <p>No es estética: hace que el problema de rendimiento desaparezca por arquitectura en vez de por optimización. Chrome corta a <strong>~16 contextos WebGL</strong>, así que una lista de 120 sables es imposible por construcción. Y una tabla plana de 120 ordenada por puntos absolutos es ruido con cara de dato: el campeón de Legendario 1 con 15 puntos saldría debajo de alguien de Común 3 con 18, sin haberse cruzado jamás.</p>
+
+    <div class="tabla-caja ancho">
+      <table>
+        <thead><tr><th>Ruta</th><th>Sesión</th><th>Qué muestra</th></tr></thead>
+        <tbody>
+          <tr><td class="n">/liga/:code</td><td class="n">no</td><td>portada: cabecera por grupo, cuántos juegan, cuántas partidas van de cuántas</td></tr>
+          <tr><td class="n">/liga/:code/g/:tier-:n</td><td class="n">no</td><td>el grupo: tabla de 8, jornadas, VODs</td></tr>
+          <tr><td class="n">/liga/:code/j/:plaza</td><td class="n">no</td><td>perfil de jugador de liga</td></tr>
+          <tr><td class="n">/liga/:code/yo</td><td class="n">sí</td><td><strong>abre en tu próxima partida</strong>, no en la tabla</td></tr>
+          <tr><td class="n">/liga/:code/panel</td><td class="n">sí</td><td>el panel, fuera del caparazón como /admin y /temporada</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Lo primero que ve un jugador es su próxima partida y el botón de anotar o confirmar, porque es la única acción que existe. La tabla es lo que mira el espectador.</p>
+
+    <h3>El perfil de jugador: la tarjeta, el mazo y el sable</h3>
+    <ul>
+      <li><strong>Credencial:</strong> se reusa el armado que ya comparten dos pantallas. Cuidado: hoy exige fila en <code>player_stats</code> con <code>!inner</code>, y una cuenta nueva sin stats <strong>devuelve nada</strong>. Con 80-120 cuentas nuevas ese sería el caso mayoritario el día del arranque.</li>
+      <li><strong>Líder y base como uuid canónico de carta</strong>, no el texto libre de hoy. Sin id no hay arte — y ya está escrito por qué: «Cad Bane» son cinco cartas.</li>
+      <li><strong>El sable.</strong> Hoy no existe camino al de otra persona: la policy es <code>user_id = auth.uid()</code>. La función devuelve los nueve campos del diseño, o la cadena de acabados cae a otro eslabón y el sable dibujado no es el que esa persona armó.</li>
+      <li><strong>En listas va el SVG plano; en el perfil, 3D, uno por pantalla.</strong> Y queda prohibido reusar la foto cacheada del mango: guarda una sola entrada en <code>localStorage</code> que la barra de XP lee sin comparar la clave, así que mirar un perfil ajeno te llevaría el mango de un desconocido a tu propio Inicio.</li>
+      <li><strong>Quien no forjó no recibe el de fábrica.</strong> Cuatro de 41 forjaron: 116 mangos idénticos son ruido. Va la ranura vacía con el color del grupo, y en el perfil propio un «Forjá el tuyo».</li>
+    </ul>
+
+    <div class="panel clave ancho">
+      <p class="panel-t">El mazo se revela al confirmar el resultado, no antes</p>
+      <p>El calendario completo se publica el día 1. Si la lista fuera pública desde la inscripción, cada quien tendría <strong>13 semanas</strong> para preparar a sus siete rivales con el mazo delante. La app ya resolvió esto una vez: la lista de una amistosa solo se entrega cuando el duelo está confirmado.</p>
+    </div>
+
+    <h3>El panel</h3>
+    <p>Una sola función devuelve todo en un viaje: inscritos con grupo, disponibilidad cruda para el mapa de calor, cola de vencidas y disputadas por antigüedad, y contadores por persona.</p>
+    <p><strong>El armador propone y el servidor valida</strong> — el patrón ya probado con las mesas de Twin Suns. Comprueba lo legal (cada plaza una vez, tamaños en rango, ningún par sin solape salvo que venga forzado explícitamente) y devuelve <em>qué par concreto rechaza</em>, no un «no se pudo». Con 15 grupos, armar a mano es inviable.</p>
+
+
+    <h2 id="creditos"><span class="num">SECCIÓN 7</span>Los créditos: la liga deja de pagar</h2>
+    <p>El reparto de premios actual está roto de tres formas independientes, todas verificadas: es idempotente por <em>código de liga</em> y no por temporada (la temporada 2 no cobra nunca), su consulta interna es una <strong>segunda implementación de la tabla de posiciones</strong> escrita sobre las columnas que se dropean, y su exclusión del podio da NULL cuando no hay segundo, así que nadie cobra participación sin error.</p>
+    <p>Pero el problema de fondo es otro: <strong>estamos quitando la única defensa que el contador tenía</strong> —que solo el creador escribía los marcadores— y dejando el pago intacto. Son <strong>6.650 créditos por temporada</strong> decididos por marcadores que dos personas coludidas firman entre ellas, y el alta de cuenta es un correo.</p>
+
+    <div class="panel clave ancho">
+      <p class="panel-t">Decisión</p>
+      <p>En la fase 1 la liga <strong>no paga créditos</strong>. El premio es cosmético: emblema de «Campeón Liga PUENTE 3» en la credencial y un acabado. El contrato estructural se queda intacto — cero triggers, cero XP, cero sobres, y la liga no entra al ranking unificado.</p>
+    </div>
+    <p><strong>La colusión de a tres no tiene defensa técnica</strong>, y hay que decirlo: A y B pierden a propósito contra C para subirlo. Lo único que la limita es que las partidas se transmiten y que quien reporta y quien confirma quedan con nombre en la ficha.</p>
+
+
+    <h2 id="esquema"><span class="num">SECCIÓN 8</span>Esquema, en corto</h2>
+    <p>Siete tablas nuevas y tres ampliadas. Lo que ya existe se conserva donde sirve: <code>creadores</code> queda intacta, <code>liga_inscripciones</code> pasa a ser el carné.</p>
+
+    <pre><code><span class="c">-- se amplían</span>
+ligas                <span class="c">→ +publica, +tamano_grupo; se quita el CHECK de cupo</span>
+liga_inscripciones   <span class="c">→ EL CARNÉ: +estado, +tier, +abandonos, +temporadas</span>
+liga_partidas        <span class="c">→ cuelga del GRUPO, apunta a PLAZAS, +origen, +vence_el</span>
+
+<span class="c">-- nuevas</span>
+liga_temporadas      <span class="c">reusa la tabla de temporadas por set</span>
+liga_grupos          <span class="c">tier + orden SIN techo, y RELOJ PROPIO por grupo</span>
+liga_plazas          <span class="c">la identidad en la competencia</span>
+liga_disponibilidad  <span class="c">tabla aparte · sin grant de select para nadie</span>
+liga_staff           <span class="c">organizador / árbitro, por grupo</span>
+liga_correcciones    <span class="c">rastro PÚBLICO de cada corrección, con motivo</span>
+
+<span class="c">-- un encuentro por par: mata el doble reporte y la doble siembra</span>
+<span class="k">create unique index</span> liga_un_encuentro_por_par <span class="k">on</span> liga_partidas
+  (grupo_id, least(local_plaza,visita_plaza), greatest(local_plaza,visita_plaza));</code></pre>
+
+    <div class="panel alerta ancho">
+      <p class="panel-t">Detalle que costaría una temporada</p>
+      <p><code>liga_partidas</code> <strong>no tiene <code>updated_at</code></strong> — verificado. Una función copiada de la de amistosas revienta con 42703 en la primera confirmación.</p>
+    </div>
+
+
+    <h2 id="nose"><span class="num">SECCIÓN 9</span>Lo que no se va a hacer</h2>
+    <p>Vale tanto como lo que sí.</p>
+
+    <div class="tabla-caja ancho">
+      <table>
+        <thead><tr><th>No se hace</th><th>Por qué</th></tr></thead>
+        <tbody>
+          <tr><td>Abrir la función global de creadores</td><td>publica de golpe el espacio entero, incluida la liga en borrador de cualquier creador futuro</td></tr>
+          <tr><td>Dar <code>select</code> a <code>anon</code> sobre las tablas</td><td>expone <code>user_id</code> y todo lo que alguien agregue mañana</td></tr>
+          <tr><td>Reusar filas de amistosas</td><td>los duelos son privados por policy y prometen no tocar ranking; la liga es espectáculo público y <em>es</em> un ranking. Se reusa el patrón, no las filas</td></tr>
+          <tr><td>Guardar la tabla de posiciones</td><td>sería la 15.ª tabla de posiciones del proyecto. Con 28 filas por grupo no hay rendimiento que resolver</td></tr>
+          <tr><td>Una función de tabla en el servidor</td><td>dos implementaciones de la misma regla. Ya hay una segunda escondida en el reparto de premios, y hay que <em>matarla</em>, no agregar una tercera</td></tr>
+          <tr><td>Partidas a demanda («retá a quien quieras»)</td><td>sin fila no hay a quién perseguir, no hay «futuros encuentros» que publicar, y no se distingue «no jugamos» de «todavía no lo agendamos»</td></tr>
+          <tr><td>Walkover automático al vencer sin reporte</td><td>ahí sí es el motor inventando: nadie afirmó nada. Va a «vencida» y lo resuelve una persona</td></tr>
+          <tr><td>Detección estadística de colusión</td><td>umbral inventado, avisa tarde, y deja el trabajo en manos de una persona igual</td></tr>
+          <tr><td>Un sexto tab en la barra de abajo</td><td>120 personas de un canal contra 41 que usan la app: un tab permanente para una minoría desplaza algo que usan todos</td></tr>
+          <tr><td>Texto libre para la disponibilidad</td><td>no se ordena, no se cruza, no se cuenta — y ordenar es lo único que pediste que ese dato hiciera</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+
+    <h2 id="fases"><span class="num">SECCIÓN 10</span>Fases</h2>
+
+    <div class="fases ancho">
+      <div class="fase">
+        <div class="marca">Fase 0</div>
+        <div>
+          <h4>Desbloquear</h4>
+          <p>Cupo, la siembra que deja de sembrar, la tabla a lista blanca y por grupo, <code>updated_at</code>, grants y RLS de las tablas nuevas, premios desactivados. <strong>Sin esto, apretar el botón que ya existe con 120 inscritos escribe 7.140 filas y la liga pasa a activa sin vuelta atrás.</strong> No se ve nada, y sin esto no arranca nada.</p>
+        </div>
+      </div>
+      <div class="fase">
+        <div class="marca">Fase 1</div>
+        <div>
+          <h4>La liga arranca, todavía privada</h4>
+          <p>Carné, plazas, grupos y temporada. Inscripción con disponibilidad y doble consentimiento. Ensayo y armado de grupos. Calendario por grupo. Reportar, confirmar, disputar y vencer con su cron. Tabla por grupo. Panel de inscritos con mapa de calor. Se prueba con el grupo de Alejo antes de que lo vea el mundo.</p>
+        </div>
+      </div>
+      <div class="fase">
+        <div class="marca">Fase 2</div>
+        <div>
+          <h4>Se abre al público y se pone linda</h4>
+          <p>El interruptor por liga y las dos funciones públicas. Rutas fuera del guardia de sesión. Portada por grupos. Perfil de jugador con credencial, líder y base como arte, sable y mazo post-resultado. Horarios propuestos y aceptados. Entradas de menú condicionadas. La ficha del overlay diciendo el puesto del grupo.</p>
+        </div>
+      </div>
+      <div class="fase">
+        <div class="marca">Fase 3</div>
+        <div>
+          <h4>El cierre, recién a las 13 semanas</h4>
+          <p>Ensayo de cierre (quién sube, quién baja, qué empates necesitan desempate jugado). Regla de ascenso y descenso <strong>decidida con la población real</strong>. Premios por grupo con confirmación de admin. Emblema en la credencial.</p>
+        </div>
+      </div>
+      <div class="fase">
+        <div class="marca">Fase 4</div>
+        <div>
+          <h4>Si lo pedís</h4>
+          <p>Playoffs entre los campeones de grupo (el motor de eliminación ya existe). Sustitución en plaza vacante. Una segunda liga de otro creador — hoy un índice único permite <em>una</em> liga viva por creador.</p>
+        </div>
+      </div>
+    </div>
+
+
+    <h2 id="riesgos"><span class="num">SECCIÓN 11</span>Riesgos que quedan abiertos</h2>
+    <ol>
+      <li><strong>La siembra de la temporada 1 va a estar mal y no hay forma de saber cuánto.</strong> El ranking sale de 8 torneos y 12 amistosas; con 120 personas, más de 100 empatan en cero. Por eso: temporada 1 declarada <em>provisional</em>, con la semilla publicada y el barajado comprobable por cualquiera con una calculadora de md5.</li>
+      <li><strong>El escritorio del árbitro se desborda.</strong> Si el 15 % de las 420 partidas cae en vencida o disputada, son ~63 filas esperando a una persona. Sin árbitros por grupo, este diseño se traba en la primera jornada.</li>
+      <li><strong>La ventana real de vencimiento es de 5 a 6 días</strong>, no 5 exactas: el barrido es diario. Hay que decirlo en pantalla en vez de fingir precisión.</li>
+      <li><strong>Guardar el tiempo entre reporte y confirmación desde el día uno.</strong> Los cinco días son una decisión, no una medición. Después de una temporada se corrige con datos.</li>
+      <li><strong>Probar como quien de verdad tiene el permiso.</strong> Un UPDATE corrido como la persona equivocada afecta 0 filas <em>sin error</em> y se lee igual que «la función está rota». Ya pasó esta semana con el overlay.</li>
+    </ol>
+
+
+    <h2 id="preguntas"><span class="num">LO QUE NECESITO DE VOS</span>Diez preguntas</h2>
+    <p>Ninguna es de ingeniería. Son las decisiones de producto que no puedo tomar yo, en orden de cuánto cambian el diseño.</p>
+
+    <div class="preg">
+      <div class="n">1</div>
+      <div>
+        <h4>¿La liga se juega en línea o presencial?</h4>
+        <p>Es la que más cambia todo. Si es presencial en SV, la zona horaria sobra, la disponibilidad importa mucho menos que la ciudad, y los grupos se arman por sede — y me estaría gastando media propuesta en un problema que no tenés.</p>
+        <div class="ops">
+          <div class="op"><b>a.</b> En línea — la disponibilidad arma los grupos, todo lo de arriba aplica tal cual</div>
+          <div class="op"><b>b.</b> Presencial en El Salvador — los grupos se arman por sede</div>
+          <div class="op"><b>c.</b> Mixta</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preg">
+      <div class="n">2</div>
+      <div>
+        <h4>¿Las rarezas son una escalera con ascenso y descenso, o cuatro cajones?</h4>
+        <p>No podés dejar el nombre de una escalera colgado de un criterio que no es una escalera: Común y Legendario <em>son</em> una jerarquía, y el nombre mentiría.</p>
+        <div class="ops">
+          <div class="op rec"><b>a.</b> Escalera — el 1.º de Común 1 sube, el último baja. Da razón para volver la temporada siguiente<span class="rec-nota">lo que asumí</span></div>
+          <div class="op"><b>b.</b> Cajones — y entonces se llaman sistemas, casas o colores, no rarezas</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preg">
+      <div class="n">3</div>
+      <div>
+        <h4>¿Quién arbitra, con nombre y apellido?</h4>
+        <p>Con ~63 filas trabadas esperables, Alejo solo no da abasto y los cuatro admins de HOLOCRON no saben quién dejó de contestar.</p>
+        <div class="ops">
+          <div class="op rec"><b>a.</b> Alejo como organizador + 2 o 3 árbitros que él nombre por grupo<span class="rec-nota">recomiendo</span></div>
+          <div class="op"><b>b.</b> Alejo solo, y se asume la cola</div>
+          <div class="op"><b>c.</b> Solo admins de HOLOCRON</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preg">
+      <div class="n">4</div>
+      <div>
+        <h4>¿Cuántas plazas por grupo?</h4>
+        <div class="ops">
+          <div class="op rec"><b>a.</b> 8 → siete partidas, una cada 13 días<span class="rec-nota">recomiendo</span></div>
+          <div class="op"><b>b.</b> 10 → nueve partidas, una cada 10 días</div>
+          <div class="op"><b>c.</b> 12 → once partidas, una por semana. Es el techo antes de que el calendario empiece a expulsar gente</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preg">
+      <div class="n">5</div>
+      <div>
+        <h4>¿Cinco días para aceptar un marcador?</h4>
+        <div class="ops">
+          <div class="op rec"><b>a.</b> 5 días, con recordatorio al tercero; al vencer cuenta marcada como «sin respuesta del rival»<span class="rec-nota">recomiendo</span></div>
+          <div class="op"><b>b.</b> 7 días — más margen para quien abre la app una vez por semana, pero la tabla va más atrás</div>
+          <div class="op"><b>c.</b> Nunca vence — te lo desaconsejo: callarse sale gratis y le borra la derrota a cualquiera</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preg">
+      <div class="n">6</div>
+      <div>
+        <h4>¿La liga paga créditos en la temporada 1?</h4>
+        <div class="ops">
+          <div class="op rec"><b>a.</b> No — emblema de campeón y acabado, nada más<span class="rec-nota">recomiendo</span></div>
+          <div class="op"><b>b.</b> Sí, por grupo y con el podio firmado por un admin antes de pagar, con tope de emisión</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preg">
+      <div class="n">7</div>
+      <div>
+        <h4>¿Cuándo se ve el mazo de alguien? ¿Y se puede cambiar entre jornadas?</h4>
+        <div class="ops">
+          <div class="op rec"><b>a.</b> Al confirmar cada resultado — es el patrón que ya usa la app y es el contenido que Alejo quiere tener<span class="rec-nota">recomiendo</span></div>
+          <div class="op"><b>b.</b> Al inscribirse — y cada quien tiene 13 semanas para preparar a sus siete rivales</div>
+          <div class="op"><b>c.</b> Solo líder y base; la lista nunca</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preg">
+      <div class="n">8</div>
+      <div>
+        <h4>Con menores en la liga y una página pública indexable, ¿alcanza el consentimiento de la propia cuenta?</h4>
+        <p>El texto de hoy dice literalmente «nunca mis datos personales», y eso dejaría de ser cierto.</p>
+        <div class="ops">
+          <div class="op rec"><b>a.</b> Dos casillas separadas (transmisión / perfil público); quien diga que no al perfil sale como iniciales<span class="rec-nota">recomiendo</span></div>
+          <div class="op"><b>b.</b> Además, permiso de un adulto para menores de cierta edad</div>
+          <div class="op"><b>c.</b> El nombre público es el del carné, editable, y nunca el nombre real</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preg">
+      <div class="n">9</div>
+      <div>
+        <h4>¿Arrancamos con los cuatro nombres desde el día uno?</h4>
+        <p>A 120 la pirámide se sostiene; a 80, Legendario sería el 10 % de la liga — y en un sobre, el legendario es la carta que casi nunca sale.</p>
+        <div class="ops">
+          <div class="op"><b>a.</b> Los cuatro desde el día uno, con la forma calculada por el ensayo</div>
+          <div class="op"><b>b.</b> Arrancar con tres y abrir Legendario cuando la liga pase de 100</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preg">
+      <div class="n">10</div>
+      <div>
+        <h4>¿Quién es la gente de la liga: cuentas que ya tienen la app, o cuentas nuevas?</h4>
+        <p>Hoy hay 41 perfiles y <strong>19 de 38 nunca arrancaron</strong> (cero cartas, cero sobres, 14 con cero XP). Si los 80-120 son cuentas nuevas, <strong>la inscripción de la liga es el onboarding de la app</strong> — y eso cambia qué se pide en el formulario y en qué orden. Un formulario largo sería la primera pantalla que ven.</p>
+      </div>
+    </div>
+
+
+    <p class="pie">
+      Cuatro diseños independientes · cuatro críticas adversariales · 14 fallas marcadas como mata-el-diseño, resueltas o declaradas<br>
+      Los números de producción son de hoy. Las afirmaciones sobre el código están verificadas contra el repo, no supuestas.
+    </p>
+
+  </div>
+  </main>
+</div>
+
+<script>
+  /* El índice viene ABIERTO en el marcado —así el documento se lee completo
+     aunque el script no corra— y acá se CIERRA en pantallas angostas, donde
+     abierto se comía la primera pantalla entera.
+     Se reevalúa al girar el aparato. */
+  (function () {
+    var d = document.getElementById('indice')
+    if (!d) return
+    var ancho = window.matchMedia('(min-width: 1040px)')
+    var aplicar = function (m) { d.open = m.matches }
+    aplicar(ancho)
+    if (ancho.addEventListener) ancho.addEventListener('change', aplicar)
+  })()
+</script>
+</body>
+</html>

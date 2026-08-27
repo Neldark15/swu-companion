@@ -26,6 +26,14 @@ export interface ModuloVisible {
   label: string
   tone: HudTone
   to: string
+  /**
+   * El destino es un ARCHIVO servido por Vercel, no una ruta del router.
+   *
+   * `navigate()` lo trataría como ruta de la SPA y caería en el comodín — o
+   * sea, a Inicio en silencio. Los documentos de `public/planes/` se sirven
+   * ANTES del rewrite (§2r), así que necesitan una navegación de verdad.
+   */
+  externo?: boolean
 }
 
 
@@ -35,7 +43,10 @@ export function MosaicoModulo({ sys }: { sys: ModuloVisible }) {
   const Icon = sys.icon
 
   return (
-    <button onClick={() => navigate(sys.to)} className="text-left">
+    <button
+      onClick={() => { if (sys.externo) window.location.assign(sys.to); else navigate(sys.to) }}
+      className="text-left"
+    >
       {/* El mismo 3D de las cartas, con menos ángulo: un panel de interfaz que
           se inclina como una carta se siente a juguete. Seis grados alcanzan
           para que responda al dedo. */}

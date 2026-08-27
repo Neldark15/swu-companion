@@ -258,6 +258,12 @@ const adminSystems: Sistema[] = [
 const HERRAMIENTAS_PROPIAS = [
   { icon: MandoTrophyIcon, label: 'Temporada', tone: 'amber' as HudTone, to: '/temporada', llave: 'curador' as const },
   { icon: EmisionIcon,     label: 'Mi espacio', tone: 'cyan' as HudTone, to: '', llave: 'creador' as const },
+  /* El plan de la liga es un DOCUMENTO, no una pantalla: vive en
+     `public/planes/` y lo sirve Vercel tal cual. Va acá para que Alejo —que
+     es creador, no admin— pueda leerlo desde la app sin depender de un enlace
+     que solo abre Nel. */
+  { icon: ArticuloIcon, label: 'Plan de la liga', tone: 'purple' as HudTone,
+    to: '/planes/liga-puente3.html', llave: 'plan' as const, externo: true },
 ]
 
 interface Marcador {
@@ -616,7 +622,9 @@ export function HomePage() {
           ninguna: un separador solo es peor que nada. */}
       {(() => {
         const mias = HERRAMIENTAS_PROPIAS
-          .filter(h => (h.llave === 'curador' ? curador === true : typeof miCreador === 'string'))
+          .filter(h => h.llave === 'curador' ? curador === true
+                     : h.llave === 'plan'    ? (curador === true || typeof miCreador === 'string')
+                     : typeof miCreador === 'string')
           .map(h => ({
             ...h,
             to: h.llave === 'creador' && typeof miCreador === 'string' ? `/c/${miCreador}` : h.to,
@@ -627,7 +635,10 @@ export function HomePage() {
             {renderSeparador('Mis herramientas', 'cyan')}
             <div className="px-4 pt-2 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {mias.map(h => (
-                <MosaicoModulo key={h.label} sys={{ icon: h.icon, label: h.label, tone: h.tone, to: h.to }} />
+                <MosaicoModulo
+                  key={h.label}
+                  sys={{ icon: h.icon, label: h.label, tone: h.tone, to: h.to, externo: h.externo }}
+                />
               ))}
             </div>
           </>

@@ -29,3 +29,4 @@ scripts/.cache/
 .vercel
 .env*.local
 .claude/
+
