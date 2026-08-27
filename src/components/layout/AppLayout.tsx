@@ -72,9 +72,27 @@ export function AppLayout() {
                 y un ancestro recortado no le quita el scroll a un descendiente
                 que scrollea por su cuenta. */}
             <main id={ID_SCROLL} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain pb-6">
-              <PageTransition>
-                <Outlet />
-              </PageTransition>
+              {/* AIRE DE PÁGINA WEB, no de app estirada.
+               *
+               * El caparazón se diseñó para el teléfono —`max-w-lg` y listo— y
+               * en escritorio se soltaba a ancho completo: en un monitor de
+               * 1.920 el formulario de acceso medía 1.632 px de lado a lado.
+               * Eso es lo que hace que se lea como una app de celular puesta a
+               * pantalla completa en vez de como un sitio.
+               *
+               * Dos cosas, y ninguna es un ancho fijo: márgenes de verdad
+               * desde `lg` —que es lo que separa el contenido del menú y le da
+               * respiro— y un tope solo en pantallas MUY anchas. Nada de
+               * apretarlo a una columna de lectura: acá se miran rejillas de
+               * cartas y el ancho se usa.
+               *
+               * El scroll sigue siendo del `<main>` (§ del caparazón): esta
+               * caja no scrollea, solo mide. */}
+              <div className="mx-auto w-full lg:px-6 xl:px-10 2xl:max-w-[1600px]">
+                <PageTransition>
+                  <Outlet />
+                </PageTransition>
+              </div>
             </main>
           </div>
         </div>

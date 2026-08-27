@@ -1396,3 +1396,25 @@ input:focus, textarea:focus, select:focus {
   .mision-xp { animation-duration: 900ms; }
   .mision-gira { animation-duration: 2.4s; }
 }
+
+/* ── Barra de desplazamiento fina, para el menú de escritorio ──
+ *
+ * Va como CSS PLANO y no como `@utility`: Tailwind solo emite una utilidad si
+ * DETECTA la clase escrita en el código, y esta se usa desde una plantilla de
+ * clases (§3i). Ya pasó con los ocho bloques `@utility foil-*`, que no llegaron
+ * nunca a la hoja de estilos.
+ *
+ * La barra por defecto de Chrome en Windows es una franja gris clara de 15 px
+ * que en un panel oscuro se lee como un error de pintado. Acá es un hilo del
+ * color del borde que aparece al pasar el ratón. `scrollbar-*` cubre Firefox;
+ * `::-webkit-scrollbar` el resto. */
+.barra-fina {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color .2s;
+}
+.barra-fina:hover { scrollbar-color: var(--color-swu-border) transparent; }
+.barra-fina::-webkit-scrollbar { width: 6px; }
+.barra-fina::-webkit-scrollbar-track { background: transparent; }
+.barra-fina::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; }
+.barra-fina:hover::-webkit-scrollbar-thumb { background: var(--color-swu-border); }

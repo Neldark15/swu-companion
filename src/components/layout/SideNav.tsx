@@ -35,9 +35,31 @@ import {
 import { PlanetaAnilladoIcon } from '../../features/trivia/iconosTrivia'
 import { NotificationBell } from '../ui/NotificationBell'
 import { useAuth } from '../../hooks/useAuth'
-import type { ComponentType } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 
 type IconComp = ComponentType<{ size?: number; className?: string; strokeWidth?: number }>
+
+/**
+ * El rótulo de una familia del menú, PEGADO ARRIBA mientras se recorre.
+ *
+ * Con 31 entradas en una sola columna, la pregunta que se hace cualquiera a
+ * mitad del scroll es «¿de qué grupo es esto?». El rótulo pegajoso la responde
+ * sin ocupar sitio. Lleva su propio fondo porque si no, las entradas se leen a
+ * través de él al pasar por debajo.
+ */
+function Rotulo({ children, tono = 'muted' }: { children: ReactNode; tono?: 'muted' | 'amber' }) {
+  return (
+    <div className="sticky top-0 z-10 -mx-3 mt-5 mb-2 bg-swu-surface px-6 pt-2 pb-1.5 first:mt-0">
+      <span
+        className={`font-mono text-[9px] uppercase tracking-[0.25em] ${
+          tono === 'amber' ? 'text-swu-amber/70' : 'text-swu-muted/60'
+        }`}
+      >
+        {children}
+      </span>
+    </div>
+  )
+}
 
 type NavItem =
   | { id: string; label: string; sub: string; icon: IconComp; img?: undefined }
@@ -148,7 +170,19 @@ export function SideNav() {
   }
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 xl:w-72 bg-swu-surface shadow-[4px_0_10px_#111118] min-h-screen fixed left-0 top-0 z-40">
+    /* ALTO DEFINIDO, no `min-h-screen`.
+     *
+     * Estuvo en `fixed top-0` + `min-h-screen`, o sea SIN alto: la barra crecía
+     * con su contenido, y por eso el `flex-1 overflow-y-auto` del `<nav>` nunca
+     * se veía obligado a encoger y no llegaba a scrollear jamás. Medido en una
+     * ventana de 820 px: el aside medía 2.175 y `nav.scrollHeight === clientHeight`.
+     * Como es `fixed`, esos 1.355 px que colgaban por debajo no se podían
+     * alcanzar de ninguna forma —el documento no scrollea— así que de 31
+     * entradas se llegaba a once. Un admin, que tiene tres más, perdía el panel.
+     *
+     * Es el MISMO gotcha que el `min-h-0` de AppLayout, con otra cara: allá
+     * faltaba dejar encoger, acá falta decir hasta dónde. */
+    <aside className="hidden lg:flex flex-col w-64 xl:w-72 bg-swu-surface shadow-[4px_0_10px_#111118] h-[100dvh] fixed left-0 top-0 z-40">
       {/* Logo + Notification Bell */}
       <div className="px-5 py-5 flex items-center gap-3 border-b border-swu-border">
         <img src="/swu-logo-title.png" alt="SWU" className="w-10 h-12 object-contain" />
@@ -163,16 +197,14 @@ export function SideNav() {
         <NotificationBell />
       </div>
 
-      {/* Main Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        <div className="px-3 mb-2">
-          <span className="text-[9px] text-swu-muted/60 font-mono tracking-[0.25em] uppercase">Principal</span>
-        </div>
+      {/* Main Navigation.
+          `min-h-0` es lo que deja que este hijo se encoja por debajo de su
+          contenido; sin él, `overflow-y-auto` es decorativo. */}
+      <nav className="flex-1 min-h-0 px-3 py-4 space-y-1 overflow-y-auto barra-fina">
+        <Rotulo>Principal</Rotulo>
         {mainNav.map(renderItem)}
 
-        <div className="px-3 mt-5 mb-2">
-          <span className="text-[9px] text-swu-muted/60 font-mono tracking-[0.25em] uppercase">Sistemas</span>
-        </div>
+        <Rotulo>Sistemas</Rotulo>
         {secondaryNav.map(renderItem)}
 
         {/* ── Mini Juegos ──
@@ -183,9 +215,7 @@ export function SideNav() {
 
             MISMO ORDEN QUE EN LOS OTROS DOS: lo que da créditos, lo que los
             gasta, y lo que no hace ninguna de las dos. */}
-        <div className="px-3 mt-5 mb-2">
-          <span className="text-[9px] text-swu-muted/60 font-mono tracking-[0.25em] uppercase">Mini Juegos</span>
-        </div>
+        <Rotulo>Mini Juegos</Rotulo>
         {MINI_JUEGOS.map(renderItem)}
 
         {/* Admin-only quick utility (lives in Sistemas section but only visible to admins) */}
@@ -212,9 +242,7 @@ export function SideNav() {
 
         {isAdmin && (
           <>
-            <div className="px-3 mt-5 mb-2">
-              <span className="text-[9px] text-swu-amber/70 font-mono tracking-[0.25em] uppercase">Cuartel General</span>
-            </div>
+            <Rotulo tono="amber">Cuartel General</Rotulo>
             <button
               onClick={() => navigate('/estudio')}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 group mb-1 ${
