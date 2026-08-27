@@ -29,22 +29,65 @@ import {
   type Creador, type Liga, type InscripcionLiga, type PartidaLiga, type EnVivoCreador,
 } from '../../services/ligaService'
 
-/** Mismo compresor que el avatar del perfil: canvas → JPEG data URI. */
-async function comprimirLogo(file: File, maxLado = 512, calidad = 0.85): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => {
-      const canvas = document.createElement('canvas')
-      let { width, height } = img
-      if (width > height) { if (width > maxLado) { height *= maxLado / width; width = maxLado } }
-      else if (height > maxLado) { width *= maxLado / height; height = maxLado }
-      canvas.width = width; canvas.height = height
-      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
-      resolve(canvas.toDataURL('image/jpeg', calidad))
-    }
-    img.onerror = reject
-    img.src = URL.createObjectURL(file)
+/**
+ * Comprime un logo para guardarlo como data URI.
+ *
+ * ── UN LOGO NO ES UN AVATAR, Y POR ESO NO PUEDE SER JPEG ─────────────
+ *
+ * Esto empezó como una copia del compresor del avatar, que exporta JPEG. Una
+ * foto de perfil es opaca y el JPEG le sienta bien; un logo de marca casi
+ * siempre viene con FONDO TRANSPARENTE, y el JPEG no tiene canal alfa: al
+ * componer, el navegador pone NEGRO donde había transparencia. Medido con el
+ * primer logo real que llegó (el rótulo de PUENTE 3): 21,4 % de sus píxeles
+ * son transparentes, o sea que habría salido con un recuadro negro alrededor.
+ *
+ * Ese fallo se ve como éxito —la subida responde «Logo actualizado»— y el
+ * archivo original queda intacto en la computadora de quien lo subió, así que
+ * nadie sospecha del compresor: parece que el logo «ya venía así».
+ *
+ * Ahora se exporta **WebP**, que conserva el alfa y además pesa menos que el
+ * JPEG a igual calidad. `toDataURL` cae a PNG si el navegador no soporta WebP
+ * —devuelve otro `data:` sin avisar—, y PNG también tiene alfa: las dos ramas
+ * son correctas. El tipo real se comprueba abajo, porque el servidor solo
+ * acepta png/jpeg/webp.
+ *
+ * ── El lado máximo y el tope ─────────────────────────────────────────
+ *
+ * 640 px de lado mayor: la pantalla del creador lo dibuja a 96 px de alto, así
+ * que hay margen de sobra incluso en una pantalla de densidad 3×, y un rótulo
+ * con texto fino no se empasta. El tope del servidor son 280.000 caracteres de
+ * data URI; si el resultado se pasa, se reintenta bajando calidad y tamaño en
+ * vez de mandar algo que el servidor va a rechazar al final.
+ */
+const TOPE_DATA_URI = 280_000
+
+async function comprimirLogo(file: File, maxLado = 640): Promise<string> {
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const i = new Image()
+    i.onload = () => resolve(i)
+    i.onerror = reject
+    i.src = URL.createObjectURL(file)
   })
+
+  // Se intenta de mayor a menor y se devuelve el primero que entre en el tope.
+  // Sin esto, un logo enorme viaja entero y el servidor lo rechaza después de
+  // que la persona ya esperó la subida.
+  const intentos: Array<[number, number]> = [
+    [maxLado, 0.9], [maxLado, 0.8], [512, 0.8], [384, 0.75], [256, 0.7],
+  ]
+  let ultimo = ''
+  for (const [lado, calidad] of intentos) {
+    const canvas = document.createElement('canvas')
+    let { width, height } = img
+    if (width > height) { if (width > lado) { height *= lado / width; width = lado } }
+    else if (height > lado) { width *= lado / height; height = lado }
+    canvas.width = Math.round(width); canvas.height = Math.round(height)
+    // Nada de rellenar el fondo: la transparencia es parte del logo.
+    canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+    ultimo = canvas.toDataURL('image/webp', calidad)
+    if (ultimo.length <= TOPE_DATA_URI) return ultimo
+  }
+  return ultimo
 }
 
 export function CreadorPage() {
@@ -109,6 +152,13 @@ export function CreadorPage() {
     setOcupado(true); setAviso(null)
     try {
       const dataUri = await comprimirLogo(file)
+      // El compresor ya intentó bajar tamaño y calidad; si aun así no entra,
+      // se dice por qué en vez de dejar que el servidor conteste un genérico.
+      if (dataUri.length > TOPE_DATA_URI) {
+        setAviso('Esa imagen es demasiado pesada incluso reducida. Probá con una más simple.')
+        setOcupado(false)
+        return
+      }
       const r = await subirLogo(dataUri)
       setAviso(r.ok ? 'Logo actualizado' : (r.mensaje ?? 'No se pudo subir'))
       if (r.ok) recargar()
@@ -147,8 +197,21 @@ export function CreadorPage() {
 
       {/* ── La marca ── */}
       <div className="relative overflow-hidden rounded-2xl border border-swu-border bg-gradient-to-b from-[#101018] to-[#181422] p-5 text-center">
+        {/* EL LOGO NO SE RECORTA. Estuvo en `h-24 w-24 object-cover`, o sea una
+            caja CUADRADA con recorte al centro: el primer logo real que llegó
+            —el rótulo de PUENTE 3, 16:9 con fondo transparente— habría perdido
+            la «P» y el «3», que es justo lo que hace reconocible una marca.
+            Con el alto fijado y el ancho libre, un logo apaisado se ve entero,
+            uno cuadrado sale cuadrado y uno vertical sale angosto: la caja se
+            adapta a la marca y no al revés. Y sin fondo ni borde, porque estos
+            archivos vienen con transparencia y una placa detrás sería un
+            recuadro alrededor de un recorte que ya está hecho. */}
         {creador.logo ? (
-          <img src={creador.logo} alt={creador.nombre} className="mx-auto mb-3 h-24 w-24 rounded-2xl object-cover" />
+          <img
+            src={creador.logo}
+            alt={creador.nombre}
+            className="mx-auto mb-3 h-24 w-auto max-w-full object-contain"
+          />
         ) : (
           <div className="mx-auto mb-3 flex h-24 w-24 items-center justify-center rounded-2xl border border-dashed border-swu-border text-[10px] text-swu-muted">
             Sin logo

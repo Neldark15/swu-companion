@@ -31,6 +31,13 @@
 -- computar posiciones con `tablaDe()` — un solo algoritmo, en un solo lado
 -- (§2y). Lo que sí se resuelve en el servidor es QUIÉN es cada inscripción,
 -- porque el cliente no puede leer `liga_inscripciones` ajenas durante el demo.
+--
+-- Y NO viaja el LOGO del creador. Es un data URI de decenas de KB en
+-- `creadores.logo`, y metido en el JSON de esta respuesta el navegador no lo
+-- cachea como cachearía una imagen: se re-descargaría en cada apertura del
+-- perfil para pintarlo a 36 px. Es la cuenta del §2t en otra pantalla. Viaja
+-- el `code`, que son doce caracteres y es lo que hace falta para llegar a su
+-- casa.
 
 create or replace function public.mi_liga()
 returns jsonb
@@ -71,7 +78,7 @@ begin
     'liga', (
       select jsonb_build_object(
         'id', l.id, 'code', l.code, 'nombre', l.nombre, 'estado', l.estado,
-        'creadorNombre', c.nombre_publico, 'creadorCode', c.code, 'creadorLogo', c.logo)
+        'creadorNombre', c.nombre_publico, 'creadorCode', c.code)
         from public.ligas l
         join public.creadores c on c.user_id = l.creador_id
        where l.id = v_insc.liga_id),

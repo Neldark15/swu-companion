@@ -23,6 +23,22 @@
  * la proporción a mitad del giro reflowea el modal justo mientras la carta se
  * está moviendo.
  *
+ * ── Y por qué acá NO va el relleno desenfocado ───────────────────────
+ *
+ * De lo anterior sale que la cara apaisada ocupa el 51 % del alto del
+ * bolsillo. En una REJILLA ese hueco se tapa con la misma imagen ampliada y
+ * borrosa, y está bien: las celdas miden todas igual y el relleno evita que
+ * la cuadrícula quede agujereada.
+ *
+ * Acá no. La lupa es una carta sola sobre negro al 85 %, o sea que el hueco
+ * YA es un fondo. El relleno lo que hace es poner un muro gris desenfocado
+ * del doble de alto que la carta, y eso no se lee como un marco: se lee como
+ * que la imagen se rompió. Medido en `/banco-sobres` con Obi-Wan Showcase,
+ * que es el peor caso del módulo.
+ *
+ * Sobre negro, la cara acostada centrada se ve como lo que es: una carta
+ * impresa de lado.
+ *
  * ── El hueco también se puede abrir ──────────────────────────────────
  *
  * Y muestra el dorso QUIETO, sin girar: si la carta no la tenés, no hay una
@@ -40,8 +56,9 @@ import { AcabadoDeImagen } from './AcabadoDeImagen'
 import { CartaGirable } from './CartaGirable'
 import { ReversoCarta } from './ReversoCarta'
 
-/** La caja de la carta: la misma del bolsillo, siempre. Ver la cabecera. */
+/** Las dos formas que puede tener una carta. Ver la cabecera. */
 const RATIO_BOLSILLO = 286 / 400
+const RATIO_APAISADO = 400 / 286
 
 interface Props {
   casilla: CasillaAlbum
@@ -98,7 +115,15 @@ export function LupaCarta({ casilla, color, alCerrar, acabado }: Props) {
       <div className="w-full max-w-[300px]" onClick={e => e.stopPropagation()}>
         {casilla.tenida ? (
           <CartaGirable
-            ratio={RATIO_BOLSILLO}
+            /* La caja arranca con la forma de la cara de ADELANTE y toma la
+               del dorso al girar: son la misma cartulina impresa de lado, y
+               obligar a las dos a una sola forma es lo que dejaba el hueco. */
+            ratio={esApaisada(carta) ? RATIO_APAISADO : RATIO_BOLSILLO}
+            ratioDorso={
+              trasera.tipo === 'cara'
+                ? (trasera.orientacion === 'apaisada' ? RATIO_APAISADO : RATIO_BOLSILLO)
+                : RATIO_BOLSILLO
+            }
             acabadoFrente={acabado ? <AcabadoDeImagen src={casilla.arte || carta?.imageUrl} acabado={acabado} /> : undefined}
             acabadoDorso={
               acabado && trasera.tipo === 'cara'
@@ -113,6 +138,7 @@ export function LupaCarta({ casilla, color, alCerrar, acabado }: Props) {
                 alt={carta?.name ?? ''}
                 orientacion={esApaisada(carta) ? 'apaisada' : 'vertical'}
                 elevacion="realce"
+                relleno={false}
                 className="h-full w-full"
               />
             }
@@ -123,6 +149,7 @@ export function LupaCarta({ casilla, color, alCerrar, acabado }: Props) {
                   alt={carta ? `${carta.name}, la otra cara` : ''}
                   orientacion={trasera.orientacion}
                   elevacion="realce"
+                  relleno={false}
                   className="h-full w-full"
                 />
               ) : (

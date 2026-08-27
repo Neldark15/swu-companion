@@ -60,11 +60,15 @@ export function MiLigaTarjeta() {
   return (
     <section className="rounded-2xl border border-swu-amber/40 bg-swu-amber/5 p-4">
       <div className="flex items-center gap-2.5">
-        {datos.liga.creadorLogo ? (
-          <img src={datos.liga.creadorLogo} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
-        ) : (
-          <Trophy size={18} className="shrink-0 text-swu-amber" />
-        )}
+        {/* EL LOGO DEL CREADOR NO VIAJA HASTA ACÁ, a propósito.
+            `mi_liga()` se llama al abrir el perfil, que es la pantalla que más
+            se abre de la app. El logo es un data URI de decenas de KB metido
+            dentro del JSON de la respuesta: no lo cachea el navegador como
+            cachearía una imagen, así que se re-descarga en cada visita para
+            pintarlo a 36 px de alto. Es la misma cuenta del §2t —45 MB para
+            pintar 1,4 MB de píxeles— en otra pantalla.
+            La marca vive en la casa del creador, a un toque de acá. */}
+        <Trophy size={18} className="shrink-0 text-swu-amber" />
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-swu-amber">Mi liga</p>
           <p className="truncate text-[13px] font-black text-swu-text">{datos.liga.nombre}</p>

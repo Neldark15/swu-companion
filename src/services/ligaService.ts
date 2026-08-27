@@ -198,7 +198,10 @@ export interface MiLiga {
   miInscripcion: string
   liga: {
     id: string; code: string; nombre: string; estado: Liga['estado']
-    creadorNombre: string; creadorCode: string; creadorLogo: string | null
+    /* Sin `creadorLogo` a propósito: es un data URI de decenas de KB y esta
+       consulta corre al abrir el perfil, la pantalla más visitada. La marca
+       vive en `/c/:code`, a un toque. */
+    creadorNombre: string; creadorCode: string
   }
   inscripciones: InscripcionLiga[]
   partidas: PartidaLiga[]

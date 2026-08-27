@@ -58,8 +58,10 @@ export function SedesPage() {
                 <div className="flex items-center gap-3 p-2.5">
                   <div className="w-14 h-14 clip-hud-sm p-px flex-shrink-0 bg-swu-border">
                     <div className="clip-hud-sm w-full h-full bg-swu-bg overflow-hidden flex items-center justify-center">
+                      {/* Entero, no recortado: ver SedeCabecera. Acá importa
+                          aún más, porque es la lista donde se elige tienda. */}
                       {s.logo_url
-                        ? <img src={s.logo_url} alt="" className="w-full h-full object-cover" />
+                        ? <img src={s.logo_url} alt="" className="w-full h-full object-contain p-0.5" />
                         : <Store size={20} className={HUD_TEXTO[tono]} aria-hidden />}
                     </div>
                   </div>

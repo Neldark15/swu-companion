@@ -38,6 +38,22 @@ interface Props {
   /** Proporción de la caja, para que no salte al cargar el arte. */
   ratio?: number
   /**
+   * Proporción de la cara de ATRÁS, cuando es distinta de la de adelante.
+   *
+   * Las dos caras de un líder Showcase son la misma cartulina impresa de lado:
+   * frente 400×286 y dorso 286×400 (medido, 6 de 6). Con una sola proporción
+   * para las dos, la cara acostada entra en un bolsillo vertical ocupando el
+   * 51 % del alto y deja doscientos píxeles muertos debajo, que empujan el pie
+   * del modal hacia abajo.
+   *
+   * Con las dos, la caja MORFA al cruzar los 90°: es exactamente lo que hace
+   * la cartulina de verdad cuando la girás. Se escribe en el nodo, no por
+   * estado, para no re-renderizar el árbol a mitad del gesto.
+   *
+   * Si no se pasa, la caja no cambia nunca y el comportamiento es el de antes.
+   */
+  ratioDorso?: number
+  /**
    * El brillo de cada cara, POR SEPARADO.
    *
    * Son dos y no uno porque las dos caras de un líder Showcase tienen
@@ -57,9 +73,10 @@ const ROCE = 0.94
 const QUIETA = 0.02
 
 export function CartaGirable({
-  frente, dorso, acabadoFrente, acabadoDorso, ratio = 286 / 400, className = '',
+  frente, dorso, acabadoFrente, acabadoDorso, ratio = 286 / 400, ratioDorso, className = '',
 }: Props) {
   const caja = useRef<HTMLDivElement>(null)
+  const marco = useRef<HTMLDivElement>(null)
   const giro = useRef({ x: -6, y: 0 })
   const vel = useRef({ x: 0, y: 0 })
   const arrastrando = useRef(false)
@@ -77,7 +94,17 @@ export function CartaGirable({
     // seguir girándola. Se escriben en el nodo, sin pasar por React.
     el.style.setProperty('--px', Math.sin((y * Math.PI) / 180).toFixed(3))
     el.style.setProperty('--py', (x / 55).toFixed(3))
-  }, [])
+
+    // La caja toma la forma de la cara que se está viendo. La paridad de la
+    // media vuelta es la MISMA regla con la que la credencial decide su cara
+    // (§2y): `y` se acumula sin tope y puede ser negativo, así que se
+    // normaliza antes de mirar si estamos del derecho o del revés.
+    if (marco.current && ratioDorso !== undefined) {
+      const vueltas = Math.round(y / 180)
+      const delDorso = Math.abs(vueltas % 2) === 1
+      marco.current.style.aspectRatio = String(delDorso ? ratioDorso : ratio)
+    }
+  }, [ratio, ratioDorso])
 
   /** El bucle de inercia. Solo corre mientras de verdad se mueve. */
   const rodar = useCallback(() => {
@@ -158,8 +185,16 @@ export function CartaGirable({
   return (
     <div className={`select-none ${className}`}>
       <div
+        ref={marco}
         className="relative mx-auto w-full"
-        style={{ perspective: 1100, aspectRatio: String(ratio), touchAction: 'none' }}
+        style={{
+          perspective: 1100,
+          aspectRatio: String(ratio),
+          touchAction: 'none',
+          // Morfa en vez de saltar. 260 ms es más corto que el propio giro,
+          // así que la caja ya terminó de cambiar cuando la carta se detiene.
+          transition: 'aspect-ratio .26s cubic-bezier(.2,.8,.25,1)',
+        }}
         onPointerDown={empezar}
         onPointerMove={mover}
         onPointerUp={soltar}

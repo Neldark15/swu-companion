@@ -69,6 +69,20 @@ interface CardImageProps {
   elevacion?: 'plana' | 'realce'
   /** Marca de brillo holográfico, para las impresiones foil. */
   foil?: boolean
+  /**
+   * El relleno desenfocado detrás de una carta que no llena su caja.
+   *
+   * Encendido por defecto, que es lo correcto en una REJILLA: las celdas
+   * miden todas igual y un líder apaisado dejaría dos franjas muertas que
+   * agujerean la cuadrícula.
+   *
+   * Se apaga cuando la carta está SOLA sobre un fondo que ya es un fondo —la
+   * lupa del álbum, sobre negro al 85%—. Ahí no hay hueco que tapar: el
+   * relleno es la misma imagen ampliada 2× y desenfocada, o sea un muro gris
+   * del doble de alto que la carta. Se lee como que algo se rompió, no como
+   * un marco.
+   */
+  relleno?: boolean
 }
 
 export const CardImage = memo(function CardImage({
@@ -78,6 +92,7 @@ export const CardImage = memo(function CardImage({
   rootMargin = 300,
   fit,
   orientacion,
+  relleno = true,
   elevacion = 'plana',
   foil = false,
 }: CardImageProps) {
@@ -254,7 +269,7 @@ export const CardImage = memo(function CardImage({
               que deja una carta apaisada en una celda vertical. Es el mismo
               archivo —la misma URL, incluido el recorte— así que no cuesta
               una descarga extra. */}
-          {ajuste === 'contain' && (
+          {ajuste === 'contain' && relleno && (
             <img
               src={urlPedida}
               alt=""

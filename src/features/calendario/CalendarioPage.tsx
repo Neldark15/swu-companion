@@ -247,12 +247,19 @@ export function CalendarioPage() {
                   to={`/torneos/${e.code}`}
                   className={`clip-hud block overflow-hidden border ${t.borde} bg-swu-surface`}
                 >
+                  {/* EL AFICHE DE UN TORNEO ES VERTICAL.
+                      Se sube desde el celular y sale de Instagram: 4:5 o A4,
+                      con el nombre arriba, la fecha en medio y la dirección
+                      abajo. En una banda de 112 px por todo el ancho (≈3,5:1)
+                      se veía el 22 % central de su alto: una tira de fondo sin
+                      un solo dato. Con 16:9 y `contain` sobre el fondo que ya
+                      existe, el afiche entra ENTERO y se lee. */}
                   {foto && (
                     <img
                       src={foto}
                       alt=""
                       loading="lazy"
-                      className="h-28 w-full object-cover"
+                      className="aspect-video w-full bg-swu-bg object-contain"
                     />
                   )}
                   <div className="p-3">

@@ -40,8 +40,14 @@ export function SedeCabecera({ sede, compacta = false }: { sede: Sede; compacta?
           <div className="flex items-end gap-2.5">
             <div className={`${compacta ? 'w-12 h-12' : 'w-16 h-16'} clip-hud-sm p-px flex-shrink-0 bg-swu-border`}>
               <div className="clip-hud-sm w-full h-full bg-swu-bg overflow-hidden flex items-center justify-center">
+                {/* `object-contain`, NUNCA `cover`. El logo de un comercio es
+                    un wordmark apaisado casi siempre: en un cuadrado con
+                    recorte se pierde el 44 % del ancho y quedan dos letras del
+                    nombre. Un avatar redondo sí se recorta —ahí cortar la cara
+                    es correcto—; una MARCA recortada deja de identificar, que
+                    es lo único que tenía que hacer. */}
                 {sede.logo_url
-                  ? <img src={sede.logo_url} alt="" className="w-full h-full object-cover" />
+                  ? <img src={sede.logo_url} alt="" className="w-full h-full object-contain p-0.5" />
                   : <Store size={compacta ? 18 : 24} className={HUD_TEXTO[tono]} aria-hidden />}
               </div>
             </div>
