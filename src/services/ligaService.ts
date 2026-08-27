@@ -297,3 +297,30 @@ export const subirLogo = (logo: string | null) => rpc('creador_subir_logo', { p_
  */
 export const abrirCabina = (creadorCode: string, cabinaCode?: string) =>
   rpc('creador_abrir_cabina', { p_creador_code: creadorCode, p_cabina_code: cabinaCode ?? null })
+
+/**
+ * El `code` de la casa del creador de quien mira, o `null` si no es creador.
+ *
+ * Existe para poder pintar la casilla «Mi espacio» en Inicio sin cablear el
+ * code: si mañana hay un segundo creador, su casilla lo lleva a SU casa sin
+ * tocar una línea. Cablearlo sería el mismo error que armar el enlace del
+ * estudio a partir del code del creador en vez de listarlo.
+ *
+ * La policy ya limita el SELECT a creadores y admins; acá se filtra por
+ * `user_id` para que un admin no vea la casa de otro como si fuera la suya.
+ */
+export async function miCasaDeCreador(): Promise<string | null> {
+  if (!isSupabaseReady()) return null
+  const { data: sesion } = await supabase.auth.getUser()
+  const uid = sesion?.user?.id
+  if (!uid) return null
+  const { data, error } = await supabase
+    .from('creadores')
+    .select('code')
+    .eq('user_id', uid)
+    .eq('activo', true)
+    .maybeSingle()
+  // §2f: sin mirar `error`, un fallo se ve igual que «no sos creador».
+  if (error) return null
+  return (data?.code as string | undefined) ?? null
+}

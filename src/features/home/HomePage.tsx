@@ -53,6 +53,8 @@ import { PopupOferta } from '../sobres/OfertaSobresDiarios'
 import { TarjetaJugador } from '../profile/TarjetaJugador'
 import { AvisoTransmision } from '../stream/AvisoTransmision'
 import { HUD_TEXTO, type HudTone } from '../../components/hudTones'
+import { soyCurador } from '../../services/centroTemporada'
+import { miCasaDeCreador } from '../../services/ligaService'
 import { useAuth } from '../../hooks/useAuth'
 import { type PlayerStats, calculateLevel } from '../../services/gamification'
 import { db } from '../../services/db'
@@ -238,6 +240,26 @@ const adminSystems: Sistema[] = [
   { icon: EmpireIcon, label: 'Panel Admin', tone: 'cyan',   to: '/admin',   admin: true },
 ]
 
+/**
+ * Las herramientas que hasta hoy SOLO se alcanzaban tecleando la URL.
+ *
+ * El Centro de Temporada y el espacio de creadores se construyeron sin entrada
+ * de menú a propósito —los ve una sola persona cada uno— y «a propósito» se
+ * convirtió en «no existe»: Nel preguntó dónde estaban sus herramientas y la
+ * respuesta era «acordate del URL». Es la misma lección del §3l, donde llevar
+ * un torneo ya se podía hacer entero y no había puerta desde ningún lado.
+ *
+ * CADA UNA LLEVA SU PROPIA LLAVE, y eso no es un detalle: ser admin NO alcanza
+ * para ninguna de las dos. El Centro pide estar en `centro_curadores` (una
+ * persona, sin escotilla de admin — §3i-bis) y el espacio de creadores pide
+ * tener fila en `creadores`. Pintar estas casillas con `isAdmin` le pondría a
+ * los otros tres admins dos botones que los echan al tocarlos.
+ */
+const HERRAMIENTAS_PROPIAS = [
+  { icon: MandoTrophyIcon, label: 'Temporada', tone: 'amber' as HudTone, to: '/temporada', llave: 'curador' as const },
+  { icon: EmisionIcon,     label: 'Mi espacio', tone: 'cyan' as HudTone, to: '', llave: 'creador' as const },
+]
+
 interface Marcador {
   label: string
   value: number | string
@@ -249,11 +271,26 @@ interface Marcador {
 const CAT_EN: Record<string, string> = {
   'Jugar': 'Play', 'Competir': 'Compete', 'Construir': 'Build', 'Colección': 'Collection', 'Mini Juegos': 'Mini Games', 'Comunidad': 'Community',
   'Solo administradores': 'Administrators only',
+  'Mis herramientas': 'My tools',
 }
 
 export function HomePage() {
   const navigate = useNavigate()
   const { currentProfile, supabaseUser, isAdmin } = useAuth()
+
+  /* Las llaves de las herramientas propias. `null` = todavía no se preguntó,
+     y en ese estado NO se dibuja nada: una casilla que aparece medio segundo
+     después, y solo a veces, se lee como un parpadeo. */
+  const [curador, setCurador] = useState<boolean | null>(null)
+  const [miCreador, setMiCreador] = useState<string | null | false>(null)
+
+  useEffect(() => {
+    if (!supabaseUser) return
+    let vivo = true
+    void soyCurador().then(r => { if (vivo) setCurador(r === true) })
+    void miCasaDeCreador().then(code => { if (vivo) setMiCreador(code ?? false) })
+    return () => { vivo = false }
+  }, [supabaseUser])
   /* El Taller Kyber está en pruebas: su casilla se dibuja SOLO para quien puede
      entrar. La cerradura de verdad sigue estando dentro de cada RPC del taller. */
   const tI = useT()
@@ -568,6 +605,34 @@ export function HomePage() {
           </div>
         </>
       )}
+
+      {/* ── Mis herramientas ──
+          Las que hasta hoy solo se alcanzaban tecleando el URL. Cada casilla
+          sale con SU llave, no con `isAdmin`: el Centro de Temporada lo ve
+          quien esté en `centro_curadores` y el espacio de creadores quien
+          tenga fila en `creadores` — ser admin no alcanza para ninguna, y
+          pintarlas con el rol le pondría a los otros admins dos botones que
+          los echan al tocarlos. La franja entera desaparece si no queda
+          ninguna: un separador solo es peor que nada. */}
+      {(() => {
+        const mias = HERRAMIENTAS_PROPIAS
+          .filter(h => (h.llave === 'curador' ? curador === true : typeof miCreador === 'string'))
+          .map(h => ({
+            ...h,
+            to: h.llave === 'creador' && typeof miCreador === 'string' ? `/c/${miCreador}` : h.to,
+          }))
+        if (mias.length === 0) return null
+        return (
+          <>
+            {renderSeparador('Mis herramientas', 'cyan')}
+            <div className="px-4 pt-2 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {mias.map(h => (
+                <MosaicoModulo key={h.label} sys={{ icon: h.icon, label: h.label, tone: h.tone, to: h.to }} />
+              ))}
+            </div>
+          </>
+        )
+      })()}
 
       {/* ── Próximos eventos ──
           Van PRIMERO de las tres secciones de abajo porque son lo único que
