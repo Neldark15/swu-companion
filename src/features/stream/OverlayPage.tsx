@@ -268,6 +268,7 @@ export function OverlayPage() {
 
   const restante = useMemo(() => restanteReloj(estado.reloj, ahora), [estado.reloj, ahora])
   const cartaVisible = estado.carta && estado.carta.hasta > ahora ? estado.carta : null
+  const fichaVisible = estado.ficha && estado.ficha.hasta > ahora ? estado.ficha : null
 
   const lienzo: React.CSSProperties = {
     position: 'fixed',
@@ -311,6 +312,7 @@ export function OverlayPage() {
         ) : (
           <EscenaOpaca estado={estado} restante={restante} />
         )}
+        {fichaVisible && <FichaJugadorVista ficha={fichaVisible} />}
         {estado.lowerThird.visible && <LowerThird datos={estado.lowerThird} />}
         {estado.tickerVisible && <BarraNoticias texto={estado.ticker} />}
         {!silencio && <Musica musica={estado.musica} />}
@@ -1093,6 +1095,112 @@ function CartaDestacadaVista({ carta }: { carta: NonNullable<EstadoOverlay['cart
             <span style={{ fontSize: 28, lineHeight: 1.32, color: `${BLANCO}EE` }}>{carta.texto}</span>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * La ficha de un jugador, para presentarlo al aire.
+ *
+ * Va FUERA del condicional de escena a propósito: presentar a alguien se hace
+ * casi siempre en la pantalla de espera, antes de que arranque la partida.
+ * Si viviera dentro de la rama `'juego'`, el creador tendría que estar ya
+ * transmitiendo la mesa para poder presentar a quien va a jugar en ella.
+ *
+ * A la IZQUIERDA porque la carta destacada ocupa el centro-abajo y la barra
+ * del narrador el pie: las tres pueden coincidir sin taparse.
+ */
+function FichaJugadorVista({ ficha }: { ficha: NonNullable<EstadoOverlay['ficha']> }) {
+  const t = useContext(CtxTema)
+  return (
+    <div
+      className="ov-sube"
+      style={{
+        position: 'absolute',
+        left: 120,
+        top: 250,
+        width: 660,
+        filter: 'drop-shadow(0 14px 40px rgba(0,0,0,.6))',
+      }}
+    >
+      <div
+        style={{
+          padding: 26,
+          background: t.metal,
+          border: `1.5px solid ${t.acento}66`,
+          boxShadow: RELIEVE,
+          clipPath: chaflan(16),
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 22 }}>
+          {ficha.avatar && (
+            <img
+              src={ficha.avatar}
+              alt=""
+              style={{
+                width: 128,
+                height: 128,
+                objectFit: 'cover',
+                flex: '0 0 auto',
+                clipPath: chaflan(12),
+                border: `1.5px solid ${t.acento}55`,
+              }}
+            />
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+            <span style={{ fontSize: 44, fontWeight: 900, lineHeight: 1.05 }}>{ficha.nombre}</span>
+            {ficha.sub && (
+              <span
+                style={{
+                  fontSize: 22,
+                  fontWeight: 800,
+                  letterSpacing: '.08em',
+                  color: t.acento,
+                }}
+              >
+                {ficha.sub}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {ficha.datos.length > 0 && (
+          <div
+            style={{
+              marginTop: 22,
+              display: 'grid',
+              gridTemplateColumns: `repeat(${ficha.datos.length}, 1fr)`,
+              gap: 12,
+            }}
+          >
+            {ficha.datos.map((d, i) => (
+              <div
+                key={i}
+                style={{
+                  padding: '12px 8px',
+                  textAlign: 'center',
+                  background: 'rgba(0,0,0,.32)',
+                  clipPath: chaflan(9),
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 800,
+                    letterSpacing: '.1em',
+                    color: `${BLANCO}88`,
+                  }}
+                >
+                  {d.rotulo}
+                </div>
+                <div style={{ fontSize: 34, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>
+                  {d.valor}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

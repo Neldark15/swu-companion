@@ -193,6 +193,71 @@ export function tablaDe(inscripciones: InscripcionLiga[], partidas: PartidaLiga[
     b.puntos - a.puntos || b.difGames - a.difGames || a.nombre.localeCompare(b.nombre))
 }
 
+/** Lo que ve un jugador inscrito en su propio perfil. */
+export interface MiLiga {
+  miInscripcion: string
+  liga: {
+    id: string; code: string; nombre: string; estado: Liga['estado']
+    creadorNombre: string; creadorCode: string; creadorLogo: string | null
+  }
+  inscripciones: InscripcionLiga[]
+  partidas: PartidaLiga[]
+}
+
+/**
+ * La liga del usuario, en UN viaje.
+ *
+ * `null` = no está inscrito en ninguna, que es el caso normal de casi todos.
+ * La RPC devuelve lo suyo aunque el espacio de creadores siga en demo: tu
+ * propia liga es tuya, la veas o no en la casa del creador.
+ */
+export async function getMiLiga(): Promise<MiLiga | null> {
+  if (!isSupabaseReady()) return null
+  const { data, error } = await supabase.rpc('mi_liga')
+  if (error) {
+    console.warn('[Liga] no se pudo leer mi liga:', error.message)
+    return null
+  }
+  const r = data as (MiLiga & { ok?: boolean; liga?: MiLiga['liga'] | null }) | null
+  if (!r?.ok || !r.liga) return null
+  return {
+    miInscripcion: r.miInscripcion,
+    liga: r.liga,
+    inscripciones: (r.inscripciones ?? []) as InscripcionLiga[],
+    partidas: (r.partidas ?? []) as PartidaLiga[],
+  }
+}
+
+/** Lo que la casa del creador enseña cuando está transmitiendo AHORA. */
+export interface EnVivoCreador {
+  code: string
+  youtube: string
+  ronda: string
+  nombre: string
+}
+
+/**
+ * ¿Está el creador al aire en este momento?
+ *
+ * Sale de `stream_overlay.estado->>'envivo'`, el mismo interruptor que el
+ * operador enciende en su estudio y que `/envivo` ya usa para toda la
+ * comunidad — no hay un segundo sitio donde decir «estoy transmitiendo»
+ * que se pueda quedar viejo (§3c).
+ *
+ * Devuelve `null` cuando no hay nada al aire, que es casi siempre.
+ */
+export async function enVivoDe(creadorCode: string): Promise<EnVivoCreador | null> {
+  if (!isSupabaseReady()) return null
+  const { data, error } = await supabase.rpc('creador_en_vivo', { p_creador_code: creadorCode })
+  if (error) {
+    console.warn('[Liga] no se pudo consultar el directo:', error.message)
+    return null
+  }
+  const r = data as (EnVivoCreador & { envivo?: boolean }) | null
+  if (!r?.envivo) return null
+  return { code: r.code, youtube: r.youtube ?? '', ronda: r.ronda ?? '', nombre: r.nombre ?? '' }
+}
+
 // ── Las acciones. Todas devuelven { ok, mensaje } y el guardia vive en la RPC ──
 
 export interface ResultadoLiga { ok: boolean; mensaje?: string }
@@ -217,3 +282,15 @@ export const reportarPartida = (partida: string, vl: number, vv: number, vod: st
   rpc('liga_reportar', { p_partida: partida, p_victorias_local: vl, p_victorias_visita: vv, p_vod: vod || null, p_vod_t: vodT })
 export const cerrarLiga = (liga: string) => rpc('liga_cerrar', { p_liga: liga })
 export const subirLogo = (logo: string | null) => rpc('creador_subir_logo', { p_logo: logo })
+
+/**
+ * Da de alta la cabina de transmisión de un creador. **Solo admin.**
+ *
+ * El `code` de una cabina es su dirección pública (`/overlay/PUENTE3`), y
+ * `stream_operadores` decide quién escribe el marcador que sale al aire: por
+ * eso el alta no es una policy de INSERT sino una RPC de admin, igual que
+ * `canal_youtube` (§4l). Lo que identifica a alguien de cara al público no se
+ * lo pone esa misma persona.
+ */
+export const abrirCabina = (creadorCode: string, cabinaCode?: string) =>
+  rpc('creador_abrir_cabina', { p_creador_code: creadorCode, p_cabina_code: cabinaCode ?? null })

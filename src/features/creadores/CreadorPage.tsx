@@ -19,12 +19,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ChevronLeft, Youtube, Lock, Upload, Trophy, Users, PlayCircle } from 'lucide-react'
+import { ChevronLeft, Youtube, Lock, Upload, Trophy, Users, PlayCircle, Radio, Sliders } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import { misSesiones } from '../../services/streamSesiones'
 import {
   getCreador, getLigaDeCreador, getInscripciones, getPartidas, tablaDe,
   crearLiga, abrirInscripcion, cerrarInscripcion, cerrarLiga, subirLogo,
-  type Creador, type Liga, type InscripcionLiga, type PartidaLiga,
+  abrirCabina, enVivoDe,
+  type Creador, type Liga, type InscripcionLiga, type PartidaLiga, type EnVivoCreador,
 } from '../../services/ligaService'
 
 /** Mismo compresor que el avatar del perfil: canvas → JPEG data URI. */
@@ -47,7 +49,7 @@ async function comprimirLogo(file: File, maxLado = 512, calidad = 0.85): Promise
 
 export function CreadorPage() {
   const { code } = useParams<{ code: string }>()
-  const { supabaseUser } = useAuth()
+  const { supabaseUser, isAdmin } = useAuth()
   const [creador, setCreador] = useState<Creador | null>(null)
   const [liga, setLiga] = useState<Liga | null>(null)
   const [inscripciones, setInscripciones] = useState<InscripcionLiga[]>([])
@@ -57,6 +59,7 @@ export function CreadorPage() {
   const [ocupado, setOcupado] = useState(false)
   const archivoRef = useRef<HTMLInputElement>(null)
 
+  const [enVivo, setEnVivo] = useState<EnVivoCreador | null>(null)
   const [recarga, setRecarga] = useState(0)
   const recargar = useCallback(() => setRecarga(n => n + 1), [])
 
@@ -82,6 +85,18 @@ export function CreadorPage() {
     })()
     return () => { vivo = false }
   }, [code, recarga])
+
+  // El directo se consulta aparte y en bucle: es lo único de esta pantalla
+  // que cambia sin que nadie toque nada. Cada 45 s — más seguido sería
+  // sondear un interruptor que se mueve dos veces por transmisión.
+  useEffect(() => {
+    if (!code) return
+    let vivo = true
+    const mirar = () => { void enVivoDe(code).then(v => { if (vivo) setEnVivo(v) }) }
+    mirar()
+    const id = window.setInterval(mirar, 45_000)
+    return () => { vivo = false; window.clearInterval(id) }
+  }, [code])
 
   const soyElCreador = !!creador && supabaseUser?.id === creador.userId
   const tabla = useMemo(() => tablaDe(inscripciones, partidas), [inscripciones, partidas])
@@ -164,6 +179,37 @@ export function CreadorPage() {
           </div>
         )}
       </div>
+
+      {/* ── EN VIVO ahora ──
+          Sale del mismo interruptor que enciende el operador en su estudio y
+          que `/envivo` ya usa para toda la comunidad: no hay un segundo sitio
+          donde decir «estoy transmitiendo» que se pueda quedar viejo. */}
+      {enVivo && (
+        <a
+          href={enVivo.youtube ? `https://www.youtube.com/watch?v=${enVivo.youtube}` : '/envivo'}
+          target={enVivo.youtube ? '_blank' : undefined}
+          rel="noopener noreferrer"
+          className="mt-3 flex items-center gap-2.5 rounded-2xl border border-swu-red/50 bg-swu-red/10 px-4 py-3"
+        >
+          <span className="relative flex h-2.5 w-2.5 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-swu-red opacity-70" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-swu-red" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-swu-red-texto">En vivo ahora</p>
+            <p className="truncate text-[13px] font-black text-swu-text">
+              {enVivo.nombre}{enVivo.ronda ? ` · ${enVivo.ronda}` : ''}
+            </p>
+          </div>
+          <PlayCircle size={20} className="shrink-0 text-swu-red-texto" />
+        </a>
+      )}
+
+      {/* La cabina: el atajo para quien la opera, el alta para el admin. */}
+      {soyElCreador && !enVivo && <AtajoCabina userId={supabaseUser?.id ?? null} />}
+      {isAdmin && !soyElCreador && (
+        <AltaCabina creadorCode={code!} onHecho={m => { setAviso(m); recargar() }} />
+      )}
 
       {aviso && (
         <p className="mt-2 rounded-xl border border-swu-border bg-swu-surface px-3 py-2 text-center text-[12px] text-swu-text">{aviso}</p>
@@ -334,5 +380,80 @@ function FormularioNuevaLiga({ alCrear, alAvisar }: { alCrear: () => void; alAvi
         >Crear la liga</button>
       </div>
     </section>
+  )
+}
+
+
+/**
+ * El atajo del creador a SU cabina.
+ *
+ * Se listan las sesiones que esta cuenta opera de verdad
+ * (`stream_operadores`), no se arma el enlace a partir del code del creador:
+ * si el admin le abrió la cabina con otro código, un enlace inventado llevaría
+ * a `/estudio/PUENTE3` — una pantalla que existe y que NO es la suya.
+ *
+ * Sin cabina dada de alta lo dice: un espacio en blanco donde se esperaba el
+ * botón de transmitir se lee como que la app se rompió.
+ */
+function AtajoCabina({ userId }: { userId: string | null }) {
+  const [codes, setCodes] = useState<string[] | null>(null)
+
+  useEffect(() => {
+    if (!userId) return
+    let vivo = true
+    void misSesiones(userId).then(c => { if (vivo) setCodes(c) })
+    return () => { vivo = false }
+  }, [userId])
+
+  if (codes === null) return null
+
+  if (codes.length === 0) {
+    return (
+      <p className="mt-3 rounded-2xl border border-dashed border-swu-border px-4 py-3 text-center text-[11px] leading-relaxed text-swu-muted">
+        Tu cabina de transmisión todavía no está dada de alta. Pedísela a un
+        administrador y desde acá vas a poder operar el marcador en vivo.
+      </p>
+    )
+  }
+
+  return (
+    <div className="mt-3 flex flex-col gap-1.5">
+      {codes.map(c => (
+        <Link
+          key={c}
+          to={`/estudio/${c}`}
+          className="flex items-center gap-2.5 rounded-2xl border border-swu-border bg-swu-surface px-4 py-3"
+        >
+          <Sliders size={16} className="shrink-0 text-swu-accent-texto" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-swu-muted">Mi cabina</p>
+            <p className="truncate text-[13px] font-black text-swu-text">{c}</p>
+          </div>
+          <span className="shrink-0 text-[11px] font-bold text-swu-accent-texto">Abrir estudio</span>
+        </Link>
+      ))}
+    </div>
+  )
+}
+
+/** El alta de la cabina. Solo la ve un admin — el code es público (§4l). */
+function AltaCabina({ creadorCode, onHecho }: { creadorCode: string; onHecho: (m: string) => void }) {
+  const [ocupado, setOcupado] = useState(false)
+  return (
+    <button
+      onClick={() => {
+        setOcupado(true)
+        void abrirCabina(creadorCode).then(r => {
+          setOcupado(false)
+          onHecho(r.ok
+            ? String(r.extra?.mensaje ?? 'Cabina lista.')
+            : (r.mensaje ?? 'No se pudo abrir la cabina.'))
+        })
+      }}
+      disabled={ocupado}
+      className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-swu-accent/40 bg-swu-accent/10 px-4 py-3 text-[12px] font-black uppercase tracking-wider text-swu-accent-texto disabled:opacity-60"
+    >
+      <Radio size={15} /> {ocupado ? 'Abriendo…' : 'Abrir su cabina de transmisión'}
+    </button>
   )
 }

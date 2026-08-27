@@ -53,6 +53,7 @@ export type Accion =
   | { t: 'envivo'; valor: boolean }
   | { t: 'marca'; campos: Partial<import('../types/stream').MarcaOverlay> }
   | { t: 'carta'; carta: EstadoOverlay['carta'] }
+  | { t: 'ficha'; ficha: EstadoOverlay['ficha'] }
   | { t: 'lowerThird'; campos: Partial<EstadoOverlay['lowerThird']> }
   | { t: 'musica'; campos: Partial<EstadoOverlay['musica']> }
 
@@ -222,6 +223,9 @@ export function reducir(e: EstadoOverlay, a: Accion): EstadoOverlay {
 
     case 'carta':
       return { ...e, carta: a.carta }
+
+    case 'ficha':
+      return { ...e, ficha: a.ficha }
 
     case 'lowerThird':
       return { ...e, lowerThird: { ...e.lowerThird, ...a.campos } }

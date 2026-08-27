@@ -55,6 +55,14 @@ import {
   type Accion,
 } from '../../services/streamOverlay'
 import { listarSesiones, misSesiones } from '../../services/streamSesiones'
+import {
+  getInscripciones,
+  getLigaDeCreador,
+  getPartidas,
+  tablaDe,
+  type FilaTabla,
+  type Liga,
+} from '../../services/ligaService'
 import { descargarEscenasOBS } from '../../services/obsEscenas'
 import { borrarImagenMarca, subirImagenMarca, type TipoMarca } from '../../services/streamMarca'
 import {
@@ -83,7 +91,7 @@ export function EstudioPage() {
   const { code: codeCrudo = '' } = useParams<{ code: string }>()
   const code = codeCrudo.trim().toUpperCase()
   const navigate = useNavigate()
-  const { currentProfile, initAuth, authListo } = useAuth()
+  const { currentProfile, supabaseUser, initAuth, authListo } = useAuth()
 
   /* El acceso ya NO es «ser admin»: es estar asignado a ESTA cabina.
      `null` = todavía preguntando; distinguirlo de `false` evita expulsar a
@@ -557,6 +565,16 @@ export function EstudioPage() {
           <PanelMusica code={code} musica={estado.musica} onAccion={aplicar} />
         </div>
 
+        {/* ══ Fila 4 · Presentar a un jugador de la liga ══ */}
+        <div className="mt-2.5">
+          <PanelPresentarJugador
+            ficha={estado.ficha}
+            ahora={ahora}
+            userId={supabaseUser?.id ?? null}
+            onAccion={aplicar}
+          />
+        </div>
+
         </>
         )}
 
@@ -776,6 +794,133 @@ function PanelCartaDestacada({
             setAbierto(false)
           }}
         />
+      )}
+    </Panel>
+  )
+}
+
+/** Segundos que la ficha de un jugador se queda al aire antes de irse sola. */
+const DURACION_FICHA_MS = 18_000
+
+/** Arma la ficha que va al aire. Fuera del componente: usa el reloj. */
+function fichaDe(fila: FilaTabla, puesto: number, liga: string): EstadoOverlay['ficha'] {
+  return {
+    nombre: fila.nombre,
+    sub: `${liga.toUpperCase()} · ${puesto}.º`,
+    avatar: '',
+    datos: [
+      { rotulo: 'PUESTO', valor: `${puesto}.º` },
+      { rotulo: 'RÉCORD', valor: `${fila.ganadas}-${fila.perdidas}` },
+      { rotulo: 'PUNTOS', valor: String(fila.puntos) },
+      ...(fila.lider ? [{ rotulo: 'LÍDER', valor: fila.lider }] : []),
+    ],
+    hasta: Date.now() + DURACION_FICHA_MS,
+  }
+}
+
+/**
+ * Presentar a un jugador de la liga AL AIRE.
+ *
+ * Es lo que Nel pidió con «que pueda presentar a los jugadores»: antes de una
+ * partida, el creador saca la ficha de quien juega —nombre, puesto, récord—
+ * y sigue. Se auto-oculta a los {DURACION_FICHA_MS} ms, igual que la carta
+ * destacada: una presentación olvidada tapa la mesa.
+ *
+ * ── Los números NO se teclean ────────────────────────────────────────
+ *
+ * El puesto y el récord salen de `tablaDe()`, la misma función que pinta la
+ * clasificación pública. Un campo de texto libre acá sería una segunda copia
+ * de la tabla que se separa a la primera jornada (§3c) — y al aire, delante
+ * de la comunidad, con el número equivocado.
+ *
+ * Si el creador no lleva liga, el panel lo DICE en vez de quedar mudo: un
+ * control que no hace nada se lee como que la cabina está rota.
+ */
+function PanelPresentarJugador({
+  ficha,
+  ahora,
+  userId,
+  onAccion,
+}: {
+  ficha: EstadoOverlay['ficha']
+  ahora: number
+  userId: string | null
+  onAccion: (a: Accion) => void
+}) {
+  // `undefined` = todavía no se preguntó; `null` = se preguntó y no lleva liga.
+  // Con un booleano `cargando` aparte hacían falta dos escrituras de estado
+  // para un solo hecho, y sin sesión la primera nunca ocurría: el panel se
+  // quedaba diciendo «cargando» para siempre.
+  const [liga, setLiga] = useState<Liga | null | undefined>(undefined)
+  const [tabla, setTabla] = useState<FilaTabla[]>([])
+  const cargando = userId !== null && liga === undefined
+
+  useEffect(() => {
+    if (!userId) return
+    let vivo = true
+    void getLigaDeCreador(userId)
+      .then(async l => {
+        if (!vivo) return
+        setLiga(l)
+        if (!l) return
+        const [insc, part] = await Promise.all([getInscripciones(l.id), getPartidas(l.id)])
+        if (vivo) setTabla(tablaDe(insc, part))
+      })
+    return () => { vivo = false }
+  }, [userId])
+
+  const visible = ficha !== null && ficha.hasta > ahora
+  const restante = visible && ficha ? Math.ceil((ficha.hasta - ahora) / 1000) : 0
+
+  return (
+    <Panel titulo="Presentar jugador" nota={visible ? `${restante}s al aire` : undefined} denso>
+      {visible && ficha && (
+        <div className="mb-2 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-2">
+          <span className="min-w-0 flex-1 truncate text-xs font-bold">{ficha.nombre}</span>
+          <button
+            onClick={() => onAccion({ t: 'ficha', ficha: null })}
+            className="shrink-0 rounded px-2 py-1 text-[10px] font-black uppercase tracking-wider text-swu-muted transition hover:text-red-300"
+          >
+            Quitar
+          </button>
+        </div>
+      )}
+
+      {cargando ? (
+        <p className="py-3 text-center text-xs text-swu-muted">Cargando la liga…</p>
+      ) : !liga ? (
+        <p className="py-3 text-center text-[11px] leading-relaxed text-swu-muted">
+          Esto presenta a los jugadores de tu liga con su puesto y su récord.
+          Todavía no llevás ninguna.
+        </p>
+      ) : tabla.length === 0 ? (
+        <p className="py-3 text-center text-[11px] text-swu-muted">
+          «{liga.nombre}» no tiene inscritos todavía.
+        </p>
+      ) : (
+        <>
+          <div className="flex max-h-44 flex-col gap-1 overflow-y-auto">
+            {tabla.map((f, i) => (
+              <button
+                key={f.inscId}
+                onClick={() => onAccion({ t: 'ficha', ficha: fichaDe(f, i + 1, liga.nombre) })}
+                className="flex items-center gap-2 rounded-lg border border-swu-border bg-swu-bg px-2.5 py-2 text-left transition hover:border-swu-accent/50"
+              >
+                <span className="w-6 shrink-0 text-center text-[11px] font-black tabular-nums text-swu-muted">
+                  {i + 1}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-xs font-bold text-swu-text">{f.nombre}</span>
+                <span className="shrink-0 text-[11px] font-bold tabular-nums text-swu-muted">
+                  {f.ganadas}-{f.perdidas}
+                </span>
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-[10px] leading-relaxed text-swu-muted">
+            Sale a la izquierda con su puesto y su récord de «{liga.nombre}», y se
+            oculta sola a los {DURACION_FICHA_MS / 1000} segundos.
+          </p>
+        </>
       )}
     </Panel>
   )

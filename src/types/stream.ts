@@ -65,6 +65,37 @@ export interface CartaDestacada {
  * neutros a propósito — quien no configure nada obtiene algo sobrio, no la
  * marca de otra comunidad.
  */
+/**
+ * La ficha de un jugador, para PRESENTARLO al aire.
+ *
+ * Pedido de Nel para el espacio de creadores: «que pueda transmitir incluso
+ * que presente a los jugadores». Antes de una partida el creador saca la
+ * ficha de quien juega —su nombre, su credencial, cómo va en la liga— y la
+ * quita cuando arranca.
+ *
+ * ── Por qué es un CAMPO y no una escena ──────────────────────────────
+ *
+ * Una escena nueva sería el peor cambio posible: `normalizarEstado` colapsa
+ * toda escena desconocida a `'pronto'`, así que una cabina abierta en un OBS
+ * con la PWA sin actualizar (§2g) mostraría la PANTALLA DE ESPERA a mitad de
+ * partida. Como campo, un overlay viejo simplemente no dibuja la ficha y
+ * sigue transmitiendo el marcador.
+ *
+ * `hasta` la apaga sola, igual que la carta destacada: una presentación que
+ * se queda pegada porque el operador se distrajo tapa el juego.
+ */
+export interface FichaJugador {
+  nombre: string
+  /** Apodo, título o el rótulo de su liga. Ej: «PUENTE 3 · 2.º · 4-1». */
+  sub: string
+  /** URL ya resuelta — el overlay NO sabe resolver ids de avatar (§2x). */
+  avatar: string
+  /** Hasta cuatro pares rótulo/valor. Más no se leen a 1080p. */
+  datos: { rotulo: string; valor: string }[]
+  /** Epoch ms hasta el que se muestra. Se auto-oculta sola. */
+  hasta: number
+}
+
 export interface MarcaOverlay {
   /** Rótulo de las pantallas de espera. Ej: «CHAVO RUCOS». */
   nombre: string
@@ -139,6 +170,8 @@ export interface EstadoOverlay {
   musica: { pista: string; titulo: string; sonando: boolean; volumen: number }
   lados: [LadoOverlay, LadoOverlay]
   carta: CartaDestacada | null
+  /** Presentación de un jugador al aire. `null` = no se muestra ninguna. */
+  ficha: FichaJugador | null
 }
 
 const LADO_VACIO: LadoOverlay = {
@@ -179,6 +212,7 @@ export const ESTADO_INICIAL: EstadoOverlay = {
   musica: { pista: '', titulo: '', sonando: false, volumen: 35 },
   lados: [{ ...LADO_VACIO }, { ...LADO_VACIO }],
   carta: null,
+  ficha: null,
 }
 
 const ESCENAS: Escena[] = ['pronto', 'juego', 'descanso', 'fin']
@@ -308,6 +342,33 @@ export function normalizarEstado(x: unknown): EstadoOverlay {
     },
     lados: [normalizarLado(lados[0]), normalizarLado(lados[1])],
     carta: normalizarCarta(o.carta),
+    ficha: normalizarFicha(o.ficha),
+  }
+}
+
+/**
+ * Una ficha sin nombre no es una ficha: se descarta entera.
+ *
+ * Los datos se topan en cuatro EN EL NORMALIZADOR y no en el dibujo, porque
+ * lo que llega es un JSON escrito por un cliente: veinte filas no serían un
+ * problema de diseño, serían una columna que se sale de la pantalla en la
+ * transmisión de alguien.
+ */
+function normalizarFicha(x: unknown): FichaJugador | null {
+  if (!x || typeof x !== 'object') return null
+  const o = x as Record<string, unknown>
+  const nombre = texto(o.nombre)
+  if (!nombre) return null
+  const crudos = Array.isArray(o.datos) ? o.datos.slice(0, 4) : []
+  return {
+    nombre,
+    sub: texto(o.sub),
+    avatar: texto(o.avatar),
+    datos: crudos.map(d => {
+      const f = (d ?? {}) as Record<string, unknown>
+      return { rotulo: texto(f.rotulo), valor: texto(f.valor) }
+    }).filter(d => d.rotulo || d.valor),
+    hasta: typeof o.hasta === 'number' && Number.isFinite(o.hasta) ? o.hasta : 0,
   }
 }
 
