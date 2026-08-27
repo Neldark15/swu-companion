@@ -3174,3 +3174,86 @@ Hay que escribir como quien de verdad tiene el permiso.
 
 Fases pendientes: confirmación dual de resultados, emblema de «Campeón Liga
 PUENTE 3» en la credencial, temporadas.
+
+### 4m. Imágenes que sube una persona: proporción, alfa y peso
+
+Llegó el primer logo de creador de verdad —el rótulo de PUENTE 3, 2000×1125
+(16:9) con 21,4 % de píxeles transparentes— y destapó una familia entera de
+defectos. Auditados con cuatro lentes y verificación adversarial: 28
+hallazgos, **14 confirmados, 13 refutados**.
+
+**UNA MARCA NO ES UN AVATAR: no se recorta.** Un avatar redondo con
+`object-cover` está bien —cortar la cara es correcto—; un logo recortado deja
+de identificar, que es lo único que tenía que hacer. Un wordmark apaisado en
+una caja cuadrada pierde el **44 % del ancho**: quedan dos letras del nombre.
+Pasaba en la casa del creador, en la cabecera de la sede y en el directorio de
+sedes. La regla: **alto fijo, ancho libre** (`h-N w-auto object-contain`), y la
+caja se adapta a la marca en vez de al revés. Con tope de ancho donde comparte
+fila con texto, o un logo muy apaisado empuja el texto fuera.
+
+**Y EL AFICHE DE UN TORNEO ES VERTICAL.** Se sube del celular y sale de
+Instagram: 4:5 o A4, con el nombre arriba, la fecha en medio y la dirección
+abajo. En una banda de 112 px por todo el ancho (≈3,5:1) se veía el **22 %
+central de su alto** — una tira de fondo sin un solo dato.
+
+**UN LOGO NO PUEDE EXPORTARSE A JPEG.** `comprimirLogo` era una copia del
+compresor del avatar. Una foto de perfil es opaca y el JPEG le sienta bien; un
+logo de marca casi siempre trae fondo transparente, y el JPEG no tiene alfa:
+al componer, el navegador pone **negro** donde había transparencia. Y el fallo
+se ve como éxito —la subida contesta «Logo actualizado»— con el archivo
+original intacto en la computadora de quien lo subió, así que nadie sospecha
+del compresor: parece que «ya venía así». Va **WebP** (conserva alfa y pesa
+menos), con escalera de reintentos bajando calidad y tamaño hasta entrar en el
+tope del servidor, en vez de mandar algo que va a ser rechazado al final.
+
+**UN DATA URI DENTRO DE UN JSON NO SE CACHEA.** Es el §2t otra vez, con otra
+cara. `mi_liga()` mandaba el logo entero del creador en la respuesta que se
+pide al ABRIR EL PERFIL, la pantalla más visitada, para pintarlo a 36 px de
+alto. Una imagen por URL la guarda el navegador; metida en un JSON se
+re-descarga cada vez. **Si una imagen viaja dentro de una fila, preguntá
+cuántas veces se lee esa fila.** Quedan dos casos abiertos de la misma
+familia, con tarea aparte: `community_posts` guarda una COPIA del data URI del
+avatar en cada publicación y el muro lee 40 de un tirón, y el buscador de
+`/contrabando` pide 30-50 perfiles con avatar por cada tecla.
+
+**La lupa del álbum NO lleva relleno desenfocado.** Las dos caras de un líder
+Showcase son la misma cartulina impresa de lado (frente 400×286, dorso
+286×400). En una REJILLA el hueco se tapa con la misma imagen ampliada y
+borrosa, y está bien: las celdas miden igual. En la lupa —una carta sola sobre
+negro al 85 %— el hueco YA es un fondo, y el relleno solo agrega un muro gris
+del doble de alto que la carta: se lee como que la imagen se rompió. De ahí el
+prop `relleno` de `CardImage`, encendido por defecto.
+Y `CartaGirable` tiene `ratioDorso`: la caja **morfa** al cruzar los 90°, que
+es lo que hace la cartulina de verdad al girarla. Sin eso quedaban 200 px
+muertos empujando el pie del modal. La paridad de la media vuelta es la misma
+regla con la que la credencial decide su cara (§2y): `y` se acumula sin tope y
+puede ser negativo.
+
+Banco: `/banco-sobres`, sección del álbum, premio **Showcase** → casilla 769.
+Es Obi-Wan Showcase (LOF 1012), el peor caso del módulo.
+
+### 4n. El menú de escritorio: `fixed` sin alto NO scrollea
+
+El `<aside>` era `fixed top-0` con `min-h-screen` y **sin alto definido**, así
+que crecía con su contenido. Por eso el `flex-1 overflow-y-auto` del `<nav>`
+nunca se veía obligado a encoger y **no llegaba a scrollear jamás**. Medido en
+una ventana de 820 px: el aside medía **2.175** y
+`nav.scrollHeight === nav.clientHeight`. Como es `fixed`, esos 1.355 px que
+colgaban por debajo no se alcanzaban de ninguna forma —el documento tampoco
+scrollea (el caparazón es `h-[100dvh] overflow-hidden`)— y de **31 entradas se
+llegaba a once**. Un admin, que tiene tres más, perdía el panel entero.
+
+Es el mismo gotcha que el `min-h-0` de `AppLayout` con la otra cara: allá
+faltaba **dejar encoger**, acá faltaba **decir hasta dónde**. Los dos hacen
+falta: `h-[100dvh]` en el aside y `min-h-0` en el nav.
+
+**El aire de escritorio no es un ancho fijo.** El caparazón se diseñó para el
+teléfono (`max-w-lg`) y en escritorio se soltaba a ancho completo: en un
+monitor de 1.920 el formulario de acceso medía 1.632 px de lado a lado, que es
+lo que hace que se lea como una app de celular a pantalla completa. Van
+márgenes desde `lg` y tope solo en pantallas muy anchas — **nada de apretarlo
+a una columna de lectura**, porque acá se miran rejillas de cartas y el ancho
+se usa.
+
+La barra de desplazamiento fina va como **CSS plano**, no `@utility` (§3i), y
+se verifica contra el CSS **construido** (§3u).
