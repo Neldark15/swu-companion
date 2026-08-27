@@ -32,6 +32,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { CheckCircle2, XCircle, ChevronRight, Zap, Flame, Star, Award, ArrowLeft } from 'lucide-react'
 import { HolocronIcon } from '../../../components/SWIcons'
+import { updateMissionProgress } from '../../../services/missionService'
 import {
   getDailyQuestions, getTemaQuestions, getTodayProgress, recordTriviaAnswer,
   getTriviaStats, getProgresoTemas, sumarTema, medallaDe, siguienteUmbral,
@@ -119,6 +120,23 @@ export function TriviaSection({ userId, onXpGained }: TriviaSectionProps) {
     setSelectedAnswer(optionIndex)
     const isCorrect = optionIndex === question.correctIndex
     if (isCorrect) setSessionCorrect(p => p + 1)
+
+    /* LA MISIÓN SE AVISA ACÁ, UNA VEZ, PARA LOS DOS MODOS.
+     *
+     * Vivía dentro de `recordTriviaAnswer`, que es el camino de la DIARIA
+     * únicamente: quien jugaba la práctica por tema contestaba y la misión no
+     * se movía. Medido en producción el día que salió: una persona con 20
+     * respuestas por tema en el día no tenía ni fila de misión, y otra con 10
+     * por la diaria las tenía todas.
+     *
+     * Es la misma forma del §3h-ter con otra cara: allá la misión no tenía
+     * llamador; acá lo tenía, pero solo en UNA de las dos ramas. Un llamador
+     * en una rama se lee, desde afuera, exactamente igual que ninguno.
+     *
+     * Este es el único punto por el que pasan los dos modos, y la guarda de
+     * arriba (`selectedAnswer !== null`) garantiza que corre una sola vez por
+     * pregunta. La misión es CONTESTAR: acertar o no da igual. */
+    void updateMissionProgress(userId, 'trivia_respondida').catch(() => {})
 
     if (sesion.modo === 'diaria') {
       if (isCorrect) setSessionXp(p => p + 2)

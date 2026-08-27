@@ -5,7 +5,6 @@
  */
 
 import { supabase, isSupabaseReady } from './supabase'
-import { updateMissionProgress } from './missionService'
 import { BANCO_TRIVIA, type TemaTrivia } from './triviaBanco'
 import { diaCalendarioSV, diaCalendarioSVMas } from './horaSV'
 /* El sorteo vive aparte y PURO para poder probarlo con un guion: acá adentro
@@ -233,10 +232,12 @@ export async function recordTriviaAnswer(
     if (error) return { ok: false, xpEarned: 0 }
   }
 
-  /* Después de los DOS caminos (fila nueva y fila que ya existía), y solo
-     tras comprobar que ninguno devolvió error: acá la respuesta ya quedó
-     guardada. Cuenta igual si acertaste o no — la misión es contestar. */
-  void updateMissionProgress(userId, 'trivia_respondida').catch(() => {})
+  /* LA MISIÓN NO SE AVISA ACÁ, y es a propósito.
+     Esta función es el camino de la DIARIA. La trivia tiene dos modos —la
+     diaria y la práctica por tema— y avisar desde acá dejaba al segundo sin
+     contar: medido en producción, alguien con 20 respuestas por tema en el
+     día no tenía ni fila de misión. El aviso vive en `handleAnswer`, que es
+     el único sitio por el que pasan los dos modos. */
 
   return { ok: true, xpEarned: xp }
 }

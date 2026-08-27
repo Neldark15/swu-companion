@@ -1852,6 +1852,27 @@ vez de por el llamador. Igual «Enviar 1 regalo», que mandaba a La Galaxia cuan
 los regalos se envían desde Espionaje, y cuatro que decían «Contador» cuando el
 menú dice «Contador de daños».
 
+**Y UN LLAMADOR EN UNA SOLA RAMA SE LEE IGUAL QUE NINGUNO.** La trivia tiene
+DOS modos —la diaria y la práctica por tema— y el aviso de la misión vivía
+dentro de `recordTriviaAnswer`, que es el camino de la diaria **únicamente**.
+Quien jugaba por tema contestaba y la misión no se movía. Medido en producción
+el mismo día: Nelson con **20 respuestas por tema y NI FILA** de `d_trivia1`,
+Rodorigo con 10 por la diaria y todas contadas. El aviso vive ahora en
+`handleAnswer`, que es el único punto por el que pasan los dos modos y corre
+una vez por pregunta.
+
+Es la misma forma del §3h-ter con otra cara: allá la misión no tenía llamador,
+acá lo tenía en una rama de dos. `misiones-tienen-llamador.mjs` **no puede ver
+esto** —encuentra el llamador y da verde—, así que al agregar un modo nuevo de
+cumplir una misión la pregunta es *«¿por dónde pasan TODOS los caminos?»*, y el
+aviso va ahí.
+
+**Lo que NO se hizo: reponer el progreso perdido.** El único contador con el
+que se podría (`trivia_temas.respondidas`) **no es de fiar**: está topado en 20
+por tema y por día (§4j) y es más nuevo que `trivia_progress`, así que dos
+personas dan hueco **negativo** —imposible— al cruzarlos. Escribir progreso a
+partir de un número que no cuadra es peor que no escribirlo.
+
 **Un destino equivocado NO FALLA**: navega, pinta algo, y quien lo tocó cree que
 no encontró la sección. Por eso `scripts/misiones-llevan-donde-dicen.mjs` cruza
 tres cosas —que la `ruta` exista en el router, que corresponda al
