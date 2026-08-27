@@ -27,6 +27,7 @@ import { Link, useParams } from 'react-router-dom'
 import { ChevronDown, ChevronLeft, Clock, Lock, PlayCircle, Swords } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { InscripcionLiga } from '../liga/InscripcionLiga'
+import { PortadaLiga } from './PortadaLiga'
 import { TONO_POR_RAREZA } from '../../services/filtrosCarta'
 import {
   verLiga, tablaDe, miProximaPartida, reportar, confirmar, disputar,
@@ -136,9 +137,9 @@ export function LigaSeccion() {
     () => grupos.find(g => g.plazas.some(p => p.esMia))?.id ?? null,
     [grupos])
 
-  if (!listo) {
-    return <div className="mx-auto max-w-lg px-4 py-16 text-center text-sm text-swu-muted">Buscando la liga…</div>
-  }
+  // El afiche mientras carga: entrar a la liga tiene que sentirse como entrar
+  // a otro sitio, y ese medio segundo es donde se nota.
+  if (!listo) return <PortadaLiga />
 
   if (!liga) {
     // La policy del demo cerrado devuelve VACÍO, no error: acá «no existe» y
