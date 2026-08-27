@@ -3110,8 +3110,67 @@ entrada de menú: se entra por `/c/puente3` y `/liga/:code`.
 - **`canal_youtube` lo fija el ADMIN**, no el creador — anti-impersonación,
   la misma razón por la que `transmisiones` es service-role.
 
-Fases pendientes: 2) cabina propia (una RPC de alta reusando stream_sesiones/
-overlay/operadores + página con «EN VIVo ahora»), 3) presentación de jugadores
-en el overlay (campo opcional en `EstadoOverlay`, NUNCA escena nueva — §2g,
-`normalizarEstado` colapsa escenas desconocidas), 4) confirmación dual,
-emblema de campeón en la credencial, temporadas.
+#### «MI LIGA» en el perfil, la cabina y la presentación al aire
+
+Las tres piezas que faltaban entraron el 2026-08-27.
+
+**`mi_liga()` es UNA consulta, y el perfil es la pantalla que más se abre.**
+Devuelve liga + inscripciones + partidas de un viaje; con cuatro SELECT desde
+el cliente serían cuatro viajes para pintar una tarjeta. Y devuelve lo tuyo
+**aunque el demo siga cerrado**: tu liga es tuya, la veas o no en la casa del
+creador. La tabla NO se calcula en el servidor — se computa con `tablaDe()`,
+el mismo algoritmo que pinta la clasificación pública (§2y). La tarjeta no se
+dibuja si no estás en ninguna liga, que es el caso de casi todo el mundo.
+
+**El ALTA de una cabina es de ADMIN, no una policy de INSERT.** El motor de
+transmisión ya existía entero; lo que faltaba eran las tres filas (sesión +
+overlay + operador). El `code` de una cabina es su dirección pública
+—`/overlay/PUENTE3` es lo que se pega en OBS— y `stream_operadores` es
+exactamente la tabla que decide quién escribe el marcador que sale al aire:
+con una policy de INSERT, un creador podría darse de alta con `SV01` y
+quedarse operando la cabina de los torneos nacionales. `creador_abrir_cabina`
+rechaza además un code que ya tenga OTRO operador — sin eso, abrir dos veces
+la cabina de alguien le regala el mando a quien la abra de último.
+
+**El atajo del creador se LISTA desde `stream_operadores`**, no se arma con
+su code: si el admin le abrió la cabina con otro código, un enlace inventado
+llevaría a `/estudio/PUENTE3`, una pantalla que existe y que NO es la suya.
+
+**`creador_en_vivo()` no abre `stream_overlay` a `anon`**: esa fila lleva el
+marcador completo en vivo —vidas, recursos, cartas en mano— y publicarlo
+entero sería regalarle información de una partida en curso a quien la está
+jugando. Salen tres campos. El interruptor es el MISMO que usa `/envivo`: no
+hay un segundo sitio donde decir «estoy transmitiendo» que se pueda quedar
+viejo (§3c).
+
+**PRESENTAR A UN JUGADOR ES UN CAMPO (`ficha`), NUNCA UNA ESCENA.** Es la
+regla que no se puede relajar: `normalizarEstado` colapsa toda escena
+desconocida a `'pronto'`, así que con escena nueva un OBS con la PWA sin
+actualizar mostraría la **pantalla de espera a mitad de partida** (§2g). Como
+campo, un overlay viejo simplemente no dibuja la ficha y sigue transmitiendo.
+`scripts/overlay-ficha.test.mts` fija el contrato con 8 casos, y el último
+demuestra la diferencia: la escena inventada colapsa, la ficha no toca nada.
+
+Dos detalles del campo: los `datos` se topan **en 4 en el normalizador**, no
+en el dibujo (lo que llega es JSON escrito por un cliente, y veinte filas
+serían una columna saliéndose de la transmisión de alguien); y va **fuera del
+condicional de escena** porque presentar se hace en la pantalla de espera,
+antes de que arranque la partida. Los números salen de `tablaDe()`, no de
+campos de texto: al aire, delante de la comunidad, una segunda copia de la
+tabla se separa en la primera jornada.
+
+**Dos errores míos que solo cazó probar contra la base**, y valen para
+cualquier RPC nueva acá: **`is_admin()` NO EXISTE** en esta base —la
+comprobación se escribe como el `exists` sobre `profiles`— y **el fallo va en
+la clave `error`, no `mensaje`**, porque el ayudante `rpc()` de `ligaService`
+lee esa; con `mensaje`, todo fallo se habría leído en pantalla como el
+genérico «No se pudo», con el servidor explicando el motivo y la persona sin
+verlo nunca.
+
+Y una trampa al PROBAR, la de siempre con otra cara: el `update` de prueba
+sobre `stream_overlay` corrido como Nel tocó **0 filas sin error** —no es
+operador de esa cabina— y eso se lee igual que «la función está rota» (§2u).
+Hay que escribir como quien de verdad tiene el permiso.
+
+Fases pendientes: confirmación dual de resultados, emblema de «Campeón Liga
+PUENTE 3» en la credencial, temporadas.
