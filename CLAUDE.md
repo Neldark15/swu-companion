@@ -218,6 +218,45 @@ El síntoma original fue que **cada deploy quedaba invisible** para quien tuvier
 
 Si movés `skipWaiting()` al arranque «para arreglar la caché», rompés el aviso y volvés a las recargas sorpresa. El comentario en [sw.ts](src/sw.ts) lo explica en el sitio.
 
+**PERO PREGUNTAR SIEMPRE TAMPOCO ERA LA RESPUESTA.** Reporte de Nel
+(2026-08-27): «la página web se debería actualizar sola, me aparecen versiones
+viejas». Tres cosas fallaban a la vez y ninguna era el `skipWaiting`:
+
+1. **Solo comprobaba cada 60 minutos.** Quien despliega y mira enseguida no se
+   entera. Ahora son **15**.
+2. **No comprobaba al VOLVER a la app** — que es el momento natural: mirás el
+   teléfono, volvés, y ahí conviene enterarse. Ahora hay `visibilitychange`,
+   `focus` y una comprobación al arrancar. Sin eso, una pestaña abierta desde
+   ayer esperaba a la próxima hora en punto.
+3. **Pedía permiso incluso cuando no había nada que interrumpir.** La razón de
+   preguntar es real —una recarga corta un tracker en curso o un mazo a medio
+   armar— pero eso solo pasa en unas pocas pantallas.
+
+Hoy: **oculta → se aplica sola** (nadie mira, nada se está escribiendo); **en
+pantalla de la lista blanca → se aplica sola**; **en cualquier otra → pregunta**.
+
+**LA LISTA ES BLANCA Y NO NEGRA**, y es la misma corrección que se le hizo el
+mismo día a la tabla de la liga: con una lista negra cada pantalla nueva queda
+marcada como segura por omisión, que es la dirección peligrosa. Lo que no está
+declarado pregunta — molesta un poco, que es el fallo barato, en vez de
+recargarte encima, que es el caro.
+
+Dos detalles que costarían el bug que esto evita:
+- **La ruta va en una `ref` escrita desde un efecto.** El callback del service
+  worker se crea UNA vez y capturaría el `pathname` del primer pintado: quien
+  abrió la app en Inicio y se fue al Contador se comería la recarga a mitad de
+  partida. Y la `ref` se escribe en un efecto, no en el render (regla
+  `react-hooks/refs`).
+- **`/liga/:code` es segura y `/liga/:code/panel` NO**, aunque una sea prefijo
+  de la otra. Es el caso que no se ve leyendo, y por eso está en la prueba.
+
+`scripts/actualizacion-rutas.test.mjs` lee la lista **del propio componente**
+—no la copia, que se separaría— y fija 18 casos. Corrélo al tocar `SEGURAS`.
+
+Y las pantallas de verdad delicadas —overlay de OBS, estudio, `/admin`,
+`/temporada` y el panel de liga— **ni siquiera montan `UpdatePrompt`**: viven
+fuera del caparazón, así que ahí no hay riesgo por estructura.
+
 ### 2h. `isCanonical` ≠ `isCollectible` ≠ oferta de intercambio
 Tres preguntas parecidas con respuestas distintas:
 - **`isCanonical`** — ¿es la fila que representa a esta carta en el buscador? → 2,316
