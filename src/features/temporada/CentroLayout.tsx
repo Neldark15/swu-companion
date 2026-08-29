@@ -133,8 +133,24 @@ export function CentroLayout() {
   if (!curador) return null // el efecto ya está redirigiendo
 
   return (
-    <div className="min-h-screen bg-swu-bg text-swu-text flex">
-      <aside className="hidden md:flex flex-col w-56 bg-black/30 border-r border-swu-border/40 min-h-screen">
+      /* ALTO DEFINIDO Y SCROLL PROPIO.
+       *
+       * `index.css` pone `html, body { overflow: hidden }` para que el
+       * caparazón de la app maneje su propio desplazamiento —así la barra del
+       * navegador móvil no mueve lo que está anclado abajo—. Pero esta
+       * pantalla vive FUERA de ese caparazón, y con el documento bloqueado un
+       * `min-h-screen` que crece hacia abajo queda **inalcanzable**: no hay
+       * nada que scrollee.
+       *
+       * Reportado por Nel sobre crear un torneo: «no puedo bajar para
+       * seleccionar todas las opciones». Es la tercera vez que aparece esta
+       * misma forma —el menú lateral (§4n) fue la anterior— y siempre es lo
+       * mismo: algo que TIENE que desplazarse sin nadie que lo desplace.
+       *
+       * Toda pantalla fuera de `AppLayout` tiene que traer su propio scroll.
+       */
+    <div className="h-[100dvh] overflow-hidden bg-swu-bg text-swu-text flex">
+      <aside className="hidden md:flex flex-col w-56 bg-black/30 border-r border-swu-border/40 h-full">
         <div className="px-4 py-5 border-b border-swu-border/40">
           <div className="flex items-center gap-2">
             <BeskarIcon size={15} className="text-swu-amber" />
@@ -154,7 +170,7 @@ export function CentroLayout() {
           <span>Volver a la app</span>
         </button>
 
-        <nav className="flex-1 px-3 py-4 space-y-0.5">
+        <nav className="flex-1 min-h-0 overflow-y-auto barra-fina px-3 py-4 space-y-0.5">
           {NAV.map(i => (
             <NavLink
               key={i.to}
@@ -215,7 +231,8 @@ export function CentroLayout() {
         </nav>
       </div>
 
-      <main className="flex-1 min-w-0 pt-24 md:pt-0 px-4 md:px-6 py-6 max-w-6xl">
+      <main className="flex-1 min-w-0 min-h-0 overflow-y-auto overscroll-contain barra-fina
+                       pt-24 md:pt-0 px-4 md:px-6 py-6">
         <Outlet />
       </main>
     </div>

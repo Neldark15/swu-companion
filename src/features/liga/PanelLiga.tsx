@@ -331,7 +331,23 @@ export function PanelLiga() {
   const temporada = panel.temporada ?? liga.temporada
 
   return (
-    <div className="min-h-screen bg-swu-bg text-swu-text">
+      /* ALTO DEFINIDO Y SCROLL PROPIO.
+       *
+       * `index.css` pone `html, body { overflow: hidden }` para que el
+       * caparazón de la app maneje su propio desplazamiento —así la barra del
+       * navegador móvil no mueve lo que está anclado abajo—. Pero esta
+       * pantalla vive FUERA de ese caparazón, y con el documento bloqueado un
+       * `min-h-screen` que crece hacia abajo queda **inalcanzable**: no hay
+       * nada que scrollee.
+       *
+       * Reportado por Nel sobre crear un torneo: «no puedo bajar para
+       * seleccionar todas las opciones». Es la tercera vez que aparece esta
+       * misma forma —el menú lateral (§4n) fue la anterior— y siempre es lo
+       * mismo: algo que TIENE que desplazarse sin nadie que lo desplace.
+       *
+       * Toda pantalla fuera de `AppLayout` tiene que traer su propio scroll.
+       */
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-swu-bg text-swu-text">
       <header className="sticky top-0 z-30 border-b border-swu-border/40 bg-black/40 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center gap-2 px-3 py-2.5">
           <Link
@@ -362,7 +378,8 @@ export function PanelLiga() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl space-y-4 px-3 py-4">
+      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain barra-fina px-3 py-4">
+        <div className="mx-auto max-w-5xl space-y-4">
         {aviso && (
           <div
             className={`flex items-start gap-2 rounded-xl border p-3 text-sm ${
@@ -392,6 +409,7 @@ export function PanelLiga() {
         {pestana === 'cola' && <Cola liga={liga} cola={panel.cola} tras={tras} />}
 
         {pestana === 'semilla' && <Semilla temporada={panel.temporada} />}
+        </div>
       </main>
     </div>
   )

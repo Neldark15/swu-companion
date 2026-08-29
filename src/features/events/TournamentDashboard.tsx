@@ -10,7 +10,7 @@ import {
 } from '../../services/mesasService'
 import { useState, useEffect, useCallback} from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Play, SkipForward, Clock, Users, Trophy, GitBranch, UserMinus, LayoutGrid} from 'lucide-react'
+import { ArrowLeft, Play, SkipForward, Clock, Users, Trophy, GitBranch, UserMinus, LayoutGrid, Bell } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import {
   getEventTournamentInfo,
@@ -35,6 +35,7 @@ import {
 } from '../../services/tournamentCloud'
 import { StandingsTable } from './components/StandingsTable'
 import { PairingsView } from './components/PairingsView'
+import { avisarEmparejamientos, type ResultadoAviso } from '../../services/avisarEmparejamientos'
 import { BracketView } from './components/BracketView'
 import { RoundTimer } from './components/RoundTimer'
 
@@ -543,6 +544,7 @@ export default function TournamentDashboard() {
                 ))}
               </div>
             )}
+            <BotonAvisarPareos code={event.code} />
             <PairingsView
               pairings={pairings}
               canReport={!isFinished}
@@ -778,6 +780,62 @@ function ConvertirAMesas({
             <Users size={15} /> {yendo ? 'Convirtiendo…' : 'Convertir a torneo de mesas'}
           </button>
         </>
+      )}
+    </div>
+  )
+}
+
+
+/**
+ * «Avisar los emparejamientos» — le manda a cada jugador SU rival y SU mesa.
+ *
+ * Va pegado a los pareos, que es donde la organización ya está mirando cuando
+ * decide anunciarlos. Un botón para esto en otra pantalla es un botón que
+ * nadie encuentra (§3l).
+ *
+ * ── El resultado dice A QUIÉN NO LE LLEGÓ, y eso es lo importante ────
+ *
+ * El push solo alcanza a quien lo tenga activado: en el primer torneo, 3 de
+ * 12. Un «enviados: 12» sería exactamente el fallo que se ve como éxito — la
+ * organización cree que avisó y en la mesa nadie sabe contra quién juega. Por
+ * eso se listan por nombre los que van a tener que abrir la app.
+ */
+function BotonAvisarPareos({ code }: { code: string }) {
+  const [enviando, setEnviando] = useState(false)
+  const [res, setRes] = useState<ResultadoAviso | null>(null)
+
+  return (
+    <div className="mb-3 rounded-xl border border-swu-border bg-swu-surface p-3">
+      <button
+        onClick={() => {
+          setEnviando(true)
+          void avisarEmparejamientos(code).then(r => { setRes(r); setEnviando(false) })
+        }}
+        disabled={enviando}
+        className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border
+                   border-swu-accent/40 bg-swu-accent/10 text-xs font-bold uppercase
+                   tracking-wider text-swu-accent-texto disabled:opacity-60"
+      >
+        <Bell size={14} />
+        {enviando ? 'Avisando…' : 'Avisar los emparejamientos'}
+      </button>
+
+      {res && !res.ok && (
+        <p className="mt-2 text-[11px] text-swu-red-texto">{res.mensaje}</p>
+      )}
+
+      {res?.ok && (
+        <div className="mt-2.5 text-[11px] leading-relaxed">
+          <p className="text-swu-text">
+            Ronda {res.ronda}: le llegó a <strong>{res.llegaron}</strong> de {res.avisos.length}.
+          </p>
+          {res.sinPush > 0 && (
+            <p className="mt-1 text-swu-muted">
+              Sin avisos activados —lo van a ver al abrir la app—:{' '}
+              {res.avisos.filter(a => !a.alcanzado).map(a => a.nombre).join(', ')}.
+            </p>
+          )}
+        </div>
       )}
     </div>
   )
