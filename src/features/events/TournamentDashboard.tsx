@@ -37,6 +37,9 @@ import { StandingsTable } from './components/StandingsTable'
 import { PairingsView } from './components/PairingsView'
 import { avisarEmparejamientos, type ResultadoAviso } from '../../services/avisarEmparejamientos'
 import { avisarResultados, type ResultadoAvisoFinal } from '../../services/avisarResultados'
+import { escucharPresenciaTorneo, escucharInscripciones, type Mirando } from '../../services/presenciaTorneo'
+import { getEventRegistrations, type EventRegistration } from '../../services/events'
+import { Avatar } from '../../components/ui/Avatar'
 import { BracketView } from './components/BracketView'
 import { RoundTimer } from './components/RoundTimer'
 
@@ -352,7 +355,7 @@ export default function TournamentDashboard() {
       <div className="sticky top-0 z-40 bg-swu-surface border-b border-swu-border">
         <div className="max-w-lg lg:max-w-5xl mx-auto px-4 lg:px-6 py-3">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/events')} className="text-swu-muted">
+            <button onClick={() => navigate('/torneos?t=organizar')} className="text-swu-muted">
               <ArrowLeft size={20} />
             </button>
             <div className="flex-1 min-w-0">
@@ -380,6 +383,14 @@ export default function TournamentDashboard() {
           </div>
         </div>
       </div>
+
+      {/* La sala de espera del organizador. Antes de arrancar es lo único que
+          importa: quién se anotó y quién está de verdad ahí. */}
+      {event.status !== 'finished' && (
+        <div className="max-w-lg lg:max-w-5xl mx-auto px-4 lg:px-6 mt-2">
+          <SalaDeEspera eventId={event.id} />
+        </div>
+      )}
 
       {/* Messages */}
       {error && (
@@ -889,6 +900,96 @@ function BotonAvisarResultados({ code }: { code: string }) {
               Sin cuenta, no recibieron sobres ni aviso: {res.sinCuenta.join(', ')}.
             </p>
           )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * La sala: quién se anotó y quién está conectado AHORA.
+ *
+ * Son dos preguntas distintas y las dos hacen falta antes de tirar la ronda 1.
+ * Los inscritos son quienes se anotaron alguna vez —sobrevive a que se les
+ * apague el teléfono—; los conectados son quienes tienen la app abierta en
+ * este momento. Un celular en el bolsillo se desconecta y la persona sigue
+ * parada en la tienda, así que la presencia NO reemplaza a la lista.
+ *
+ * Las dos llegan solas: `event_registrations` ya publica cambios, así que una
+ * inscripción nueva repinta esto sin que nadie recargue. Antes el organizador
+ * armaba la ronda 1 con el conteo del momento en que había abierto la
+ * pantalla, y dejaba gente afuera.
+ */
+function SalaDeEspera({ eventId }: { eventId: string }) {
+  const { supabaseUser, currentProfile } = useAuth()
+  const [inscritos, setInscritos] = useState<EventRegistration[] | null>(null)
+  const [conectados, setConectados] = useState<Mirando[]>([])
+  const [abierta, setAbierta] = useState(false)
+
+  const cargar = useCallback(async () => {
+    const filas = await getEventRegistrations(eventId)
+    setInscritos(filas)
+  }, [eventId])
+
+  /* Envuelto en una función asíncrona a propósito: llamarlo en seco desde el
+     cuerpo del efecto encadena un render antes de que React pinte, y el lint
+     del compilador lo veta (mismo patrón que en RankingPage). */
+  useEffect(() => { void (async () => { await cargar() })() }, [cargar])
+
+  useEffect(() => escucharInscripciones(eventId, () => { void cargar() }), [eventId, cargar])
+
+  useEffect(() => escucharPresenciaTorneo(
+    eventId,
+    supabaseUser ? {
+      id: supabaseUser.id,
+      nombre: currentProfile?.name ?? 'Organizador',
+      avatar: currentProfile?.avatar ?? null,
+    } : null,
+    setConectados,
+  ), [eventId, supabaseUser, currentProfile?.name, currentProfile?.avatar])
+
+  const enLinea = new Set(conectados.map(c => c.userId))
+
+  return (
+    <div className="rounded-xl border border-swu-border bg-swu-surface p-3">
+      <button onClick={() => setAbierta(v => !v)} className="flex w-full items-center justify-between gap-2">
+        <span className="flex items-center gap-2 text-xs font-bold text-swu-text">
+          <Users size={14} className="text-swu-accent-texto" />
+          {/* «—» y no 0: si la consulta falla, no se sabe. */}
+          {inscritos === null ? '—' : inscritos.length} inscritos
+          <span className="flex items-center gap-1 text-swu-green">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-swu-green" />
+            {conectados.length} con la app abierta
+          </span>
+        </span>
+        <span className="text-[10px] text-swu-muted">{abierta ? 'ocultar' : 'ver'}</span>
+      </button>
+
+      {abierta && (
+        <div className="mt-2.5 space-y-1">
+          {inscritos !== null && inscritos.length === 0 && (
+            <p className="text-[11px] text-swu-muted">Todavía no se anotó nadie.</p>
+          )}
+          {(inscritos ?? []).map(r => (
+            <div key={r.id} className="flex items-center gap-2 text-[11px]">
+              <Avatar avatar={r.player_avatar} size={18} escalaEmoji={0.7} anillo={r.user_id} />
+              <span className="min-w-0 flex-1 truncate text-swu-text">{r.player_name ?? 'Jugador'}</span>
+              {enLinea.has(r.user_id) ? (
+                <span className="shrink-0 text-swu-green">conectado</span>
+              ) : (
+                <span className="shrink-0 text-swu-muted">sin abrir</span>
+              )}
+            </div>
+          ))}
+          {/* Alguien conectado que NO está inscrito: mira el torneo pero no
+              juega. Decirlo evita que el organizador lo cuente para la ronda. */}
+          {conectados.filter(c => !(inscritos ?? []).some(r => r.user_id === c.userId)).map(c => (
+            <div key={c.userId} className="flex items-center gap-2 text-[11px] opacity-70">
+              <Avatar avatar={c.avatar} size={18} escalaEmoji={0.7} anillo={c.userId} />
+              <span className="min-w-0 flex-1 truncate text-swu-muted">{c.nombre}</span>
+              <span className="shrink-0 text-swu-muted">mirando, no inscrito</span>
+            </div>
+          ))}
         </div>
       )}
     </div>

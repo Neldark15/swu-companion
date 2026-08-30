@@ -85,7 +85,9 @@ export function TorneoCentro() {
         getEventRegistrations(ev.id), getStandings(ev.id), getAllRounds(ev.id),
       ])
       if (!vivo) return
-      setInscritos(regs)
+      // `null` = la consulta falló. No se pisa la lista con un vacío que se
+      // leería como «nadie se anotó».
+      if (regs !== null) setInscritos(regs)
       setStandings(st)
       setRondas(rd)
 

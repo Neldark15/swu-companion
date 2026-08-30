@@ -1,8 +1,14 @@
 /**
- * RoundTimer — Countdown timer for tournament rounds
+ * El reloj de la ronda.
+ *
+ * Cuenta contra la hora del SERVIDOR, no contra la del aparato. El plazo ya se
+ * guardaba bien —un instante absoluto en UTC—, pero medirlo con `Date.now()`
+ * hacía que un teléfono adelantado tres minutos mostrara tres minutos menos
+ * que la mesa de al lado, y cada pantalla se veía coherente consigo misma.
  */
 
 import { useState, useEffect } from 'react'
+import { ahora, medirDesfase } from '../../../services/horaServidor'
 
 interface Props {
   endTime: string | null
@@ -18,10 +24,13 @@ export function RoundTimer({ endTime, large }: Props) {
     if (!endTime) return
 
     const update = () => {
-      const diff = new Date(endTime).getTime() - Date.now()
+      const diff = new Date(endTime).getTime() - ahora()
       setRemaining(Math.max(0, diff))
     }
 
+    // Se mide una vez y se vuelve a pintar: hasta que llegue la medición se
+    // cuenta con el reloj local, que es lo mismo que se hacía antes.
+    void medirDesfase().then(update)
     update()
     const interval = setInterval(update, 1000)
     return () => clearInterval(interval)

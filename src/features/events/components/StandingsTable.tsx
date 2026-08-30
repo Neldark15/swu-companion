@@ -42,7 +42,11 @@ export function StandingsTable({ standings, highlightUserId, compact }: Props) {
             const isDropped = s.dropped
             return (
               <tr
-                key={s.user_id}
+                /* La llave es la FILA de clasificación, no la cuenta: hay
+                   invitados sin cuenta y dos `key={null}` son la misma llave,
+                   así que React reusaba el renglón equivocado en una tabla
+                   que se reordena sola. */
+                key={s.id}
                 className={`border-b border-swu-border/30 transition-colors ${
                   isHighlighted ? 'bg-swu-accent/10' : ''
                 } ${isDropped ? 'opacity-40' : ''}`}

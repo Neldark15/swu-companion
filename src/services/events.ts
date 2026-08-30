@@ -500,7 +500,11 @@ export async function getEventByCode(code: string): Promise<OfficialEvent | null
     .eq('id', data.organizer_id)
     .single()
 
-  // Get registration count
+  /* El conteo va bajo RLS: cuenta SOLO las filas que quien pregunta puede
+     ver. Para un jugador normal eso era 1 (la suya) o 0, y el `|| 0` remataba
+     convirtiendo el `null` de un error en un cero creíble: un torneo con doce
+     inscritos se le pintaba «0/16» y decidía no ir.
+     `?? undefined` deja que la pantalla diga «—» en vez de inventar un cero. */
   const { count } = await supabase
     .from('event_registrations')
     .select('*', { count: 'exact', head: true })
@@ -510,7 +514,7 @@ export async function getEventByCode(code: string): Promise<OfficialEvent | null
     ...data,
     organizer_name: profile?.name || 'Organizador',
     organizer_avatar: profile?.avatar || '🎯',
-    registered_count: count || 0,
+    registered_count: count ?? undefined,
   } as OfficialEvent
 }
 
@@ -544,8 +548,16 @@ export async function leaveOfficialEvent(eventId: string, userId: string): Promi
   return { ok: true }
 }
 
-export async function getEventRegistrations(eventId: string): Promise<EventRegistration[]> {
-  if (!isSupabaseReady()) return []
+/**
+ * Los inscritos de un torneo.
+ *
+ * Devuelve `null` cuando NO SE PUDO saber, y `[]` solo cuando de verdad no hay
+ * nadie. Antes las dos cosas eran `[]`: un fallo de RLS o de red pintaba
+ * «Esperando jugadores…» en un torneo con doce adentro, y desde afuera se veía
+ * exactamente igual que una sala vacía (§2f, §4d).
+ */
+export async function getEventRegistrations(eventId: string): Promise<EventRegistration[] | null> {
+  if (!isSupabaseReady()) return null
 
   const { data, error } = await supabase
     .from('event_registrations')
@@ -556,7 +568,11 @@ export async function getEventRegistrations(eventId: string): Promise<EventRegis
     .eq('event_id', eventId)
     .order('registered_at', { ascending: true })
 
-  if (error || !data) return []
+  if (error) {
+    console.warn('[eventos] inscritos:', error.message)
+    return null
+  }
+  if (!data) return null
 
   return data.map(r => {
     const profile = r.profiles as unknown as { name: string; avatar: string } | null

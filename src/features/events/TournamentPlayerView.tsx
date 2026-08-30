@@ -17,6 +17,8 @@ import {
   Users as UsersIcon, Swords, Hourglass, ShieldAlert,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import { RoundTimer } from './components/RoundTimer'
+import { escucharPresenciaTorneo } from '../../services/presenciaTorneo'
 import {
   getEventTournamentInfo,
   getStandings,
@@ -82,6 +84,24 @@ export function TournamentPlayerView() {
     setMyPairing(mine)
     setLoading(false)
   }, [code, userId])
+
+  /* Anunciarse en el torneo.
+     La presencia la reporta CADA QUIEN: si el jugador no se anuncia, el
+     organizador no tiene forma de saber que está mirando. Acá no se usa la
+     lista que devuelve —al jugador no le sirve—, pero el `track` sí, y es lo
+     que hace que aparezca en la sala del que organiza. */
+  useEffect(() => {
+    if (!event?.id) return
+    return escucharPresenciaTorneo(
+      event.id,
+      supabaseUser ? {
+        id: supabaseUser.id,
+        nombre: currentProfile?.name ?? 'Jugador',
+        avatar: currentProfile?.avatar ?? null,
+      } : null,
+      () => {},
+    )
+  }, [event?.id, supabaseUser, currentProfile?.name, currentProfile?.avatar])
 
   useEffect(() => {
     // Envuelto en una función asíncrona a propósito: llamarlo en seco desde
@@ -304,8 +324,8 @@ export function TournamentPlayerView() {
     <div className="p-4 lg:p-6 space-y-4 pb-8 max-w-5xl mx-auto">
       {/* Header */}
       <header className="flex items-center justify-between flex-wrap gap-2">
-        <button onClick={() => navigate('/events')} className="flex items-center gap-1 text-xs text-swu-muted">
-          <ArrowLeft size={14} /> Eventos
+        <button onClick={() => navigate('/torneos')} className="flex items-center gap-1 text-xs text-swu-muted">
+          <ArrowLeft size={14} /> Torneos
         </button>
         <div className="text-right">
           <h1 className="text-lg font-bold text-swu-text leading-tight">{event.name}</h1>
@@ -314,6 +334,20 @@ export function TournamentPlayerView() {
           </p>
         </div>
       </header>
+
+      {/* El reloj de la ronda, arriba de todo.
+          Estaba en el panel del organizador y en la pantalla de proyección,
+          pero NO acá — y el que necesita saber cuántos minutos quedan es
+          justamente el que está sentado jugando. Cuenta contra la hora del
+          servidor, así que muestra lo mismo que la mesa de al lado. */}
+      {event.status === 'active' && (
+        <div className="rounded-xl border border-swu-border bg-swu-surface p-3">
+          <p className="mb-1 text-center text-[10px] font-mono uppercase tracking-widest text-swu-muted">
+            Tiempo de la ronda
+          </p>
+          <RoundTimer endTime={event.round_timer_end} large />
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex bg-swu-surface rounded-lg p-0.5 border border-swu-border w-fit">

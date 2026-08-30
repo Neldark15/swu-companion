@@ -17,7 +17,7 @@ import {
   SearchX,
 } from 'lucide-react'
 import { supabase, isSupabaseReady } from '../../services/supabase'
-import { getEventByCode, getEventRegistrations, type EventRegistration } from '../../services/events'
+import { getEventByCode, getEventRegistrations, leaveOfficialEvent, type EventRegistration } from '../../services/events'
 import { useAuth } from '../../hooks/useAuth'
 
 interface LobbyPlayer {
@@ -46,6 +46,8 @@ interface Announcement {
 }
 
 interface EventData {
+  /** Hace falta para poder darse de baja de verdad: la baja va por id. */
+  id: string
   name: string
   format: string
   organizer: string
@@ -80,6 +82,10 @@ export function EventLobbyPage() {
     const refreshPlayers = async (id: string) => {
       const regs = await getEventRegistrations(id)
       if (cancelled) return
+      /* `null` = no se pudo saber. Se deja la lista como estaba en vez de
+         vaciarla: pintar cero acá diría «no llegó nadie» en una sala llena,
+         que es el error que este lobby cometía desde siempre. */
+      if (regs === null) return
       setPlayers(registrationsToPlayers(regs, selfUserId))
     }
 
@@ -94,6 +100,7 @@ export function EventLobbyPage() {
         }
 
         setEvent({
+          id: officialEvent.id,
           name: officialEvent.name,
           format: officialEvent.format,
           organizer: officialEvent.organizer_name || 'Organizador',
@@ -163,8 +170,26 @@ export function EventLobbyPage() {
     }
   }
 
+  /* Salir de la pantalla NO es salir del torneo. Eran el mismo botón: el de
+     abajo decía «Abandonar Evento» y solo navegaba, así que la persona se iba
+     a su casa creyendo que se había dado de baja — y seguía inscrita. Cuando
+     el organizador armaba los pareos, su rival esperaba en una mesa a alguien
+     que ya no estaba. */
   const handleLeave = () => {
-    navigate('/events')
+    navigate('/torneos')
+  }
+
+  const [saliendo, setSaliendo] = useState(false)
+  const [confirmarSalida, setConfirmarSalida] = useState(false)
+  const [fallaSalida, setFallaSalida] = useState<string | null>(null)
+
+  const abandonarDeVerdad = async () => {
+    if (!event?.id || !selfUserId) return
+    setSaliendo(true); setFallaSalida(null)
+    const r = await leaveOfficialEvent(event.id, selfUserId)
+    setSaliendo(false)
+    if (!r.ok) { setFallaSalida(r.error ?? 'No se pudo dar de baja.'); return }
+    navigate('/torneos')
   }
 
   if (loading) {
@@ -198,7 +223,7 @@ export function EventLobbyPage() {
     <div className="p-4 lg:p-6 space-y-4 pb-8 lg:pb-8 max-w-5xl mx-auto">
       {/* Header */}
       <button onClick={handleLeave} className="flex items-center gap-1 text-sm text-swu-muted">
-        <ChevronLeft size={18} /> Salir del Lobby
+        <ChevronLeft size={18} /> Volver
       </button>
 
       {/* Event info card */}
@@ -380,12 +405,39 @@ export function EventLobbyPage() {
               )}
             </button>
 
-            <button
-              onClick={handleLeave}
-              className="w-full py-2.5 rounded-xl text-sm font-medium text-swu-muted flex items-center justify-center gap-2"
-            >
-              <LogOut size={16} /> Abandonar Evento
-            </button>
+            {confirmarSalida ? (
+              <div className="space-y-2">
+                <p className="text-center text-[11px] text-swu-muted">
+                  Te vas a dar de baja del torneo. Si después querés volver a
+                  entrar, tendrás que inscribirte de nuevo.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => void abandonarDeVerdad()}
+                    disabled={saliendo}
+                    className="flex-1 rounded-xl bg-red-500/20 py-2.5 text-sm font-bold text-red-400 disabled:opacity-60"
+                  >
+                    {saliendo ? 'Dando de baja…' : 'Sí, darme de baja'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmarSalida(false)}
+                    className="flex-1 rounded-xl bg-swu-border py-2.5 text-sm font-bold text-swu-muted"
+                  >
+                    Seguir inscrito
+                  </button>
+                </div>
+                {fallaSalida && (
+                  <p className="text-center text-[11px] text-red-400">{fallaSalida}</p>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmarSalida(true)}
+                className="w-full py-2.5 rounded-xl text-sm font-medium text-swu-muted flex items-center justify-center gap-2"
+              >
+                <LogOut size={16} /> Darme de baja del torneo
+              </button>
+            )}
           </>
         )}
 

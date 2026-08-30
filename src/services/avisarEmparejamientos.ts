@@ -112,7 +112,10 @@ export async function avisarEmparejamientos(eventCode: string): Promise<Resultad
           body: JSON.stringify({
             title: `Ronda ${ronda.round_number} · Mesa ${a.mesa}`,
             body: `Te toca contra ${a.rival}.`,
-            link: `/torneos/${eventCode}`,
+            // A la pantalla del JUGADOR, no al archivo: `/torneos/<code>`
+            // filtra `status='finished'` y en pleno torneo caía en «no existe
+            // un torneo con ese código».
+            link: `/events/play/${eventCode}`,
             // La etiqueta lleva ronda y jugador: dos rondas seguidas son dos
             // avisos distintos, no uno que reemplaza al otro.
             tag: `pareo-${eventCode}-r${ronda.round_number}-${a.userId}`,

@@ -138,7 +138,11 @@ export async function initializeTournament(
     .from('event_registrations')
     .select('user_id, profiles!event_registrations_user_id_fkey(name)')
     .eq('event_id', eventId)
-    .eq('status', 'registered')
+    /* `checked_in` también entra. Con el filtro en 'registered' a secas, el
+       día que se encienda el check-in TODO el que marque llegada desaparece
+       de la clasificación — sin error y sin que nadie lo note hasta que falte
+       gente en los pareos. Se excluye solo a quien se dio de baja. */
+    .in('status', ['registered', 'checked_in'])
 
   if (regErr || !regs || regs.length < 2) {
     return { ok: false, error: 'Se necesitan al menos 2 jugadores registrados' }
@@ -306,6 +310,8 @@ export async function generateSwissPairings(
     .update({ current_round: roundNum, updated_at: new Date().toISOString() })
     .eq('id', eventId)
 
+  await arrancarRelojDeRonda(eventId)
+
   // Auto-apply bye results to standings. `p.player1Id` ya es la FILA de
   // clasificación, así que un bye de alguien sin cuenta también se acredita.
   for (const p of pairings) {
@@ -394,6 +400,8 @@ export async function generateEliminationBracket(
     .from('official_events')
     .update({ current_round: 1, updated_at: new Date().toISOString() })
     .eq('id', eventId)
+
+  await arrancarRelojDeRonda(eventId)
 
   // Notify globally
   const evMeta = await getEventNameAndCode(eventId)
@@ -523,14 +531,47 @@ export async function advanceEliminationRound(
     .update({ current_round: nextRoundNum, updated_at: new Date().toISOString() })
     .eq('id', eventId)
 
+  await arrancarRelojDeRonda(eventId)
+
   return { ok: true }
+}
+
+/**
+ * Publicar una ronda ARRANCA su reloj, en el mismo acto.
+ *
+ * Antes eran dos botones en dos pestañas distintas: generar los pareos y —si
+ * te acordabas— ir a Timer y apretar 50/55/60. Medido: los tres torneos que
+ * se jugaron de verdad tienen `round_timer_end` en NULL. Nadie lo usó nunca.
+ *
+ * El día que el organizador esté resolviendo una disputa se salta el segundo
+ * botón, y el sistema no lo reporta. Un paso que hay que acordarse de dar es
+ * un paso que un día no se da.
+ *
+ * Si el reloj falla NO se tumba la ronda: los pareos ya están publicados y eso
+ * es lo que la gente necesita. Pero queda dicho.
+ */
+async function arrancarRelojDeRonda(eventId: string) {
+  const { error } = await supabase.rpc('arrancar_reloj', { p_evento: eventId, p_minutos: null })
+  if (error) console.warn('[torneo] la ronda salió pero el reloj no arrancó:', error.message)
 }
 
 // ─── Broadcast helpers (global tournament feed) ─────────────
 
 /**
- * Fire-and-forget broadcast — inserts a row in tournament_broadcasts so any
- * client subscribed to the channel gets notified. Silent on failure.
+ * El aviso in-app: una fila en `tournament_broadcasts` que despierta a quien
+ * tenga la app abierta.
+ *
+ * ── Por qué NO puede ser mudo ────────────────────────────────────────
+ *
+ * Estaba envuelto en un `try/catch` vacío, y supabase-js **no lanza** ante un
+ * error de PostgREST (§2f): el `catch` no se ejecutaba nunca y el `error` no
+ * se miraba jamás. Medido: la tabla tenía CERO filas después de cuatro rondas
+ * generadas en vivo. O sea que este canal —el único que alcanza a quien no
+ * tiene push, que son 2 de cada 3— no entregó un solo mensaje en su vida, y
+ * desde afuera se veía exactamente igual que si funcionara.
+ *
+ * Sigue siendo best-effort: que falle el aviso no puede tumbar la ronda. Pero
+ * ahora deja rastro.
  */
 async function broadcast(
   eventId: string,
@@ -540,18 +581,15 @@ async function broadcast(
   message: string,
   payload: Record<string, unknown> = {}
 ): Promise<void> {
-  try {
-    await supabase.from('tournament_broadcasts').insert({
-      event_id: eventId,
-      event_name: eventName,
-      event_code: eventCode,
-      type,
-      message,
-      payload,
-    })
-  } catch {
-    // best-effort, swallow
-  }
+  const { error: bErr } = await supabase.from('tournament_broadcasts').insert({
+    event_id: eventId,
+    event_name: eventName,
+    event_code: eventCode,
+    type,
+    message,
+    payload,
+  })
+  if (bErr) console.warn('[torneo] el aviso in-app no se guardó:', bErr.message)
 
   // Fire-and-forget Web Push (server-side will reject if caller isn't admin
   // — that's intentional: only admin-driven events broadcast to all
@@ -1090,51 +1128,45 @@ export async function advanceSwissRound(
 
 // ─── Timer Control ──────────────────────────────────────────
 
+/**
+ * Arranca el reloj de la ronda.
+ *
+ * El plazo lo calcula la BASE (`now() + minutos`), no el navegador. Antes se
+ * anclaba con `Date.now()` del aparato del organizador: si su teléfono iba
+ * tres minutos adelantado, la ronda entera duraba tres minutos de menos para
+ * todos los demás y nadie tenía cómo notarlo.
+ */
 export async function startRoundTimer(
   eventId: string,
   minutes: number
 ): Promise<{ ok: boolean; error?: string }> {
   if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
 
-  const endTime = new Date(Date.now() + minutes * 60 * 1000).toISOString()
-
-  const { error } = await supabase
-    .from('official_events')
-    .update({
-      round_timer_minutes: minutes,
-      round_timer_end: endTime,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', eventId)
+  const { error } = await supabase.rpc('arrancar_reloj', {
+    p_evento: eventId,
+    p_minutos: minutes,
+  })
 
   if (error) return { ok: false, error: error.message }
   return { ok: true }
 }
 
+/**
+ * Estira la ronda. La suma parte de `greatest(fin, ahora)` en la base: sumarle
+ * cinco minutos a un plazo vencido hace veinte dejaba el final EN EL PASADO, y
+ * el organizador apretaba el botón cinco veces sin entender por qué el reloj
+ * seguía en 00:00.
+ */
 export async function extendTimer(
   eventId: string,
   extraMinutes: number
 ): Promise<{ ok: boolean; error?: string }> {
   if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
 
-  const { data: event } = await supabase
-    .from('official_events')
-    .select('round_timer_end')
-    .eq('id', eventId)
-    .single()
-
-  if (!event?.round_timer_end) return { ok: false, error: 'No hay timer activo' }
-
-  const currentEnd = new Date(event.round_timer_end)
-  const newEnd = new Date(currentEnd.getTime() + extraMinutes * 60 * 1000)
-
-  const { error } = await supabase
-    .from('official_events')
-    .update({
-      round_timer_end: newEnd.toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', eventId)
+  const { error } = await supabase.rpc('estirar_reloj', {
+    p_evento: eventId,
+    p_minutos: extraMinutes,
+  })
 
   if (error) return { ok: false, error: error.message }
   return { ok: true }
