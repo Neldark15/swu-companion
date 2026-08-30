@@ -36,6 +36,7 @@ import {
 import { StandingsTable } from './components/StandingsTable'
 import { PairingsView } from './components/PairingsView'
 import { avisarEmparejamientos, type ResultadoAviso } from '../../services/avisarEmparejamientos'
+import { avisarResultados, type ResultadoAvisoFinal } from '../../services/avisarResultados'
 import { BracketView } from './components/BracketView'
 import { RoundTimer } from './components/RoundTimer'
 
@@ -556,6 +557,7 @@ export default function TournamentDashboard() {
         {/* ── Standings Tab ── */}
         {activeTab === 'standings' && (
           <div>
+            {isFinished && <BotonAvisarResultados code={event.code} />}
             <StandingsTable standings={standings} />
             {/* Drop player controls */}
             {!isFinished && standings.length > 0 && (
@@ -833,6 +835,58 @@ function BotonAvisarPareos({ code }: { code: string }) {
             <p className="mt-1 text-swu-muted">
               Sin avisos activados —lo van a ver al abrir la app—:{' '}
               {res.avisos.filter(a => !a.alcanzado).map(a => a.nombre).join(', ')}.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * El aviso del cierre. Aparece solo con el torneo terminado: antes de repartir
+ * no hay puesto final que contar, y mandarlo a media ronda diria un puesto que
+ * todavia se mueve.
+ */
+function BotonAvisarResultados({ code }: { code: string }) {
+  const [enviando, setEnviando] = useState(false)
+  const [res, setRes] = useState<ResultadoAvisoFinal | null>(null)
+
+  return (
+    <div className="mb-3 rounded-xl border border-swu-border bg-swu-surface p-3">
+      <button
+        onClick={() => {
+          setEnviando(true)
+          void avisarResultados(code).then(r => { setRes(r); setEnviando(false) })
+        }}
+        disabled={enviando}
+        className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border
+                   border-swu-amber/40 bg-swu-amber/10 text-xs font-bold uppercase
+                   tracking-wider text-swu-amber disabled:opacity-60"
+      >
+        <Trophy size={14} />
+        {enviando ? 'Avisando…' : 'Avisar los resultados'}
+      </button>
+
+      {res && !res.ok && (
+        <p className="mt-2 text-[11px] text-swu-red-texto">{res.mensaje}</p>
+      )}
+
+      {res?.ok && (
+        <div className="mt-2.5 space-y-1 text-[11px] leading-relaxed">
+          <p className="text-swu-text">
+            Le llegó a <strong>{res.llegaron}</strong> de{' '}
+            {res.avisos.length - res.sinCuenta.length} con cuenta.
+          </p>
+          {res.sinPush > 0 && (
+            <p className="text-swu-muted">
+              Sin avisos activados —lo ven al abrir la app—:{' '}
+              {res.avisos.filter(a => a.userId && !a.alcanzado).map(a => a.nombre).join(', ')}.
+            </p>
+          )}
+          {res.sinCuenta.length > 0 && (
+            <p className="text-swu-amber">
+              Sin cuenta, no recibieron sobres ni aviso: {res.sinCuenta.join(', ')}.
             </p>
           )}
         </div>
