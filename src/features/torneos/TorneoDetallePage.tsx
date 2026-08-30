@@ -42,17 +42,38 @@ const NUMERO_PODIO: Record<number, string> = {
   3: 'text-orange-400',
 }
 
-/** El mazo de un jugador: arte del líder + nombre de la base. */
+/**
+ * El mazo de un jugador: el arte del líder Y el de la base.
+ *
+ * Antes la base era solo texto debajo del líder. En una tabla que se lee de
+ * un vistazo eso no compite: el ojo agarra el arte y se salta la línea de
+ * nueve píxeles. Y la base es justo lo que distingue dos mazos del mismo
+ * líder —dos Luke con base distinta son dos mazos distintos—, así que era el
+ * dato con menos peso visual siendo de los más informativos.
+ *
+ * Van los dos artes juntos, la base un poco más chica: sigue mandando el
+ * líder, pero la base ya se ve.
+ *
+ * Si el texto no resuelve a ninguna carta se pinta el hueco y se deja el
+ * nombre escrito. Un mazo cargado a mano con un nombre que no existe se
+ * tiene que poder seguir leyendo (§ cartasAmistosas).
+ */
 function Mazo({ indice, leader, base, compacto }: {
   indice: IndiceCartas | null; leader: string; base: string; compacto?: boolean
 }) {
   const carta = resolver(indice, leader)
+  const cartaBase = resolver(indice, base)
   if (!leader && !base) return null
+  const medida = compacto ? 'h-6 w-8' : 'h-8 w-11'
+  const medidaBase = compacto ? 'h-5 w-7' : 'h-7 w-9'
   return (
     <div className="flex items-center gap-1.5">
       {carta
-        ? <CardImage src={carta.imageUrl} alt="" className={compacto ? 'h-6 w-8 shrink-0 rounded' : 'h-8 w-11 shrink-0 rounded'} orientacion="apaisada" />
-        : <div className={`${compacto ? 'h-6 w-8' : 'h-8 w-11'} shrink-0 rounded border border-white/10 bg-white/5`} />}
+        ? <CardImage src={carta.imageUrl} alt="" className={`${medida} shrink-0 rounded`} orientacion="apaisada" />
+        : <div className={`${medida} shrink-0 rounded border border-white/10 bg-white/5`} />}
+      {base && (cartaBase
+        ? <CardImage src={cartaBase.imageUrl} alt="" className={`${medidaBase} shrink-0 rounded opacity-90`} orientacion="apaisada" />
+        : <div className={`${medidaBase} shrink-0 rounded border border-white/10 bg-white/5`} />)}
       {!compacto && (
         <div className="min-w-0">
           <p className="truncate text-[10px] font-bold text-white/80">{leader ? nombreCorto(leader) : '—'}</p>
