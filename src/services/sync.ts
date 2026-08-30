@@ -135,21 +135,37 @@ export function statsFromSnake(row: Record<string, unknown>, profileId: string):
 
 // ─── PROFILE SYNC ───────────────────────────────────────────────
 
+/**
+ * Guarda nombre y foto en la nube. Devuelve si SE PUDO.
+ *
+ * La foto de perfil se guarda como data URI en `profiles.avatar` (hasta ~28 KB
+ * medidos). Que este guardado falle en silencio es lo que hacía que alguien
+ * cambiara su foto, la viera bien en su teléfono, y la perdiera al reinstalar.
+ */
 export async function syncProfileToCloud(
   userId: string,
   name: string,
   avatar: string,
   country?: string,
   continent?: string,
-) {
-  if (!isSupabaseReady()) return
+): Promise<{ ok: boolean; mensaje?: string }> {
+  if (!isSupabaseReady()) return { ok: false, mensaje: 'Sin conexión con el servidor.' }
+
+  /* §2f: supabase-js NO lanza ante un error de PostgREST, así que el
+     `try/catch` que había acá no se ejecutaba nunca y el `error` no se miraba
+     jamás. Una foto que no se guardaba se veía exactamente igual que una
+     guardada — hasta que la persona reinstalaba la app y no estaba. */
+  const { error } = await supabase.from('profiles').upsert({
+    id: userId,
+    name,
+    avatar,
+  })
+  if (error) {
+    console.warn('[perfil] no se pudo guardar en la nube:', error.message)
+    return { ok: false, mensaje: error.message }
+  }
+
   try {
-    // First upsert basic profile
-    await supabase.from('profiles').upsert({
-      id: userId,
-      name,
-      avatar,
-    })
 
     // If country/continent provided, store them in the settings JSON
     if (country || continent) {
@@ -169,8 +185,11 @@ export async function syncProfileToCloud(
       await supabase.from('profiles').update({ settings: updatedSettings }).eq('id', userId)
     }
   } catch (e) {
-    console.warn('[Sync] Failed to sync profile:', e)
+    // El país y el continente son extra: que fallen no invalida el guardado
+    // de la foto y el nombre, que es lo que la persona vino a hacer.
+    console.warn('[perfil] país/continente no se guardaron:', e)
   }
+  return { ok: true }
 }
 
 // ─── STATS SYNC ─────────────────────────────────────────────────

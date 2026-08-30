@@ -84,7 +84,7 @@ interface AuthState {
   clearRecoveryMode: () => void
 
   // Profile management
-  updateProfile: (data: Partial<Pick<UserProfile, 'name' | 'avatar' | 'email' | 'country' | 'continent'>>) => Promise<void>
+  updateProfile: (data: Partial<Pick<UserProfile, 'name' | 'avatar' | 'email' | 'country' | 'continent'>>) => Promise<{ ok: boolean; mensaje?: string }>
   deleteProfile: (profileId: string) => Promise<void>
 }
 
@@ -97,6 +97,54 @@ interface AuthState {
  * módulo y no en un ref de componente para que también cubra el doble montaje
  * del modo estricto de React 19.
  */
+
+/**
+ * El perfil de la persona, armado con lo que hay en la nube.
+ *
+ * ── El fallo que arregla ─────────────────────────────────────────────
+ *
+ * Había DOS caminos que creaban el perfil local y solo UNO preguntaba por la
+ * foto. El de iniciar sesión leía `name, avatar` de la nube; el de restaurar
+ * la sesión —el que corre cuando se borra la app y se vuelve a instalar, o al
+ * agregarla de nuevo a la pantalla de inicio— armaba el perfil con
+ * `user_metadata` a secas y caía en el emoji por defecto.
+ *
+ * Y no era solo cosmético: apenas la persona tocaba cualquier cosa del perfil,
+ * `updateProfile` sincronizaba ese emoji a la nube y **pisaba la foto de
+ * verdad**. O sea que reinstalar la app te borraba la foto del servidor.
+ * Medido: 8 de 41 perfiles tienen foto subida, hasta 28 KB.
+ *
+ * Ahora los dos caminos llaman a esto. Un solo lugar para una sola pregunta.
+ */
+async function perfilDeLaNube(user: { id: string; email?: string; user_metadata?: Record<string, unknown> }): Promise<UserProfile> {
+  let nombre: string | null = null
+  let avatar: string | null = null
+
+  if (isSupabaseReady()) {
+    /* Columnas EXPLÍCITAS, no `select('*')`: con un grant por columnas —que es
+       como se tapa `email` (§2j)— un `*` pide todas y PostgREST contesta
+       «permission denied for table profiles», o sea que convierte el cierre de
+       privacidad en una caída del arranque. */
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('name, avatar')
+      .eq('id', user.id)
+      .maybeSingle()
+    // §2f: sin mirar `error`, no poder leer la nube se ve igual que un perfil
+    // en blanco — y ahí es donde se perdía la foto.
+    if (error) console.warn('[perfil] no se pudo leer el de la nube:', error.message)
+    else if (data) { nombre = data.name as string; avatar = data.avatar as string }
+  }
+
+  return {
+    id: user.id,
+    name: nombre || (user.user_metadata?.name as string) || 'Jugador',
+    email: user.email || '',
+    avatar: avatar || (user.user_metadata?.avatar as string) || '🎯',
+    createdAt: Date.now(),
+  }
+}
+
 let escuchaEnganchada = false
 
 /**
@@ -150,17 +198,28 @@ export const useAuth = create<AuthState>()(
 
           let profile = await db.profiles.get(user.id)
           if (!profile) {
-            profile = {
-              id: user.id,
-              name: user.user_metadata?.name || 'Jugador',
-              email: user.email || '',
-              avatar: user.user_metadata?.avatar || '🎯',
-              createdAt: Date.now(),
-            }
+            // Sin perfil local: o es la primera vez, o se borró la app. En los
+            // dos casos la verdad está en la nube, no en `user_metadata`.
+            profile = await perfilDeLaNube(user)
             await db.profiles.put(profile)
           }
           const profiles = await db.profiles.toArray()
           set({ supabaseUser: user, profiles, currentProfile: profile, currentProfileId: profile.id })
+
+          /* Reconciliar con la nube, en segundo plano.
+             Los dos caminos de arriba solo preguntan cuando NO hay perfil
+             local. Si lo hay pero quedó viejo —cambiaste la foto en el
+             teléfono y abrís en la computadora— nadie volvía a preguntar, y
+             cada aparato se quedaba con la suya para siempre. La nube manda:
+             es donde el guardado ya se confirmó. */
+          void (async () => {
+            const local = profile
+            const nube = await perfilDeLaNube(user)
+            if (nube.avatar === local.avatar && nube.name === local.name) return
+            const fusionado = { ...local, name: nube.name, avatar: nube.avatar }
+            await db.profiles.put(fusionado)
+            set({ profiles: await db.profiles.toArray(), currentProfile: fusionado })
+          })()
 
           void (async () => {
             const permisos = await getPermisos(user.id)
@@ -416,28 +475,7 @@ export const useAuth = create<AuthState>()(
         // Ensure local profile exists
         let profile = await db.profiles.get(user.id)
         if (!profile) {
-          // Pull profile info from cloud
-          // Columnas EXPLÍCITAS, no `select('*')`.
-          //
-          // Con un grant por columnas (que es como hay que tapar `email`, ver
-          // gotcha 2j), `select=*` pide TODAS y PostgREST responde
-          // «permission denied for table profiles» — o sea que un `*` acá
-          // convierte el cierre de privacidad en una caída del login. De este
-          // perfil solo se usan `name` y `avatar`; el correo sale de
-          // `user.email`, que lo da Auth.
-          const { data: cloudProfile } = await supabase
-            .from('profiles')
-            .select('name, avatar')
-            .eq('id', user.id)
-            .single()
-
-          profile = {
-            id: user.id,
-            name: cloudProfile?.name || user.user_metadata?.name || 'Jugador',
-            email: user.email || '',
-            avatar: cloudProfile?.avatar || user.user_metadata?.avatar || '🎯',
-            createdAt: Date.now(),
-          }
+          profile = await perfilDeLaNube(user)
           await db.profiles.put(profile)
         }
 
@@ -527,22 +565,29 @@ export const useAuth = create<AuthState>()(
       // ─── PROFILE MANAGEMENT ───
       updateProfile: async (data) => {
         const { currentProfile, supabaseUser } = get()
-        if (!currentProfile) return
+        if (!currentProfile) return { ok: false, mensaje: 'No hay perfil abierto.' }
         const updated = { ...currentProfile, ...data }
         await db.profiles.put(updated)
         const profiles = await db.profiles.toArray()
         set({ profiles, currentProfile: updated })
 
-        // Sync to cloud
-        if (supabaseUser) {
-          syncProfileToCloud(
-            supabaseUser.id,
-            updated.name,
-            updated.avatar,
-            updated.country,
-            updated.continent,
-          ).catch(() => {})
+        if (!supabaseUser) {
+          // Sin sesión el cambio vive solo en este aparato, y hay que decirlo:
+          // la persona cree que su foto quedó guardada y se va a perder al
+          // reinstalar.
+          return { ok: false, mensaje: 'Guardado solo en este aparato: iniciá sesión para que no se pierda.' }
         }
+
+        /* Se ESPERA el guardado y se mira el resultado. Antes iba con
+           `.catch(() => {})` y sin esperar: la pantalla se cerraba diciendo que
+           todo bien mientras el guardado se caía en silencio. */
+        return await syncProfileToCloud(
+          supabaseUser.id,
+          updated.name,
+          updated.avatar,
+          updated.country,
+          updated.continent,
+        )
       },
 
       registerPasskey: async () => {

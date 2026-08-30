@@ -151,6 +151,7 @@ export function ProfilePage() {
 
   // Customization state
   const [customAvatar, setCustomAvatar] = useState(currentProfile?.avatar || 'darth-vader')
+  const [falloGuardar, setFalloGuardar] = useState<string | null>(null)
   const [customName, setCustomName] = useState(currentProfile?.name || '')
   const [customCountry, setCustomCountry] = useState(currentProfile?.country || '')
   const [customContinent, setCustomContinent] = useState(currentProfile?.continent || '')
@@ -415,12 +416,17 @@ export function ProfilePage() {
   }
 
   const saveCustomization = async () => {
-    await auth.updateProfile({
+    setFalloGuardar(null)
+    const r = await auth.updateProfile({
       name: customName.trim() || currentProfile?.name,
       avatar: customAvatar,
       country: customCountry || undefined,
       continent: customContinent || undefined,
     })
+    /* Si no se guardó en la nube NO se cierra la pantalla. Cerrarla era
+       decirle a la persona que quedó listo: se iba tranquila y descubría que
+       su foto no estaba el día que reinstaló la app. */
+    if (!r.ok) { setFalloGuardar(r.mensaje ?? 'No se pudo guardar.'); return }
     setView('profile')
   }
 
@@ -912,6 +918,12 @@ export function ProfilePage() {
               </div>
             )}
           </div>
+
+          {falloGuardar && (
+            <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-[12px] text-red-400">
+              {falloGuardar}
+            </p>
+          )}
 
           <button onClick={saveCustomization}
             className="w-full py-3.5 rounded-xl bg-swu-accent text-white font-bold text-base active:scale-[0.98] transition-transform">
