@@ -29,10 +29,11 @@
  * segunda tabla con otro criterio.
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Trophy, RefreshCw, Swords, Info, TrendingUp } from 'lucide-react'
 import {
-  getRankingUnificado, recordDe, miPosicion, REGLA_PUNTOS, type FilaRanking,
+  getRankingUnificado, recordDe, miPosicion, porFuente,
+  REGLA_PUNTOS, REGLA_DE, NOMBRE_FUENTE, type FilaRanking, type Fuente,
 } from '../../services/rankingUnificado'
 import { getGlobalLeaderboard, type GlobalLeaderboardEntry } from '../../services/sync'
 import { useAuth } from '../../hooks/useAuth'
@@ -134,6 +135,8 @@ export function RankingPage() {
   /** `null` = todas las sedes (el ranking de siempre). */
   const [sede, setSede] = useState<string | null>(null)
   const [sedes, setSedes] = useState<Sede[]>([])
+  /** Qué se mide: las dos fuentes juntas, solo torneo, o solo amistosas. */
+  const [fuente, setFuente] = useState<Fuente>('todo')
   const [filas, setFilas] = useState<FilaRanking[]>([])
   const [progreso, setProgreso] = useState<GlobalLeaderboardEntry[]>([])
   const [cargando, setCargando] = useState(true)
@@ -175,9 +178,22 @@ export function RankingPage() {
     return () => { vivo = false }
   }, [pestana, progreso.length])
 
-  const mio = miId ? miPosicion(filas, miId) : null
-  const podio = filas.slice(0, 3)
-  const resto = filas.slice(3)
+  /* La tabla que se ve. Se reproyecta lo YA traído: pedirle otra consulta al
+     servidor por cada fuente es como se llega a que el total no cuadre con
+     las partes. */
+  const vista = useMemo(() => porFuente(filas, fuente), [filas, fuente])
+
+  /* Con una sede puesta el ranking YA es solo de torneos —una amistosa se
+     juega en la casa de cualquiera y no tiene tienda—, así que la pestaña de
+     amistosas ahí daría una tabla vacía. Se vuelve a «Todo», que con sede
+     puesta es exactamente lo mismo que «Torneos». */
+  useEffect(() => {
+    if (sede !== null && fuente === 'amistosa') setFuente('todo')
+  }, [sede, fuente])
+
+  const mio = miId ? miPosicion(vista, miId) : null
+  const podio = vista.slice(0, 3)
+  const resto = vista.slice(3)
 
   return (
     <div className="p-4 lg:p-6 pb-24 max-w-3xl mx-auto space-y-4">
@@ -250,6 +266,27 @@ export function RankingPage() {
             </div>
           )}
 
+          {/* Qué se mide. Va con la sede y no con la ventana de tiempo: la
+              ventana recorta la misma tabla, esto la cambia por otra. */}
+          <div className="flex gap-2">
+            {(['todo', 'torneo', 'amistosa'] as Fuente[])
+              .filter((f) => !(sede !== null && f === 'amistosa'))
+              .map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFuente(f)}
+                  className={`clip-chapa min-h-[44px] flex-1 px-2 text-[12px] font-bold transition-colors ${
+                    fuente === f ? 'text-swu-accent-texto' : 'text-swu-muted'
+                  }`}
+                  style={fuente === f
+                    ? { backgroundColor: 'color-mix(in srgb, var(--color-swu-accent) 18%, var(--color-swu-bg))', backgroundImage: LUSTRE }
+                    : { backgroundColor: 'var(--color-swu-bg)', backgroundImage: VETA }}
+                >
+                  {NOMBRE_FUENTE[f]}
+                </button>
+              ))}
+          </div>
+
           <div className="flex gap-2">
             {VENTANAS.map((v) => (
               <button
@@ -271,7 +308,9 @@ export function RankingPage() {
              style={{ backgroundColor: 'var(--color-swu-bg)', backgroundImage: VETA }}>
             <Info size={13} className="mt-0.5 shrink-0 text-swu-accent-texto" />
             <span>
-              {REGLA_PUNTOS}. Las amistosas cuentan solo si el rival las confirmó.
+              {REGLA_DE[fuente]}
+              {fuente === 'todo' && '. Las amistosas cuentan solo si el rival las confirmó'}
+              {fuente === 'torneo' && '. Las amistosas no entran acá'}.
               {sede !== null && ' En el ranking de una sede solo cuentan sus torneos: una amistosa no se juega en ninguna tienda.'}
             </span>
           </p>
@@ -282,14 +321,21 @@ export function RankingPage() {
             </p>
           )}
 
-          {!cargando && filas.length === 0 && !error && (
+          {!cargando && vista.length === 0 && !error && (
             <div className="clip-placa p-px" style={{ backgroundColor: CANTO_NEUTRO }}>
              <div className="clip-placa p-6 text-center" style={CARA_MATE}>
               <Trophy size={26} className="mx-auto mb-2 text-swu-muted" />
-              <p className="text-sm font-bold text-swu-text">Todavía no hay partidas en esta ventana</p>
+              <p className="text-sm font-bold text-swu-text">
+                {fuente === 'amistosa' ? 'Todavía no hay amistosas confirmadas en esta ventana'
+                  : fuente === 'torneo' ? 'Todavía no hay torneos en esta ventana'
+                  : 'Todavía no hay partidas en esta ventana'}
+              </p>
               <p className="mt-1 text-[11px] text-swu-muted">
-                El ranking se llena con los torneos que se juegan y con las amistosas que ambos
-                jugadores confirman.
+                {fuente === 'amistosa'
+                  ? 'Una amistosa entra cuando el rival acepta el marcador que le pusieron.'
+                  : fuente === 'torneo'
+                  ? 'Se llena con la clasificación de cada torneo que se cierra.'
+                  : 'El ranking se llena con los torneos que se juegan y con las amistosas que ambos jugadores confirman.'}
               </p>
              </div>
             </div>
@@ -323,7 +369,7 @@ export function RankingPage() {
               <Fila fila={mio.fila} puesto={mio.puesto} soyYo />
             </div>
           )}
-          {miId && !mio && !cargando && filas.length > 0 && (
+          {miId && !mio && !cargando && vista.length > 0 && (
             <p className="rounded-xl border border-swu-border bg-swu-surface/60 px-3 py-2.5 text-[11px] text-swu-muted">
               Todavía no aparecés: el ranking cuenta torneos y amistosas confirmadas. Anotá una
               partida en Amistosas y pedile a tu rival que la confirme.
@@ -578,7 +624,26 @@ function Fila({ fila, puesto, soyYo }: { fila: FilaRanking; puesto: number; soyY
  * Se cae del bundle de producción: `import.meta.env.DEV` es un literal y el
  * empaquetador poda la rama entera (mismo patrón que BancoCredencial).
  */
-const BANCO: FilaRanking[] = [
+/* El desglose del banco se DERIVA de si la fila era de torneo o de amistosa,
+   en vez de escribirlo doce veces a mano: el banco existe para mirar la
+   pantalla, no para inventar un caso mixto que en producción no se dio. */
+const conDesglose = (f: Omit<FilaRanking,
+  'puntosTorneo' | 'victoriasTorneo' | 'derrotasTorneo' | 'empatesTorneo' |
+  'puntosAmistosa' | 'victoriasAmistosa' | 'derrotasAmistosa'>): FilaRanking => {
+  const t = f.torneos > 0
+  return {
+    ...f,
+    puntosTorneo: t ? f.puntos : 0,
+    victoriasTorneo: t ? f.victorias : 0,
+    derrotasTorneo: t ? f.derrotas : 0,
+    empatesTorneo: t ? f.empates : 0,
+    puntosAmistosa: t ? 0 : f.puntos,
+    victoriasAmistosa: t ? 0 : f.victorias,
+    derrotasAmistosa: t ? 0 : f.derrotas,
+  }
+}
+
+const BANCO: FilaRanking[] = ([
   { clave: 'nombre:marlin', nombre: 'Marlin', userId: null, avatar: null, puntos: 9, victorias: 3, derrotas: 0, empates: 0, torneos: 1, amistosas: 0 },
   { clave: 'u2', nombre: 'iNelo', userId: 'u2', avatar: 'boba-fett', puntos: 6, victorias: 2, derrotas: 1, empates: 0, torneos: 1, amistosas: 0 },
   { clave: 'u3', nombre: 'Jbeltramirez', userId: 'u3', avatar: 'darth-vader', puntos: 6, victorias: 2, derrotas: 1, empates: 0, torneos: 1, amistosas: 0 },
@@ -589,7 +654,7 @@ const BANCO: FilaRanking[] = [
   { clave: 'u8', nombre: 'LuisG05', userId: 'u8', avatar: 'phasma', puntos: 1, victorias: 0, derrotas: 2, empates: 1, torneos: 1, amistosas: 0 },
   { clave: 'nombre:cesar', nombre: 'Cesar', userId: null, avatar: null, puntos: 0, victorias: 0, derrotas: 3, empates: 0, torneos: 1, amistosas: 0 },
   { clave: 'u10', nombre: 'WayoMendoza', userId: 'u10', avatar: 'c3po', puntos: 0, victorias: 0, derrotas: 1, empates: 0, torneos: 0, amistosas: 1 },
-]
+]).map(conDesglose)
 
 export function BancoRanking() {
   const podio = BANCO.slice(0, 3)

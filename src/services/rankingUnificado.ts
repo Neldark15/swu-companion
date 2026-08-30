@@ -35,26 +35,16 @@
  */
 
 import { supabase, isSupabaseReady } from './supabase'
+import type { FilaRanking } from './rankingFuentes'
 
-export interface FilaRanking {
-  /** `user_id` si tiene cuenta; si no, `nombre:<normalizado>`. */
-  clave: string
-  nombre: string
-  /** Null = jugó pero no tiene cuenta en la app. */
-  userId: string | null
-  avatar: string | null
-  puntos: number
-  victorias: number
-  derrotas: number
-  empates: number
-  torneos: number
-  amistosas: number
-}
+// Se re-exporta todo lo puro: quien ya importaba de acá no tiene que cambiar.
+export {
+  NOMBRE_FUENTE, REGLA_PUNTOS, REGLA_DE, recordDe, miPosicion, porFuente,
+} from './rankingFuentes'
+export type { FilaRanking, Fuente } from './rankingFuentes'
 
 export type Resultado<T> = { ok: true; datos: T } | { ok: false; mensaje: string }
 
-/** La leyenda que se enseña al lado de la tabla. Una línea, o no se lee. */
-export const REGLA_PUNTOS = '3 por victoria en torneo · 1 por empate · 1 por victoria en amistosa'
 
 /**
  * @param dias  Ventana. `null` = de siempre.
@@ -91,6 +81,9 @@ export async function getRankingUnificado(
     clave: string; nombre: string; user_id: string | null; avatar: string | null
     puntos: number; victorias: number; derrotas: number; empates: number
     torneos: number; amistosas: number
+    puntos_torneo: number; victorias_torneo: number
+    derrotas_torneo: number; empates_torneo: number
+    puntos_amistosa: number; victorias_amistosa: number; derrotas_amistosa: number
   }>
 
   return {
@@ -106,19 +99,16 @@ export async function getRankingUnificado(
       empates: Number(f.empates),
       torneos: Number(f.torneos),
       amistosas: Number(f.amistosas),
+      puntosTorneo: Number(f.puntos_torneo ?? 0),
+      victoriasTorneo: Number(f.victorias_torneo ?? 0),
+      derrotasTorneo: Number(f.derrotas_torneo ?? 0),
+      empatesTorneo: Number(f.empates_torneo ?? 0),
+      puntosAmistosa: Number(f.puntos_amistosa ?? 0),
+      victoriasAmistosa: Number(f.victorias_amistosa ?? 0),
+      derrotasAmistosa: Number(f.derrotas_amistosa ?? 0),
     })),
   }
 }
 
-/** El récord como se escribe en cualquier torneo: 2-1 o 2-1-1 si hubo empates. */
-export function recordDe(f: FilaRanking): string {
-  return f.empates > 0
-    ? `${f.victorias}-${f.derrotas}-${f.empates}`
-    : `${f.victorias}-${f.derrotas}`
-}
 
-/** Dónde estoy yo. `null` si todavía no jugué nada que cuente. */
-export function miPosicion(filas: FilaRanking[], miId: string): { puesto: number; fila: FilaRanking } | null {
-  const i = filas.findIndex((f) => f.userId === miId)
-  return i === -1 ? null : { puesto: i + 1, fila: filas[i] }
-}
+
