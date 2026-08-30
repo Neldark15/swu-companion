@@ -71,7 +71,7 @@ export function ProximosEventos() {
           return (
             <button
               key={ev.id}
-              onClick={() => navigate('/events')}
+              onClick={() => navigate('/torneos?t=proximos')}
               className="w-full text-left active:scale-[0.99] transition-transform"
             >
               <HudPanel tone="amber" glow>

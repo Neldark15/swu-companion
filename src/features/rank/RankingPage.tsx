@@ -178,18 +178,18 @@ export function RankingPage() {
     return () => { vivo = false }
   }, [pestana, progreso.length])
 
+  /* Con una sede puesta el ranking YA es solo de torneos —una amistosa se
+     juega en la casa de cualquiera y no tiene tienda—, así que «Amistosas»
+     ahí daría siempre una tabla vacía.
+     Se DERIVA en vez de corregir el estado en un efecto: escribirlo encadena
+     un render de más, y además perdería lo que la persona había elegido.
+     Así, al soltar la sede vuelve sola a la pestaña en la que estaba. */
+  const fuenteViva: Fuente = sede !== null && fuente === 'amistosa' ? 'todo' : fuente
+
   /* La tabla que se ve. Se reproyecta lo YA traído: pedirle otra consulta al
      servidor por cada fuente es como se llega a que el total no cuadre con
      las partes. */
-  const vista = useMemo(() => porFuente(filas, fuente), [filas, fuente])
-
-  /* Con una sede puesta el ranking YA es solo de torneos —una amistosa se
-     juega en la casa de cualquiera y no tiene tienda—, así que la pestaña de
-     amistosas ahí daría una tabla vacía. Se vuelve a «Todo», que con sede
-     puesta es exactamente lo mismo que «Torneos». */
-  useEffect(() => {
-    if (sede !== null && fuente === 'amistosa') setFuente('todo')
-  }, [sede, fuente])
+  const vista = useMemo(() => porFuente(filas, fuenteViva), [filas, fuenteViva])
 
   const mio = miId ? miPosicion(vista, miId) : null
   const podio = vista.slice(0, 3)
@@ -276,9 +276,9 @@ export function RankingPage() {
                   key={f}
                   onClick={() => setFuente(f)}
                   className={`clip-chapa min-h-[44px] flex-1 px-2 text-[12px] font-bold transition-colors ${
-                    fuente === f ? 'text-swu-accent-texto' : 'text-swu-muted'
+                    fuenteViva === f ? 'text-swu-accent-texto' : 'text-swu-muted'
                   }`}
-                  style={fuente === f
+                  style={fuenteViva === f
                     ? { backgroundColor: 'color-mix(in srgb, var(--color-swu-accent) 18%, var(--color-swu-bg))', backgroundImage: LUSTRE }
                     : { backgroundColor: 'var(--color-swu-bg)', backgroundImage: VETA }}
                 >
@@ -308,9 +308,9 @@ export function RankingPage() {
              style={{ backgroundColor: 'var(--color-swu-bg)', backgroundImage: VETA }}>
             <Info size={13} className="mt-0.5 shrink-0 text-swu-accent-texto" />
             <span>
-              {REGLA_DE[fuente]}
-              {fuente === 'todo' && '. Las amistosas cuentan solo si el rival las confirmó'}
-              {fuente === 'torneo' && '. Las amistosas no entran acá'}.
+              {REGLA_DE[fuenteViva]}
+              {fuenteViva === 'todo' && '. Las amistosas cuentan solo si el rival las confirmó'}
+              {fuenteViva === 'torneo' && '. Las amistosas no entran acá'}.
               {sede !== null && ' En el ranking de una sede solo cuentan sus torneos: una amistosa no se juega en ninguna tienda.'}
             </span>
           </p>
@@ -326,14 +326,14 @@ export function RankingPage() {
              <div className="clip-placa p-6 text-center" style={CARA_MATE}>
               <Trophy size={26} className="mx-auto mb-2 text-swu-muted" />
               <p className="text-sm font-bold text-swu-text">
-                {fuente === 'amistosa' ? 'Todavía no hay amistosas confirmadas en esta ventana'
-                  : fuente === 'torneo' ? 'Todavía no hay torneos en esta ventana'
+                {fuenteViva === 'amistosa' ? 'Todavía no hay amistosas confirmadas en esta ventana'
+                  : fuenteViva === 'torneo' ? 'Todavía no hay torneos en esta ventana'
                   : 'Todavía no hay partidas en esta ventana'}
               </p>
               <p className="mt-1 text-[11px] text-swu-muted">
-                {fuente === 'amistosa'
+                {fuenteViva === 'amistosa'
                   ? 'Una amistosa entra cuando el rival acepta el marcador que le pusieron.'
-                  : fuente === 'torneo'
+                  : fuenteViva === 'torneo'
                   ? 'Se llena con la clasificación de cada torneo que se cierra.'
                   : 'El ranking se llena con los torneos que se juegan y con las amistosas que ambos jugadores confirman.'}
               </p>

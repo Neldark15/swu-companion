@@ -999,7 +999,7 @@ export function ProfilePage() {
        10 versiones del esquema de Dexie: lanza SchemaError, el `.then()` no
        tiene `.catch()` y queda girando para siempre. Era la entrada más
        visible de la app a una pantalla que nunca carga. */
-    { icon: Trophy, label: 'Mis Torneos', to: '/torneos', count: stats.tournaments },
+    { icon: Trophy, label: 'Mis Torneos', to: '/torneos?t=archivo', count: stats.tournaments },
     { icon: Layers, label: 'Mis Decks', to: '/decks', count: stats.decks },
     { icon: Heart, label: 'Cartas Favoritas', to: '/cards', count: stats.favorites },
     { icon: BookOpen, label: 'Base de Datos', to: '/cards' },

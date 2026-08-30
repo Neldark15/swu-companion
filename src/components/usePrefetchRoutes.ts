@@ -26,7 +26,7 @@ export function usePrefetchRoutes() {
       () => import('../features/collection/CollectionPage'),
       () => import('../features/espionaje/EspionajePage'),
       () => import('../features/rank/RankingPage'),
-      () => import('../features/events/EventsPage'),
+      () => import('../features/torneos/TorneosPage'),
     ]
 
     // Use requestIdleCallback or setTimeout fallback

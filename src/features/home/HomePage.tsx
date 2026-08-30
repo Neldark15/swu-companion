@@ -28,8 +28,7 @@ import {
   AgendaIcon, ArticuloIcon, AurebeshIcon, BeskarIcon, BinderIcon,
   BlasterIcon, BountyIcon, CargoIcon, ChanceCubeIcon, CredencialIcon,
   DatapadIcon, DeathStarIcon, DeckCardsIcon, EmisionIcon, EmpireIcon,
-  HelmetIcon, HolocronIcon, HolonetIcon, KyberIcon, LabIcon, MandoTrophyIcon,
-  MedalIcon, MetaHoloIcon, SaberIcon, SobreIcon, SpyIcon,
+  HelmetIcon, HolocronIcon, HolonetIcon, KyberIcon, LabIcon, MandoTrophyIcon, MetaHoloIcon, SaberIcon, SobreIcon, SpyIcon,
   StarfighterIcon, TransmisionIcon,
 } from '../../components/SWIcons'
 // El planeta anillado ya estaba dibujado para el tema «Planetas» de la Trivia.
@@ -151,7 +150,6 @@ const mainSystems: Sistema[] = [
   // ── Competir: torneos, ranking y meta ──
   { icon: MandoTrophyIcon, label: 'Torneos',      tone: 'amber',  to: '/torneos',    cat: 'competir' },
   { icon: AgendaIcon,     label: 'Calendario',   tone: 'cyan',   to: '/calendario', cat: 'competir' },
-  { icon: MedalIcon, label: 'Próximos Eventos', tone: 'amber', to: '/events',  cat: 'competir', auth: true },
   { icon: MetaHoloIcon,       label: 'Meta',         tone: 'cyan',   to: '/meta',       cat: 'competir' },
   { icon: BeskarIcon,      label: 'Ranking', tone: 'amber',  to: '/rank',       cat: 'competir', auth: true },
   { icon: EmisionIcon,     label: 'En Vivo',      tone: 'red',    to: '/envivo',     cat: 'competir' },

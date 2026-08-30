@@ -11,7 +11,7 @@
 export const MOD_EN: Record<string, string> = {
   'Contador de daños': 'Damage Counter', 'Amistosas': 'Friendlies', 'Duelo': 'Duel',
   'Misiones': 'Missions', 'Torneos': 'Tournaments', 'Calendario': 'Calendar',
-  'Próximos Eventos': 'Upcoming Events', 'Meta': 'Meta', 'Ranking': 'Ranking', 'En Vivo': 'Live',
+  'Meta': 'Meta', 'Ranking': 'Ranking', 'En Vivo': 'Live',
   'Mis Decks': 'My Decks', 'Laboratorio': 'Lab', 'Buscar Cartas': 'Card Search',
   'Rulings': 'Rulings', 'Mi Botín': 'My Loot', 'Sobredosis': 'Packs',
   'Binder digital': 'Digital Binder', 'Contrabando': 'Smuggling',

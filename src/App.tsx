@@ -11,7 +11,6 @@ const HomePage = lazy(() => import('./features/home/HomePage').then(m => ({ defa
 const PlayPage = lazy(() => import('./features/play/PlayPage').then(m => ({ default: m.PlayPage })))
 const TrackerPage = lazy(() => import('./features/play/TrackerPage').then(m => ({ default: m.TrackerPage })))
 const SavedMatchesPage = lazy(() => import('./features/play/SavedMatchesPage').then(m => ({ default: m.SavedMatchesPage })))
-const EventsPage = lazy(() => import('./features/events/EventsPage').then(m => ({ default: m.EventsPage })))
 const JoinEventPage = lazy(() => import('./features/events/JoinEventPage').then(m => ({ default: m.JoinEventPage })))
 const TournamentListPage = lazy(() => import('./features/events/TournamentListPage').then(m => ({ default: m.TournamentListPage })))
 const TournamentSetupPage = lazy(() => import('./features/events/TournamentSetupPage').then(m => ({ default: m.TournamentSetupPage })))
@@ -349,7 +348,12 @@ export default function App() {
             {import.meta.env.DEV && <Route path="/banco-mesa-contador" element={<MesaContador />} />}
             <Route path="/play/tracker/:mode" element={<P><TrackerPage /></P>} />
             <Route path="/play/saved" element={<P><SavedMatchesPage /></P>} />
-            <Route path="/events" element={<P><EventsPage /></P>} />
+            {/* «Próximos Eventos» se fusionó con Torneos. La redirección es
+                EXACTA a propósito: `/events/*` se tragaría join, create, lobby,
+                play, dashboard, live, tournament y melee, que siguen vivas.
+                El destino lleva `?t=proximos` para que el organizador que sale
+                del tablero caiga en la lista y no en el archivo. */}
+            <Route path="/events" element={<Navigate to="/torneos?t=proximos" replace />} />
             <Route path="/events/join" element={<P><JoinEventPage /></P>} />
             <Route path="/events/create" element={<P><CreateEventPage /></P>} />
             <Route path="/events/tournament" element={<P><TournamentListPage /></P>} />

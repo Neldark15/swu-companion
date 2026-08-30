@@ -225,6 +225,103 @@ export async function createOfficialEvent(data: {
   return { ok: true, event }
 }
 
+export type ResultadoEventos =
+  | { ok: true; datos: OfficialEvent[] }
+  | { ok: false; mensaje: string }
+
+/**
+ * Los eventos abiertos y en curso, para la pantalla unificada de Torneos.
+ *
+ * ── Por qué no se reusa `getOfficialEvents` ──────────────────────────
+ *
+ * Esa devuelve `[]` ante un error de PostgREST, de RLS o de red, y encima
+ * quien la llama le pone `.catch(() => [])`. O sea que un fallo se ve **byte a
+ * byte** igual que «no hay torneos». En una pantalla que además es pública y
+ * es la que abre la gente desde un enlace de WhatsApp, eso se lee como «esta
+ * comunidad no hace torneos» (§2f, §4d). Acá el error viaja.
+ *
+ * ── El conteo de inscritos se pide APARTE y solo si sirve ────────────
+ *
+ * La policy `reg_select` solo deja ver TODAS las inscripciones a un admin: un
+ * jugador normal y un anónimo leen 0 filas **sin error**, así que el conteo
+ * les daría 0 de verdad para un torneo con doce adentro. Por eso `contar` es
+ * explícito: si quien mira no puede contar, no se cuenta —ni se pinta.
+ *
+ * `is_registered` sí es fiable para cualquiera: la policy deja ver la fila
+ * propia. Por eso se consulta solo con `userId` y no depende de `contar`.
+ */
+export async function listarEnCurso(
+  userId?: string,
+  contar = false,
+): Promise<ResultadoEventos> {
+  if (!isSupabaseReady()) return { ok: false, mensaje: 'Sin conexión con el servidor.' }
+
+  const { data: events, error } = await supabase
+    .from('official_events')
+    .select('*')
+    .in('status', ['open', 'active'])
+    // Por cuándo EMPIEZA, no por cuándo se creó. Sin fecha va al final: un
+    // evento sin fecha no es «el más viejo», es uno que no se sabe cuándo es.
+    .order('date', { ascending: true, nullsFirst: false })
+
+  if (error) return { ok: false, mensaje: error.message }
+  if (!events || events.length === 0) return { ok: true, datos: [] }
+
+  const ids = events.map(e => e.id as string)
+
+  const [perfiles, inscritos, mias] = await Promise.all([
+    supabase.from('profiles').select('id, name, avatar')
+      .in('id', [...new Set(events.map(e => e.organizer_id as string))]),
+    contar ? contarInscritos(ids) : Promise.resolve(null),
+    userId
+      ? supabase.from('event_registrations').select('event_id')
+          .eq('user_id', userId).in('event_id', ids)
+      : Promise.resolve({ data: null }),
+  ])
+
+  const porId = new Map((perfiles.data ?? []).map(p => [p.id, p]))
+  const inscrito = new Set(((mias as { data: { event_id: string }[] | null }).data ?? [])
+    .map(r => r.event_id))
+
+  return {
+    ok: true,
+    datos: events.map(e => ({
+      ...e,
+      organizer_name: porId.get(e.organizer_id)?.name || 'Organizador',
+      organizer_avatar: porId.get(e.organizer_id)?.avatar || '🎯',
+      // `undefined` si no se contó o si el conteo falló: «no se sabe» no es cero.
+      registered_count: inscritos?.get(e.id) ?? undefined,
+      is_registered: userId ? inscrito.has(e.id) : undefined,
+    })) as OfficialEvent[],
+  }
+}
+
+/**
+ * Parte la lista en «lo que viene» y «lo demás».
+ *
+ * El corte es la medianoche de El Salvador —la misma que usa
+ * `getUpcomingOfficialEvents`—, no `Date.now()`: un torneo que arrancó esta
+ * mañana sigue siendo «hoy» hasta que termine el día, y con la hora exacta
+ * desaparecería de la lista a mitad de la primera ronda.
+ *
+ * Lo viejo NO se esconde: los eventos que nadie cerró siguen existiendo y
+ * alguien tiene que poder verlos para cerrarlos. Solo se bajan de arriba.
+ */
+export function partirPorFecha(eventos: OfficialEvent[]): {
+  vienen: OfficialEvent[]; pasados: OfficialEvent[]
+} {
+  const corte = inicioDelDiaSVenUTC().toISOString()
+  const vienen: OfficialEvent[] = []
+  const pasados: OfficialEvent[] = []
+  for (const e of eventos) {
+    if (e.date && e.date >= corte) vienen.push(e)
+    else pasados.push(e)
+  }
+  // Los de atrás, del más reciente al más viejo. Los sin fecha, al final.
+  pasados.sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
+  return { vienen, pasados }
+}
+
 export async function getOfficialEvents(userId?: string): Promise<OfficialEvent[]> {
   if (!isSupabaseReady()) return []
 

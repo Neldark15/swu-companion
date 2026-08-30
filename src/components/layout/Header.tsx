@@ -14,12 +14,13 @@ const menuItems = [
 function getPageTitle(pathname: string): string {
   if (pathname === '/') return 'Base'
   if (pathname.startsWith('/play')) return 'Duelo'
-  if (pathname.startsWith('/events')) return 'Torneos'
   if (pathname.startsWith('/rank')) return 'Ranking'
   if (pathname.startsWith('/amistosas')) return 'Amistosas'
   if (pathname.startsWith('/torneos')) return 'Torneos'
   if (pathname.startsWith('/blog')) return 'Blog'
+  /* Melee va ANTES: `/events` es prefijo suyo y lo tapaba. */
   if (pathname.startsWith('/events/melee')) return 'Torneos de Melee'
+  if (pathname.startsWith('/events')) return 'Torneos'
   if (pathname.startsWith('/profile')) return 'Mi Perfil'
   if (pathname.startsWith('/cards')) return 'Buscar Cartas'
   if (pathname.startsWith('/decks')) return 'Mis Decks'

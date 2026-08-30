@@ -16,8 +16,7 @@ import { ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
 import {
   MandoTrophyIcon, CargoIcon, DeckCardsIcon, StarfighterIcon, DatapadIcon,
   BountyIcon, DeathStarIcon, BeskarIcon, HolonetIcon, ChanceCubeIcon,
-  KyberIcon, LabIcon, HolocronIcon, SaberIcon, BlasterIcon, AgendaIcon,
-  MedalIcon, MetaHoloIcon, EmisionIcon, SobreIcon, BinderIcon, PedidoIcon,
+  KyberIcon, LabIcon, HolocronIcon, SaberIcon, BlasterIcon, AgendaIcon, MetaHoloIcon, EmisionIcon, SobreIcon, BinderIcon, PedidoIcon,
   SalasIcon, CredencialIcon, TransmisionIcon, RebelIcon, ArticuloIcon,
 } from '../../components/SWIcons'
 import type { HudTone } from '../../components/hudTones'
@@ -43,7 +42,6 @@ const BAHIAS: {
     modulos: [
       { icon: MandoTrophyIcon, label: 'Torneos',    tone: 'amber', to: '#' },
       { icon: AgendaIcon,      label: 'Calendario', tone: 'cyan',  to: '#' },
-      { icon: MedalIcon,       label: 'Próximos Eventos', tone: 'amber', to: '#' },
       { icon: MetaHoloIcon,    label: 'Meta',       tone: 'cyan',  to: '#' },
       { icon: BeskarIcon,      label: 'Ranking',    tone: 'amber', to: '#' },
       { icon: EmisionIcon,     label: 'En Vivo',    tone: 'red',   to: '#' },
