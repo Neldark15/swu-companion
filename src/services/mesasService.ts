@@ -37,6 +37,8 @@ export interface AsientoMesa {
   puesto: number | null
   /** Derivado del puesto en la base (3/2/1/0). Nunca se escribe. */
   puntos: number | null
+  /** Vida que le quedó. `null` = todavía no se anotó. */
+  vida: number | null
 }
 
 export interface MesaArmada {
@@ -149,7 +151,7 @@ export async function getMesasDeRonda(roundId: string): Promise<MesaArmada[]> {
 
   const { data, error } = await supabase
     .from('tournament_mesas')
-    .select('id, event_id, round_id, mesa, user_id, player_name, puesto, puntos')
+    .select('id, event_id, round_id, mesa, user_id, player_name, puesto, puntos, vida')
     .eq('round_id', roundId)
     .order('mesa')
     .order('puesto', { nullsFirst: false })
@@ -241,5 +243,25 @@ export async function cambiarTipoTorneo(
   if (error) return { ok: false, mensaje: error.message }
   const r = data as RespuestaRPC | null
   if (!r?.ok) return { ok: false, mensaje: r?.error ?? 'No se pudo cambiar el tipo.' }
+  return { ok: true, datos: true }
+}
+
+/**
+ * Anotar la vida de alguien en su mesa.
+ *
+ * Lo lleva la mesa entre todos, en un teléfono. El permiso lo comprueba el
+ * servidor: solo quien está sentado en ESA mesa —o quien organiza—, porque la
+ * vida decide quién pasa a la final y alguien de otra mesa no puede tocarla.
+ */
+export async function anotarVida(
+  asientoId: string,
+  vida: number,
+): Promise<Resultado<true>> {
+  if (!isSupabaseReady()) return { ok: false, mensaje: SIN_CONEXION }
+  const { error } = await supabase.rpc('anotar_vida', {
+    p_asiento: asientoId, p_vida: vida,
+  })
+  // §2f: supabase-js no lanza ante un error de PostgREST.
+  if (error) return { ok: false, mensaje: error.message }
   return { ok: true, datos: true }
 }

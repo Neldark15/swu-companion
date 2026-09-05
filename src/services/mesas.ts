@@ -204,6 +204,8 @@ export interface AsientoConPuesto extends AsientoJugador {
   mesaAnterior: number
   /** Puesto DENTRO de esa mesa: 1 es el ganador. */
   puesto: number
+  /** Vida que le quedó. `null` = no se anotó en esa mesa. */
+  vida?: number | null
 }
 
 export type RondaSiguiente =
@@ -219,18 +221,26 @@ export type RondaSiguiente =
  * Todos los segundos sacaron los mismos puntos en su mesa, así que hace falta
  * un desempate y NO puede ser el azar: esa silla vale un premio. El orden es:
  *
- *  1. **El de la mesa más grande.** Quedar segundo entre cuatro es haberle
+ *  1. **El que quedó con más VIDA.** Es el criterio de verdad: sale de la
+ *     partida, no de una regla de escritorio. Solo cuenta si la mesa la
+ *     anotó — quien no tiene vida anotada no gana por defecto ni pierde por
+ *     defecto, va después de los que sí.
+ *  2. **El de la mesa más grande.** Quedar segundo entre cuatro es haberle
  *     ganado a más gente que quedar segundo entre tres.
- *  2. **Más puntos acumulados** en el torneo.
- *  3. **Mejor siembra**, que es lo único que queda y es estable — sortearlo
+ *  3. **Más puntos acumulados** en el torneo.
+ *  4. **Mejor siembra**, que es lo único que queda y es estable — sortearlo
  *     haría que la misma ronda diera finalistas distintos al recalcularse.
  */
 function mejorSegundo(
   segundos: AsientoConPuesto[],
   tamañoDeMesa: Map<number, number>,
 ): AsientoConPuesto[] {
+  // `null` va al fondo y no al frente: sin vida anotada no se puede afirmar
+  // que quedó mejor que nadie.
+  const vidaDe = (p: AsientoConPuesto) => (typeof p.vida === 'number' ? p.vida : -1)
   return [...segundos].sort((a, b) =>
-    (tamañoDeMesa.get(b.mesaAnterior) ?? 0) - (tamañoDeMesa.get(a.mesaAnterior) ?? 0)
+    vidaDe(b) - vidaDe(a)
+    || (tamañoDeMesa.get(b.mesaAnterior) ?? 0) - (tamañoDeMesa.get(a.mesaAnterior) ?? 0)
     || b.orden - a.orden
     || a.mesaAnterior - b.mesaAnterior)
 }
