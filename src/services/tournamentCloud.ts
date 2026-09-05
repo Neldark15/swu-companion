@@ -629,6 +629,30 @@ async function broadcast(
   }
 }
 
+/**
+ * Avisar que salieron las mesas — con push.
+ *
+ * `armarMesas` escribía la fila de `tournament_broadcasts` A MANO, y por eso
+ * en un torneo de mesas no salía UN SOLO push: `firePushForBroadcast` vive
+ * acá dentro y quien inserta directo se lo saltea. El toast in-app llegaba
+ * solo a quien tuviera la app abierta en ese segundo exacto; al reabrirla no
+ * había nada esperando, porque nunca se mandó.
+ *
+ * Se exporta esta puerta y no `broadcast` entera: desde afuera solo hace falta
+ * anunciar mesas, y abrir el resto invitaría a mandar cualquier tipo desde
+ * cualquier lado.
+ */
+export async function avisarMesasArmadas(
+  eventId: string,
+  eventName: string | null,
+  eventCode: string | null,
+  ronda: number,
+  mesas: number,
+): Promise<void> {
+  await broadcast(eventId, eventName, eventCode, 'pairing_set',
+    `Ya salieron las mesas de la ronda ${ronda}`.trim(), { ronda, mesas })
+}
+
 async function publishTournamentResultToFeed(
   eventId: string,
   eventName: string | null,

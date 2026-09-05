@@ -34,11 +34,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Dices, Users } from 'lucide-react'
 import type { MesaArmada } from '../../services/mesasService'
+import { ContadorVida } from './ContadorVida'
 
 interface Props {
   mesas: MesaArmada[]
   /** Para resaltar tu propia ficha. `null` si mirás sin cuenta. */
   miId: string | null
+  /** Muestra el contador de vida. Lo lleva la mesa, no quien organiza. */
+  conVida?: boolean
+  onError?: (m: string) => void
 }
 
 /** Cuánto dura el revuelto inicial. */
@@ -60,7 +64,7 @@ function revolver<T>(xs: T[]): T[] {
   return a
 }
 
-export function RifaDeMesas({ mesas, miId }: Props) {
+export function RifaDeMesas({ mesas, miId, conVida, onError }: Props) {
   const todos = useMemo(
     () => mesas.flatMap(m => m.jugadores.map(j => ({
       clave: `${m.mesa}-${j.user_id ?? j.player_name}`,
@@ -158,15 +162,14 @@ export function RifaDeMesas({ mesas, miId }: Props) {
                   <Users size={11} />{m.jugadores.length}
                 </span>
               </div>
-              <div className="flex flex-wrap gap-1.5">
+              <div className={conVida ? 'space-y-1' : 'flex flex-wrap gap-1.5'}>
                 {m.jugadores.map((j, i) => {
                   /* La comparación es por cuenta, así que solo resalta a quien
                      la tiene. Un invitado no se puede resaltar: su fila no
                      guarda más que un nombre. */
                   const soyYo = !!miId && j.user_id === miId
-                  return (
+                  const ficha = (
                     <span
-                      key={`${m.mesa}-${j.user_id ?? j.player_name}`}
                       className={`rifa-cae rounded-lg px-2 py-1 text-[12px] font-semibold ${
                         soyYo ? 'bg-swu-accent text-white' : 'bg-swu-bg text-swu-text'
                       }`}
@@ -176,6 +179,22 @@ export function RifaDeMesas({ mesas, miId }: Props) {
                     >
                       {soyYo ? `${j.player_name} · vos` : j.player_name}
                     </span>
+                  )
+                  const clave = `${m.mesa}-${j.user_id ?? j.player_name}`
+                  /* Con el contador, cada quien va en su renglón: los ± al
+                     lado del nombre en una fila envuelta quedan pegados al
+                     nombre del de al lado y se toca el equivocado. */
+                  return conVida ? (
+                    <div key={clave} className="flex items-center justify-between gap-2">
+                      {ficha}
+                      <ContadorVida
+                        asiento={j}
+                        bloqueada={false}
+                        onError={onError ?? (() => {})}
+                      />
+                    </div>
+                  ) : (
+                    <span key={clave} className="contents">{ficha}</span>
                   )
                 })}
               </div>

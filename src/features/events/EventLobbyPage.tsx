@@ -460,7 +460,9 @@ export function EventLobbyPage() {
           pantalla, y el resto puede esperar a que se termine de mirar. */}
       {mesas.length > 0 && (
         <div className="mb-4">
-          <RifaDeMesas mesas={mesas} miId={selfUserId} />
+          {/* Con contador: los daños los lleva la mesa, en su propio teléfono.
+              El servidor deja escribir solo a quien está sentado ahí. */}
+          <RifaDeMesas mesas={mesas} miId={selfUserId} conVida onError={setFalloLlegada} />
         </div>
       )}
 

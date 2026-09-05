@@ -53,21 +53,31 @@ export function DeclararMazo({
   const [l2, setL2] = useState<Card | null>(null)
   const [base, setBase] = useState<Card | null>(null)
   const [nombre, setNombre] = useState(inicial?.deck_nombre ?? '')
+  const [falloCartas, setFalloCartas] = useState<string | null>(null)
 
   useEffect(() => {
     let vivo = true
     void (async () => {
-      // `ensureCards` antes de `cargarIndice`: con la base local vacía el
-      // índice sale vacío SIN error y el buscador se vería roto sin decir por qué.
-      await ensureCards()
-      const [i, ms] = await Promise.all([cargarIndice(), db.decks.toArray()])
-      if (!vivo) return
-      setIndice(i)
-      setMazos(ms)
-      // Lo ya declarado se resuelve contra el índice para poder mostrarlo.
-      if (inicial?.leader_1) setL1(i.porClave.get(inicial.leader_1) ?? null)
-      if (inicial?.leader_2) setL2(i.porClave.get(inicial.leader_2) ?? null)
-      if (inicial?.base_carta) setBase(i.porClave.get(inicial.base_carta) ?? null)
+      try {
+        // `ensureCards` antes de `cargarIndice`: con la base local vacía el
+        // índice sale vacío SIN error y el buscador se vería roto sin decir por qué.
+        await ensureCards()
+        const [i, ms] = await Promise.all([cargarIndice(), db.decks.toArray()])
+        if (!vivo) return
+        setIndice(i)
+        setMazos(ms)
+        // Lo ya declarado se resuelve contra el índice para poder mostrarlo.
+        if (inicial?.leader_1) setL1(i.porClave.get(inicial.leader_1) ?? null)
+        if (inicial?.leader_2) setL2(i.porClave.get(inicial.leader_2) ?? null)
+        if (inicial?.base_carta) setBase(i.porClave.get(inicial.base_carta) ?? null)
+      } catch (e) {
+        /* La base local de cartas puede no abrir: navegador en modo privado,
+           almacenamiento lleno, base corrupta. Sin este `catch` el formulario
+           se quedaba girando en «Cargando cartas…» PARA SIEMPRE, y como el
+           botón de afuera queda oculto mientras está abierto, la persona no
+           podía inscribirse ni volver atrás sin recargar la página. */
+        if (vivo) setFalloCartas(e instanceof Error ? e.message : 'No se pudieron cargar las cartas.')
+      }
     })()
     return () => { vivo = false }
     // Solo al montar: `inicial` es el punto de partida, no una atadura.
@@ -109,9 +119,32 @@ export function DeclararMazo({
   })
 
   if (!indice) {
+    /* Si las cartas no cargan, SIEMPRE hay salida: declarar el mazo es
+       opcional, así que no puede ser lo que impida inscribirse. */
+    if (falloCartas) {
+      return (
+        <div className="space-y-2">
+          <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-[11px] text-red-400">
+            No se pudieron cargar las cartas ({falloCartas}). Podés inscribirte igual
+            y declarar tu mazo después desde el lobby.
+          </p>
+          <div className="flex gap-2">
+            <Button variant="primary" size="sm" block loading={ocupado}
+                    onClick={() => onAceptar({})}>
+              {etiquetaAceptar} sin declarar mazo
+            </Button>
+            <Button variant="secondary" size="sm" onClick={onCancelar}>Cancelar</Button>
+          </div>
+        </div>
+      )
+    }
     return (
-      <div className="flex items-center justify-center gap-2 py-6 text-xs text-swu-muted">
-        <Loader2 size={14} className="animate-spin" /> Cargando cartas…
+      <div className="space-y-2">
+        <div className="flex items-center justify-center gap-2 py-6 text-xs text-swu-muted">
+          <Loader2 size={14} className="animate-spin" /> Cargando cartas…
+        </div>
+        {/* Salida siempre disponible: el formulario tapa el botón de afuera. */}
+        <Button variant="secondary" size="sm" block onClick={onCancelar}>Cancelar</Button>
       </div>
     )
   }

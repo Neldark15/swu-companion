@@ -26,14 +26,17 @@
 
 import { useMemo, useState } from 'react'
 import { AlertCircle, Check, Play, Shuffle, Trophy } from 'lucide-react'
+import { ContadorVida } from './ContadorVida'
+import { useEffect } from 'react'
+import { supabase } from '../../services/supabase'
 import { HudPanel } from '../../components/Hud'
 import {
   mesasPosibles, composicion, dibujarComposicion, porQueNo, repartir, armarRondaSiguiente,
   PUNTOS_MESA, type Composicion,
 } from '../../services/mesas'
 import {
-  armarMesas, guardarPuestosMesa, fijarPuestosFinales, anotarVida,
-  type MesaArmada, type AsientoPropuesto, type AsientoMesa,
+  armarMesas, guardarPuestosMesa, fijarPuestosFinales,
+  type MesaArmada, type AsientoPropuesto,
 } from '../../services/mesasService'
 import type { CloudStanding } from '../../services/tournamentCloud'
 
@@ -49,11 +52,31 @@ interface Props {
   onError: (m: string) => void
   /** Sembrar la clasificación con los inscritos. Ver el bucle de abajo. */
   onSembrar: () => void
+  /** Cerrar el torneo y repartir. Sin esto, un torneo de mesas no se cierra. */
+  onFinalizar: () => void
 }
 
 export function MesasPanel({
-  eventId, cerrado, standings, ronda, mesas, ocupado, onCambio, onAviso, onError, onSembrar,
+  eventId, cerrado, standings, ronda, mesas, ocupado, onCambio, onAviso, onError, onSembrar, onFinalizar,
 }: Props) {
+  /* Las mesas, en vivo también acá.
+     El tablero solo escuchaba standings, pairings y el evento: dos personas
+     anotando vida quedaban con números distintos indefinidamente, y la vida
+     decide quién pasa a la final. */
+  useEffect(() => {
+    const canal = supabase
+      .channel(`panel-mesas-${eventId}`)
+      .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'tournament_mesas', filter: `event_id=eq.${eventId}` },
+          () => onCambio())
+      .subscribe(estado => {
+        if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT') {
+          console.warn('[mesas] el canal del panel no quedó:', estado)
+        }
+      })
+    return () => { void supabase.removeChannel(canal) }
+  }, [eventId, onCambio])
+
   const activos = useMemo(() => standings.filter(s => !s.dropped), [standings])
   const n = activos.length
   const opciones = useMemo(() => mesasPosibles(n), [n])
@@ -67,6 +90,13 @@ export function MesasPanel({
   const yaArmada = mesas.length > 0
   const hayPuntos = activos.some(s => s.points > 0)
   const todasAnotadas = yaArmada && mesas.every(m => m.anotada)
+  /* Si UNA sola mesa ya tiene puestos, rearmar deja de ser reversible: el
+     servidor solo rehace la ronda cuando nadie tiene puesto, así que con una
+     anotada se va por el otro camino y CREA la ronda siguiente — enterrando
+     la mesa que faltaba anotar, que después no se puede recuperar ni fijar la
+     clasificación. Un clic mata el torneo. */
+  const algunaAnotada = yaArmada && mesas.some(m => m.anotada)
+  const rearmarPeligroso = algunaAnotada && !todasAnotadas
 
   async function armar() {
     /* Con la ronda YA anotada, la siguiente no se reparte de nuevo: se arma
@@ -182,6 +212,7 @@ export function MesasPanel({
               <p className="text-xs text-swu-muted">
                 {n} jugador{n === 1 ? '' : 'es'} activo{n === 1 ? '' : 's'}
                 {todasAnotadas && ' · esta ronda ya está anotada. La siguiente se arma con los ganadores: la mesa 1 será la final'}
+                {rearmarPeligroso && ' · ya hay puestos anotados en una mesa. Rearmar ahora enterraría la que falta y no se podría fijar la clasificación: anotá las que quedan.'}
               </p>
             </div>
 
@@ -220,14 +251,16 @@ export function MesasPanel({
 
                 <button
                   onClick={() => void armar()}
-                  disabled={ocupado || guardando || !sel}
+                  disabled={ocupado || guardando || !sel || rearmarPeligroso}
                   className="flex min-h-[44px] items-center gap-2 rounded-lg bg-swu-accent px-4
                              text-sm font-semibold text-white disabled:opacity-50"
                 >
                   {yaArmada && !todasAnotadas ? <Shuffle size={15} /> : <Play size={15} />}
                   {guardando
                     ? 'Armando…'
-                    : yaArmada && !todasAnotadas
+                    : rearmarPeligroso
+                      ? 'No se puede rearmar'
+                      : yaArmada && !todasAnotadas
                       ? 'Volver a repartir'
                       : yaArmada
                         ? `Armar la ronda ${(ronda?.numero ?? 1) + 1}`
@@ -291,6 +324,23 @@ export function MesasPanel({
               <Trophy size={15} />
               {todasAnotadas ? 'Fijar clasificación' : 'Faltan puestos por anotar'}
             </button>
+
+            {/* CERRAR el torneo, desde acá.
+                El único botón que reparte —sobres, XP y ranking— vivía en la
+                pestaña «Rondas», que en un torneo de mesas se reemplaza por un
+                cartel que manda de vuelta a Mesas. O sea que un Twin Suns no
+                se podía cerrar por ninguna pantalla: se jugaba entero y no se
+                repartía nada. */}
+            {!cerrado && (
+              <button
+                onClick={onFinalizar}
+                disabled={ocupado || guardando}
+                className="flex min-h-[44px] items-center gap-2 rounded-lg border border-red-500/40
+                           bg-red-500/10 px-4 text-sm font-semibold text-red-400 disabled:opacity-40"
+              >
+                <Trophy size={15} /> Cerrar el torneo y repartir
+              </button>
+            )}
           </div>
         </HudPanel>
       )}
@@ -375,7 +425,7 @@ function Mesa({
                 {!j.user_id && (
                   <span className="ml-1.5 font-mono text-[9px] uppercase text-swu-muted">sin cuenta</span>
                 )}
-                <Vida asiento={j} bloqueada={bloqueada} onError={onError} />
+                <ContadorVida asiento={j} bloqueada={bloqueada} onError={onError} />
               </span>
               <div className="flex flex-shrink-0 gap-1">
                 {Array.from({ length: k }, (_, i) => i + 1).map(p => {
@@ -419,74 +469,5 @@ function Mesa({
         )}
       </div>
     </HudPanel>
-  )
-}
-
-/**
- * La vida que le queda a alguien en su mesa.
- *
- * ── Para qué sirve, además de mirarla ────────────────────────────────
- *
- * Es lo que decide quién es «el mejor segundo» y pasa a la final. Todos los
- * segundos sacan los mismos puntos en su mesa, así que sin esto había que
- * elegir con una regla de escritorio —el tamaño de la mesa, la siembra—. Con
- * la vida anotada, pasa el que quedó más entero: un hecho de la partida.
- *
- * ── Por qué lo puede tocar cualquiera de la mesa ─────────────────────
- *
- * Se lleva entre todos, en un teléfono apoyado en la mesa. El permiso lo
- * comprueba el servidor: quien está sentado ahí, o quien organiza. Alguien de
- * otra mesa no puede tocarlo — esa vida vale una silla en la final.
- *
- * Se escribe optimista y se corrige si el servidor rechaza: en la mesa la
- * gente toca rápido y esperar el viaje de ida y vuelta por cada punto haría
- * el contador inusable.
- */
-function Vida({ asiento, bloqueada, onError }: {
-  asiento: AsientoMesa; bloqueada: boolean; onError: (m: string) => void
-}) {
-  const [valor, setValor] = useState<number | null>(asiento.vida)
-  const [guardando, setGuardando] = useState(false)
-
-  // La foto de lo guardado manda cuando cambia: si otro de la mesa anotó, esto
-  // llega por tiempo real y lo editado localmente deja de aplicar.
-  const [ultimo, setUltimo] = useState(asiento.vida)
-  if (ultimo !== asiento.vida) { setUltimo(asiento.vida); setValor(asiento.vida) }
-
-  const poner = async (nuevo: number) => {
-    const antes = valor
-    setValor(nuevo)
-    setGuardando(true)
-    const r = await anotarVida(asiento.id, nuevo)
-    setGuardando(false)
-    if (!r.ok) { setValor(antes); onError(r.mensaje) }
-  }
-
-  return (
-    <span className="mt-0.5 flex items-center gap-1">
-      <button
-        onClick={() => void poner(Math.max(0, (valor ?? 30) - 1))}
-        disabled={bloqueada || guardando}
-        aria-label={`Quitarle vida a ${asiento.player_name}`}
-        className="flex h-6 w-6 items-center justify-center rounded bg-swu-bg font-mono text-sm text-swu-muted disabled:opacity-40"
-      >
-        −
-      </button>
-      <span className={`min-w-[2.2rem] text-center font-mono text-[13px] font-bold ${
-        valor === null ? 'text-swu-muted' : valor <= 5 ? 'text-swu-red-texto' : 'text-swu-text'
-      }`}>
-        {/* «—» y no 0: no haber anotado no es haber quedado en cero. */}
-        {valor === null ? '—' : valor}
-      </span>
-      <button
-        onClick={() => void poner(Math.min(99, (valor ?? 29) + 1))}
-        disabled={bloqueada || guardando}
-        aria-label={`Subirle vida a ${asiento.player_name}`}
-        className="flex h-6 w-6 items-center justify-center rounded bg-swu-bg font-mono text-sm text-swu-muted disabled:opacity-40"
-      >
-        +
-      </button>
-      <span className="text-[9px] uppercase tracking-wider text-swu-muted">vida</span>
-    </span>
   )
 }

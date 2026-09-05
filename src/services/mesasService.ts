@@ -23,6 +23,7 @@
  */
 
 import { supabase, isSupabaseReady } from './supabase'
+import { avisarMesasArmadas } from './tournamentCloud'
 
 export type Resultado<T> = { ok: true; datos: T } | { ok: false; mensaje: string }
 
@@ -82,28 +83,29 @@ export async function armarMesas(
   const r = data as RespuestaRPC | null
   if (!r?.ok) return { ok: false, mensaje: r?.error ?? 'No se pudieron armar las mesas.' }
 
-  /* El aviso dentro de la app.
+  /* El aviso, POR LA MISMA PUERTA que el resto del torneo.
    *
-   * Armar las mesas no dejaba rastro en `tournament_broadcasts`, así que quien
-   * tuviera la app abierta —en Inicio, en su colección— no se enteraba de que
-   * ya estaban repartidas. Y en un torneo de mesas el push tampoco avisaba,
-   * porque leía la tabla de emparejamientos, que está vacía. O sea: nadie.
+   * Antes esto insertaba la fila de `tournament_broadcasts` a mano, y por eso
+   * en un torneo de mesas no salía un solo push: el disparo vive dentro de
+   * `broadcast()` y quien escribe directo se lo saltea. El toast llegaba solo
+   * a quien tuviera la app abierta en ese segundo; al reabrirla no había nada.
    *
-   * Es best-effort —que falle el aviso no puede tumbar la rifa— pero el error
-   * se MIRA: este mismo canal estuvo con cero filas en su historia por un
-   * `catch` vacío.
+   * Sigue siendo best-effort —que falle el aviso no puede tumbar la rifa—.
    */
   const { data: ev } = await supabase
     .from('official_events').select('name, code').eq('id', eventId).maybeSingle()
-  const { error: errAviso } = await supabase.from('tournament_broadcasts').insert({
-    event_id: eventId,
-    event_name: ev?.name ?? null,
-    event_code: ev?.code ?? null,
-    type: 'pairing_set',
-    message: `Ya salieron las mesas de la ronda ${r.ronda ?? ''}`.trim(),
-    payload: { ronda: r.ronda ?? 0, mesas: r.mesas ?? 0 },
+  await avisarMesasArmadas(
+    eventId, ev?.name ?? null, ev?.code ?? null, r.ronda ?? 0, r.mesas ?? 0)
+
+  /* El reloj arranca de nuevo con la ronda.
+   *
+   * `armar_mesas` no lo tocaba, así que la ronda 2 empezaba con la cuenta
+   * sobrante de la 1 —creíble y falsa— o con «¡Tiempo terminado!» en rojo
+   * parpadeando toda la ronda. */
+  const { error: errReloj } = await supabase.rpc('arrancar_reloj', {
+    p_evento: eventId, p_minutos: null,
   })
-  if (errAviso) console.warn('[mesas] el aviso in-app no se guardó:', errAviso.message)
+  if (errReloj) console.warn('[mesas] las mesas salieron pero el reloj no arrancó:', errReloj.message)
 
   return { ok: true, datos: { ronda: r.ronda ?? 0, mesas: r.mesas ?? 0 } }
 }

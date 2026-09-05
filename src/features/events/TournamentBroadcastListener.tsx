@@ -61,9 +61,12 @@ export function TournamentBroadcastListener() {
         title: b.event_name || 'Torneo',
         message: b.message,
         icon: ICON_BY_TYPE[b.type] ?? '📢',
-        // A la pantalla del JUGADOR: ahí ve SU mesa o SU pareo. `/events/live`
-        // es la proyección, que sirve para mirar pero no para jugar.
-        link: b.event_code ? `/events/play/${b.event_code}` : undefined,
+        /* Al LOBBY y no a `/events/play`.
+           La pantalla del jugador solo lee `tournament_pairings`: en un torneo
+           de mesas está vacía y muestra «Esperando emparejamientos…» con las
+           mesas ya armadas. El lobby es la única que enseña la mesa de cada
+           quien, en vivo. */
+        link: b.event_code ? `/events/lobby/${b.event_code}` : undefined,
       })
 
       /* Los pareos se avisan SOLO a quien juega ese torneo.
