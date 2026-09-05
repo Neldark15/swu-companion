@@ -17,7 +17,8 @@
     "torneos-puerta": "node scripts/torneos-una-sola-puerta.mjs",
     "torneo-vivo": "node scripts/torneo-en-vivo.mjs",
     "foto-perfil": "node scripts/foto-de-perfil.mjs",
-    "embebidos-perfil": "node scripts/embebidos-de-perfil.mjs"
+    "embebidos-perfil": "node scripts/embebidos-de-perfil.mjs",
+    "agrupar-coste": "tsx scripts/agrupar-por-coste.test.mts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",

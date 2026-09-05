@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { Fragment, useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ChevronLeft, Plus, Minus, Search, X, Save, Check,
@@ -9,6 +9,7 @@ import {
   searchCards, getCardById, getCardsByIds, ensureFreshDatabase,
   subscribeDbLoadProgress, COST_MAX_BUCKET, type DbLoadProgress,
 } from '../../services/swuApi'
+import { agruparPorCoste } from '../../services/cardSort'
 import { validateDeck, canAddCard, getEffectiveMinDeckSize, getFormatRules } from '../../services/deckValidator'
 import { syncDeckToCloud } from '../../services/sync'
 import { updateMissionProgress } from '../../services/missionService'
@@ -52,6 +53,11 @@ type Tab = 'deck' | 'search'
 
 // ─── Image cache for card thumbnails ─────────────────────
 const imgCache = new Map<string, string>()
+/* El coste de cada carta. `DeckCard` no lo guarda —solo id, nombre y
+   cantidad—, así que hay que traerlo de la base local. Va en el MISMO viaje
+   que las imágenes: una consulta más por carta, para pintar una lista, sería
+   pagar dos veces por lo mismo. */
+const costeCache = new Map<string, number | null>()
 const backImgCache = new Map<string, string>()
 
 export function DeckBuilderPage() {
@@ -105,6 +111,20 @@ export function DeckBuilderPage() {
 
   // Card images state
   const [cardImages, setCardImages] = useState<Map<string, string>>(new Map(imgCache))
+  const [costes, setCostes] = useState<Map<string, number | null>>(new Map(costeCache))
+
+  /* La lista se lee POR CURVA, no por orden de agregado.
+     El orden en que se fueron metiendo las cartas no dice nada; cuántas hay de
+     1, de 2 y de 3 es lo que dice si el mazo arranca rápido o se ahoga, y con
+     la lista suelta hay que recorrer las cincuenta sumando de memoria. */
+  const gruposPrincipal = useMemo(
+    () => agruparPorCoste(deck.mainDeck, c => costes.get(c.cardId), c => c.quantity,
+                          (a, b) => a.name.localeCompare(b.name)),
+    [deck.mainDeck, costes])
+  const gruposSide = useMemo(
+    () => agruparPorCoste(deck.sideboard, c => costes.get(c.cardId), c => c.quantity,
+                          (a, b) => a.name.localeCompare(b.name)),
+    [deck.sideboard, costes])
   /** Carta que se está mirando en grande. Null = cerrado. */
   const [verCarta, setVerCarta] = useState<string | null>(null)
   const [precio, setPrecio] = useState<PrecioMazo | null>(null)
@@ -189,7 +209,8 @@ export function DeckBuilderPage() {
     deck.mainDeck.forEach(c => allCardIds.add(c.cardId))
     deck.sideboard.forEach(c => allCardIds.add(c.cardId))
 
-    const toFetch = [...allCardIds].filter(cid => !loadedRef.current.has(cid) && !imgCache.has(cid))
+    const toFetch = [...allCardIds].filter(cid =>
+      !loadedRef.current.has(cid) && !(imgCache.has(cid) && costeCache.has(cid)))
     if (toFetch.length === 0) return
 
     toFetch.forEach(cid => loadedRef.current.add(cid))
@@ -198,12 +219,17 @@ export function DeckBuilderPage() {
     getCardsByIds(toFetch).then((cardMap) => {
       const newMap = new Map(imgCache)
       const newBackMap = new Map(backImgCache)
+      const newCostes = new Map(costeCache)
       for (const [cid, card] of cardMap) {
         if (card.imageUrl) { newMap.set(cid, card.imageUrl); imgCache.set(cid, card.imageUrl) }
         if (card.backImageUrl) { newBackMap.set(cid, card.backImageUrl); backImgCache.set(cid, card.backImageUrl) }
+        // `?? null` y no `?? 0`: una carta sin coste leído no cuesta cero.
+        const c = typeof card.cost === 'number' ? card.cost : null
+        newCostes.set(cid, c); costeCache.set(cid, c)
       }
       setCardImages(new Map(newMap))
       setBackImages(new Map(newBackMap))
+      setCostes(newCostes)
     })
   }, [deck.leaders, deck.base, deck.mainDeck, deck.sideboard])
 
@@ -759,7 +785,10 @@ export function DeckBuilderPage() {
             {deck.mainDeck.length === 0 ? (
               <p className="text-[10px] text-swu-muted bg-swu-surface rounded-lg p-3 border border-swu-border text-center">Vaya a "Buscar" para agregar cartas</p>
             ) : (
-              <div className="space-y-1">{deck.mainDeck.map((c) => {
+              <div className="space-y-1">{gruposPrincipal.map((g) => (
+                <Fragment key={g.coste ?? 'sin-coste'}>
+                <SeparadorCoste coste={g.coste} copias={g.copias} />
+                {g.cartas.map((c) => {
                 const img = cardImages.get(c.cardId)
                 return (
                   <div key={c.cardId} className="bg-swu-surface rounded-lg px-2 py-1.5 border border-swu-border flex items-center gap-2">
@@ -806,7 +835,9 @@ export function DeckBuilderPage() {
                     </div>
                   </div>
                 )
-              })}</div>
+              })}
+                </Fragment>
+              ))}</div>
             )}
           </div>
 
@@ -816,7 +847,10 @@ export function DeckBuilderPage() {
             {deck.sideboard.length === 0 ? (
               <p className="text-[10px] text-swu-muted bg-swu-surface rounded-lg p-3 border border-swu-border text-center">Opcional</p>
             ) : (
-              <div className="space-y-1">{deck.sideboard.map((c) => {
+              <div className="space-y-1">{gruposSide.map((g) => (
+                <Fragment key={g.coste ?? 'sin-coste'}>
+                <SeparadorCoste coste={g.coste} copias={g.copias} />
+                {g.cartas.map((c) => {
                 const img = cardImages.get(c.cardId)
                 return (
                   <div key={c.cardId} className="bg-swu-surface rounded-lg px-2 py-1.5 border border-swu-border flex items-center gap-2">
@@ -863,7 +897,9 @@ export function DeckBuilderPage() {
                     </div>
                   </div>
                 )
-              })}</div>
+              })}
+                </Fragment>
+              ))}</div>
             )}
           </div>}
         </div>
@@ -1011,6 +1047,29 @@ export function DeckBuilderPage() {
         />
       )}
 
+    </div>
+  )
+}
+
+/**
+ * El renglón que separa un coste del siguiente.
+ *
+ * Lleva las COPIAS además del coste: sin ese número hay que contar renglones a
+ * ojo, y como cada renglón puede ser de 1, 2 o 3 copias, contarlos da una
+ * curva que no es la del mazo.
+ */
+function SeparadorCoste({ coste, copias }: { coste: number | null; copias: number }) {
+  return (
+    <div className="flex items-center gap-2 pt-2 first:pt-0">
+      <span className="flex h-5 min-w-5 items-center justify-center rounded-md bg-swu-accent/15 px-1.5
+                       font-mono text-[11px] font-black text-swu-accent-texto">
+        {coste === null ? '?' : coste}
+      </span>
+      <span className="text-[10px] font-bold uppercase tracking-wider text-swu-muted">
+        {coste === null ? 'sin coste conocido' : `coste ${coste}`}
+      </span>
+      <span className="h-px flex-1 bg-swu-border" />
+      <span className="font-mono text-[10px] text-swu-muted">{copias}</span>
     </div>
   )
 }

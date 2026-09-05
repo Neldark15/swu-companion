@@ -155,3 +155,61 @@ export function byCanonicalCard<T>(getCard: (item: T) => Card | null | undefined
     return compareCardsCanonical(ca, cb)
   }
 }
+
+/**
+ * Agrupa las cartas de un mazo POR COSTE, en orden.
+ *
+ * ── Por qué por coste y no por orden de agregado ─────────────────────
+ *
+ * La lista salía en el orden en que se fueron metiendo las cartas, que no
+ * dice nada. La curva de costes es LA forma en que se lee un mazo: ver cuántas
+ * cartas hay de 1, de 2, de 3 es lo que dice si el mazo arranca rápido o se
+ * ahoga. Con el orden de agregado hay que recorrer las cincuenta y sumar de
+ * memoria.
+ *
+ * Dentro de cada coste se ordena por el criterio canónico de la app, así que
+ * dos mazos con las mismas cartas se leen igual.
+ *
+ * ── Las cartas sin coste conocido ────────────────────────────────────
+ *
+ * Van al FINAL, en su propio grupo, y no mezcladas en el de 0. Un coste que no
+ * se pudo leer —porque la base local todavía no bajó esa carta— no es un coste
+ * de cero: decir «0» ahí es afirmar algo falso sobre la curva del mazo.
+ */
+export interface GrupoDeCoste<T> {
+  /** `null` = no se sabe el coste todavía. */
+  coste: number | null
+  cartas: T[]
+  /** Cuántas COPIAS hay en el grupo, no cuántas entradas. */
+  copias: number
+}
+
+export function agruparPorCoste<T>(
+  items: T[],
+  costeDe: (item: T) => number | null | undefined,
+  copiasDe: (item: T) => number,
+  comparar?: (a: T, b: T) => number,
+): GrupoDeCoste<T>[] {
+  const porCoste = new Map<number | null, T[]>()
+  for (const it of items) {
+    const c = costeDe(it)
+    const clave = typeof c === 'number' ? c : null
+    const lista = porCoste.get(clave)
+    if (lista) lista.push(it)
+    else porCoste.set(clave, [it])
+  }
+
+  const grupos: GrupoDeCoste<T>[] = []
+  for (const [coste, cartas] of porCoste) {
+    if (comparar) cartas.sort(comparar)
+    grupos.push({ coste, cartas, copias: cartas.reduce((n, x) => n + copiasDe(x), 0) })
+  }
+
+  // Los de coste conocido, de menor a mayor. El de coste desconocido, al final.
+  grupos.sort((a, b) => {
+    if (a.coste === null) return 1
+    if (b.coste === null) return -1
+    return a.coste - b.coste
+  })
+  return grupos
+}
