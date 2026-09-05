@@ -11,12 +11,8 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
+import { promptDisponible, alCambiarInstalacion, seInstaloRecien, instalar as lanzarInstalacion } from '../../../services/instalacion'
 import { CheckCircle2, Download, Share, Plus, Smartphone, Monitor, Apple } from 'lucide-react'
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
-}
 
 type Platform = 'ios' | 'android' | 'mac-safari' | 'desktop' | 'unknown'
 
@@ -48,7 +44,7 @@ export function PWAInstallCard() {
   // No cambia mientras la pantalla vive: si la app se instala, el navegador
   // abre una ventana nueva y este componente se monta de cero.
   const [standalone] = useState<boolean>(isStandalone)
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [installPrompt, setInstallPrompt] = useState(() => promptDisponible())
   const [installing, setInstalling] = useState(false)
   const [installed, setInstalled] = useState(false)
 
@@ -57,35 +53,23 @@ export function PWAInstallCard() {
     // pantalla: va como estado inicial y no como un setState en el efecto.
 
 
-    const onBeforeInstall = (e: Event) => {
-      e.preventDefault()
-      setInstallPrompt(e as BeforeInstallPromptEvent)
-    }
-    const onAppInstalled = () => {
-      setInstalled(true)
-      setInstallPrompt(null)
-    }
-    window.addEventListener('beforeinstallprompt', onBeforeInstall)
-    window.addEventListener('appinstalled', onAppInstalled)
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', onBeforeInstall)
-      window.removeEventListener('appinstalled', onAppInstalled)
-    }
+    /* El evento pudo haber llegado antes de que esta tarjeta existiera y NO
+       se repite: se lee lo que `instalacion.ts` guardó al cargar el bundle, y
+       acá solo se escuchan los cambios posteriores. Escucharlo desde un
+       efecto —como estaba— llega tarde en un teléfono lento y el botón no
+       aparece nunca. */
+    return alCambiarInstalacion(() => {
+      setInstallPrompt(promptDisponible())
+      if (seInstaloRecien()) setInstalled(true)
+    })
   }, [])
 
   const triggerInstall = async () => {
-    if (!installPrompt) return
     setInstalling(true)
-    try {
-      await installPrompt.prompt()
-      const choice = await installPrompt.userChoice
-      if (choice.outcome === 'accepted') setInstalled(true)
-    } catch {
-      // user dismissed or error — silent
-    }
+    const r = await lanzarInstalacion()
+    if (r === 'accepted') setInstalled(true)
     setInstalling(false)
-    setInstallPrompt(null)
+    setInstallPrompt(promptDisponible())
   }
 
   if (standalone || installed) {

@@ -36,11 +36,8 @@ import { Download, Bell, Check, Share, Plus, ExternalLink, AlertTriangle, Smartp
 import { esStandalone, navegadorEmbebido, plataforma, rutaLibre } from '../../services/entorno'
 import { getNotificationPermission, checkPushSupport, subscribeToPush } from '../../services/pushService'
 import { useAuth } from '../../hooks/useAuth'
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
-}
+import { promptDisponible, alCambiarInstalacion, instalar as lanzarInstalacion } from '../../services/instalacion'
+import { BarraInstalar } from './BarraInstalar'
 
 /** Quien decidió seguir sin avisos. Se recuerda para no volver a frenarlo. */
 const CLAVE_SIN_AVISOS = 'swu.puerta.sinAvisos'
@@ -51,7 +48,7 @@ export function PuertaInstalacion({ children }: { children: React.ReactNode }) {
   const [instalada] = useState(esStandalone)
   const [embebido] = useState(navegadorEmbebido)
   const [plat] = useState(plataforma)
-  const [promptInstalar, setPromptInstalar] = useState<BeforeInstallPromptEvent | null>(null)
+  const [hayPrompt, setHayPrompt] = useState(() => !!promptDisponible())
   const [permiso, setPermiso] = useState<NotificationPermission | 'unsupported'>(getNotificationPermission)
   const [pidiendo, setPidiendo] = useState(false)
   const [sinAvisos, setSinAvisos] = useState(() => {
@@ -59,12 +56,11 @@ export function PuertaInstalacion({ children }: { children: React.ReactNode }) {
   })
 
   useEffect(() => {
-    const alPoder = (e: Event) => {
-      e.preventDefault()
-      setPromptInstalar(e as BeforeInstallPromptEvent)
-    }
-    window.addEventListener('beforeinstallprompt', alPoder)
-    return () => window.removeEventListener('beforeinstallprompt', alPoder)
+    /* El evento ya pudo haber llegado ANTES de que este componente existiera
+       —Chrome lo dispara al procesar el manifiesto— y no se repite. Por eso el
+       estado arranca leyendo lo que `instalacion.ts` guardó al cargar el
+       bundle, y esto solo escucha por si llega después. */
+    return alCambiarInstalacion(() => setHayPrompt(!!promptDisponible()))
   }, [])
 
   const pedirAvisos = useCallback(async () => {
@@ -88,13 +84,17 @@ export function PuertaInstalacion({ children }: { children: React.ReactNode }) {
   }, [])
 
   // ── Quién pasa sin preguntas ──
-  if (rutaLibre(pathname)) return <>{children}</>
+  /* Ruta libre: se pasa de largo, que es el punto —esta es la que abre quien
+     llega por un enlace de WhatsApp, sin cuenta y sin app—. Pero pasar de
+     largo no puede querer decir «no le ofrezcas nada nunca»: era el único
+     camino de entrada sin un solo botón para instalar. */
+  if (rutaLibre(pathname)) return <>{children}<BarraInstalar /></>
   if (embebido) return <><AvisoEmbebido cual={embebido} />{children}</>
   if (plat === 'escritorio' || plat === 'desconocida') return <>{children}</>
 
   // Falta instalar: la puerta, con el paso 1 activo.
   if (!instalada) {
-    return <Pantalla paso={1} plat={plat} promptInstalar={promptInstalar} />
+    return <Pantalla paso={1} plat={plat} hayPrompt={hayPrompt} />
   }
 
   // Instalada pero sin avisos.
@@ -105,7 +105,7 @@ export function PuertaInstalacion({ children }: { children: React.ReactNode }) {
       <Pantalla
         paso={permiso === 'denied' ? 3 : 2}
         plat={plat}
-        promptInstalar={null}
+        hayPrompt={false}
         onPedir={() => void pedirAvisos()}
         onRecomprobar={recomprobar}
         onSeguir={seguirSinAvisos}
@@ -131,10 +131,10 @@ function AvisoEmbebido({ cual }: { cual: string }) {
   )
 }
 
-function Pantalla({ paso, plat, promptInstalar, onPedir, onRecomprobar, onSeguir, pidiendo }: {
+function Pantalla({ paso, plat, hayPrompt, onPedir, onRecomprobar, onSeguir, pidiendo }: {
   paso: 1 | 2 | 3
   plat: 'ios' | 'android'
-  promptInstalar: BeforeInstallPromptEvent | null
+  hayPrompt: boolean
   onPedir?: () => void
   onRecomprobar?: () => void
   onSeguir?: () => void
@@ -160,7 +160,7 @@ function Pantalla({ paso, plat, promptInstalar, onPedir, onRecomprobar, onSeguir
 
         <Pasos activo={paso} />
 
-        {paso === 1 && <PasoInstalar plat={plat} promptInstalar={promptInstalar} />}
+        {paso === 1 && <PasoInstalar plat={plat} hayPrompt={hayPrompt} />}
         {paso === 2 && <PasoAvisos onPedir={onPedir} pidiendo={pidiendo} />}
         {paso === 3 && <PasoDenegado plat={plat} onRecomprobar={onRecomprobar} onSeguir={onSeguir} />}
       </div>
@@ -198,23 +198,19 @@ function Pasos({ activo }: { activo: 1 | 2 | 3 }) {
   )
 }
 
-function PasoInstalar({ plat, promptInstalar }: {
-  plat: 'ios' | 'android'; promptInstalar: BeforeInstallPromptEvent | null
+function PasoInstalar({ plat, hayPrompt }: {
+  plat: 'ios' | 'android'; hayPrompt: boolean
 }) {
   const [lanzando, setLanzando] = useState(false)
   const instalar = async () => {
-    if (!promptInstalar) return
     setLanzando(true)
-    try {
-      await promptInstalar.prompt()
-      await promptInstalar.userChoice
-    } finally { setLanzando(false) }
+    try { await lanzarInstalacion() } finally { setLanzando(false) }
   }
 
   if (plat === 'android') {
     return (
       <div className="space-y-3 rounded-2xl border border-swu-border bg-swu-surface p-4">
-        {promptInstalar ? (
+        {hayPrompt ? (
           <>
             <button
               onClick={() => void instalar()}

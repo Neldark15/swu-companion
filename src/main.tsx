@@ -1,3 +1,9 @@
+/* PRIMERO de todo: el escuchador de instalación.
+   Chrome dispara `beforeinstallprompt` antes de que React monte y el evento no
+   se repite. Importado acá queda puesto al evaluar el bundle — lo más temprano
+   posible desde código propio. */
+import './services/instalacion'
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'

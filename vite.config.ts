@@ -55,6 +55,10 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'any',
         start_url: '/',
+        /* `id` fija la identidad de la app. Sin él, Chrome la deduce de
+           `start_url`: el día que eso cambie, Android trataría la app como
+           OTRA y la instalada quedaría huérfana en vez de actualizarse. */
+        id: '/',
         icons: [
           { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
