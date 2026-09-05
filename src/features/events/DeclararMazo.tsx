@@ -29,7 +29,7 @@ import { Loader2 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { ElegirCarta } from '../../components/ElegirCarta'
 import { ensureCards } from '../../services/swuApi'
-import { cargarIndice, claveDeCarta, type IndiceCartas } from '../amistosas/cartasAmistosas'
+import { cargarIndice, claveDeCarta, SEPARADOR, type IndiceCartas } from '../amistosas/cartasAmistosas'
 import { db } from '../../services/db'
 import type { Card, Deck } from '../../types'
 import type { MazoDeclarado } from '../../services/events'
@@ -82,10 +82,19 @@ export function DeclararMazo({
 
   const tomarDe = (d: Deck) => {
     if (!indice) return
-    const porNombre = (n?: string) => (n ? indice.porClave.get(n) ?? null : null)
-    setL1(porNombre(d.leaders?.[0]?.name))
-    setL2(dosLideres ? porNombre(d.leaders?.[1]?.name) : null)
-    setBase(porNombre(d.base?.name))
+    /* El líder se busca por «Nombre — Subtítulo», NO por el nombre pelado.
+       Hay cuatro Ahsoka Tano y dos Cad Bane: el índice mapea el nombre suelto
+       a la PRIMERA alfabéticamente, así que buscar así elegía otro líder y la
+       miniatura mostraba una carta que la persona no juega. El subtítulo es
+       justo lo que los distingue, y la carta del mazo ya lo trae. */
+    const lider = (c?: { name: string; subtitle: string | null }) => {
+      if (!c) return null
+      return indice.porClave.get(c.subtitle ? `${c.name}${SEPARADOR}${c.subtitle}` : c.name) ?? null
+    }
+    setL1(lider(d.leaders?.[0]))
+    setL2(dosLideres ? lider(d.leaders?.[1]) : null)
+    // Las bases van por nombre pelado: es como se guardan y no llevan subtítulo.
+    setBase(d.base?.name ? indice.porClave.get(d.base.name) ?? null : null)
     setNombre(d.name)
   }
 
