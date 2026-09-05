@@ -1418,3 +1418,17 @@ input:focus, textarea:focus, select:focus {
 .barra-fina::-webkit-scrollbar-track { background: transparent; }
 .barra-fina::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; }
 .barra-fina:hover::-webkit-scrollbar-thumb { background: var(--color-swu-border); }
+
+/* La entrada de una mesa en la rifa. Va acá y no como `@utility` de Tailwind
+   porque la clase se aplica desde una plantilla y el detector no la ve en el
+   código fuente: no la emitiría (§3i). */
+@keyframes rifa-entra {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.rifa-entra {
+  animation: rifa-entra 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rifa-entra { animation: none; }
+}

@@ -47,10 +47,12 @@ interface Props {
   onCambio: () => void
   onAviso: (m: string) => void
   onError: (m: string) => void
+  /** Sembrar la clasificación con los inscritos. Ver el bucle de abajo. */
+  onSembrar: () => void
 }
 
 export function MesasPanel({
-  eventId, cerrado, standings, ronda, mesas, ocupado, onCambio, onAviso, onError,
+  eventId, cerrado, standings, ronda, mesas, ocupado, onCambio, onAviso, onError, onSembrar,
 }: Props) {
   const activos = useMemo(() => standings.filter(s => !s.dropped), [standings])
   const n = activos.length
@@ -94,11 +96,30 @@ export function MesasPanel({
   }
 
   if (n === 0) {
+    /* El botón de sembrar vive ACÁ, no en otra pestaña.
+     *
+     * Era un bucle cerrado: este panel mandaba a la pestaña Rondas, y Rondas
+     * —al ser un torneo de mesas— solo mostraba un cartel que mandaba de
+     * vuelta acá. El único botón que podía arrancar el torneo no se dibujaba
+     * en ninguna de las dos, así que un Twin Suns no se podía empezar de
+     * ninguna forma. Es la tercera vez que aparece esta forma: una capacidad
+     * que existe entera y no tiene puerta desde ningún lado. */
     return (
-      <p className="text-sm text-swu-muted">
-        Todavía no hay clasificación. Apretá «Iniciar Torneo» en la pestaña
-        Rondas para sembrarla con los inscritos, y volvé acá.
-      </p>
+      <div className="space-y-3">
+        <p className="text-sm text-swu-muted">
+          Todavía no hay clasificación. Sembrala con los inscritos y ya podés
+          armar las mesas.
+        </p>
+        {!cerrado && (
+          <button
+            onClick={onSembrar}
+            disabled={ocupado}
+            className="min-h-[48px] w-full rounded-xl bg-swu-accent text-sm font-bold text-white disabled:opacity-50"
+          >
+            {ocupado ? 'Sembrando…' : '🚀 Iniciar torneo y sembrar'}
+          </button>
+        )}
+      </div>
     )
   }
 

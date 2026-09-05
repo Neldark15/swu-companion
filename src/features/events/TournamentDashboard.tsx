@@ -638,6 +638,7 @@ export default function TournamentDashboard() {
           <div>
             {esDeMesas(event.tournament_type) ? (
               <MesasPanel
+                onSembrar={handleInitialize}
                 eventId={event.id}
                 /*
                  * Un torneo cerrado SIN resultados sigue siendo anotable.

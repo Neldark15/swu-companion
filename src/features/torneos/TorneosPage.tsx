@@ -49,7 +49,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ChevronLeft, ChevronRight, Trophy, Users, CalendarDays, Plus, Play, Radio,
   QrCode, Swords, MapPin, Pencil, Trash2, X, Save, Loader2, CheckCircle2,
-  LogIn, ListOrdered,
+  LogIn, ListOrdered, DoorOpen,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
@@ -373,6 +373,18 @@ function TarjetaEvento({ evento, userId, esAdmin, onCambio }: {
         <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1.5 text-[11px] text-red-400">
           {error}
         </p>
+      )}
+
+      {/* El lobby: la sala de espera donde se ve llegar a la gente y sale la
+          rifa de mesas. Existía y solo se alcanzaba desde el panel de admin,
+          o sea que para un jugador no existía. Se ofrece con sesión, esté o
+          no inscrito: mirar la rifa no pide estar jugando. */}
+      {conSesion && evento.status !== 'finished' && (
+        <Link to={`/events/lobby/${evento.code}`}
+              className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border
+                         border-swu-border bg-swu-bg text-xs font-bold text-swu-text">
+          <DoorOpen size={14} /> Entrar al lobby
+        </Link>
       )}
 
       {evento.status === 'active' && (

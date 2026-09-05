@@ -18,6 +18,10 @@ import {
 } from 'lucide-react'
 import { supabase, isSupabaseReady } from '../../services/supabase'
 import { getEventByCode, getEventRegistrations, leaveOfficialEvent, type EventRegistration } from '../../services/events'
+import { ultimaRonda, getMesasDeRonda, type MesaArmada } from '../../services/mesasService'
+import { escucharPresenciaTorneo, type Mirando } from '../../services/presenciaTorneo'
+import { esDeMesas } from '../../services/tipoTorneo'
+import { RifaDeMesas } from './RifaDeMesas'
 import { useAuth } from '../../hooks/useAuth'
 
 interface LobbyPlayer {
@@ -48,6 +52,8 @@ interface Announcement {
 interface EventData {
   /** Hace falta para poder darse de baja de verdad: la baja va por id. */
   id: string
+  /** Un torneo de mesas no se sigue en la pantalla de emparejamientos. */
+  deMesas: boolean
   name: string
   format: string
   organizer: string
@@ -68,6 +74,8 @@ export function EventLobbyPage() {
   const [codeCopied, setCodeCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<'players' | 'announcements'>('players')
   const [loading, setLoading] = useState(true)
+  const [mesas, setMesas] = useState<MesaArmada[]>([])
+  const [conectados, setConectados] = useState<Mirando[]>([])
 
   // Fetch event + initial registrations, then subscribe to realtime player changes
   useEffect(() => {
@@ -101,6 +109,7 @@ export function EventLobbyPage() {
 
         setEvent({
           id: officialEvent.id,
+          deMesas: esDeMesas(officialEvent.tournament_type),
           name: officialEvent.name,
           format: officialEvent.format,
           organizer: officialEvent.organizer_name || 'Organizador',
@@ -144,6 +153,52 @@ export function EventLobbyPage() {
     }
   }, [code, selfUserId])
 
+  /* La rifa de mesas, en vivo.
+     `tournament_mesas` ya publica sus cambios, así que el reparto llega solo
+     a todos los que estén mirando el lobby — que es el punto: la rifa se ve
+     en grupo. */
+  useEffect(() => {
+    const id = event?.id
+    if (!id || !isSupabaseReady()) return
+    let vivo = true
+
+    const traer = async () => {
+      const ronda = await ultimaRonda(id)
+      if (!vivo) return
+      setMesas(ronda ? await getMesasDeRonda(ronda.id) : [])
+    }
+    void traer()
+
+    const canal = supabase
+      .channel(`lobby-mesas-${id}`)
+      .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'tournament_mesas', filter: `event_id=eq.${id}` },
+          () => { void traer() })
+      .subscribe(estado => {
+        // Un canal roto se ve igual que uno sano si nadie mira el estado.
+        if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT') {
+          console.warn('[lobby] el canal de mesas no quedó:', estado)
+        }
+      })
+
+    return () => { vivo = false; void supabase.removeChannel(canal) }
+  }, [event?.id])
+
+  /* Quién está mirando el lobby ahora. Cada quien se anuncia: si no lo hace,
+     nadie puede saber que está. */
+  useEffect(() => {
+    if (!event?.id) return
+    return escucharPresenciaTorneo(
+      event.id,
+      selfUserId ? {
+        id: selfUserId,
+        nombre: auth.currentProfile?.name ?? 'Jugador',
+        avatar: auth.currentProfile?.avatar ?? null,
+      } : null,
+      setConectados,
+    )
+  }, [event?.id, selfUserId, auth.currentProfile?.name, auth.currentProfile?.avatar])
+
   // Reflect local "ready" toggle on the rendered self row (purely cosmetic until check-in API exists)
   useEffect(() => {
     setPlayers(prev => prev.map(p =>
@@ -153,14 +208,16 @@ export function EventLobbyPage() {
 
   // When event transitions to active and the user is a registered player,
   // forward to the player view (where they can report/confirm scores).
+  /* Al arrancar el torneo se manda a la pantalla del jugador… salvo en un
+     torneo de MESAS.
+     Ahí la pantalla de emparejamientos no tiene nada que mostrar —no hay uno
+     contra uno— y además sacaría a la gente del lobby JUSTO cuando sale la
+     rifa, que es lo que se juntaron a mirar. */
   useEffect(() => {
-    if (event?.status === 'active' && code && selfUserId) {
-      const meRegistered = players.some(p => p.isSelf)
-      if (meRegistered) {
-        navigate(`/events/play/${code}`, { replace: true })
-      }
-    }
-  }, [event?.status, code, selfUserId, players, navigate])
+    if (event?.status !== 'active' || !code || !selfUserId) return
+    if (event.deMesas) return
+    if (players.some(p => p.isSelf)) navigate(`/events/play/${code}`, { replace: true })
+  }, [event?.status, event?.deMesas, code, selfUserId, players, navigate])
 
   const copyCode = () => {
     if (code) {
@@ -287,6 +344,12 @@ export function EventLobbyPage() {
           }`}
         >
           <Users size={16} /> Jugadores ({totalCount})
+          {conectados.length > 0 && (
+            <span className="ml-1 inline-flex items-center gap-1 text-[10px] text-swu-green">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-swu-green" />
+              {conectados.length}
+            </span>
+          )}
         </button>
         <button
           onClick={() => setActiveTab('announcements')}
@@ -299,6 +362,14 @@ export function EventLobbyPage() {
           <Megaphone size={16} /> Anuncios ({announcements.length})
         </button>
       </div>
+
+      {/* La rifa, arriba de todo. Cuando sale es lo único que importa en esta
+          pantalla, y el resto puede esperar a que se termine de mirar. */}
+      {mesas.length > 0 && (
+        <div className="mb-4">
+          <RifaDeMesas mesas={mesas} miId={selfUserId} />
+        </div>
+      )}
 
       {/* Tab content */}
       {activeTab === 'players' ? (
