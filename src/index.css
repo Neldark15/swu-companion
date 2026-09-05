@@ -1463,13 +1463,18 @@ input:focus, textarea:focus, select:focus {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  /* La banda es ESTRECHA y tenue a propósito. Con 0,75 de blanco y un
+     degradado del 250 % el brillo cubría el logo entero en su punto alto y lo
+     borraba: dos capturas seguidas salieron con el escudo en blanco. Medido
+     congelando la animación en su punto más brillante, con estos valores el
+     logo se sigue leyendo. */
   background: linear-gradient(
     105deg,
-    transparent 42%,
-    rgb(255 255 255 / 0.75) 50%,
-    transparent 58%
+    transparent 45%,
+    rgb(255 255 255 / 0.45) 50%,
+    transparent 55%
   );
-  background-size: 250% 100%;
+  background-size: 400% 100%;
   background-repeat: no-repeat;
   /* La luz se recorta con el propio logo: si no, el brillo se vería flotando
      alrededor del escudo, que no es rectangular. */
@@ -1487,11 +1492,11 @@ input:focus, textarea:focus, select:focus {
 /* Barre una vez y descansa: un brillo continuo al lado de cada renglón
    compite con la fecha que la persona está tratando de leer. */
 @keyframes logo-destello {
-  0%   { background-position: 160% 0; opacity: 0; }
+  0%   { background-position: 120% 0; opacity: 0; }
   6%   { opacity: 1; }
-  30%  { background-position: -60% 0; opacity: 1; }
+  30%  { background-position: -20% 0; opacity: 1; }
   38%  { opacity: 0; }
-  100% { background-position: -60% 0; opacity: 0; }
+  100% { background-position: -20% 0; opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
