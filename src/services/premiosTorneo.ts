@@ -47,9 +47,20 @@ export async function getPremiosFisicos(eventId: string): Promise<PremioFisico[]
   return (data ?? []) as PremioFisico[]
 }
 
-export async function getEscalaVirtual(hasta = 4): Promise<EscalonVirtual[]> {
+/**
+ * La escala de sobres DE ESTE torneo.
+ *
+ * Un torneo puede tener la suya —el Twin Suns de 9 da 3 al campeón, 1 al 2º y
+ * 3º, 1 al ganador de cada mesa de abajo y nada a los otros cuatro— y si no
+ * la tiene, se usa la de siempre. El podio pregunta la MISMA que el cierre
+ * acredita: si el podio anunciara una y el cierre diera otra, la app estaría
+ * mintiendo sobre el premio.
+ */
+export async function getEscalaVirtual(eventId: string, hasta = 4): Promise<EscalonVirtual[]> {
   if (!isSupabaseReady()) return []
-  const { data, error } = await supabase.rpc('escala_de_premios', { p_hasta: hasta })
+  const { data, error } = await supabase.rpc('escala_de_premios_de', {
+    p_evento: eventId, p_hasta: hasta,
+  })
   if (error) { console.warn('[premios] no se pudo leer la escala:', error.message); return [] }
   return (data ?? []) as EscalonVirtual[]
 }

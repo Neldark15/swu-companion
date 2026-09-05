@@ -28,7 +28,7 @@ import { useMemo, useState } from 'react'
 import { AlertCircle, Check, Play, Shuffle, Trophy } from 'lucide-react'
 import { HudPanel } from '../../components/Hud'
 import {
-  mesasPosibles, composicion, dibujarComposicion, porQueNo, repartir,
+  mesasPosibles, composicion, dibujarComposicion, porQueNo, repartir, armarRondaSiguiente,
   PUNTOS_MESA, type Composicion,
 } from '../../services/mesas'
 import {
@@ -69,6 +69,35 @@ export function MesasPanel({
   const todasAnotadas = yaArmada && mesas.every(m => m.anotada)
 
   async function armar() {
+    /* Con la ronda YA anotada, la siguiente no se reparte de nuevo: se arma
+       con los PUESTOS de la anterior. Los ganadores de cada mesa van a la
+       final y el resto se agrupa por puesto — que es el formato que se juega
+       acá y lo que hace que «ganar tu mesa» signifique algo. */
+    if (todasAnotadas) {
+      const previos = mesas.flatMap(m => m.jugadores.map(j => ({
+        userId: j.user_id ?? null,
+        nombre: j.player_name,
+        orden: 0,
+        mesaAnterior: m.mesa,
+        puesto: j.puesto ?? 0,
+      })))
+      const siguientes = armarRondaSiguiente(previos)
+      if (siguientes.length === 0) {
+        onError('Faltan puestos por anotar en la ronda anterior.')
+        return
+      }
+      setGuardando(true)
+      const r = await armarMesas(eventId, siguientes.map(a => ({
+        user_id: a.userId, player_name: a.nombre, mesa: a.mesa,
+      })))
+      setGuardando(false)
+      if (r.ok) {
+        onAviso(`Ronda ${r.datos.ronda} · la mesa 1 es la final`)
+        onCambio()
+      } else onError(r.mensaje)
+      return
+    }
+
     if (!sel) return
     const problema = porQueNo(n, sel.mesas)
     if (problema) { onError(problema); return }
@@ -143,7 +172,7 @@ export function MesasPanel({
               </p>
               <p className="text-xs text-swu-muted">
                 {n} jugador{n === 1 ? '' : 'es'} activo{n === 1 ? '' : 's'}
-                {todasAnotadas && ' · esta ronda ya está anotada, armar creará la siguiente'}
+                {todasAnotadas && ' · esta ronda ya está anotada. La siguiente se arma con los ganadores: la mesa 1 será la final'}
               </p>
             </div>
 

@@ -38,7 +38,11 @@ export function PodioDePremios({ eventId, puedoEditar }: {
   const [fallo, setFallo] = useState<string | null>(null)
 
   const cargar = useCallback(async () => {
-    const [f, e] = await Promise.all([getPremiosFisicos(eventId), getEscalaVirtual(4)])
+    /* Hasta 9 y no 4: con una escala propia los puestos premiados pueden
+       pasar del podio —acá el 4º y el 5º ganan su mesa— y cortando en 4 se
+       dejaría de anunciar un premio que sí existe. Los puestos con 0 sobres
+       no se pintan. */
+    const [f, e] = await Promise.all([getPremiosFisicos(eventId), getEscalaVirtual(eventId, 9)])
     setFisicos(f)
     setEscala(e)
   }, [eventId])
@@ -49,7 +53,9 @@ export function PodioDePremios({ eventId, puedoEditar }: {
   // Los puestos que hay que pintar: los de la escala virtual más cualquier
   // puesto que solo tenga premio físico.
   const puestos = [...new Set([
-    ...escala.map(e => e.puesto),
+    // Un puesto sin sobres NO se anuncia como premio: decir «0 sobres» es
+    // peor que no decir nada.
+    ...escala.filter(e => e.sobres > 0).map(e => e.puesto),
     ...(fisicos ?? []).filter(p => p.puesto !== null).map(p => p.puesto as number),
   ])].sort((a, b) => a - b)
 

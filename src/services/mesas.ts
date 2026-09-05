@@ -179,3 +179,57 @@ export function puntosDePuesto(puesto: number | null | undefined): number {
   if (!puesto || puesto < 1 || puesto > PUNTOS_MESA.length) return 0
   return PUNTOS_MESA[puesto - 1]
 }
+
+/**
+ * La ronda siguiente, armada con los PUESTOS de la anterior.
+ *
+ * ── El formato que pidió Nel ─────────────────────────────────────────
+ *
+ * «El ganador de cada mesa pasa a la final. Las mesas que quedan, el ganador
+ * de cada una recibe un sobre.»
+ *
+ * O sea: los primeros de cada mesa se juntan en la MESA 1 —la final— y el
+ * resto se reparte en las mesas siguientes. Con 9 en 3 mesas de 3 da una
+ * final de 3 y dos mesas de 3 abajo, que es exactamente lo que él describió.
+ *
+ * ── Por qué el resto NO se reparte en serpentina ─────────────────────
+ *
+ * Los que no clasifican se agrupan POR PUESTO: todos los segundos juntos,
+ * todos los terceros juntos. Mezclarlos daría mesas donde un segundo juega
+ * contra un tercero por el mismo premio, y eso no es una consolación: es
+ * castigar al que quedó más cerca.
+ */
+export interface AsientoConPuesto extends AsientoJugador {
+  /** Mesa de la ronda anterior. */
+  mesaAnterior: number
+  /** Puesto DENTRO de esa mesa: 1 es el ganador. */
+  puesto: number
+}
+
+export function armarRondaSiguiente(previos: AsientoConPuesto[]): Asiento[] {
+  // Sin puestos anotados no se puede: adivinar quién ganó sería inventar el
+  // resultado de una partida que se jugó.
+  if (previos.some(p => !p.puesto || p.puesto < 1)) return []
+
+  const clasifican = previos
+    .filter(p => p.puesto === 1)
+    .sort((a, b) => a.mesaAnterior - b.mesaAnterior)
+
+  /* El resto, ordenado por puesto y después por mesa: así los segundos quedan
+     juntos y los terceros juntos, en vez de mezclados. */
+  const resto = previos
+    .filter(p => p.puesto !== 1)
+    .sort((a, b) => a.puesto - b.puesto || a.mesaAnterior - b.mesaAnterior)
+
+  const out: Asiento[] = clasifican.map(p => ({ ...p, mesa: 1 }))
+
+  // Las de abajo se llenan del mismo tamaño que la final, que es el tamaño
+  // que el torneo ya venía usando.
+  const tam = Math.max(MIN_MESA, clasifican.length)
+  let mesa = 2
+  for (let i = 0; i < resto.length; i += tam) {
+    for (const p of resto.slice(i, i + tam)) out.push({ ...p, mesa })
+    mesa++
+  }
+  return out
+}
