@@ -23,6 +23,9 @@ import { StandingsTable } from './components/StandingsTable'
 import { PairingsView } from './components/PairingsView'
 import { BracketView } from './components/BracketView'
 import { RoundTimer } from './components/RoundTimer'
+import { esDeMesas } from '../../services/tipoTorneo'
+import { ultimaRonda, getMesasDeRonda, type MesaArmada } from '../../services/mesasService'
+import { supabase, isSupabaseReady } from '../../services/supabase'
 
 type PublicTab = 'standings' | 'pairings' | 'bracket'
 
@@ -36,6 +39,37 @@ export default function TournamentPublicView() {
   const [rounds, setRounds] = useState<CloudRound[]>([])
   const [activeTab, setActiveTab] = useState<PublicTab>('standings')
   const [loading, setLoading] = useState(true)
+  const [mesas, setMesas] = useState<MesaArmada[]>([])
+
+  /* Las MESAS, que es donde vive la gente en un torneo de mesas.
+     Esta pantalla leía solo `tournament_pairings`, que en mesas está vacía:
+     con 11 jugadores ya sentados en 3 mesas, la proyección decía «No hay
+     emparejamientos». */
+  useEffect(() => {
+    const id = event?.id
+    if (!id || !isSupabaseReady() || !esDeMesas(event.tournament_type)) return
+    let vivo = true
+
+    const traer = async () => {
+      const ronda = await ultimaRonda(id)
+      if (!vivo) return
+      setMesas(ronda ? await getMesasDeRonda(ronda.id) : [])
+    }
+    void traer()
+
+    const canal = supabase
+      .channel(`live-mesas-${id}`)
+      .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'tournament_mesas', filter: `event_id=eq.${id}` },
+          () => { void traer() })
+      .subscribe(estado => {
+        if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT') {
+          console.warn('[proyección] el canal de mesas no quedó:', estado)
+        }
+      })
+
+    return () => { vivo = false; void supabase.removeChannel(canal) }
+  }, [event?.id, event?.tournament_type])
 
   // Hide TabBar on this page
   useEffect(() => {
@@ -213,7 +247,9 @@ export default function TournamentPublicView() {
             <div className="text-xs text-swu-muted mb-3 text-center">
               Ronda {event.current_round}
             </div>
-            <PairingsView pairings={pairings} />
+            {esDeMesas(event.tournament_type)
+              ? <MesasEnVivo mesas={mesas} />
+              : <PairingsView pairings={pairings} />}
           </div>
         )}
 
@@ -231,5 +267,66 @@ export default function TournamentPublicView() {
         HOLOCRON SWU · {event.code}
       </div>
     </div>
+  )
+}
+
+/**
+ * Las mesas, para proyectar.
+ *
+ * Un torneo de mesas no tiene emparejamientos: la gente vive en
+ * `tournament_mesas`. Esta pantalla —la que se pone en la tele del local—
+ * leía solo los pareos y por eso decía «No hay emparejamientos» con once
+ * personas ya sentadas.
+ *
+ * Va con letra grande y la vida al costado: se lee de lejos, que es lo único
+ * que esta pantalla tiene que lograr.
+ */
+function MesasEnVivo({ mesas }: { mesas: MesaArmada[] }) {
+  if (mesas.length === 0) {
+    return (
+      <div className="py-8 text-center text-swu-muted">
+        Todavía no se sortearon las mesas.
+      </div>
+    )
+  }
+
+  return (
+    <ul className="space-y-3">
+      {mesas.map(m => (
+        <li key={m.mesa} className="rounded-2xl border border-swu-border bg-swu-surface p-4">
+          <div className="mb-2 flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-swu-amber/15
+                             font-mono text-base font-black text-swu-amber">
+              {m.mesa}
+            </span>
+            <span className="text-sm font-bold uppercase tracking-wider text-swu-muted">
+              Mesa {m.mesa}
+            </span>
+            {m.anotada && (
+              <span className="ml-auto text-[11px] font-bold text-swu-green">anotada</span>
+            )}
+          </div>
+          <ul className="space-y-1">
+            {m.jugadores.map(j => (
+              <li key={j.id} className="flex items-center justify-between gap-3">
+                <span className="min-w-0 flex-1 truncate text-lg font-semibold text-swu-text">
+                  {/* El puesto delante cuando ya se anotó: en la tele es lo
+                      primero que la gente busca. */}
+                  {j.puesto ? <span className="mr-2 font-mono text-swu-amber">{j.puesto}º</span> : null}
+                  {j.player_name}
+                </span>
+                {/* «—» y no 0: no haber anotado no es haber quedado en cero. */}
+                <span className={`shrink-0 font-mono text-lg font-bold ${
+                  j.vida === null ? 'text-swu-muted'
+                    : j.vida <= 5 ? 'text-swu-red-texto' : 'text-swu-text'
+                }`}>
+                  {j.vida === null ? '—' : j.vida}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </li>
+      ))}
+    </ul>
   )
 }
