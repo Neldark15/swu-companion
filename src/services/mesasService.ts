@@ -157,6 +157,17 @@ export async function getMesasDeRonda(roundId: string): Promise<MesaArmada[]> {
     .eq('round_id', roundId)
     .order('mesa')
     .order('puesto', { nullsFirst: false })
+    /* El desempate ESTABLE, y no es un detalle de estilo.
+     *
+     * Antes del primer puesto anotado todos tienen `puesto` en NULL, así que
+     * el orden dentro de una mesa quedaba indefinido — y en Postgres un
+     * UPDATE reescribe la fila AL FINAL de la tabla, de modo que anotarle
+     * vida a alguien lo mandaba al último lugar de su mesa.
+     *
+     * En la mesa eso se ve como que los nombres saltan solos justo mientras
+     * la gente está tocando los ±, y se le baja la vida al equivocado. Por
+     * `id` el orden no cambia nunca: es el mismo con el que se sentaron. */
+    .order('id')
 
   if (error || !data) return []
 
