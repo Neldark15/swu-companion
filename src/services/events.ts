@@ -87,9 +87,24 @@ export interface EventRegistration {
   user_id: string
   status: 'registered' | 'checked_in' | 'dropped'
   registered_at: string
+  /** «Nombre — Subtítulo», igual que en la clasificación. */
+  leader_1?: string | null
+  /** El segundo líder de un Twin Suns. `null` en Premier. */
+  leader_2?: string | null
+  /** Nombre pelado de la base. */
+  base_carta?: string | null
+  deck_nombre?: string | null
   // Joined
   player_name?: string
   player_avatar?: string
+}
+
+/** Lo que se declara al inscribirse. Todo opcional: nadie queda fuera por no saberlo todavía. */
+export interface MazoDeclarado {
+  leader_1?: string | null
+  leader_2?: string | null
+  base_carta?: string | null
+  deck_nombre?: string | null
 }
 
 // ─── Code Generator ──────────────────────────────────────────
@@ -518,12 +533,23 @@ export async function getEventByCode(code: string): Promise<OfficialEvent | null
   } as OfficialEvent
 }
 
-export async function joinOfficialEvent(eventId: string, userId: string): Promise<{ ok: boolean; error?: string }> {
+export async function joinOfficialEvent(
+  eventId: string,
+  userId: string,
+  mazo?: MazoDeclarado,
+): Promise<{ ok: boolean; error?: string }> {
   if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
 
   const { error } = await supabase
     .from('event_registrations')
-    .insert({ event_id: eventId, user_id: userId })
+    .insert({
+      event_id: eventId,
+      user_id: userId,
+      leader_1: mazo?.leader_1 ?? null,
+      leader_2: mazo?.leader_2 ?? null,
+      base_carta: mazo?.base_carta ?? null,
+      deck_nombre: mazo?.deck_nombre ?? null,
+    })
 
   if (error) {
     if (error.message.includes('duplicate')) {
@@ -532,6 +558,40 @@ export async function joinOfficialEvent(eventId: string, userId: string): Promis
     return { ok: false, error: error.message }
   }
 
+  return { ok: true }
+}
+
+/**
+ * Cambiar el mazo declarado sin volver a inscribirse.
+ *
+ * Hace falta porque la gente se anota temprano y decide el mazo la noche
+ * anterior. Sin esto tendría que darse de baja y volver a entrar, y eso pierde
+ * el lugar en un torneo con cupo.
+ */
+export async function declararMazo(
+  eventId: string,
+  userId: string,
+  mazo: MazoDeclarado,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
+
+  const { data, error } = await supabase
+    .from('event_registrations')
+    .update({
+      leader_1: mazo.leader_1 ?? null,
+      leader_2: mazo.leader_2 ?? null,
+      base_carta: mazo.base_carta ?? null,
+      deck_nombre: mazo.deck_nombre ?? null,
+    })
+    .eq('event_id', eventId)
+    .eq('user_id', userId)
+    .select('id')
+
+  if (error) return { ok: false, error: error.message }
+  // §2u: un UPDATE frenado por RLS toca 0 filas SIN error.
+  if (!data || data.length === 0) {
+    return { ok: false, error: 'No se pudo guardar: ¿seguís inscrito en este torneo?' }
+  }
   return { ok: true }
 }
 
@@ -647,6 +707,47 @@ export async function deleteOfficialEvent(eventId: string): Promise<{ ok: boolea
   if (error) return { ok: false, error: error.message }
   if (!data || data.length === 0) {
     return { ok: false, error: 'Sin permiso para eliminar este evento' }
+  }
+  return { ok: true }
+}
+
+/**
+ * Marcar que llegaste al local (check-in), o deshacerlo.
+ *
+ * ── Por qué esto no existía y por qué importa ────────────────────────
+ *
+ * El botón «Estoy listo» del lobby movía un estado de React y nada más: nadie
+ * más lo veía, el contador «X listos de N» era siempre 0 para todos menos
+ * para vos, y se reiniciaba al recargar. Aunque hubiera querido escribir, no
+ * podía: `event_registrations` no tenía policy de UPDATE, ninguna.
+ *
+ * Ahora sí escribe, y como esa tabla publica sus cambios, el organizador ve
+ * llegar a la gente en vivo — que es exactamente el dato con el que decide
+ * cuándo arrancar.
+ *
+ * Presencia y check-in son cosas distintas: la presencia dice «tiene la app
+ * abierta» y se va sola al guardar el teléfono; esto dice «llegué» y se
+ * queda.
+ */
+export async function marcarLlegada(
+  eventId: string,
+  userId: string,
+  llegue: boolean,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
+
+  const { data, error } = await supabase
+    .from('event_registrations')
+    .update({ status: llegue ? 'checked_in' : 'registered' })
+    .eq('event_id', eventId)
+    .eq('user_id', userId)
+    .select('id')
+
+  if (error) return { ok: false, error: error.message }
+  // §2u: un UPDATE frenado por RLS afecta 0 filas SIN error. Sin esta
+  // comprobación, no tener permiso se vería igual que haber marcado bien.
+  if (!data || data.length === 0) {
+    return { ok: false, error: 'No se pudo marcar: ¿seguís inscrito en este torneo?' }
   }
   return { ok: true }
 }

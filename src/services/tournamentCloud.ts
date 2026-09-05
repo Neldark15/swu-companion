@@ -136,7 +136,7 @@ export async function initializeTournament(
   // Get registrations with profile names
   const { data: regs, error: regErr } = await supabase
     .from('event_registrations')
-    .select('user_id, profiles!event_registrations_user_id_fkey(name)')
+    .select('user_id, leader_1, leader_2, base_carta, profiles!event_registrations_user_id_fkey(name)')
     .eq('event_id', eventId)
     /* `checked_in` también entra. Con el filtro en 'registered' a secas, el
        día que se encienda el check-in TODO el que marque llegada desaparece
@@ -159,10 +159,18 @@ export async function initializeTournament(
   // Create standings for each player
   const standings = regs.map((r, idx) => {
     const profile = r.profiles as unknown as { name: string } | null
+    /* El mazo que la persona declaró al inscribirse viaja SOLO a la
+       clasificación. Antes se transcribía a mano después del torneo,
+       preguntándole uno por uno qué había jugado: los doce del 29/8 se
+       cargaron así y uno quedó inventado porque nadie se acordaba.
+       Los dos líderes se juntan con « + », que es como se lee un Twin Suns. */
+    const lideres = [r.leader_1, r.leader_2].filter(Boolean) as string[]
     return {
       event_id: eventId,
       user_id: r.user_id,
       player_name: profile?.name || `Jugador ${idx + 1}`,
+      leader: lideres.length > 0 ? lideres.join(' + ') : null,
+      base: (r.base_carta as string | null) ?? null,
       points: 0,
       match_wins: 0,
       match_losses: 0,

@@ -17,9 +17,11 @@ import {
   SearchX,
 } from 'lucide-react'
 import { supabase, isSupabaseReady } from '../../services/supabase'
-import { getEventByCode, getEventRegistrations, leaveOfficialEvent, type EventRegistration } from '../../services/events'
+import { getEventByCode, getEventRegistrations, leaveOfficialEvent, marcarLlegada, type EventRegistration } from '../../services/events'
 import { ultimaRonda, getMesasDeRonda, type MesaArmada } from '../../services/mesasService'
 import { escucharPresenciaTorneo, type Mirando } from '../../services/presenciaTorneo'
+import { declararMazo } from '../../services/events'
+import { DeclararMazo } from './DeclararMazo'
 import { esDeMesas } from '../../services/tipoTorneo'
 import { RifaDeMesas } from './RifaDeMesas'
 import { useAuth } from '../../hooks/useAuth'
@@ -30,6 +32,9 @@ interface LobbyPlayer {
   joinedAt: number
   ready: boolean
   isSelf?: boolean
+  /** El mazo declarado al inscribirse. Vacío mientras no lo haya dicho. */
+  lideres: string[]
+  base: string | null
 }
 
 function registrationsToPlayers(regs: EventRegistration[], selfUserId: string | null): LobbyPlayer[] {
@@ -39,6 +44,10 @@ function registrationsToPlayers(regs: EventRegistration[], selfUserId: string | 
     joinedAt: new Date(r.registered_at).getTime(),
     ready: r.status === 'checked_in',
     isSelf: r.user_id === selfUserId,
+    // Un líder vacío se filtra: en un Premier el segundo no existe, y pintar
+    // un hueco por él diría que falta un dato que nunca hubo.
+    lideres: [r.leader_1, r.leader_2].filter((x): x is string => !!x),
+    base: r.base_carta ?? null,
   }))
 }
 
@@ -70,7 +79,10 @@ export function EventLobbyPage() {
   const [event, setEvent] = useState<EventData | null>(null)
   const [players, setPlayers] = useState<LobbyPlayer[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
-  const [isReady, setIsReady] = useState(false)
+  const [editandoMazo, setEditandoMazo] = useState(false)
+  const [guardandoMazo, setGuardandoMazo] = useState(false)
+  const [marcando, setMarcando] = useState(false)
+  const [falloLlegada, setFalloLlegada] = useState<string | null>(null)
   const [codeCopied, setCodeCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<'players' | 'announcements'>('players')
   const [loading, setLoading] = useState(true)
@@ -199,12 +211,11 @@ export function EventLobbyPage() {
     )
   }, [event?.id, selfUserId, auth.currentProfile?.name, auth.currentProfile?.avatar])
 
-  // Reflect local "ready" toggle on the rendered self row (purely cosmetic until check-in API exists)
-  useEffect(() => {
-    setPlayers(prev => prev.map(p =>
-      p.isSelf ? { ...p, ready: isReady } : p
-    ))
-  }, [isReady])
+  /* Ya no hay estado local de «listo».
+     Antes el botón pintaba TU fila y nada más: era un espejo de tu propio
+     toque, no un dato. Ahora la verdad es `status = 'checked_in'` en la fila,
+     y como la tabla publica sus cambios, tu llegada aparece en la pantalla
+     del organizador y en la de todos los demás. */
 
   // When event transitions to active and the user is a registered player,
   // forward to the player view (where they can report/confirm scores).
@@ -218,6 +229,36 @@ export function EventLobbyPage() {
     if (event.deMesas) return
     if (players.some(p => p.isSelf)) navigate(`/events/play/${code}`, { replace: true })
   }, [event?.status, event?.deMesas, code, selfUserId, players, navigate])
+
+  /* Se DERIVAN de la lista, que es la que llega del servidor. Un estado
+     local aparte volvería a ser un espejo del propio toque. */
+  const yoInscrito = players.some(p => p.isSelf)
+  const yoLlegue = players.some(p => p.isSelf && p.ready)
+
+  const alternarLlegada = async () => {
+    if (!event?.id || !selfUserId) return
+    setMarcando(true); setFalloLlegada(null)
+    const r = await marcarLlegada(event.id, selfUserId, !yoLlegue)
+    setMarcando(false)
+    if (!r.ok) setFalloLlegada(r.error ?? 'No se pudo marcar.')
+    // No se toca nada más: el cambio vuelve por el canal de inscripciones y
+    // repinta la lista para todos, no solo para quien tocó.
+  }
+
+  /* Declarar el mazo DESPUÉS de inscribirse.
+     Hace falta por dos razones reales: quien se anotó antes de que esto
+     existiera no tiene mazo declarado, y quien se anota una semana antes
+     decide con qué juega la noche anterior. Sin esto tendría que darse de baja
+     y volver a entrar — y en un torneo con cupo eso le cuesta el lugar. */
+  const miFila = players.find(p => p.isSelf)
+  const guardarMazo = async (m: Parameters<typeof declararMazo>[2]) => {
+    if (!event?.id || !selfUserId) return
+    setGuardandoMazo(true)
+    const r = await declararMazo(event.id, selfUserId, m)
+    setGuardandoMazo(false)
+    if (!r.ok) { setFalloLlegada(r.error ?? 'No se pudo guardar el mazo.'); return }
+    setEditandoMazo(false)
+  }
 
   const copyCode = () => {
     if (code) {
@@ -319,7 +360,7 @@ export function EventLobbyPage() {
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs">
             <span className="text-swu-muted">
-              <span className="font-bold text-swu-green">{readyCount}</span> listos de{' '}
+              <span className="font-bold text-swu-green">{readyCount}</span> llegaron de{' '}
               <span className="font-bold text-swu-text">{totalCount}</span> jugadores
             </span>
             <span className="text-swu-muted font-mono">{totalCount}/{event.maxPlayers}</span>
@@ -404,17 +445,25 @@ export function EventLobbyPage() {
                     <p className="text-[11px] text-swu-muted">
                       {timeAgo(p.joinedAt)}
                     </p>
+                    {/* El mazo declarado. Es la razón por la que se pregunta al
+                        inscribirse: acá se ve sin tener que preguntarle a nadie. */}
+                    {(p.lideres.length > 0 || p.base) && (
+                      <p className="mt-0.5 truncate text-[11px] text-swu-accent-texto/80">
+                        {p.lideres.map(l => l.split(' — ')[0]).join(' + ')}
+                        {p.base && <span className="text-swu-muted"> · {p.base}</span>}
+                      </p>
+                    )}
                   </div>
                 </div>
                 {p.ready ? (
                   <div className="flex items-center gap-1 text-swu-green">
                     <CheckCircle2 size={16} />
-                    <span className="text-[11px] font-bold">Listo</span>
+                    <span className="text-[11px] font-bold">Llegó</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-1 text-swu-muted">
                     <Clock size={14} />
-                    <span className="text-[11px]">Esperando</span>
+                    <span className="text-[11px]">Anotado</span>
                   </div>
                 )}
               </div>
@@ -461,20 +510,56 @@ export function EventLobbyPage() {
       <div className="fixed bottom-0 left-0 right-0 bg-swu-bg/95 backdrop-blur-md border-t border-swu-border p-4 space-y-2 z-30">
         {event.status === 'waiting' && (
           <>
-            <button
-              onClick={() => setIsReady(!isReady)}
-              className={`w-full py-3.5 rounded-xl font-bold text-base transition-all flex items-center justify-center gap-2 ${
-                isReady
-                  ? 'bg-swu-surface border-2 border-swu-green text-swu-green'
-                  : 'bg-swu-green text-white active:scale-[0.98]'
-              }`}
-            >
-              {isReady ? (
-                <><CheckCircle2 size={20} /> Listo — Toque para cancelar</>
-              ) : (
-                <><Swords size={20} /> Estoy Listo</>
-              )}
-            </button>
+            {/* «Ya llegué» y no «Estoy listo»: dice lo que de verdad significa
+                —estoy en el local— y no se confunde con estar inscrito, que
+                es otra cosa y ya pasó. Solo se ofrece a quien está inscrito:
+                marcar llegada sin estar anotado no querría decir nada. */}
+            {yoInscrito && (editandoMazo ? (
+              <div className="rounded-xl border border-swu-accent/30 bg-swu-surface p-3">
+                <DeclararMazo
+                  dosLideres={event.deMesas}
+                  inicial={{
+                    leader_1: miFila?.lideres[0] ?? null,
+                    leader_2: miFila?.lideres[1] ?? null,
+                    base_carta: miFila?.base ?? null,
+                  }}
+                  etiquetaAceptar="Guardar mi mazo"
+                  ocupado={guardandoMazo}
+                  onAceptar={(m) => void guardarMazo(m)}
+                  onCancelar={() => setEditandoMazo(false)}
+                />
+              </div>
+            ) : (
+              <button
+                onClick={() => setEditandoMazo(true)}
+                className="w-full rounded-xl border border-swu-border py-2.5 text-sm font-semibold text-swu-text"
+              >
+                {miFila && (miFila.lideres.length > 0 || miFila.base)
+                  ? 'Cambiar mi mazo'
+                  : 'Declarar con qué voy a jugar'}
+              </button>
+            ))}
+
+            {yoInscrito && !editandoMazo && (
+              <button
+                onClick={() => void alternarLlegada()}
+                disabled={marcando}
+                className={`w-full py-3.5 rounded-xl font-bold text-base transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${
+                  yoLlegue
+                    ? 'bg-swu-surface border-2 border-swu-green text-swu-green'
+                    : 'bg-swu-green text-white active:scale-[0.98]'
+                }`}
+              >
+                {yoLlegue ? (
+                  <><CheckCircle2 size={20} /> Llegaste — tocá para deshacer</>
+                ) : (
+                  <><Swords size={20} /> Ya llegué</>
+                )}
+              </button>
+            )}
+            {falloLlegada && (
+              <p className="text-center text-[11px] text-red-400">{falloLlegada}</p>
+            )}
 
             {confirmarSalida ? (
               <div className="space-y-2">

@@ -59,8 +59,9 @@ import { fechaConDiaLarga, fechaCorta, hora, aISOdesdeSV, aInputsSV } from '../.
 import { listarTorneos, type TorneoResumen } from '../../services/torneosHistoricos'
 import {
   listarEnCurso, partirPorFecha, joinOfficialEvent, leaveOfficialEvent,
-  deleteOfficialEvent, updateOfficialEvent, type OfficialEvent,
+  deleteOfficialEvent, updateOfficialEvent, type OfficialEvent, type MazoDeclarado,
 } from '../../services/events'
+import { DeclararMazo } from '../events/DeclararMazo'
 import { etiquetaTipo } from '../../services/tipoTorneo'
 import { db } from '../../services/db'
 import { useAuth } from '../../hooks/useAuth'
@@ -297,20 +298,22 @@ function TarjetaEvento({ evento, userId, esAdmin, onCambio }: {
 }) {
   const [ocupado, setOcupado] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pidiendoMazo, setPidiendoMazo] = useState(false)
   const est = ESTADO[evento.status]
   const conSesion = !!userId
 
-  const alternar = async () => {
+  const alternar = async (mazo?: MazoDeclarado) => {
     if (!userId) return
     setOcupado(true); setError(null)
     const r = evento.is_registered
       ? await leaveOfficialEvent(evento.id, userId)
-      : await joinOfficialEvent(evento.id, userId)
+      : await joinOfficialEvent(evento.id, userId, mazo)
     // El resultado SÍ se mira. Antes se descartaba: una inscripción rechazada
     // por RLS recargaba la lista igual y no decía nada, y el botón volvía a
     // «Inscribirse» como si no hubieras tocado nada.
     if (!r.ok) setError(r.error || 'No se pudo, probá de nuevo.')
     setOcupado(false)
+    setPidiendoMazo(false)
     onCambio()
   }
 
@@ -395,8 +398,23 @@ function TarjetaEvento({ evento, userId, esAdmin, onCambio }: {
         </Link>
       )}
 
-      {evento.status === 'open' && (conSesion ? (
-        <button onClick={() => void alternar()} disabled={ocupado}
+      {/* Inscribirse pregunta el mazo; salirse no pregunta nada. */}
+      {evento.status === 'open' && conSesion && pidiendoMazo && !evento.is_registered && (
+        <div className="rounded-xl border border-swu-accent/30 bg-swu-bg p-3">
+          <DeclararMazo
+            dosLideres={evento.tournament_type === 'mesas' || evento.match_type === 'twin_suns'}
+            etiquetaAceptar="Inscribirme"
+            ocupado={ocupado}
+            onAceptar={(m) => void alternar(m)}
+            onCancelar={() => setPidiendoMazo(false)}
+          />
+        </div>
+      )}
+
+      {evento.status === 'open' && !pidiendoMazo && (conSesion ? (
+        <button
+          onClick={() => { if (evento.is_registered) void alternar(); else setPidiendoMazo(true) }}
+          disabled={ocupado}
                 className={`flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl
                             text-xs font-bold transition-transform active:scale-[0.98] disabled:opacity-60 ${
                   evento.is_registered
