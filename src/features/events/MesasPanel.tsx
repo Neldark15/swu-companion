@@ -81,13 +81,12 @@ export function MesasPanel({
         mesaAnterior: m.mesa,
         puesto: j.puesto ?? 0,
       })))
-      const siguientes = armarRondaSiguiente(previos)
-      if (siguientes.length === 0) {
-        onError('Faltan puestos por anotar en la ronda anterior.')
-        return
-      }
+      const siguiente = armarRondaSiguiente(previos)
+      // El motivo lo da la función: «faltan puestos» y «con ese número no se
+      // pueden armar mesas» son problemas distintos y se arreglan distinto.
+      if (!siguiente.ok) { onError(siguiente.motivo); return }
       setGuardando(true)
-      const r = await armarMesas(eventId, siguientes.map(a => ({
+      const r = await armarMesas(eventId, siguiente.asientos.map(a => ({
         user_id: a.userId, player_name: a.nombre, mesa: a.mesa,
       })))
       setGuardando(false)

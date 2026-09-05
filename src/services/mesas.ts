@@ -206,14 +206,27 @@ export interface AsientoConPuesto extends AsientoJugador {
   puesto: number
 }
 
-export function armarRondaSiguiente(previos: AsientoConPuesto[]): Asiento[] {
+export type RondaSiguiente =
+  | { ok: true; asientos: Asiento[] }
+  | { ok: false; motivo: string }
+
+export function armarRondaSiguiente(previos: AsientoConPuesto[]): RondaSiguiente {
   // Sin puestos anotados no se puede: adivinar quién ganó sería inventar el
   // resultado de una partida que se jugó.
-  if (previos.some(p => !p.puesto || p.puesto < 1)) return []
+  if (previos.some(p => !p.puesto || p.puesto < 1)) {
+    return { ok: false, motivo: 'Faltan puestos por anotar en la ronda anterior.' }
+  }
 
   const clasifican = previos
     .filter(p => p.puesto === 1)
     .sort((a, b) => a.mesaAnterior - b.mesaAnterior)
+
+  if (clasifican.length < MIN_MESA) {
+    return {
+      ok: false,
+      motivo: `Solo ${clasifican.length} mesa(s) tienen ganador: para una final hacen falta al menos ${MIN_MESA}.`,
+    }
+  }
 
   /* El resto, ordenado por puesto y después por mesa: así los segundos quedan
      juntos y los terceros juntos, en vez de mezclados. */
@@ -221,15 +234,30 @@ export function armarRondaSiguiente(previos: AsientoConPuesto[]): Asiento[] {
     .filter(p => p.puesto !== 1)
     .sort((a, b) => a.puesto - b.puesto || a.mesaAnterior - b.mesaAnterior)
 
-  const out: Asiento[] = clasifican.map(p => ({ ...p, mesa: 1 }))
-
-  // Las de abajo se llenan del mismo tamaño que la final, que es el tamaño
-  // que el torneo ya venía usando.
-  const tam = Math.max(MIN_MESA, clasifican.length)
-  let mesa = 2
-  for (let i = 0; i < resto.length; i += tam) {
-    for (const p of resto.slice(i, i + tam)) out.push({ ...p, mesa })
-    mesa++
+  /* Las mesas de abajo se arman con la MISMA regla que las de arriba: mesas de
+     3 o 4, nunca de 1 ni de 5.
+     Una versión anterior las cortaba de a un tamaño fijo, y con 10 jugadores
+     —3 finalistas y 7 abajo— dejaba dos mesas de 3 y una MESA DE UNO. Nadie
+     juega solo. */
+  const comp = mesasPosibles(resto.length)[0]
+  if (resto.length > 0 && !comp) {
+    return {
+      ok: false,
+      motivo: `Quedan ${resto.length} jugadores para las mesas de abajo y con ese número no se pueden armar mesas de ${MIN_MESA} o ${MAX_MESA}.`,
+    }
   }
-  return out
+
+  const asientos: Asiento[] = clasifican.map(p => ({ ...p, mesa: 1 }))
+
+  if (comp) {
+    // Las de 4 primero, igual que en el reparto de la primera ronda.
+    const tamaños = [...Array(comp.de4).fill(MAX_MESA), ...Array(comp.de3).fill(MIN_MESA)]
+    let i = 0
+    tamaños.forEach((t, k) => {
+      for (const p of resto.slice(i, i + t)) asientos.push({ ...p, mesa: k + 2 })
+      i += t
+    })
+  }
+
+  return { ok: true, asientos }
 }
