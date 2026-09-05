@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { Fragment, useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2, BookOpen, AlertTriangle, CheckCircle2, Swords, Eye, EyeOff, Upload, Share2, FlaskConical } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
@@ -321,9 +321,13 @@ export function DeckListPage() {
             const mainCount = countCards(deck.mainDeck)
             const sideCount = countCards(deck.sideboard)
             const { total: precioTotal, faltan: precioFaltan } = precioDeMazo(deck, precios, variante)
-            const leader = deck.leaders[0]
+            /* TODOS los líderes, no solo el primero.
+               Un Twin Suns se juega con DOS, y la miniatura mostraba uno: dos
+               mazos distintos que compartieran el primer líder se veían
+               idénticos en la lista, que es justo donde uno los distingue de
+               un vistazo. */
+            const lideres = deck.leaders.length > 0 ? deck.leaders : [null]
             const base = deck.base
-            const leaderImg = leader ? cardImages.get(leader.cardId) : undefined
             const baseImg = base ? cardImages.get(base.cardId) : undefined
             const bText = deck.base ? baseTexts.get(deck.base.cardId) || '' : ''
             const targetSize = getEffectiveMinDeckSize(deck.format, bText)
@@ -343,29 +347,37 @@ export function DeckListPage() {
                     que es donde está la ilustración, y la altura crece con la
                     pantalla en vez de quedarse clavada. */}
                 <div className="flex h-28 sm:h-32 lg:h-40 bg-swu-bg relative">
-                  {/* Leader image */}
-                  <div className="flex-1 relative overflow-hidden">
-                    {leaderImg ? (
-                      <img
-                        src={leaderImg}
-                        alt={leader?.name || ''}
-                        className="w-full h-full object-cover object-center"
-                        loading="lazy"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Swords size={24} className="text-swu-muted/20" />
-                      </div>
-                    )}
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1">
-                      <p className="text-[9px] text-swu-amber font-bold">LÍDER</p>
-                      <p className="text-[10px] text-white font-medium truncate">{leader?.name || 'Sin líder'}</p>
-                    </div>
-                  </div>
-
-                  {/* Divider */}
-                  <div className="w-px bg-swu-border" />
+                  {lideres.map((l, i) => {
+                    const img = l ? cardImages.get(l.cardId) : undefined
+                    return (
+                      <Fragment key={l?.cardId ?? `sin-lider-${i}`}>
+                        <div className="flex-1 relative overflow-hidden">
+                          {img ? (
+                            <img
+                              src={img}
+                              alt={l?.name || ''}
+                              className="w-full h-full object-cover object-center"
+                              loading="lazy"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Swords size={24} className="text-swu-muted/20" />
+                            </div>
+                          )}
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1">
+                            {/* Se numeran solo si hay más de uno: «LÍDER 1» con
+                                un solo líder es ruido. */}
+                            <p className="text-[9px] text-swu-amber font-bold">
+                              {lideres.length > 1 ? `LÍDER ${i + 1}` : 'LÍDER'}
+                            </p>
+                            <p className="text-[10px] text-white font-medium truncate">{l?.name || 'Sin líder'}</p>
+                          </div>
+                        </div>
+                        <div className="w-px bg-swu-border" />
+                      </Fragment>
+                    )
+                  })}
 
                   {/* Base image */}
                   <div className="flex-1 relative overflow-hidden">
