@@ -49,7 +49,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ChevronLeft, ChevronRight, Trophy, Users, CalendarDays, Plus, Play, Radio,
   QrCode, Swords, MapPin, Pencil, Trash2, X, Save, Loader2, CheckCircle2,
-  LogIn, ListOrdered, DoorOpen,
+  LogIn, ListOrdered, DoorOpen, ImagePlus,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
@@ -59,7 +59,8 @@ import { fechaConDiaLarga, fechaCorta, hora, aISOdesdeSV, aInputsSV } from '../.
 import { listarTorneos, type TorneoResumen } from '../../services/torneosHistoricos'
 import {
   listarEnCurso, partirPorFecha, joinOfficialEvent, leaveOfficialEvent,
-  deleteOfficialEvent, updateOfficialEvent, type OfficialEvent, type MazoDeclarado,
+  deleteOfficialEvent, updateOfficialEvent, subirLogoTorneo,
+  type OfficialEvent, type MazoDeclarado,
 } from '../../services/events'
 import { DeclararMazo } from '../events/DeclararMazo'
 import { etiquetaTipo } from '../../services/tipoTorneo'
@@ -322,6 +323,12 @@ function TarjetaEvento({ evento, userId, esAdmin, onCambio }: {
       evento.is_registered ? 'border-swu-green/50' : 'border-swu-border'
     }`}>
       <div className="flex items-start justify-between gap-2">
+        {/* El logo del torneo. `image_url` existía en la fila desde siempre y
+            no se pintaba en ningún lado. */}
+        {evento.image_url && (
+          <img src={evento.image_url} alt="" loading="lazy"
+               className="h-12 w-12 shrink-0 rounded-xl object-contain" />
+        )}
         <div className="min-w-0 flex-1">
           <h4 className="truncate font-bold text-swu-text">{evento.name}</h4>
           {evento.description && (
@@ -556,6 +563,7 @@ function Organizar({ eventos, fallo, onCambio }: {
 function FilaOrganizar({ evento, onCambio }: { evento: OfficialEvent; onCambio: () => void }) {
   const [editando, setEditando] = useState(false)
   const [nombre, setNombre] = useState('')
+  const [logo, setLogo] = useState<string | null>(null)
   const [fecha, setFecha] = useState('')
   const [horaTxt, setHoraTxt] = useState('')
   const [guardando, setGuardando] = useState(false)
@@ -571,6 +579,7 @@ function FilaOrganizar({ evento, onCambio }: { evento: OfficialEvent; onCambio: 
     // tocar nada movía el evento — y se acumulaba en cada pasada.
     const { fecha: f, hora: h } = aInputsSV(evento.date)
     setNombre(evento.name)
+    setLogo(evento.image_url ?? null)
     setFecha(f); setHoraTxt(h); setError(''); setEditando(true)
   }
 
@@ -588,7 +597,9 @@ function FilaOrganizar({ evento, onCambio }: { evento: OfficialEvent; onCambio: 
     if (!nombre.trim()) {
       setError('El torneo necesita un nombre'); setGuardando(false); return
     }
-    const r = await updateOfficialEvent(evento.id, { date: iso, name: nombre.trim() })
+    const r = await updateOfficialEvent(evento.id, {
+      date: iso, name: nombre.trim(), image_url: logo,
+    })
     setGuardando(false)
     if (!r.ok) { setError(r.error ?? 'No se pudo guardar'); return }
     setEditando(false)
@@ -671,6 +682,12 @@ function FilaOrganizar({ evento, onCambio }: { evento: OfficialEvent; onCambio: 
                      className="w-full rounded-lg border border-swu-border bg-swu-surface px-2.5 py-2 text-sm text-swu-text outline-none focus:border-swu-accent" />
             </label>
           </div>
+          <LogoDelTorneo
+            actual={evento.image_url ?? null}
+            onSubido={(url) => setLogo(url)}
+            onFallo={setError}
+          />
+
           <div className="flex gap-2">
             <button onClick={() => void guardar()} disabled={guardando}
                     className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-swu-accent py-2 text-xs font-bold text-white disabled:opacity-50">
@@ -698,6 +715,62 @@ function FilaOrganizar({ evento, onCambio }: { evento: OfficialEvent; onCambio: 
                        border border-swu-amber/40 bg-swu-amber/10 text-xs font-bold text-swu-amber">
         <Play size={14} /> Llevar el torneo
       </Link>
+    </div>
+  )
+}
+
+/**
+ * El logo del torneo.
+ *
+ * Se sube a Storage y en la fila queda solo la URL. Guardarlo como data URI
+ * —que es lo que hacen los avatares— haría que el logo entero viajara en CADA
+ * carga de la lista de torneos, sin caché, por cada torneo (§4m).
+ */
+function LogoDelTorneo({ actual, onSubido, onFallo }: {
+  actual: string | null
+  onSubido: (url: string | null) => void
+  onFallo: (m: string) => void
+}) {
+  const { supabaseUser } = useAuth()
+  const [subiendo, setSubiendo] = useState(false)
+  const [vista, setVista] = useState<string | null>(actual)
+
+  const elegir = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (!f || !supabaseUser) return
+    setSubiendo(true)
+    const r = await subirLogoTorneo(f, supabaseUser.id)
+    setSubiendo(false)
+    if (!r.ok || !r.url) { onFallo(r.error ?? 'No se pudo subir el logo.'); return }
+    setVista(r.url)
+    onSubido(r.url)
+  }
+
+  return (
+    <div>
+      <span className="mb-1 block text-[10px] text-swu-muted">Logo del torneo</span>
+      <div className="flex items-center gap-2">
+        {vista
+          ? <img src={vista} alt="" className="h-12 w-12 shrink-0 rounded-xl object-contain" />
+          : <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-dashed border-swu-border text-swu-muted">
+              <ImagePlus size={16} />
+            </div>}
+        <label className="flex-1 cursor-pointer rounded-lg border border-dashed border-swu-border px-3 py-2 text-center text-[11px] font-semibold text-swu-accent-texto">
+          {subiendo ? 'Subiendo…' : vista ? 'Cambiar imagen' : 'Elegir imagen'}
+          <input type="file" accept="image/png,image/jpeg,image/webp,image/avif"
+                 className="hidden" onChange={(e) => void elegir(e)} />
+        </label>
+        {vista && (
+          <button
+            type="button"
+            onClick={() => { setVista(null); onSubido(null) }}
+            className="shrink-0 rounded-lg p-2 text-swu-muted hover:text-red-400"
+            aria-label="Quitar el logo"
+          >
+            <X size={14} />
+          </button>
+        )}
+      </div>
     </div>
   )
 }

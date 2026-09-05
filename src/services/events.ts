@@ -22,6 +22,14 @@ export interface OfficialEvent {
   tournament_type: TipoTorneo
   max_rounds: number | null
   current_round: number
+  /**
+   * El logo del torneo, como URL de Storage.
+   *
+   * Viajaba en la fila desde siempre —la consulta es `select('*')`— pero no
+   * estaba en el tipo, así que ninguna pantalla podía pintarlo sin que
+   * TypeScript la parara. Otra capacidad entera sin puerta.
+   */
+  image_url: string | null
   created_at: string
   updated_at: string
   // Joined data
@@ -681,7 +689,7 @@ export async function updateEventStatus(
 
 export async function updateOfficialEvent(
   eventId: string,
-  updates: { date?: string | null; location?: string | null; name?: string }
+  updates: { date?: string | null; location?: string | null; name?: string; image_url?: string | null }
 ): Promise<{ ok: boolean; error?: string }> {
   if (!isSupabaseReady()) return { ok: false, error: 'Supabase no configurado' }
 
@@ -695,6 +703,7 @@ export async function updateOfficialEvent(
   if (updates.date !== undefined) payload.date = updates.date
   if (updates.location !== undefined) payload.location = updates.location
   if (updates.name !== undefined) payload.name = updates.name
+  if (updates.image_url !== undefined) payload.image_url = updates.image_url
 
   const { data, error } = await supabase
     .from('official_events')
@@ -805,4 +814,46 @@ export async function declararMazoDe(
   })
   if (error) return { ok: false, error: error.message }
   return { ok: true }
+}
+
+/** Tipos e imagen: lo mismo que acepta el bucket, para avisar ANTES de subir. */
+const LOGO_TIPOS = ['image/jpeg', 'image/png', 'image/webp', 'image/avif']
+const LOGO_MAX = 3 * 1024 * 1024
+
+/**
+ * Sube el logo de un torneo y devuelve su URL pública.
+ *
+ * ── Por qué a Storage y no como texto en la fila ─────────────────────
+ *
+ * La tentación es guardarlo como data URI en `image_url`, que es lo que hacen
+ * los avatares. Acá sería caro: esa fila se lee en CADA carga de la lista de
+ * torneos, y un data URI dentro de un JSON no lo cachea el navegador (§4m).
+ * Un logo de 200 KB se bajaría entero cada vez que alguien abre la lista, por
+ * cada torneo. En Storage se baja una vez y queda cacheado.
+ */
+export async function subirLogoTorneo(
+  archivo: File,
+  userId: string,
+): Promise<{ ok: boolean; url?: string; error?: string }> {
+  if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión con el servidor.' }
+  if (!LOGO_TIPOS.includes(archivo.type)) {
+    return { ok: false, error: 'Tiene que ser una imagen JPG, PNG, WebP o AVIF.' }
+  }
+  if (archivo.size > LOGO_MAX) {
+    return { ok: false, error: `La imagen pesa ${(archivo.size / 1048576).toFixed(1)} MB y el máximo son 3 MB.` }
+  }
+
+  const ext = archivo.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'png'
+  // La carpeta ES el uid: es lo que la política de Storage exige para dejar
+  // escribir, y lo que impide tocar la carpeta de otro.
+  const ruta = `${userId}/logo-${Date.now()}.${ext}`
+
+  const { error } = await supabase.storage.from('torneos').upload(ruta, archivo, {
+    cacheControl: '3600',
+    upsert: false,
+  })
+  if (error) return { ok: false, error: error.message }
+
+  const { data } = supabase.storage.from('torneos').getPublicUrl(ruta)
+  return { ok: true, url: data.publicUrl }
 }

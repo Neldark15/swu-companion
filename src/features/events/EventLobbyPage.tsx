@@ -69,6 +69,7 @@ interface Announcement {
 interface EventData {
   /** Hace falta para poder darse de baja de verdad: la baja va por id. */
   id: string
+  logo: string | null
   /** Un torneo de mesas no se sigue en la pantalla de emparejamientos. */
   deMesas: boolean
   name: string
@@ -136,6 +137,7 @@ export function EventLobbyPage() {
 
         setEvent({
           id: officialEvent.id,
+          logo: officialEvent.image_url ?? null,
           deMesas: esDeMesas(officialEvent.tournament_type),
           name: officialEvent.name,
           format: officialEvent.format,
@@ -366,10 +368,18 @@ export function EventLobbyPage() {
 
       {/* Event info card */}
       <div className="bg-gradient-to-br from-swu-accent/20 to-swu-green/10 rounded-2xl p-4 border border-swu-accent/30 space-y-3">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-[11px] font-bold text-swu-accent-texto uppercase tracking-widest">Lobby del Evento</p>
-            <h2 className="text-lg font-extrabold text-swu-text mt-0.5">{event.name}</h2>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-3">
+            {/* El logo, si el torneo tiene. Esta es la pantalla que se mira en
+                grupo mientras se espera, así que es donde más rinde. */}
+            {event.logo && (
+              <img src={event.logo} alt="" loading="lazy"
+                   className="h-14 w-14 shrink-0 rounded-xl object-contain" />
+            )}
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold text-swu-accent-texto uppercase tracking-widest">Lobby del Evento</p>
+              <h2 className="text-lg font-extrabold text-swu-text mt-0.5">{event.name}</h2>
+            </div>
           </div>
           <div className="flex items-center gap-1.5 bg-swu-green/20 px-2.5 py-1 rounded-full">
             <Wifi size={12} className="text-swu-green" />
