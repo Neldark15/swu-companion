@@ -624,7 +624,10 @@ export function DeckBuilderPage() {
                     {/* Remove button */}
                     <button
                       onClick={() => removeCard('leaders', c.cardId)}
-                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 text-swu-red-texto flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity active:opacity-100 z-10"
+                      aria-label={`Quitar ${c.name}`}
+                      title="Quitar este líder"
+                      className="absolute top-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-full
+                                 bg-black/80 text-swu-red-texto shadow-lg transition-transform active:scale-90 z-10"
                     >
                       <X size={12} />
                     </button>
@@ -665,7 +668,10 @@ export function DeckBuilderPage() {
                     </div>
                     <button
                       onClick={() => removeCard('base', '')}
-                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 text-swu-red-texto flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity active:opacity-100 z-10"
+                      aria-label="Quitar la base"
+                      title="Quitar la base"
+                      className="absolute top-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-full
+                                 bg-black/80 text-swu-red-texto shadow-lg transition-transform active:scale-90 z-10"
                     >
                       <X size={12} />
                     </button>

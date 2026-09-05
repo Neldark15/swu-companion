@@ -346,7 +346,7 @@ export function DeckListPage() {
                     arriba y nada del dibujo. Ahora se recorta por el CENTRO,
                     que es donde está la ilustración, y la altura crece con la
                     pantalla en vez de quedarse clavada. */}
-                <div className="flex h-28 sm:h-32 lg:h-40 bg-swu-bg relative">
+                <div className="flex h-36 sm:h-44 lg:h-52 bg-swu-bg relative">
                   {lideres.map((l, i) => {
                     const img = l ? cardImages.get(l.cardId) : undefined
                     return (
