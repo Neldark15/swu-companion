@@ -1,0 +1,2026 @@
+[
+ {
+  "slug": "aggressive-negotiations",
+  "nombre": "Aggressive Negotiations",
+  "lideres": [
+   {
+    "cardId": "P26_134",
+    "name": "Anakin Skywalker",
+    "subtitle": "Protect Her At All Costs",
+    "setCode": "P26"
+   },
+   {
+    "cardId": "P26_136",
+    "name": "Padmé Amidala",
+    "subtitle": "Follow My Lead",
+    "setCode": "P26"
+   }
+  ],
+  "base": {
+   "cardId": "TS26_011",
+   "name": "Executioner's Arena",
+   "subtitle": null,
+   "setCode": "TS26"
+  },
+  "cartas": [
+   {
+    "cardId": "LOF_254",
+    "name": "Porg",
+    "subtitle": null,
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "TS26_019",
+    "name": "Coleman Trebor",
+    "subtitle": "Jedi Rescuer",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TWI_240",
+    "name": "332nd Stalwart",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TWI_329",
+    "name": "Compassionate Senator",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TS26_053",
+    "name": "Coruscanti Spy",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SHD_330",
+    "name": "Moisture Farmer",
+    "subtitle": null,
+    "setCode": "SHD"
+   },
+   {
+    "cardId": "SEC_146",
+    "name": "Rebellious Functionary",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "TWI_141",
+    "name": "Soldier of the 501st",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TS26_043",
+    "name": "Wartime Refugee",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SOR_160",
+    "name": "Wolffe",
+    "subtitle": "Suspicious Veteran",
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "TS26_020",
+    "name": "501st Veteran",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SOR_001",
+    "name": "Battlefield Marine",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "TS26_015",
+    "name": "C-3P0",
+    "subtitle": "Die, Jedi Dogs!",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "LAW_312",
+    "name": "Chio Fain",
+    "subtitle": "Four-Armed Slicer",
+    "setCode": "LAW"
+   },
+   {
+    "cardId": "TWI_106",
+    "name": "Coruscant Guard",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TWI_362",
+    "name": "Echo",
+    "subtitle": "Valiant ARC Trooper",
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "SEC_1057",
+    "name": "Jar Jar Binks",
+    "subtitle": "Mesa Propose…",
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "LOF_359",
+    "name": "Lor San Tekka",
+    "subtitle": "Secret Keeper",
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "LOF_323",
+    "name": "Nightsister Warrior",
+    "subtitle": null,
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "TWI_316",
+    "name": "Outspoken Representative",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TS26_062",
+    "name": "R2-D2",
+    "subtitle": "Getting His Chance",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TWI_363",
+    "name": "Republic Tactical Officer",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TS26_017",
+    "name": "Rush Clovis",
+    "subtitle": "Trapped by Authority",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TWI_364",
+    "name": "Admiral Yularen",
+    "subtitle": "Advising Caution",
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "SHD_115",
+    "name": "Cobb Vanth",
+    "subtitle": "The Marshal",
+    "setCode": "SHD"
+   },
+   {
+    "cardId": "TS26_040",
+    "name": "Obi-Wan Kenobi",
+    "subtitle": "Steadfast Knight",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TWI_109",
+    "name": "501st Liberator",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TWI_144",
+    "name": "Batch Brothers",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TWI_319",
+    "name": "Captain Typho",
+    "subtitle": "Protecting the Senator",
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TS26_023",
+    "name": "Assault Lander LAAT",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_044",
+    "name": "Arena Reek",
+    "subtitle": "Lumbering Beast",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "LOF_162",
+    "name": "Hunting Nexu",
+    "subtitle": null,
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "JTL_330",
+    "name": "Perimeter AT-RT",
+    "subtitle": null,
+    "setCode": "JTL"
+   },
+   {
+    "cardId": "SEC_327",
+    "name": "Rotunda Senate Guards",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "TS26_067",
+    "name": "Ruping Rider",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_054",
+    "name": "Wartime Mercenaries",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_055",
+    "name": "Jedi General",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "P25_158",
+    "name": "Poe Dameron",
+    "subtitle": "Quick to Improvise",
+    "setCode": "P25"
+   },
+   {
+    "cardId": "P26_204",
+    "name": "Yoda",
+    "subtitle": "Begun, the Clone War Has",
+    "setCode": "P26"
+   },
+   {
+    "cardId": "TWI_114",
+    "name": "Clone Commander Cody",
+    "subtitle": "Commanding the 212th",
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TWI_097",
+    "name": "Captain Rex",
+    "subtitle": "Lead by Example",
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "SOR_148",
+    "name": "Guerilla Attack Pod",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "TWI_149",
+    "name": "Low Altitude Gunship",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "JTL_170",
+    "name": "War Juggernaut",
+    "subtitle": null,
+    "setCode": "JTL"
+   },
+   {
+    "cardId": "TWI_323",
+    "name": "Luminara Unduli",
+    "subtitle": "Soft-Spoken Master",
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "SOR_149",
+    "name": "Mace Windu",
+    "subtitle": "Party Crasher",
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "TWI_142",
+    "name": "Anakin's Interceptor",
+    "subtitle": "Where the Fun Begins",
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "LOF_144",
+    "name": "Jedi Starfighter",
+    "subtitle": null,
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "SOR_111",
+    "name": "Patrolling V-Wing",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "SOR_310",
+    "name": "Restored ARC-170",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "JTL_160",
+    "name": "Supporting Eta-2",
+    "subtitle": null,
+    "setCode": "JTL"
+   },
+   {
+    "cardId": "JTL_326",
+    "name": "Omicron Strike Craft",
+    "subtitle": null,
+    "setCode": "JTL"
+   },
+   {
+    "cardId": "TS26_041",
+    "name": "Twilight",
+    "subtitle": "Escaping Malevolence",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_066",
+    "name": "Wartime Pirate",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_018",
+    "name": "Jendirian Valley",
+    "subtitle": "Refugee Freighter",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SEC_1010",
+    "name": "Heroic ARC-170",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "TS26_042",
+    "name": "Relief Frigate",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_024",
+    "name": "Sundari Gauntlet",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_046",
+    "name": "Secret Marriage",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_064",
+    "name": "Urgent Mission",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_068",
+    "name": "Arms Deal",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "P26_213",
+    "name": "Galactic Escalation",
+    "subtitle": null,
+    "setCode": "P26"
+   },
+   {
+    "cardId": "TS26_057",
+    "name": "Mechanize",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SHD_105",
+    "name": "Spark of Hope",
+    "subtitle": null,
+    "setCode": "SHD"
+   },
+   {
+    "cardId": "SEC_179",
+    "name": "Aggressive Negotiations",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "TWI_173",
+    "name": "Blood Sport",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TS26_071",
+    "name": "Take Action",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_060",
+    "name": "Take Charge",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_047",
+    "name": "Take Cover",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TWI_129",
+    "name": "In Defense of Kamino",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TWI_251",
+    "name": "Drop In",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TS26_084",
+    "name": "Fearless Attack",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_061",
+    "name": "Encircle",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_072",
+    "name": "Fervor",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SOR_104",
+    "name": "U-Wing Reinforcement",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "TWI_012",
+    "name": "Clone Cohort",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TS26_025",
+    "name": "Fiery Alliance",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TWI_001",
+    "name": "Perilous Position",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "SEC_176",
+    "name": "Sudden Ferocity",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "TS26_045",
+    "name": "Champion",
+    "subtitle": null,
+    "setCode": "TS26"
+   }
+  ]
+ },
+ {
+  "slug": "master-and-apprentice",
+  "nombre": "Master and Apprentice",
+  "lideres": [
+   {
+    "cardId": "P26_133",
+    "name": "Count Dooku",
+    "subtitle": "Offering Aid",
+    "setCode": "P26"
+   },
+   {
+    "cardId": "P26_139",
+    "name": "Asajj Ventress",
+    "subtitle": "Ambitious Apprentice",
+    "setCode": "P26"
+   }
+  ],
+  "base": {
+   "cardId": "TS26_010",
+   "name": "Dooku's Palace",
+   "subtitle": null,
+   "setCode": "TS26"
+  },
+  "cartas": [
+   {
+    "cardId": "TS26_053",
+    "name": "Coruscanti Spy",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "LAW_361",
+    "name": "Imperial Door Technician",
+    "subtitle": null,
+    "setCode": "LAW"
+   },
+   {
+    "cardId": "TS26_043",
+    "name": "Wartime Refugee",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_016",
+    "name": "King Katuunko",
+    "subtitle": "Great King of Toydaria",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "J25_003",
+    "name": "Poggle the Lesser",
+    "subtitle": "Archduke of the Stalgasin Hive",
+    "setCode": "J25"
+   },
+   {
+    "cardId": "TWI_011",
+    "name": "B1 Security Team",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TWI_252",
+    "name": "Aggrieved Parliamentarian",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TS26_015",
+    "name": "C-3P0",
+    "subtitle": "Die, Jedi Dogs!",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TWI_210",
+    "name": "Lux Bonteri",
+    "subtitle": "Renegade Separatist",
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "SHD_029",
+    "name": "Pyke Sentinel",
+    "subtitle": null,
+    "setCode": "SHD"
+   },
+   {
+    "cardId": "TWI_304",
+    "name": "Rune Haako",
+    "subtitle": "Scheming Second",
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TS26_017",
+    "name": "Rush Clovis",
+    "subtitle": "Trapped by Authority",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TWI_180",
+    "name": "Separatist Commando",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TS26_076",
+    "name": "Wartime Profiteer",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_073",
+    "name": "Moralo Eval",
+    "subtitle": "Infamous Murderer",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TWI_229",
+    "name": "Battle Droid Escort",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TWI_306",
+    "name": "Calculating MagnaGuard",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TWI_354",
+    "name": "Droid Commando",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TWI_230",
+    "name": "Super Battle Droid",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "SHD_085",
+    "name": "Superlaser Technician",
+    "subtitle": null,
+    "setCode": "SHD"
+   },
+   {
+    "cardId": "SHD_308",
+    "name": "The Client",
+    "subtitle": "Dictated by Discretion",
+    "setCode": "SHD"
+   },
+   {
+    "cardId": "LOF_329",
+    "name": "Watto",
+    "subtitle": "No Money, No Parts, No Deal",
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "TS26_074",
+    "name": "Pre Vizsla",
+    "subtitle": "For Mandalore!",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TWI_183",
+    "name": "Rush Clovis",
+    "subtitle": "Banking Clan Scion",
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TS26_049",
+    "name": "Separatist Council",
+    "subtitle": "Quarrelsome Holdouts",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_044",
+    "name": "Arena Reek",
+    "subtitle": "Lumbering Beast",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_077",
+    "name": "Deployed Droideka",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SEC_1045",
+    "name": "Sly Moore",
+    "subtitle": "Witness to Power",
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "TS26_054",
+    "name": "Wartime Mercenaries",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "P26_212",
+    "name": "General Grievous",
+    "subtitle": "Crush Them!",
+    "setCode": "P26"
+   },
+   {
+    "cardId": "TS26_075",
+    "name": "Jango Fett",
+    "subtitle": "Guarding the Count",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SEC_1019",
+    "name": "Assassin Probe",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "TWI_113",
+    "name": "B2 Legionnaires",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TS26_078",
+    "name": "Barriss Offee",
+    "subtitle": "It's Only a Matter of Time",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TWI_356",
+    "name": "Kraken",
+    "subtitle": "Confederate Tactician",
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TS26_051",
+    "name": "Lom Pyke",
+    "subtitle": "Making a Withdrawal",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SEC_118",
+    "name": "Raxian Assembly",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "TWI_185",
+    "name": "Ziro the Hutt",
+    "subtitle": "Colorful Schemer",
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TS26_013",
+    "name": "Darth Sidious",
+    "subtitle": "Under a Cloak of Darkness",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TWI_016",
+    "name": "Kalani",
+    "subtitle": "Analytical General",
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TWI_187",
+    "name": "Cad Bane",
+    "subtitle": "Hostage Taker",
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "C24_001",
+    "name": "Count Dooku",
+    "subtitle": "Darth Tyranus",
+    "setCode": "C24"
+   },
+   {
+    "cardId": "SOR_178",
+    "name": "Cartel Spacer",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "TWI_013",
+    "name": "Confederate Courier",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "SEC_215",
+    "name": "Emissary's Sheathipede",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "JTL_295",
+    "name": "Onyx Squadron Brute",
+    "subtitle": null,
+    "setCode": "JTL"
+   },
+   {
+    "cardId": "SEC_217",
+    "name": "Zenuas Shadow Fighter",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "TS26_038",
+    "name": "Dooku's Solar Sailer",
+    "subtitle": "Beautiful and Expensive",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TWI_181",
+    "name": "Elite P-38 Starfighter",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "LOF_110",
+    "name": "Hive Defense Wing",
+    "subtitle": null,
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "TS26_027",
+    "name": "Fortune and Glory",
+    "subtitle": "Hondo's Luxury Yacht",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TWI_309",
+    "name": "Devastating Gunship",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TS26_042",
+    "name": "Relief Frigate",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "JTL_1040",
+    "name": "Invincible",
+    "subtitle": "Naval Adversary",
+    "setCode": "JTL"
+   },
+   {
+    "cardId": "JTL_333",
+    "name": "CR90 Relief Runner",
+    "subtitle": null,
+    "setCode": "JTL"
+   },
+   {
+    "cardId": "LOF_120",
+    "name": "Trident Assault Ship",
+    "subtitle": null,
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "JTL_229",
+    "name": "Diversion",
+    "subtitle": null,
+    "setCode": "JTL"
+   },
+   {
+    "cardId": "P26_213",
+    "name": "Galactic Escalation",
+    "subtitle": null,
+    "setCode": "P26"
+   },
+   {
+    "cardId": "TS26_081",
+    "name": "Mislead",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SOR_186",
+    "name": "No Good to Me Dead",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "TS26_033",
+    "name": "Kouhun Assassination",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TWI_238",
+    "name": "Merciless Contest",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TS26_083",
+    "name": "Take Aim",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SHD_131",
+    "name": "Take Captive",
+    "subtitle": null,
+    "setCode": "SHD"
+   },
+   {
+    "cardId": "TS26_060",
+    "name": "Take Charge",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_047",
+    "name": "Take Cover",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SEC_355",
+    "name": "Corporate Warmongering",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "TWI_190",
+    "name": "On the Doorstep",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TS26_048",
+    "name": "Vanquish the Legion",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_061",
+    "name": "Encircle",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SOR_356",
+    "name": "Overwhelming Barrage",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "SHD_344",
+    "name": "Top Target",
+    "subtitle": null,
+    "setCode": "SHD"
+   },
+   {
+    "cardId": "TS26_079",
+    "name": "Underestimated",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SOR_336",
+    "name": "Electrostaff",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "TS26_052",
+    "name": "Sith Traditions",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SEC_303",
+    "name": "Creditor's Claim",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "TS26_037",
+    "name": "Abandoned the Order",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SEC_123",
+    "name": "Unveiled Might",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "SOR_122",
+    "name": "Traitorous",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "TS26_045",
+    "name": "Champion",
+    "subtitle": null,
+    "setCode": "TS26"
+   }
+  ]
+ },
+ {
+  "slug": "blood-brothers",
+  "nombre": "Blood Brothers",
+  "lideres": [
+   {
+    "cardId": "P26_135",
+    "name": "Maul",
+    "subtitle": "Collective Ambition",
+    "setCode": "P26"
+   },
+   {
+    "cardId": "P26_137",
+    "name": "Savage Opress",
+    "subtitle": "You Must Have Your Revenge",
+    "setCode": "P26"
+   }
+  ],
+  "base": {
+   "cardId": "TS26_012",
+   "name": "Sundari Palace",
+   "subtitle": null,
+   "setCode": "TS26"
+  },
+  "cartas": [
+   {
+    "cardId": "SEC_343",
+    "name": "Corrupt Politician",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "TS26_053",
+    "name": "Coruscanti Spy",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SHD_134",
+    "name": "Guavian Antagonizer",
+    "subtitle": null,
+    "setCode": "SHD"
+   },
+   {
+    "cardId": "SHD_353",
+    "name": "Salacious Crumb",
+    "subtitle": "Obnoxious Pet",
+    "setCode": "SHD"
+   },
+   {
+    "cardId": "LOF_107",
+    "name": "Village Tender",
+    "subtitle": null,
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "SHD_185",
+    "name": "Doctor Evazan",
+    "subtitle": "Wanted on Twelve Systems",
+    "setCode": "SHD"
+   },
+   {
+    "cardId": "LOF_179",
+    "name": "Aurra Sing",
+    "subtitle": "Patient and Deadly",
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "TS26_065",
+    "name": "Bo-Katan Kryze",
+    "subtitle": "The Lawless",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "LAW_173",
+    "name": "BT-1",
+    "subtitle": "Blastomech",
+    "setCode": "LAW"
+   },
+   {
+    "cardId": "LAW_334",
+    "name": "Devaronian Doorbuster",
+    "subtitle": null,
+    "setCode": "LAW"
+   },
+   {
+    "cardId": "LAW_339",
+    "name": "Interrogation Droid",
+    "subtitle": null,
+    "setCode": "LAW"
+   },
+   {
+    "cardId": "LOF_345",
+    "name": "Sith Legionnaire",
+    "subtitle": null,
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "TS26_076",
+    "name": "Wartime Profiteer",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_021",
+    "name": "Gar Saxon",
+    "subtitle": "Sundari Pillager",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SHD_136",
+    "name": "Death Watch Loyalist",
+    "subtitle": null,
+    "setCode": "SHD"
+   },
+   {
+    "cardId": "SHD_084",
+    "name": "Phase-III Dark Trooper",
+    "subtitle": null,
+    "setCode": "SHD"
+   },
+   {
+    "cardId": "LOF_349",
+    "name": "Praetorian Guard",
+    "subtitle": null,
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "TS26_074",
+    "name": "Pre Vizsla",
+    "subtitle": "For Mandalore!",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "LOF_1066",
+    "name": "Shin Hati",
+    "subtitle": "Overeager Apprentice",
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "LAW_345",
+    "name": "Sullustan Sapper",
+    "subtitle": null,
+    "setCode": "LAW"
+   },
+   {
+    "cardId": "TS26_028",
+    "name": "Prime Minister Almec",
+    "subtitle": "Scheming Populist",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_029",
+    "name": "Ziton Moj",
+    "subtitle": "Sowing Chaos",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "LOF_210",
+    "name": "Charging Phillak",
+    "subtitle": null,
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "TS26_077",
+    "name": "Deployed Droideka",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "LAW_159",
+    "name": "Expendable Mercenary",
+    "subtitle": null,
+    "setCode": "LAW"
+   },
+   {
+    "cardId": "LOF_113",
+    "name": "Jedi Temple Guards",
+    "subtitle": null,
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "TS26_030",
+    "name": "Maul",
+    "subtitle": "One Last Lesson",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "LAW_324",
+    "name": "Quarren Contractor",
+    "subtitle": null,
+    "setCode": "LAW"
+   },
+   {
+    "cardId": "TS26_067",
+    "name": "Ruping Rider",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "JTL_224",
+    "name": "Shadowed Hover Tank",
+    "subtitle": null,
+    "setCode": "JTL"
+   },
+   {
+    "cardId": "LAW_346",
+    "name": "Urrr'k",
+    "subtitle": "Elite Sharpshooter",
+    "setCode": "LAW"
+   },
+   {
+    "cardId": "TS26_054",
+    "name": "Wartime Mercenaries",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_026",
+    "name": "Mother Talzin",
+    "subtitle": "Stealing the Spirit",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SOR_133",
+    "name": "Seventh Sister",
+    "subtitle": "Implacable Inquisitor",
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "SEC_350",
+    "name": "Cruel Commandos",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "TS26_051",
+    "name": "Lom Pyke",
+    "subtitle": "Making a Withdrawal",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "LOF_116",
+    "name": "Relic Scavenger",
+    "subtitle": null,
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "LOF_136",
+    "name": "Thralls of the Coven",
+    "subtitle": null,
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "SEC_140",
+    "name": "Hondo Ohnaka",
+    "subtitle": "You Better Hurry",
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "J24_004",
+    "name": "Maul",
+    "subtitle": "Shadow Collective Visionary",
+    "setCode": "J24"
+   },
+   {
+    "cardId": "TWI_001",
+    "name": "Savage Opress",
+    "subtitle": "Monster",
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "SHD_172",
+    "name": "Krayt Dragon",
+    "subtitle": null,
+    "setCode": "SHD"
+   },
+   {
+    "cardId": "LOF_228",
+    "name": "Forged Starfighter",
+    "subtitle": null,
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "LAW_135",
+    "name": "Pirate Snub Fighter",
+    "subtitle": null,
+    "setCode": "LAW"
+   },
+   {
+    "cardId": "LOF_131",
+    "name": "Strikeship",
+    "subtitle": null,
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "TWI_132",
+    "name": "Confederate Tri-Fighter",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "JTL_184",
+    "name": "Contracted Jumpmaster",
+    "subtitle": null,
+    "setCode": "JTL"
+   },
+   {
+    "cardId": "SEC_166",
+    "name": "Republic Aurek Starfighter",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "TS26_066",
+    "name": "Wartime Pirate",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_027",
+    "name": "Fortune and Glory",
+    "subtitle": "Hondo's Luxury Yacht",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_024",
+    "name": "Sundari Gauntlet",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SOR_134",
+    "name": "Ruthless Raider",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "JTL_225",
+    "name": "Corporate Light Cruiser",
+    "subtitle": null,
+    "setCode": "JTL"
+   },
+   {
+    "cardId": "JTL_119",
+    "name": "Resupply Carrier",
+    "subtitle": null,
+    "setCode": "JTL"
+   },
+   {
+    "cardId": "JTL_123",
+    "name": "Dogfight",
+    "subtitle": null,
+    "setCode": "JTL"
+   },
+   {
+    "cardId": "TS26_080",
+    "name": "Reveal Intentions",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SOR_219",
+    "name": "Sneak Attack",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "TS26_068",
+    "name": "Arms Deal",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "P26_213",
+    "name": "Galactic Escalation",
+    "subtitle": null,
+    "setCode": "P26"
+   },
+   {
+    "cardId": "TS26_057",
+    "name": "Mechanize",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_081",
+    "name": "Mislead",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_070",
+    "name": "Backed by Black Sun",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_058",
+    "name": "Backed by the Pykes",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_059",
+    "name": "Brothers",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TWI_225",
+    "name": "Now There Are Two of Them",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TS26_082",
+    "name": "Evade Arrest",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "LAW_217",
+    "name": "Hold For Questioning",
+    "subtitle": null,
+    "setCode": "LAW"
+   },
+   {
+    "cardId": "SHD_244",
+    "name": "No Bargain",
+    "subtitle": null,
+    "setCode": "SHD"
+   },
+   {
+    "cardId": "SOR_012",
+    "name": "Resupply",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "TS26_071",
+    "name": "Take Action",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_083",
+    "name": "Take Aim",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_060",
+    "name": "Take Charge",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_072",
+    "name": "Fervor",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SHD_001",
+    "name": "Legal Authority",
+    "subtitle": null,
+    "setCode": "SHD"
+   },
+   {
+    "cardId": "TS26_025",
+    "name": "Fiery Alliance",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "JTL_192",
+    "name": "In Debt to Crimson Dawn",
+    "subtitle": null,
+    "setCode": "JTL"
+   },
+   {
+    "cardId": "TS26_052",
+    "name": "Sith Traditions",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SEC_226",
+    "name": "Sneaking Suspicion",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "SOR_137",
+    "name": "Fallen Lightsaber",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "TS26_022",
+    "name": "The Darksaber",
+    "subtitle": "Only the Strongest Shall Rule",
+    "setCode": "TS26"
+   }
+  ]
+ },
+ {
+  "slug": "against-the-odds",
+  "nombre": "Against the Odds",
+  "lideres": [
+   {
+    "cardId": "P26_140",
+    "name": "Ahsoka Tano",
+    "subtitle": "I Have an Idea",
+    "setCode": "P26"
+   },
+   {
+    "cardId": "P26_138",
+    "name": "Rex",
+    "subtitle": "No Other Option",
+    "setCode": "P26"
+   }
+  ],
+  "base": {
+   "cardId": "TS26_009",
+   "name": "First Battle Memorial",
+   "subtitle": null,
+   "setCode": "TS26"
+  },
+  "cartas": [
+   {
+    "cardId": "SOR_018",
+    "name": "Greedo",
+    "subtitle": "Slow on the Draw",
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "SOR_140",
+    "name": "SpecForce Soldier",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "TS26_043",
+    "name": "Wartime Refugee",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TWI_315",
+    "name": "Barriss Offee",
+    "subtitle": "Unassuming Apprentice",
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TS26_020",
+    "name": "501st Veteran",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_065",
+    "name": "Bo-Katan Kryze",
+    "subtitle": "The Lawless",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SEC_307",
+    "name": "Chandrilan Sponsor",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "SHD_146",
+    "name": "Heroic Renegade",
+    "subtitle": null,
+    "setCode": "SHD"
+   },
+   {
+    "cardId": "SEC_200",
+    "name": "Junior Senator",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "TWI_317",
+    "name": "Kashyyyk Defender",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "SOR_189",
+    "name": "Leia Organa",
+    "subtitle": "Defiant Princess",
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "SEC_321",
+    "name": "Lobot",
+    "subtitle": "Cloud City Coordinator",
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "SEC_322",
+    "name": "Lost Jedi",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "LOF_207",
+    "name": "Loth-Cat",
+    "subtitle": null,
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "LOF_308",
+    "name": "Loth-Wolf",
+    "subtitle": null,
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "TS26_062",
+    "name": "R2-D2",
+    "subtitle": "Getting His Chance",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_076",
+    "name": "Wartime Profiteer",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_039",
+    "name": "Captain Vaughn",
+    "subtitle": "Search the Tunnels",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SHD_319",
+    "name": "Village Protectors",
+    "subtitle": null,
+    "setCode": "SHD"
+   },
+   {
+    "cardId": "SOR_016",
+    "name": "Yoda",
+    "subtitle": "Old Master",
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "J24_002",
+    "name": "K-2SO",
+    "subtitle": "Cassian's Counterpart",
+    "setCode": "J24"
+   },
+   {
+    "cardId": "TWI_146",
+    "name": "Steela Gerrera",
+    "subtitle": "Beloved Tactician",
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "SOR_330",
+    "name": "Baze Malbus",
+    "subtitle": "Temple Guardian",
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "TS26_077",
+    "name": "Deployed Droideka",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_030",
+    "name": "Maul",
+    "subtitle": "One Last Lesson",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_067",
+    "name": "Ruping Rider",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "J25_002",
+    "name": "Ki-Adi-Mundi",
+    "subtitle": "Composed and Confident",
+    "setCode": "J25"
+   },
+   {
+    "cardId": "TWI_147",
+    "name": "Anakin Skywalker",
+    "subtitle": "Maverick Mentor",
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "SOR_332",
+    "name": "Rugged Survivors",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "LAW_309",
+    "name": "Zeb Orellios",
+    "subtitle": "Spectre Four",
+    "setCode": "LAW"
+   },
+   {
+    "cardId": "TS26_034",
+    "name": "Fives",
+    "subtitle": "I Have Proof!",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_040",
+    "name": "Obi-Wan Kenobi",
+    "subtitle": "Steadfast Knight",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "J24_005",
+    "name": "Wrecker",
+    "subtitle": "Boom!",
+    "setCode": "J24"
+   },
+   {
+    "cardId": "LOF_1061",
+    "name": "Depa Billaba",
+    "subtitle": "A Higher Purpose",
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "SOR_141",
+    "name": "Green Squadron A-Wing",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "LOF_192",
+    "name": "N-1 Starfighter",
+    "subtitle": null,
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "P25_092",
+    "name": "Millennium Falcon",
+    "subtitle": "Piece of Junk",
+    "setCode": "P25"
+   },
+   {
+    "cardId": "SHD_166",
+    "name": "Disabling Fang Fighter",
+    "subtitle": null,
+    "setCode": "SHD"
+   },
+   {
+    "cardId": "JTL_1034",
+    "name": "Red Five",
+    "subtitle": "Running the Trench",
+    "setCode": "JTL"
+   },
+   {
+    "cardId": "JTL_313",
+    "name": "Red Squadron X-Wing",
+    "subtitle": null,
+    "setCode": "JTL"
+   },
+   {
+    "cardId": "TS26_041",
+    "name": "Twilight",
+    "subtitle": "Escaping Malevolence",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_066",
+    "name": "Wartime Pirate",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "LAW_347",
+    "name": "Broken Horn",
+    "subtitle": "Vizago's Pride",
+    "setCode": "LAW"
+   },
+   {
+    "cardId": "TS26_042",
+    "name": "Relief Frigate",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "P26_207",
+    "name": "Tribunal",
+    "subtitle": "Grave of the 332nd",
+    "setCode": "P26"
+   },
+   {
+    "cardId": "TS26_031",
+    "name": "Chaotic Diversion",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SOR_150",
+    "name": "Heroic Sacrifice",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "TS26_080",
+    "name": "Reveal Intentions",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SOR_217",
+    "name": "Shoot First",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "TS26_032",
+    "name": "Reckless Landing",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_069",
+    "name": "Remove the Chip",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_068",
+    "name": "Arms Deal",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SOR_199",
+    "name": "Bamboozle",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "TWI_171",
+    "name": "Grenade Strike",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "TWI_172",
+    "name": "Grim Resolve",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "SEC_232",
+    "name": "Kreia's Whispers",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "TS26_081",
+    "name": "Mislead",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SHD_231",
+    "name": "Surprise Strike",
+    "subtitle": null,
+    "setCode": "SHD"
+   },
+   {
+    "cardId": "LAW_246",
+    "name": "The Axe Forgets",
+    "subtitle": null,
+    "setCode": "LAW"
+   },
+   {
+    "cardId": "LOF_226",
+    "name": "Tip the Scale",
+    "subtitle": null,
+    "setCode": "LOF"
+   },
+   {
+    "cardId": "SEC_233",
+    "name": "Beguile",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "TS26_082",
+    "name": "Evade Arrest",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TWI_018",
+    "name": "Hello There",
+    "subtitle": null,
+    "setCode": "TWI"
+   },
+   {
+    "cardId": "SOR_171",
+    "name": "Mission Briefing",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "SOR_172",
+    "name": "Open Fire",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "SOR_221",
+    "name": "Outmaneuver",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "JTL_180",
+    "name": "Piercing Shot",
+    "subtitle": null,
+    "setCode": "JTL"
+   },
+   {
+    "cardId": "TS26_071",
+    "name": "Take Action",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_083",
+    "name": "Take Aim",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_047",
+    "name": "Take Cover",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_084",
+    "name": "Fearless Attack",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SOR_001",
+    "name": "Takedown",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "TS26_048",
+    "name": "Vanquish the Legion",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SOR_173",
+    "name": "Bombing Run",
+    "subtitle": null,
+    "setCode": "SOR"
+   },
+   {
+    "cardId": "TS26_079",
+    "name": "Underestimated",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "SEC_334",
+    "name": "Armor of Fortune",
+    "subtitle": null,
+    "setCode": "SEC"
+   },
+   {
+    "cardId": "TS26_063",
+    "name": "Rex's DC-17s",
+    "subtitle": "This Ship is Going Down",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_035",
+    "name": "Ahsoka's Lightsabers",
+    "subtitle": "Don't Hurt Them",
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_037",
+    "name": "Abandoned the Order",
+    "subtitle": null,
+    "setCode": "TS26"
+   },
+   {
+    "cardId": "TS26_045",
+    "name": "Champion",
+    "subtitle": null,
+    "setCode": "TS26"
+   }
+  ]
+ }
+]

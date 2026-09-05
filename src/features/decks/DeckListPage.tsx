@@ -1,6 +1,6 @@
 import { Fragment, useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Trash2, BookOpen, AlertTriangle, CheckCircle2, Swords, Eye, EyeOff, Upload, Share2, FlaskConical } from 'lucide-react'
+import { Plus, Trash2, BookOpen, AlertTriangle, CheckCircle2, Swords, Eye, EyeOff, Upload, Share2, FlaskConical, Package } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { SegmentedControl } from '../../components/ui/SegmentedControl'
 import { db } from '../../services/db'
@@ -11,6 +11,7 @@ import { getPricesForCards, fetchTCGPrices, formatPrice, precioVariante, type Pr
 import { useAuth } from '../../hooks/useAuth'
 import { updateMissionProgress } from '../../services/missionService'
 import { ImportDeckModal } from './ImportDeckModal'
+import { PreconModal } from './PreconModal'
 import { ExportDeckModal } from './ExportDeckModal'
 import type { Deck, DeckCard } from '../../types'
 import type { DeckImportResult } from '../../services/deckImportExport'
@@ -75,6 +76,7 @@ export function DeckListPage() {
   const [cardImages, setCardImages] = useState<Map<string, string>>(new Map())
   const [baseTexts, setBaseTexts] = useState<Map<string, string>>(new Map())
   const [showImport, setShowImport] = useState(false)
+  const [showPrecon, setShowPrecon] = useState(false)
   const [exportDeck, setExportDeck] = useState<Deck | null>(null)
   const [precios, setPrecios] = useState<Map<string, PriceInfo>>(new Map())
   const [variante, setVariante] = useState<Variante>('normal')
@@ -254,6 +256,15 @@ export function DeckListPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-swu-text">Mis Decks</h2>
         <div className="flex items-center gap-2">
+          {/* Los precon que se venden. Meter 80 cartas a mano es lo que hace
+              que nadie tenga su precon en la app. */}
+          <button
+            onClick={() => setShowPrecon(true)}
+            className="px-3 py-2 rounded-xl border border-swu-green/30 bg-swu-green/10 text-swu-green font-bold text-sm flex items-center gap-1.5 active:scale-95 transition-transform"
+            title="Agregar un mazo preconstruido"
+          >
+            <Package size={14} /> Precon
+          </button>
           <button
             onClick={() => setShowImport(true)}
             className="px-3 py-2 rounded-xl border border-swu-accent/30 bg-swu-accent/10 text-swu-accent-texto font-bold text-sm flex items-center gap-1.5 active:scale-95 transition-transform"
@@ -483,6 +494,7 @@ export function DeckListPage() {
 
       {/* Import/Export Modals */}
       <ImportDeckModal open={showImport} onClose={() => setShowImport(false)} onImport={handleImportResult} />
+      <PreconModal open={showPrecon} onClose={() => setShowPrecon(false)} onListo={() => { setShowPrecon(false); void loadDecks() }} />
       <ExportDeckModal open={!!exportDeck} deck={exportDeck} onClose={() => setExportDeck(null)} />
 
       {/* Confirmación de borrado — un deck puede ser horas de trabajo */}
