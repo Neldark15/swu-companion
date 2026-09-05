@@ -1419,9 +1419,22 @@ input:focus, textarea:focus, select:focus {
 .barra-fina::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; }
 .barra-fina:hover::-webkit-scrollbar-thumb { background: var(--color-swu-border); }
 
-/* La entrada de una mesa en la rifa. Va acá y no como `@utility` de Tailwind
-   porque la clase se aplica desde una plantilla y el detector no la ve en el
-   código fuente: no la emitiría (§3i). */
+/* La rifa de mesas. Va acá y no como `@utility` de Tailwind porque el
+   detector solo emite lo que ve escrito literal en el código, y estas clases
+   se aplican desde plantillas (§3i). Verificado contra el CSS construido. */
+@keyframes rifa-baraja {
+  from { opacity: 0.55; transform: scale(0.94); }
+  to   { opacity: 1;    transform: scale(1); }
+}
+.rifa-baraja { animation: rifa-baraja 130ms ease-out both; }
+
+@keyframes rifa-cae {
+  from { opacity: 0; transform: translateY(-8px) scale(0.9); }
+  60%  { transform: translateY(2px) scale(1.02); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.rifa-cae { animation: rifa-cae 420ms cubic-bezier(0.34, 1.4, 0.64, 1) both; }
+
 @keyframes rifa-entra {
   from { opacity: 0; transform: translateY(10px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -1430,5 +1443,5 @@ input:focus, textarea:focus, select:focus {
   animation: rifa-entra 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 @media (prefers-reduced-motion: reduce) {
-  .rifa-entra { animation: none; }
+  .rifa-entra, .rifa-baraja, .rifa-cae { animation: none; }
 }

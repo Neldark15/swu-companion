@@ -24,6 +24,11 @@ import { declararMazo } from '../../services/events'
 import { DeclararMazo } from './DeclararMazo'
 import { esDeMesas } from '../../services/tipoTorneo'
 import { RifaDeMesas } from './RifaDeMesas'
+import { Avatar } from '../../components/ui/Avatar'
+import { CardImage } from '../../components/CardImage'
+import { puedoOperarTorneos, declararMazoDe } from '../../services/events'
+import { ensureCards } from '../../services/swuApi'
+import { cargarIndice, type IndiceCartas } from '../amistosas/cartasAmistosas'
 import { useAuth } from '../../hooks/useAuth'
 
 interface LobbyPlayer {
@@ -32,6 +37,7 @@ interface LobbyPlayer {
   joinedAt: number
   ready: boolean
   isSelf?: boolean
+  avatar: string | null
   /** El mazo declarado al inscribirse. Vacío mientras no lo haya dicho. */
   lideres: string[]
   base: string | null
@@ -44,6 +50,7 @@ function registrationsToPlayers(regs: EventRegistration[], selfUserId: string | 
     joinedAt: new Date(r.registered_at).getTime(),
     ready: r.status === 'checked_in',
     isSelf: r.user_id === selfUserId,
+    avatar: r.player_avatar ?? null,
     // Un líder vacío se filtra: en un Premier el segundo no existe, y pintar
     // un hueco por él diría que falta un dato que nunca hubo.
     lideres: [r.leader_1, r.leader_2].filter((x): x is string => !!x),
@@ -82,6 +89,10 @@ export function EventLobbyPage() {
   const [editandoMazo, setEditandoMazo] = useState(false)
   const [guardandoMazo, setGuardandoMazo] = useState(false)
   const [falloLista, setFalloLista] = useState<string | null>(null)
+  const [indice, setIndice] = useState<IndiceCartas | null>(null)
+  const [puedoOperar, setPuedoOperar] = useState(false)
+  /** A quién le está cargando el mazo el organizador. */
+  const [cargandoMazoDe, setCargandoMazoDe] = useState<string | null>(null)
   const [marcando, setMarcando] = useState(false)
   const [falloLlegada, setFalloLlegada] = useState<string | null>(null)
   const [codeCopied, setCodeCopied] = useState(false)
@@ -167,6 +178,22 @@ export function EventLobbyPage() {
       if (channel) supabase.removeChannel(channel)
     }
   }, [code, selfUserId])
+
+  useEffect(() => {
+    let vivo = true
+    void (async () => {
+      await ensureCards()
+      const i = await cargarIndice()
+      if (vivo) setIndice(i)
+    })()
+    return () => { vivo = false }
+  }, [])
+
+  useEffect(() => {
+    let vivo = true
+    void puedoOperarTorneos().then(p => { if (vivo) setPuedoOperar(p) })
+    return () => { vivo = false }
+  }, [])
 
   /* La rifa de mesas, en vivo.
      `tournament_mesas` ya publica sus cambios, así que el reparto llega solo
@@ -261,6 +288,15 @@ export function EventLobbyPage() {
     setGuardandoMazo(false)
     if (!r.ok) { setFalloLlegada(r.error ?? 'No se pudo guardar el mazo.'); return }
     setEditandoMazo(false)
+  }
+
+  const guardarMazoDe = async (personaId: string, m: Parameters<typeof declararMazoDe>[2]) => {
+    if (!event?.id) return
+    const r = await declararMazoDe(event.id, personaId, m)
+    if (!r.ok) { setFalloLlegada(r.error ?? 'No se pudo guardar ese mazo.'); return }
+    setCargandoMazoDe(null)
+    // No se toca la lista: el cambio vuelve por el canal de inscripciones y
+    // repinta para TODOS, no solo para quien lo cargó.
   }
 
   const copyCode = () => {
@@ -435,33 +471,58 @@ export function EventLobbyPage() {
               <div
                 key={p.id}
                 className={`bg-swu-surface rounded-xl px-4 py-3 border flex items-center justify-between transition-colors ${
-                  p.id === 'self'
+                  p.isSelf
                     ? 'border-swu-accent/50 bg-swu-accent/5'
                     : 'border-swu-border'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                    p.id === 'self'
-                      ? 'bg-swu-accent text-white'
-                      : 'bg-swu-bg text-swu-muted'
-                  }`}>
-                    {p.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className={`text-sm font-semibold ${p.id === 'self' ? 'text-swu-accent-texto' : 'text-swu-text'}`}>
-                      {p.name} {p.id === 'self' && <span className="text-[10px] text-swu-accent-texto/60">(tú)</span>}
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  {/* La foto de verdad. Antes era la inicial en un círculo: en
+                      una sala de ocho, ocho iniciales no distinguen a nadie. */}
+                  <Avatar avatar={p.avatar} size={36} escalaEmoji={0.7} anillo={p.id} />
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-sm font-semibold ${p.isSelf ? 'text-swu-accent-texto' : 'text-swu-text'}`}>
+                      {p.name} {p.isSelf && <span className="text-[10px] text-swu-accent-texto/60">(tú)</span>}
                     </p>
-                    <p className="text-[11px] text-swu-muted">
-                      {timeAgo(p.joinedAt)}
-                    </p>
-                    {/* El mazo declarado. Es la razón por la que se pregunta al
-                        inscribirse: acá se ve sin tener que preguntarle a nadie. */}
-                    {(p.lideres.length > 0 || p.base) && (
-                      <p className="mt-0.5 truncate text-[11px] text-swu-accent-texto/80">
-                        {p.lideres.map(l => l.split(' — ')[0]).join(' + ')}
-                        {p.base && <span className="text-swu-muted"> · {p.base}</span>}
-                      </p>
+                    <p className="text-[11px] text-swu-muted">{timeAgo(p.joinedAt)}</p>
+                    {/* El mazo, con el arte de sus cartas. Es la razón por la
+                        que se pregunta al inscribirse: acá se ve sin tener que
+                        preguntarle a nadie. */}
+                    <MazoDeFila p={p} indice={indice} />
+                    {/* Quien no lo declaró se ve, y se puede completar en el
+                        acto: un dato que falta y no se ve es un dato que nadie
+                        completa. */}
+                    {p.lideres.length === 0 && !p.base && (
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        <span className="rounded bg-swu-amber/15 px-1.5 py-0.5 text-[10px] font-bold text-swu-amber">
+                          falta su mazo
+                        </span>
+                        {(p.isSelf || puedoOperar) && (
+                          <button
+                            onClick={() => p.isSelf ? setEditandoMazo(true) : setCargandoMazoDe(p.id)}
+                            className="text-[10px] font-bold text-swu-accent-texto underline underline-offset-2"
+                          >
+                            {p.isSelf ? 'declararlo' : 'cargárselo'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {/* El organizador carga el mazo de quien no abrió la app.
+                        En la mesa real es media sala. */}
+                    {cargandoMazoDe === p.id && event && (
+                      <div className="mt-2 rounded-xl border border-swu-accent/30 bg-swu-bg p-2.5">
+                        <DeclararMazo
+                          dosLideres={event.deMesas}
+                          inicial={{
+                            leader_1: p.lideres[0] ?? null,
+                            leader_2: p.lideres[1] ?? null,
+                            base_carta: p.base,
+                          }}
+                          etiquetaAceptar={`Guardar el mazo de ${p.name}`}
+                          onAceptar={(m) => { void guardarMazoDe(p.id, m) }}
+                          onCancelar={() => setCargandoMazoDe(null)}
+                        />
+                      </div>
                     )}
                   </div>
                 </div>
@@ -640,4 +701,34 @@ function timeAgo(ts: number): string {
   if (mins < 60) return `hace ${mins}m`
   const hrs = Math.floor(mins / 60)
   return `hace ${hrs}h`
+}
+
+/**
+ * El mazo de una fila, con el arte de sus cartas.
+ *
+ * El texto solo —«Luke Skywalker + Ahsoka Tano · Data Vault»— es correcto y no
+ * se lee: en una lista de ocho hay que detenerse a leer ocho renglones. El
+ * arte se reconoce sin leer, que es lo que uno hace mirando una sala.
+ *
+ * Si el nombre no resuelve a ninguna carta se deja el texto: un mazo cargado a
+ * mano con un nombre viejo se tiene que poder seguir leyendo.
+ */
+function MazoDeFila({ p, indice }: { p: LobbyPlayer; indice: IndiceCartas | null }) {
+  if (p.lideres.length === 0 && !p.base) return null
+  const cartas = [...p.lideres, ...(p.base ? [p.base] : [])]
+  return (
+    <div className="mt-1 flex items-center gap-1">
+      {cartas.map((nombre, i) => {
+        const c = indice?.porClave.get(nombre)
+        return c ? (
+          <CardImage key={`${nombre}-${i}`} src={c.imageUrl} alt={nombre}
+                     className="h-6 w-9 shrink-0 rounded" orientacion="apaisada" />
+        ) : (
+          <span key={`${nombre}-${i}`} className="truncate text-[10px] text-swu-muted">
+            {nombre.split(' — ')[0]}
+          </span>
+        )
+      })}
+    </div>
+  )
 }

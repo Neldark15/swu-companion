@@ -770,3 +770,38 @@ export async function marcarLlegada(
   }
   return { ok: true }
 }
+
+/** ¿Esta persona puede llevar torneos? La regla vive en el servidor. */
+export async function puedoOperarTorneos(): Promise<boolean> {
+  if (!isSupabaseReady()) return false
+  const { data, error } = await supabase.rpc('puede_operar_torneo')
+  // §2f: sin mirar el error, «no se pudo preguntar» se leería como «no puede»
+  // y el organizador se quedaría sin sus botones sin saber por qué.
+  if (error) { console.warn('[torneos] no se pudo saber si opera:', error.message); return false }
+  return data === true
+}
+
+/**
+ * Cargar el mazo de OTRA persona. Solo quien organiza.
+ *
+ * En la mesa real media sala no abre la app hasta que empieza el torneo, y el
+ * organizador necesita poder anotar «este juega Vader / Mos Eisley» sin
+ * perseguir a nadie. El permiso lo comprueba el servidor, no esta función.
+ */
+export async function declararMazoDe(
+  eventId: string,
+  personaId: string,
+  mazo: MazoDeclarado,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
+  const { error } = await supabase.rpc('declarar_mazo_de', {
+    p_evento: eventId,
+    p_persona: personaId,
+    p_leader_1: mazo.leader_1 ?? null,
+    p_leader_2: mazo.leader_2 ?? null,
+    p_base: mazo.base_carta ?? null,
+    p_nombre: mazo.deck_nombre ?? null,
+  })
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
+}
