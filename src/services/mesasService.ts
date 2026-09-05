@@ -79,6 +79,30 @@ export async function armarMesas(
 
   const r = data as RespuestaRPC | null
   if (!r?.ok) return { ok: false, mensaje: r?.error ?? 'No se pudieron armar las mesas.' }
+
+  /* El aviso dentro de la app.
+   *
+   * Armar las mesas no dejaba rastro en `tournament_broadcasts`, así que quien
+   * tuviera la app abierta —en Inicio, en su colección— no se enteraba de que
+   * ya estaban repartidas. Y en un torneo de mesas el push tampoco avisaba,
+   * porque leía la tabla de emparejamientos, que está vacía. O sea: nadie.
+   *
+   * Es best-effort —que falle el aviso no puede tumbar la rifa— pero el error
+   * se MIRA: este mismo canal estuvo con cero filas en su historia por un
+   * `catch` vacío.
+   */
+  const { data: ev } = await supabase
+    .from('official_events').select('name, code').eq('id', eventId).maybeSingle()
+  const { error: errAviso } = await supabase.from('tournament_broadcasts').insert({
+    event_id: eventId,
+    event_name: ev?.name ?? null,
+    event_code: ev?.code ?? null,
+    type: 'pairing_set',
+    message: `Ya salieron las mesas de la ronda ${r.ronda ?? ''}`.trim(),
+    payload: { ronda: r.ronda ?? 0, mesas: r.mesas ?? 0 },
+  })
+  if (errAviso) console.warn('[mesas] el aviso in-app no se guardó:', errAviso.message)
+
   return { ok: true, datos: { ronda: r.ronda ?? 0, mesas: r.mesas ?? 0 } }
 }
 

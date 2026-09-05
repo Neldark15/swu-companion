@@ -12,7 +12,8 @@
  */
 
 import { useEffect, useRef } from 'react'
-import { subscribeToBroadcasts, type TournamentBroadcast } from '../../services/tournamentCloud'
+import { subscribeToBroadcasts, isEventParticipant, type TournamentBroadcast } from '../../services/tournamentCloud'
+import { useAuth } from '../../hooks/useAuth'
 import { useNotificationStore } from '../../services/notificationService'
 
 const ICON_BY_TYPE: Record<TournamentBroadcast['type'], string> = {
@@ -25,9 +26,12 @@ const ICON_BY_TYPE: Record<TournamentBroadcast['type'], string> = {
   announcement: '📣',
 }
 
-// Which broadcasts surface as global toasts (the rest are silent for non-participants)
+/* Cuáles se avisan a TODO el mundo con la app abierta.
+   `pairing_set` no está acá y no es un olvido: avisarle a toda la comunidad
+   los pareos de cada ronda de cada torneo es exactamente el ruido que hizo
+   que se apagara. Se trata aparte, abajo: solo a quien juega ESE torneo. */
 const GLOBAL_NOTIFY: Record<TournamentBroadcast['type'], boolean> = {
-  pairing_set: false,           // too noisy if every round broadcasts to everyone
+  pairing_set: false,
   result_submitted: false,      // very chatty
   result_confirmed: false,      // very chatty (could be 30+/torneo)
   result_disputed: true,        // worth knowing
@@ -38,6 +42,7 @@ const GLOBAL_NOTIFY: Record<TournamentBroadcast['type'], boolean> = {
 
 export function TournamentBroadcastListener() {
   const addNotification = useNotificationStore(s => s.addNotification)
+  const { supabaseUser } = useAuth()
   // Dedup by id (RT can occasionally double-fire)
   const seenIds = useRef<Set<string>>(new Set())
 
@@ -51,18 +56,34 @@ export function TournamentBroadcastListener() {
         seenIds.current = new Set(arr)
       }
 
-      if (!GLOBAL_NOTIFY[b.type]) return
-
-      addNotification({
+      const avisar = () => addNotification({
         type: 'info',
         title: b.event_name || 'Torneo',
         message: b.message,
         icon: ICON_BY_TYPE[b.type] ?? '📢',
-        link: b.event_code ? `/events/live/${b.event_code}` : undefined,
+        // A la pantalla del JUGADOR: ahí ve SU mesa o SU pareo. `/events/live`
+        // es la proyección, que sirve para mirar pero no para jugar.
+        link: b.event_code ? `/events/play/${b.event_code}` : undefined,
       })
+
+      /* Los pareos se avisan SOLO a quien juega ese torneo.
+         Es el aviso que más importa —«ya salieron las mesas»— y estaba
+         apagado del todo por ruidoso. Filtrado a los participantes deja de
+         serlo: se pregunta si esta persona está inscrita, y solo entonces. */
+      if (b.type === 'pairing_set') {
+        // Sin sesión no hay a quién preguntarle si juega; sin evento tampoco.
+        if (!supabaseUser || !b.event_id) return
+        void isEventParticipant(b.event_id, supabaseUser.id).then(juega => {
+          if (juega) avisar()
+        })
+        return
+      }
+
+      if (!GLOBAL_NOTIFY[b.type]) return
+      avisar()
     })
     return unsub
-  }, [addNotification])
+  }, [addNotification, supabaseUser])
 
   return null
 }

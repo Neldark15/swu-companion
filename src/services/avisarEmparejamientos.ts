@@ -28,6 +28,7 @@
  */
 
 import { supabase, isSupabaseReady } from './supabase'
+import { esDeMesas } from './tipoTorneo'
 
 export interface AvisoPareo {
   nombre: string
@@ -64,7 +65,7 @@ export async function avisarEmparejamientos(eventCode: string): Promise<Resultad
   // El evento y su ronda en curso.
   const { data: ev, error: errEv } = await supabase
     .from('official_events')
-    .select('id, name, current_round')
+    .select('id, name, current_round, tournament_type')
     .eq('code', eventCode)
     .maybeSingle()
   // §2f: supabase-js no lanza ante un error de PostgREST.
@@ -81,25 +82,69 @@ export async function avisarEmparejamientos(eventCode: string): Promise<Resultad
   if (errRonda) return { ...vacio, mensaje: errRonda.message }
   if (!ronda) return { ...vacio, mensaje: 'Ese torneo todavía no tiene rondas.' }
 
-  const { data: mesas, error: errMesas } = await supabase
-    .from('tournament_pairings')
-    .select('table_number, player1_id, player2_id, player1_nombre, player2_nombre')
-    .eq('round_id', ronda.id)
-    .order('table_number')
-  if (errMesas) return { ...vacio, mensaje: errMesas.message }
-
-  // Se aplana a UNA fila por jugador: cada quien con su rival y su mesa.
   const avisos: AvisoPareo[] = []
-  for (const m of mesas ?? []) {
-    const mesa = m.table_number as number
-    // Un `player2` nulo es un BYE, no un rival. Avisar «te toca contra nadie»
-    // sería el motor inventando (§3q).
-    if (m.player2_nombre) {
-      avisos.push({ nombre: m.player1_nombre as string, userId: m.player1_id as string | null,
-                    mesa, rival: m.player2_nombre as string, alcanzado: false })
-      avisos.push({ nombre: m.player2_nombre as string, userId: m.player2_id as string | null,
-                    mesa, rival: m.player1_nombre as string, alcanzado: false })
+
+  /* Un torneo de MESAS no tiene emparejamientos.
+   *
+   * Se juega de a tres o cuatro por mesa, así que la gente vive en
+   * `tournament_mesas` y `tournament_pairings` está VACÍA. Este aviso leía
+   * solo los pareos: en un Twin Suns encontraba cero, no le avisaba a nadie
+   * y devolvía «ok» con la lista vacía — un botón que parece funcionar y no
+   * alcanza a nadie. Verificado contra la base: 8 asientos en mesas, 0 pareos.
+   */
+  if (esDeMesas(ev.tournament_type as string)) {
+    const { data: asientos, error: errMesas } = await supabase
+      .from('tournament_mesas')
+      .select('mesa, user_id, player_name')
+      .eq('round_id', ronda.id)
+      .order('mesa')
+    if (errMesas) return { ...vacio, mensaje: errMesas.message }
+
+    const porMesa = new Map<number, { user_id: string | null; player_name: string }[]>()
+    for (const a of asientos ?? []) {
+      const n = a.mesa as number
+      const lista = porMesa.get(n)
+      const fila = { user_id: a.user_id as string | null, player_name: a.player_name as string }
+      if (lista) lista.push(fila); else porMesa.set(n, [fila])
     }
+
+    for (const [mesa, gente] of porMesa) {
+      for (const j of gente) {
+        // El «rival» de una mesa son los OTROS de esa mesa: en un Twin Suns no
+        // hay uno contra uno que nombrar.
+        const otros = gente.filter(x => x !== j).map(x => x.player_name)
+        avisos.push({
+          nombre: j.player_name, userId: j.user_id, mesa,
+          rival: otros.join(', ') || 'nadie más todavía',
+          alcanzado: false,
+        })
+      }
+    }
+  } else {
+    const { data: mesas, error: errMesas } = await supabase
+      .from('tournament_pairings')
+      .select('table_number, player1_id, player2_id, player1_nombre, player2_nombre')
+      .eq('round_id', ronda.id)
+      .order('table_number')
+    if (errMesas) return { ...vacio, mensaje: errMesas.message }
+
+    // Se aplana a UNA fila por jugador: cada quien con su rival y su mesa.
+    for (const m of mesas ?? []) {
+      const mesa = m.table_number as number
+      // Un `player2` nulo es un BYE, no un rival. Avisar «te toca contra nadie»
+      // sería el motor inventando (§3q).
+      if (m.player2_nombre) {
+        avisos.push({ nombre: m.player1_nombre as string, userId: m.player1_id as string | null,
+                      mesa, rival: m.player2_nombre as string, alcanzado: false })
+        avisos.push({ nombre: m.player2_nombre as string, userId: m.player2_id as string | null,
+                      mesa, rival: m.player1_nombre as string, alcanzado: false })
+      }
+    }
+  }
+
+  // Nadie a quien avisar es un RESULTADO, no un éxito silencioso.
+  if (avisos.length === 0) {
+    return { ...vacio, mensaje: 'Todavía no hay mesas ni emparejamientos en esta ronda.' }
   }
 
   const conCuenta = avisos.filter(a => a.userId)
@@ -111,7 +156,9 @@ export async function avisarEmparejamientos(eventCode: string): Promise<Resultad
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             title: `Ronda ${ronda.round_number} · Mesa ${a.mesa}`,
-            body: `Te toca contra ${a.rival}.`,
+            body: esDeMesas(ev.tournament_type as string)
+              ? `Te sentás con ${a.rival}.`
+              : `Te toca contra ${a.rival}.`,
             // A la pantalla del JUGADOR, no al archivo: `/torneos/<code>`
             // filtra `status='finished'` y en pleno torneo caía en «no existe
             // un torneo con ese código».

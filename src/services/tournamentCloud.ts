@@ -180,8 +180,13 @@ export async function initializeTournament(
       event_id: eventId,
       user_id: r.user_id,
       player_name: profile.name || `Jugador ${idx + 1}`,
-      leader: lideres.length > 0 ? lideres.join(' + ') : null,
-      base: (r.base_carta as string | null) ?? null,
+      /* Cadena VACÍA y no `null`: las dos columnas son NOT NULL con `''` por
+         defecto. Con `null`, el INSERT de la clasificación entera revienta —
+         no la fila de quien no declaró mazo: TODAS—, y sembrar el torneo
+         fallaba con dos personas sin mazo declarado. Encontrado ensayando la
+         siembra contra la base antes de que Nel apretara el botón. */
+      leader: lideres.length > 0 ? lideres.join(' + ') : '',
+      base: (r.base_carta as string | null) ?? '',
       points: 0,
       match_wins: 0,
       match_losses: 0,
