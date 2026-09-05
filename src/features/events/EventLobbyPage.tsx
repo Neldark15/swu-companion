@@ -24,6 +24,7 @@ import { declararMazo } from '../../services/events'
 import { DeclararMazo } from './DeclararMazo'
 import { esDeMesas } from '../../services/tipoTorneo'
 import { RifaDeMesas } from './RifaDeMesas'
+import { PodioDePremios } from './PodioDePremios'
 import { Avatar } from '../../components/ui/Avatar'
 import { CardImage } from '../../components/CardImage'
 import { puedoOperarTorneos, declararMazoDe } from '../../services/events'
@@ -448,6 +449,12 @@ export function EventLobbyPage() {
       {mesas.length > 0 && (
         <div className="mb-4">
           <RifaDeMesas mesas={mesas} miId={selfUserId} />
+        </div>
+      )}
+
+      {event && (
+        <div className="mb-4">
+          <PodioDePremios eventId={event.id} puedoEditar={puedoOperar} />
         </div>
       )}
 
