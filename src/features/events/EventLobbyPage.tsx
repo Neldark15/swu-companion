@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 // (navigate to /events/play/:code when status flips to 'active' — see useEffect below)
 import {
   ChevronLeft,
@@ -23,6 +23,8 @@ import { escucharPresenciaTorneo, type Mirando } from '../../services/presenciaT
 import { declararMazo } from '../../services/events'
 import { DeclararMazo } from './DeclararMazo'
 import { esDeMesas } from '../../services/tipoTorneo'
+import { mesasPosibles, dibujarComposicion } from '../../services/mesas'
+import { Settings2 } from 'lucide-react'
 import { RifaDeMesas } from './RifaDeMesas'
 import { LogoTorneo } from '../torneos/LogoTorneo'
 import { PodioDePremios } from './PodioDePremios'
@@ -462,6 +464,27 @@ export function EventLobbyPage() {
         </div>
       )}
 
+      {/* Llevar el torneo, desde acá.
+          El tablero solo se alcanzaba desde /torneos → Organizar, y quien
+          organiza está EN el lobby con la gente: mandarlo a buscar la otra
+          pantalla en medio de la sala es una vuelta de más. */}
+      {event && puedoOperar && (
+        <Link
+          to={`/events/dashboard/${code}`}
+          className="mb-3 flex min-h-[48px] items-center justify-center gap-2 rounded-xl
+                     border border-swu-amber/40 bg-swu-amber/10 text-sm font-bold text-swu-amber"
+        >
+          <Settings2 size={16} /> Llevar el torneo
+        </Link>
+      )}
+
+      {/* Cómo van a quedar las mesas, ANTES del sorteo.
+          Es lo que la sala pregunta mientras espera —«¿cuántas mesas somos?»—
+          y hasta ahora había que saberlo de memoria. */}
+      {event && event.deMesas && mesas.length === 0 && (
+        <ComposicionPrevista cuantos={players.length} />
+      )}
+
       {event && (
         <div className="mb-4">
           <PodioDePremios eventId={event.id} puedoEditar={puedoOperar} />
@@ -746,6 +769,43 @@ function MazoDeFila({ p, indice }: { p: LobbyPlayer; indice: IndiceCartas | null
           </span>
         )
       })}
+    </div>
+  )
+}
+
+/**
+ * Cómo van a quedar las mesas con la gente que hay ahora.
+ *
+ * Se calcula con la MISMA función que después arma el sorteo, así que lo que
+ * se anuncia acá es lo que va a pasar. Anunciarlo con una cuenta aparte sería
+ * la forma de que el cartel diga «3 mesas» y el sorteo arme 4.
+ *
+ * Se muestra solo ANTES del sorteo: una vez repartidas, las mesas de verdad
+ * están abajo y esto sería ruido.
+ */
+function ComposicionPrevista({ cuantos }: { cuantos: number }) {
+  const opciones = mesasPosibles(cuantos)
+  if (cuantos === 0) return null
+
+  return (
+    <div className="mb-3 rounded-xl border border-swu-border bg-swu-surface px-3 py-2.5">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-swu-muted">
+        Cómo quedarían las mesas
+      </p>
+      {opciones.length === 0 ? (
+        /* Hay números que no se pueden repartir en mesas de 3 y 4 —5 es el
+           caso— y decirlo acá evita que se descubra recién al sortear. */
+        <p className="mt-0.5 text-[12px] text-swu-amber">
+          Con {cuantos} no se pueden armar mesas de 3 o 4. Falta o sobra alguien.
+        </p>
+      ) : (
+        <p className="mt-0.5 text-[13px] font-semibold text-swu-text">
+          {cuantos} jugadores · {opciones[0].mesas} mesas de {dibujarComposicion(opciones[0])}
+          {opciones.length > 1 && (
+            <span className="text-swu-muted"> (o {opciones[1].mesas} de {dibujarComposicion(opciones[1])})</span>
+          )}
+        </p>
+      )}
     </div>
   )
 }
