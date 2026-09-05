@@ -60,6 +60,7 @@ import { listarTorneos, type TorneoResumen } from '../../services/torneosHistori
 import {
   listarEnCurso, partirPorFecha, joinOfficialEvent, leaveOfficialEvent,
   deleteOfficialEvent, updateOfficialEvent, subirLogoTorneo,
+  getLogosPorFormato, fijarLogoDeFormato, logoDe,
   type OfficialEvent, type MazoDeclarado,
 } from '../../services/events'
 import { DeclararMazo } from '../events/DeclararMazo'
@@ -99,6 +100,8 @@ export function TorneosPage() {
   const [recarga, setRecarga] = useState(0)
   /** Cuántos torneos caseros hay EN ESTE APARATO. Dexie, no la nube. */
   const [caseros, setCaseros] = useState(0)
+  /** El logo por defecto de cada formato, para los torneos sin uno propio. */
+  const [logos, setLogos] = useState<Map<string, string>>(new Map())
 
   useEffect(() => {
     let vivo = true
@@ -128,6 +131,12 @@ export function TorneosPage() {
   useEffect(() => {
     db.tournaments.count().then(setCaseros).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    let vivo = true
+    void getLogosPorFormato().then(m => { if (vivo) setLogos(m) })
+    return () => { vivo = false }
+  }, [recarga])
 
   const recargarTodo = () => setRecarga(n => n + 1)
 
@@ -170,7 +179,7 @@ export function TorneosPage() {
       {pestana === 'proximos' && (
         <Proximos
           eventos={enCurso} fallo={falloCurso} onReintentar={recargarTodo}
-          userId={supabaseUser?.id} esAdmin={isAdmin} caseros={caseros}
+          userId={supabaseUser?.id} esAdmin={isAdmin} caseros={caseros} logos={logos}
           onCambio={recargarTodo} navigate={navigate}
         />
       )}
@@ -190,9 +199,10 @@ export function TorneosPage() {
    PRÓXIMOS — la tarjeta que venía de /events, ya sin los botones de admin
    ══════════════════════════════════════════════════════════════════════════ */
 
-function Proximos({ eventos, fallo, onReintentar, userId, esAdmin, caseros, onCambio, navigate }: {
+function Proximos({ eventos, fallo, onReintentar, userId, esAdmin, caseros, logos, onCambio, navigate }: {
   eventos: OfficialEvent[] | null; fallo: string | null; onReintentar: () => void
   userId: string | undefined; esAdmin: boolean; caseros: number
+  logos: Map<string, string>
   onCambio: () => void; navigate: (to: string) => void
 }) {
   const { vienen, pasados } = partirPorFecha(eventos ?? [])
@@ -248,7 +258,7 @@ function Proximos({ eventos, fallo, onReintentar, userId, esAdmin, caseros, onCa
         <ul className="space-y-2.5">
           {vienen.map(e => (
             <li key={e.id}>
-              <TarjetaEvento evento={e} userId={userId} esAdmin={esAdmin} onCambio={onCambio} />
+              <TarjetaEvento evento={e} userId={userId} esAdmin={esAdmin} logo={logoDe(e, logos)} onCambio={onCambio} />
             </li>
           ))}
         </ul>
@@ -262,7 +272,7 @@ function Proximos({ eventos, fallo, onReintentar, userId, esAdmin, caseros, onCa
           <ul className="space-y-2.5">
             {pasados.map(e => (
               <li key={e.id}>
-                <TarjetaEvento evento={e} userId={userId} esAdmin={esAdmin} onCambio={onCambio} />
+                <TarjetaEvento evento={e} userId={userId} esAdmin={esAdmin} logo={logoDe(e, logos)} onCambio={onCambio} />
               </li>
             ))}
           </ul>
@@ -294,8 +304,10 @@ function Acceso({ icono, texto, sub, onClick }: {
  * un botón que te saca de un torneo es cómo se navega sin querer justo cuando
  * uno intenta salirse.
  */
-function TarjetaEvento({ evento, userId, esAdmin, onCambio }: {
-  evento: OfficialEvent; userId: string | undefined; esAdmin: boolean; onCambio: () => void
+function TarjetaEvento({ evento, userId, esAdmin, logo, onCambio }: {
+  evento: OfficialEvent; userId: string | undefined; esAdmin: boolean
+  logo: string | null
+  onCambio: () => void
 }) {
   const [ocupado, setOcupado] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -325,8 +337,8 @@ function TarjetaEvento({ evento, userId, esAdmin, onCambio }: {
       <div className="flex items-start justify-between gap-2">
         {/* El logo del torneo. `image_url` existía en la fila desde siempre y
             no se pintaba en ningún lado. */}
-        {evento.image_url && (
-          <img src={evento.image_url} alt="" loading="lazy"
+        {logo && (
+          <img src={logo} alt="" loading="lazy"
                className="h-12 w-12 shrink-0 rounded-xl object-contain" />
         )}
         <div className="min-w-0 flex-1">
@@ -555,6 +567,8 @@ function Organizar({ eventos, fallo, onCambio }: {
                     hint="Creá uno con el botón de arriba." />
       )}
 
+      <LogosPorFormato onCambio={onCambio} />
+
       {eventos?.map(e => <FilaOrganizar key={e.id} evento={e} onCambio={onCambio} />)}
     </div>
   )
@@ -771,6 +785,87 @@ function LogoDelTorneo({ actual, onSubido, onFallo }: {
           </button>
         )}
       </div>
+    </div>
+  )
+}
+
+/** Los formatos que tienen logo propio. Los rótulos son los que usa la gente. */
+const FORMATOS_CON_LOGO: { clave: string; rotulo: string }[] = [
+  { clave: 'premier', rotulo: 'Premier' },
+  { clave: 'twin_suns', rotulo: 'Twin Suns' },
+]
+
+/**
+ * El logo por defecto de cada formato.
+ *
+ * Se sube UNA vez y todos los torneos de ese formato lo toman, incluidos los
+ * que se creen después — que es justo lo que se pidió. Un torneo que suba el
+ * suyo lo pisa: el propio siempre gana, o subirlo no serviría de nada.
+ */
+function LogosPorFormato({ onCambio }: { onCambio: () => void }) {
+  const { supabaseUser } = useAuth()
+  const [logos, setLogos] = useState<Map<string, string>>(new Map())
+  const [subiendo, setSubiendo] = useState<string | null>(null)
+  const [fallo, setFallo] = useState<string | null>(null)
+  const [abierto, setAbierto] = useState(false)
+
+  useEffect(() => { void getLogosPorFormato().then(setLogos) }, [])
+
+  const elegir = async (formato: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (!f || !supabaseUser) return
+    setSubiendo(formato); setFallo(null)
+    const sub = await subirLogoTorneo(f, supabaseUser.id)
+    if (!sub.ok || !sub.url) { setFallo(sub.error ?? 'No se pudo subir.'); setSubiendo(null); return }
+    const r = await fijarLogoDeFormato(formato, sub.url)
+    setSubiendo(null)
+    if (!r.ok) { setFallo(r.error ?? 'No se pudo guardar.'); return }
+    setLogos(await getLogosPorFormato())
+    onCambio()
+  }
+
+  return (
+    <div className="rounded-2xl border border-swu-border bg-swu-surface p-3">
+      <button onClick={() => setAbierto(v => !v)} className="flex w-full items-center justify-between">
+        <span className="text-[12px] font-bold text-swu-text">Logos por formato</span>
+        <span className="text-[10px] text-swu-muted">{abierto ? 'ocultar' : 'ver'}</span>
+      </button>
+
+      {abierto && (
+        <div className="mt-2.5 space-y-2">
+          <p className="text-[11px] leading-relaxed text-swu-muted">
+            Se sube una vez y lo toman todos los torneos de ese formato, también
+            los que crees después. Un torneo con logo propio usa el suyo.
+          </p>
+          {FORMATOS_CON_LOGO.map(f => (
+            <div key={f.clave} className="flex items-center gap-2">
+              {logos.get(f.clave)
+                ? <img src={logos.get(f.clave)} alt="" className="h-10 w-10 shrink-0 rounded-lg object-contain" />
+                : <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-dashed border-swu-border text-swu-muted">
+                    <ImagePlus size={14} />
+                  </div>}
+              <span className="w-20 shrink-0 text-[12px] font-semibold text-swu-text">{f.rotulo}</span>
+              <label className="flex-1 cursor-pointer rounded-lg border border-dashed border-swu-border px-2 py-1.5 text-center text-[11px] font-semibold text-swu-accent-texto">
+                {subiendo === f.clave ? 'Subiendo…' : logos.get(f.clave) ? 'Cambiar' : 'Subir logo'}
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/avif"
+                       className="hidden" onChange={(e) => void elegir(f.clave, e)} />
+              </label>
+              {logos.get(f.clave) && (
+                <button
+                  onClick={() => void fijarLogoDeFormato(f.clave, null).then(async () => {
+                    setLogos(await getLogosPorFormato()); onCambio()
+                  })}
+                  aria-label={`Quitar el logo de ${f.rotulo}`}
+                  className="shrink-0 rounded-lg p-1.5 text-swu-muted hover:text-red-400"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+          ))}
+          {fallo && <p className="text-[11px] text-red-400">{fallo}</p>}
+        </div>
+      )}
     </div>
   )
 }

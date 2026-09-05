@@ -857,3 +857,60 @@ export async function subirLogoTorneo(
   const { data } = supabase.storage.from('torneos').getPublicUrl(ruta)
   return { ok: true, url: data.publicUrl }
 }
+
+/**
+ * El logo por defecto de cada formato.
+ *
+ * ── Por qué esto y no un archivo en el repo ──────────────────────────
+ *
+ * Un archivo en `public/` obliga a un despliegue cada vez que cambie un logo.
+ * Acá lo sube quien organiza, una vez, desde la app.
+ *
+ * Y es una tabla aparte y no una columna de `official_events` porque contesta
+ * otra pregunta: `image_url` es «el logo DE ESTE torneo», esto es «el logo por
+ * omisión de los torneos de este formato». Un torneo puede poner el suyo sin
+ * tocar el de los demás.
+ */
+export async function getLogosPorFormato(): Promise<Map<string, string>> {
+  if (!isSupabaseReady()) return new Map()
+  const { data, error } = await supabase.from('torneo_logo_formato').select('formato, url')
+  if (error) { console.warn('[torneos] logos por formato:', error.message); return new Map() }
+  return new Map((data ?? []).map(r => [r.formato as string, r.url as string]))
+}
+
+export async function fijarLogoDeFormato(
+  formato: string,
+  url: string | null,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
+
+  if (url === null) {
+    const { error } = await supabase.from('torneo_logo_formato').delete().eq('formato', formato)
+    if (error) return { ok: false, error: error.message }
+    return { ok: true }
+  }
+
+  const { data, error } = await supabase
+    .from('torneo_logo_formato')
+    .upsert({ formato, url, actualizado_en: new Date().toISOString() })
+    .select('formato')
+  if (error) return { ok: false, error: error.message }
+  // §2u: un upsert frenado por RLS no devuelve filas Y NO da error.
+  if (!data || data.length === 0) {
+    return { ok: false, error: 'No tenés permiso para fijar el logo de un formato.' }
+  }
+  return { ok: true }
+}
+
+/**
+ * El logo que le toca a un torneo: el suyo, o el de su formato.
+ *
+ * El propio siempre gana. Si un torneo tiene arte especial, no se lo puede
+ * pisar el de su formato — eso sería que subirlo no hiciera nada.
+ */
+export function logoDe(evento: OfficialEvent, porFormato: Map<string, string>): string | null {
+  return evento.image_url
+    ?? porFormato.get(evento.match_type)
+    ?? porFormato.get(evento.format)
+    ?? null
+}

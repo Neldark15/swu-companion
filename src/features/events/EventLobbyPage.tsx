@@ -27,7 +27,7 @@ import { RifaDeMesas } from './RifaDeMesas'
 import { PodioDePremios } from './PodioDePremios'
 import { Avatar } from '../../components/ui/Avatar'
 import { CardImage } from '../../components/CardImage'
-import { puedoOperarTorneos, declararMazoDe } from '../../services/events'
+import { puedoOperarTorneos, declararMazoDe, getLogosPorFormato, logoDe } from '../../services/events'
 import { ensureCards } from '../../services/swuApi'
 import { cargarIndice, type IndiceCartas } from '../amistosas/cartasAmistosas'
 import { useAuth } from '../../hooks/useAuth'
@@ -137,7 +137,9 @@ export function EventLobbyPage() {
 
         setEvent({
           id: officialEvent.id,
-          logo: officialEvent.image_url ?? null,
+          // El propio gana; si no tiene, el de su formato. Mismo criterio que
+          // en la lista de torneos: `logoDe` es el único lugar donde vive.
+          logo: logoDe(officialEvent, await getLogosPorFormato()),
           deMesas: esDeMesas(officialEvent.tournament_type),
           name: officialEvent.name,
           format: officialEvent.format,
