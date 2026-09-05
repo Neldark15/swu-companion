@@ -81,6 +81,7 @@ export function EventLobbyPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [editandoMazo, setEditandoMazo] = useState(false)
   const [guardandoMazo, setGuardandoMazo] = useState(false)
+  const [falloLista, setFalloLista] = useState<string | null>(null)
   const [marcando, setMarcando] = useState(false)
   const [falloLlegada, setFalloLlegada] = useState<string | null>(null)
   const [codeCopied, setCodeCopied] = useState(false)
@@ -102,10 +103,12 @@ export function EventLobbyPage() {
     const refreshPlayers = async (id: string) => {
       const regs = await getEventRegistrations(id)
       if (cancelled) return
-      /* `null` = no se pudo saber. Se deja la lista como estaba en vez de
-         vaciarla: pintar cero acá diría «no llegó nadie» en una sala llena,
-         que es el error que este lobby cometía desde siempre. */
-      if (regs === null) return
+      /* `null` = no se pudo saber, y hay que DECIRLO.
+         Este lobby estuvo mostrando una sala vacía mientras la consulta
+         fallaba: «no tengo permiso» y «no se anotó nadie» se veían idénticos,
+         y por eso el fallo vivió sin que nadie lo reportara como fallo. */
+      if (regs === null) { setFalloLista('No se pudo leer quién está inscrito.'); return }
+      setFalloLista(null)
       setPlayers(registrationsToPlayers(regs, selfUserId))
     }
 
@@ -415,7 +418,14 @@ export function EventLobbyPage() {
       {/* Tab content */}
       {activeTab === 'players' ? (
         <div className="space-y-1.5">
-          {players.length === 0 ? (
+          {falloLista ? (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-center">
+              <p className="text-sm font-semibold text-red-400">{falloLista}</p>
+              <p className="mt-1 text-[11px] text-swu-muted">
+                No es que no haya nadie: es que no se pudo consultar.
+              </p>
+            </div>
+          ) : players.length === 0 ? (
             <div className="text-center py-8 text-swu-muted">
               <Users size={32} className="mx-auto mb-2 opacity-30" />
               <p className="text-sm">Esperando jugadores...</p>

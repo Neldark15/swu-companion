@@ -189,20 +189,23 @@ export async function getGlobalTournamentRanking(): Promise<RankingEntry[]> {
   try {
     const { data, error } = await supabase
       .from('tournament_results')
-      .select(`
-        user_id,
-        ranking_points,
-        position,
-        match_wins,
-        profiles!inner(name, avatar)
-      `)
+      /* Sin `profiles!inner(...)`: `tournament_results` apunta a `auth.users`,
+         no a `public.profiles`, así que PostgREST no resuelve el enlace y la
+         consulta entera falla. Con el `return []` de abajo, eso se veía igual
+         que «todavía nadie jugó un torneo». */
+      .select('user_id, ranking_points, position, match_wins')
 
     if (error || !data) return []
+
+    const { data: perfiles } = await supabase
+      .from('profiles').select('id, name, avatar')
+      .in('id', [...new Set(data.map(r => r.user_id as string))])
+    const porId = new Map((perfiles ?? []).map(p => [p.id as string, p]))
 
     // Aggregate by user
     const userMap = new Map<string, RankingEntry>()
     for (const row of data) {
-      const profile = row.profiles as unknown as { name: string; avatar: string }
+      const profile = porId.get(row.user_id as string) as { name: string; avatar: string } | undefined
       const existing = userMap.get(row.user_id)
       if (existing) {
         existing.totalRankingPoints += row.ranking_points || 0
@@ -246,21 +249,21 @@ export async function getMonthlyTournamentRanking(month?: string): Promise<Ranki
   try {
     const { data, error } = await supabase
       .from('tournament_results')
-      .select(`
-        user_id,
-        ranking_points,
-        position,
-        match_wins,
-        profiles!inner(name, avatar)
-      `)
+      // Mismo caso que arriba: el embebido de `profiles` no resuelve acá.
+      .select('user_id, ranking_points, position, match_wins')
       .gte('played_at', startDate)
       .lt('played_at', endDate)
 
     if (error || !data) return []
 
+    const { data: perfiles } = await supabase
+      .from('profiles').select('id, name, avatar')
+      .in('id', [...new Set(data.map(r => r.user_id as string))])
+    const porId = new Map((perfiles ?? []).map(p => [p.id as string, p]))
+
     const userMap = new Map<string, RankingEntry>()
     for (const row of data) {
-      const profile = row.profiles as unknown as { name: string; avatar: string }
+      const profile = porId.get(row.user_id as string) as { name: string; avatar: string } | undefined
       const existing = userMap.get(row.user_id)
       if (existing) {
         existing.totalRankingPoints += row.ranking_points || 0

@@ -136,7 +136,13 @@ export async function initializeTournament(
   // Get registrations with profile names
   const { data: regs, error: regErr } = await supabase
     .from('event_registrations')
-    .select('user_id, leader_1, leader_2, base_carta, profiles!event_registrations_user_id_fkey(name)')
+    /* Sin el `profiles!fk(...)` embebido: esa clave foránea apunta a
+       `auth.users`, no a `public.profiles`, así que PostgREST no podía
+       resolver el enlace y la consulta ENTERA fallaba. El error caía en el
+       `if (regErr || regs.length < 2)` de abajo y salía como «Se necesitan al
+       menos 2 jugadores registrados» — con cinco inscritos. El nombre se
+       resuelve aparte, unas líneas más abajo. */
+    .select('user_id, leader_1, leader_2, base_carta')
     .eq('event_id', eventId)
     /* `checked_in` también entra. Con el filtro en 'registered' a secas, el
        día que se encienda el check-in TODO el que marque llegada desaparece
@@ -156,9 +162,14 @@ export async function initializeTournament(
       : suggestedRounds(regs.length)
   }
 
+  const idsDeCuenta = [...new Set(regs.map(r => r.user_id as string))]
+  const { data: perfiles } = await supabase
+    .from('profiles').select('id, name').in('id', idsDeCuenta)
+  const nombrePorId = new Map((perfiles ?? []).map(p => [p.id as string, p.name as string]))
+
   // Create standings for each player
   const standings = regs.map((r, idx) => {
-    const profile = r.profiles as unknown as { name: string } | null
+    const profile = { name: nombrePorId.get(r.user_id as string) ?? '' }
     /* El mazo que la persona declaró al inscribirse viaja SOLO a la
        clasificación. Antes se transcribía a mano después del torneo,
        preguntándole uno por uno qué había jugado: los doce del 29/8 se
@@ -168,7 +179,7 @@ export async function initializeTournament(
     return {
       event_id: eventId,
       user_id: r.user_id,
-      player_name: profile?.name || `Jugador ${idx + 1}`,
+      player_name: profile.name || `Jugador ${idx + 1}`,
       leader: lideres.length > 0 ? lideres.join(' + ') : null,
       base: (r.base_carta as string | null) ?? null,
       points: 0,

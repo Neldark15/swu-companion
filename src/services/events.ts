@@ -619,12 +619,22 @@ export async function leaveOfficialEvent(eventId: string, userId: string): Promi
 export async function getEventRegistrations(eventId: string): Promise<EventRegistration[] | null> {
   if (!isSupabaseReady()) return null
 
+  /* El perfil se pide APARTE, no con un `profiles!fk(...)` embebido.
+   *
+   * Acá estaba el bug que dejaba el lobby vacío para todo el mundo: la
+   * consulta decía `profiles!event_registrations_user_id_fkey(name, avatar)`,
+   * o sea «traeme el perfil siguiendo esa clave foránea». Pero esa clave
+   * apunta a `auth.users`, NO a `public.profiles` (verificado en
+   * pg_constraint). PostgREST no puede resolver el enlace y devuelve error…
+   * y como el error se tragaba, «no tengo permiso de leer esto» se veía
+   * exactamente igual que «no se anotó nadie».
+   *
+   * Dos consultas y un mapa es lo que ya hacen `getOfficialEvents` y
+   * `listarEnCurso` en este mismo archivo, por esta misma razón.
+   */
   const { data, error } = await supabase
     .from('event_registrations')
-    .select(`
-      *,
-      profiles!event_registrations_user_id_fkey (name, avatar)
-    `)
+    .select('*')
     .eq('event_id', eventId)
     .order('registered_at', { ascending: true })
 
@@ -633,16 +643,25 @@ export async function getEventRegistrations(eventId: string): Promise<EventRegis
     return null
   }
   if (!data) return null
+  if (data.length === 0) return []
+
+  const ids = [...new Set(data.map(r => r.user_id as string))]
+  const { data: perfiles } = await supabase
+    .from('profiles')
+    .select('id, name, avatar')
+    .in('id', ids)
+  const porId = new Map((perfiles ?? []).map(p => [p.id as string, p]))
 
   return data.map(r => {
-    const profile = r.profiles as unknown as { name: string; avatar: string } | null
+    const p = porId.get(r.user_id as string)
     return {
       ...r,
-      profiles: undefined,
-      player_name: profile?.name || 'Jugador',
-      player_avatar: profile?.avatar || '🎯',
-    } as EventRegistration
-  })
+      // Si el perfil no vino, el nombre se deja indefinido y la pantalla dirá
+      // «Jugador». No se inventa: la inscripción sí existe.
+      player_name: (p?.name as string | undefined),
+      player_avatar: (p?.avatar as string | undefined),
+    }
+  }) as EventRegistration[]
 }
 
 export async function updateEventStatus(

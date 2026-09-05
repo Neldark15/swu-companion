@@ -304,20 +304,29 @@ export function subscribeToIncomingGifts(
 export async function getReceivedGifts(userId: string, limit = 30): Promise<Gift[]> {
   if (!isSupabaseReady()) return []
   try {
+    /* El perfil se pide APARTE. El embebido decía
+       `profiles!gifts_sender_id_fkey(...)`, y esa clave foránea apunta a
+       `auth.users`, no a `public.profiles`: PostgREST no puede resolver el
+       enlace y la consulta entera falla. Con el `return []` de abajo eso se
+       veía igual que «no te regalaron nada». */
     const { data, error } = await supabase
       .from('gifts')
-      .select(`
-        id, sender_id, recipient_id, gift_type, xp_amount, created_at,
-        profiles!gifts_sender_id_fkey(name, avatar)
-      `)
+      .select('id, sender_id, recipient_id, gift_type, xp_amount, created_at')
       .eq('recipient_id', userId)
       .order('created_at', { ascending: false })
       .limit(limit)
 
     if (error || !data) return []
+    if (data.length === 0) return []
+
+    const { data: perfiles } = await supabase
+      .from('profiles')
+      .select('id, name, avatar')
+      .in('id', [...new Set(data.map(r => r.sender_id as string))])
+    const porId = new Map((perfiles ?? []).map(p => [p.id as string, p]))
 
     return data.map((row: Record<string, unknown>) => {
-      const profile = row.profiles as Record<string, unknown> | null
+      const profile = porId.get(row.sender_id as string) as Record<string, unknown> | undefined
       return {
         id: row.id as string,
         senderId: row.sender_id as string,
