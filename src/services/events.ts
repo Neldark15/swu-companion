@@ -691,24 +691,25 @@ export async function updateOfficialEvent(
     return { ok: false, error: 'No hay sesión activa. Cierre sesión y vuelva a iniciar.' }
   }
 
-  console.log('[updateEvent] eventId:', eventId, 'updates:', updates, 'userId:', session.session.user.id)
-
   const payload: Record<string, unknown> = { updated_at: new Date().toISOString() }
   if (updates.date !== undefined) payload.date = updates.date
   if (updates.location !== undefined) payload.location = updates.location
   if (updates.name !== undefined) payload.name = updates.name
 
-  const { data, error, status, statusText } = await supabase
+  const { data, error } = await supabase
     .from('official_events')
     .update(payload)
     .eq('id', eventId)
     .select()
 
-  console.log('[updateEvent] response:', { data, error, status, statusText })
-
-  if (error) return { ok: false, error: `Error ${status}: ${error.message}` }
+  if (error) return { ok: false, error: error.message }
+  /* §2u: un UPDATE frenado por RLS toca 0 filas SIN error, así que esto NO se
+     puede quitar. El texto sí cambió: el anterior le pedía a la persona que
+     «ejecutara el SQL fix en el Dashboard de Supabase» — una instrucción de
+     desarrollo, dirigida a alguien que solo quería cambiarle el nombre a su
+     torneo y no puede hacer nada con eso. */
   if (!data || data.length === 0) {
-    return { ok: false, error: `Sin permiso (RLS). Status: ${status}. Verifique que ejecutó el SQL fix en Supabase Dashboard.` }
+    return { ok: false, error: 'No tenés permiso para editar este torneo.' }
   }
   return { ok: true }
 }

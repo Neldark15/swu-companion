@@ -555,6 +555,7 @@ function Organizar({ eventos, fallo, onCambio }: {
 
 function FilaOrganizar({ evento, onCambio }: { evento: OfficialEvent; onCambio: () => void }) {
   const [editando, setEditando] = useState(false)
+  const [nombre, setNombre] = useState('')
   const [fecha, setFecha] = useState('')
   const [horaTxt, setHoraTxt] = useState('')
   const [guardando, setGuardando] = useState(false)
@@ -569,6 +570,7 @@ function FilaOrganizar({ evento, onCambio }: { evento: OfficialEvent; onCambio: 
     // el editor desde otra zona ya mostraba otra hora, y darle Guardar sin
     // tocar nada movía el evento — y se acumulaba en cada pasada.
     const { fecha: f, hora: h } = aInputsSV(evento.date)
+    setNombre(evento.name)
     setFecha(f); setHoraTxt(h); setError(''); setEditando(true)
   }
 
@@ -580,7 +582,13 @@ function FilaOrganizar({ evento, onCambio }: { evento: OfficialEvent; onCambio: 
     if (fecha && !iso) {
       setError('La fecha o la hora no son válidas'); setGuardando(false); return
     }
-    const r = await updateOfficialEvent(evento.id, { date: iso })
+    /* El nombre vacío NO se guarda: un torneo sin nombre se vuelve
+       imposible de distinguir en la lista y en el archivo, y el código no
+       alcanza —nadie lo recuerda—. Se avisa en vez de guardar el vacío. */
+    if (!nombre.trim()) {
+      setError('El torneo necesita un nombre'); setGuardando(false); return
+    }
+    const r = await updateOfficialEvent(evento.id, { date: iso, name: nombre.trim() })
     setGuardando(false)
     if (!r.ok) { setError(r.error ?? 'No se pudo guardar'); return }
     setEditando(false)
@@ -612,7 +620,7 @@ function FilaOrganizar({ evento, onCambio }: { evento: OfficialEvent; onCambio: 
         </div>
         {!editando && (
           <div className="flex shrink-0 items-center gap-1.5">
-            <button onClick={abrir} title="Editar fecha/hora"
+            <button onClick={abrir} title="Editar el torneo"
                     className="rounded-lg bg-swu-accent/10 p-1.5 text-swu-accent-texto active:scale-95">
               <Pencil size={14} />
             </button>
@@ -640,8 +648,17 @@ function FilaOrganizar({ evento, onCambio }: { evento: OfficialEvent; onCambio: 
       {editando && (
         <div className="mt-3 space-y-3 rounded-xl border border-swu-accent/20 bg-swu-bg p-3">
           <p className="text-[11px] font-bold uppercase tracking-wider text-swu-accent-texto">
-            Editar fecha / hora
+            Editar torneo
           </p>
+          <label className="block">
+            <span className="mb-1 block text-[10px] text-swu-muted">Nombre</span>
+            <input
+              value={nombre}
+              onChange={e => setNombre(e.target.value)}
+              placeholder="Nombre del torneo"
+              className="w-full rounded-lg border border-swu-border bg-swu-surface px-2.5 py-2 text-sm text-swu-text outline-none placeholder:text-swu-muted focus:border-swu-accent"
+            />
+          </label>
           <div className="grid grid-cols-2 gap-2">
             <label className="block">
               <span className="mb-1 block text-[10px] text-swu-muted">Fecha</span>
