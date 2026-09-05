@@ -207,8 +207,33 @@ export interface AsientoConPuesto extends AsientoJugador {
 }
 
 export type RondaSiguiente =
-  | { ok: true; asientos: Asiento[] }
+  | { ok: true; asientos: Asiento[]; repescado: string | null }
   | { ok: false; motivo: string }
+
+/**
+ * Quién es «el mejor segundo».
+ *
+ * Nel: «la mesa final tiene que ser de 4; la cuarta persona saldrá del mejor
+ * segundo de entre las 3 mesas».
+ *
+ * Todos los segundos sacaron los mismos puntos en su mesa, así que hace falta
+ * un desempate y NO puede ser el azar: esa silla vale un premio. El orden es:
+ *
+ *  1. **El de la mesa más grande.** Quedar segundo entre cuatro es haberle
+ *     ganado a más gente que quedar segundo entre tres.
+ *  2. **Más puntos acumulados** en el torneo.
+ *  3. **Mejor siembra**, que es lo único que queda y es estable — sortearlo
+ *     haría que la misma ronda diera finalistas distintos al recalcularse.
+ */
+function mejorSegundo(
+  segundos: AsientoConPuesto[],
+  tamañoDeMesa: Map<number, number>,
+): AsientoConPuesto[] {
+  return [...segundos].sort((a, b) =>
+    (tamañoDeMesa.get(b.mesaAnterior) ?? 0) - (tamañoDeMesa.get(a.mesaAnterior) ?? 0)
+    || b.orden - a.orden
+    || a.mesaAnterior - b.mesaAnterior)
+}
 
 export function armarRondaSiguiente(previos: AsientoConPuesto[]): RondaSiguiente {
   // Sin puestos anotados no se puede: adivinar quién ganó sería inventar el
@@ -217,40 +242,55 @@ export function armarRondaSiguiente(previos: AsientoConPuesto[]): RondaSiguiente
     return { ok: false, motivo: 'Faltan puestos por anotar en la ronda anterior.' }
   }
 
-  const clasifican = previos
+  const tamañoDeMesa = new Map<number, number>()
+  for (const p of previos) {
+    tamañoDeMesa.set(p.mesaAnterior, (tamañoDeMesa.get(p.mesaAnterior) ?? 0) + 1)
+  }
+
+  const ganadores = previos
     .filter(p => p.puesto === 1)
     .sort((a, b) => a.mesaAnterior - b.mesaAnterior)
 
-  if (clasifican.length < MIN_MESA) {
+  if (ganadores.length < 2) {
+    return { ok: false, motivo: 'Hace falta más de una mesa para armar una final.' }
+  }
+
+  /* La final es de CUATRO. Con tres mesas hay tres ganadores, así que la
+     cuarta silla la ocupa el mejor segundo. Con cuatro mesas ya está llena y
+     no se repesca a nadie. */
+  const segundos = mejorSegundo(previos.filter(p => p.puesto === 2), tamañoDeMesa)
+  const faltan = Math.max(0, MAX_MESA - ganadores.length)
+  const repescados = segundos.slice(0, faltan)
+  const finalistas = [...ganadores, ...repescados]
+
+  if (finalistas.length < MIN_MESA) {
     return {
       ok: false,
-      motivo: `Solo ${clasifican.length} mesa(s) tienen ganador: para una final hacen falta al menos ${MIN_MESA}.`,
+      motivo: `Solo se juntan ${finalistas.length} para la final y una mesa necesita al menos ${MIN_MESA}.`,
     }
   }
 
-  /* El resto, ordenado por puesto y después por mesa: así los segundos quedan
-     juntos y los terceros juntos, en vez de mezclados. */
+  const enFinal = new Set(finalistas)
+  /* El resto, por puesto y después por mesa: los segundos que no repescaron
+     quedan juntos, y los terceros juntos. Mezclarlos daría mesas donde un
+     segundo juega contra un tercero por el mismo premio. */
   const resto = previos
-    .filter(p => p.puesto !== 1)
+    .filter(p => !enFinal.has(p))
     .sort((a, b) => a.puesto - b.puesto || a.mesaAnterior - b.mesaAnterior)
 
-  /* Las mesas de abajo se arman con la MISMA regla que las de arriba: mesas de
-     3 o 4, nunca de 1 ni de 5.
-     Una versión anterior las cortaba de a un tamaño fijo, y con 10 jugadores
-     —3 finalistas y 7 abajo— dejaba dos mesas de 3 y una MESA DE UNO. Nadie
-     juega solo. */
+  /* Las mesas de abajo se arman con la MISMA regla que las de arriba: de 3 o
+     de 4, nunca de 1 ni de 5. Una versión anterior cortaba de a tamaño fijo y
+     con 10 jugadores dejaba una MESA DE UNO. */
   const comp = mesasPosibles(resto.length)[0]
   if (resto.length > 0 && !comp) {
     return {
       ok: false,
-      motivo: `Quedan ${resto.length} jugadores para las mesas de abajo y con ese número no se pueden armar mesas de ${MIN_MESA} o ${MAX_MESA}.`,
+      motivo: `Quedan ${resto.length} para las mesas de abajo y con ese número no se pueden armar mesas de ${MIN_MESA} o ${MAX_MESA}.`,
     }
   }
 
-  const asientos: Asiento[] = clasifican.map(p => ({ ...p, mesa: 1 }))
-
+  const asientos: Asiento[] = finalistas.map(p => ({ ...p, mesa: 1 }))
   if (comp) {
-    // Las de 4 primero, igual que en el reparto de la primera ronda.
     const tamaños = [...Array(comp.de4).fill(MAX_MESA), ...Array(comp.de3).fill(MIN_MESA)]
     let i = 0
     tamaños.forEach((t, k) => {
@@ -259,5 +299,11 @@ export function armarRondaSiguiente(previos: AsientoConPuesto[]): RondaSiguiente
     })
   }
 
-  return { ok: true, asientos }
+  return {
+    ok: true,
+    asientos,
+    // Se DICE a quién se repescó: entra a jugar por el premio grande sin
+    // haber ganado su mesa, y eso tiene que poder explicarse en voz alta.
+    repescado: repescados[0]?.nombre ?? null,
+  }
 }

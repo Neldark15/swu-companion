@@ -77,7 +77,10 @@ export function MesasPanel({
       const previos = mesas.flatMap(m => m.jugadores.map(j => ({
         userId: j.user_id ?? null,
         nombre: j.player_name,
-        orden: 0,
+        /* Los puntos acumulados: son el segundo desempate para elegir al
+           mejor segundo, después del tamaño de la mesa. Con 0 para todos, ese
+           criterio no desempataría nada. */
+        orden: standings.find(x => x.id && x.player_name === j.player_name)?.points ?? 0,
         mesaAnterior: m.mesa,
         puesto: j.puesto ?? 0,
       })))
@@ -91,7 +94,11 @@ export function MesasPanel({
       })))
       setGuardando(false)
       if (r.ok) {
-        onAviso(`Ronda ${r.datos.ronda} · la mesa 1 es la final`)
+        // Se DICE a quién se repescó: entra a jugar por el premio grande sin
+        // haber ganado su mesa, y eso hay que poder anunciarlo en voz alta.
+        onAviso(siguiente.repescado
+          ? `Ronda ${r.datos.ronda} · la mesa 1 es la final. Repescado: ${siguiente.repescado}`
+          : `Ronda ${r.datos.ronda} · la mesa 1 es la final`)
         onCambio()
       } else onError(r.mensaje)
       return
