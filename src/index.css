@@ -1445,3 +1445,55 @@ input:focus, textarea:focus, select:focus {
 @media (prefers-reduced-motion: reduce) {
   .rifa-entra, .rifa-baraja, .rifa-cae { animation: none; }
 }
+
+/* El logo de un torneo y su destello.
+   Va acá y no como `@utility` de Tailwind porque el detector solo emite lo que
+   ve escrito literal, y esto usa una variable CSS que viene del componente
+   (§3i). Verificado contra el CSS construido. */
+.logo-torneo {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  /* Despega el escudo del fondo oscuro de la tarjeta: sin esto el borde negro
+     del logo se funde con el fondo y el contorno desaparece. */
+  filter: drop-shadow(0 2px 6px rgb(0 0 0 / 0.55));
+}
+
+.logo-destello {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 42%,
+    rgb(255 255 255 / 0.75) 50%,
+    transparent 58%
+  );
+  background-size: 250% 100%;
+  background-repeat: no-repeat;
+  /* La luz se recorta con el propio logo: si no, el brillo se vería flotando
+     alrededor del escudo, que no es rectangular. */
+  -webkit-mask-image: var(--logo);
+  mask-image: var(--logo);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  animation: logo-destello 5.5s ease-in-out infinite;
+}
+
+/* Barre una vez y descansa: un brillo continuo al lado de cada renglón
+   compite con la fecha que la persona está tratando de leer. */
+@keyframes logo-destello {
+  0%   { background-position: 160% 0; opacity: 0; }
+  6%   { opacity: 1; }
+  30%  { background-position: -60% 0; opacity: 1; }
+  38%  { opacity: 0; }
+  100% { background-position: -60% 0; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-destello { animation: none; opacity: 0; }
+}

@@ -24,6 +24,7 @@ import { declararMazo } from '../../services/events'
 import { DeclararMazo } from './DeclararMazo'
 import { esDeMesas } from '../../services/tipoTorneo'
 import { RifaDeMesas } from './RifaDeMesas'
+import { LogoTorneo } from '../torneos/LogoTorneo'
 import { PodioDePremios } from './PodioDePremios'
 import { Avatar } from '../../components/ui/Avatar'
 import { CardImage } from '../../components/CardImage'
@@ -374,10 +375,7 @@ export function EventLobbyPage() {
           <div className="flex min-w-0 items-start gap-3">
             {/* El logo, si el torneo tiene. Esta es la pantalla que se mira en
                 grupo mientras se espera, así que es donde más rinde. */}
-            {event.logo && (
-              <img src={event.logo} alt="" loading="lazy"
-                   className="h-14 w-14 shrink-0 rounded-xl object-contain" />
-            )}
+            {event.logo && <LogoTorneo src={event.logo} lado={80} />}
             <div className="min-w-0">
               <p className="text-[11px] font-bold text-swu-accent-texto uppercase tracking-widest">Lobby del Evento</p>
               <h2 className="text-lg font-extrabold text-swu-text mt-0.5">{event.name}</h2>

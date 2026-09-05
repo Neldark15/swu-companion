@@ -64,6 +64,7 @@ import {
   type OfficialEvent, type MazoDeclarado,
 } from '../../services/events'
 import { DeclararMazo } from '../events/DeclararMazo'
+import { LogoTorneo } from './LogoTorneo'
 import { etiquetaTipo } from '../../services/tipoTorneo'
 import { db } from '../../services/db'
 import { useAuth } from '../../hooks/useAuth'
@@ -337,10 +338,7 @@ function TarjetaEvento({ evento, userId, esAdmin, logo, onCambio }: {
       <div className="flex items-start justify-between gap-2">
         {/* El logo del torneo. `image_url` existía en la fila desde siempre y
             no se pintaba en ningún lado. */}
-        {logo && (
-          <img src={logo} alt="" loading="lazy"
-               className="h-12 w-12 shrink-0 rounded-xl object-contain" />
-        )}
+        {logo && <LogoTorneo src={logo} lado={64} />}
         <div className="min-w-0 flex-1">
           <h4 className="truncate font-bold text-swu-text">{evento.name}</h4>
           {evento.description && (
