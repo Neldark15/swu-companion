@@ -65,15 +65,15 @@ const semana = (tramos: Array<[number, number, number]>) => {
   return a.join('')
 }
 const INSCRITOS: InscritoPanel[] = [
-  { inscId: '1', nombre: 'Nelson Morales', tier: 'legendario', estado: 'activa',
+  { inscId: '1', nombre: 'Nelson Morales', tier: 'legendario', estado: 'activo',
     lider: 'Krennic', base: 'Command', pais: 'SV', zona: 'America/El_Salvador',
     franjas: semana([[1, 20, 23], [3, 20, 23], [5, 14, 20]]), horas: 12, inscritoEn: '' },
-  { inscId: '2', nombre: 'Rodrigo con un nombre bien largo', tier: 'raro', estado: 'activa',
+  { inscId: '2', nombre: 'Rodrigo con un nombre bien largo', tier: 'raro', estado: 'activo',
     lider: 'Sabine', base: null, pais: 'ES', zona: 'Europe/Madrid',
     franjas: semana([[5, 10, 14]]), horas: 4, inscritoEn: '' },
-  { inscId: '3', nombre: 'Sin horas ni país', tier: 'comun', estado: 'activa',
+  { inscId: '3', nombre: 'Sin horas ni país', tier: 'comun', estado: 'activo',
     lider: null, base: null, pais: null, zona: null, franjas: null, horas: 0, inscritoEn: '' },
-  { inscId: '4', nombre: 'Se retiró', tier: 'infrecuente', estado: 'abandonada',
+  { inscId: '4', nombre: 'Se retiró', tier: 'infrecuente', estado: 'retirado',
     lider: 'Vader', base: 'Yellow', pais: 'MX', zona: 'America/Mexico_City',
     franjas: semana([[6, 18, 22]]), horas: 4, inscritoEn: '' },
 ]

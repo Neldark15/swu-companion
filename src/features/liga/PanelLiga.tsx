@@ -61,9 +61,36 @@ import { Bandera } from './componentes/piezas'
  *
  * `new Date()` dentro de una función declarada en el cuerpo del componente
  * rompe la regla de pureza (el mismo render devolvería cosas distintas). Y
- * para lo que se usa acá —el desfase de una zona y dos fechas por defecto—
- * el instante da igual: capturarlo al cargar el módulo alcanza y sobra. */
+ * Para las dos fechas por defecto de un formulario, capturarlo al cargar el
+ * módulo alcanza.
+ *
+ * Para el DESFASE DE UNA ZONA no alcanzaba, y el comentario que decía que «el
+ * instante da igual» era falso: `Europe/Madrid` es +1 en enero y +2 en julio.
+ * Con el módulo cargado en septiembre y la temporada corriendo hasta noviembre
+ * —Madrid cambia la hora el 26 de octubre— el mapa quedaba corrido una hora
+ * para toda la gente de España durante media temporada, sin un solo error. Y
+ * una PWA instalada no recarga el módulo por su cuenta. Ver `desfaseUTC`. */
 const AHORA = new Date()
+
+/**
+ * ── DOS VOCABULARIOS DE ESTADO, Y NO SE PUEDEN MEZCLAR ───────────────
+ *
+ * `liga_inscripciones.estado` es MASCULINO: activo · pausa · retirado · vetado.
+ * `liga_plazas.estado` es FEMENINO: activa · abandonada · anulada.
+ *
+ * Son dos tablas y dos preguntas distintas —«¿sigue en la liga?» y «¿sigue en
+ * este grupo?»— y esta pantalla comparaba el carné contra el vocabulario de la
+ * plaza: `i.estado !== 'activa'` es **siempre cierto** para un carné, porque el
+ * valor real es `'activo'`. Resultado: TODOS los inscritos se pintaban apagados
+ * y con su estado a la vista, incluidos los que están perfectamente activos. Se
+ * lee como una liga entera en problemas.
+ *
+ * No falla, no avisa y se ve como un dato. Por eso la comparación vive acá una
+ * sola vez y no suelta en cada fila.
+ */
+function carneActivo(estado: string): boolean {
+  return estado === 'activo'
+}
 
 /** La zona de quien organiza. El mapa de calor se dibuja en SU reloj. */
 const MI_ZONA = Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -108,17 +135,33 @@ function franjasDe(s: string | null): number[] {
 
 /** Desfase de una zona IANA contra UTC, en horas. `null` = no se pudo saber. */
 const DESFASE = new Map<string, number>()
-function desfaseUTC(zona: string | null): number | null {
+/**
+ * ── LA CACHÉ VA POR ZONA Y DÍA ───────────────────────────────────────
+ *
+ * Un desfase no es propiedad de la zona: es propiedad de la zona EN UNA FECHA.
+ * Media Europa y media América cambian la hora dos veces al año y una temporada
+ * de 60 días cruza al menos un cambio. Con la caché por zona a secas se quedaba
+ * corrido una hora a partir del cambio, para siempre, sin recargar.
+ *
+ * Con el día en la clave se corrige sola a la medianoche.
+ *
+ * Lo que esto NO arregla, y hay que decirlo: los husos de MEDIA HORA. Kolkata
+ * está en +5:30 y la rejilla es de horas enteras, así que el redondeo mueve a
+ * esa persona a la hora más cercana — 30 minutos de error, que es lo menos malo
+ * sin partir la rejilla en 336 casillas.
+ */
+function desfaseUTC(zona: string | null, cuando: Date = new Date()): number | null {
   if (!zona) return null
-  const guardado = DESFASE.get(zona)
+  const clave = `${zona}|${cuando.toISOString().slice(0, 10)}`
+  const guardado = DESFASE.get(clave)
   if (guardado !== undefined) return guardado
   try {
     const parte = new Intl.DateTimeFormat('en-US', { timeZone: zona, timeZoneName: 'longOffset' })
-      .formatToParts(AHORA).find(p => p.type === 'timeZoneName')?.value ?? ''
+      .formatToParts(cuando).find(p => p.type === 'timeZoneName')?.value ?? ''
     const m = /GMT([+-])(\d{1,2})(?::(\d{2}))?/.exec(parte)
     // «GMT» pelado, sin signo, es UTC: 0 es la respuesta correcta, no un fallo.
     const h = m ? (m[1] === '-' ? -1 : 1) * (Number(m[2]) + Number(m[3] || 0) / 60) : 0
-    DESFASE.set(zona, h)
+    DESFASE.set(clave, h)
     return h
   } catch {
     // Una zona que este navegador no conoce. Se cuenta cruda y se dice cuántas.
@@ -569,7 +612,7 @@ function Inscritos({ inscritos }: { inscritos: InscritoPanel[] }) {
                         {i.lider}{i.base ? ` · ${i.base}` : ''}
                       </p>
                     )}
-                    {i.estado !== 'activa' && (
+                    {!carneActivo(i.estado) && (
                       <span className="mt-0.5 inline-block font-mono text-[9px] uppercase tracking-widest text-swu-amber">
                         {i.estado}
                       </span>
@@ -1215,7 +1258,7 @@ export function FichaInscrito({ i }: { i: InscritoPanel }) {
 
   return (
     <div className={`rounded-xl border border-swu-border bg-swu-surface p-3 ${
-      i.estado !== 'activa' ? 'opacity-60' : ''}`}>
+      !carneActivo(i.estado) ? 'opacity-60' : ''}`}>
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-1.5 text-[13px] font-bold text-swu-text">
@@ -1240,7 +1283,7 @@ export function FichaInscrito({ i }: { i: InscritoPanel }) {
           {i.horas === 0 && <AlertTriangle size={10} />}
           {i.horas} h/sem
         </span>
-        {i.estado !== 'activa' && (
+        {!carneActivo(i.estado) && (
           <span className="uppercase tracking-widest text-swu-amber">{i.estado}</span>
         )}
       </div>

@@ -4083,3 +4083,49 @@ un reemplazo que **se planta si no casa**, en vez de re-tipear 60 líneas de
 
 Banco: **`/banco-lobby-liga`** lleva también las fichas del panel (con país, sin
 país, sin horas y retirada) y el mapa por día.
+
+### 4y. LIGA — dos vocabularios de estado, y un desfase congelado
+
+Dos defectos del panel que no fallan, no avisan y **se leen como datos**.
+
+**`liga_inscripciones.estado` ES MASCULINO Y `liga_plazas.estado` ES FEMENINO.**
+
+| tabla | valores | pregunta |
+|---|---|---|
+| `liga_inscripciones` | activo · pausa · retirado · vetado | ¿sigue en la LIGA? |
+| `liga_plazas` | activa · abandonada · anulada | ¿sigue en ESTE GRUPO? |
+
+El panel comparaba el carné contra el vocabulario de la plaza —
+`i.estado !== 'activa'`— y eso es **siempre cierto** para un carné, porque el
+valor real es `'activo'`. Resultado: **todos** los inscritos se pintaban
+apagados y con su estado a la vista, incluidos los que están perfectamente
+activos. Con 128 personas, el panel se lee como una liga entera en problemas.
+
+Son dos tablas y dos preguntas distintas; que las respuestas se parezcan tanto
+es justo lo que hace que se mezclen. La comparación vive ahora en
+`carneActivo()`, una sola vez, y no suelta en cada fila.
+
+**Y EL BANCO TENÍA LA MISMA MENTIRA EN SUS DATOS.** El fixture usaba
+`estado: 'activa'` — un valor que la base **no acepta**— así que habría dado
+verde con el bug puesto. Es el §4r otra vez: un banco que miente sobre lo que
+prueba es peor que no tenerlo.
+
+**EL DESFASE DE UNA ZONA NO ES PROPIEDAD DE LA ZONA: ES DE LA ZONA EN UNA
+FECHA.** `desfaseUTC` cacheaba por zona a secas y calculaba contra `AHORA`, un
+`new Date()` capturado **al cargar el módulo** — con un comentario que afirmaba
+que «el instante da igual». Es falso: `Europe/Madrid` es +1 en enero y +2 en
+julio. Con el módulo cargado en septiembre y la temporada corriendo hasta
+noviembre —Madrid cambia la hora el 26 de octubre— el mapa de calor quedaba
+corrido una hora para toda la gente de España **durante media temporada, sin un
+solo error**. Y una PWA instalada no recarga el módulo por su cuenta.
+
+La clave de caché lleva ahora el día, así que se corrige sola a la medianoche.
+
+**Lo que eso NO arregla, y queda dicho:** los husos de **media hora**. Kolkata
+está en +5:30 y la rejilla es de horas enteras, así que el redondeo mueve a esa
+persona a la hora más cercana — 30 minutos de error, que es lo menos malo sin
+partir la rejilla en 336 casillas.
+
+La forma de los dos es la misma y vale para todo el repo: **un valor plausible
+en la pantalla equivocada no se distingue de un valor correcto.** Un inscrito
+apagado parece un inscrito inactivo; un mapa corrido una hora parece un mapa.
