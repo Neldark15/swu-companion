@@ -47,11 +47,16 @@ export interface PlazaLiga {
   base: string | null
   estado: 'activa' | 'abandonada' | 'anulada'
   esMia: boolean
+  /** ISO alpha-2, o null. Se copia a la plaza al armar los grupos: es «dónde
+   *  estaba cuando arrancó ESTA temporada», no dónde está hoy. */
+  pais?: string | null
 }
 
 export interface FilaTabla {
   plazaId: string
   nombre: string
+  /** Para la bandera. Viaja desde la plaza, que la congeló al arrancar la temporada. */
+  pais?: string | null
   lider: string | null
   esMia: boolean
   abandonada: boolean
@@ -100,7 +105,7 @@ export function tablaDe(
   for (const p of plazas) {
     if (grupoId && p.grupoId !== grupoId) continue
     filas.set(p.id, {
-      plazaId: p.id, nombre: p.nombre, lider: p.lider, esMia: p.esMia,
+      plazaId: p.id, nombre: p.nombre, pais: p.pais ?? null, lider: p.lider, esMia: p.esMia,
       abandonada: p.estado !== 'activa',
       jugadas: 0, ganadas: 0, perdidas: 0, puntos: 0, difGames: 0, gamesGanados: 0,
     })

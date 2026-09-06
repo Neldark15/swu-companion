@@ -24,12 +24,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { AlertTriangle, ChevronDown, ChevronLeft, Clock, Lock, PlayCircle, Settings2, Swords } from 'lucide-react'
+import { AlertTriangle, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, Globe2, Layers, Lock, Medal, Megaphone, PlayCircle, Plus, Settings2, Star, Swords, Timer, Trash2, Trophy, Users, Zap } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { InscripcionLiga } from '../liga/InscripcionLiga'
 import { PortadaLiga } from './PortadaLiga'
+import { Bandera, TarjetaCifra, ContadorPlazo } from './componentes/piezas'
+import { haceCuanto } from './componentes/tiempo'
 import {
   verLiga, tablaDe, misPartidasAbiertas, reportar, confirmar, disputar,
+  publicarAnuncio, borrarAnuncio, type AnuncioLiga,
   TIERS, NOMBRE_TIER,
   tonoDelTier,
   type EstadoPartida, type FilaTabla, type GrupoLiga, type LigaCompleta,
@@ -64,6 +67,11 @@ function rotuloDe(m: PartidaLiga): { texto: string; clase: string } {
 }
 
 /** Con marcador se muestra el marcador; sin él, «vs» y no un 0-0 inventado. */
+/** El formato, en palabras. La columna guarda la clave; la pantalla, el nombre. */
+const FORMATO: Record<string, string> = {
+  premier: 'Premier', twin_suns: 'Twin Suns', draft: 'Draft', sealed: 'Sellado', libre: 'Libre',
+}
+
 const CON_MARCADOR = new Set<EstadoPartida>(['reportada', 'confirmada', 'disputada', 'wo_local', 'wo_visita'])
 
 /**
@@ -103,6 +111,7 @@ export function LigaSeccion() {
   const [listo, setListo] = useState(false)
   const [recarga, setRecarga] = useState(0)
   const [aviso, setAviso] = useState<string | null>(null)
+  const [reglas, setReglas] = useState(false)
   /** `null` = «el que decida la pantalla»; `''` = los plegué todos a mano. */
   const [abierto, setAbierto] = useState<string | null>(null)
 
@@ -149,36 +158,119 @@ export function LigaSeccion() {
   const grupoAbierto = abierto ?? miGrupo ?? grupos[0]?.id ?? null
   const sinArrancar = grupos.length === 0
 
+  const estadoTexto = temporada
+    ? temporada.estado === 'inscripcion' ? 'Inscripción abierta'
+      : temporada.estado === 'en_curso' ? 'En curso' : 'Temporada cerrada'
+    : liga.liga.estado === 'inscripcion' ? 'Inscripción abierta' : 'En preparación'
+  /* El plazo más cercano de LO MÍO. Es la única fecha que me obliga a hacer
+     algo hoy; la de la temporada es información, no un plazo. */
+  const enJuego = temporada?.estado === 'en_curso' || liga.liga.estado === 'activa'
+  /* La jornada sale de MI grupo. Con varios grupos, cada uno lleva su propio
+     reloj: una «ronda global» sería un número que no le corresponde a nadie. */
+  const jornada = (() => {
+    const mio = grupos.find(g => g.plazas.some(p => p.esMia))
+    if (!mio || mio.partidas.length === 0) return null
+    const mias = mio.partidas.filter(m2 => {
+      const yo = mio.plazas.find(p => p.esMia)
+      return yo && (m2.localPlaza === yo.id || m2.visitaPlaza === yo.id)
+    })
+    if (mias.length === 0) return null
+    const total = Math.max(...mias.map(m2 => m2.jornada))
+    const pendiente = mias.filter(m2 => m2.estado === 'programada' || m2.estado === 'reportada')
+    const actual = pendiente.length > 0 ? Math.min(...pendiente.map(m2 => m2.jornada)) : total
+    return { actual, total }
+  })()
+  const plazoCercano = abiertas
+    .map(a => a.partida.venceEl)
+    .filter((d): d is string => !!d)
+    .sort()[0] ?? null
+
   return (
-    <div className="mx-auto max-w-2xl px-4 pt-3 pb-28">
-      <header className="mb-3 flex items-center gap-2">
-        <Link to="/" className="-ml-1 p-1 text-swu-muted hover:text-swu-text" aria-label="Volver">
-          <ChevronLeft size={18} />
-        </Link>
-        <div className="min-w-0">
-          <h1 className="truncate text-[17px] font-black tracking-tight text-swu-text">{liga.liga.nombre}</h1>
-          <p className="truncate text-[10px] font-bold uppercase tracking-wider text-swu-amber">
-            {temporada
-              ? `${temporada.nombre} · ${temporada.estado === 'inscripcion' ? 'Inscripción abierta'
-                : temporada.estado === 'en_curso' ? 'En juego' : 'Cerrada'}`
-              : 'En preparación'}
-          </p>
+    <div data-modulo="liga" className="mx-auto max-w-2xl px-4 pt-3 pb-28">
+      {/* ── CABECERA sobre la portada difuminada ──
+          El afiche ya existía y solo se usaba como pantalla de carga; el
+          comentario de `PortadaLiga` afirmaba que la misma imagen servía de
+          fondo del encabezado y eso no estaba implementado. Va detrás del
+          título, oscurecida: una portada a todo trapo detrás de un texto es
+          justo lo que el sistema de la credencial prohíbe (§3f — nada de
+          degradados fuertes debajo de tinta). */}
+      <header className="relative mb-3 overflow-hidden rounded-2xl border"
+              style={{ borderColor: 'var(--liga-borde)' }}>
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-cover bg-center opacity-25 blur-[2px]"
+          style={{ backgroundImage: 'url(/liga/portada.webp)' }}
+        />
+        <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-swu-bg via-swu-bg/85 to-swu-bg/55" />
+        <div className="relative flex items-center gap-2 px-3 py-3">
+          <Link to="/" className="-ml-1 p-1 text-swu-muted hover:text-swu-text" aria-label="Volver">
+            <ChevronLeft size={18} />
+          </Link>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-[17px] font-black tracking-tight text-swu-text">
+              {liga.liga.nombre}
+            </h1>
+            <p className="truncate text-[9px] font-bold uppercase tracking-[0.14em] text-swu-muted">
+              Companion de liga · {temporada?.nombre ?? 'sin temporada abierta'}
+            </p>
+          </div>
+
+          {/* EL PANEL, desde acá. No había ni un enlace al panel en toda la app:
+              se llegaba tecleando `/liga/:code/panel`, o sea que la herramienta
+              existía y no aparecía en ningún lado — que es lo mismo que no
+              existir (§3l). Sale con `esStaff`, el dato que `liga_ver` ya manda. */}
+          {/* La píldora de estado, como en la maqueta: verde cuando la liga
+              está viva, apagada cuando no. Es lo primero que se mira al entrar
+              y responde la única pregunta que trae a alguien de un video. */}
+          <span
+            className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${
+              enJuego
+                ? 'border-swu-green/50 bg-swu-green/10 text-swu-green'
+                : 'border-swu-border text-swu-muted'}`}
+          >
+            {estadoTexto}
+          </span>
+          {liga.liga.esStaff && (
+            <Link
+              to={`/liga/${code}/panel`}
+              className="flex min-h-[34px] w-[34px] shrink-0 items-center justify-center rounded-lg
+                         border border-swu-border bg-swu-bg/70 text-swu-text"
+              aria-label="Panel de la liga"
+            >
+              <Settings2 size={14} />
+            </Link>
+          )}
         </div>
 
-        {/* EL PANEL, desde acá. No había ni un enlace al panel en toda la app:
-            se llegaba tecleando `/liga/:code/panel`, o sea que la herramienta
-            existía y no aparecía en ningún lado — que es lo mismo que no
-            existir (§3l). Sale con `esStaff`, el dato que `liga_ver` ya manda:
-            el creador, su staff y los admin. */}
-        {liga.liga.esStaff && (
-          <Link
-            to={`/liga/${code}/panel`}
-            className="ml-auto flex min-h-[36px] shrink-0 items-center gap-1.5 rounded-lg
-                       border border-swu-border px-3 text-[11px] font-bold text-swu-text"
-          >
-            <Settings2 size={13} /> Panel
-          </Link>
-        )}
+        {/* LAS CINCO CIFRAS, en fila.
+            Cada una lleva su ícono arriba, como la maqueta. La jornada y el
+            total salen de MI grupo y no de una «ronda» global: cada grupo
+            lleva su propio reloj (`liga_grupos.arranca/cierra`), así que una
+            ronda global de 16 grupos no existe como concepto y no se puede
+            inventar sin cambiar el motor. */}
+        <div className="liga-carrusel relative gap-1 px-3 pb-3">
+          <TarjetaCifra
+            icono={<Users size={13} />}
+            valor={liga.liga.cupo ? `${liga.cifras.inscritos}/${liga.liga.cupo}` : liga.cifras.inscritos}
+            rotulo="jugadores"
+          />
+          <TarjetaCifra icono={<Globe2 size={13} />} valor={liga.cifras.paises} rotulo="países" />
+          <TarjetaCifra
+            icono={<Layers size={13} />}
+            valor={jornada ? `J${jornada.actual}` : '—'}
+            rotulo={jornada ? <>de {jornada.total}</> : 'jornada'}
+          />
+          <TarjetaCifra
+            icono={<Star size={13} />}
+            valor={FORMATO[liga.liga.formato] ?? liga.liga.formato}
+            rotulo="formato"
+          />
+          <TarjetaCifra
+            icono={<CalendarDays size={13} />}
+            valor={temporada ? (temporada.arranca?.slice(0, 4) ?? temporada.numero) : '—'}
+            rotulo="temporada"
+          />
+        </div>
       </header>
 
       {aviso && (
@@ -203,11 +295,42 @@ export function LigaSeccion() {
         </p>
       )}
 
+      {/* PRÓXIMA FECHA LÍMITE.
+          Es la única fecha que obliga a hacer algo hoy — la de la temporada es
+          información, no un plazo. Va grande porque el reloj sella por
+          silencio: pasada esa fecha, no haber contestado vale como haber
+          aceptado lo que reportó el rival. */}
+      {plazoCercano && (
+        <button
+          onClick={() => irA('mis-partidas')}
+          className="mb-3 flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left"
+          style={{ borderColor: 'var(--liga-borde)', background: 'var(--liga-acento-suave)' }}
+        >
+          <Timer size={26} className="shrink-0" style={{ color: 'var(--liga-acento)' }} />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[10px] font-black uppercase tracking-[0.16em]"
+                  style={{ color: 'var(--liga-acento)' }}>
+              Próxima fecha límite
+            </span>
+            <span className="mt-0.5 block text-[22px] leading-none">
+              <ContadorPlazo hasta={plazoCercano} urgente={esperandome > 0} />
+            </span>
+            <span className="mt-1 block text-[10px] leading-snug text-swu-muted">
+              {esperandome > 0
+                ? 'Para responder el resultado que te reportaron.'
+                : 'Para jugar y anotar tu partida.'}
+            </span>
+          </span>
+          <ChevronRight size={18} className="shrink-0 text-swu-muted" />
+        </button>
+      )}
+
       {/* 1 · MIS PARTIDAS ABIERTAS, todas.
           Antes era UNA tarjeta —«la próxima»— y con grupos de 8 son siete
           partidas por persona: quien tenía dos sin jugar y una esperando
           confirmación resolvía esa y las otras dos seguían invisibles, con el
           plazo corriendo. El orden lo decide `misPartidasAbiertas`. */}
+      <div id="mis-partidas" />
       {abiertas.map(a => (
         <MiPartida
           key={a.partida.id}
@@ -246,7 +369,67 @@ export function LigaSeccion() {
         </p>
       )}
 
+      {/* ACCIONES RÁPIDAS.
+          No son atajos decorativos: cada una lleva a algo que hoy está
+          enterrado a dos o tres toques. «Horarios» es el caso claro — la
+          rejilla solo se montaba en el alta, que desaparece al inscribirte. */}
+      {liga.miInscripcion && (
+        <section className="mb-3 rounded-2xl border border-swu-border bg-swu-surface p-3">
+          <p className="mb-2 flex items-center gap-1.5 text-[11px] font-black text-swu-text">
+            <Zap size={13} style={{ color: 'var(--liga-acento)' }} /> Acciones rápidas
+          </p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <Atajo
+              icono={<Users size={14} />} rotulo="Mi grupo"
+              alTocar={() => { if (miGrupo) { setAbierto(miGrupo); irA(`grupo-${miGrupo}`) } }}
+              apagado={!miGrupo}
+            />
+            <Atajo
+              icono={<Trophy size={14} />} rotulo="Tabla"
+              alTocar={() => irA('tabla')} apagado={!miGrupo}
+            />
+            <Atajo
+              icono={<Swords size={14} />} rotulo="Mis partidas"
+              alTocar={() => irA('mis-partidas')} apagado={abiertas.length === 0}
+            />
+            <Atajo
+              icono={<Megaphone size={14} />} rotulo="Anuncios"
+              alTocar={() => irA('anuncios')} apagado={liga.anuncios.length === 0 && !liga.liga.esStaff}
+            />
+            <Atajo
+              icono={<BookOpen size={14} />} rotulo="Reglamento"
+              alTocar={() => { setReglas(true); irA('como-funciona') }}
+            />
+            <Atajo icono={<CalendarClock size={14} />} rotulo="Mis horarios" a="/profile" />
+          </div>
+        </section>
+      )}
+
+      {/* ANUNCIOS. Van en scroll lateral por lo mismo que las cifras: apilados
+          a 390 px, tres avisos empujan la tabla abajo del pliegue. */}
+      <AnunciosLiga
+        id="anuncios"
+        ligaId={liga.liga.id}
+        anuncios={liga.anuncios}
+        puedoPublicar={liga.liga.esStaff}
+        alCambiar={recargar}
+        alAvisar={setAviso}
+      />
+
+      {/* TOP 8 — el podio de MI grupo, no un ranking cruzado.
+          Un ranking entre grupos que nunca se enfrentaron es ruido con cara de
+          dato: un campeón de Legendario 1 con 15 puntos quedaría debajo de un
+          Común 3 con 18 sin haberse cruzado nunca. Con un solo grupo, el Top 8
+          ES la tabla del grupo, exacto; con varios, esto sigue diciendo de qué
+          grupo habla. */}
+      <TopOcho
+        id="tabla"
+        grupo={grupos.find(g => g.id === miGrupo) ?? null}
+        alVerTodo={() => { if (miGrupo) { setAbierto(miGrupo); irA(`grupo-${miGrupo}`) } }}
+      />
+
       {/* 3 · Los grupos. Uno por tarjeta, el mío abierto. */}
+      <div id="grupos" />
       {sinArrancar ? (
         <p className="rounded-2xl border border-swu-border bg-swu-surface px-4 py-6 text-center text-[12px] text-swu-muted">
           {liga.liga.descripcion ?? 'La temporada todavía no está abierta: cuando se armen los grupos, acá va tu calendario.'}
@@ -261,6 +444,18 @@ export function LigaSeccion() {
           />
         ))
       )}
+
+      {/* CÓMO FUNCIONA.
+          Texto estático, y hasta hoy no existía en NINGÚN lado: es lo único a
+          lo que la primera queja de la jornada 3 va a poder apuntar. Los
+          números salen de la liga, no están escritos a mano — con grupos de 6
+          un «jugás 7 partidas» sería mentira. */}
+      <ComoFunciona
+        id="como-funciona"
+        abierto={reglas}
+        alPlegar={() => setReglas(r => !r)}
+        porGrupo={liga.liga.tamanoGrupo}
+      />
     </div>
   )
 }
@@ -314,7 +509,10 @@ function MiPartida({ partida, grupo, rival, miPlaza, alHacer, alAvisar }: {
         </span>
       </p>
 
-      <p className="mt-1 truncate text-[17px] font-black text-swu-text">{rival.nombre}</p>
+      <p className="mt-1 flex items-center gap-1.5 truncate text-[17px] font-black text-swu-text">
+        <Bandera pais={rival.pais} tam={16} />
+        <span className="truncate">{rival.nombre}</span>
+      </p>
       {rival.lider && <p className="truncate text-[11px] text-swu-muted">{rival.lider}</p>}
 
       {plazo && (
@@ -531,8 +729,14 @@ function FilaGrupo({ f, puesto }: { f: FilaTabla; puesto: number | null }) {
         {puesto ?? '—'}
       </span>
       <div className="min-w-0 flex-1">
-        <p className={`truncate text-[13px] font-bold ${f.esMia ? 'text-swu-accent-texto' : 'text-swu-text'}`}>
-          {f.nombre}
+        {/* La bandera va PEGADA al nombre y no en columna propia: 3 de 42
+            perfiles no tienen país, y una columna con huecos se lee como una
+            tabla rota. `Bandera` devuelve null sin país — el hueco es honesto,
+            un emoji genérico afirmaría una nacionalidad que nadie declaró. */}
+        <p className={`flex items-center gap-1.5 truncate text-[13px] font-bold ${
+          f.esMia ? 'text-swu-accent-texto' : 'text-swu-text'}`}>
+          <Bandera pais={f.pais} tam={12} />
+          <span className="truncate">{f.nombre}</span>
         </p>
         {f.abandonada
           ? <p className="text-[10px] font-bold uppercase tracking-wider text-swu-muted">abandonó</p>
@@ -587,5 +791,287 @@ function Encuentro({ partida, local, visita }: {
         )}
       </div>
     </div>
+  )
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════
+   LAS PIEZAS DEL LOBBY
+
+   Viven acá y no en `componentes/` a propósito: cada una tiene UN consumidor.
+   Extraer un componente con un solo consumidor no es reutilización, es
+   indirección — la regla que el propio documento de diseño fija para decidir
+   qué se comparte y qué no.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Llevar la vista a un bloque.
+ *
+ * `scrollIntoView` y no un `#hash`: un hash entra al historial, así que el
+ * botón de atrás dejaría de salir de la liga y empezaría a recorrer los
+ * atajos que se tocaron. Y va con `behavior` automático, que respeta
+ * `prefers-reduced-motion` sin que haya que preguntarlo.
+ */
+function irA(id: string) {
+  document.getElementById(id)?.scrollIntoView({ block: 'start' })
+}
+
+/** Un atajo de la rejilla. Navega o hace scroll, nunca las dos cosas. */
+export function Atajo({ icono, rotulo, a, alTocar, apagado }: {
+  icono: React.ReactNode
+  rotulo: string
+  a?: string
+  alTocar?: () => void
+  apagado?: boolean
+}) {
+  const clases = `flex min-h-[46px] items-center gap-2 rounded-xl border px-2.5
+                  text-left text-[11px] font-bold leading-tight text-swu-text
+                  disabled:opacity-40`
+  const estilo = { borderColor: 'var(--liga-borde)', background: 'var(--liga-acento-suave)' }
+  const dentro = <>
+    <span className="shrink-0" style={{ color: 'var(--liga-acento)' }}>{icono}</span>
+    <span className="truncate">{rotulo}</span>
+  </>
+  if (a && !apagado) return <Link to={a} className={clases} style={estilo}>{dentro}</Link>
+  return (
+    <button onClick={alTocar} disabled={apagado} className={clases} style={estilo}>
+      {dentro}
+    </button>
+  )
+}
+
+/**
+ * La tira de anuncios, y el formulario de quien organiza.
+ *
+ * Alejo no podía publicar NADA: `news_insert` exige `role='admin'` y `news` no
+ * tiene columna de alcance, así que un aviso suyo habría salido en el Inicio de
+ * toda la comunidad salvadoreña.
+ *
+ * Si no hay anuncios y no soy staff, esto no dibuja nada. Un bloque vacío que
+ * SIEMPRE termina en nada es un hueco en cada visita (§3h-quinquies).
+ */
+export function AnunciosLiga({ id, ligaId, anuncios, puedoPublicar, alCambiar, alAvisar }: {
+  id: string
+  ligaId: string
+  anuncios: AnuncioLiga[]
+  puedoPublicar: boolean
+  alCambiar: () => void
+  alAvisar: (m: string) => void
+}) {
+  const [abierto, setAbierto] = useState(false)
+  const [titulo, setTitulo] = useState('')
+  const [cuerpo, setCuerpo] = useState('')
+  const [ocupado, setOcupado] = useState(false)
+
+  if (anuncios.length === 0 && !puedoPublicar) return null
+
+  const publicar = () => {
+    setOcupado(true)
+    void publicarAnuncio(ligaId, titulo.trim(), cuerpo.trim()).then(r => {
+      setOcupado(false)
+      if (!r.ok) { alAvisar(r.mensaje ?? 'No se pudo publicar.'); return }
+      setTitulo(''); setCuerpo(''); setAbierto(false); alCambiar()
+    })
+  }
+
+  return (
+    <section id={id} className="mb-3">
+      <div className="mb-1.5 flex items-center gap-2">
+        <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-swu-muted">
+          <Megaphone size={12} /> Anuncios
+        </p>
+        {puedoPublicar && (
+          <button
+            onClick={() => setAbierto(a => !a)}
+            className="ml-auto flex min-h-[32px] items-center gap-1 rounded-lg border px-2.5 text-[11px] font-bold text-swu-text"
+            style={{ borderColor: 'var(--liga-borde)' }}
+          >
+            <Plus size={12} /> {abierto ? 'Cancelar' : 'Publicar'}
+          </button>
+        )}
+      </div>
+
+      {abierto && (
+        <div className="mb-2 rounded-xl border p-3" style={{ borderColor: 'var(--liga-borde)' }}>
+          <input
+            value={titulo}
+            onChange={e => setTitulo(e.target.value.slice(0, 120))}
+            placeholder="Título — ej. Se sembró la jornada 4"
+            className="w-full rounded-lg border border-swu-border bg-swu-bg px-3 py-2 text-[13px] text-swu-text outline-none focus:border-swu-accent"
+          />
+          <textarea
+            value={cuerpo}
+            onChange={e => setCuerpo(e.target.value.slice(0, 2000))}
+            rows={3}
+            placeholder="Lo que la liga tiene que saber."
+            className="mt-2 w-full rounded-lg border border-swu-border bg-swu-bg px-3 py-2 text-[13px] text-swu-text outline-none focus:border-swu-accent"
+          />
+          <button
+            onClick={publicar}
+            disabled={ocupado || !titulo.trim() || !cuerpo.trim()}
+            className="mt-2 min-h-[44px] w-full rounded-lg text-[12px] font-black uppercase tracking-wider text-swu-bg disabled:opacity-50"
+            style={{ background: 'var(--liga-acento)' }}
+          >
+            {ocupado ? 'Publicando…' : 'Publicar el aviso'}
+          </button>
+        </div>
+      )}
+
+      {anuncios.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-swu-border px-3 py-3 text-center text-[11px] text-swu-muted">
+          Todavía no publicaste ningún aviso.
+        </p>
+      ) : (
+        <div className="liga-carrusel -mx-4 px-4">
+          {anuncios.map(a => (
+            <article
+              key={a.id}
+              className="w-[248px] shrink-0 snap-start rounded-xl border p-3"
+              style={{ borderColor: 'var(--liga-borde)', background: 'var(--liga-acento-suave)' }}
+            >
+              <p className="flex items-start gap-1.5 text-[12px] font-black leading-snug text-swu-text">
+                <FileText size={13} className="mt-0.5 shrink-0" style={{ color: 'var(--liga-acento)' }} />
+                <span>{a.titulo}</span>
+              </p>
+              <p className="mt-1 line-clamp-4 text-[11px] leading-snug text-swu-muted">{a.cuerpo}</p>
+              <div className="mt-2 flex items-center gap-2">
+                <time
+                  className="text-[9px] uppercase tracking-wider text-swu-muted"
+                  dateTime={a.creadoEn}
+                  title={new Date(a.creadoEn).toLocaleString('es-SV')}
+                >
+                  {haceCuanto(a.creadoEn)}
+                </time>
+                {puedoPublicar && (
+                  <button
+                    onClick={() => void borrarAnuncio(a.id).then(r => {
+                      if (r.ok) alCambiar(); else alAvisar(r.mensaje ?? 'No se pudo borrar.')
+                    })}
+                    className="ml-auto p-1 text-swu-muted hover:text-swu-red-texto"
+                    aria-label={`Borrar el aviso «${a.titulo}»`}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+/**
+ * CÓMO FUNCIONA.
+ *
+ * Hasta hoy estas reglas no estaban escritas en ningún lado de la app: vivían
+ * en el código y en la cabeza de quien la construyó. Es lo único a lo que la
+ * primera queja de la jornada 3 va a poder apuntar.
+ *
+ * Los números salen de la liga y no están cableados: con grupos de 6, un
+ * «jugás 7 partidas» sería una mentira impresa.
+ */
+export function ComoFunciona({ id, abierto, alPlegar, porGrupo }: {
+  id: string; abierto: boolean; alPlegar: () => void; porGrupo: number
+}) {
+  return (
+    <section id={id} className="mt-3">
+      <button
+        onClick={alPlegar}
+        className="flex min-h-[48px] w-full items-center gap-2 rounded-xl border px-3 text-left"
+        style={{ borderColor: 'var(--liga-borde)' }}
+      >
+        <BookOpen size={15} style={{ color: 'var(--liga-acento)' }} />
+        <span className="flex-1 text-[12px] font-black text-swu-text">Cómo funciona la liga</span>
+        <ChevronDown size={16} className={`text-swu-muted transition-transform ${abierto ? 'rotate-180' : ''}`} />
+      </button>
+      {abierto && (
+        <ul className="mt-2 space-y-2 rounded-xl border border-swu-border bg-swu-surface px-4 py-3 text-[12px] leading-snug text-swu-text">
+          <li>
+            <b>Grupos de {porGrupo}.</b> Jugás {Math.max(0, porGrupo - 1)} partidas, una contra
+            cada quien. Ese número no cambia aunque la liga crezca.
+          </li>
+          <li><b>3 puntos</b> por victoria, <b>0</b> por derrota. No hay empates: un BO3 siempre
+            termina 2-0 o 2-1.</li>
+          <li>
+            <b>Si dos quedan iguales</b>, manda el enfrentamiento directo; si aun así siguen
+            iguales, la diferencia de games, y después los games ganados.
+          </li>
+          <li>
+            <b>Los resultados los confirman los dos.</b> Uno anota, el otro confirma o dice que
+            no fue así. Si nadie contesta antes de la fecha límite de esa partida,{' '}
+            <b>vale lo que reportó tu rival</b> — por eso la fecha se avisa antes.
+          </li>
+          <li>
+            <b>Si nadie la jugó</b> cuando vence la jornada, la partida no se inventa: pasa a la
+            cola de quien organiza, que decide.
+          </li>
+        </ul>
+      )}
+    </section>
+  )
+}
+
+
+/**
+ * TOP 8 — el podio de MI grupo.
+ *
+ * La maqueta lo pide como «Top 8» a secas. Se dibuja con el nombre del grupo
+ * arriba a propósito: un Top 8 sin decir de qué se lee como un ranking global,
+ * y un ranking cruzado entre grupos que nunca se enfrentaron es ruido con cara
+ * de dato — el campeón de Legendario 1 con 15 puntos quedaría debajo de un
+ * Común 3 con 18. Con UN solo grupo son exactamente lo mismo, y ahí el rótulo
+ * no molesta a nadie.
+ *
+ * Las medallas van solo en los tres primeros y solo cuando esa persona YA
+ * jugó: un podio de oro sobre una tabla de ceros —el día 1, con todos en 0—
+ * corona a quien quedó primero por orden alfabético.
+ */
+export function TopOcho({ id, grupo, alVerTodo }: {
+  id: string; grupo: GrupoLiga | null; alVerTodo: () => void
+}) {
+  const filas = useMemo(
+    () => (grupo ? tablaDe(grupo.plazas, grupo.partidas, grupo.id).slice(0, 8) : []),
+    [grupo])
+  if (!grupo || filas.length === 0) return null
+  const hayJuego = filas.some(f => f.jugadas > 0)
+
+  return (
+    <section id={id} className="mb-3 overflow-hidden rounded-2xl border border-swu-border bg-swu-surface">
+      <div className="flex items-center gap-2 px-3 py-2.5">
+        <Trophy size={14} style={{ color: 'var(--liga-oro)' }} />
+        <p className="flex-1 truncate text-[12px] font-black text-swu-text">
+          Top {filas.length} · {NOMBRE_TIER[grupo.tier] ?? grupo.tier} {grupo.orden}
+        </p>
+        <button onClick={alVerTodo} className="flex items-center gap-1 text-[11px] font-bold"
+                style={{ color: 'var(--liga-acento)' }}>
+          Ver todo <ChevronRight size={13} />
+        </button>
+      </div>
+      <div className="grid grid-cols-[28px_1fr_auto] items-center gap-x-2 border-t border-swu-border px-3 py-1.5
+                      text-[9px] font-bold uppercase tracking-wider text-swu-muted">
+        <span>#</span><span>Jugador</span><span>Puntos</span>
+      </div>
+      {filas.map((f, i) => (
+        <div
+          key={f.plazaId}
+          className={`grid grid-cols-[28px_1fr_auto] items-center gap-x-2 border-t border-swu-border px-3 py-2 ${
+            f.esMia ? 'bg-swu-accent/10' : ''} ${f.abandonada ? 'opacity-45' : ''}`}
+        >
+          <span className="flex items-center justify-center">
+            {hayJuego && i < 3
+              ? <Medal size={14} style={{ color: ['var(--liga-oro)', '#C6CBD4', '#C08457'][i] }} />
+              : <span className="text-[12px] font-black tabular-nums text-swu-muted">{i + 1}</span>}
+          </span>
+          <span className={`flex min-w-0 items-center gap-1.5 text-[13px] font-bold ${
+            f.esMia ? 'text-swu-accent-texto' : 'text-swu-text'}`}>
+            <Bandera pais={f.pais} tam={12} />
+            <span className="truncate">{f.nombre}</span>
+          </span>
+          <span className="text-[13px] font-black tabular-nums text-swu-text">{f.puntos}</span>
+        </div>
+      ))}
+    </section>
   )
 }

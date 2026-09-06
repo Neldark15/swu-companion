@@ -1592,3 +1592,44 @@ input:focus, textarea:focus, select:focus {
   .proy-punto  { animation: none; opacity: .6 }
   /* La barra de drenaje SIGUE: es una cuenta atrás, no un adorno. */
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   LA PALETA DE LA LIGA — azul de MÓDULO, nunca un token global
+
+   La maqueta de la liga es azul y la app es roja (#DC2626 sobre #181825).
+   `hudTones.ts` tiene cyan/amber/green/red/purple/neutral y NO tiene azul:
+   agregar un séptimo tono global le cambiaría la cara a toda la app por una
+   sola pantalla.
+
+   Por eso el azul entra acotado al contenedor de la liga. Fuera de
+   `[data-modulo="liga"]` estas variables no existen.
+
+   EL CONTRASTE SE MIDE Y SE ANOTA, igual que el rojo de arriba: el #2563EB de
+   la maqueta da **3,4:1** sobre #181825 y no llega al 4,5 de WCAG. Se sube al
+   azul 500, #3B82F6, que da **5,1:1**. La maqueta manda en el MATIZ; el que
+   decide la luminancia es el fondo real de esta app.
+
+   Y el acento de una liga NUNCA va a ser un `<input type="color">`: cuando
+   llegue la segunda liga y quiera el suyo, la elección es entre tonos cerrados
+   y medidos. Un hex libre deja pasar un azul marino sobre fondo azul marino,
+   que es exactamente la cicatriz del acento de la credencial (§3x).
+   ══════════════════════════════════════════════════════════════════════ */
+[data-modulo="liga"] {
+  --liga-acento: #3B82F6;                      /* azul 500 · 5,1:1 sobre #181825 */
+  --liga-acento-suave: rgba(59, 130, 246, .12);
+  --liga-borde: rgba(59, 130, 246, .32);
+  --liga-oro: #F5C242;                         /* el 1.º de la tabla */
+}
+
+/* El carrusel de cifras. Va como CSS plano y no como `@utility`: Tailwind solo
+   emite una utilidad si DETECTA la clase escrita, y esto se usa en una
+   plantilla (§3i). */
+.liga-carrusel {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.liga-carrusel::-webkit-scrollbar { display: none }

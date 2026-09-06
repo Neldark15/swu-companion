@@ -3943,3 +3943,85 @@ por el mismo pool de conexiones.
 
 **Y `npm run build` NO comprueba los tipos de `api/`** (§3i). Se verifican a mano
 con el `tsc --noEmit` largo que está documentado ahí.
+
+### 4w. LIGA — Fase 3: el lobby de la maqueta
+
+La maqueta que mandó Nel: cabecera con logo sobre la portada, píldora de estado,
+cinco cifras con ícono, cuenta atrás grande, VS con banderas, acciones rápidas,
+Top 8 con medallas y una tira de anuncios. Con la TabBar de la app abajo, no la
+de la maqueta.
+
+**EL AZUL ENTRA COMO VARIABLE DE MÓDULO, NUNCA COMO TOKEN GLOBAL.** La app es
+roja (`#DC2626` sobre `#181825`) y `hudTones.ts` tiene seis tonos, ninguno azul:
+un séptimo global le cambia la cara a toda la app por una sola pantalla. Va en
+`[data-modulo="liga"]`, y fuera de ese contenedor esas variables no existen.
+
+**El contraste se mide y se anota, igual que el rojo.** El `#2563EB` de la
+maqueta da **3,4:1** sobre `#181825` y no llega al 4,5 de WCAG; se sube al azul
+500 `#3B82F6`, que da **5,1:1**. La maqueta manda en el MATIZ; quien decide la
+luminancia es el fondo real de esta app. Y el acento de una liga nunca va a ser
+un `<input type="color">`: cuando llegue la segunda, la elección es entre tonos
+cerrados y medidos — un hex libre deja pasar azul marino sobre azul marino, que
+es la cicatriz del acento de la credencial (§3x).
+
+**CINCO CIFRAS EN FILA: LA REPARTICIÓN EN CINCO COLUMNAS IGUALES NO FUNCIONA, Y
+ESTÁ MEDIDO.** A 375 px la fila mide 337, cada tarjeta 56 y quedan **46 px
+útiles** — «Premier» necesita 59 y «120/120» necesita 58 a 13 px. Para que
+entraran habría que bajar la letra a ~10 px, por debajo del piso de 11 que este
+proyecto se fijó midiendo el ranking (§3f). La tarjeta declara entonces un ancho
+**mínimo de 74 px** y crece si sobra: en un teléfono de 393 px las cinco entran,
+en uno de 375 la fila se corre unos píxeles. **Correrse es honesto —se ve que hay
+más—; truncar «Premier» a «Pre…» no: una cifra que no se puede leer no es una
+cifra.** Verificado en el banco: los cinco valores y los cinco rótulos, enteros.
+
+**«Ronda 4 de 8» sale de MI grupo, no de una ronda global.** Cada grupo lleva su
+propio reloj (`liga_grupos.arranca/cierra`), así que una ronda global de 16
+grupos no existe como concepto y no se puede inventar sin cambiar el motor. La
+jornada actual es la más baja de mis partidas sin cerrar; el total, la más alta
+que tengo.
+
+**El «Top 8» dice DE QUÉ GRUPO es.** Un ranking cruzado entre grupos que nunca
+se enfrentaron es ruido con cara de dato: el campeón de Legendario 1 con 15
+puntos quedaría debajo de un Común 3 con 18 sin haberse cruzado jamás. Con un
+solo grupo son exactamente lo mismo y el rótulo no molesta a nadie.
+
+**Y LAS MEDALLAS SOLO SALEN SI ALGUIEN YA JUGÓ.** El día 1 la tabla está toda en
+cero y el orden lo decide el desempate final —el abecedario—: un podio de oro
+sobre ceros corona a quien tiene la A. Verificado en el banco con las dos
+tablas, la jugada y la del día 1. Los tres colores son distinguibles de verdad
+(medidos contra el fondo: 9,9 · 10,1 · 5,2 de contraste).
+
+**Las banderas van PEGADAS al nombre, no en columna propia.** 3 de 42 perfiles no
+tienen país, y una columna con huecos se lee como una tabla rota. `Bandera`
+devuelve `null` sin país o con un código que no existe — un emoji genérico
+afirmaría una nacionalidad que nadie declaró.
+
+**`liga_anuncios`: Alejo no podía publicar NADA.** La policy `news_insert` exige
+`role='admin'` y `news` no tiene columna de alcance, así que un aviso suyo habría
+salido en el Inicio de toda la comunidad salvadoreña; y `tournament_broadcasts`
+tampoco servía (su INSERT es `auth.uid() is not null`, o sea el megáfono de la
+app para cualquier cuenta con sesión). Seis columnas y ninguna de más: sin
+`temporada_id`, sin fijado, sin borradores, sin segmentación. `autor_id` **no
+tiene grant** para `authenticated`: quién escribió el aviso es del servidor.
+Y si no hay avisos y no sos staff, **el bloque no se dibuja** — uno vacío que
+siempre termina en nada es un hueco en cada visita (§3h-quinquies).
+
+**El bloque «Cómo funciona» es lo único a lo que la primera queja de la jornada
+3 va a poder apuntar**, y hasta hoy estas reglas no estaban escritas en ningún
+lado de la app: vivían en el código. Los números salen de la liga —«grupos de N,
+jugás N−1 partidas»— porque con grupos de 6 un «jugás 7 partidas» sería una
+mentira impresa.
+
+**No se creó el `ProveedorLiga` que el documento proponía.** Su propósito era que
+nada quedara cableado a PUENTE 3, y las props consiguen exactamente eso con un
+consumidor por dato. Un contexto para un solo consumidor es la indirección que
+el propio documento desaconseja dos líneas antes. El día que tres pantallas
+pidan el color de la liga, ese día se agrega.
+
+Banco en **`/banco-lobby-liga`** (solo desarrollo): la cabecera con las cinco
+cifras, los tres estados de la cuenta atrás, las acciones, las banderas (con
+país, sin país y con un código inventado), el Top 8 en sus dos estados, los
+anuncios en sus tres, y el reglamento. Lo que NO se pudo ver es el lobby
+ENSAMBLADO con datos reales: la liga sigue en `borrador` y no hay sesión en el
+navegador de pruebas, así que el orden de los bloques está verificado leyendo,
+no mirando.

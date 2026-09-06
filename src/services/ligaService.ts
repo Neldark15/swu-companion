@@ -404,10 +404,23 @@ export interface TemporadaLiga {
   cierra: string
 }
 
+/** Un aviso del creador a su liga. Seis campos y ninguno de más (§7.3). */
+export interface AnuncioLiga {
+  id: string
+  titulo: string
+  cuerpo: string
+  creadoEn: string
+}
+
 export interface LigaCompleta {
-  liga: Liga & { tamanoGrupo: number; esStaff: boolean }
+  liga: Liga & { tamanoGrupo: number; esStaff: boolean; formato: string; cupo: number | null }
   temporada: TemporadaLiga | null
   miInscripcion: string | null
+  /** Lo que va en el carrusel de la cabecera. Lo cuenta el servidor: contarlo
+   *  en el cliente exigiría traerse el padrón entero, que es justo lo que los
+   *  grants por columna de la Fase 0 dejaron de entregar. */
+  cifras: { inscritos: number; paises: number }
+  anuncios: AnuncioLiga[]
   grupos: GrupoLiga[]
 }
 
@@ -424,7 +437,7 @@ export async function verLiga(code: string): Promise<LigaCompleta | null> {
     console.warn('[Liga] no se pudo leer:', error.message)
     return null
   }
-  const r = data as { ok?: boolean; liga?: LigaCompleta['liga'] | null } & LigaCompleta | null
+  const r = data as ({ ok?: boolean; liga?: LigaCompleta['liga'] | null } & LigaCompleta) | null
   if (!r?.ok || !r.liga) return null
   // Las plazas llegan dentro de cada grupo sin `grupoId`: se lo pone acá para
   // que `tablaDe` pueda filtrar sin recorrer el árbol otra vez.
@@ -433,7 +446,14 @@ export async function verLiga(code: string): Promise<LigaCompleta | null> {
     plazas: (g.plazas ?? []).map(p => ({ ...p, grupoId: g.id })),
     partidas: (g.partidas ?? []).map(m => ({ ...m, grupoId: g.id })),
   }))
-  return { liga: r.liga, temporada: r.temporada ?? null, miInscripcion: r.miInscripcion ?? null, grupos }
+  return {
+    liga: r.liga,
+    temporada: r.temporada ?? null,
+    miInscripcion: r.miInscripcion ?? null,
+    cifras: r.cifras ?? { inscritos: 0, paises: 0 },
+    anuncios: r.anuncios ?? [],
+    grupos,
+  }
 }
 
 /** Todas las plazas y partidas de la liga, aplanadas. Para la tabla global. */
@@ -453,6 +473,20 @@ export const inscribirseLiga = (
   p_liga: liga, p_lider: lider, p_base: base, p_zona: zona, p_franjas: franjas,
   p_consiente_transmision: transmision, p_consiente_perfil: perfil,
 })
+
+/**
+ * Publicar un aviso de la liga. **Solo staff**, y lo comprueba el servidor.
+ *
+ * Existe porque Alejo no podía publicar NADA: la policy `news_insert` exige
+ * `role = 'admin'` y `news` no tiene columna de alcance, así que un aviso de
+ * PUENTE saldría en el Inicio de toda la comunidad salvadoreña. Y
+ * `tournament_broadcasts` tampoco servía: su INSERT es `auth.uid() is not
+ * null`, o sea el megáfono de la app para cualquier cuenta con sesión.
+ */
+export const publicarAnuncio = (liga: string, titulo: string, cuerpo: string) =>
+  rpc('liga_anunciar', { p_liga: liga, p_titulo: titulo, p_cuerpo: cuerpo })
+
+export const borrarAnuncio = (id: string) => rpc('liga_borrar_anuncio', { p_id: id })
 
 export const guardarDisponibilidad = (liga: string, zona: string, franjas: string, nota?: string) =>
   rpc('liga_guardar_disponibilidad', { p_liga: liga, p_zona: zona, p_franjas: franjas, p_nota: nota ?? null })

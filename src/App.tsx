@@ -95,6 +95,7 @@ const CreadorPage = lazy(() => import('./features/creadores/CreadorPage').then(m
 // de la organización va FUERA, con los de /admin y /temporada (ver abajo).
 const LigaSeccion = lazy(() => import('./features/liga/LigaSeccion').then(m => ({ default: m.LigaSeccion })))
 const BancoAltaLiga = lazy(() => import('./features/liga/BancoAltaLiga').then(m => ({ default: m.BancoAltaLiga })))
+const BancoLobbyLiga = lazy(() => import('./features/liga/BancoLobbyLiga').then(m => ({ default: m.BancoLobbyLiga })))
 const GalaxiaPage = lazy(() => import('./features/galaxia/GalaxiaPage').then(m => ({ default: m.GalaxiaPage })))
 /* El Taller de sables. Abierto a toda la comunidad desde 2026-08-24, con
    entrada en Inicio, en el menú y desde el sable de la barra de XP. La puerta
@@ -351,6 +352,7 @@ export default function App() {
             {import.meta.env.DEV && <Route path="/banco-sobres" element={<BancoSobres />} />}
             {import.meta.env.DEV && <Route path="/banco-mesa-fila" element={<BancoMesaFila />} />}
             {import.meta.env.DEV && <Route path="/banco-alta-liga" element={<BancoAltaLiga />} />}
+            {import.meta.env.DEV && <Route path="/banco-lobby-liga" element={<BancoLobbyLiga />} />}
             {import.meta.env.DEV && <Route path="/banco-amistosas" element={<BancoAmistosas />} />}
             {import.meta.env.DEV && <Route path="/banco-copias" element={<BancoCopias />} />}
             {import.meta.env.DEV && <Route path="/banco-paneles" element={<BancoPaneles />} />}
