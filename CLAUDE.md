@@ -4494,3 +4494,49 @@ mismo y mejor —con puntos— y esta lista sobra.
 partida, tu grupo, la tabla) y el PANEL es para organizar. El padrón completo
 —con zona horaria, horas declaradas y estado— vive en el panel, pestaña
 Inscritos; el lobby muestra la versión pública.
+
+### 5h. LIGA — inscribirse estaba ROTO, y el mazo entra al alta
+
+**DROPEAR UNA FUNCIÓN SIN BARRER QUIÉN LA LLAMABA.** Al hacer `liga_visible`
+por liga (§5e) se soltó la versión sin argumento — y `liga_inscribirse` la
+llamaba. La función quedó **reventando entera**: nadie podía inscribirse, y no
+se habría descubierto hasta que la primera persona lo intentara, porque
+PL/pgSQL resuelve la llamada recién al ejecutarse.
+
+El barrido que hay que correr al dropear una función es una línea:
+
+```sql
+select proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+ where n.nspname='public' and p.prosrc ~ 'nombre_de_la_funcion\(\s*\)';
+```
+
+**Y ROMPÍ `liga_panel` EN LA MISMA MIGRACIÓN**, escribiendo un cuerpo de relleno
+(`return null`) al final del archivo por copiar mal. Se restauró desde
+`supabase/migrations/liga-internacional-rpcs.sql` — que es exactamente para lo
+que sirve tener el DDL versionado en el repo, y por qué el §3o marca como error
+haber aplicado un esquema por MCP sin escribirlo a un archivo.
+
+**EL MAZO ENTRA AL ALTA.** `liga_plazas.deck_id` existía desde el primer día y
+nadie lo llenaba: el alta pedía líder y base en **texto libre**. Ahora:
+
+- `liga_inscripciones.deck_id` → FK a `decks(id)`, que es **TEXT** (§3a: una FK
+  declarada `uuid` ni se puede crear) y va `ON DELETE SET NULL` — borrar un mazo
+  no puede borrarle a nadie su inscripción.
+- **El servidor comprueba que el mazo sea TUYO**, el mismo guardia que
+  `confirmar_amistosa`. Sin eso, alguien se inscribe con el mazo de otro — y el
+  mazo es lo que se publica en el VOD.
+- `liga_armar_grupos` lo copia a la plaza.
+- **Lo ve el PANEL, no el padrón público.** Publicar el mazo durante la
+  inscripción es scouting gratis para el rival.
+
+**Elegir el mazo llena líder y base con los NOMBRES, no con los ids.**
+`misMazos` devuelve `cardId` y lo que el resto del módulo guarda y muestra son
+nombres: la tabla del grupo, la ficha del overlay y el padrón. Guardar un id ahí
+pondría un uuid al lado del nombre de la persona, al aire. Los campos quedan
+editables, y si no tiene mazos cargados **el selector no se dibuja**: a nadie se
+le enseña una lista vacía con un «no tenés mazos».
+
+**La liga quedó en `inscripcion` con `publica = false`**: el formulario se abre
+para el creador y el staff —para probarlo— y la liga sigue invisible para las
+otras 40 cuentas. Son dos interruptores distintos y esa es la razón de que lo
+sean.

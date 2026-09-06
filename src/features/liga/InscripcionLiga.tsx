@@ -44,10 +44,11 @@
  * jugar igual.
  */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Radio, Eye, CalendarClock, Swords, Globe2, User, ArrowRight } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { inscribirseLiga } from '../../services/ligaService'
+import { misMazos, type MazoCompartible } from '../../services/galaxiaCompartir'
 import { CONTINENTS, getContinentByCountryCode } from '../../data/regions'
 import {
   RejillaDisponibilidad, FRANJAS_VACIAS, horasDe, zonaDelAparato,
@@ -69,7 +70,45 @@ export function InscripcionLiga({ ligaId, onListo }: { ligaId: string; onListo: 
   const { currentProfile, updateProfile } = useAuth()
   const [lider, setLider] = useState('')
   const [base, setBase] = useState('')
+  /** El mazo elegido, si tiene alguno cargado en la app. */
+  const [deck, setDeck] = useState<string | null>(null)
+  const [mazos, setMazos] = useState<MazoCompartible[] | null>(null)
   const [franjas, setFranjas] = useState(FRANJAS_VACIAS)
+
+  /* LOS MAZOS QUE YA TIENE EN LA APP.
+     Escribir «Darth Vader» y «Capital City» a mano es pedirle a alguien que
+     copie algo que la app YA sabe — y el nombre tecleado no coincide con el del
+     catálogo, así que la tabla y el overlay muestran variantes del mismo mazo.
+     Si tiene mazos cargados, elegir uno llena los dos campos solo. */
+  useEffect(() => {
+    if (!currentProfile?.id) return
+    let vivo = true
+    void misMazos(currentProfile.id).then(m => { if (vivo) setMazos(m) })
+    return () => { vivo = false }
+  }, [currentProfile?.id])
+
+  /**
+   * Elegir un mazo llena líder y base con los NOMBRES, no con los ids.
+   *
+   * `misMazos` devuelve `cardId`, y lo que el resto del módulo guarda y muestra
+   * son nombres: la tabla del grupo, la ficha del overlay y el padrón. Guardar
+   * un id ahí pondría un uuid al lado del nombre de la persona, al aire.
+   * Los campos quedan EDITABLES: quien tenga su lista fuera de la app sigue
+   * pudiendo escribirlos.
+   */
+  const elegirMazo = async (m: MazoCompartible | null) => {
+    setDeck(m?.id ?? null)
+    if (!m) return
+    const { db } = await import('../../services/db')
+    const nombreDe = async (id: string | null) => {
+      if (!id) return ''
+      const c = await db.cards.get(id)
+      return c?.name ?? ''
+    }
+    const [nl, nb] = await Promise.all([nombreDe(m.lider), nombreDe(m.base)])
+    if (nl) setLider(nl)
+    if (nb) setBase(nb)
+  }
   /**
    * La zona sale de UN solo helper.
    *
@@ -100,7 +139,7 @@ export function InscripcionLiga({ ligaId, onListo }: { ligaId: string; onListo: 
   const enviar = () => {
     setOcupado(true)
     setError(null)
-    void inscribirseLiga(ligaId, lider.trim(), base.trim(), zona, franjas, transmision, perfil)
+    void inscribirseLiga(ligaId, lider.trim(), base.trim(), zona, franjas, transmision, perfil, deck)
       .then(r => {
         setOcupado(false)
         if (r.ok) { onListo(); return }
@@ -159,11 +198,35 @@ export function InscripcionLiga({ ligaId, onListo }: { ligaId: string; onListo: 
         <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-swu-muted">
           <Swords size={12} /> Con qué vas a jugar
         </p>
+        {/* EL MAZO PRIMERO, si tiene alguno: elegirlo llena los dos campos de
+            abajo. Si no tiene ninguno cargado, este selector no se dibuja y
+            queda el formulario de siempre — no se le enseña a nadie una lista
+            vacía con un «no tenés mazos». */}
+        {mazos && mazos.length > 0 && (
+          <>
+            <select
+              value={deck ?? ''}
+              onChange={e => void elegirMazo(mazos.find(m => m.id === e.target.value) ?? null)}
+              className="mt-1.5 min-h-11 w-full rounded-xl border border-swu-border bg-swu-bg px-3 text-[13px] text-swu-text outline-none focus:border-swu-accent"
+            >
+              <option value="">Elegí tu mazo (opcional)</option>
+              {mazos.map(m => (
+                <option key={m.id} value={m.id}>
+                  {m.nombre} · {m.cartas} cartas
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[10px] leading-snug text-swu-muted">
+              Lo ve quien organiza, para armar los grupos y presentar tu partida al aire.
+              No se publica durante la inscripción.
+            </p>
+          </>
+        )}
         <input
           value={lider}
           onChange={e => setLider(e.target.value.slice(0, 60))}
           placeholder="Tu líder — ej. Darth Vader"
-          className="mt-1.5 w-full rounded-xl border border-swu-border bg-swu-bg px-3 py-2.5 text-[13px] text-swu-text outline-none focus:border-swu-accent"
+          className="mt-2 w-full rounded-xl border border-swu-border bg-swu-bg px-3 py-2.5 text-[13px] text-swu-text outline-none focus:border-swu-accent"
         />
         <input
           value={base}

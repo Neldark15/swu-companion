@@ -477,9 +477,12 @@ export function aplanar(l: LigaCompleta): { plazas: PlazaLiga[]; partidas: Parti
 export const inscribirseLiga = (
   liga: string, lider: string, base: string,
   zona: string, franjas: string, transmision: boolean, perfil: boolean,
+  /** El mazo que va a jugar. El servidor comprueba que sea TUYO (§3a). */
+  deck?: string | null,
 ) => rpc('liga_inscribirse', {
   p_liga: liga, p_lider: lider, p_base: base, p_zona: zona, p_franjas: franjas,
   p_consiente_transmision: transmision, p_consiente_perfil: perfil,
+  p_deck: deck || null,
 })
 
 /**
