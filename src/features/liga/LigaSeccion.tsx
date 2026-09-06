@@ -338,11 +338,11 @@ export function LigaSeccion() {
               está, no se dibuja nada y el banner queda igual de legible. */}
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 right-0 w-3/5 bg-cover bg-center opacity-45"
+            className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-cover bg-center opacity-30"
             style={{
               backgroundImage: 'url(/liga/banner-liga.webp)',
-              maskImage: 'linear-gradient(to right, transparent, #000 55%)',
-              WebkitMaskImage: 'linear-gradient(to right, transparent, #000 55%)',
+              maskImage: 'linear-gradient(to right, transparent, #000 70%)',
+              WebkitMaskImage: 'linear-gradient(to right, transparent, #000 70%)',
             }}
           />
           <Timer size={26} className="relative shrink-0" style={{ color: 'var(--liga-acento)' }} />
@@ -429,7 +429,7 @@ export function LigaSeccion() {
               alTocar={() => irA('tabla')} apagado={!miGrupo}
             />
             <Atajo
-              icono={<Swords size={14} />} rotulo="Mis partidas"
+              icono={<Swords size={14} />} rotulo="Partidas"
               alTocar={() => irA('mis-partidas')} apagado={abiertas.length === 0}
             />
             <Atajo
@@ -437,10 +437,10 @@ export function LigaSeccion() {
               alTocar={() => irA('anuncios')} apagado={liga.anuncios.length === 0 && !liga.liga.esStaff}
             />
             <Atajo
-              icono={<BookOpen size={14} />} rotulo="Reglamento"
+              icono={<BookOpen size={14} />} rotulo="Reglas"
               alTocar={() => { setReglas(true); irA('como-funciona') }}
             />
-            <Atajo icono={<CalendarClock size={14} />} rotulo="Mis horarios" a="/profile" />
+            <Atajo icono={<CalendarClock size={14} />} rotulo="Horarios" a="/profile" />
           </div>
         </section>
       )}
@@ -864,13 +864,18 @@ export function Atajo({ icono, rotulo, a, alTocar, apagado }: {
   alTocar?: () => void
   apagado?: boolean
 }) {
-  const clases = `flex min-h-[46px] items-center gap-2 rounded-xl border px-2.5
+  /* ENVUELVE, NO TRUNCA. Medido a 375 px con tres columnas: quedan 55 px de
+     texto y «Mis partidas» necesita 67 — salían «Mis par…», «Reglam…». Es la
+     misma cuenta que las cifras de la cabecera, y la misma respuesta: un rótulo
+     que no se puede leer no es un rótulo. Se acortó lo redundante («Mis» dentro
+     de MI liga) y lo que igual no entre baja a dos renglones. */
+  const clases = `flex min-h-[50px] items-center gap-1.5 rounded-xl border px-2
                   text-left text-[11px] font-bold leading-tight text-swu-text
                   disabled:opacity-40`
   const estilo = { borderColor: 'var(--liga-borde)', background: 'var(--liga-acento-suave)' }
   const dentro = <>
     <span className="shrink-0" style={{ color: 'var(--liga-acento)' }}>{icono}</span>
-    <span className="truncate">{rotulo}</span>
+    <span className="min-w-0">{rotulo}</span>
   </>
   if (a && !apagado) return <Link to={a} className={clases} style={estilo}>{dentro}</Link>
   return (

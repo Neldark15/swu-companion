@@ -165,10 +165,10 @@ export function BancoLobbyLiga() {
               className="relative mb-2 flex w-full items-center gap-3 overflow-hidden rounded-2xl border px-4 py-3 text-left"
               style={{ borderColor: 'var(--liga-borde)', background: 'var(--liga-acento-suave)' }}>
               <span aria-hidden
-                className="pointer-events-none absolute inset-y-0 right-0 w-3/5 bg-cover bg-center opacity-45"
+                className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-cover bg-center opacity-30"
                 style={{ backgroundImage: 'url(/liga/banner-liga.webp)',
-                         maskImage: 'linear-gradient(to right, transparent, #000 55%)',
-                         WebkitMaskImage: 'linear-gradient(to right, transparent, #000 55%)' }} />
+                         maskImage: 'linear-gradient(to right, transparent, #000 70%)',
+                         WebkitMaskImage: 'linear-gradient(to right, transparent, #000 70%)' }} />
               <Timer size={26} className="relative shrink-0" style={{ color: 'var(--liga-acento)' }} />
               <span className="relative min-w-0 flex-1">
                 <span className="block text-[10px] font-black uppercase tracking-[0.16em]" style={{ color: 'var(--liga-acento)' }}>
@@ -197,10 +197,10 @@ export function BancoLobbyLiga() {
             <div className="grid grid-cols-3 gap-2">
               <Atajo icono={<Users size={14} />} rotulo="Mi grupo" alTocar={() => setAviso('Mi grupo')} />
               <Atajo icono={<Trophy size={14} />} rotulo="Tabla" alTocar={() => setAviso('Tabla')} />
-              <Atajo icono={<Swords size={14} />} rotulo="Mis partidas" alTocar={() => setAviso('Mis partidas')} />
+              <Atajo icono={<Swords size={14} />} rotulo="Partidas" alTocar={() => setAviso('Mis partidas')} />
               <Atajo icono={<Megaphone size={14} />} rotulo="Anuncios" alTocar={() => setAviso('Anuncios')} />
-              <Atajo icono={<BookOpen size={14} />} rotulo="Reglamento" alTocar={() => setReglas(true)} />
-              <Atajo icono={<CalendarClock size={14} />} rotulo="Mis horarios" a="/profile" />
+              <Atajo icono={<BookOpen size={14} />} rotulo="Reglas" alTocar={() => setReglas(true)} />
+              <Atajo icono={<CalendarClock size={14} />} rotulo="Horarios" a="/profile" />
             </div>
           </section>
         </Caso>
