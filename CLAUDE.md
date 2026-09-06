@@ -3521,3 +3521,66 @@ bien que dos distintos.
 Y el reloj de la vista de telefono de `/events/live/:code` dejo de mostrar
 «00:00 ¡Tiempo terminado!» parpadeando sobre torneos cerrados hace semanas: el
 plazo vencido de la ultima ronda no es un dato viejo, es **un dato falso**.
+
+### 4r. «Fijar clasificación» conoce la MESA FINAL, no los puntos
+
+`fijar_puestos_finales` ordenaba por `points desc, match_wins desc,
+player_name asc`. Correcto en un suizo —ahí los puntos SON la clasificación—
+y equivocado en un torneo de mesas: ahí hay una **mesa final**, y quien la
+gana es el campeón aunque otro haya sumado más puntos en las rondas previas.
+
+Medido contra el TWIN SUNS (SWUXF2W, 11 jugadores), el único torneo de mesas
+cerrado que existe: los puestos reales son Jbeltramirez(5pts), iNelo(5),
+Viaud(4), **Nelson(3)** — y por puntos los tres de 4 puntos (Vara,
+Lemaster89, Winnie) quedaban por ENCIMA de Nelson, que fue 4º en la final.
+Los once puestos hubo que corregirlos a mano antes de cerrar.
+
+**No es cosmético:** `_repartir_premios` reparte por `coalesce(puesto, 32767)`
+(§3k) y la escala de sobres es por posición. Un puesto mal fijado son sobres y
+XP a quien no le tocan, sin un solo error a la vista.
+
+**La estructura se LEYÓ de los datos, no se supuso.** Los puestos que declaró
+el organizador caen en un patrón exacto:
+
+| | |
+|---|---|
+| mesa 1 de la última ronda | → 1, 2, 3, 4 — **la final, en bloque** |
+| los 1º de las otras mesas | → 5, 6 |
+| los 2º de las otras mesas | → 7, 8 |
+| los 3º de las otras mesas | → 9, 10 |
+| el 4º | → 11 |
+
+Dos reglas: **la mesa 1 de la última ronda es la final** y se lleva las
+primeras posiciones en bloque; **el resto va INTERLINEADO** por el puesto que
+sacó dentro de su mesa. Ganar tu mesa vale más que quedar segundo en otra —
+sin interlinear, el último de la mesa 2 quedaría sobre el ganador de la mesa 3.
+
+Verificado en transacción revertida: **los cuatro primeros exactos** y 7 de 11
+en total, con las cuatro diferencias todas DENTRO de su bloque correcto.
+
+**LO QUE NO SE PUDO DERIVAR, Y POR ESO SE DICE EN PANTALLA.** El orden dentro
+de cada bloque (Vara antes que Lemaster89, isuraji antes que Winnie) no lo
+explica ningún criterio: se probaron mesa, puntos y vida, y **cada uno falla
+en al menos un caso**. Esos los tecleó una persona con la hoja delante. Se
+desempata por puntos y después por vida —el mismo criterio con el que el
+torneo elige al «mejor segundo»— y queda escrito como elección, no como
+hallazgo.
+
+Por eso entra también que el organizador **VEA el resultado**: la función
+escribía once puestos y contestaba «Clasificación fijada para 11 jugadores»,
+un número que no dice nada del único dato que importa. Ahora sale la lista
+ordenada con la mesa de la que salió cada quien y la final marcada. Y cerrar
+sin haber fijado **avisa**: hacerlo reparte por el orden viejo y saca el
+torneo de la temporada, las dos cosas en silencio.
+
+**Suizo y eliminación no cambian** (verificado: SV290826 da el mismo orden).
+Y **el TWIN SUNS no se recalcula**: está cerrado y repartido, y volver a
+fijarle los puestos movería su tabla de temporada meses después — mismo
+criterio que el §3k tomó con el torneo del 15/8.
+
+**Un fallo del propio banco, y vale la lección.** En `/banco-mesa-fila` le puse
+`user_id: 'u'` literal a los once, así que el cruce contra la clasificación no
+casaba con nadie y las once filas decían «sin mesa». El componente degradaba
+honesto —«sin mesa» en vez de la mesa de otro— pero **un banco que miente
+sobre lo que prueba es peor que no tenerlo**, que es la misma forma del §3x
+(«0 temas · TODOS PASAN»).
