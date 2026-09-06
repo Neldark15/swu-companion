@@ -66,7 +66,10 @@ export default defineConfig({
         ],
       },
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // `webp` ADENTRO y no solo `png`: las imágenes de la liga —portada, banner,
+        // emblema— son todas webp, y sin esto ninguna entraba al precache mientras
+        // que 3,3 MB de PNG que no usa nadie sí entraban.
+        globPatterns: ['**/*.{js,css,html,ico,png,webp,svg,woff2}'],
       },
       devOptions: {
         enabled: false,

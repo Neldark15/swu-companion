@@ -29,7 +29,7 @@ import { Badge } from '../../components/ui/Badge'
 import { InscripcionLiga } from '../liga/InscripcionLiga'
 import { PortadaLiga } from './PortadaLiga'
 import { Bandera, TarjetaCifra, ContadorPlazo } from './componentes/piezas'
-import { haceCuanto } from './componentes/tiempo'
+import { haceCuanto, restanHasta } from './componentes/tiempo'
 import {
   verLiga, tablaDe, misPartidasAbiertas, reportar, confirmar, disputar,
   publicarAnuncio, borrarAnuncio, type AnuncioLiga,
@@ -57,6 +57,9 @@ const ROTULO: Record<EstadoPartida, { texto: string; clase: string }> = {
   wo_local: { texto: 'no se presentó el local', clase: 'text-swu-amber' },
   wo_visita: { texto: 'no se presentó la visita', clase: 'text-swu-amber' },
   anulada: { texto: 'anulada', clase: 'text-swu-muted' },
+  // La cierra el organizador sin que nadie la jugara. No es una derrota de
+  // nadie y no cuenta para la tabla: se dice tal cual.
+  sin_jugar: { texto: 'no se jugó', clase: 'text-swu-muted' },
 }
 function rotuloDe(m: PartidaLiga): { texto: string; clase: string } {
   if (m.origen === 'silencio') return { texto: 'sin respuesta del rival', clase: 'text-swu-amber' }
@@ -224,7 +227,13 @@ export function LigaSeccion() {
             ? 'Ya estás dentro. Después de esta fecha se arman los grupos.'
             : 'Después de esta fecha ya no se puede entrar a la temporada.',
           urgente: !liga.miInscripcion }
-      : temporada?.arranca && temporada.estado !== 'cerrada'
+      /* SOLO mientras no haya arrancado. La condición era `estado !== 'cerrada'`,
+         y una temporada pasa meses en 'en_curso' con su fecha de arranque ya
+         atrás: el banner decía «ARRANCA LA LIGA — el plazo ya venció» en ROJO,
+         toda la temporada, a cualquiera sin partida abierta. Un plazo vencido
+         que no exige nada es la peor clase de aviso: enseña a ignorar los que
+         sí exigen. */
+      : temporada?.arranca && !(restanHasta(temporada.arranca)?.vencido ?? true)
       ? { hasta: temporada.arranca, rotulo: 'Arranca la liga',
           pie: 'Ese día se publican los grupos y el calendario.', urgente: false }
       : null

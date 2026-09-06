@@ -19,7 +19,7 @@
  *   npx tsx scripts/tabla-liga.test.mts
  */
 
-import { tablaDe, misPartidasAbiertas, miProximaPartida } from '../src/services/ligaTabla.ts'
+import { tablaDe, misPartidasAbiertas, miProximaPartida, tamanosDeGrupo, GRUPO_MIN, GRUPO_MAX } from '../src/services/ligaTabla.ts'
 import type { PlazaLiga, PartidaLiga, EstadoPartida } from '../src/services/ligaTabla.ts'
 
 let fallos = 0
@@ -219,6 +219,60 @@ console.log('\nMis partidas abiertas')
   const grupo = { plazas: [yo], partidas: [partida('Yo', 'fantasma', 0, 0, 'programada')] }
   ok(misPartidasAbiertas({ grupos: [grupo] }).length === 0,
      'una partida contra alguien que no está en el grupo se ignora')
+}
+
+
+// ── El reparto en grupos ───────────────────────────────────────────────
+console.log('\nReparto en grupos')
+{
+  /* La versión anterior cortaba de `tamano` en `tamano` y solo fusionaba el
+     sobrante si era MENOR a 2: con grupos de 8, n=10 daba [8,2] y n=11 daba
+     [8,3]. Los dos los rechaza el servidor (exige 4 a 12) — y el rechazo llega
+     DESPUÉS de escribir el primer grupo, que deja la temporada trabada.
+     Estas son las nueve poblaciones que fallaban. */
+  const rotas = [10, 11, 18, 19, 26, 27, 34, 35, 42]
+  let malas: string[] = []
+  for (const n of rotas) {
+    const t = tamanosDeGrupo(n, 8)
+    const suma = t.reduce((a, b) => a + b, 0)
+    if (t.length === 0 || suma !== n || t.some(x => x < GRUPO_MIN || x > GRUPO_MAX)) {
+      malas.push(`${n}→[${t}]`)
+    }
+  }
+  ok(malas.length === 0,
+     'las nueve poblaciones que trababan el armado ahora reparten legal',
+     malas.join(' '))
+
+  // Y TODAS las poblaciones de 4 a 200, con los tamaños que la app permite.
+  const fallos: string[] = []
+  for (let objetivo = 4; objetivo <= 12; objetivo++) {
+    for (let n = GRUPO_MIN; n <= 200; n++) {
+      const t = tamanosDeGrupo(n, objetivo)
+      if (t.length === 0) { fallos.push(`vacío n=${n} obj=${objetivo}`); continue }
+      if (t.reduce((a, b) => a + b, 0) !== n) fallos.push(`suma n=${n} obj=${objetivo} [${t}]`)
+      if (t.some(x => x < GRUPO_MIN || x > GRUPO_MAX)) fallos.push(`rango n=${n} obj=${objetivo} [${t}]`)
+    }
+  }
+  ok(fallos.length === 0,
+     'de 4 a 200 personas y con cualquier tamaño objetivo, todo grupo cae entre 4 y 12',
+     fallos.slice(0, 4).join(' · '))
+
+  // Parejo: entre el grupo más grande y el más chico nunca hay más de 1.
+  let desparejo = ''
+  for (let n = GRUPO_MIN; n <= 200; n++) {
+    const t = tamanosDeGrupo(n, 8)
+    if (t.length && Math.max(...t) - Math.min(...t) > 1) desparejo = `n=${n} [${t}]`
+  }
+  ok(desparejo === '', 'el reparto es parejo: nunca más de 1 de diferencia', desparejo)
+
+  ok(tamanosDeGrupo(3, 8).length === 0, 'con menos de 4 no se puede armar, y se dice devolviendo vacío')
+  ok(tamanosDeGrupo(0, 8).length === 0, 'con nadie tampoco revienta')
+  ok(JSON.stringify(tamanosDeGrupo(10, 8)) === '[10]',
+     'con 10 y objetivo 8 hace UN grupo de 10, no [8,2]', JSON.stringify(tamanosDeGrupo(10, 8)))
+  ok(JSON.stringify(tamanosDeGrupo(16, 8)) === '[8,8]',
+     'con 16 y objetivo 8 hace dos de 8', JSON.stringify(tamanosDeGrupo(16, 8)))
+  ok(JSON.stringify(tamanosDeGrupo(13, 8)) === '[7,6]',
+     'con 13 reparte 7 y 6, no 8 y 5', JSON.stringify(tamanosDeGrupo(13, 8)))
 }
 
 console.log(fallos === 0

@@ -55,6 +55,7 @@ import {
   type LigaCompleta, type PanelLiga as DatosPanel, type PlanGrupos, type InscritoPanel,
 } from '../../services/ligaService'
 import { configurarLiga, cerrarTemporada, tablaDe } from '../../services/ligaService'
+import { tamanosDeGrupo, GRUPO_MIN } from '../../services/ligaTabla'
 import { Bandera } from './componentes/piezas'
 
 /* ── El reloj, UNA vez y en el módulo ──────────────────────────────────
@@ -252,24 +253,29 @@ type Bloque = { tier: string; orden: number; inscripciones: string[] }
  *   no da error en ningún lado: da una persona esperando un rival que no
  *   existe. Mejor un grupo de 9 que un fantasma.
  */
+/**
+ * El reparto en grupos. Los tamaños los decide `tamanosDeGrupo`, que es puro y
+ * está probado — acá solo se corta la lista con esos tamaños.
+ *
+ * Un tier que no se puede repartir legalmente (menos de 4, o un reparto que
+ * rompería el rango del servidor) **no aporta bloques**, y quien llama lo
+ * detecta comparando la gente contra la repartida. Mandarlo igual escribe el
+ * primer grupo y deja la temporada trabada.
+ */
 function repartir(
   detalle: PlanGrupos['inscritos_detalle'], tamano: number,
 ): Bloque[] {
-  const paso = Math.max(2, tamano)
   const out: Bloque[] = []
   for (const tier of TIERS) {
     const gente = detalle.filter(d => d.tier === tier)
     if (!gente.length) continue
-    const trozos: string[][] = []
-    for (let i = 0; i < gente.length; i += paso) {
-      trozos.push(gente.slice(i, i + paso).map(d => d.inscId))
-    }
-    const ultimo = trozos[trozos.length - 1]
-    if (trozos.length > 1 && ultimo.length < 2) {
-      trozos.pop()
-      trozos[trozos.length - 1].push(...ultimo)
-    }
-    trozos.forEach((ids, i) => out.push({ tier, orden: i + 1, inscripciones: ids }))
+    const tamanos = tamanosDeGrupo(gente.length, tamano)
+    if (tamanos.length === 0) continue
+    let i = 0
+    tamanos.forEach((t, k) => {
+      out.push({ tier, orden: k + 1, inscripciones: gente.slice(i, i + t).map(d => d.inscId) })
+      i += t
+    })
   }
   return out
 }
@@ -811,6 +817,16 @@ function Grupos({
     () => (plan ? repartir(plan.inscritos_detalle, plan.tamanoObjetivo || tamano) : []),
     [plan, tamano])
 
+  /* CUÁNTA GENTE QUEDA AFUERA.
+     `repartir` no aporta bloques para un tier que no se puede repartir sin
+     romper el rango del servidor (4 a 12). Mandarlo igual escribe el primer
+     grupo y después rebota: `liga_armar_grupos` valida y DEVUELVE, no lanza,
+     así que no hay rollback — queda un grupo huérfano, el reintento choca con
+     el único de (temporada, tier, orden) y no existe `liga_borrar_grupo`. Se
+     destraba desde el SQL Editor. Por eso el botón se apaga ANTES. */
+  const repartidos = bloques.reduce((n, b) => n + b.inscripciones.length, 0)
+  const afuera = (plan?.inscritos_detalle?.length ?? 0) - repartidos
+
   async function ensayar() {
     if (!temporadaId) return
     setTrabajando('ensayo')
@@ -946,13 +962,26 @@ function Grupos({
                 ))}
               </ul>
 
+              {/* Se DICE por qué no se puede, en vez de un botón apagado y mudo.
+                  «Faltan inscritos en ese tier» es accionable; un botón gris no. */}
+              {afuera > 0 && (
+                <p className="rounded-lg border border-swu-amber/40 bg-swu-amber/10 px-3 py-2 text-[11px] leading-snug text-swu-amber">
+                  {afuera === 1
+                    ? `Hay 1 persona que no entra en ningún grupo legal`
+                    : `Hay ${afuera} personas que no entran en ningún grupo legal`}
+                  {` — un grupo va de ${GRUPO_MIN} a 12. Faltan inscritos en ese tier, o hay que moverlos de tier antes de armar.`}
+                </p>
+              )}
+
               <Button
                 variant="primary" size="md" block
                 onClick={armar}
                 loading={trabajando === 'armar'}
-                disabled={!bloques.length}
+                disabled={!bloques.length || afuera > 0}
               >
-                Armar {bloques.length} {bloques.length === 1 ? 'grupo' : 'grupos'}
+                {afuera > 0
+                  ? `Faltan personas por ubicar (${afuera})`
+                  : `Armar ${bloques.length} ${bloques.length === 1 ? 'grupo' : 'grupos'}`}
               </Button>
               <p className="text-[10px] text-swu-muted">
                 Esto sí escribe. Lo de arriba es exactamente lo que se va a guardar.
@@ -1428,7 +1457,12 @@ function ConfigurarLiga({ liga, tras }: {
     void configurarLiga(liga.liga.id, {
       // Solo lo que de verdad cambió: lo demás queda como está.
       ...(nombre.trim() !== liga.liga.nombre ? { nombre: nombre.trim() } : {}),
-      ...(Number(cupo) !== liga.liga.cupo && cupo.trim() !== '' ? { cupo: Number(cupo) } : {}),
+      /* Vaciar el campo manda 0, que el servidor lee como SIN TOPE. Con `null`
+         no había forma de expresarlo: `null` significa «no lo toques» para los
+         siete campos, y el panel decía «Guardado.» sin guardar nada. */
+      ...(cupo.trim() === ''
+        ? (liga.liga.cupo !== null ? { cupo: 0 } : {})
+        : (Number(cupo) !== liga.liga.cupo ? { cupo: Number(cupo) } : {})),
       ...(formato !== liga.liga.formato ? { formato } : {}),
       ...(Number(tamano) !== liga.liga.tamanoGrupo ? { tamanoGrupo: Number(tamano) } : {}),
       ...extra,
@@ -1439,6 +1473,10 @@ function ConfigurarLiga({ liga, tras }: {
   }
 
   const abierta = liga.liga.estado === 'inscripcion'
+  /* Con la liga ya EN JUEGO no se ofrece nada: `abierta` tenía solo dos ramas,
+     así que en 'activa' el panel invitaba a «Abrir la inscripción» a un toque y
+     sin confirmación — reabrir una liga que ya sorteó sus grupos. */
+  const enJuego = liga.liga.estado === 'activa' || liga.liga.estado === 'cerrada'
 
   return (
     <HudPanel tone="neutral">
@@ -1482,6 +1520,12 @@ function ConfigurarLiga({ liga, tras }: {
         </button>
 
         {/* LO QUE VE GENTE DE AFUERA, aparte y con el efecto escrito. */}
+        {enJuego ? (
+          <p className="rounded-lg border border-swu-border p-3 text-[11px] leading-snug text-swu-muted">
+            La liga ya está <b className="text-swu-text">en juego</b>: la inscripción se cerró y
+            los grupos están armados. No se reabre desde acá.
+          </p>
+        ) : (
         <div className="rounded-lg border border-swu-border p-3">
           <p className="text-[11px] font-bold text-swu-text">
             {abierta ? 'La inscripción está ABIERTA' : 'La inscripción está cerrada'}
@@ -1493,9 +1537,15 @@ function ConfigurarLiga({ liga, tras }: {
           </p>
           <button
             onClick={() => mandar(
-              abierta ? { estado: 'borrador', publica: false }
+              /* 'activa', NO 'borrador': cerrar la inscripción es pasar a
+                 JUGAR, no volver al cajón. Con 'borrador' + publica=false la
+                 liga desaparecía para todo el que no estuviera inscrito, justo
+                 en el momento en que se anuncian los grupos. `publica` se
+                 queda como está: una liga en juego se sigue viendo. */
+              abierta ? { estado: 'activa' }
                       : { estado: 'inscripcion', publica: true },
-              abierta ? 'La inscripción quedó cerrada.' : 'La inscripción está abierta.')}
+              abierta ? 'Inscripción cerrada. La liga pasa a jugarse.'
+                      : 'La inscripción está abierta.')}
             disabled={ocupado}
             className={`mt-2 min-h-11 w-full rounded-lg text-[12px] font-black uppercase tracking-wider disabled:opacity-40 ${
               abierta ? 'bg-swu-red/20 text-swu-red-texto' : 'bg-swu-green/20 text-swu-green'}`}
@@ -1503,6 +1553,7 @@ function ConfigurarLiga({ liga, tras }: {
             {abierta ? 'Cerrar la inscripción' : 'Abrir la inscripción'}
           </button>
         </div>
+        )}
 
       </div>
     </HudPanel>
@@ -1566,7 +1617,13 @@ function CerrarTemporada({ liga, temporada, tras }: {
     void cerrarTemporada(temporada.id, resultado, esEnsayo).then(r => {
       setOcupado(false)
       if (!r.ok) { setEnsayo(null); tras(r, ''); return }
-      if (esEnsayo) { setEnsayo(r as never); return }
+      /* `r.extra`, NO `r`: el helper `rpc()` devuelve `{ok, extra}` y el
+         cuerpo del servidor viaja adentro de `extra`. Guardando `r` tal cual,
+         `ensayo.detalle` es `undefined` y la pantalla revienta al leer
+         `.length` — o sea que cerrar la temporada quedaba inalcanzable, que es
+         justo lo que este botón vino a resolver. El resto del repo ya lo lee
+         bien (`MiLigaTarjeta`, `CreadorPage`): era un olvido, no un patrón. */
+      if (esEnsayo) { setEnsayo(r.extra as never); return }
       setEnsayo(null)
       tras(r, 'Temporada cerrada. Ya se puede abrir la siguiente.')
     })

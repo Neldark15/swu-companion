@@ -20,6 +20,13 @@
 export type EstadoPartida =
   | 'programada' | 'reportada' | 'confirmada' | 'disputada'
   | 'vencida' | 'wo_local' | 'wo_visita' | 'anulada'
+  /* La Fase 0 agregó 'sin_jugar' al CHECK de la base porque `liga_cerrar` y
+     `liga_cerrar_temporada` lo ESCRIBEN — y el tipo del cliente no se enteró.
+     `rotuloDe` termina en `ROTULO[m.estado]`, que para un estado desconocido da
+     `undefined`, y la línea siguiente lee `.clase` de ahí: TypeError y pantalla
+     en blanco para TODA la liga. El `as` de `verLiga` es lo que impide que
+     TypeScript lo cace — el servidor puede mandar lo que quiera. */
+  | 'sin_jugar'
 
 
 export interface PartidaLiga {
@@ -243,4 +250,53 @@ export function miProximaPartida<G extends GrupoMinimo>(
   l: { grupos: G[] },
 ): PartidaAbierta<G> | null {
   return misPartidasAbiertas(l)[0] ?? null
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════
+   EL REPARTO EN GRUPOS
+
+   Vive acá —puro, sin React ni supabase— porque es aritmética que falla en
+   silencio: un reparto malo devuelve bloques perfectamente plausibles y el
+   error recién aparece cuando el servidor rechaza, **con el primer grupo ya
+   escrito**. `liga_armar_grupos` valida y devuelve, no lanza, así que el
+   rollback no existe: queda un grupo huérfano, el reintento choca contra
+   `liga_grupos_temporada_id_tier_orden_key` (23505) y no hay `liga_borrar_grupo`
+   en el esquema. Se destraba desde el SQL Editor.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Lo que el servidor acepta por grupo. Está en `liga_armar_grupos`. */
+export const GRUPO_MIN = 4
+export const GRUPO_MAX = 12
+
+/**
+ * Cuántos grupos, y de qué tamaño, para `n` personas con un objetivo de `tamano`.
+ *
+ * La versión anterior cortaba de `tamano` en `tamano` y solo fusionaba el
+ * sobrante si quedaba en **menos de 2**. Con grupos de 8: n=10 daba `[8,2]` y
+ * n=11 daba `[8,3]` — los dos rechazados. Falla en n = 10, 11, 18, 19, 26, 27,
+ * 34, 35 y 42: **nueve de las treinta y nueve poblaciones posibles**, y con 42
+ * cuentas en la app la franja de 10-11 no es la cola, es lo más probable.
+ *
+ * Ahora se elige el NÚMERO de grupos y se reparte parejo. `tamano` deja de ser
+ * un corte y pasa a ser un objetivo: con 10 personas y objetivo 8, un grupo de
+ * 10 es mejor liga que uno de 8 y uno de 2 — y es la única opción legal.
+ *
+ * Devuelve `[]` si no se puede repartir sin romper el mínimo, y quien llama
+ * tiene que decirlo en pantalla en vez de mandar algo que va a rebotar.
+ */
+export function tamanosDeGrupo(n: number, tamano: number): number[] {
+  if (n < GRUPO_MIN) return []
+  const objetivo = Math.max(GRUPO_MIN, Math.min(GRUPO_MAX, tamano))
+  let g = Math.max(1, Math.round(n / objetivo))
+  // Que ningún grupo quede por debajo del mínimo ni por encima del máximo.
+  g = Math.min(g, Math.floor(n / GRUPO_MIN))
+  g = Math.max(g, Math.ceil(n / GRUPO_MAX))
+  if (g < 1) return []
+  const base = Math.floor(n / g)
+  const resto = n % g
+  const salida = Array.from({ length: g }, (_, i) => base + (i < resto ? 1 : 0))
+  // Red de seguridad: si por lo que sea algo quedó fuera de rango, se avisa
+  // devolviendo vacío en vez de mandar un reparto que el servidor va a rechazar.
+  return salida.every(s => s >= GRUPO_MIN && s <= GRUPO_MAX) ? salida : []
 }

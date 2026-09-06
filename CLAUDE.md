@@ -4351,3 +4351,83 @@ pantalla: 21 y 21.
 linter lo marca como error; el patrón correcto —el mismo del contador de vida de
 las mesas— es comparar contra el id anterior durante el render. Sin eso, cerrar
 sesión dejaba en pantalla el botón de la liga de la cuenta anterior.
+
+### 5e. LIGA — los seis que bloqueaban, y una verificación mía que era falsa
+
+Una auditoría adversarial de los diez commits del día (7 lentes, 2 escépticos por
+hallazgo) encontró seis cosas que bloqueaban. **Cinco eran de la capa de arriba:
+el servidor hacía bien su trabajo y el cliente no lo leía.** Y tres las había
+metido yo ese mismo día.
+
+**UNA VERIFICACIÓN MÍA ERA FALSA, Y LA TRAMPA ESTÁ ESCRITA EN ESTE ARCHIVO.**
+Parcheé `liga_ver` para que mandara `inscripcionCierra`, lo comprobé y dio
+`2026-09-27`. Nunca llegó a producción: **puse el parche y la comprobación en la
+MISMA llamada MCP**, y esa comprobación terminaba en `raise exception` — que
+revirtió el parche junto con ella. Es el §3s al pie de la letra: *cada llamada
+del MCP es UNA transacción*. **La migración va en una llamada y la verificación
+en OTRA**, o se está comprobando algo que no va a existir.
+
+**`liga_visible()` NO RECIBÍA LIGA.** La Fase 0 tituló su sección «un creador no
+lee el padrón de las ligas ajenas» y reemplazó una función global
+(`puede_ver_creadores()`) por **otra función global**. Una expresión booleana que
+no mira la fila no puede discriminar filas: las 8 policies eran
+`using (liga_visible())` a secas, así que el día que se tocara «Abrir la
+inscripción», `exists (... where l.publica)` se volvía true **para todas las
+ligas** y cualquier cuenta se llevaba el padrón de cualquiera —incluido `estado`,
+que admite `'vetado'`—. Ahora es `liga_visible(p_liga)` y las 8 policies pasan la
+liga de su fila. La global se dropeó: dejarla viva es la puerta de atrás para el
+próximo que escriba una policy sin pensar.
+
+**HABÍA DOS BOTONES DE «ABRIR» Y CADA UNO HACÍA LA MITAD.**
+`liga_abrir_inscripcion` (la casa del creador) escribía `estado` y **no
+`publica`**, y `liga_visible` mira `publica`: Alejo tocaba abrir, la liga quedaba
+abierta **para él y cerrada para todo el mundo**, sin un solo error. Ahora esa RPC
+escribe los dos campos.
+
+**Y «CERRAR LA INSCRIPCIÓN» MANDABA LA LIGA A `borrador`.** Mío, del panel.
+Cerrar la inscripción es pasar a JUGAR, no volver al cajón: con
+`borrador + publica=false` la liga desaparecía para todo el que no estuviera
+inscrito, justo cuando se anuncian los grupos. Va a `'activa'`, y con la liga en
+juego el panel **ya no ofrece reabrir** — antes `abierta` tenía dos ramas y en
+`'activa'` invitaba a reabrir a un toque y sin confirmación.
+
+**`'sin_jugar'` EXISTÍA EN LA BASE Y NO EN EL TIPO DEL CLIENTE.** La Fase 0 lo
+agregó al CHECK porque `liga_cerrar` lo ESCRIBE; `EstadoPartida` no se enteró.
+`rotuloDe` termina en `ROTULO[m.estado]` → `undefined`, y la línea siguiente lee
+`.clase`: **TypeError y pantalla en blanco para toda la liga**. El `as` de
+`verLiga` es lo que impide que TypeScript lo cace — el servidor puede mandar lo
+que quiera y el tipo es una promesa, no una comprobación.
+
+**EL ENSAYO DEL CIERRE VENÍA ENVUELTO.** `rpc()` devuelve `{ok, extra}` y yo
+guardé `r` en vez de `r.extra`: `ensayo.detalle` era `undefined` y la pantalla
+reventaba al leer `.length`. O sea que cerrar la temporada quedaba inalcanzable
+—justo lo que ese botón vino a resolver— y el resto del repo ya lo leía bien.
+
+**EL REPARTO EN GRUPOS SE TRABABA CON 10 U 11 PERSONAS.** `repartir()` cortaba de
+`tamano` en `tamano` y solo fusionaba el sobrante si quedaba en **menos de 2**:
+con grupos de 8, n=10 daba `[8,2]` y n=11 daba `[8,3]`, y el servidor exige 4 a
+12. Falla en **9 de las 39 poblaciones posibles**, y con 42 cuentas la franja de
+10-11 no es la cola. Peor: `liga_armar_grupos` valida y **devuelve**, no lanza —
+no hay rollback, así que el primer grupo queda escrito, el reintento choca contra
+el único de `(temporada, tier, orden)` y **no existe `liga_borrar_grupo`**: se
+destraba desde el SQL Editor.
+
+`tamanosDeGrupo` vive ahora en el módulo puro y elige el NÚMERO de grupos, no el
+corte: `tamano` pasa de ser un tope a ser un objetivo. Con 10 y objetivo 8, un
+grupo de 10 es mejor liga que uno de 8 y uno de 2 — y es la única legal.
+`npm run liga` barre **de 4 a 200 personas × objetivos de 4 a 12**: todo grupo cae
+entre 4 y 12 y nunca hay más de 1 de diferencia entre el mayor y el menor. Y el
+botón se apaga ANTES, diciendo cuánta gente no entra.
+
+**Tres más, de la misma familia:**
+- El banner decía **«ARRANCA LA LIGA — el plazo ya venció»** en rojo toda la
+  temporada: la condición era `estado !== 'cerrada'` y una temporada pasa meses
+  en `'en_curso'` con su arranque ya atrás. Un plazo vencido que no exige nada
+  enseña a ignorar los que sí exigen.
+- **3,3 MB de PNG que no usa nadie viajaban en el precache de todos**, y
+  `globPatterns` tenía `png` pero **no `webp`** — o sea que entraba lo que sobra
+  y no entraba lo que la liga sí usa. Los originales salieron del repo y al
+  `.gitignore`; `webp` entró al glob.
+- **Quitar el cupo era inexpresable**: `coalesce(p_cupo, cupo)` hace que `null`
+  signifique «no lo toques», y para el cupo `null` es TAMBIÉN el valor válido
+  «sin tope». El sentinela es **0**, que no significa nada como cupo.
