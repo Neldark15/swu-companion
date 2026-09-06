@@ -4431,3 +4431,38 @@ botón se apaga ANTES, diciendo cuánta gente no entra.
 - **Quitar el cupo era inexpresable**: `coalesce(p_cupo, cupo)` hace que `null`
   signifique «no lo toques», y para el cupo `null` es TAMBIÉN el valor válido
   «sin tope». El sentinela es **0**, que no significa nada como cupo.
+
+### 5f. El botón de actualizar, al lado de la campana
+
+La app ya se actualiza sola —cada 15 min, al volver a la pestaña y al enfocar, y
+sola en pantallas seguras (§2g)— pero todo eso pasa **por su cuenta**: quien
+acababa de ver un cambio anunciado y no lo tenía no tenía dónde tocar. La
+comprobación manual existía y vivía **dentro de Ajustes, a cuatro toques**.
+
+**Cuelga del MISMO registro, no de uno nuevo.** `registerSW` se llama una vez,
+desde `UpdatePrompt`, que está montado siempre en el caparazón. El botón solo lee
+`useActualizacion` y usa las funciones que ese registro dejó. Registrar otro
+service worker desde el encabezado dejaría dos compitiendo, y el que aplicara no
+sería el que detectó.
+
+**Y NO es `location.reload()`.** Recargar a mano vuelve a pedir el mismo
+`index.html` que el service worker viejo tiene precacheado: se ve rápido y no
+actualiza nada. Es el síntoma exacto del §2g —«cada deploy quedaba invisible»—.
+Aplicar pasa por `updateSW(true)`, que le dice a la versión en espera que tome el
+control y recién entonces recarga.
+
+**UN BOTÓN QUE NO ACUSA RECIBO SE TOCA CINCO VECES.** Si no hay nada nuevo,
+comprobar no cambia nada en pantalla y quien lo tocó concluye que está roto. Al
+terminar sin novedad dice **«Al día»** unos segundos, con el ícono en verde.
+
+**El estado se lee FRESCO del store, no del cierre.** `hayVersionNueva` capturado
+en el render es el de ANTES de comprobar: una versión recién encontrada se
+anunciaría como «Al día», que es exactamente al revés. Se lee con
+`useActualizacion.getState()` después del `await`.
+
+**Si el registro todavía no dejó sus funciones, el botón no se dibuja.** Uno que
+existe y no hace nada es peor que uno que todavía no está. Efecto secundario a
+tener presente: **en desarrollo no hay service worker** (`devOptions.enabled:
+false`), así que el botón nunca aparece ahí — por eso el banco de la liga trae
+tres controles que le inyectan las funciones al store y dejan mirarlo. Es el
+mismo seam que usa Ajustes, no una copia del componente.

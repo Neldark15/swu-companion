@@ -19,6 +19,7 @@ import { Bandera, TarjetaCifra, ContadorPlazo } from './componentes/piezas'
 import { Atajo, AnunciosLiga, ComoFunciona, TopOcho } from './LigaSeccion'
 import { PortadaLiga } from './PortadaLiga'
 import { BotonLiga } from './BotonLigaInicio'
+import { useActualizacion } from '../../services/actualizacion'
 import type { AnuncioLiga, InscritoPanel } from '../../services/ligaService'
 import { FichaInscrito, FilaDia } from './PanelLiga'
 
@@ -112,6 +113,45 @@ export function BancoLobbyLiga() {
       {portada && <PortadaLiga ms={2000} />}
 
       <div className="mx-auto max-w-2xl space-y-6">
+        {/* EL BOTÓN DE ACTUALIZAR vive en el ENCABEZADO de la app, arriba de
+            esta página. En desarrollo no hay service worker, así que sus
+            funciones nunca llegan y el botón —correctamente— no se dibuja.
+            Acá se las inyecta al store para poder mirarlo: es el mismo seam
+            que usa Ajustes, no una copia del componente. */}
+        <Caso titulo="Botón de actualizar (mirá el ENCABEZADO, arriba)">
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => useActualizacion.getState()._setFunciones({
+                aplicar: async () => { setAviso('aplicar() → recargaría con la versión nueva') },
+                comprobar: async () => { await new Promise(r => setTimeout(r, 900)) },
+              })}
+              className="min-h-11 rounded-xl border px-3 text-[12px] font-bold text-swu-text"
+              style={{ borderColor: 'var(--liga-borde)' }}
+            >
+              1 · Encender el botón
+            </button>
+            <button
+              onClick={() => useActualizacion.getState()._setVersionNueva(true)}
+              className="min-h-11 rounded-xl border px-3 text-[12px] font-bold text-swu-text"
+              style={{ borderColor: 'var(--liga-borde)' }}
+            >
+              2 · Simular versión nueva
+            </button>
+            <button
+              onClick={() => useActualizacion.getState()._setVersionNueva(false)}
+              className="min-h-11 rounded-xl border px-3 text-[12px] font-bold text-swu-text"
+              style={{ borderColor: 'var(--liga-borde)' }}
+            >
+              3 · Volver a «al día»
+            </button>
+          </div>
+          <p className="mt-1.5 text-[10px] leading-snug text-swu-muted">
+            Con (1) aparece al lado de la campana. Con (2) se pinta en acento y con punto.
+            Sin versión nueva, tocarlo comprueba y responde «Al día» — un botón que no acusa
+            recibo se toca cinco veces.
+          </p>
+        </Caso>
+
         <Caso titulo="El botón de Inicio — sus tres estados">
           {[
             { code: 'x', nombre: 'Liga Internacional PUENTE', estado: 'inscripcion', esStaff: true, inscrito: false,

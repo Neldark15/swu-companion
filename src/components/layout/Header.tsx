@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Settings, X, Hexagon, ChevronLeft } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { NotificationBell } from '../ui/NotificationBell'
+import { BotonActualizar } from '../ui/BotonActualizar'
 
 const menuItems = [
   { label: 'Configuración', path: '/settings' },
@@ -95,6 +96,11 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Actualizar, A LA PAR de la campana. La app ya se actualiza sola
+            (§2g), pero quien acaba de ver un cambio anunciado y no lo tiene no
+            tenía dónde tocar: la comprobación manual vivía a cuatro toques,
+            dentro de Ajustes. */}
+        <BotonActualizar />
         <NotificationBell />
       <div className="relative" ref={menuRef}>
         <button
