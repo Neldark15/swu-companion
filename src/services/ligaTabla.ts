@@ -157,3 +157,85 @@ function directo(a: FilaTabla, b: FilaTabla, partidas: PartidaLiga[]): number {
   }
   return 0
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   MIS PARTIDAS ABIERTAS
+
+   Vive acá y no en `ligaService` por la misma razón que `tablaDe`: ese módulo
+   importa `supabase`, y lo que está pegado a la red no se puede probar en Node
+   (§3n). El orden de urgencia es exactamente el tipo de regla que se rompe sin
+   hacer ruido — una tarjeta arriba y una lista abajo discrepando sobre cuál
+   partida es la importante se ve como una app confundida, no como un bug.
+
+   Es GENÉRICA en el grupo a propósito: a esta función no le importa qué más
+   lleva un grupo (tier, orden, fechas), solo sus plazas y sus partidas. Así no
+   hay que arrastrar `GrupoLiga` —y con él media capa de servicios— hasta acá.
+   ══════════════════════════════════════════════════════════════════════ */
+
+export interface GrupoMinimo {
+  plazas: PlazaLiga[]
+  partidas: PartidaLiga[]
+}
+
+export interface PartidaAbierta<G extends GrupoMinimo = GrupoMinimo> {
+  partida: PartidaLiga
+  grupo: G
+  rival: PlazaLiga
+  miPlaza: PlazaLiga
+  /** Alguien reportó y falta MI palabra. Es lo único que se puede resolver hoy. */
+  esperaMiRespuesta: boolean
+}
+
+/** Los tres estados en los que una partida todavía puede cambiar. */
+const ABIERTAS = new Set<EstadoPartida>(['programada', 'reportada', 'vencida'])
+
+/**
+ * TODAS mis partidas abiertas, de la más urgente a la menos.
+ *
+ * Antes solo existía «la próxima», una sola tarjeta. Con grupos de 8 son
+ * **siete partidas por persona** y una jornada dura días: quien tenía dos sin
+ * jugar y una esperando su confirmación veía una, resolvía esa, y las otras dos
+ * seguían invisibles hasta la siguiente visita. Un plazo que corre sobre algo
+ * que no se ve es exactamente lo que el reloj vino a arreglar.
+ *
+ * El orden NO es por jornada:
+ *   1. lo que espera mi respuesta — se puede cerrar ahora mismo, y si no se
+ *      cierra el reloj lo sella en contra;
+ *   2. lo vencido — ya se atoró y hay que reclamarlo;
+ *   3. el resto, por jornada.
+ */
+export function misPartidasAbiertas<G extends GrupoMinimo>(
+  l: { grupos: G[] },
+): Array<PartidaAbierta<G>> {
+  const salida: Array<PartidaAbierta<G>> = []
+  for (const g of l.grupos) {
+    const mia = g.plazas.find(p => p.esMia)
+    if (!mia) continue
+    for (const m of g.partidas) {
+      if (m.localPlaza !== mia.id && m.visitaPlaza !== mia.id) continue
+      if (!ABIERTAS.has(m.estado)) continue
+      const rivalId = m.localPlaza === mia.id ? m.visitaPlaza : m.localPlaza
+      const rival = g.plazas.find(p => p.id === rivalId)
+      // Sin rival en la lista no se puede dibujar la fila sin inventar un nombre.
+      if (!rival) continue
+      salida.push({
+        partida: m, grupo: g, rival, miPlaza: mia,
+        esperaMiRespuesta: m.estado === 'reportada' && m.reportadaPor !== mia.id,
+      })
+    }
+  }
+  const peso = (a: PartidaAbierta<G>) =>
+    a.esperaMiRespuesta ? 0 : a.partida.estado === 'vencida' ? 1 : 2
+  return salida.sort((a, b) => peso(a) - peso(b) || a.partida.jornada - b.partida.jornada)
+}
+
+/**
+ * La más urgente de las mías, o `null`.
+ *
+ * DELEGA a propósito: la regla de qué es «lo más urgente» existe una sola vez.
+ */
+export function miProximaPartida<G extends GrupoMinimo>(
+  l: { grupos: G[] },
+): PartidaAbierta<G> | null {
+  return misPartidasAbiertas(l)[0] ?? null
+}

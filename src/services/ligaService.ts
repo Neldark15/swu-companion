@@ -72,9 +72,9 @@ export function tonoDelTier(tier: string) {
 /* La tabla vive en `ligaTabla.ts`, pura y sin red, para poder probarla sin
    levantar Supabase. Se re-exporta acá para que las pantallas sigan
    importando de un solo sitio. */
-import type { EstadoPartida, PartidaLiga, PlazaLiga, FilaTabla } from './ligaTabla'
-export { tablaDe } from './ligaTabla'
-export type { EstadoPartida, PartidaLiga, PlazaLiga, FilaTabla }
+import type { EstadoPartida, PartidaLiga, PlazaLiga, FilaTabla, PartidaAbierta } from './ligaTabla'
+export { tablaDe, misPartidasAbiertas, miProximaPartida } from './ligaTabla'
+export type { EstadoPartida, PartidaLiga, PlazaLiga, FilaTabla, PartidaAbierta }
 
 export async function getCreador(code: string): Promise<Creador | null> {
   if (!isSupabaseReady()) return null
@@ -445,26 +445,6 @@ export function aplanar(l: LigaCompleta): { plazas: PlazaLiga[]; partidas: Parti
 }
 
 /** Mi próxima partida: la primera sin cerrar donde estoy. Es la única acción. */
-export function miProximaPartida(l: LigaCompleta): { partida: PartidaLiga; grupo: GrupoLiga; rival: PlazaLiga; miPlaza: PlazaLiga } | null {
-  for (const g of l.grupos) {
-    const mia = g.plazas.find(p => p.esMia)
-    if (!mia) continue
-    const abiertas = g.partidas
-      .filter(m => (m.localPlaza === mia.id || m.visitaPlaza === mia.id))
-      .filter(m => m.estado === 'programada' || m.estado === 'reportada' || m.estado === 'vencida')
-      .sort((a, b) => a.jornada - b.jornada)
-    // La que espera MI respuesta va primero: es lo único que puedo resolver hoy.
-    const esperaMi = abiertas.find(m => m.estado === 'reportada' && m.reportadaPor !== mia.id)
-    const partida = esperaMi ?? abiertas[0]
-    if (!partida) continue
-    const rivalId = partida.localPlaza === mia.id ? partida.visitaPlaza : partida.localPlaza
-    const rival = g.plazas.find(p => p.id === rivalId)
-    if (!rival) continue
-    return { partida, grupo: g, rival, miPlaza: mia }
-  }
-  return null
-}
-
 // ── Acciones ────────────────────────────────────────────────────────
 export const inscribirseLiga = (
   liga: string, lider: string, base: string,

@@ -19,7 +19,7 @@
  *   npx tsx scripts/tabla-liga.test.mts
  */
 
-import { tablaDe } from '../src/services/ligaTabla.ts'
+import { tablaDe, misPartidasAbiertas, miProximaPartida } from '../src/services/ligaTabla.ts'
 import type { PlazaLiga, PartidaLiga, EstadoPartida } from '../src/services/ligaTabla.ts'
 
 let fallos = 0
@@ -159,6 +159,66 @@ console.log('\nDatos incompletos')
   const t = tablaDe([plaza('A')], [partida('A', 'fantasma', 2, 0)], G)
   ok(t.length === 1 && t[0].jugadas === 0, 'una partida contra alguien que no está se ignora')
   ok(tablaDe([], [], G).length === 0, 'un grupo vacío da una tabla vacía, no un error')
+}
+
+
+// ── Mis partidas abiertas, y su ORDEN ──────────────────────────────────
+console.log('\nMis partidas abiertas')
+{
+  /* El orden es lo único que hace útil esta lista, y es lo que se rompe sin
+     hacer ruido: una lista mal ordenada sigue teniendo todas las filas. */
+  const yo = { ...plaza('Yo'), esMia: true }
+  const grupo = {
+    plazas: [yo, plaza('Rival1'), plaza('Rival2'), plaza('Rival3'), plaza('Rival4')],
+    partidas: [
+      // jornada 1, ya cerrada: no es «abierta»
+      partida('Yo', 'Rival1', 2, 0, 'confirmada', 1),
+      // jornada 2, sin jugar
+      partida('Yo', 'Rival2', 0, 0, 'programada', 2),
+      // jornada 3, vencida
+      partida('Yo', 'Rival3', 0, 0, 'vencida', 3),
+      // jornada 4: la reportó el RIVAL y falta mi palabra → la más urgente
+      { ...partida('Rival4', 'Yo', 2, 1, 'reportada', 4), reportadaPor: 'Rival4' },
+    ],
+  }
+  const lista = misPartidasAbiertas({ grupos: [grupo] })
+
+  ok(lista.length === 3, 'una partida confirmada NO es una partida abierta',
+     `devolvió ${lista.length}`)
+  ok(lista[0].partida.jornada === 4 && lista[0].esperaMiRespuesta,
+     'lo que espera MI respuesta va primero, aunque sea la jornada más alta',
+     lista.map(a => a.partida.jornada).join(','))
+  ok(lista[1].partida.estado === 'vencida',
+     'después lo vencido: ya se atoró y hay que reclamarlo')
+  ok(lista[2].partida.jornada === 2, 'y al final el resto, por jornada')
+  ok(lista.every(a => a.rival.nombre !== 'Yo'), 'el rival nunca soy yo')
+  ok(miProximaPartida({ grupos: [grupo] })?.partida.jornada === 4,
+     'miProximaPartida DELEGA: devuelve la primera de la lista')
+}
+{
+  // Si la reporté YO, no espera mi respuesta: espera la del otro.
+  const yo = { ...plaza('Yo'), esMia: true }
+  const grupo = {
+    plazas: [yo, plaza('Otro')],
+    partidas: [{ ...partida('Yo', 'Otro', 2, 0, 'reportada', 1), reportadaPor: 'Yo' }],
+  }
+  const l = misPartidasAbiertas({ grupos: [grupo] })
+  ok(l.length === 1 && !l[0].esperaMiRespuesta,
+     'la que reporté yo sigue abierta pero NO espera mi respuesta')
+}
+{
+  // Sin plaza mía en el grupo no hay nada mío que mostrar.
+  const grupo = { plazas: [plaza('A'), plaza('B')], partidas: [partida('A', 'B', 0, 0, 'programada')] }
+  ok(misPartidasAbiertas({ grupos: [grupo] }).length === 0,
+     'un grupo donde no juego no aporta partidas')
+  ok(miProximaPartida({ grupos: [] }) === null, 'sin grupos devuelve null, no revienta')
+}
+{
+  // Rival que no está en la lista de plazas: se ignora, no se inventa.
+  const yo = { ...plaza('Yo'), esMia: true }
+  const grupo = { plazas: [yo], partidas: [partida('Yo', 'fantasma', 0, 0, 'programada')] }
+  ok(misPartidasAbiertas({ grupos: [grupo] }).length === 0,
+     'una partida contra alguien que no está en el grupo se ignora')
 }
 
 console.log(fallos === 0

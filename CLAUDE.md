@@ -3848,3 +3848,98 @@ texto del alta cambió: decía «los grupos se arman juntando a quienes coincide
 en horario, así que esto decide contra quién te toca» —que hoy es falso— y ahora
 dice lo que el sistema hace de verdad. Prometer lo que no se cumple es la clase
 de mentira que se descubre en la jornada 1.
+
+### 4v. LIGA — Fase 2: el reloj, y por qué sellar sin avisar no vale
+
+`liga_vencidas()` estaba escrita desde el primer día —sella por silencio lo
+reportado que nadie confirmó y manda a la cola del árbitro lo que nadie jugó— y
+**no la llamaba nadie**: cero archivos de liga en `api/`, cero entradas de liga
+entre los seis crons de `vercel.json`. El `plazoTexto()` que la pantalla ya
+pintaba era **un reloj sin maquinaria**.
+
+Esta fase tenía una fecha límite que no la pone nadie: la primera partida
+reportada, más cinco días. Ese día, o el reloj existe, o el silencio no confirma
+nada y la primera disputa se atora sin salida.
+
+**SELLAR POR SILENCIO SOLO ES JUSTO SI SE AVISÓ.** «No confirmar no puede ser
+mejor negocio que perder» es correcto, y sin aviso previo el silencio deja de
+ser una decisión y pasa a ser un descuido que el sistema cobra. Por eso el reloj
+son DOS funciones: `liga_avisos()` (nueva) para lo de antes del plazo, y
+`liga_vencidas()` para el plazo.
+
+**Tres avisos, y el orden entre ellos es exclusivo:**
+
+| tipo | cuándo | a quién |
+|---|---|---|
+| `confirmar` | reportada, con plazo de sobra | al que NO reportó |
+| `ultima` | reportada y el plazo encima | al que NO reportó |
+| `jugar` | programada y la jornada se acaba | **a los dos** |
+
+`confirmar` exige `vence_el > hoy + días`, y eso hace que las dos primeras sean
+**excluyentes**. Sin esa condición, una partida reportada con el cron caído
+—o reportada ya sobre la fecha— disparaba las dos en la misma corrida: dos
+avisos seguidos que dicen casi lo mismo, y el segundo le quita urgencia al
+primero en vez de dársela.
+
+**EL SELLO VA DENTRO DEL `where` DEL `update`.** Es la cicatriz del §4d: allá el
+cron de transmisiones sellaba con `.is(sello, null)` y seguía derecho al envío
+**sin mirar si el UPDATE había tocado alguna fila**, así que con dos corridas
+simultáneas la perdedora mandaba el push igual. Acá el sello y la selección son
+la MISMA sentencia y lo que devuelve el `returning` es, por construcción, lo que
+esta corrida ganó: dos corridas reparten en vez de duplicar. Verificado — la
+segunda llamada seguida devuelve **0 filas**.
+
+Y la «última llamada» sella `aviso_en` con `coalesce` además del suyo: dejarlo
+en null diría que no se avisó, y sí se avisó — con esa.
+
+**El orden del cron es uno solo: avisos, después vencidas.** Al revés, una
+partida podría quedar sellada por silencio en la misma corrida en que se le pide
+a alguien que la confirme — un aviso para algo que ya no se puede hacer. Las tres
+ramas de `liga_avisos` exigen además `vence_el >= hoy`, así que las dos guardas
+apuntan al mismo sitio desde los dos lados.
+
+**UN aviso por persona y por corrida.** Alguien con tres partidas abiertas
+recibiría tres notificaciones seguidas, y tres seguidas de la misma app se leen
+como ruido. Se manda una —la más urgente— y el resto se cuenta («y 2 más»). El
+orden de urgencia no es de gusto: `silencio` (ya pasó y no lo podés deshacer) >
+`ultima` (te quedan horas) > `confirmar` (te quedan días) > `jugar`.
+
+**Y EL PUSH NO PUEDE SER EL ÚNICO CANAL.** Medido para `/envivo` (§4d): **13 de
+39 cuentas** tienen push activado. Un aviso que solo viaja por push llega a un
+tercio de la comunidad. La franja roja de `/liga/:code` es el otro canal —el que
+cubre a los dos tercios restantes— y lee el MISMO hecho que el cron, así que si
+el cron no corrió la app tampoco anuncia nada.
+
+**`misPartidasAbiertas` reemplaza a «la próxima».** Era UNA tarjeta, y con grupos
+de 8 son **siete partidas por persona**: quien tenía dos sin jugar y una
+esperando su confirmación resolvía esa y las otras dos seguían invisibles con el
+plazo corriendo. Vive en `ligaTabla.ts` —el módulo puro, sin `supabase`— por la
+misma razón que `tablaDe` (§3n), y es **genérica en el grupo**: no le importa
+qué más lleva un grupo, solo sus plazas y sus partidas, así que no hay que
+arrastrar media capa de servicios al módulo puro. `miProximaPartida` **delega**
+en ella: con dos copias de la regla de urgencia, la tarjeta de arriba y la lista
+de abajo terminan discrepando sobre cuál partida es la importante.
+
+`npm run liga` pasó de 21 a **31 cuentas**; las 10 nuevas fijan el orden, que es
+lo único que hace útil a esta lista y lo que se rompe sin hacer ruido — una lista
+mal ordenada sigue teniendo todas las filas.
+
+**Probado contra la base con una liga sembrada en transacción revertida** (6
+jugadores reales + 1 invitado sin cuenta, 6 partidas): `confirmar` al que no
+reportó, `ultima` sin duplicar el `confirmar`, `jugar` a los DOS, segunda corrida
+en 0 filas, `liga_vencidas` sellando la vencida, la de 9 días intacta, y **cero
+avisos para el invitado sin cuenta** (la marca se pone igual: no hay a quién
+avisarle, no es que falte hacerlo).
+
+Tres cosas del esquema que costó descubrir sembrando: `liga_temporadas.estado`
+no acepta `'activa'` (es `inscripcion`/`en_curso`/`cerrada`), `liga_grupos.tamano`
+tiene piso, y hay un único **por PAR y por grupo** (`liga_un_encuentro_por_par`)
+— round-robin: cada pareja juega una vez, así que una prueba con seis partidas
+necesita seis parejas distintas, no dos jugadores repetidos.
+
+**El cron corre `41 13 * * *`** = 7:41 de la mañana en El Salvador, separado de
+los otros cinco a propósito: cinco lambdas arrancando en el mismo minuto compiten
+por el mismo pool de conexiones.
+
+**Y `npm run build` NO comprueba los tipos de `api/`** (§3i). Se verifican a mano
+con el `tsc --noEmit` largo que está documentado ahí.

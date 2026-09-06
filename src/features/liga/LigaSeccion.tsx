@@ -24,12 +24,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ChevronDown, ChevronLeft, Clock, Lock, PlayCircle, Settings2, Swords } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronLeft, Clock, Lock, PlayCircle, Settings2, Swords } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { InscripcionLiga } from '../liga/InscripcionLiga'
 import { PortadaLiga } from './PortadaLiga'
 import {
-  verLiga, tablaDe, miProximaPartida, reportar, confirmar, disputar,
+  verLiga, tablaDe, misPartidasAbiertas, reportar, confirmar, disputar,
   TIERS, NOMBRE_TIER,
   tonoDelTier,
   type EstadoPartida, type FilaTabla, type GrupoLiga, type LigaCompleta,
@@ -119,7 +119,9 @@ export function LigaSeccion() {
   }, [code, recarga])
 
   const grupos = useMemo(() => ordenarGrupos(liga?.grupos ?? []), [liga])
-  const proxima = useMemo(() => (liga ? miProximaPartida(liga) : null), [liga])
+  const abiertas = useMemo(() => (liga ? misPartidasAbiertas(liga) : []), [liga])
+  const proxima = abiertas[0] ?? null
+  const esperandome = abiertas.filter(a => a.esperaMiRespuesta).length
   const miGrupo = useMemo(
     () => grupos.find(g => g.plazas.some(p => p.esMia))?.id ?? null,
     [grupos])
@@ -185,17 +187,38 @@ export function LigaSeccion() {
         </p>
       )}
 
-      {/* 1 · MI PRÓXIMA PARTIDA. Lo único que puedo resolver hoy va primero. */}
-      {proxima && (
+      {/* 0 · LO QUE ESPERA MI RESPUESTA, arriba de todo.
+          El reloj sella por silencio a los cinco días: no responder deja de ser
+          una omisión y pasa a ser una derrota. El push avisa, pero medido en
+          `/envivo` solo 13 de 39 cuentas lo tienen activado (§4d) — así que
+          esta franja NO es un adorno del push, es el otro canal, el que cubre
+          a los dos tercios que nunca lo van a recibir. Y lee el MISMO hecho
+          que el cron, así que no puede quedarse vieja. */}
+      {esperandome > 0 && (
+        <p className="mb-3 flex items-center gap-2 rounded-xl border border-swu-red/50 bg-swu-red/10 px-3 py-2.5 text-[12px] font-bold leading-snug text-swu-red-texto">
+          <AlertTriangle size={15} className="shrink-0" />
+          {esperandome === 1
+            ? 'Tenés un resultado esperando tu respuesta. Si no contestás antes del plazo, queda firme como lo reportó tu rival.'
+            : `Tenés ${esperandome} resultados esperando tu respuesta. Los que no contestes antes del plazo quedan firmes como los reportó tu rival.`}
+        </p>
+      )}
+
+      {/* 1 · MIS PARTIDAS ABIERTAS, todas.
+          Antes era UNA tarjeta —«la próxima»— y con grupos de 8 son siete
+          partidas por persona: quien tenía dos sin jugar y una esperando
+          confirmación resolvía esa y las otras dos seguían invisibles, con el
+          plazo corriendo. El orden lo decide `misPartidasAbiertas`. */}
+      {abiertas.map(a => (
         <MiPartida
-          partida={proxima.partida}
-          grupo={proxima.grupo}
-          rival={proxima.rival}
-          miPlaza={proxima.miPlaza}
+          key={a.partida.id}
+          partida={a.partida}
+          grupo={a.grupo}
+          rival={a.rival}
+          miPlaza={a.miPlaza}
           alHacer={() => { setAviso(null); recargar() }}
           alAvisar={setAviso}
         />
-      )}
+      ))}
 
       {/* 2 · La inscripción, solo si no estoy dentro y todavía se puede entrar.
 
