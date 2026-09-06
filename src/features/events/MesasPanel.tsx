@@ -39,6 +39,9 @@ import {
   type MesaArmada, type AsientoPropuesto,
 } from '../../services/mesasService'
 import type { CloudStanding } from '../../services/tournamentCloud'
+/* La MISMA llave que usa el servidor para cruzar mesas con clasificación.
+   Copiarla acá sería que las dos se separaran en el primer cambio. */
+import { clavePersona } from './proyeccion/escalones'
 
 interface Props {
   eventId: string
@@ -305,9 +308,15 @@ export function MesasPanel({
           <div className="space-y-2 p-3.5">
             <p className="text-sm font-bold text-swu-text">Fijar la clasificación final</p>
             <p className="text-xs leading-relaxed text-swu-muted">
-              Escribe el puesto de cada jugador según los puntos de mesa acumulados.
-              Hay que hacerlo <strong>antes</strong> de cerrar: si el puesto queda vacío,
-              el torneo desaparece de la tabla de la temporada sin dar ningún error.
+              La <strong>mesa 1</strong> de esta ronda es la final y se lleva los primeros
+              puestos. El resto va interlineado: los ganadores de las otras mesas van antes
+              que los segundos, los segundos antes que los terceros. Los empates se rompen
+              por puntos y después por vida.
+            </p>
+            <p className="text-xs leading-relaxed text-swu-muted">
+              Hay que hacerlo <strong>antes</strong> de cerrar: si el puesto queda vacío, el
+              torneo desaparece de la tabla de la temporada sin dar ningún error. Revisá el
+              orden antes de repartir —los sobres salen de ahí—.
             </p>
             <button
               onClick={async () => {
@@ -325,6 +334,8 @@ export function MesasPanel({
               {todasAnotadas ? 'Fijar clasificación' : 'Faltan puestos por anotar'}
             </button>
 
+            <ClasificacionResultante activos={activos} mesas={mesas} />
+
             {/* CERRAR el torneo, desde acá.
                 El único botón que reparte —sobres, XP y ranking— vivía en la
                 pestaña «Rondas», que en un torneo de mesas se reemplaza por un
@@ -332,18 +343,96 @@ export function MesasPanel({
                 se podía cerrar por ninguna pantalla: se jugaba entero y no se
                 repartía nada. */}
             {!cerrado && (
-              <button
-                onClick={onFinalizar}
-                disabled={ocupado || guardando}
-                className="flex min-h-[44px] items-center gap-2 rounded-lg border border-red-500/40
-                           bg-red-500/10 px-4 text-sm font-semibold text-red-400 disabled:opacity-40"
-              >
-                <Trophy size={15} /> Cerrar el torneo y repartir
-              </button>
+              <>
+                {/* Cerrar SIN puestos no falla: reparte por el orden viejo y el
+                    torneo desaparece de la temporada, las dos cosas en
+                    silencio. Se avisa acá porque es el último momento en que
+                    alguien puede notarlo. */}
+                {!activos.some(s => s.puesto !== null) && (
+                  <p className="text-xs font-semibold text-swu-amber">
+                    Todavía no fijaste la clasificación. Si cerrás así, los sobres se
+                    reparten por el orden viejo y el torneo no entra en la temporada.
+                  </p>
+                )}
+                <button
+                  onClick={onFinalizar}
+                  disabled={ocupado || guardando}
+                  className="flex min-h-[44px] items-center gap-2 rounded-lg border border-red-500/40
+                             bg-red-500/10 px-4 text-sm font-semibold text-red-400 disabled:opacity-40"
+                >
+                  <Trophy size={15} /> Cerrar el torneo y repartir
+                </button>
+              </>
             )}
           </div>
         </HudPanel>
       )}
+    </div>
+  )
+}
+
+/**
+ * El orden que acaba de quedar, a la vista.
+ *
+ * ── Por qué hace falta ───────────────────────────────────────────────
+ *
+ * `fijar_puestos_finales` escribe once puestos y contestaba «Clasificación
+ * fijada para 11 jugadores». Ese número no dice NADA de lo único que importa:
+ * en qué orden quedaron. Y de ese orden salen los sobres y el XP
+ * (`_repartir_premios` reparte por `coalesce(puesto, 32767)`), así que un
+ * puesto mal puesto es un premio a quien no le toca — sin un solo error.
+ *
+ * Además el desempate DENTRO de cada bloque (puntos, después vida) es una
+ * elección, no un hecho del torneo: en el Twin Suns el organizador ordenó dos
+ * bloques de otra forma. Enseñar el resultado es lo que convierte esa elección
+ * en algo que se puede corregir en vez de algo que se descubre después.
+ *
+ * Se marca de dónde salió cada quien —«mesa 2, 1º»— porque eso es lo que deja
+ * comprobar el orden de un vistazo contra la hoja de la mesa.
+ */
+export function ClasificacionResultante({ activos, mesas }: {
+  activos: CloudStanding[]; mesas: MesaArmada[]
+}) {
+  const conPuesto = activos.filter(s => s.puesto !== null)
+  if (conPuesto.length === 0) return null
+
+  /* Se cruza con `clavePersona`, la misma llave que usa el servidor: un tercio
+     de la sala juega sin cuenta y por `user_id` todos ésos caen en la misma
+     casilla `null` y se les asigna la mesa de cualquiera. */
+  const asiento = new Map<string, { mesa: number; puesto: number | null }>()
+  for (const m of mesas) {
+    for (const j of m.jugadores) {
+      asiento.set(clavePersona(j.user_id, j.player_name), { mesa: m.mesa, puesto: j.puesto })
+    }
+  }
+
+  const orden = [...conPuesto].sort((a, b) => (a.puesto ?? 0) - (b.puesto ?? 0))
+
+  return (
+    <div className="rounded-lg border border-swu-border bg-swu-bg p-2.5">
+      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-swu-muted">
+        Así quedó
+      </p>
+      <ol className="space-y-0.5">
+        {orden.map(s => {
+          const a = asiento.get(clavePersona(s.user_id, s.player_name))
+          const enLaFinal = a?.mesa === 1
+          return (
+            <li key={s.id} className="flex items-baseline gap-2 text-sm">
+              <span className={`w-7 shrink-0 text-right font-mono font-bold ${
+                enLaFinal ? 'text-swu-amber' : 'text-swu-muted'
+              }`}>
+                {s.puesto}º
+              </span>
+              <span className="min-w-0 flex-1 truncate text-swu-text">{s.player_name}</span>
+              <span className="shrink-0 font-mono text-[11px] text-swu-muted">
+                {a ? `mesa ${a.mesa}${a.puesto ? ` · ${a.puesto}º` : ''}` : 'sin mesa'}
+                {enLaFinal && <span className="ml-1 text-swu-amber">final</span>}
+              </span>
+            </li>
+          )
+        })}
+      </ol>
     </div>
   )
 }

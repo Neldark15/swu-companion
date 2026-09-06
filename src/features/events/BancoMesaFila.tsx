@@ -1,5 +1,5 @@
 /**
- * Banco de la fila de mesa — /banco-mesa-fila (solo desarrollo)
+ * Banco del panel de mesas — /banco-mesa-fila (solo desarrollo)
  *
  * La fila con el nombre, la vida y los puestos es la superficie que MÁS se
  * toca durante un torneo de mesas, y vive detrás de una sesión de admin (el
@@ -14,14 +14,20 @@
 
 import { useState } from 'react'
 import { ContadorVida } from './ContadorVida'
-import type { AsientoMesa } from '../../services/mesasService'
+import { ClasificacionResultante } from './MesasPanel'
+import type { AsientoMesa, MesaArmada } from '../../services/mesasService'
+import type { CloudStanding } from '../../services/tournamentCloud'
 
 const PUNTOS = [3, 2, 1, 0]
 
 function asiento(nombre: string, vida: number | null, conCuenta = true): AsientoMesa {
   return {
     id: `banco-${nombre}`, event_id: 'e', round_id: 'r', mesa: 1,
-    user_id: conCuenta ? 'u' : null, player_name: nombre,
+    /* El id va DERIVADO del nombre, no un `'u'` literal para todos: con un id
+       compartido el cruce contra la clasificación no casa con nadie y el banco
+       enseñaba «sin mesa» en las once filas — un banco que miente sobre lo que
+       está probando es peor que no tenerlo. */
+    user_id: conCuenta ? `u-${nombre}` : null, player_name: nombre,
     puesto: null, puntos: null, vida,
   }
 }
@@ -44,6 +50,37 @@ const CASOS: Array<{ titulo: string; gente: AsientoMesa[]; bloqueada: boolean }>
   },
 ]
 
+
+/* ── La clasificación resultante, con los datos REALES del TWIN SUNS ──
+ *
+ * Ronda 2 del SWUXF2W, que es el único torneo de mesas cerrado que existe.
+ * Los puestos son los que calcula la regla nueva (mesa 1 = la final, el resto
+ * interlineado). Se incluye a propósito a alguien SIN CUENTA: por `user_id` a
+ * secas ése cae en la casilla `null` y se le asigna la mesa de cualquiera. */
+
+const TS_MESAS: MesaArmada[] = [
+  { mesa: 1, anotada: true, jugadores: [
+    asiento('Jbeltramirez', 10), asiento('iNelo', 7), asiento('Viaud', 0), asiento('Nelson', 0),
+  ].map((a, i) => ({ ...a, mesa: 1, puesto: i + 1 })) },
+  { mesa: 2, anotada: true, jugadores: [
+    asiento('Vara', 12), asiento('Winnie', 5), asiento('Rokutenshi', 0), asiento('LuisG05', 0),
+  ].map((a, i) => ({ ...a, mesa: 2, puesto: i + 1 })) },
+  { mesa: 3, anotada: true, jugadores: [
+    asiento('Lemaster89', 14), asiento('isuraji', 12), asiento('Coffeetech', 0, false),
+  ].map((a, i) => ({ ...a, mesa: 3, puesto: i + 1 })) },
+]
+
+const TS_ORDEN = ['Jbeltramirez','iNelo','Viaud','Nelson','Lemaster89','Vara',
+                  'Winnie','isuraji','Rokutenshi','Coffeetech','LuisG05']
+
+const TS_STANDINGS: CloudStanding[] = TS_ORDEN.map((nombre, i) => ({
+  id: `st-${nombre}`, event_id: 'e',
+  user_id: nombre === 'Coffeetech' ? null : `u-${nombre}`,
+  player_name: nombre, points: 0,
+  match_wins: 0, match_losses: 0, match_draws: 0, game_wins: 0, game_losses: 0,
+  byes: 0, omw_pct: 0, gw_pct: 0, dropped: false, seed: null, puesto: i + 1,
+}))
+
 export function BancoMesaFila() {
   const [error, setError] = useState('')
 
@@ -60,6 +97,17 @@ export function BancoMesaFila() {
           {error}
         </p>
       )}
+
+      <div className="mb-5 rounded-2xl border border-swu-border bg-swu-surface p-3">
+        <p className="mb-2 text-sm font-bold text-swu-text">
+          La clasificación que queda al fijar (TWIN SUNS real)
+        </p>
+        <ClasificacionResultante activos={TS_STANDINGS} mesas={TS_MESAS} />
+        <p className="mt-2 text-[11px] text-swu-muted">
+          «Coffeetech» va sin cuenta a propósito: si el cruce fuera por <code>user_id</code>,
+          se quedaría sin mesa o con la de otro.
+        </p>
+      </div>
 
       <div className="space-y-5">
         {CASOS.map(caso => (
