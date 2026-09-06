@@ -3447,3 +3447,77 @@ desde lejos.
 **`wakeLock` no existe en Tizen ni webOS** — falla en silencio justo donde más
 falta hace. La respuesta real es apagarle el ahorro de energía al televisor, y
 eso va en la nota de operación, no en el código.
+
+### 4p. El contador de vida: 24 px era el sintoma, no el problema
+
+Se pidio agrandar los botones (median **24 px**, cuando los de puesto de la
+MISMA fila ya median 44). Mirandolo apareció algo peor:
+
+```
+disabled={bloqueada || guardando}
+```
+
+**Cada toque se bloqueaba hasta que el servidor contestara.** Bajar de 30 a 25
+eran cinco viajes de ida y vuelta EN FILA, cada uno frenando al siguiente. Con
+la senal de una tienda eso no se lee como lentitud sino como un contador roto —
+y termina en alguien que deja de anotar. Esa vida decide quien es el mejor
+segundo y pasa a la final (§3k).
+
+Ahora la pantalla obedece al instante y el servidor se entera **450 ms despues
+del ULTIMO toque**: cinco toques seguidos son UNA escritura. Si rechaza, se
+vuelve al ultimo valor **que el servidor confirmo** —no al inmediatamente
+anterior, que con varios toques encadenados seria un numero intermedio que
+nunca existio—. Al desmontar se manda lo pendiente: anotar la ultima vida y
+cerrar el lobby en el mismo segundo perdia el dato.
+
+**EL ARREGLO OBVIO NO ALCANZABA, Y ES LA LECCION DEL MODULO.** Con
+`poner(valor - 1)` los cuatro toques leen el MISMO `valor` del cierre —React no
+re-renderiza dentro del mismo tick— y los cuatro calculan 29. Medido en el
+banco: **4 toques, 1 punto**. Va por DELTA contra una ref, que si se actualiza
+al toque. Verificado: 30 → cuatro «−» → **26** → dos «+» → **28**.
+
+**La palabra «vida» se retiro, y es una cuenta.** En un telefono de 375 px
+quedan 327 utiles, los cuatro botones de puesto se llevan 156 y el contador
+142: la etiqueta se pasa **13 px** y quedaba cortada a media palabra, que es
+peor que no estar. Vive en el `aria-label` de cada boton.
+
+**El contador salio de DENTRO del span que trunca el nombre**: ese
+`overflow: hidden` le recortaba el borde derecho.
+
+**Banco en `/banco-mesa-fila`** (solo desarrollo). La fila vive detras de
+sesion de admin (el panel) o de inscripcion (el lobby), asi que la unica forma
+de verla era estar en un torneo de verdad con gente esperando. Sin sesion la
+escritura falla A PROPOSITO: eso prueba el camino de vuelta atras, que es el
+unico que no se comprueba tocando bonito.
+
+**DOS MEDICIONES QUE MINTIERON antes de que el codigo estuviera bien**, y las
+dos se leyeron como «el codigo no funciona»:
+
+1. **`innerText` DEPENDE del diseno.** Con el panel del navegador oculto
+   devuelve valores viejos. Para leer un valor va `textContent`.
+2. **Leer el DOM en el mismo tick del `.click()` da el valor anterior**, porque
+   React confirma en microtarea. Hay que dejar pasar un tick.
+
+Es el mismo par del §4c (`document.hidden` siempre true) y del §3x
+(`innerWidth` 0 con la pestana de fondo): **el metodo falla y parece que falla
+el codigo**.
+
+### 4q. Los rotulos en ingles del modulo de torneos
+
+Nueve, todos en el modulo que mas se usa: Standings, Pairings, Timer, Bracket
+y Dashboard. En un torneo presencial en Santa Tecla, «Pairings» es la palabra
+que hay que explicarle a alguien.
+
+**Y uno estuvo a punto de salir mal.** Puse «Mesas» en la pestana `pairings`
+para los torneos de ese tipo — y **ya existe una pestana «Mesas»**
+(`TournamentDashboard`, §3k). Habrian quedado dos con el mismo rotulo, y en
+movil el texto va oculto: solo se distinguirian por el icono. La pestana
+`pairings` solo tiene sentido en torneos 1v1 (la propia pantalla la limita con
+`!esDeMesas`), asi que va **«Emparejamientos»**, sin condicional.
+
+**El build no lo habria cazado nunca**: dos rotulos iguales compilan igual de
+bien que dos distintos.
+
+Y el reloj de la vista de telefono de `/events/live/:code` dejo de mostrar
+«00:00 ¡Tiempo terminado!» parpadeando sobre torneos cerrados hace semanas: el
+plazo vencido de la ultima ronda no es un dato viejo, es **un dato falso**.
