@@ -402,6 +402,10 @@ export interface TemporadaLiga {
   estado: 'inscripcion' | 'en_curso' | 'cerrada'
   arranca: string
   cierra: string
+  /** Cuándo se cierra la ENTRADA. `null` = sin plazo anunciado. Es otra cosa
+   *  que `arranca`: se puede cerrar la inscripción dos semanas antes de que
+   *  empiece el juego, y esa es la fecha que obliga a alguien a entrar hoy. */
+  inscripcionCierra: string | null
 }
 
 /** Un aviso del creador a su liga. Seis campos y ninguno de más (§7.3). */

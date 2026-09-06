@@ -4129,3 +4129,64 @@ partir la rejilla en 336 casillas.
 La forma de los dos es la misma y vale para todo el repo: **un valor plausible
 en la pantalla equivocada no se distingue de un valor correcto.** Un inscrito
 apagado parece un inscrito inactivo; un mapa corrido una hora parece un mapa.
+
+### 4z. LIGA — cerrar la temporada, y el conteo del lobby
+
+**LA LIGA ERA UN VIAJE DE IDA.** `liga_cerrar` existe desde el primer día pero
+cierra **la LIGA entera** (`ligas.estado='cerrada'`), no la temporada. Y el
+índice `liga_una_temporada_viva` es único por liga sobre `estado <> 'cerrada'`:
+sin nadie que escribiera `liga_temporadas.estado='cerrada'`, **la Temporada 2
+era imposible desde la app**. Verificado: cerrar la T1 y abrir la T2 ahora
+funciona.
+
+**`liga_cerrar_temporada` VALIDA, NO RECALCULA.** El cliente calcula la
+clasificación con `tablaDe` —la única implementación, con prueba golden— y
+manda `[{plazaId, puesto}]`; el servidor comprueba que estén TODAS las plazas
+de la temporada, ninguna repetida y ninguna ajena, y aplica. Portar `tablaDe` a
+SQL serían **dos verdades de la misma tabla**, y la que reparte los ascensos no
+sería la que la gente vio. Es el mismo reparto de trabajo que `liga_armar_grupos`
+(§3k).
+
+**La escalera:** sube el 1.º de cada grupo, baja el último, y **quien abandonó
+baja igual y suma un abandono** — dejar de jugar no puede salir mejor que jugar
+y perder. Topada arriba y abajo: el último de un grupo que ya estaba en común se
+queda en común.
+
+**Y EL RESUMEN CUENTA LO QUE SE MOVIÓ, NO LO QUE SE INTENTÓ MOVER.** La primera
+versión decía «bajan 2» cuando solo uno había cambiado de tier, porque contaba
+las intenciones y no los movimientos. La segunda tenía un fallo peor y más
+silencioso: el conteo leía `i.tier` **después** del `update`, o sea el tier
+NUEVO. Ahora el movimiento se calcula una vez, en `_mov`, **antes** de tocar
+nada, y de ahí salen el update y el resumen. Un número que el organizador lee y
+cree no puede depender del orden de dos sentencias.
+
+`drop table if exists` antes de cada temporal: dos cierres dentro de una misma
+transacción —una prueba, o un llamador futuro— chocarían con «la tabla ya
+existe», y ese error no tiene nada que ver con el cierre.
+
+**`liga_temporadas.inscripcion_cierra`: cuándo cierra la ENTRADA.** La tabla
+tenía `arranca` y `cierra` —el principio y el final del JUEGO— y nada para el
+plazo de entrada. Sin esa fecha, quien llega del video el día 1 ve un lobby sin
+ninguna cuenta atrás. Un CHECK impide que sea posterior a `arranca`: anunciar
+que todavía se puede entrar cuando la liga ya empezó es prometer una plaza que
+el sorteo ya repartió.
+
+**La cuenta atrás tiene TRES estados y el orden no es cosmético** — se muestra el
+plazo que de verdad obliga a hacer algo hoy:
+
+1. **tu partida abierta** → su fecha límite (podés perder por no ir);
+2. **la inscripción** → cuándo cierra (podés quedarte afuera);
+3. **el arranque** → cuándo empieza (nada que hacer, pero es la pregunta que
+   trae a alguien desde un video).
+
+Sin el tercero, el día 1 la pantalla no tiene ninguna fecha.
+
+**El arte del banner va DETRÁS y a la derecha**, con una máscara de degradado
+comiéndoselo hacia el texto y al 45 % de opacidad. Una imagen a todo trapo bajo
+una cuenta atrás es lo que el sistema de la credencial prohíbe (§3f): la cifra
+es el dato y el arte no puede disputarle el contraste. Si el archivo
+(`/liga/banner-liga.webp`) no está, **no se dibuja nada** y el banner queda
+igual de legible.
+
+**País es COLUMNA propia en el Top 8**, como la maqueta, y queda **vacía** sin
+país: una bandera genérica afirmaría una nacionalidad que nadie declaró.

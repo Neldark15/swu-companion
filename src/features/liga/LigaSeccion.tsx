@@ -185,6 +185,31 @@ export function LigaSeccion() {
     .filter((d): d is string => !!d)
     .sort()[0] ?? null
 
+  /* LA CUENTA ATRÁS TIENE TRES ESTADOS, y el orden no es cosmético: se muestra
+     el plazo que de verdad te obliga a hacer algo HOY.
+       1. tenés una partida abierta  → su fecha límite (podés perder por no ir)
+       2. la inscripción sigue abierta → cuándo cierra (podés quedarte afuera)
+       3. la liga todavía no arrancó  → cuándo empieza (nada que hacer, pero
+          es la pregunta que trae a alguien desde un video)
+     Sin el tercero, quien llega el día 1 ve una pantalla sin ninguna fecha. */
+  const cuenta: { hasta: string; rotulo: string; pie: string; urgente: boolean } | null =
+    plazoCercano
+      ? { hasta: plazoCercano, rotulo: 'Próxima fecha límite',
+          pie: esperandome > 0
+            ? 'Para responder el resultado que te reportaron.'
+            : 'Para jugar y anotar tu partida.',
+          urgente: esperandome > 0 }
+      : temporada?.inscripcionCierra && temporada.estado === 'inscripcion'
+      ? { hasta: temporada.inscripcionCierra, rotulo: 'Cierra la inscripción',
+          pie: liga.miInscripcion
+            ? 'Ya estás dentro. Después de esta fecha se arman los grupos.'
+            : 'Después de esta fecha ya no se puede entrar a la temporada.',
+          urgente: !liga.miInscripcion }
+      : temporada?.arranca && temporada.estado !== 'cerrada'
+      ? { hasta: temporada.arranca, rotulo: 'Arranca la liga',
+          pie: 'Ese día se publican los grupos y el calendario.', urgente: false }
+      : null
+
   return (
     <div data-modulo="liga" className="mx-auto max-w-2xl px-4 pt-3 pb-28">
       {/* ── CABECERA sobre la portada difuminada ──
@@ -300,28 +325,43 @@ export function LigaSeccion() {
           información, no un plazo. Va grande porque el reloj sella por
           silencio: pasada esa fecha, no haber contestado vale como haber
           aceptado lo que reportó el rival. */}
-      {plazoCercano && (
+      {cuenta && (
         <button
-          onClick={() => irA('mis-partidas')}
-          className="mb-3 flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left"
+          onClick={() => irA(plazoCercano ? 'mis-partidas' : 'como-funciona')}
+          className="relative mb-3 flex w-full items-center gap-3 overflow-hidden rounded-2xl border px-4 py-3 text-left"
           style={{ borderColor: 'var(--liga-borde)', background: 'var(--liga-acento-suave)' }}
         >
-          <Timer size={26} className="shrink-0" style={{ color: 'var(--liga-acento)' }} />
-          <span className="min-w-0 flex-1">
+          {/* EL ARTE VA DETRÁS Y A LA DERECHA, con el degradado comiéndoselo
+              hacia el texto. Una imagen a todo trapo bajo una cuenta atrás es
+              lo que el sistema de la credencial prohíbe (§3f): la cifra es el
+              dato y el arte no puede disputarle el contraste. Si el archivo no
+              está, no se dibuja nada y el banner queda igual de legible. */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 right-0 w-3/5 bg-cover bg-center opacity-45"
+            style={{
+              backgroundImage: 'url(/liga/banner-liga.webp)',
+              maskImage: 'linear-gradient(to right, transparent, #000 55%)',
+              WebkitMaskImage: 'linear-gradient(to right, transparent, #000 55%)',
+            }}
+          />
+          <Timer size={26} className="relative shrink-0" style={{ color: 'var(--liga-acento)' }} />
+          <span className="relative min-w-0 flex-1">
             <span className="block text-[10px] font-black uppercase tracking-[0.16em]"
                   style={{ color: 'var(--liga-acento)' }}>
-              Próxima fecha límite
+              {cuenta.rotulo}
             </span>
             <span className="mt-0.5 block text-[22px] leading-none">
-              <ContadorPlazo hasta={plazoCercano} urgente={esperandome > 0} />
+              <ContadorPlazo hasta={cuenta.hasta} urgente={cuenta.urgente} />
             </span>
             <span className="mt-1 block text-[10px] leading-snug text-swu-muted">
-              {esperandome > 0
-                ? 'Para responder el resultado que te reportaron.'
-                : 'Para jugar y anotar tu partida.'}
+              {cuenta.pie}
+            </span>
+            <span className="mt-1.5 block text-[8px] font-bold uppercase tracking-[0.2em] text-swu-muted/70">
+              La disciplina también gana partidas
             </span>
           </span>
-          <ChevronRight size={18} className="shrink-0 text-swu-muted" />
+          <ChevronRight size={18} className="relative shrink-0 text-swu-muted" />
         </button>
       )}
 
@@ -378,7 +418,7 @@ export function LigaSeccion() {
           <p className="mb-2 flex items-center gap-1.5 text-[11px] font-black text-swu-text">
             <Zap size={13} style={{ color: 'var(--liga-acento)' }} /> Acciones rápidas
           </p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-2">
             <Atajo
               icono={<Users size={14} />} rotulo="Mi grupo"
               alTocar={() => { if (miGrupo) { setAbierto(miGrupo); irA(`grupo-${miGrupo}`) } }}
@@ -1049,14 +1089,14 @@ export function TopOcho({ id, grupo, alVerTodo }: {
           Ver todo <ChevronRight size={13} />
         </button>
       </div>
-      <div className="grid grid-cols-[28px_1fr_auto] items-center gap-x-2 border-t border-swu-border px-3 py-1.5
+      <div className="grid grid-cols-[28px_1fr_34px_auto] items-center gap-x-2 border-t border-swu-border px-3 py-1.5
                       text-[9px] font-bold uppercase tracking-wider text-swu-muted">
-        <span>#</span><span>Jugador</span><span>Puntos</span>
+        <span>#</span><span>Jugador</span><span className="text-center">País</span><span>Puntos</span>
       </div>
       {filas.map((f, i) => (
         <div
           key={f.plazaId}
-          className={`grid grid-cols-[28px_1fr_auto] items-center gap-x-2 border-t border-swu-border px-3 py-2 ${
+          className={`grid grid-cols-[28px_1fr_34px_auto] items-center gap-x-2 border-t border-swu-border px-3 py-2 ${
             f.esMia ? 'bg-swu-accent/10' : ''} ${f.abandonada ? 'opacity-45' : ''}`}
         >
           <span className="flex items-center justify-center">
@@ -1064,11 +1104,13 @@ export function TopOcho({ id, grupo, alVerTodo }: {
               ? <Medal size={14} style={{ color: ['var(--liga-oro)', '#C6CBD4', '#C08457'][i] }} />
               : <span className="text-[12px] font-black tabular-nums text-swu-muted">{i + 1}</span>}
           </span>
-          <span className={`flex min-w-0 items-center gap-1.5 text-[13px] font-bold ${
+          <span className={`min-w-0 truncate text-[13px] font-bold ${
             f.esMia ? 'text-swu-accent-texto' : 'text-swu-text'}`}>
-            <Bandera pais={f.pais} tam={12} />
-            <span className="truncate">{f.nombre}</span>
+            {f.nombre}
           </span>
+          {/* País en columna propia, como la maqueta. Sin país queda VACÍA:
+              una bandera genérica afirmaría una nacionalidad que nadie declaró. */}
+          <span className="flex justify-center"><Bandera pais={f.pais} tam={14} /></span>
           <span className="text-[13px] font-black tabular-nums text-swu-text">{f.puntos}</span>
         </div>
       ))}

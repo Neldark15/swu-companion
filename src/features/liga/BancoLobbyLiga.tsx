@@ -155,19 +155,38 @@ export function BancoLobbyLiga() {
           ))}
         </Caso>
 
-        <Caso titulo="Próxima fecha límite — como banner tocable">
-          <button className="flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left"
-                  style={{ borderColor: 'var(--liga-borde)', background: 'var(--liga-acento-suave)' }}>
-            <Timer size={26} className="shrink-0" style={{ color: 'var(--liga-acento)' }} />
-            <span className="min-w-0 flex-1">
-              <span className="block text-[10px] font-black uppercase tracking-[0.16em]" style={{ color: 'var(--liga-acento)' }}>
-                Próxima fecha límite
+        <Caso titulo="El banner, en sus TRES estados">
+          {[
+            { r: 'Cierra la inscripción', h: hoyMas(21), p: 'Después de esta fecha ya no se puede entrar a la temporada.', u: true },
+            { r: 'Arranca la liga', h: hoyMas(35), p: 'Ese día se publican los grupos y el calendario.', u: false },
+            { r: 'Próxima fecha límite', h: hoyMas(2), p: 'Para jugar y anotar tu partida.', u: false },
+          ].map(c => (
+            <button key={c.r}
+              className="relative mb-2 flex w-full items-center gap-3 overflow-hidden rounded-2xl border px-4 py-3 text-left"
+              style={{ borderColor: 'var(--liga-borde)', background: 'var(--liga-acento-suave)' }}>
+              <span aria-hidden
+                className="pointer-events-none absolute inset-y-0 right-0 w-3/5 bg-cover bg-center opacity-45"
+                style={{ backgroundImage: 'url(/liga/banner-liga.webp)',
+                         maskImage: 'linear-gradient(to right, transparent, #000 55%)',
+                         WebkitMaskImage: 'linear-gradient(to right, transparent, #000 55%)' }} />
+              <Timer size={26} className="relative shrink-0" style={{ color: 'var(--liga-acento)' }} />
+              <span className="relative min-w-0 flex-1">
+                <span className="block text-[10px] font-black uppercase tracking-[0.16em]" style={{ color: 'var(--liga-acento)' }}>
+                  {c.r}
+                </span>
+                <span className="mt-0.5 block text-[22px] leading-none"><ContadorPlazo hasta={c.h} urgente={c.u} /></span>
+                <span className="mt-1 block text-[10px] leading-snug text-swu-muted">{c.p}</span>
+                <span className="mt-1.5 block text-[8px] font-bold uppercase tracking-[0.2em] text-swu-muted/70">
+                  La disciplina también gana partidas
+                </span>
               </span>
-              <span className="mt-0.5 block text-[22px] leading-none"><ContadorPlazo hasta={hoyMas(2)} /></span>
-              <span className="mt-1 block text-[10px] leading-snug text-swu-muted">Para jugar y anotar tu partida.</span>
-            </span>
-            <ChevronRight size={18} className="shrink-0 text-swu-muted" />
-          </button>
+              <ChevronRight size={18} className="relative shrink-0 text-swu-muted" />
+            </button>
+          ))}
+          <p className="mt-1 text-[10px] text-swu-muted">
+            El arte de fondo sale de <code>/liga/banner-liga.webp</code>. Si el archivo no está,
+            no se dibuja y el banner queda igual de legible.
+          </p>
         </Caso>
 
         <Caso titulo="Acciones rápidas">
@@ -175,7 +194,7 @@ export function BancoLobbyLiga() {
             <p className="mb-2 flex items-center gap-1.5 text-[11px] font-black text-swu-text">
               <Zap size={13} style={{ color: 'var(--liga-acento)' }} /> Acciones rápidas
             </p>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-3 gap-2">
               <Atajo icono={<Users size={14} />} rotulo="Mi grupo" alTocar={() => setAviso('Mi grupo')} />
               <Atajo icono={<Trophy size={14} />} rotulo="Tabla" alTocar={() => setAviso('Tabla')} />
               <Atajo icono={<Swords size={14} />} rotulo="Mis partidas" alTocar={() => setAviso('Mis partidas')} />
