@@ -27,6 +27,7 @@ import {
   type MiLiga, type CarneLiga,
 } from '../../services/ligaService'
 import { RejillaDisponibilidad, FRANJAS_VACIAS, horasDe } from './RejillaDisponibilidad'
+import { Bandera } from './componentes/piezas'
 
 export function MiLigaTarjeta() {
   const [datos, setDatos] = useState<MiLiga | null>(null)
@@ -117,7 +118,10 @@ export function MiLigaTarjeta() {
           <p className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-swu-muted">
             <Swords size={11} /> Te toca — jornada {proxima.jornada}
           </p>
-          <p className="mt-0.5 truncate text-[14px] font-black text-swu-text">{rival.nombre}</p>
+          <p className="mt-0.5 flex items-center gap-1.5 text-[14px] font-black text-swu-text">
+            <Bandera pais={rival.pais} tam={14} />
+            <span className="truncate">{rival.nombre}</span>
+          </p>
           {rival.lider && <p className="truncate text-[11px] text-swu-muted">{rival.lider}</p>}
         </div>
       )}
@@ -222,7 +226,10 @@ function TarjetaCarne(
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-swu-amber">
             Estás dentro
           </p>
-          <p className="truncate text-[13px] font-black text-swu-text">{carne.nombre}</p>
+          <p className="flex items-center gap-1.5 text-[13px] font-black text-swu-text">
+            <Bandera pais={carne.pais} tam={13} />
+            <span className="truncate">{carne.nombre}</span>
+          </p>
         </div>
         <ChevronRight size={18} className="shrink-0 text-swu-muted" />
       </Link>

@@ -648,7 +648,10 @@ function Inscritos({ inscritos }: { inscritos: InscritoPanel[] }) {
               {filas.map(i => (
                 <tr key={i.inscId} className="border-b border-swu-border/30 last:border-0">
                   <td className="px-2.5 py-2">
-                    <p className="font-bold text-swu-text">{i.nombre}</p>
+                    <p className="flex items-center gap-1.5 font-bold text-swu-text">
+                      <Bandera pais={i.pais} tam={12} />
+                      <span>{i.nombre}</span>
+                    </p>
                     {i.lider && (
                       <p className="truncate text-[10px] text-swu-muted">
                         {i.lider}{i.base ? ` · ${i.base}` : ''}
@@ -1142,11 +1145,20 @@ function FilaCola({
         </div>
 
         <div className="flex items-center gap-2 text-[13px]">
-          <span className="min-w-0 flex-1 truncate font-bold text-swu-text">{item.local}</span>
+          {/* En la cola el árbitro decide sin conocer a la gente: dos nombres
+              sueltos son dos desconocidos, y con una liga internacional la
+              bandera es lo único que los distingue de un vistazo. */}
+          <span className="flex min-w-0 flex-1 items-center gap-1.5 font-bold text-swu-text">
+            <Bandera pais={item.localPais} tam={11} />
+            <span className="truncate">{item.local}</span>
+          </span>
           <span className="shrink-0 rounded-lg border border-swu-border bg-swu-bg px-2 py-0.5 font-black tabular-nums">
             {item.vl}–{item.vv}
           </span>
-          <span className="min-w-0 flex-1 truncate text-right font-bold text-swu-text">{item.visita}</span>
+          <span className="flex min-w-0 flex-1 items-center justify-end gap-1.5 font-bold text-swu-text">
+            <span className="truncate">{item.visita}</span>
+            <Bandera pais={item.visitaPais} tam={11} />
+          </span>
         </div>
 
         {item.motivo && (

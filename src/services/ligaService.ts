@@ -620,6 +620,9 @@ export interface PanelLiga {
   inscritos: InscritoPanel[]
   cola: Array<{
     id: string; estado: string; jornada: number; local: string; visita: string
+    /** El país de cada lado. En la cola el árbitro decide sin conocer a la
+     *  gente: dos nombres sueltos son dos desconocidos. */
+    localPais: string | null; visitaPais: string | null
     vl: number; vv: number; motivo: string | null; venceEl: string | null; grupo: string
   }>
   temporada: TemporadaLiga & { semilla: string } | null

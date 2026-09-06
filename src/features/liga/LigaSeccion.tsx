@@ -867,14 +867,19 @@ function Encuentro({ partida, local, visita }: {
   return (
     <div className={`rounded-xl border px-2.5 py-2 ${soyParte ? 'border-swu-accent/40 bg-swu-accent/5' : 'border-swu-border bg-swu-bg'}`}>
       <div className="flex items-center gap-2">
-        <span className={`min-w-0 flex-1 truncate text-right text-[12px] font-bold ${ganoLocal ? 'text-swu-amber' : 'text-swu-text'}`}>
-          {local?.nombre ?? '—'}
+        {/* La bandera PEGADA al nombre y del lado de afuera, para que las dos
+            columnas queden simétricas alrededor del marcador. Sin país no
+            dibuja nada y la fila sigue alineada. */}
+        <span className={`flex min-w-0 flex-1 items-center justify-end gap-1.5 text-[12px] font-bold ${ganoLocal ? 'text-swu-amber' : 'text-swu-text'}`}>
+          <Bandera pais={local?.pais} tam={11} />
+          <span className="truncate">{local?.nombre ?? '—'}</span>
         </span>
         <span className="shrink-0 rounded-lg bg-swu-surface px-2 py-0.5 text-[12px] font-black tabular-nums text-swu-text">
           {conMarcador ? `${partida.vl}-${partida.vv}` : 'vs'}
         </span>
-        <span className={`min-w-0 flex-1 truncate text-[12px] font-bold ${ganoVisita ? 'text-swu-amber' : 'text-swu-text'}`}>
-          {visita?.nombre ?? '—'}
+        <span className={`flex min-w-0 flex-1 items-center gap-1.5 text-[12px] font-bold ${ganoVisita ? 'text-swu-amber' : 'text-swu-text'}`}>
+          <span className="truncate">{visita?.nombre ?? '—'}</span>
+          <Bandera pais={visita?.pais} tam={11} />
         </span>
       </div>
       <div className="mt-0.5 flex items-center justify-center gap-3">
