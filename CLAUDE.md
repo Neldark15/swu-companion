@@ -4575,3 +4575,45 @@ Verificado en `/banco-lobby-liga` con los siete estados sembrados. Dos veces
 tuve que rehacer la medición: dividir el alto de un botón por su `line-height`
 da 2 renglones aunque no envuelva —el `min-h-11` de 44 px lo infla—, y lo que
 de verdad dice si un texto envuelve es `range.getClientRects().length`.
+
+### 5j. LIGA — el juego de datos de prueba, y cómo se borra
+
+Para probar el sistema completo con Alejo se sembraron **120 inscritos de
+prueba** en PUENTE 3, sobre los que ya estaban Alejo (que se inscribió él mismo)
+y el staff.
+
+**Todos llevan `[demo]` en el nombre y `user_id` en NULL.** Las dos cosas son a
+propósito: el prefijo es el gancho para borrarlos de un tirón, y sin `user_id`
+ningún perfil real queda implicado — además de que el camino del invitado es el
+que el motor tuvo roto más tiempo, así que probarlo es gratis.
+
+**20 países y 20 zonas horarias**, con disponibilidad de 8 a 18 h semanales
+repartida en patrones distintos: sin eso el mapa de calor y las banderas no se
+pueden juzgar, que es justamente para lo que existe el juego de datos.
+
+El estado sembrado: **15 grupos** (de 8 y 9, el reparto parejo de
+`tamanosDeGrupo`), **428 partidas** en 9 jornadas con plazos escalonados,
+**177 confirmadas**, **3 en disputa** y **2 vencidas** —para que la cola del
+árbitro tenga trabajo— y **una reportada esperando la respuesta de Alejo**, que
+es el camino que más importa probar: si no contesta, el reloj la sella en contra.
+
+**LA LIGA SIGUE CON `publica = false`.** Con datos de prueba adentro, publicarla
+le mostraría a las otras 40 cuentas una liga llena de `[demo]`. Son dos
+interruptores distintos —`estado` y `publica`— y ésta es exactamente la
+situación para la que se separaron.
+
+Para borrarlo todo antes de abrir de verdad, en el SQL Editor:
+
+```sql
+delete from public.liga_partidas
+ where grupo_id in (select id from public.liga_grupos);
+delete from public.liga_plazas
+ where grupo_id in (select id from public.liga_grupos);
+delete from public.liga_grupos;
+delete from public.liga_inscripciones where nombre_visible like '[demo]%';
+update public.liga_temporadas set estado = 'inscripcion' where estado <> 'cerrada';
+update public.ligas set estado = 'inscripcion' where code = 'puente3';
+```
+
+El orden importa: `liga_plazas` tiene FK a `liga_inscripciones`, así que borrar
+los carnés primero falla con un 23503.
