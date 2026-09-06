@@ -424,6 +424,9 @@ export interface LigaCompleta {
    *  en el cliente exigiría traerse el padrón entero, que es justo lo que los
    *  grants por columna de la Fase 0 dejaron de entregar. */
   cifras: { inscritos: number; paises: number }
+  /** Quiénes van entrando. Cuatro campos y ninguno de más: sin `estado` (admite
+   *  'vetado'), sin `user_id` y sin el puesto de llegada. Tope de 200. */
+  padron: Array<{ id: string; nombre: string; pais: string | null; lider: string | null; base: string | null }>
   anuncios: AnuncioLiga[]
   grupos: GrupoLiga[]
 }
@@ -455,6 +458,7 @@ export async function verLiga(code: string): Promise<LigaCompleta | null> {
     temporada: r.temporada ?? null,
     miInscripcion: r.miInscripcion ?? null,
     cifras: r.cifras ?? { inscritos: 0, paises: 0 },
+    padron: r.padron ?? [],
     anuncios: r.anuncios ?? [],
     grupos,
   }

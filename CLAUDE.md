@@ -4466,3 +4466,31 @@ tener presente: **en desarrollo no hay service worker** (`devOptions.enabled:
 false`), así que el botón nunca aparece ahí — por eso el banco de la liga trae
 tres controles que le inyectan las funciones al store y dejan mirarlo. Es el
 mismo seam que usa Ajustes, no una copia del componente.
+
+### 5g. LIGA — el lobby durante la inscripción, y el padrón
+
+**El lobby lista GRUPOS, y durante toda la inscripción no hay ninguno.** La
+pantalla a la que apunta el enlace del video mostraba el número en la cabecera y
+**un párrafo**, tres semanas. Quiénes van entrando es lo único que hay para
+mostrar en ese período — y es lo que hace ver que la liga es de verdad y que es
+internacional.
+
+`liga_ver` devuelve ahora `padron` con **cuatro campos y ninguno de más**:
+`nombre_visible` (que ya respeta `consiente_perfil`, resuelto en el alta), `pais`
+para la bandera, y `lider`/`base`, que es lo mismo que se ve en la tabla una vez
+armados los grupos.
+
+**NO va `estado`, aunque el grant por columna lo permita:** admite `'vetado'`, y
+publicar que alguien está vetado es exactamente el dato que el producto esconde a
+propósito. Tampoco `user_id`, `tier`, `abandonos` ni `inscrito_en` — y **la lista
+no se numera**: poner el puesto de llegada convierte una lista de gente en una
+carrera por entrar primero, y entrar primero no da ninguna ventaja en esta liga.
+
+Tope de 200 y el contador de la cabecera sigue diciendo el total real. Se dibuja
+**solo mientras no hay grupos**: en cuanto se arman, la tabla del grupo dice lo
+mismo y mejor —con puntos— y esta lista sobra.
+
+**Dónde se ve cada cosa, que era la confusión:** el LOBBY es para jugar (tu
+partida, tu grupo, la tabla) y el PANEL es para organizar. El padrón completo
+—con zona horaria, horas declaradas y estado— vive en el panel, pestaña
+Inscritos; el lobby muestra la versión pública.

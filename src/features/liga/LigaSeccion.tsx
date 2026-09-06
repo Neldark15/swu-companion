@@ -523,9 +523,18 @@ export function LigaSeccion() {
       {/* 3 · Los grupos. Uno por tarjeta, el mío abierto. */}
       <div id="grupos" />
       {sinArrancar ? (
-        <p className="rounded-2xl border border-swu-border bg-swu-surface px-4 py-6 text-center text-[12px] text-swu-muted">
-          {liga.liga.descripcion ?? 'La temporada todavía no está abierta: cuando se armen los grupos, acá va tu calendario.'}
-        </p>
+        /* MIENTRAS NO HAY GRUPOS, EL LOBBY ES ESTO.
+           Listaba grupos, y durante toda la inscripción no hay ninguno: la
+           pantalla a la que apunta el enlace del video mostraba un párrafo y
+           nada más, tres semanas. Quiénes van entrando es lo único que hay para
+           mostrar en ese período — y es lo que hace ver que la liga es de
+           verdad y que es internacional. */
+        <Padron
+          gente={liga.padron}
+          total={liga.cifras.inscritos}
+          cupo={liga.liga.cupo}
+          vacio={liga.liga.descripcion ?? 'La temporada todavía no está abierta: cuando se armen los grupos, acá va tu calendario.'}
+        />
       ) : (
         grupos.map(g => (
           <TarjetaGrupo
@@ -1171,6 +1180,65 @@ export function TopOcho({ id, grupo, alVerTodo }: {
           <span className="text-[13px] font-black tabular-nums text-swu-text">{f.puntos}</span>
         </div>
       ))}
+    </section>
+  )
+}
+
+
+/**
+ * QUIÉNES VAN ENTRANDO.
+ *
+ * Solo mientras no hay grupos. En cuanto se arman, la tabla del grupo dice lo
+ * mismo y mejor —con puntos— y esta lista sobra.
+ *
+ * El orden es el de llegada y **no se numera**: poner el puesto convierte una
+ * lista de gente en una carrera por entrar primero, y entrar primero no da
+ * ninguna ventaja en esta liga.
+ *
+ * Si todavía no hay nadie no se dibuja una lista vacía: se dice qué falta.
+ */
+export function Padron({ gente, total, cupo, vacio }: {
+  gente: LigaCompleta['padron']
+  total: number
+  cupo: number | null
+  vacio: string
+}) {
+  if (gente.length === 0) {
+    return (
+      <p className="rounded-2xl border border-swu-border bg-swu-surface px-4 py-6 text-center text-[12px] text-swu-muted">
+        {vacio}
+      </p>
+    )
+  }
+  return (
+    <section className="overflow-hidden rounded-2xl border border-swu-border bg-swu-surface">
+      <div className="flex items-center gap-2 px-3 py-2.5">
+        <Users size={14} style={{ color: 'var(--liga-acento)' }} />
+        <p className="flex-1 text-[12px] font-black text-swu-text">Quiénes van entrando</p>
+        <span className="font-mono text-[11px] tabular-nums text-swu-muted">
+          {total}{cupo ? `/${cupo}` : ''}
+        </span>
+      </div>
+      <div className="max-h-[420px] overflow-y-auto barra-fina">
+        {gente.map(p => (
+          <div key={p.id} className="flex items-center gap-2 border-t border-swu-border px-3 py-2">
+            <Bandera pais={p.pais} tam={13} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[13px] font-bold text-swu-text">{p.nombre}</span>
+              {p.lider && (
+                <span className="block truncate text-[10px] text-swu-muted">
+                  {p.lider}{p.base ? ` · ${p.base}` : ''}
+                </span>
+              )}
+            </span>
+          </div>
+        ))}
+      </div>
+      {total > gente.length && (
+        <p className="border-t border-swu-border px-3 py-2 text-center text-[10px] text-swu-muted">
+          y {total - gente.length} más
+        </p>
+      )}
     </section>
   )
 }

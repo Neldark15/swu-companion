@@ -16,7 +16,7 @@
 import { useState } from 'react'
 import { Trophy, Swords, CalendarClock, BookOpen, Megaphone, Settings2, Users, Globe2, Layers, Star, CalendarDays, Timer, ChevronRight, Zap } from 'lucide-react'
 import { Bandera, TarjetaCifra, ContadorPlazo } from './componentes/piezas'
-import { Atajo, AnunciosLiga, ComoFunciona, TopOcho } from './LigaSeccion'
+import { Atajo, AnunciosLiga, ComoFunciona, TopOcho, Padron } from './LigaSeccion'
 import { PortadaLiga } from './PortadaLiga'
 import { BotonLiga } from './BotonLigaInicio'
 import { useActualizacion } from '../../services/actualizacion'
@@ -332,6 +332,23 @@ export function BancoLobbyLiga() {
               <FilaDia key={d} dia={d} d={i} calor={CALOR} max={3} />
             ))}
           </div>
+        </Caso>
+
+        <Caso titulo="Quiénes van entrando — el lobby durante la inscripción">
+          <Padron
+            gente={[
+              { id: '1', nombre: '[demo] Ana', pais: 'SV', lider: 'Ahsoka Tano', base: 'Yellow' },
+              { id: '2', nombre: '[demo] Fran', pais: 'ES', lider: 'Darth Maul', base: 'Blue Force' },
+              { id: '3', nombre: '[demo] Hugo', pais: 'AR', lider: 'Mother Talzin', base: null },
+              { id: '4', nombre: 'Sin país declarado', pais: null, lider: null, base: null },
+            ]}
+            total={10}
+            cupo={128}
+            vacio="(no debería verse)"
+          />
+          <div className="mt-2" />
+          <Padron gente={[]} total={0} cupo={null}
+                  vacio="Todavía no hay nadie inscrito: cuando se armen los grupos, acá va tu calendario." />
         </Caso>
 
         <Caso titulo="Cómo funciona">
