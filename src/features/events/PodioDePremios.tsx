@@ -22,6 +22,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Trophy, Gift, Package, Plus, Trash2, Loader2 } from 'lucide-react'
 import {
   getPremiosFisicos, getEscalaVirtual, agregarPremio, borrarPremio, escucharPremios,
+  fijarEscalaSobres, getEscalaPropia, type PeldañoEscala,
   type PremioFisico, type EscalonVirtual,
 } from '../../services/premiosTorneo'
 
@@ -35,6 +36,7 @@ export function PodioDePremios({ eventId, puedoEditar }: {
   const [fisicos, setFisicos] = useState<PremioFisico[] | null>(null)
   const [escala, setEscala] = useState<EscalonVirtual[]>([])
   const [abriendo, setAbriendo] = useState(false)
+  const [editandoEscala, setEditandoEscala] = useState(false)
   const [fallo, setFallo] = useState<string | null>(null)
 
   const cargar = useCallback(async () => {
@@ -67,17 +69,33 @@ export function PodioDePremios({ eventId, puedoEditar }: {
         <Trophy size={16} className="text-swu-amber" />
         <h3 className="text-sm font-black tracking-tight text-swu-text">Premios</h3>
         {puedoEditar && (
-          <button
-            onClick={() => setAbriendo(v => !v)}
-            className="ml-auto flex items-center gap-1 rounded-lg border border-swu-border px-2 py-1 text-[11px] font-bold text-swu-text"
-          >
-            <Plus size={12} /> {abriendo ? 'Cerrar' : 'Agregar premio'}
-          </button>
+          <div className="ml-auto flex gap-1.5">
+            <button
+              onClick={() => { setEditandoEscala(v => !v); setAbriendo(false) }}
+              className="flex items-center gap-1 rounded-lg border border-swu-border px-2 py-1 text-[11px] font-bold text-swu-text"
+            >
+              <Gift size={12} /> {editandoEscala ? 'Cerrar' : 'Sobres'}
+            </button>
+            <button
+              onClick={() => { setAbriendo(v => !v); setEditandoEscala(false) }}
+              className="flex items-center gap-1 rounded-lg border border-swu-border px-2 py-1 text-[11px] font-bold text-swu-text"
+            >
+              <Plus size={12} /> {abriendo ? 'Cerrar' : 'Premio'}
+            </button>
+          </div>
         )}
       </header>
 
       {puedoEditar && abriendo && (
         <FormularioPremio eventId={eventId} onListo={() => { setAbriendo(false); void cargar() }} />
+      )}
+
+      {puedoEditar && editandoEscala && (
+        <EditorEscala
+          eventId={eventId}
+          onListo={() => { setEditandoEscala(false); void cargar() }}
+          onFallo={setFallo}
+        />
       )}
 
       {fisicos === null ? (
@@ -164,6 +182,138 @@ function BotonBorrar({ id, onListo, onFallo }: {
     >
       {borrando ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
     </button>
+  )
+}
+
+/**
+ * La escala de sobres, editable por quien lleva el torneo.
+ *
+ * ── Por qué existe ───────────────────────────────────────────────────
+ *
+ * `torneo_escala_sobres` llevaba meses sin una sola escritura desde la app: la
+ * escala especial del Twin Suns la puso una persona a mano en el SQL Editor.
+ * Por eso el 4º de la final se quedó con CERO sobres — la escala se escribió
+ * cuando la final todavía era de tres, y creció a cuatro sin que nadie
+ * volviera a tocarla. En ese mismo torneo los premios cambiaron TRES veces en
+ * una tarde.
+ *
+ * ── Dos decisiones del formulario ────────────────────────────────────
+ *
+ * SE EDITA UNA LISTA DE PUESTOS, no una fórmula. Los premios de esta comunidad
+ * no siguen una curva: «3 al campeón, 1 al 2º, 1 al 3º, 1 al 4º, y 1 al ganador
+ * de cada mesa que quedó». Eso es una lista, y cualquier fórmula que la
+ * describiera sería una mentira ordenada.
+ *
+ * Y SE PUEDE VOLVER A LA ESCALA DE SIEMPRE. Una escala propia con todo en cero
+ * no es lo mismo que no tener escala: la primera reparte cero, la segunda
+ * reparte 5/4/3/2/1. Sin una forma de deshacer, cualquiera que la abra por
+ * curiosidad deja el torneo sin premios.
+ */
+function EditorEscala({ eventId, onListo, onFallo }: {
+  eventId: string
+  onListo: () => void
+  onFallo: (m: string) => void
+}) {
+  const [peldaños, setPeldaños] = useState<PeldañoEscala[] | null>(null)
+  const [guardando, setGuardando] = useState(false)
+
+  useEffect(() => {
+    void (async () => {
+      const propia = await getEscalaPropia(eventId)
+      setPeldaños(propia ?? [])
+    })()
+  }, [eventId])
+
+  if (peldaños === null) {
+    return <p className="px-1 text-[11px] text-swu-muted">Leyendo la escala…</p>
+  }
+
+  const cambiar = (i: number, campo: keyof PeldañoEscala, v: number) =>
+    setPeldaños(ps => ps!.map((p, j) => (j === i ? { ...p, [campo]: v } : p)))
+
+  const guardar = async (lista: PeldañoEscala[]) => {
+    setGuardando(true)
+    const r = await fijarEscalaSobres(eventId, lista)
+    setGuardando(false)
+    if (r.ok) onListo()
+    else onFallo(r.error ?? 'No se pudo guardar la escala.')
+  }
+
+  const propia = peldaños.length > 0
+
+  return (
+    <div className="space-y-2 rounded-2xl border border-swu-border bg-swu-surface p-3">
+      <p className="text-[11px] leading-relaxed text-swu-muted">
+        {propia
+          ? 'Este torneo tiene su propia escala. Un puesto que no esté en la lista recibe cero.'
+          : 'Este torneo usa la escala de siempre (5/4/3/2/1). Agregá puestos para darle una propia.'}
+      </p>
+
+      <ul className="space-y-1.5">
+        {peldaños.map((p, i) => (
+          <li key={i} className="flex items-center gap-2">
+            <span className="text-[11px] text-swu-muted">Puesto</span>
+            <input
+              type="number" min={1} inputMode="numeric" value={p.puesto}
+              onChange={e => cambiar(i, 'puesto', Number(e.target.value))}
+              className="h-11 w-14 rounded-lg border border-swu-border bg-swu-bg text-center
+                         font-mono text-sm text-swu-text"
+            />
+            <span className="text-[11px] text-swu-muted">→</span>
+            <input
+              type="number" min={0} inputMode="numeric" value={p.sobres}
+              onChange={e => cambiar(i, 'sobres', Number(e.target.value))}
+              className="h-11 w-14 rounded-lg border border-swu-border bg-swu-bg text-center
+                         font-mono text-sm text-swu-text"
+            />
+            <span className="text-[11px] text-swu-muted">
+              {p.sobres === 1 ? 'sobre' : 'sobres'}
+            </span>
+            <button
+              onClick={() => setPeldaños(ps => ps!.filter((_, j) => j !== i))}
+              aria-label={`Quitar el puesto ${p.puesto}`}
+              className="ml-auto flex h-11 w-11 items-center justify-center rounded-lg
+                         text-swu-muted"
+            >
+              <Trash2 size={15} />
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <button
+        onClick={() => setPeldaños(ps => [
+          ...ps!,
+          // El puesto siguiente al último, que es lo que se va a escribir el
+          // 95% de las veces.
+          { puesto: (ps!.at(-1)?.puesto ?? 0) + 1, sobres: 1 },
+        ])}
+        className="flex min-h-[44px] items-center gap-1.5 text-[12px] font-bold text-swu-accent-texto"
+      >
+        <Plus size={14} /> Agregar un puesto
+      </button>
+
+      <div className="flex flex-wrap gap-2 pt-1">
+        <button
+          onClick={() => void guardar(peldaños)}
+          disabled={guardando}
+          className="flex min-h-[44px] items-center gap-1.5 rounded-lg bg-swu-accent px-4
+                     text-sm font-bold text-white disabled:opacity-50"
+        >
+          Guardar la escala
+        </button>
+        {propia && (
+          <button
+            onClick={() => void guardar([])}
+            disabled={guardando}
+            className="flex min-h-[44px] items-center rounded-lg border border-swu-border px-4
+                       text-sm font-semibold text-swu-muted disabled:opacity-50"
+          >
+            Volver a la de siempre
+          </button>
+        )}
+      </div>
+    </div>
   )
 }
 

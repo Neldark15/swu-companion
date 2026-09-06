@@ -106,3 +106,76 @@ export function escucharPremios(eventId: string, alCambiar: () => void): () => v
     })
   return () => { void supabase.removeChannel(canal) }
 }
+
+/* ── La escala de sobres, editable ─────────────────────────────────────
+ *
+ * `torneo_escala_sobres` existía y NO se escribía desde ningún lado: cero
+ * referencias en `src/`. La escala especial del Twin Suns la puso una persona
+ * a mano en el SQL Editor a partir de un mensaje.
+ *
+ * Eso es exactamente por qué el 4º de la final se quedó con CERO sobres: la
+ * escala se escribió cuando la final todavía era de tres, y cuando creció a
+ * cuatro nadie volvió a tocarla. Un premio que solo se puede cambiar
+ * escribiendo SQL se queda viejo entre el mensaje y el torneo — y en ese
+ * torneo los premios cambiaron TRES veces en una tarde (9, 10 y 11
+ * inscritos, cada uno con un reparto distinto).
+ *
+ * El premio de un torneo lo decide quien lo organiza, y esa decisión no puede
+ * necesitar a un programador.
+ */
+
+/** Un peldaño de la escala tal como lo edita el organizador. */
+export interface PeldañoEscala {
+  puesto: number
+  sobres: number
+}
+
+/**
+ * Reemplaza la escala del torneo por la que se pasa.
+ *
+ * Se borra y se vuelve a escribir en vez de hacer upsert peldaño a peldaño:
+ * quitar un puesto de la lista tiene que QUITARLO, y con upsert el puesto
+ * viejo sobreviviría anunciando un premio que ya nadie decidió dar.
+ *
+ * Con la lista vacía, el torneo vuelve a la escala de siempre.
+ */
+export async function fijarEscalaSobres(
+  eventId: string,
+  peldaños: PeldañoEscala[],
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseReady()) return { ok: false, error: 'Sin conexión' }
+
+  const { error: eBorrar } = await supabase
+    .from('torneo_escala_sobres').delete().eq('event_id', eventId)
+  if (eBorrar) return { ok: false, error: eBorrar.message }
+
+  const limpios = peldaños
+    .filter(p => Number.isFinite(p.puesto) && p.puesto >= 1 && p.sobres >= 0)
+    .map(p => ({ event_id: eventId, puesto: p.puesto, sobres: p.sobres }))
+
+  if (limpios.length === 0) return { ok: true }
+
+  const { data, error } = await supabase
+    .from('torneo_escala_sobres').insert(limpios).select('puesto')
+  if (error) return { ok: false, error: error.message }
+
+  /* §2u: una escritura frenada por RLS afecta 0 filas y NO da error. Sin
+     contar lo que volvió, la pantalla diría «guardado» con la escala vieja
+     intacta — y el podio seguiría anunciando otra cosa que la que se reparte. */
+  if (!data || data.length !== limpios.length) {
+    return { ok: false, error: 'No tenés permiso para cambiar los premios de este torneo.' }
+  }
+  return { ok: true }
+}
+
+/** Lo que hay guardado como escala PROPIA, sin la de por defecto detrás. */
+export async function getEscalaPropia(eventId: string): Promise<PeldañoEscala[] | null> {
+  if (!isSupabaseReady()) return null
+  const { data, error } = await supabase
+    .from('torneo_escala_sobres')
+    .select('puesto, sobres')
+    .eq('event_id', eventId)
+    .order('puesto')
+  if (error) { console.warn('[premios] escala propia:', error.message); return null }
+  return (data ?? []) as PeldañoEscala[]
+}

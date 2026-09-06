@@ -15,6 +15,7 @@
 import { useState } from 'react'
 import { ContadorVida } from './ContadorVida'
 import { ClasificacionResultante } from './MesasPanel'
+import { PodioDePremios } from './PodioDePremios'
 import type { AsientoMesa, MesaArmada } from '../../services/mesasService'
 import type { CloudStanding } from '../../services/tournamentCloud'
 
@@ -107,6 +108,17 @@ export function BancoMesaFila() {
           «Coffeetech» va sin cuenta a propósito: si el cruce fuera por <code>user_id</code>,
           se quedaría sin mesa o con la de otro.
         </p>
+      </div>
+
+      {/* El editor de la escala de sobres. Va contra un evento INVENTADO a
+          propósito: con el id de un torneo real, tocar «Guardar» desde el banco
+          le pisaría los premios. Sin sesión la escritura falla, que es
+          justamente el camino que hay que ver. */}
+      <div className="mb-5 rounded-2xl border border-swu-border bg-swu-surface p-3">
+        <p className="mb-2 text-sm font-bold text-swu-text">
+          Premios y escala de sobres (torneo inventado)
+        </p>
+        <PodioDePremios eventId="00000000-0000-0000-0000-000000000000" puedoEditar />
       </div>
 
       <div className="space-y-5">
