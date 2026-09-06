@@ -257,12 +257,6 @@ const adminSystems: Sistema[] = [
 const HERRAMIENTAS_PROPIAS = [
   { icon: MandoTrophyIcon, label: 'Temporada', tone: 'amber' as HudTone, to: '/temporada', llave: 'curador' as const },
   { icon: EmisionIcon,     label: 'Mi espacio', tone: 'cyan' as HudTone, to: '', llave: 'creador' as const },
-  /* El plan de la liga es un DOCUMENTO, no una pantalla: vive en
-     `public/planes/` y lo sirve Vercel tal cual. Va acá para que Alejo —que
-     es creador, no admin— pueda leerlo desde la app sin depender de un enlace
-     que solo abre Nel. */
-  { icon: ArticuloIcon, label: 'Plan de la liga', tone: 'purple' as HudTone,
-    to: '/planes/liga-puente3.html', llave: 'plan' as const, externo: true },
   /* La Liga Internacional. Mientras el demo esté cerrado la ve una sola
      cuenta, y sin esta casilla habría que teclear el URL: una capacidad sin
      puerta es una capacidad que no existe (§3l). */
@@ -637,7 +631,6 @@ export function HomePage() {
         const mias = HERRAMIENTAS_PROPIAS
           .filter(h => h.llave === 'curador' ? curador === true
                      : h.llave === 'liga'    ? veLiga === true
-                     : h.llave === 'plan'    ? (curador === true || typeof miCreador === 'string')
                      : typeof miCreador === 'string')
           .map(h => ({
             ...h,
@@ -651,7 +644,7 @@ export function HomePage() {
               {mias.map(h => (
                 <MosaicoModulo
                   key={h.label}
-                  sys={{ icon: h.icon, label: h.label, tone: h.tone, to: h.to, externo: h.externo }}
+                  sys={{ icon: h.icon, label: h.label, tone: h.tone, to: h.to }}
                 />
               ))}
             </div>

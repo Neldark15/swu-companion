@@ -33,7 +33,6 @@ export interface ModuloVisible {
    * sea, a Inicio en silencio. Los documentos de `public/planes/` se sirven
    * ANTES del rewrite (§2r), así que necesitan una navegación de verdad.
    */
-  externo?: boolean
 }
 
 
@@ -44,7 +43,7 @@ export function MosaicoModulo({ sys }: { sys: ModuloVisible }) {
 
   return (
     <button
-      onClick={() => { if (sys.externo) window.location.assign(sys.to); else navigate(sys.to) }}
+      onClick={() => navigate(sys.to)}
       className="text-left"
     >
       {/* El mismo 3D de las cartas, con menos ángulo: un panel de interfaz que
