@@ -4239,3 +4239,36 @@ fueron leer el DOM en el mismo tick de un `.click()` y una aserción propia mal
 escrita que abortó antes de escribir el archivo. **Antes de creerle a una
 medición que dice que el código está roto, hay que comprobar que la medición
 midió.**
+
+### 5b. LIGA — el emblema, y por qué NO se aplana
+
+`public/liga/emblema.webp`, de `simbolo.png` (1254×1254, 2 MB). Convertido a
+256 px: **1992 KB → 27 KB, 73× más liviano**, y se pinta a 36.
+
+**LA TRANSPARENCIA SE MIDIÓ ANTES DE DECIDIR, Y ACÁ SÍ HACÍA FALTA.** El banner
+venía en RGBA con **0 píxeles no opacos** —el canal era decorativo y tirarlo no
+costó nada—; el emblema tiene **1.572.202 de 1.572.516 con alfa**. Aplanarlo
+—a JPEG, o a WebP sin alfa— lo compondría contra negro y el logo saldría dentro
+de un cuadrado (§4m). Va con `exact=True` para que la conversión no toque los
+píxeles totalmente transparentes.
+
+**Una marca no se recorta:** `object-contain` y alto fijo. Recortada deja de
+identificar, que es lo único que un logo tiene que hacer.
+
+**`alt=""` y `aria-hidden`**, y no el nombre de la liga: el nombre está escrito
+al lado en el `<h1>`. Un `alt` con el mismo texto se lo lee dos veces a quien
+usa lector de pantalla.
+
+**EL TÍTULO ENVUELVE, NO TRUNCA.** Con el emblema, la píldora de estado y el
+botón del panel en la misma fila quedan ~150 px, y «Liga Internacional PUENTE»
+salía **«Liga Internacion…»**. El nombre de la liga es lo último que se puede
+cortar: es lo que le dice a alguien que llegó al sitio correcto. Dos renglones
+a 15 px entran.
+
+Y en la línea de abajo **la temporada va primero**: es la que se corta, y lo que
+tiene que sobrevivir es en cuál temporada estás, no el descriptor.
+
+Tercera vez en el día que la respuesta es la misma —cifras, atajos, título— y
+conviene tenerla escrita como regla: **cuando algo no entra, primero se acorta
+el texto redundante, después se deja envolver, y solo al final se trunca. Un
+rótulo que no se puede leer no es un rótulo.**

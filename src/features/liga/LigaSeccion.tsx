@@ -250,12 +250,36 @@ export function LigaSeccion() {
           <Link to="/" className="-ml-1 p-1 text-swu-muted hover:text-swu-text" aria-label="Volver">
             <ChevronLeft size={18} />
           </Link>
+          {/* EL EMBLEMA, como en la maqueta. Va `object-contain` y con alto
+              fijo: una marca NO se recorta —recortada deja de identificar, que
+              es lo único que tiene que hacer (§4m)—. Es decorativo acá porque
+              el nombre está escrito al lado, así que `alt` vacío: leerlo en voz
+              alta sería repetir el título. Si el archivo falta, el navegador no
+              dibuja nada y la cabecera queda igual. */}
+          <img
+            src="/liga/emblema.webp"
+            alt=""
+            aria-hidden
+            className="h-9 w-9 shrink-0 object-contain"
+            loading="eager"
+            decoding="async"
+          />
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-[17px] font-black tracking-tight text-swu-text">
+            {/* ENVUELVE, NO TRUNCA. Con el emblema, la píldora de estado y el
+                botón del panel en la misma fila quedan ~150 px para el título,
+                y «Liga Internacional PUENTE» salía «Liga Internacion…». El
+                nombre de la liga es lo último que se puede cortar: es lo que
+                le dice a alguien que llegó al sitio correcto. Dos renglones a
+                15 px entran; tres se cortan, que a esa altura ya es otro
+                problema. */}
+            <h1 className="line-clamp-2 text-[15px] font-black leading-tight tracking-tight text-swu-text">
               {liga.liga.nombre}
             </h1>
             <p className="truncate text-[9px] font-bold uppercase tracking-[0.14em] text-swu-muted">
-              Companion de liga · {temporada?.nombre ?? 'sin temporada abierta'}
+              {/* La temporada PRIMERO: si esta línea se corta —y se corta,
+                  es la de menor prioridad de la cabecera— lo que tiene que
+                  sobrevivir es en cuál temporada estás, no el descriptor. */}
+              {temporada ? `${temporada.nombre} · Companion de liga` : 'Sin temporada abierta'}
             </p>
           </div>
 

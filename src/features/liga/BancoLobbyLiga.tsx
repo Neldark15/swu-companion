@@ -131,14 +131,13 @@ export function BancoLobbyLiga() {
                  style={{ backgroundImage: 'url(/liga/portada.webp)' }} />
             <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-swu-bg via-swu-bg/85 to-swu-bg/55" />
             <div className="relative flex items-center gap-2 px-3 py-3">
+              <img src="/liga/emblema.webp" alt="" aria-hidden className="h-9 w-9 shrink-0 object-contain" />
               <div className="min-w-0 flex-1">
-                <h2 className="truncate text-[17px] font-black tracking-tight text-swu-text">
+                <h2 className="line-clamp-2 text-[15px] font-black leading-tight tracking-tight text-swu-text">
                   Liga Internacional PUENTE
                 </h2>
-                <p className="mt-0.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider"
-                   style={{ color: 'var(--liga-acento)' }}>
-                  <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: 'var(--liga-acento)' }} />
-                  En curso <span className="text-swu-muted">· Temporada 1</span>
+                <p className="truncate text-[9px] font-bold uppercase tracking-[0.14em] text-swu-muted">
+                  Temporada 1 · Companion de liga
                 </p>
               </div>
               <span className="shrink-0 rounded-full border border-swu-green/50 bg-swu-green/10 px-2.5 py-1 text-[10px] font-bold text-swu-green">
