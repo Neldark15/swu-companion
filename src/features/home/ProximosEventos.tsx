@@ -21,7 +21,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CalendarDays, MapPin, Users, ChevronRight } from 'lucide-react'
 import { HudPanel, HudCorners, HexIcon } from '../../components/Hud'
-import { getUpcomingOfficialEvents, type OfficialEvent } from '../../services/events'
+import { getUpcomingOfficialEvents, miTorneoEnCurso, type OfficialEvent } from '../../services/events'
+import { useAuth } from '../../hooks/useAuth'
 import { fechaYHora, esHoySV, esMananaSV } from '../../services/horaSV'
 
 /**
@@ -43,15 +44,28 @@ function etiquetaDia(iso: string): string | null {
 
 export function ProximosEventos() {
   const navigate = useNavigate()
+  const { supabaseUser } = useAuth()
   const [eventos, setEventos] = useState<OfficialEvent[] | null>(null)
 
   useEffect(() => {
     let vivo = true
-    getUpcomingOfficialEvents(3)
-      .then(e => { if (vivo) setEventos(e) })
-      .catch(() => { if (vivo) setEventos([]) })
+    void (async () => {
+      try {
+        /* El torneo en el que YA estás inscrito se saca de esta lista: lo
+           muestra `MiTorneo`, arriba y con más contexto. Repetirlo acá lo haría
+           aparecer dos veces en la misma pantalla, y la de abajo dice menos. */
+        const [lista, mio] = await Promise.all([
+          getUpcomingOfficialEvents(4),
+          supabaseUser ? miTorneoEnCurso(supabaseUser.id) : Promise.resolve(null),
+        ])
+        if (!vivo) return
+        setEventos(lista.filter(e => e.id !== mio?.id).slice(0, 3))
+      } catch {
+        if (vivo) setEventos([])
+      }
+    })()
     return () => { vivo = false }
-  }, [])
+  }, [supabaseUser])
 
   // Mientras carga tampoco se dibuja nada: un esqueleto que casi siempre
   // termina en vacío hace parpadear la pantalla de inicio en cada entrada.

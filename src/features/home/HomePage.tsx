@@ -39,6 +39,7 @@ import { NoticiasSection } from './NoticiasSection'
 import { CartaDelDia } from './CartaDelDia'
 import { DondeJugar } from './DondeJugar'
 import { ProximosEventos } from './ProximosEventos'
+import { MiTorneo } from './MiTorneo'
 import { AvisoPerfil } from '../profile/AvisoPerfil'
 import { AvisoUbicacion } from '../profile/AvisoUbicacion'
 import { AvisoSobreDiario } from '../sobres/AvisoSobreDiario'
@@ -540,6 +541,13 @@ export function HomePage() {
           </HudPanel>
         </button>
       </div>
+
+      {/* ── Tu torneo ──
+          Pegado a la acción principal, no en la franja del pie. «Próximos
+          eventos» es una lista para curiosear; esto es un compromiso con hora
+          y lugar, y el día del torneo es lo único que la persona abre la app a
+          mirar. Solo se dibuja si estás inscrito. */}
+      <MiTorneo />
 
       {/* ── Marcador ── */}
       {marcadores && (

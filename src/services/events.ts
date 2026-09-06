@@ -914,3 +914,52 @@ export function logoDe(evento: OfficialEvent, porFormato: Map<string, string>): 
     ?? porFormato.get(evento.format)
     ?? null
 }
+
+/**
+ * El torneo en el que ESTÁS inscrito, si hay uno.
+ *
+ * ── Por qué es una consulta aparte y no un filtro de la lista ────────
+ *
+ * «Qué torneos hay» y «en cuál juego yo» son dos preguntas distintas y se
+ * miran en momentos distintos. La primera es una lista para curiosear; la
+ * segunda es lo que la persona necesita AHORA —dónde entrar, a qué hora, en
+ * qué mesa quedó—, y por eso va arriba en el Inicio y no en una franja al pie.
+ *
+ * Empieza por `event_registrations` y no por los eventos: quien está inscrito
+ * suele estarlo en UNO, así que se pregunta por esa fila y se traen solo esos
+ * eventos, en vez de bajar todos los abiertos para descartarlos en el cliente.
+ */
+export async function miTorneoEnCurso(userId: string): Promise<OfficialEvent | null> {
+  if (!isSupabaseReady() || !userId) return null
+
+  const { data: mias, error: errMias } = await supabase
+    .from('event_registrations')
+    .select('event_id')
+    .eq('user_id', userId)
+  // §2f: sin mirar el error, «no se pudo preguntar» se leería como «no estás
+  // inscrito en nada» y la tarjeta no aparecería nunca.
+  if (errMias) { console.warn('[torneos] mi inscripción:', errMias.message); return null }
+  if (!mias || mias.length === 0) return null
+
+  const { data, error } = await supabase
+    .from('official_events')
+    .select('*')
+    .in('id', mias.map(r => r.event_id as string))
+    .in('status', ['open', 'active'])
+    // El más cercano primero; los sin fecha, al final.
+    .order('date', { ascending: true, nullsFirst: false })
+    .limit(1)
+  if (error) { console.warn('[torneos] mi torneo:', error.message); return null }
+  if (!data || data.length === 0) return null
+
+  const ev = data[0]
+  const { data: perfil } = await supabase
+    .from('profiles').select('name, avatar').eq('id', ev.organizer_id).maybeSingle()
+
+  return {
+    ...ev,
+    organizer_name: perfil?.name || 'Organizador',
+    organizer_avatar: perfil?.avatar || '🎯',
+    is_registered: true,
+  } as OfficialEvent
+}
