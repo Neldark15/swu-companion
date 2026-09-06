@@ -1,22 +1,37 @@
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { HolocronLoader } from './PageTransition'
 import { Shield, UserPlus, Sparkles, Swords, Trophy, Target, Gift } from 'lucide-react'
 
+/* La app entera habla de VOS. Este muro hablaba de usted —«Necesita una
+   cuenta», «Organice», «Gane XP»— y es la primera pantalla que ve quien llega
+   de afuera por un enlace compartido: el único sitio donde el tuteo formal se
+   lee como que llegaste a otra aplicación. */
 const features = [
   { icon: Gift, label: '3 sobres al día', desc: 'Con la app instalada y los avisos puestos' },
-  { icon: Swords, label: 'Tracker en Vivo', desc: 'Contadores de vida en tiempo real' },
-  { icon: Trophy, label: 'Torneos', desc: 'Organice y participe en eventos' },
-  { icon: Target, label: 'Misiones Diarias', desc: 'Gane XP completando objetivos' },
+  { icon: Swords, label: 'Tracker en vivo', desc: 'Contadores de vida en tiempo real' },
+  { icon: Trophy, label: 'Torneos', desc: 'Organizá y jugá eventos de verdad' },
+  { icon: Target, label: 'Misiones diarias', desc: 'Ganá XP completando objetivos' },
 ]
 
 interface AuthGateProps {
   children: React.ReactNode
+  /**
+   * Por qué esta persona está viendo el muro AHORA.
+   *
+   * El muro cubre 38 rutas y decía siempre lo mismo: «Acceso Restringido ·
+   * Necesita una cuenta para acceder a este módulo». Para quien llega desde el
+   * video de un creador a `/liga/:code`, eso no menciona la liga por ningún
+   * lado: la promesa que lo trajo desaparece justo en el paso donde hay que
+   * decidir si vale la pena registrarse.
+   */
+  motivo?: string
 }
 
-export function AuthGate({ children }: AuthGateProps) {
+export function AuthGate({ children, motivo }: AuthGateProps) {
   const { currentProfile, authListo } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
 
   /* «Todavía no sé» NO es «no tenés cuenta».
    *
@@ -39,9 +54,11 @@ export function AuthGate({ children }: AuthGateProps) {
 
         {/* Title */}
         <div>
-          <h2 className="text-xl font-extrabold text-swu-text mb-1">Acceso Restringido</h2>
+          <h2 className="text-xl font-extrabold text-swu-text mb-1">
+            {motivo ? 'Te falta la cuenta' : 'Acceso restringido'}
+          </h2>
           <p className="text-sm text-swu-muted">
-            Necesita una cuenta para acceder a este módulo
+            {motivo ?? 'Necesitás una cuenta de HOLOCRON para entrar acá.'}
           </p>
         </div>
 
@@ -70,8 +87,20 @@ export function AuthGate({ children }: AuthGateProps) {
         </div>
 
         {/* CTA */}
+        {/* EL DESTINO SE RECUERDA.
+            Antes esto era `navigate('/profile')` pelado: quien llegaba desde un
+            enlace, creaba la cuenta y quedaba en su perfil, sin ninguna pista
+            de que había venido a otra cosa. Volver a buscar la liga exige
+            acordarse de la URL, y nadie se acuerda de una URL que abrió una vez.
+
+            Va la ruta MÁS el query: `/rulings?regla=…` se comparte así, y sin
+            el search se vuelve a la pantalla correcta con el contexto perdido.
+            El hash NO viaja: ahí es donde Supabase deja el token del correo de
+            recuperación (gotcha 2w), y eso no se copia a ningún lado. */}
         <button
-          onClick={() => navigate('/profile')}
+          onClick={() => navigate(
+            `/profile?next=${encodeURIComponent(location.pathname + location.search)}`,
+          )}
           className="w-full py-3 rounded-xl bg-swu-accent text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform"
         >
           <UserPlus size={16} />
@@ -79,7 +108,7 @@ export function AuthGate({ children }: AuthGateProps) {
         </button>
 
         <p className="text-[10px] text-swu-muted">
-          Es gratis · Solo necesita un correo electrónico
+          Es gratis · Solo necesitás un correo
         </p>
       </div>
     </div>

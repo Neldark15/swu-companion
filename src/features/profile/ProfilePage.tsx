@@ -102,6 +102,31 @@ export function ProfilePage() {
       navigate('/profile', { replace: true })
     }
   }, [navigate])
+
+  /**
+   * VOLVER A DONDE IBA.
+   *
+   * `AuthGate` manda acá con `?next=` cuando alguien choca con el muro. Sin
+   * esta vuelta, quien llega desde el video de un creador crea la cuenta y se
+   * queda en su perfil sin ninguna pista de que venía a otra cosa — y volver
+   * exige acordarse de una URL que abrió una sola vez.
+   *
+   * Tres guardas, y ninguna es decorativa (son las mismas de `useRutaPersistente`):
+   *   · sólo con sesión ya resuelta, o se navega antes de que el perfil exista;
+   *   · sólo rutas INTERNAS — un `//otrositio.com` en el query convertiría esta
+   *     pantalla en un redirector abierto, y el query lo escribe cualquiera;
+   *   · `replace`, para que el botón de atrás no devuelva al muro que ya pasó.
+   */
+  useEffect(() => {
+    if (!currentProfile) return
+    const destino = new URLSearchParams(window.location.search).get('next')
+    if (!destino) return
+    if (!destino.startsWith('/') || destino.startsWith('//')) {
+      navigate('/profile', { replace: true })
+      return
+    }
+    navigate(destino, { replace: true })
+  }, [currentProfile, navigate])
   const [stats, setStats] = useState({ matches: 0, tournaments: 0, decks: 0, favorites: 0 })
   const [passkeySupported, setPasskeySupported] = useState(false)
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null)

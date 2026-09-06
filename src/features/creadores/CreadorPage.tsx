@@ -343,7 +343,7 @@ function FormularioNuevaLiga({ alCrear, alAvisar }: { alCrear: () => void; alAvi
   const [nombre, setNombre] = useState('')
   const [code, setCode] = useState('')
   const [descripcion, setDescripcion] = useState('')
-  const [cupo, setCupo] = useState(8)
+  const [cupo, setCupo] = useState<number | null>(null)
   const [ocupado, setOcupado] = useState(false)
 
   const crear = useCallback(async () => {
@@ -381,11 +381,17 @@ function FormularioNuevaLiga({ alCrear, alAvisar }: { alCrear: () => void; alAvi
         />
         <label className="flex items-center justify-between text-[12px] text-swu-muted">
           Cupo de jugadores
+          {/* El tope era 16 y la liga internacional apunta a 128: la escalera
+              vieja hacía IMPOSIBLE crear la liga que se quiere crear. Y «sin
+              tope» es el valor de fábrica porque el cupo recién ahora se aplica
+              de verdad — un número bajo por omisión rechazaría gente en
+              silencio, que es justo el fallo que se acaba de tapar. */}
           <select
-            value={cupo} onChange={e => setCupo(Number(e.target.value))}
+            value={cupo ?? ''} onChange={e => setCupo(e.target.value ? Number(e.target.value) : null)}
             className="rounded-lg border border-swu-border bg-swu-bg px-2 py-1.5 text-swu-text"
           >
-            {[4, 6, 8, 10, 12, 16].map(n => <option key={n} value={n}>{n}</option>)}
+            <option value="">Sin tope</option>
+            {[8, 16, 32, 64, 128, 256].map(n => <option key={n} value={n}>{n}</option>)}
           </select>
         </label>
         <button

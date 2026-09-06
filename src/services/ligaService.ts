@@ -189,6 +189,79 @@ export async function getMiLiga(): Promise<MiLiga | null> {
   return r
 }
 
+/**
+ * EL CARNÉ — lo que sos en la liga ANTES de tener plaza.
+ *
+ * Entre inscribirse y que el organizador arme los grupos pasan SEMANAS. En ese
+ * hueco `mi_liga()` no tenía nada que devolver, así que quien acababa de
+ * anotarse abría su perfil y lo veía igual de vacío que antes: ni la app le
+ * decía «estás dentro» ni existía nada que lo trajera de vuelta. Ese es el
+ * paso donde se cae la retención, no el formulario.
+ *
+ * `carne` es una clave NUEVA en una rama que ya devolvía `liga: null`, y eso
+ * es a propósito: una PWA sin actualizar sigue cortando en `!r.grupo` y sigue
+ * viendo exactamente lo de antes (§2g). La cicatriz de más arriba —«así fue
+ * exactamente como esta tarjeta desapareció para todos»— es el motivo de que
+ * el cambio sea aditivo y no una firma nueva.
+ */
+export interface CarneLiga {
+  inscripcion: string
+  ligaId: string
+  code: string
+  nombre: string
+  estado: string
+  /** El nombre tal como sale en la tabla: completo, o iniciales si no consintió. */
+  nombreVisible: string
+  consientePerfil: boolean
+  pais: string | null
+  lider: string | null
+  base: string | null
+  tier: string
+  inscritoEn: string
+  /** Tu propia disponibilidad. Sin esto, editarla arrancaría en blanco y guardar borraría. */
+  zona: string | null
+  franjas: string | null
+  /** «Sos el 34 de 128». Las dos cifras juntas: un «34» suelto no dice nada. */
+  puesto: number
+  total: number
+  cupo: number | null
+}
+
+/**
+ * Una sola llamada para las dos preguntas: ¿tengo plaza? y, si no, ¿tengo carné?
+ *
+ * Van juntas porque son la misma fila del servidor. Preguntarlas por separado
+ * serían dos viajes para pintar una tarjeta en la pantalla que más se abre.
+ */
+export async function getMiEstadoLiga(): Promise<{ liga: MiLiga | null; carne: CarneLiga | null }> {
+  const vacio = { liga: null, carne: null }
+  if (!isSupabaseReady()) return vacio
+  const { data, error } = await supabase.rpc('mi_liga')
+  // §2f otra vez: un fallo tiene que verse distinto de «no jugás ninguna liga».
+  if (error) {
+    console.warn('[Liga] mi_liga:', error.message)
+    return vacio
+  }
+  const r = data as ({ ok?: boolean; carne?: CarneLiga } & MiLiga) | null
+  if (!r?.ok) return vacio
+  return { liga: r.grupo ? r : null, carne: r.carne ?? null }
+}
+
+/**
+ * Mostrar o esconder el nombre propio en la tabla de la liga.
+ *
+ * Esto existe porque la decisión se toma en un formulario, una vez, sobre el
+ * dato más expuesto de la liga — y no es simétrica: quien se escondió puede
+ * querer mostrarse cuando gane, y quien se mostró puede querer esconderse. Lo
+ * segundo es lo que no puede esperar a una pantalla de ajustes.
+ *
+ * El servidor recalcula el nombre desde `profiles` y toca también las plazas
+ * vivas: el nombre de la tabla se copia a la plaza al armar los grupos, así
+ * que sin esa segunda escritura el cambio no se vería donde importa.
+ */
+export const guardarNombrePublico = (liga: string, consiente: boolean) =>
+  rpc('liga_nombre_publico', { p_liga: liga, p_consiente: consiente })
+
 /** Lo que la casa del creador enseña cuando está transmitiendo AHORA. */
 export interface EnVivoCreador {
   code: string
@@ -221,19 +294,39 @@ export async function enVivoDe(creadorCode: string): Promise<EnVivoCreador | nul
 
 // ── Las acciones. Todas devuelven { ok, mensaje } y el guardia vive en la RPC ──
 
-export interface ResultadoLiga { ok: boolean; mensaje?: string }
+/**
+ * `falta` viaja también en el FALLO, y es la mitad del valor de esta capa.
+ *
+ * Un error de texto le dice a la persona QUÉ pasó; `falta` le dice a la
+ * pantalla QUÉ HACER. Sin esa clave, «Antes de entrar, elegí tu país» es una
+ * pared: el mensaje es correcto y no hay forma de actuar sobre él sin salir
+ * de la liga a buscar dónde se pone el país. Con ella, el asistente abre el
+ * paso que corresponde.
+ *
+ * Los valores los define el servidor (`nombre`, `pais`, `horarios`,
+ * `transmision`, `cupo`, `cerrada`, `repetida`). El cliente NO los inventa: si
+ * llega uno que no conoce, cae en el mensaje de texto, que siempre está.
+ */
+export interface ResultadoLiga { ok: boolean; mensaje?: string; falta?: string }
 
 async function rpc(nombre: string, args: Record<string, unknown>): Promise<ResultadoLiga & { extra?: Record<string, unknown> }> {
   if (!isSupabaseReady()) return { ok: false, mensaje: 'Sin conexión con el servidor' }
   // §2f: supabase-js NO lanza ante un error de PostgREST.
   const { data, error } = await supabase.rpc(nombre, args)
   if (error) return { ok: false, mensaje: error.message }
-  const r = data as { ok: boolean; error?: string } | null
-  if (!r?.ok) return { ok: false, mensaje: r?.error ?? 'No se pudo' }
+  const r = data as { ok: boolean; error?: string; falta?: string } | null
+  if (!r?.ok) return { ok: false, mensaje: r?.error ?? 'No se pudo', falta: r?.falta }
   return { ok: true, extra: r as Record<string, unknown> }
 }
 
-export const crearLiga = (code: string, nombre: string, descripcion: string, cupo: number) =>
+/**
+ * `cupo` en `null` es SIN TOPE, y ahora significa eso de verdad.
+ *
+ * La columna tenía `default 10`, así que un null se convertía en diez al
+ * insertar: el «sin tope» era inexpresable y una liga de 128 nacía capada.
+ * Sin el default, null vuelve a ser lo único que puede ser.
+ */
+export const crearLiga = (code: string, nombre: string, descripcion: string, cupo: number | null) =>
   rpc('liga_crear', { p_code: code, p_nombre: nombre, p_descripcion: descripcion, p_cupo: cupo })
 export const abrirInscripcion = (liga: string) => rpc('liga_abrir_inscripcion', { p_liga: liga })
 export const cerrarInscripcion = (liga: string) => rpc('liga_cerrar_inscripcion', { p_liga: liga })

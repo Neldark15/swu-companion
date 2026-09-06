@@ -1,22 +1,42 @@
 /**
- * ENTRAR A LA LIGA — el formulario de inscripción.
+ * ENTRAR A LA LIGA — el alta.
  *
  * Para mucha gente esta va a ser la PRIMERA pantalla de la app: la liga
  * internacional se anuncia en YouTube y se entra por el enlace, así que hay
- * que contar con cuentas recién creadas que no saben nada del resto. Por eso
- * son cuatro campos y cada uno dice PARA QUÉ se pide; un formulario que pide
- * sin explicar se abandona, y acá abandonarlo es no jugar.
+ * que contar con cuentas recién creadas que no saben nada del resto. Cada
+ * campo dice PARA QUÉ se pide; un formulario que pide sin explicar se
+ * abandona, y acá abandonarlo es no jugar.
+ *
+ * ── Pasos, pero solo los que FALTAN ───────────────────────────────────
+ *
+ * El diseño pedía un asistente de cuatro pasos que se saltan solos cuando el
+ * perfil ya los tiene. Medido: 42 de 42 perfiles tienen nombre y 39 de 42
+ * tienen país, así que para casi todo el mundo ese asistente son cero pasos y
+ * la pantalla de siempre. Por eso no hay paginado ni barra de progreso: se
+ * pinta el primer dato que falte y nada más. Quien llega con la cuenta recién
+ * hecha ve nombre → país → el resto, de a uno; quien ya tiene perfil no ve
+ * ninguno de los dos.
+ *
+ * Menos ceremonia para los 39 y el mismo camino guiado para los 3.
+ *
+ * ── El país lo exige el SERVIDOR, y por eso el paso puede venir de él ──
+ *
+ * `liga_inscribirse` rechaza sin nombre y sin país, y devuelve una clave
+ * `falta` diciendo cuál. Eso no es redundante con la comprobación de acá: el
+ * perfil se puede haber quedado a medias en otro aparato, o cambiar entre que
+ * se pinta esta pantalla y se toca el botón. Cuando el servidor manda `falta`,
+ * la pantalla ABRE ese paso en vez de enseñar un error que no se puede
+ * resolver sin salir de la liga.
  *
  * ── Los dos consentimientos van SEPARADOS ─────────────────────────────
- *
- * Son dos decisiones distintas y una se puede decir que no sin la otra:
  *
  *   1. TRANSMISIÓN — obligatorio. Sin esto no hay liga, y no es una regla de
  *      esta pantalla: `liga_inscribirse` rechaza `p_consiente_transmision`
  *      distinto de true (§4l). Acá se dice con todas las letras y ANTES del
  *      botón, no en letra chica debajo.
  *   2. PERFIL PÚBLICO — opcional. Quien diga que no entra igual y sale con
- *      iniciales en la tabla.
+ *      iniciales en la tabla. **El servidor lo cumple**: hasta hoy guardaba el
+ *      nombre real igual, y esta pantalla prometía lo contrario.
  *
  * Juntarlos en una sola casilla sería cobrar el segundo con el precio del
  * primero. En esta comunidad hay MENORES y las partidas se publican en
@@ -25,38 +45,16 @@
  */
 
 import { useState } from 'react'
-import { Radio, Eye, CalendarClock, Swords } from 'lucide-react'
+import { Radio, Eye, CalendarClock, Swords, Globe2, User, ArrowRight } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { inscribirseLiga } from '../../services/ligaService'
-import { RejillaDisponibilidad } from './RejillaDisponibilidad'
+import { CONTINENTS, getContinentByCountryCode } from '../../data/regions'
+import {
+  RejillaDisponibilidad, FRANJAS_VACIAS, horasDe, zonaDelAparato,
+} from './RejillaDisponibilidad'
 
-/**
- * La zona horaria del aparato, leída UNA vez al importar.
- *
- * Va fuera del componente por la regla de pureza —igual que `Date.now()`—: es
- * una lectura del entorno, no un valor que dependa del render. Y se lee del
- * navegador en vez de preguntarla porque un desplegable de 400 zonas es
- * exactamente el campo que hace abandonar el formulario.
- */
-const ZONA = (() => {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
-  } catch {
-    return 'UTC'
-  }
-})()
-
-/**
- * ¿La rejilla quedó sin marcar?
- *
- * El formato de `franjas` lo define la rejilla, no esta pantalla: acá solo se
- * distingue «vacío» de «algo», y se toleran las dos formas en que un vacío
- * puede llegar serializado para no acusar de vacío a algo que no lo está.
- */
-function sinFranjas(f: string): boolean {
-  const t = f.trim()
-  return t === '' || t === '[]' || t === '{}'
-}
+/** Lo que el servidor exige por semana. Acá solo se informa; valida él. */
+const MINIMO_HORAS = 6
 
 /** «Nelson Darío» → «N. D.» — lo que sale en la tabla si no querés tu nombre. */
 function iniciales(nombre: string): string {
@@ -65,33 +63,89 @@ function iniciales(nombre: string): string {
   return partes.map(p => `${p[0].toUpperCase()}.`).join(' ')
 }
 
+type Paso = 'nombre' | 'pais' | 'liga'
+
 export function InscripcionLiga({ ligaId, onListo }: { ligaId: string; onListo: () => void }) {
-  const { currentProfile } = useAuth()
+  const { currentProfile, updateProfile } = useAuth()
   const [lider, setLider] = useState('')
   const [base, setBase] = useState('')
-  const [franjas, setFranjas] = useState('')
+  const [franjas, setFranjas] = useState(FRANJAS_VACIAS)
+  /**
+   * La zona sale de UN solo helper.
+   *
+   * Antes había dos detectores con fallbacks distintos: esta pantalla caía en
+   * `'UTC'` y era la que GUARDABA, y la rejilla caía en `'America/El_Salvador'`
+   * y era la que PINTABA. En un aparato donde `Intl` no resuelve, la misma
+   * pantalla mostraba una zona y mandaba otra — seis horas de corrimiento sin
+   * que nadie mienta, sobre el dato del que cuelga el armado de grupos.
+   */
+  const [zona, setZona] = useState(zonaDelAparato)
   const [transmision, setTransmision] = useState(false)
   const [perfil, setPerfil] = useState(false)
   const [ocupado, setOcupado] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** El paso que pidió el SERVIDOR. Manda sobre lo que se deduce del perfil. */
+  const [pedidoPorElServidor, setPedidoPorElServidor] = useState<Paso | null>(null)
 
-  const nombre = currentProfile?.name?.trim() || 'Jugador'
-  const comoSalgo = perfil ? nombre : iniciales(nombre)
+  const nombre = currentProfile?.name?.trim() ?? ''
+  const pais = currentProfile?.country?.trim() ?? ''
+
+  const pasoNatural: Paso = !nombre ? 'nombre' : !pais ? 'pais' : 'liga'
+  const paso: Paso = pedidoPorElServidor ?? pasoNatural
+
+  const horas = horasDe(franjas)
+  const faltanHoras = Math.max(0, MINIMO_HORAS - horas)
+  const puedeEntrar = transmision && faltanHoras === 0
 
   const enviar = () => {
     setOcupado(true)
     setError(null)
-    void inscribirseLiga(ligaId, lider.trim(), base.trim(), ZONA, franjas, transmision, perfil)
+    void inscribirseLiga(ligaId, lider.trim(), base.trim(), zona, franjas, transmision, perfil)
       .then(r => {
-        // El mensaje del servidor SE MUESTRA TAL CUAL: es el que sabe si la
-        // liga está llena, si ya estás inscrito o si cerró la inscripción.
-        // Un «no se pudo» genérico convierte tres problemas distintos —dos de
-        // ellos con solución— en un botón que no anda (§4l).
-        if (r.ok) onListo()
-        else setError(r.mensaje ?? 'No se pudo completar la inscripción.')
         setOcupado(false)
+        if (r.ok) { onListo(); return }
+        /* La clave `falta` abre el paso que corresponde. Solo se obedece para
+           los dos pasos que esta pantalla SABE resolver: un `falta` de cupo o
+           de liga cerrada no tiene paso que abrir, y ahí el mensaje del
+           servidor —que es el que sabe— se muestra tal cual. */
+        if (r.falta === 'nombre' || r.falta === 'pais') setPedidoPorElServidor(r.falta)
+        setError(r.mensaje ?? 'No se pudo completar la inscripción.')
       })
   }
+
+  if (paso === 'nombre') {
+    return (
+      <PasoPerfil
+        icono={User}
+        titulo="¿Cómo te llamás?"
+        ayuda="Es el nombre con el que vas a aparecer en la tabla de la liga y cuando presenten tu partida al aire. Podés cambiarlo después desde tu perfil."
+        error={error}
+        guardar={async v => {
+          const r = await updateProfile({ name: v })
+          if (r.ok) { setPedidoPorElServidor(null); setError(null) }
+          else setError(r.mensaje ?? 'No se pudo guardar.')
+          return r.ok
+        }}
+      />
+    )
+  }
+
+  if (paso === 'pais') {
+    return (
+      <PasoPais
+        error={error}
+        guardar={async code => {
+          const cont = getContinentByCountryCode(code)
+          const r = await updateProfile({ country: code, continent: cont?.id })
+          if (r.ok) { setPedidoPorElServidor(null); setError(null) }
+          else setError(r.mensaje ?? 'No se pudo guardar.')
+          return r.ok
+        }}
+      />
+    )
+  }
+
+  const comoSalgo = perfil ? (nombre || 'Jugador') : iniciales(nombre || 'Jugador')
 
   return (
     <section className="rounded-2xl border border-swu-amber/40 bg-swu-amber/5 p-4">
@@ -123,17 +177,28 @@ export function InscripcionLiga({ ligaId, onListo }: { ligaId: string; onListo: 
         </p>
       </div>
 
-      {/* ── 2 · Cuándo podés ── */}
+      {/* ── 2 · Cuándo podés ──
+          El texto dice lo que el sistema HACE HOY con este dato, no lo que va a
+          hacer. Decía «los grupos se arman juntando a quienes coinciden en
+          horario» y el armado todavía reparte por tier y orden de inscripción:
+          prometerle a alguien que esto decide contra quién le toca, cuando no,
+          es la clase de mentira que se descubre en la jornada 1. */}
       <div className="mt-4">
         <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-swu-muted">
           <CalendarClock size={12} /> Cuándo podés jugar
         </p>
         <p className="mt-1 text-[10px] leading-snug text-swu-muted">
-          Los grupos se arman juntando a quienes coinciden en horario, así que
-          esto decide contra quién te toca. En tu hora ({ZONA}).
+          Con esto el organizador arma el calendario y sabe a qué hora hay gente
+          para transmitir. Marcá tus horas de verdad: es lo que va a usar tu
+          rival para proponerte cuándo jugar.
         </p>
         <div className="mt-2">
-          <RejillaDisponibilidad valor={franjas} onCambio={setFranjas} />
+          <RejillaDisponibilidad
+            valor={franjas}
+            onCambio={setFranjas}
+            zona={zona}
+            onZona={setZona}
+          />
         </div>
       </div>
 
@@ -183,10 +248,12 @@ export function InscripcionLiga({ ligaId, onListo }: { ligaId: string; onListo: 
             </span>
             {/* La consecuencia se ve, no se explica: la casilla de arriba y esta
                 dicen lo mismo en abstracto, y en abstracto nadie sabe qué está
-                eligiendo. Acá se lee el resultado exacto de la decisión. */}
+                eligiendo. Acá se lee el resultado exacto de la decisión — y el
+                servidor guarda EXACTAMENTE esto, con las mismas iniciales. */}
             <span className="mt-1 block text-[10px] leading-snug text-swu-muted">
               Si lo dejás sin marcar entrás igual: en la tabla vas a salir como{' '}
-              <span className="font-black text-swu-text">{comoSalgo}</span>.
+              <span className="font-black text-swu-text">{comoSalgo}</span>. Lo
+              podés cambiar cuando quieras.
             </span>
           </span>
         </label>
@@ -200,23 +267,131 @@ export function InscripcionLiga({ ligaId, onListo }: { ligaId: string; onListo: 
         </p>
       )}
 
-      {/* El botón va DESPUÉS de las casillas, siempre. Y dice lo que va a pasar
-          si la rejilla quedó vacía, en vez de dejar pasar en silencio la
-          decisión que después se paga en el sorteo de grupos. */}
+      {/* EL BOTÓN NO OFRECE LO QUE EL SERVIDOR PROHÍBE.
+          Decía «Entrar sin marcar horarios» y el servidor contestaba «marcá al
+          menos 6 horas»: ofrecía exactamente lo único que no se puede hacer. Un
+          botón que promete un camino cerrado es peor que uno deshabilitado,
+          porque el rechazo llega DESPUÉS de haber llenado todo lo demás. */}
       <button
         onClick={enviar}
-        disabled={ocupado || !transmision}
+        disabled={ocupado || !puedeEntrar}
         className="mt-3 min-h-[48px] w-full rounded-xl bg-swu-amber text-[13px] font-black uppercase tracking-wider text-swu-bg disabled:opacity-50"
       >
-        {ocupado ? 'Entrando…'
-          : sinFranjas(franjas) ? 'Entrar sin marcar horarios'
-          : 'Entrar a la liga'}
+        {ocupado ? 'Entrando…' : 'Entrar a la liga'}
       </button>
-      {!transmision && (
+      {/* Lo que falta, en el orden en que se resuelve, y de a uno: dos avisos a
+          la vez se leen como una lista de quejas. */}
+      {!transmision ? (
         <p className="mt-1.5 text-center text-[10px] text-swu-muted">
           Marcá el permiso de transmisión para poder entrar.
         </p>
+      ) : faltanHoras > 0 ? (
+        <p className="mt-1.5 text-center text-[10px] text-swu-muted">
+          {horas === 0
+            ? `Marcá al menos ${MINIMO_HORAS} horas en las que puedas jugar.`
+            : `Te faltan ${faltanHoras} h: la liga pide ${MINIMO_HORAS} por semana.`}
+        </p>
+      ) : null}
+    </section>
+  )
+}
+
+/* ── Los pasos que solo ven las cuentas recién creadas ──────────────── */
+
+/** Un dato del PERFIL que la liga necesita. Se guarda en el perfil, no en la liga. */
+export function PasoPerfil({ icono: Icono, titulo, ayuda, error, guardar }: {
+  icono: typeof User
+  titulo: string
+  ayuda: string
+  error: string | null
+  guardar: (valor: string) => Promise<boolean>
+}) {
+  const [valor, setValor] = useState('')
+  const [ocupado, setOcupado] = useState(false)
+  const listo = valor.trim().length >= 2
+
+  return (
+    <section className="rounded-2xl border border-swu-amber/40 bg-swu-amber/5 p-4">
+      <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-swu-muted">
+        <Icono size={12} /> Falta un dato
+      </p>
+      <h2 className="mt-1 text-[15px] font-black tracking-tight text-swu-text">{titulo}</h2>
+      <p className="mt-1 text-[11px] leading-snug text-swu-muted">{ayuda}</p>
+      <input
+        value={valor}
+        onChange={e => setValor(e.target.value.slice(0, 40))}
+        placeholder="Tu nombre de jugador"
+        className="mt-3 w-full rounded-xl border border-swu-border bg-swu-bg px-3 py-2.5 text-[13px] text-swu-text outline-none focus:border-swu-accent"
+      />
+      {error && (
+        <p className="mt-2 rounded-xl border border-swu-red/40 bg-swu-red/10 px-3 py-2 text-[12px] leading-snug text-swu-red-texto">
+          {error}
+        </p>
       )}
+      <button
+        disabled={!listo || ocupado}
+        onClick={() => { setOcupado(true); void guardar(valor.trim()).finally(() => setOcupado(false)) }}
+        className="mt-3 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-swu-amber text-[13px] font-black uppercase tracking-wider text-swu-bg disabled:opacity-50"
+      >
+        {ocupado ? 'Guardando…' : 'Seguir'} <ArrowRight size={14} />
+      </button>
+    </section>
+  )
+}
+
+/**
+ * El país.
+ *
+ * Va como UN desplegable agrupado por continente y no como dos pasos
+ * (continente → país): el nativo del teléfono ya deja escribir para buscar, y
+ * partirlo en dos es un toque más para un dato que casi todos resuelven de
+ * memoria. La lista sale de `CONTINENTS`, que es la misma que usa el resto de
+ * la app — una lista propia acá se quedaría vieja sola.
+ */
+export function PasoPais({ error, guardar }: {
+  error: string | null
+  guardar: (code: string) => Promise<boolean>
+}) {
+  const [code, setCode] = useState('')
+  const [ocupado, setOcupado] = useState(false)
+
+  return (
+    <section className="rounded-2xl border border-swu-amber/40 bg-swu-amber/5 p-4">
+      <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-swu-muted">
+        <Globe2 size={12} /> Falta un dato
+      </p>
+      <h2 className="mt-1 text-[15px] font-black tracking-tight text-swu-text">¿De dónde sos?</h2>
+      <p className="mt-1 text-[11px] leading-snug text-swu-muted">
+        Es una liga internacional: tu país sale con tu bandera en la tabla y es
+        lo que arma el ranking por países. Queda en tu perfil, así que lo
+        elegís una sola vez.
+      </p>
+      <select
+        value={code}
+        onChange={e => setCode(e.target.value)}
+        className="mt-3 w-full rounded-xl border border-swu-border bg-swu-bg px-3 py-3 text-[13px] text-swu-text outline-none focus:border-swu-accent"
+      >
+        <option value="">Elegí tu país…</option>
+        {CONTINENTS.map(c => (
+          <optgroup key={c.id} label={`${c.icon} ${c.name}`}>
+            {c.countries.map(p => (
+              <option key={p.code} value={p.code}>{p.flag} {p.name}</option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      {error && (
+        <p className="mt-2 rounded-xl border border-swu-red/40 bg-swu-red/10 px-3 py-2 text-[12px] leading-snug text-swu-red-texto">
+          {error}
+        </p>
+      )}
+      <button
+        disabled={!code || ocupado}
+        onClick={() => { setOcupado(true); void guardar(code).finally(() => setOcupado(false)) }}
+        className="mt-3 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-swu-amber text-[13px] font-black uppercase tracking-wider text-swu-bg disabled:opacity-50"
+      >
+        {ocupado ? 'Guardando…' : 'Seguir'} <ArrowRight size={14} />
+      </button>
     </section>
   )
 }

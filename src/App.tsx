@@ -94,6 +94,7 @@ const CreadorPage = lazy(() => import('./features/creadores/CreadorPage').then(m
 // La liga internacional. La pantalla pública va dentro de AppLayout; el panel
 // de la organización va FUERA, con los de /admin y /temporada (ver abajo).
 const LigaSeccion = lazy(() => import('./features/liga/LigaSeccion').then(m => ({ default: m.LigaSeccion })))
+const BancoAltaLiga = lazy(() => import('./features/liga/BancoAltaLiga').then(m => ({ default: m.BancoAltaLiga })))
 const GalaxiaPage = lazy(() => import('./features/galaxia/GalaxiaPage').then(m => ({ default: m.GalaxiaPage })))
 /* El Taller de sables. Abierto a toda la comunidad desde 2026-08-24, con
    entrada en Inicio, en el menú y desde el sable de la barra de XP. La puerta
@@ -194,8 +195,8 @@ function PageLoader() {
 }
 
 /** Wrap protected pages */
-function P({ children }: { children: React.ReactNode }) {
-  return <AuthGate>{children}</AuthGate>
+function P({ children, motivo }: { children: React.ReactNode; motivo?: string }) {
+  return <AuthGate motivo={motivo}>{children}</AuthGate>
 }
 
 /** Conserva el id del torneo al mandar /melee/:id a su ruta nueva. */
@@ -349,6 +350,7 @@ export default function App() {
             {import.meta.env.DEV && BancoKyber && <Route path="/banco-kyber" element={<BancoKyber />} />}
             {import.meta.env.DEV && <Route path="/banco-sobres" element={<BancoSobres />} />}
             {import.meta.env.DEV && <Route path="/banco-mesa-fila" element={<BancoMesaFila />} />}
+            {import.meta.env.DEV && <Route path="/banco-alta-liga" element={<BancoAltaLiga />} />}
             {import.meta.env.DEV && <Route path="/banco-amistosas" element={<BancoAmistosas />} />}
             {import.meta.env.DEV && <Route path="/banco-copias" element={<BancoCopias />} />}
             {import.meta.env.DEV && <Route path="/banco-paneles" element={<BancoPaneles />} />}
@@ -431,7 +433,18 @@ export default function App() {
             <Route path="/sable" element={<P><SablePage /></P>} />
             <Route path="/terraformar" element={<P><TerraformarPage /></P>} />
             <Route path="/c/:code" element={<P><CreadorPage /></P>} />
-            <Route path="/liga/:code" element={<P><LigaSeccion /></P>} />
+            {/* El `motivo` no es cosmético: a esta ruta se llega desde el video
+                de un creador, o sea que para mucha gente es la PRIMERA pantalla
+                de la app. Un muro que dice «Acceso restringido» sin nombrar la
+                liga tira a la basura la única promesa que trajo a esa persona. */}
+            <Route
+              path="/liga/:code"
+              element={(
+                <P motivo="Para entrar a la liga necesitás una cuenta de HOLOCRON. Es gratis y te la creás acá mismo.">
+                  <LigaSeccion />
+                </P>
+              )}
+            />
             <Route path="/trivia" element={<P><TriviaPage /></P>} />
             {/* Ruta HERMANA de /galaxia, no superposición: así el router
                 desmonta la Galaxia y su forceContextLoss() corre solo. */}

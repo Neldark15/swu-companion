@@ -3725,3 +3725,126 @@ Reescribirla a mano con un mapa inventado es lo primero que hice y lo cazó
   `liga_visible()` ya deja a Alejo ver su liga con `publica=false`.
 - **Renombrar `ligas.code`** de `puente3` a algo definitivo. Es el URL público de
   la liga y una decisión de marca, no mía.
+
+### 4u. LIGA — Fase 1: el alta, que ES el módulo
+
+La liga se anuncia en YouTube y se entra por un enlace, así que para mucha gente
+el alta es la **primera pantalla de la app**. Medido antes de tocar nada: el
+embudo desde ese enlace convertía **0 %**, y no por una causa sino por seis
+muros en fila.
+
+**EL DESTINO SE PERDÍA.** `AuthGate.tsx:74` era `navigate('/profile')` pelado:
+quien llegaba del video, chocaba con el muro y creaba la cuenta, terminaba en su
+perfil **sin ninguna pista de que venía a otra cosa**. Volver exige acordarse de
+una URL que abrió una vez. Ahora va `?next=` con la ruta **y el query** (un
+`/rulings?regla=…` se comparte así), y el hash NO viaja — ahí es donde Supabase
+deja el token del correo de recuperación (§2w). `ProfilePage` lo honra con las
+mismas tres guardas de `useRutaPersistente`: solo con sesión resuelta, solo
+rutas internas (un `//otrositio` en el query convertiría el perfil en un
+redirector abierto) y con `replace`, o el botón de atrás devuelve al muro.
+
+**EL MURO NO NOMBRABA LA LIGA.** Decía «Acceso Restringido · Necesita una cuenta
+para acceder a este módulo», en usted, en una app que habla de vos. `AuthGate`
+acepta ahora un `motivo` y `/liga/:code` pasa el suyo. La promesa que trajo a
+esa persona sobrevive al muro.
+
+**EL PAÍS SE PIDE EN EL ALTA, Y LO EXIGE EL SERVIDOR.** Decisión de Nel: los
+países de la liga salen de los usuarios registrados. `liga_inscribirse` rechaza
+sin nombre y sin país devolviendo una clave **`falta`**, y esa clave es la mitad
+del valor: un error de texto dice QUÉ pasó, `falta` le dice a la pantalla QUÉ
+HACER. Sin ella, «elegí tu país» es una pared — el mensaje es correcto y no hay
+forma de actuar sin salir de la liga. **`rpc()` de `ligaService` tiraba `falta`
+en la rama de fallo**; ese era el cable que faltaba.
+
+**PASOS, PERO SOLO LOS QUE FALTAN.** El diseño pedía un asistente de cuatro
+pasos que se saltan solos. Medido: 42 de 42 perfiles tienen nombre y 39 de 42
+tienen país, así que para casi todo el mundo ese asistente son **cero pasos**.
+Por eso no hay paginado ni barra de progreso: se pinta el primer dato que falte
+y nada más. Menos ceremonia para los 39, el mismo camino guiado para los 3.
+
+**EL BOTÓN OFRECÍA LO QUE EL SERVIDOR PROHÍBE.** Decía **«Entrar sin marcar
+horarios»** y `liga_inscribirse` contesta «marcá al menos 6 horas». Peor: sin
+tocar la rejilla mandaba `''` y el servidor respondía «la disponibilidad llegó
+mal formada», un mensaje que no le sirve a nadie. Ahora el estado inicial es
+`FRANJAS_VACIAS` (168 ceros, nunca `''`), el botón se apaga y debajo dice qué
+falta, de a uno. Un botón que promete un camino cerrado es peor que uno
+deshabilitado: el rechazo llega DESPUÉS de haber llenado todo lo demás.
+
+**`consiente_perfil` ERA UNA PROMESA QUE EL SERVIDOR NO CUMPLÍA.** La pantalla
+muestra tus iniciales y dice, textual, «si lo dejás sin marcar, en la tabla vas
+a salir como N. D.» — y `liga_inscribirse` guardaba
+`nombre_visible = coalesce(v_nombre,'Jugador')` **siempre**. De las 22 funciones
+de liga, la única que mencionaba esa columna era la que la escribe: **nadie la
+leía**. Y `nombre_visible` es justo lo que `liga_ver` le devuelve a cualquiera
+que pase `liga_visible()`. Hay MENORES y las partidas se publican en YouTube.
+Ahora el servidor calcula las iniciales con la MISMA regla que la vista previa
+—si no coincidieran, la previa sería otra mentira— y `liga_nombre_publico()`
+deja cambiar de opinión en los dos sentidos, tocando también las plazas vivas
+(el nombre se copia a la plaza al armar grupos, así que sin esa segunda
+escritura el cambio no se ve donde importa).
+
+**DOS DETECTORES DE ZONA CON FALLBACKS DISTINTOS.** El alta caía en `'UTC'` y
+era la que **guardaba**; la rejilla caía en `'America/El_Salvador'` y era la que
+**pintaba**. En un aparato donde `Intl` no resuelve, la misma pantalla mostraba
+una zona y mandaba otra: seis horas de corrimiento sin que nadie mienta, sobre
+el dato del que cuelga el calendario. Un solo helper (`zonaDelAparato`). Y el
+desplegable de 21 zonas curadas que YA estaba escrito **era código muerto**: la
+rejilla se montaba sin `zona` ni `onZona`, así que caía siempre en la rama de
+texto plano. Verificado en el banco: 21 opciones, «El Salvador · detectada».
+
+**EL CUPO NO SE APLICABA Y NACÍA CAPADO.** `ligas.cupo` existía y la única
+función que lo mencionaba era `liga_crear`, la que lo escribe: la liga no se
+llenaba nunca. Y la columna tenía **`default 10`**, así que «sin tope» era
+inexpresable —un null se convertía en diez— mientras el selector de la pantalla
+topaba en **16**: crear la liga de 128 que se quiere crear era imposible por dos
+sitios distintos. Sin default, NULL vuelve a ser sin tope, y ese es el valor de
+fábrica: ahora que el cupo se aplica de verdad, un número bajo por omisión
+rechazaría gente en silencio.
+
+**EL CARNÉ: «estás dentro» antes de que existan los grupos.** Entre inscribirse
+y el sorteo pasan SEMANAS, y en ese hueco `mi_liga()` devolvía `liga: null` —el
+perfil de alguien recién inscrito se veía idéntico al de alguien que nunca
+entró—. Ahí se cae la retención, no en el formulario. `mi_liga()` devuelve ahora
+una clave **`carne`** en esa misma rama, y el cambio es **puramente aditivo a
+propósito**: `getMiLiga` corta en `!r.grupo`, así que una PWA sin actualizar
+sigue viendo exactamente lo de antes (§2g). El carné trae tu puesto en la cola,
+el total, y **tu zona y tus franjas** — sin un camino de lectura, la pantalla de
+editar horarios arrancaría en blanco y guardar borraría la semana.
+
+**EDITAR LOS HORARIOS: faltaba el cable, no la capacidad.**
+`guardarDisponibilidad` estaba exportada y **no la llamaba ni un componente**;
+la RPC del servidor estaba entera, probada y granteada. Y la rejilla se montaba
+en un solo sitio —el alta— que desaparece en el instante en que te inscribís, o
+sea que la disponibilidad se declaraba **una vez en la vida**. Es el dato que
+más se pudre (cambia el turno, el colegio) y el carné es permanente: lleva
+`temporadas_jugadas`, así que lo que alguien declara hoy alimenta la temporada 5.
+
+**Probado contra la base en transacción revertida, 10 casos:** sin país →
+`falta:'pais'`; inscribe con `nombre_visible="N."` y `pais=SV`; repetida →
+`falta:'repetida'`; `mi_liga` devuelve `liga:null` **y** carné con puesto 1 de 1,
+zona y 6 h; mostrar el nombre → «Nelson»; esconderlo → «N.»; cupo lleno →
+`falta:'cupo'`; una hora sola → `falta:'horarios'`; sin transmisión →
+`falta:'transmision'`; zona inventada → NO rechaza, guarda `zona_desconocida`.
+
+**Banco en `/banco-alta-liga`** (solo desarrollo). La auditoría marcó esta
+pantalla como NO COMPROBADA —vive detrás de una liga en `inscripcion` y la liga
+está en borrador, así que **nadie la había visto nunca**—. Y el banco **nació
+mintiendo**, igual que el de `/banco-mesa-fila` (§4r): sin sesión
+`currentProfile` es null, `InscripcionLiga` cae correctamente en el paso
+«nombre» y los tres casos enseñaban la MISMA pantalla — medido, tres botones
+«Seguir» y ningún «Entrar a la liga». Se siembra un perfil completo en el store
+y se repone al desmontar.
+
+**Y una medición que mintió, la tercera vez con la misma forma (§4p).** Leer el
+botón 120 ms después de un `.click()` sobre la casilla dio `disabled: false`
+mientras el aviso de al lado ya decía «marcá al menos 6 horas» — dos lecturas
+del mismo DOM contradiciéndose. En limpio: `disabled: true` con 0 horas,
+habilitado con 42. **Cuando dos mediciones del mismo instante se contradicen, la
+que está mal es la medición, no el código.**
+
+**Lo que la Fase 1 NO arregla, y hay que decirlo:** `repartir()` sigue armando
+los grupos por tier y orden de inscripción, **sin mirar el horario**. Por eso el
+texto del alta cambió: decía «los grupos se arman juntando a quienes coinciden
+en horario, así que esto decide contra quién te toca» —que hoy es falso— y ahora
+dice lo que el sistema hace de verdad. Prometer lo que no se cumple es la clase
+de mentira que se descubre en la jornada 1.
