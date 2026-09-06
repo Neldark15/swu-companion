@@ -194,8 +194,12 @@ export default function TournamentPublicView() {
               </div>
             </div>
 
-            {/* Timer */}
-            {event.round_timer_end && (
+            {/* El reloj solo mientras el torneo está VIVO. Con el torneo
+                cerrado, `round_timer_end` sigue apuntando al plazo de la
+                última ronda —que venció hace semanas— y la pantalla mostraba
+                «00:00 · ¡Tiempo terminado!» parpadeando encima de un torneo
+                que ya terminó. Eso no es un dato viejo: es un dato falso. */}
+            {event.round_timer_end && event.status === 'active' && (
               <div className="bg-swu-bg rounded-lg px-4 py-2 border border-swu-border">
                 <RoundTimer endTime={event.round_timer_end} />
               </div>
@@ -213,7 +217,7 @@ export default function TournamentPublicView() {
               activeTab === 'standings' ? 'bg-swu-accent/20 text-swu-accent-texto font-bold' : 'text-swu-muted'
             }`}
           >
-            Standings
+            Clasificación
           </button>
           <button
             onClick={() => setActiveTab('pairings')}
@@ -221,7 +225,7 @@ export default function TournamentPublicView() {
               activeTab === 'pairings' ? 'bg-swu-accent/20 text-swu-accent-texto font-bold' : 'text-swu-muted'
             }`}
           >
-            Pairings
+            {esDeMesas(event.tournament_type) ? 'Mesas' : 'Emparejamientos'}
           </button>
           {showBracket && (
             <button
@@ -230,7 +234,7 @@ export default function TournamentPublicView() {
                 activeTab === 'bracket' ? 'bg-swu-accent/20 text-swu-accent-texto font-bold' : 'text-swu-muted'
               }`}
             >
-              Bracket
+              Llaves
             </button>
           )}
         </div>

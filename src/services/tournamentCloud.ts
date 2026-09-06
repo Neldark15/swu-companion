@@ -115,6 +115,13 @@ export interface CloudEvent {
   current_round: number
   round_timer_minutes: number
   round_timer_end: string | null
+  /* El logo y de dónde sale. La pantalla de proyección es la única que se ve
+     DESLOGUEADA —una tele en la tienda— y era la única que no mostraba el
+     logo del torneo, justo donde más se ve. `logoDe()` resuelve el propio
+     contra el del formato. */
+  image_url: string | null
+  format: string
+  match_type: string
 }
 
 // ─── Initialize Tournament ──────────────────────────────────
@@ -1319,7 +1326,7 @@ export async function getEventTournamentInfo(code: string): Promise<CloudEvent |
 
   const { data, error } = await supabase
     .from('official_events')
-    .select('id, name, code, status, tournament_type, max_rounds, current_round, round_timer_minutes, round_timer_end')
+    .select('id, name, code, status, tournament_type, max_rounds, current_round, round_timer_minutes, round_timer_end, image_url, format, match_type')
     .eq('code', code.toUpperCase())
     .single()
 

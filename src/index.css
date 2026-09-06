@@ -1502,3 +1502,93 @@ input:focus, textarea:focus, select:focus {
 @media (prefers-reduced-motion: reduce) {
   .logo-destello { animation: none; opacity: 0; }
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+ * LA PROYECCIÓN (/events/live/:code)
+ *
+ * Va como CSS PLANO y no como `@utility` a propósito (§3i): estas clases se
+ * aplican desde estilos calculados en la tabla de escalones, y Tailwind v4 solo
+ * emite la utilidad que DETECTA escrita literal en el código. Como `@utility`
+ * no llegarían nunca a la hoja construida y la pantalla saldría sin chaflanes,
+ * sin animación y sin un solo error en consola.
+ *
+ * Los chaflanes se REDIBUJAN a esta escala, no se reusan `clip-hud`: sus cortes
+ * de 16 px sobre un lienzo de 1920 se leen como un redondeo, no como un corte.
+ * ───────────────────────────────────────────────────────────────────── */
+
+.proy-chapa {
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+}
+
+.proy-panel {
+  clip-path: polygon(28px 0, 100% 0, 100% calc(100% - 28px), calc(100% - 28px) 100%, 0 100%, 0 28px);
+}
+
+/* La vuelta de la chapa: gira sobre su borde superior cuando una mesa cierra.
+ * A cuatro metros no se ve QUÉ chapa cambió, se ve DÓNDE se movió algo — y eso
+ * es lo que hace que la sala levante la vista justo cuando entra un resultado. */
+.proy-gira { perspective: 600px; }
+
+.proy-vuelta {
+  animation: proy-vuelta 380ms cubic-bezier(.2, .8, .3, 1);
+  transform-origin: top center;
+}
+
+@keyframes proy-vuelta {
+  from { transform: rotateX(-88deg) }
+  to   { transform: rotateX(0) }
+}
+
+/* La barra de drenaje de la paginación. Es el contrato de «esto vuelve»: sin
+ * ella alguien camina hasta la tele a buscar un botón que no existe. */
+.proy-drena {
+  transform-origin: left;
+  animation: proy-drena linear forwards;
+}
+
+@keyframes proy-drena {
+  from { transform: scaleX(0) }
+  to   { transform: scaleX(1) }
+}
+
+/* El latido de TIEMPO. Va a 0,625 Hz —1,6 s por ciclo— y dura 60 SEGUNDOS.
+ * Lento porque hay MENORES en la sala y por encima de 3 Hz se entra en
+ * territorio de fotosensibilidad. Y se detiene porque un cartel que parpadea
+ * toda la ronda deja de significar algo a los dos minutos, que es exactamente
+ * lo que hace hoy el `animate-pulse` indefinido de RoundTimer. */
+.proy-tiempo {
+  animation: proy-tiempo 1.6s ease-in-out 0s 37 alternate;
+}
+
+@keyframes proy-tiempo {
+  from { background-color: #7f1d1d }
+  to   { background-color: #b91c1c }
+}
+
+/* Los tres guiones del sorteo: lo único que se mueve en ese estado, y está
+ * para que la pantalla no se lea como colgada. */
+.proy-punto { animation: proy-punto 1.8s ease-in-out infinite; }
+.proy-punto:nth-child(2) { animation-delay: .6s }
+.proy-punto:nth-child(3) { animation-delay: 1.2s }
+
+@keyframes proy-punto {
+  0%, 100% { opacity: .2 }
+  30%      { opacity: 1 }
+}
+
+/* Movimiento reducido: MENOS movimiento, no cero (§3u). La vuelta de la chapa
+ * se cambia por un destello de fondo —se conserva el dato «acá cambió algo»,
+ * que es lo único que importaba— y lo que se repite solo se apaga. */
+@media (prefers-reduced-motion: reduce) {
+  .proy-vuelta {
+    animation: proy-destello 700ms ease-out;
+    transform-origin: center;
+  }
+  @keyframes proy-destello {
+    from { background-color: rgb(245 158 11 / .35) }
+    to   { background-color: transparent }
+  }
+  .proy-tiempo { animation: none; background-color: #b91c1c }
+  .proy-punto  { animation: none; opacity: .6 }
+  /* La barra de drenaje SIGUE: es una cuenta atrás, no un adorno. */
+}

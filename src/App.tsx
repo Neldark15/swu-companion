@@ -22,7 +22,7 @@ const DeckBuilderPage = lazy(() => import('./features/decks/DeckBuilderPage').th
 const EventLobbyPage = lazy(() => import('./features/events/EventLobbyPage').then(m => ({ default: m.EventLobbyPage })))
 const CreateEventPage = lazy(() => import('./features/events/CreateEventPage').then(m => ({ default: m.CreateEventPage })))
 const TournamentDashboard = lazy(() => import('./features/events/TournamentDashboard'))
-const TournamentPublicView = lazy(() => import('./features/events/TournamentPublicView'))
+const ProyeccionPage = lazy(() => import('./features/events/proyeccion/ProyeccionPage'))
 const TournamentPlayerView = lazy(() => import('./features/events/TournamentPlayerView').then(m => ({ default: m.TournamentPlayerView })))
 const BlogPage = lazy(() => import('./features/blog/BlogPage').then(m => ({ default: m.BlogPage })))
 const BlogPostPage = lazy(() => import('./features/blog/BlogPostPage').then(m => ({ default: m.BlogPostPage })))
@@ -45,6 +45,7 @@ const AmistosasDeJugador = lazy(() => import('./features/amistosas/AmistosasDeJu
 const SobresPage = lazy(() => import('./features/sobres/SobresPage').then(m => ({ default: m.SobresPage })))
 const BinderDigital = lazy(() => import('./features/sobres/BinderDigital').then(m => ({ default: m.BinderDigital })))
 const BancoSobres = lazy(() => import('./features/sobres/BancoSobres').then(m => ({ default: m.BancoSobres })))
+const BancoProyeccion = lazy(() => import('./features/events/proyeccion/BancoProyeccion').then(m => ({ default: m.BancoProyeccion })))
 const BancoAmistosas = lazy(() => import('./features/amistosas/BancoAmistosas').then(m => ({ default: m.BancoAmistosas })))
 const BancoIconos = lazy(() => import('./components/BancoIconos').then(m => ({ default: m.BancoIconos })))
 const BancoUbicacion = lazy(() => import('./features/profile/BancoUbicacion').then(m => ({ default: m.BancoUbicacion })))
@@ -265,6 +266,26 @@ export default function App() {
           <Route path="/estudio" element={<CabinasPage />} />
           <Route path="/estudio/:code" element={<EstudioPage />} />
 
+          {/* ── La proyección del torneo — fuera de AppLayout ──────────────
+              Estaba DENTRO, y ahí heredaba Header, SideNav de 256-288 px y un
+              tope de ancho: en una tele quedaba compuesta en una columna
+              angosta con dos franjas negras a los lados. Peor: AppLayout monta
+              `UpdatePrompt`, que podía abrir un aviso de versión nueva ENCIMA
+              de la proyección a mitad del torneo.
+
+              NO usa <P>: es anónima por diseño —la tele de la tienda está
+              deslogueada— y fuera de AppLayout `initAuth()` no corre, así que
+              envolverla en AuthGate la dejaría colgada en «Cargando» para
+              siempre, que es la trampa que ya se comieron /estudio y PanelLiga.
+
+              Sigue en RUTAS_LIBRES (entorno.ts) y tiene que seguir: si la
+              puerta de instalación se monta encima, tapa la tele entera. */}
+          <Route path="/events/live/:code" element={<ProyeccionPage />} />
+          {/* El banco va FUERA de AppLayout por lo mismo que la pantalla que
+              revisa: necesita la ventana entera. Dentro del caparazón, un
+              lienzo de tele queda apretado contra el menú lateral. */}
+          {import.meta.env.DEV && <Route path="/banco-proyeccion" element={<BancoProyeccion />} />}
+
           <Route element={<AppLayout />}>
             {/* ── Public routes ── */}
             <Route path="/" element={<HomePage />} />
@@ -296,7 +317,6 @@ export default function App() {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/settings/*" element={<SettingsPage />} />
-            <Route path="/events/live/:code" element={<TournamentPublicView />} />
             <Route path="/u/:userId" element={<PublicProfilePage />} />
 
             {/* ── Protected routes (require login) ── */}

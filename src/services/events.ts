@@ -903,12 +903,29 @@ export async function fijarLogoDeFormato(
 }
 
 /**
+ * Lo MÍNIMO que hay que saber de un torneo para darle su logo.
+ *
+ * Pide los tres campos que se leen y no un `OfficialEvent` entero, porque la
+ * pantalla de proyección no trae un evento entero: trae lo que se puede leer
+ * sin sesión. Exigir el tipo completo obligaría a inventarle campos vacíos
+ * —y un campo inventado se ve igual que uno de verdad en la línea siguiente—.
+ */
+export type ConLogo = {
+  image_url: string | null
+  match_type: string
+  format: string
+}
+
+/**
  * El logo que le toca a un torneo: el suyo, o el de su formato.
  *
  * El propio siempre gana. Si un torneo tiene arte especial, no se lo puede
  * pisar el de su formato — eso sería que subirlo no hiciera nada.
  */
-export function logoDe(evento: OfficialEvent, porFormato: Map<string, string>): string | null {
+export function logoDe(
+  evento: ConLogo,
+  porFormato: Map<string, string>,
+): string | null {
   return evento.image_url
     ?? porFormato.get(evento.match_type)
     ?? porFormato.get(evento.format)
