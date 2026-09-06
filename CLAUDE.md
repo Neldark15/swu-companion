@@ -3584,3 +3584,45 @@ casaba con nadie y las once filas decían «sin mesa». El componente degradaba
 honesto —«sin mesa» en vez de la mesa de otro— pero **un banco que miente
 sobre lo que prueba es peor que no tenerlo**, que es la misma forma del §3x
 («0 temas · TODOS PASAN»).
+
+### 4s. La escala de sobres se edita desde la app, no desde el SQL Editor
+
+`torneo_escala_sobres` existía desde agosto y **no se escribía desde ningún
+sitio de la app**: cero referencias en `src/`. La escala especial del Twin
+Suns la puso una persona a mano en el SQL Editor a partir de un mensaje.
+
+**Y por eso el 4º de la final se quedó con CERO sobres.** La escala se
+escribió cuando la final todavía era de TRES personas; cuando creció a cuatro,
+nadie volvió a tocarla. En ese mismo torneo los premios cambiaron **tres veces
+en una tarde** (9, 10 y 11 inscritos, cada uno con un reparto distinto).
+
+El premio de un torneo lo decide quien lo organiza — está escrito así en el
+comentario de la propia migración— y esa decisión no puede necesitar a un
+programador. Hay editor en el podio, para quien lleva el torneo.
+
+**Es una LISTA de puesto → sobres, no una fórmula.** Los premios de esta
+comunidad no siguen una curva: «3 al campeón, 1 al 2º, 1 al 3º, 1 al 4º, y 1 al
+ganador de cada mesa que quedó». Cualquier fórmula que describiera eso sería
+una mentira ordenada.
+
+**Tiene salida a la escala de siempre.** Una escala propia con todo en cero NO
+es lo mismo que no tener escala: la primera reparte cero, la segunda reparte
+5/4/3/2/1. Sin deshacer, quien la abra por curiosidad deja el torneo sin
+premios.
+
+**Se borra y se reescribe, nunca upsert.** Quitar un puesto de la lista tiene
+que QUITARLO; con upsert el puesto viejo sobrevive anunciando un premio que ya
+nadie decidió dar. Y se cuenta lo que devuelve el insert (§2u): una escritura
+frenada por RLS afecta 0 filas **sin error**, así que la pantalla diría
+«guardado» con la escala vieja intacta — y el podio anunciaría una cosa
+mientras el cierre reparte otra, que es justo lo que la tabla existe para
+evitar.
+
+**El banco apunta a un evento INVENTADO.** Con el id de uno real, tocar
+«Guardar» desde `/banco-mesa-fila` le pisaría los premios a un torneo de
+verdad.
+
+Y una regla de operación: **un torneo cerrado no se re-escala.** Subirle el 4º
+a 1 después de repartir no le da el sobre a nadie —el pestillo de premios
+impide repartir dos veces— pero sí hace que el podio anuncie retroactivamente
+algo que nunca se entregó.
