@@ -4272,3 +4272,42 @@ Tercera vez en el día que la respuesta es la misma —cifras, atajos, título�
 conviene tenerla escrita como regla: **cuando algo no entra, primero se acorta
 el texto redundante, después se deja envolver, y solo al final se trunca. Un
 rótulo que no se puede leer no es un rótulo.**
+
+### 5c. LIGA — ser admin de la app no es ser staff de la liga de otro
+
+**`liga_es_staff` tenía una rama de admin sin acotar por liga**, y gatea **doce
+funciones**: el panel, el padrón, las 168 franjas de cada persona, los avisos,
+la configuración y el cierre de temporada. Es decir que los cuatro admins
+globales eran staff de TODAS las ligas — podían leer `user_id`, `abandonos`,
+`disputa_motivo` y el horario semanal de gente que incluye MENORES, en una liga
+que no es suya.
+
+Con una liga no se nota. Con la segunda, un creador lee y opera la del otro. Es
+la mitad que faltaba del agujero que la Fase 0 tapó del lado de los creadores
+(`puede_ver_creadores()` tampoco era por liga).
+
+El repo ya tomó esta decisión dos veces —`centro_curadores` (§3i-bis) y
+`sable_probadores` (§4c)—: **«ser admin NO alcanza»**, y a propósito sin
+escotilla, porque un admin que puede darse el acceso vuelve la restricción
+decorativa. Se reparte insertando la fila en `liga_staff` desde el SQL Editor.
+
+**EL ORDEN DE LA MIGRACIÓN NO ES UN DETALLE: PRIMERO LA FILA, DESPUÉS EL
+REVOKE.** Medido antes de tocar nada: el creador de PUENTE es **Alejo**, y
+Nelson **no** era creador ni estaba en `liga_staff` — su acceso al panel venía
+ENTERO de la rama de admin. Quitarla primero lo habría dejado afuera de la liga
+que está construyendo. Verificado después: Alejo `true`, Nelson `true`, **otro
+admin global `false`**, un tercero `false`.
+
+**EL MAPA DE CALOR Y EL ENSAYO DE GRUPOS HABLABAN DE GENTE DISTINTA.**
+`liga_panel` devuelve a todos los inscritos —activos, en pausa, retirados y
+vetados— y `liga_plan_grupos` reparte **solo** a los `activo`. Así el mapa decía
+«los martes pueden 18» contando a tres que ya se retiraron, y el reparto de
+abajo armaba con 15. Dos números correctos que juntos mienten. Ahora los
+contadores y el mapa describen la MISMA población que se va a agrupar, el rótulo
+dice «Activos», y **quien queda fuera se dice**: si el número bajara de 34 a 31
+sin explicación, el organizador buscaría un bug que no existe.
+
+**EL NÚMERO DEL MAPA VIVÍA SOLO EN UN `title`** — o sea en un hover, que en un
+teléfono no existe. Y la intensidad es **relativa al máximo**: 1 de 1 persona se
+pinta igual de oscuro que 20 de 20, así que sin una cifra a la vista el mapa se
+puede leer al revés. Ahora cada día lleva su pico escrito, en las dos vistas.

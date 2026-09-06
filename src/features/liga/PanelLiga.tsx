@@ -529,12 +529,24 @@ function Inscritos({ inscritos }: { inscritos: InscritoPanel[] }) {
     return copia
   }, [inscritos, col, desc])
 
-  const calor = useMemo(
-    () => mapaDeCalor(inscritos, enMiHora ? MI_ZONA : null),
-    [inscritos, enMiHora])
+  /* ── EL MAPA Y EL ENSAYO TIENEN QUE HABLAR DE LA MISMA GENTE ──
+     `liga_panel` devuelve a TODOS los inscritos —activos, en pausa, retirados y
+     vetados— y `liga_plan_grupos` reparte SOLO a los `activo`. Así, el mapa de
+     calor y los contadores de arriba describían una población y el ensayo de
+     grupos de abajo otra: «los martes pueden 18» contando a tres que ya se
+     retiraron, y después el reparto arma con 15. Dos números correctos que
+     juntos mienten.
+     Acá se cuenta y se pinta la MISMA población que se va a agrupar, y los que
+     quedan afuera se dicen en vez de esconderse. */
+  const activos = useMemo(() => inscritos.filter(i => carneActivo(i.estado)), [inscritos])
+  const fuera = inscritos.length - activos.length
 
-  const sinDisponibilidad = inscritos.filter(i => i.horas === 0).length
-  const zonas = new Set(inscritos.map(i => i.zona).filter(Boolean)).size
+  const calor = useMemo(
+    () => mapaDeCalor(activos, enMiHora ? MI_ZONA : null),
+    [activos, enMiHora])
+
+  const sinDisponibilidad = activos.filter(i => i.horas === 0).length
+  const zonas = new Set(activos.map(i => i.zona).filter(Boolean)).size
 
   function ordenarPor(c: Col) {
     if (c === col) { setDesc(d => !d); return }
@@ -558,7 +570,7 @@ function Inscritos({ inscritos }: { inscritos: InscritoPanel[] }) {
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-2">
         {[
-          ['Inscritos', String(inscritos.length), 'text-swu-text'],
+          ['Activos', String(activos.length), 'text-swu-text'],
           ['Sin horas', String(sinDisponibilidad), sinDisponibilidad ? 'text-swu-red-texto' : 'text-swu-text'],
           ['Zonas', String(zonas), 'text-swu-text'],
         ].map(([rotulo, valor, tono]) => (
@@ -568,6 +580,16 @@ function Inscritos({ inscritos }: { inscritos: InscritoPanel[] }) {
           </div>
         ))}
       </div>
+
+      {/* Quien quedó fuera se DICE. Si el número de arriba bajara de 34 a 31
+          sin explicación, el organizador buscaría un bug que no existe. */}
+      {fuera > 0 && (
+        <p className="-mt-2 text-center text-[10px] text-swu-muted">
+          {fuera === 1
+            ? 'Hay 1 inscrito más que no está activo: no entra al mapa ni al reparto.'
+            : `Hay ${fuera} inscritos más que no están activos: no entran al mapa ni al reparto.`}
+        </p>
+      )}
 
       <MapaCalor calor={calor} enMiHora={enMiHora} onCambiarHora={setEnMiHora} />
 
@@ -723,6 +745,22 @@ function MapaCalor({
                         )
                       })}
                     </div>
+                    {/* EL PICO, ESCRITO. Cada casilla llevaba su número solo en
+                        el `title`, o sea en un hover — que en un teléfono no
+                        existe y con teclado tampoco es evidente. La intensidad
+                        además es RELATIVA al máximo: 1 de 1 persona se pinta
+                        igual de oscuro que 20 de 20. Sin una cifra a la vista,
+                        el mapa se puede leer al revés. */}
+                    <span className={`w-10 shrink-0 text-right font-mono text-[8px] ${
+                      Math.max(0, ...Array.from({ length: 24 }, (_, h) => calor.cuenta[d * 24 + h])) > 0
+                        ? 'text-swu-cyan' : 'text-swu-muted'}`}>
+                      {(() => {
+                        const horas = Array.from({ length: 24 }, (_, h) => calor.cuenta[d * 24 + h])
+                        const pico = Math.max(0, ...horas)
+                        if (pico === 0) return '—'
+                        return `${String(horas.indexOf(pico)).padStart(2, '0')}h·${pico}`
+                      })()}
+                    </span>
                   </div>
                 ))}
               </div>
