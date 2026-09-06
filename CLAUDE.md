@@ -3358,3 +3358,92 @@ se usa.
 
 La barra de desplazamiento fina va como **CSS plano**, no `@utility` (§3i), y
 se verifica contra el CSS **construido** (§3u).
+
+### 4o. LA PROYECCIÓN — la tele de la tienda no es un teléfono grande
+
+`/events/live/:code` se abre una vez, se deja tres horas y **nadie la toca**.
+Eso cambia cuál es el peor modo de fallo: no es la pantalla en blanco —esa se
+nota— sino **el tablero congelado que sigue pareciendo correcto**, la ronda 2
+en la pared mientras la sala juega la 4.
+
+Lo que había, medido: `max-w-2xl` (672 px = 35% de una tele de 1920, con dos
+franjas negras a los lados), nombres a 14 px, cabecera a 12, y **pestañas** —
+que en una tele nadie toca, así que se quedaba pegada en la primera vista toda
+la tarde.
+
+**El diseño en una frase: la mesa viaja EN LA MISMA FILA que el nombre.** Por
+eso esta pantalla no tiene un estado que pueda quedar en el lugar equivocado.
+El índice es el nombre en orden alfabético con cabecera de rango («A – F»),
+porque la pregunta que la sala hace en voz alta es una búsqueda por nombre.
+
+**«Mesa cerrada» es `reported_at`, NUNCA `confirmed_at`.** Medido: SV150826
+terminó con 12 reportados y **cero** confirmados; SV290826 con 24 y 12.
+`confirmed_at` lo escribe `confirmPairingResult`, que exige que el RIVAL abra
+la app — con un tercio de la sala sin cuenta eso no pasa. Con el criterio
+«correcto» el instrumento habría dicho «MESAS 0/4» toda la tarde con todos los
+resultados adentro. `disputed_at` sí reabre la mesa.
+
+**Los puntos solo se muestran si el orden SALIÓ de ellos.** Con `puesto` fijado
+a mano —una final de mesas, un cuadro— el orden lo decidió la mesa, no los
+puntos: en el torneo real 8º Winnie tiene 4 y 4º Nelson tiene 3, y ponerlos al
+lado hace que el tablero se contradiga solo delante de quien acaba de jugar.
+
+**La densidad es una TABLA de píxeles enteros, no `cqh`.** Si el Chromium viejo
+de una smart TV no entiende `container-type`, la declaración se descarta **en
+silencio** y el cuerpo cae al heredado: la pantalla se apaga tipográficamente
+justo en el aparato donde más probable es que pase, y sin un error que lo
+delate. Piso duro de 42 px; primero el piso, después cuántos caben.
+
+**Overscan: 5% por lado.** Una tele por HDMI que no esté en «Just Scan» se come
+hasta un 5% por borde — justo donde viven el reloj y el pie.
+
+**El lienzo se CENTRA.** El patrón de `OverlayPage` no centra porque OBS
+siempre entrega 16:9 exacto; una tele o un proyector con otra proporción dejan
+todo pegado a la esquina superior izquierda.
+
+**Va fuera de `AppLayout`** (junto a `/overlay` y `/estudio`) y **sin `<P>`**.
+Adentro heredaba Header y SideNav y —lo grave— montaba `UpdatePrompt`, que
+podía abrir un aviso de versión **encima de la proyección a mitad del torneo**.
+Sin `<P>` porque fuera de AppLayout `initAuth()` no corre y AuthGate la dejaría
+en «Cargando» para siempre (§3l). Tiene que seguir en `RUTAS_LIBRES`.
+
+**La vista vieja NO se borró: es la de TELÉFONO**, por debajo de 900 px. La
+misma URL se comparte por WhatsApp y se abre desde la mesa; una tele y un
+teléfono no son la misma pantalla.
+
+**Seis defectos que SOLO se vieron mirando la pantalla**, y por eso existe
+`/banco-proyeccion` (17 estados sembrados, sin tocar la base):
+
+1. **Un ancho declarado no es un ancho respetado.** «FINALIZADO» se dibujaba
+   encima de «RONDA 2»: faltaban `flexShrink: 0` y `overflow: hidden`.
+2. **`1fr` es `minmax(auto, 1fr)`**, y ese `auto` deja que una fila crezca por
+   encima de su reparto: once nombres a 63 px desbordaban y la última se
+   montaba sobre el pie. Va `minmax(0, 1fr)`.
+3. **`nombreCorto` es para PERSONAS.** Aplicado al nombre del torneo convirtió
+   «Torneo SWU · 12 jugadores» en **«Torneo S.»**: abrevia por apellido y un
+   torneo no tiene apellido.
+4. **Invertir el contraste no es contraste.** «TIEMPO» del color del fondo del
+   tablero sobre la banda roja es oscuro sobre oscuro, y se apaga justo en el
+   único momento urgente de la pantalla.
+5. **El modo de tele de 43" estaba al revés**: multiplicaba por 1,45 y elegía
+   la disposición **más apretada, con la letra más chica**, en el único sitio
+   donde no se podía. Se finge que hay MENOS gente, no más.
+6. **«RONDA 0» y «JUGADORES —»** son campos sin llenar asomados a una pared.
+
+**`npm run proyeccion`** fija 36 cuentas. Una falló al escribirla y enseñó algo
+de la propia tabla: **NO es monótona en píxeles** —el escalón de modo lleno usa
+44, más que los 42 de los dos anteriores, porque al apagar la franja sobra
+alto—, así que la propiedad que se mide para la tele chica es la **densidad**,
+no el cuerpo de la letra.
+
+**Cuatro capas de frescura, y la cuarta es la que importa:** tiempo real,
+sondeo cada 30 s, relectura al volver la pestaña, y `location.reload()` a los
+12 minutos sin una lectura buena. `subscribeToEvent` llama a `.subscribe()`
+**sin callback de estado** (`tournamentCloud.ts:1477`), así que hoy un
+`CHANNEL_ERROR` es completamente mudo y una tele congelada se ve igual que un
+torneo tranquilo. El punto de frescura del pie es la única forma de notarlo
+desde lejos.
+
+**`wakeLock` no existe en Tizen ni webOS** — falla en silencio justo donde más
+falta hace. La respuesta real es apagarle el ahorro de energía al televisor, y
+eso va en la nota de operación, no en el código.
