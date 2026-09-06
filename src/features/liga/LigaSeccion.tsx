@@ -24,31 +24,18 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ChevronDown, ChevronLeft, Clock, Lock, PlayCircle, Swords } from 'lucide-react'
+import { ChevronDown, ChevronLeft, Clock, Lock, PlayCircle, Settings2, Swords } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { InscripcionLiga } from '../liga/InscripcionLiga'
 import { PortadaLiga } from './PortadaLiga'
-import { TONO_POR_RAREZA } from '../../services/filtrosCarta'
 import {
   verLiga, tablaDe, miProximaPartida, reportar, confirmar, disputar,
   TIERS, NOMBRE_TIER,
+  tonoDelTier,
   type EstadoPartida, type FilaTabla, type GrupoLiga, type LigaCompleta,
   type PartidaLiga, type PlazaLiga,
 } from '../../services/ligaService'
 
-/**
- * El color de cada tier sale del mapa de rarezas que ya existe, y la
- * traducción vive ACÁ, en una línea. `TONO_POR_RAREZA` está en inglés porque
- * así vienen las cartas del API; los tiers están en español porque así se
- * llaman en la liga. Copiar el mapa sería tener dos ideas del color de
- * «legendario» y que un día se separen sin que nada falle.
- */
-const RAREZA_DEL_TIER: Record<GrupoLiga['tier'], string> = {
-  comun: 'Common', infrecuente: 'Uncommon', raro: 'Rare', legendario: 'Legendary',
-}
-function tonoDelTier(t: GrupoLiga['tier']) {
-  return TONO_POR_RAREZA[RAREZA_DEL_TIER[t]] ?? 'default'
-}
 
 /**
  * El rótulo de cada estado.
@@ -175,6 +162,21 @@ export function LigaSeccion() {
               : 'En preparación'}
           </p>
         </div>
+
+        {/* EL PANEL, desde acá. No había ni un enlace al panel en toda la app:
+            se llegaba tecleando `/liga/:code/panel`, o sea que la herramienta
+            existía y no aparecía en ningún lado — que es lo mismo que no
+            existir (§3l). Sale con `esStaff`, el dato que `liga_ver` ya manda:
+            el creador, su staff y los admin. */}
+        {liga.liga.esStaff && (
+          <Link
+            to={`/liga/${code}/panel`}
+            className="ml-auto flex min-h-[36px] shrink-0 items-center gap-1.5 rounded-lg
+                       border border-swu-border px-3 text-[11px] font-bold text-swu-text"
+          >
+            <Settings2 size={13} /> Panel
+          </Link>
+        )}
       </header>
 
       {aviso && (
@@ -195,8 +197,18 @@ export function LigaSeccion() {
         />
       )}
 
-      {/* 2 · La inscripción, solo si no estoy dentro y todavía se puede entrar. */}
-      {!liga.miInscripcion && temporada?.estado === 'inscripcion' && (
+      {/* 2 · La inscripción, solo si no estoy dentro y todavía se puede entrar.
+
+          LA CONDICIÓN ES LA DE LA LIGA, NO LA DE LA TEMPORADA. Estaba mirando
+          `temporada?.estado` mientras `liga_inscribirse` valida `ligas.estado`,
+          y son dos interruptores que se abren por separado:
+
+            liga abierta, sin temporada  →  el formulario NO APARECE NUNCA
+            temporada abierta, liga sin abrir  →  aparece, y el botón rechaza
+
+          O sea que había que acertarle al orden para que la gente pudiera
+          entrar. La pantalla ofrece lo que el servidor acepta. */}
+      {!liga.miInscripcion && liga.liga.estado === 'inscripcion' && (
         <InscripcionLiga
           ligaId={liga.liga.id}
           onListo={() => { setAviso('Estás dentro. Cuando se armen los grupos vas a ver tu calendario.'); recargar() }}

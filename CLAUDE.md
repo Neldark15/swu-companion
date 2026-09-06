@@ -3626,3 +3626,102 @@ Y una regla de operación: **un torneo cerrado no se re-escala.** Subirle el 4º
 a 1 después de repartir no le da el sobre a nadie —el pestillo de premios
 impide repartir dos veces— pero sí hace que el podio anuncie retroactivamente
 algo que nunca se entregó.
+
+### 4t. LIGA — Fase 0: lo que hacía imposible jugar, y lo que solo es gratis hoy
+
+La liga estaba construida entera y **no se podía usar**. Fase 0 no agrega una
+pantalla: destraba lo que estaba muerto y hace ahora los `alter` que con datos
+vivos costarían una migración. Se pudo porque `puente3` tenía 0 inscritos y 0
+partidas — el demo de 128 usuarios y 448 partidas era falso y se borró el
+2026-09-06.
+
+**ALEJO NO PODÍA VER SU PROPIA LIGA.** `liga_visible()` leía SOLO
+`liga_probadores`, que tiene UNA fila (Nelson). El creador, su staff y cualquier
+inscrito recibían «Esta liga todavía no es pública» — incluido el dueño. Ahora
+son cinco puertas (pública · creador · staff · inscrito · probador) y **sigue
+siendo UN punto**: las tres policies que la llaman no se tocaron. La de
+probadores se conserva a propósito, que es la que deja estrenar con una cuenta.
+
+**LA LIGA NO SE PODÍA CERRAR.** `liga_cerrar` escribe `estado = 'sin_jugar'` en
+las jornadas que nadie jugó, y ese valor **no estaba en el CHECK**: 23514 y
+rollback de todo. Con una sola partida sin jugar, la liga no cerraba nunca. Se
+agregó el valor en vez de cambiar la RPC porque el estado es correcto — el motor
+no inventa resultados (§3q). Es el mismo par del §3h-sexies y del §3m: **tocar el
+estado en el servicio sin ampliar el CHECK no falla al entrar, falla al
+escribir**, y ahí ya es tarde.
+
+**`algo = NULL` NO ES FALSE, Y AHÍ SE CAÍA LA CONFIRMACIÓN DOBLE.**
+`liga_reportar` dejaba pasar al staff sin plaza, así que
+`reportada_por = coalesce(v_mia, reportada_por)` quedaba en NULL. Y
+`liga_confirmar` guarda contra la autoconfirmación con
+`if v_mia = v_p.reportada_por then rechazar`: contra NULL eso da NULL, que no es
+TRUE, la guardia no dispara y **cualquiera de los dos jugadores confirma su
+propio resultado**. La confirmación doble es toda la defensa que la liga tiene
+contra un marcador inventado, y dejaba de existir en cuanto el staff tocaba una
+partida. Se sacó `v_staff`: el staff usa `liga_corregir`, que además **deja
+huella** — un staff reportando por `liga_reportar` era una acción administrativa
+sin rastro.
+
+**EL LAUDO PUBLICABA LA ACUSACIÓN.** `liga_correcciones` guardaba `to_jsonb(m)`
+de la fila COMPLETA, incluido `disputa_motivo` — el texto libre donde un jugador
+acusa a otro— y esa tabla tenía SELECT a nivel de tabla. Se guarda recortado. Y
+`liga_es_staff(liga)` no miraba `grupo_id`: un árbitro del grupo 3 laudaba
+partidas del grupo 7. El rol por grupo existía en la tabla desde el primer día y
+no lo leía nadie.
+
+**LOS GRANTS DE TABLA OTRA VEZ (§2j), Y ACÁ CON MENORES DE POR MEDIO.**
+`liga_inscripciones`, `liga_partidas` y `liga_correcciones` tenían SELECT a nivel
+de TABLA para `authenticated`. `liga_ver()` omite `user_id` a propósito y **la
+tabla lo entregaba igual**: el día que la liga se abriera, cualquier cuenta con
+sesión hacía un GET a `/rest/v1/liga_inscripciones` y se llevaba `user_id`,
+`estado` (incluido un veto), `abandonos` y `consiente_perfil` de cada persona, y
+de `liga_partidas` el `disputa_motivo`. Y un grant de tabla cubre las columnas
+FUTURAS: la `pais` recién agregada se habría publicado sola. Costó **cero
+TypeScript** —`grep "from('liga_inscripciones')"` en `src/` da 0: todo va por
+RPC—, que es exactamente el momento de hacerlo.
+
+**`puede_ver_creadores()` NO ES POR LIGA.** Significa «existe fila en `creadores`
+O es admin». Con dos ligas vivas, cualquier creador registrado leía el padrón
+completo de la liga del otro. Las tres policies pasan a `liga_visible()`, que sí
+pregunta por ESTA liga.
+
+**UN ÍNDICE ÚNICO QUE HACÍA DESAPARECER UNA LIGA.** `ligas_una_viva_por_creador`
+impedía Puente 4 mientras Puente 3 siguiera abierta, y rompía en silencio:
+`getLigaDeCreador` usaba `.maybeSingle()`, que con dos filas devuelve PGRST116, y
+el servicio hace `if (error) return null`. La segunda liga no daba error — hacía
+**desaparecer la primera**. Hoy `getLigasDeCreador` devuelve un arreglo y el tope
+es BLANDO (5, dentro de `liga_crear`): un límite con mensaje en vez de un índice
+que miente.
+
+**EL PAÍS SE COPIA, NO SE UNE.** Vive en dos sitios con dos significados:
+`liga_inscripciones.pais` es dónde estoy AHORA (sigue al perfil) y
+`liga_plazas.pais` es dónde estaba cuando arrancó ESA temporada. Un join vivo
+contra `profiles` reescribiría el pasado: quien se mude entre temporadas
+cambiaría solo el ranking por países de una temporada ya cerrada. Es el mismo
+patrón con el que `nombre_visible` ya se copia dos veces. Los llena
+`liga_armar_grupos`, que es el único insertador de esas dos tablas y por eso el
+único sitio donde se pueden llenar sin backfill.
+
+**`tablaDe` SALIÓ A UN MÓDULO PURO Y TIENE PRUEBA.** `src/services/ligaTabla.ts`
+no importa Supabase; `ligaService` lo re-exporta para que ninguna pantalla
+cambie. **`npm run liga`** fija 21 cuentas. No es opcional: esa función ya tuvo
+**dos bugs silenciosos en público** —la lista de estados que cuentan era NEGRA,
+así que un estado nuevo entraba solo; y un 0-0 le regalaba la victoria a la
+visita porque la rama del empate no existía— y de esta tabla salen los ascensos
+de tier. Los dos se ven idénticos a una tabla correcta desde afuera: números
+plausibles, orden plausible, cero errores. Que estuviera pegada a `supabase` es
+*la razón* de que nadie los viera, igual que el sesgo del barajado de misiones
+(§3n).
+
+**`tonoDelTier` estaba TRES veces** (servicio, `LigaSeccion`, `PanelLiga`) y las
+copias se habían separado. La canónica **deriva de `TONO_POR_RAREZA`** a
+propósito: así el «Raro» de la liga y el «Rare» de las cartas comparten color.
+Reescribirla a mano con un mapa inventado es lo primero que hice y lo cazó
+`npm run build`.
+
+**Dos cosas de la Fase 0 que NO se hicieron, a propósito:**
+- **Abrir la inscripción** (`publica=true`, `estado='inscripcion'`). El alta
+  todavía tiene el embudo roto que arregla la Fase 1; abrirla hoy es exponerlo.
+  `liga_visible()` ya deja a Alejo ver su liga con `publica=false`.
+- **Renombrar `ligas.code`** de `puente3` a algo definitivo. Es el URL público de
+  la liga y una decisión de marca, no mía.

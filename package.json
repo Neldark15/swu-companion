@@ -20,7 +20,8 @@
     "embebidos-perfil": "node scripts/embebidos-de-perfil.mjs",
     "agrupar-coste": "tsx scripts/agrupar-por-coste.test.mts",
     "precon": "node scripts/precon-integros.mjs",
-    "proyeccion": "tsx scripts/proyeccion-escalones.test.mts"
+    "proyeccion": "tsx scripts/proyeccion-escalones.test.mts",
+    "liga": "tsx scripts/tabla-liga.test.mts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",

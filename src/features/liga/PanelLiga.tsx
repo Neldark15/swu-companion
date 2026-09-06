@@ -48,9 +48,9 @@ import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
 import { HudPanel } from '../../components/Hud'
 import { SegmentedControl } from '../../components/ui/SegmentedControl'
-import { TONO_POR_RAREZA } from '../../services/filtrosCarta'
 import {
   verLiga, verPanel, planDeGrupos, armarGrupos, sembrarGrupo, abrirTemporada, corregir,
+  tonoDelTier,
   TIERS, NOMBRE_TIER,
   type LigaCompleta, type PanelLiga as DatosPanel, type PlanGrupos, type InscritoPanel,
 } from '../../services/ligaService'
@@ -77,18 +77,6 @@ const EN_DOS_MESES = fechaISO(60)
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 const FRANJAS = 7 * 24
 
-/**
- * Los tiers de la liga están en español y `TONO_POR_RAREZA` está en inglés.
- * La traducción vive ACÁ, en un solo sitio: copiar el mapa de tonos sería
- * garantizar que algún día el Raro de la liga y el Rare de las cartas dejen
- * de ser el mismo color sin que nadie lo note.
- */
-const RAREZA_DE_TIER: Record<string, string> = {
-  comun: 'Common', infrecuente: 'Uncommon', raro: 'Rare', legendario: 'Legendary',
-}
-function tonoDeTier(tier: string) {
-  return TONO_POR_RAREZA[RAREZA_DE_TIER[tier] ?? 'Common'] ?? 'default'
-}
 
 /**
  * Las franjas declaradas, como índices 0..167.
@@ -533,7 +521,7 @@ function Inscritos({ inscritos }: { inscritos: InscritoPanel[] }) {
                     )}
                   </td>
                   <td className="px-2.5 py-2">
-                    <Badge variant={tonoDeTier(i.tier)}>{NOMBRE_TIER[i.tier] ?? i.tier}</Badge>
+                    <Badge variant={tonoDelTier(i.tier)}>{NOMBRE_TIER[i.tier] ?? i.tier}</Badge>
                   </td>
                   <td className="px-2.5 py-2 font-mono text-[10px] text-swu-muted">
                     {i.zona ?? '—'}
@@ -798,7 +786,7 @@ function Grupos({
                 {bloques.map(b => (
                   <li key={`${b.tier}-${b.orden}`} className="flex items-center justify-between gap-2 text-[12px]">
                     <span className="flex items-center gap-1.5">
-                      <Badge variant={tonoDeTier(b.tier)}>{NOMBRE_TIER[b.tier] ?? b.tier}</Badge>
+                      <Badge variant={tonoDelTier(b.tier)}>{NOMBRE_TIER[b.tier] ?? b.tier}</Badge>
                       <span className="text-swu-muted">grupo {b.orden}</span>
                     </span>
                     <span className="tabular-nums font-bold text-swu-text">{b.inscripciones.length}</span>
@@ -832,7 +820,7 @@ function Grupos({
             const etiqueta = `${NOMBRE_TIER[g.tier] ?? g.tier} ${g.orden}`
             return (
               <div key={g.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-swu-border bg-swu-bg p-2.5">
-                <Badge variant={tonoDeTier(g.tier)}>{etiqueta}</Badge>
+                <Badge variant={tonoDelTier(g.tier)}>{etiqueta}</Badge>
                 <span className="text-[11px] text-swu-muted">
                   {g.plazas.length} plazas · {g.partidas.length} partidas · {g.estado}
                 </span>

@@ -1,0 +1,167 @@
+/**
+ * La tabla de posiciones de la liga.
+ *
+ * ── Por qué esta prueba no es opcional ───────────────────────────────
+ *
+ * `tablaDe()` ya tuvo DOS bugs silenciosos en público, los dos documentados en
+ * su propio código:
+ *
+ *   · los estados que cuentan eran una lista NEGRA, así que un estado nuevo
+ *     entraba a la tabla solo;
+ *   · un marcador igualado le regalaba la victoria a la visita, porque la
+ *     rama del empate no existía.
+ *
+ * Los dos se ven idénticos a una tabla correcta desde afuera: números
+ * plausibles, orden plausible, cero errores. Y de esta tabla salen los
+ * ascensos de tier. Es exactamente el sitio donde una prueba vale más que
+ * leer el código con cuidado.
+ *
+ *   npx tsx scripts/tabla-liga.test.mts
+ */
+
+import { tablaDe } from '../src/services/ligaTabla.ts'
+import type { PlazaLiga, PartidaLiga, EstadoPartida } from '../src/services/ligaTabla.ts'
+
+let fallos = 0
+function ok(cond: boolean, que: string, detalle = '') {
+  if (cond) { console.log(`  ✓ ${que}`); return }
+  fallos++
+  console.log(`  ✗ ${que}${detalle ? ' — ' + detalle : ''}`)
+}
+
+const G = 'g1'
+const plaza = (id: string, estado: PlazaLiga['estado'] = 'activa'): PlazaLiga => ({
+  id, grupoId: G, nombre: id, lider: null, base: null, estado, esMia: false,
+})
+const partida = (
+  local: string, visita: string, vl: number, vv: number,
+  estado: EstadoPartida = 'confirmada', jornada = 1,
+): PartidaLiga => ({
+  id: `${local}-${visita}-${jornada}`, grupoId: G, jornada,
+  localPlaza: local, visitaPlaza: visita, vl, vv, estado,
+  origen: 'acuerdo', venceEl: null, vod: null, reportadaPor: null,
+})
+
+const porNombre = (filas: ReturnType<typeof tablaDe>) => filas.map(f => f.nombre).join(' ')
+
+// ── El puntaje ─────────────────────────────────────────────────────────
+console.log('\nPuntaje')
+{
+  const t = tablaDe([plaza('A'), plaza('B')], [partida('A', 'B', 2, 1)], G)
+  const a = t.find(f => f.nombre === 'A')!
+  const b = t.find(f => f.nombre === 'B')!
+  ok(a.puntos === 3 && b.puntos === 0, 'ganar da 3 y perder 0')
+  ok(a.ganadas === 1 && b.perdidas === 1, 'se anota la victoria y la derrota')
+  ok(a.jugadas === 1 && b.jugadas === 1, 'la partida cuenta para los dos')
+  ok(a.difGames === 1 && b.difGames === -1, 'la diferencia de games es simétrica')
+}
+
+// ── Los walkover: el marcador de la tabla NO es el de la fila ─────────
+console.log('\nWalkover')
+{
+  // Un wo_local es que ganó la VISITA. El marcador guardado da igual: el
+  // motor lo reescribe a 0-2. Si esto se rompe, un walkover reparte puntos
+  // al que no se presentó y nadie lo nota.
+  const t = tablaDe([plaza('A'), plaza('B')], [partida('A', 'B', 9, 9, 'wo_local')], G)
+  const a = t.find(f => f.nombre === 'A')!
+  const b = t.find(f => f.nombre === 'B')!
+  ok(b.puntos === 3 && a.puntos === 0, 'wo_local: los 3 puntos son de la VISITA')
+  ok(b.gamesGanados === 2 && a.gamesGanados === 0, 'y el marcador se sella 0-2')
+}
+{
+  const t = tablaDe([plaza('A'), plaza('B')], [partida('A', 'B', 9, 9, 'wo_visita')], G)
+  const a = t.find(f => f.nombre === 'A')!
+  ok(a.puntos === 3 && a.gamesGanados === 2, 'wo_visita: los 3 son del LOCAL, 2-0')
+}
+
+// ── El empate, que es el bug que ya ocurrió ───────────────────────────
+console.log('\nMarcador igualado')
+{
+  // Un BO3 no puede terminar empatado, así que 0-0 es una partida SIN
+  // marcador. Antes esta rama no existía y `vv > vl` era falso, `vl > vv`
+  // también, y la visita se llevaba la victoria por descarte.
+  const t = tablaDe([plaza('A'), plaza('B')], [partida('A', 'B', 0, 0)], G)
+  const a = t.find(f => f.nombre === 'A')!
+  const b = t.find(f => f.nombre === 'B')!
+  ok(a.puntos === 0 && b.puntos === 0, 'un 0-0 no le da puntos a NADIE')
+  ok(a.ganadas === 0 && b.ganadas === 0, 'y no le da la victoria a la visita')
+  ok(a.jugadas === 1 && b.jugadas === 1, 'pero cuenta como jugada')
+}
+
+// ── Lista BLANCA de estados ────────────────────────────────────────────
+console.log('\nQué estados cuentan')
+{
+  const noCuentan: EstadoPartida[] = ['programada', 'reportada', 'disputada', 'vencida', 'anulada']
+  let limpio = true
+  for (const e of noCuentan) {
+    const t = tablaDe([plaza('A'), plaza('B')], [partida('A', 'B', 2, 0, e)], G)
+    if (t.some(f => f.jugadas > 0 || f.puntos > 0)) { limpio = false; console.log(`      ← «${e}» entró a la tabla`) }
+  }
+  ok(limpio, 'programada, reportada, disputada, vencida y anulada NO cuentan')
+
+  /* La lista es BLANCA, no negra: un estado inventado tampoco entra. Es la
+     diferencia entre un estado nuevo que aparece solo en la tabla y uno que
+     hay que agregar a propósito. */
+  const t = tablaDe([plaza('A'), plaza('B')],
+                    [partida('A', 'B', 2, 0, 'inventado' as EstadoPartida)], G)
+  ok(t.every(f => f.jugadas === 0), 'un estado que no existe tampoco entra (lista blanca)')
+}
+
+// ── El desempate por enfrentamiento directo ────────────────────────────
+console.log('\nDesempate')
+{
+  /* A y B empatan a 3 puntos y a diferencia de games. En un round-robin
+     jugaron entre sí exactamente una vez, así que el directo SIEMPRE está
+     definido — y tiene que mandar sobre el abecedario. */
+  const t = tablaDe(
+    [plaza('Ana'), plaza('Beto'), plaza('Caro')],
+    [
+      partida('Beto', 'Ana', 2, 0, 'confirmada', 1),   // Beto le ganó a Ana
+      partida('Ana', 'Caro', 2, 0, 'confirmada', 2),
+      partida('Beto', 'Caro', 0, 2, 'confirmada', 3),
+    ], G)
+  const ana = t.find(f => f.nombre === 'Ana')!
+  const beto = t.find(f => f.nombre === 'Beto')!
+  ok(ana.puntos === beto.puntos, `Ana y Beto empatan a puntos (${ana.puntos})`)
+  ok(t.findIndex(f => f.nombre === 'Beto') < t.findIndex(f => f.nombre === 'Ana'),
+     'y Beto va arriba porque le ganó el directo, no por el abecedario',
+     porNombre(t))
+}
+
+// ── La plaza abandonada ────────────────────────────────────────────────
+console.log('\nAbandono')
+{
+  const t = tablaDe(
+    [plaza('A'), plaza('B', 'abandonada')],
+    [partida('A', 'B', 2, 0)], G)
+  const b = t.find(f => f.nombre === 'B')!
+  ok(b !== undefined, 'quien abandona SIGUE en la tabla')
+  ok(b.abandonada === true, 'y queda marcado')
+  ok(b.jugadas === 1, 'lo que ya jugó no se borra: los puntos que repartió valen')
+}
+
+// ── El filtro por grupo ────────────────────────────────────────────────
+console.log('\nGrupos')
+{
+  const otra: PlazaLiga = { ...plaza('Z'), grupoId: 'g2' }
+  const cruzada: PartidaLiga = { ...partida('A', 'Z', 2, 0), grupoId: 'g2' }
+  const t = tablaDe([plaza('A'), plaza('B'), otra], [partida('A', 'B', 2, 0), cruzada], G)
+  ok(t.length === 2, 'la tabla de un grupo no trae plazas de otro')
+  ok(t.find(f => f.nombre === 'A')!.jugadas === 1,
+     'ni cuenta partidas de otro grupo', `jugadas=${t.find(f => f.nombre === 'A')!.jugadas}`)
+}
+
+// ── Una partida contra alguien que no está ─────────────────────────────
+console.log('\nDatos incompletos')
+{
+  // Puede pasar si una plaza se anuló: la partida queda apuntando a un id que
+  // ya no está en la lista. Tiene que ignorarse, no reventar.
+  const t = tablaDe([plaza('A')], [partida('A', 'fantasma', 2, 0)], G)
+  ok(t.length === 1 && t[0].jugadas === 0, 'una partida contra alguien que no está se ignora')
+  ok(tablaDe([], [], G).length === 0, 'un grupo vacío da una tabla vacía, no un error')
+}
+
+console.log(fallos === 0
+  ? '\n✅ la tabla de la liga reparte bien\n'
+  : `\n❌ ${fallos} cosa(s) que la tabla hace mal\n`)
+process.exit(fallos === 0 ? 0 : 1)

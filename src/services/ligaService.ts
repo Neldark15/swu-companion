@@ -14,6 +14,7 @@
  */
 
 import { supabase, isSupabaseReady } from './supabase'
+import { TONO_POR_RAREZA } from './filtrosCarta'
 
 export interface Creador {
   userId: string
@@ -42,50 +43,38 @@ export interface InscripcionLiga {
   retirado: boolean
 }
 
-export type EstadoPartida =
-  | 'programada' | 'reportada' | 'confirmada' | 'disputada'
-  | 'vencida' | 'wo_local' | 'wo_visita' | 'anulada'
 
-export interface PartidaLiga {
-  id: string
-  grupoId: string
-  jornada: number
-  localPlaza: string
-  visitaPlaza: string
-  vl: number
-  vv: number
-  estado: EstadoPartida
-  /** 'acuerdo' los dos firmaron · 'silencio' el rival no contestó · 'laudo' lo resolvió la organización. */
-  origen: 'acuerdo' | 'silencio' | 'laudo' | null
-  venceEl: string | null
-  vod: string | null
-  reportadaPor: string | null
+
+
+/**
+ * El color de un tier. Vive acá y no en cada pantalla.
+ *
+ * Estaba COPIADO literal en `LigaSeccion` y en `PanelLiga`, con dos nombres
+ * distintos (`tonoDelTier` y `tonoDeTier`) y hasta con dos redes distintas
+ * ante un tier desconocido. Dos copias de una tabla de colores no fallan: se
+ * SEPARAN, y el mismo grupo sale de un color en la pantalla pública y de otro
+ * en el panel sin que nadie lo note hasta compararlas.
+ *
+ * El tono NO se escribe acá: se DERIVA de `TONO_POR_RAREZA`, que es el mapa
+ * que ya usan las cartas. Los tiers están en español porque así se llaman en
+ * la liga y las rarezas en inglés porque así vienen del API; la traducción es
+ * esta línea y nada más. Escribir los colores a mano sería tener dos ideas del
+ * color de «legendario» y que un día se separen sin que nada falle.
+ */
+const RAREZA_DEL_TIER: Record<string, string> = {
+  comun: 'Common', infrecuente: 'Uncommon', raro: 'Rare', legendario: 'Legendary',
 }
 
-/** Una fila de la tabla de posiciones, COMPUTADA de las partidas (§2y). */
-export interface PlazaLiga {
-  id: string
-  grupoId: string
-  nombre: string
-  lider: string | null
-  base: string | null
-  estado: 'activa' | 'abandonada' | 'anulada'
-  esMia: boolean
+export function tonoDelTier(tier: string) {
+  return TONO_POR_RAREZA[RAREZA_DEL_TIER[tier] ?? 'Common'] ?? 'default'
 }
 
-export interface FilaTabla {
-  plazaId: string
-  nombre: string
-  lider: string | null
-  esMia: boolean
-  abandonada: boolean
-  jugadas: number
-  ganadas: number
-  perdidas: number
-  puntos: number
-  difGames: number
-  gamesGanados: number
-}
+/* La tabla vive en `ligaTabla.ts`, pura y sin red, para poder probarla sin
+   levantar Supabase. Se re-exporta acá para que las pantallas sigan
+   importando de un solo sitio. */
+import type { EstadoPartida, PartidaLiga, PlazaLiga, FilaTabla } from './ligaTabla'
+export { tablaDe } from './ligaTabla'
+export type { EstadoPartida, PartidaLiga, PlazaLiga, FilaTabla }
 
 export async function getCreador(code: string): Promise<Creador | null> {
   if (!isSupabaseReady()) return null
@@ -105,16 +94,33 @@ export async function getCreador(code: string): Promise<Creador | null> {
   }
 }
 
-export async function getLigaDeCreador(creadorId: string): Promise<Liga | null> {
-  if (!isSupabaseReady()) return null
+/**
+ * Las ligas VIVAS de un creador. Devuelve lista, no una sola.
+ *
+ * Devolvía `.maybeSingle()`, que con dos filas contesta PGRST116 — y el
+ * `if (error) return null` de abajo se lo tragaba. O sea que abrir una segunda
+ * liga no daba un error: hacía DESAPARECER la primera de la casa del creador.
+ *
+ * El índice único que forzaba una sola liga viva ya no está: impedía Puente 4
+ * mientras Puente 3 siguiera abierta. En su lugar hay un tope blando de 5
+ * dentro de `liga_crear`, que es un límite con mensaje en vez de un índice que
+ * miente.
+ */
+export async function getLigasDeCreador(creadorId: string): Promise<Liga[]> {
+  if (!isSupabaseReady()) return []
   const { data, error } = await supabase
     .from('ligas')
     .select('id, code, creador_id, nombre, descripcion, cupo, estado')
     .eq('creador_id', creadorId)
     .in('estado', ['borrador', 'inscripcion', 'activa'])
-    .maybeSingle()
-  if (error || !data) return null
-  return filaALiga(data)
+    .order('creado_en', { ascending: true })
+  if (error) { console.warn('[Liga] no se pudieron leer las ligas del creador:', error.message); return [] }
+  return (data ?? []).map(filaALiga)
+}
+
+/** La primera liga viva. Para las pantallas que todavía asumen una sola. */
+export async function getLigaDeCreador(creadorId: string): Promise<Liga | null> {
+  return (await getLigasDeCreador(creadorId))[0] ?? null
 }
 
 export async function getLiga(code: string): Promise<Liga | null> {
@@ -149,99 +155,7 @@ function filaALiga(d: Record<string, unknown>): Liga {
  *
  * Puntos 3/0; desempate: diferencia de games. El walkover cuenta como 2-0.
  */
-/**
- * La tabla de un GRUPO. Se computa, nunca se almacena (§2y).
- *
- * ── Los dos defectos que tenía, y por qué ninguno daba error ─────────
- *
- * 1. **Filtraba con lista NEGRA** (`estado === 'programada' || 'sin_jugar'`).
- *    Cualquier estado nuevo contaba por omisión — y ahora hay cinco más
- *    (reportada, disputada, vencida, anulada). Una partida que nadie confirmó
- *    habría sumado puntos.
- * 2. **El `else` le daba la victoria y 3 puntos a la VISITA en cada empate.**
- *    Y un 0-0 es exactamente el estado de una partida sin marcador: medido,
- *    8 de los 10 duelos reales de producción están así (§3a).
- *
- * Las dos producen una tabla plausible y equivocada, en público, sin una sola
- * excepción. Ahora la lista es BLANCA y el empate es su propia rama.
- *
- * ── Y quien abandona no borra lo que ya jugó ─────────────────────────
- *
- * Antes `if (!local || !visita) continue` hacía desaparecer el resultado del
- * que SÍ jugó y ganó. En una liga de 24 era ruido; en una de 120 con abandono
- * normal del 30 % son ~140 encuentros evaporados. La plaza abandonada se
- * queda en el mapa con bandera y se filtra al PINTAR, no al sumar.
- */
 
-/** Los únicos estados que cuentan. Lista BLANCA: lo que no está, no suma. */
-const CUENTAN = new Set(['confirmada', 'wo_local', 'wo_visita'])
-
-export function tablaDe(
-  plazas: PlazaLiga[],
-  partidas: PartidaLiga[],
-  grupoId?: string,
-): FilaTabla[] {
-  const filas = new Map<string, FilaTabla>()
-  for (const p of plazas) {
-    if (grupoId && p.grupoId !== grupoId) continue
-    filas.set(p.id, {
-      plazaId: p.id, nombre: p.nombre, lider: p.lider, esMia: p.esMia,
-      abandonada: p.estado !== 'activa',
-      jugadas: 0, ganadas: 0, perdidas: 0, puntos: 0, difGames: 0, gamesGanados: 0,
-    })
-  }
-
-  for (const m of partidas) {
-    if (grupoId && m.grupoId !== grupoId) continue
-    if (!CUENTAN.has(m.estado)) continue
-    const local = filas.get(m.localPlaza)
-    const visita = filas.get(m.visitaPlaza)
-    if (!local || !visita) continue
-
-    const vl = m.estado === 'wo_visita' ? 2 : m.estado === 'wo_local' ? 0 : m.vl
-    const vv = m.estado === 'wo_local' ? 2 : m.estado === 'wo_visita' ? 0 : m.vv
-
-    local.jugadas++; visita.jugadas++
-    local.gamesGanados += vl; visita.gamesGanados += vv
-    local.difGames += vl - vv; visita.difGames += vv - vl
-
-    if (vl > vv) { local.ganadas++; local.puntos += 3; visita.perdidas++ }
-    else if (vv > vl) { visita.ganadas++; visita.puntos += 3; local.perdidas++ }
-    // Empate: un BO3 no puede terminar empatado, así que un marcador igual es
-    // una partida SIN marcador. No se le regala la victoria a nadie — cuenta
-    // como jugada y punto. Antes esta rama no existía y la ganaba la visita.
-  }
-
-  const orden = [...filas.values()]
-  return orden.sort((a, b) =>
-    b.puntos - a.puntos ||
-    // ENFRENTAMIENTO DIRECTO. En un round-robin de grupo dos empatados SIEMPRE
-    // jugaron entre sí exactamente una vez, así que está siempre definido.
-    // Terminar en `localeCompare` está bien para pintar y sería un escándalo
-    // para ascender.
-    directo(a, b, partidas) ||
-    b.difGames - a.difGames ||
-    b.gamesGanados - a.gamesGanados ||
-    a.nombre.localeCompare(b.nombre))
-}
-
-/** −1 si `a` le ganó a `b`, 1 si perdió, 0 si no se cruzaron o no cuenta. */
-function directo(a: FilaTabla, b: FilaTabla, partidas: PartidaLiga[]): number {
-  for (const m of partidas) {
-    if (!CUENTAN.has(m.estado)) continue
-    const esEste =
-      (m.localPlaza === a.plazaId && m.visitaPlaza === b.plazaId) ||
-      (m.localPlaza === b.plazaId && m.visitaPlaza === a.plazaId)
-    if (!esEste) continue
-    const vl = m.estado === 'wo_visita' ? 2 : m.estado === 'wo_local' ? 0 : m.vl
-    const vv = m.estado === 'wo_local' ? 2 : m.estado === 'wo_visita' ? 0 : m.vv
-    if (vl === vv) return 0
-    const ganoLocal = vl > vv
-    const aEsLocal = m.localPlaza === a.plazaId
-    return ganoLocal === aEsLocal ? -1 : 1
-  }
-  return 0
-}
 
 /** Mi grupo, para la tarjeta del perfil. Un viaje, ~11,6 KB. */
 export interface MiLiga {
