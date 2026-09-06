@@ -488,6 +488,32 @@ export const publicarAnuncio = (liga: string, titulo: string, cuerpo: string) =>
 
 export const borrarAnuncio = (id: string) => rpc('liga_borrar_anuncio', { p_id: id })
 
+/**
+ * Configurar la liga desde el panel. **Solo staff**, y lo comprueba el servidor.
+ *
+ * Existe por la misma razón que el editor de la escala de sobres (§4s): hasta
+ * hoy, cambiar el cupo, el formato o ABRIR LA INSCRIPCIÓN eran un `update`
+ * suelto en el SQL Editor. Una decisión de quien organiza no puede necesitar a
+ * un programador ni esperar a que esté disponible — así fue como el 4.º de una
+ * final se quedó sin sobres.
+ *
+ * Todo lo que llega `null` se deja como estaba: la pantalla manda solo lo que
+ * de verdad se tocó, y así dos personas editando campos distintos no se pisan.
+ */
+export const configurarLiga = (liga: string, cambios: {
+  nombre?: string; descripcion?: string; cupo?: number | null
+  formato?: string; tamanoGrupo?: number; estado?: string; publica?: boolean
+}) => rpc('liga_configurar', {
+  p_liga: liga,
+  p_nombre: cambios.nombre ?? null,
+  p_descripcion: cambios.descripcion ?? null,
+  p_cupo: cambios.cupo ?? null,
+  p_formato: cambios.formato ?? null,
+  p_tamano_grupo: cambios.tamanoGrupo ?? null,
+  p_estado: cambios.estado ?? null,
+  p_publica: cambios.publica ?? null,
+})
+
 export const guardarDisponibilidad = (liga: string, zona: string, franjas: string, nota?: string) =>
   rpc('liga_guardar_disponibilidad', { p_liga: liga, p_zona: zona, p_franjas: franjas, p_nota: nota ?? null })
 
@@ -521,6 +547,8 @@ export interface InscritoPanel {
   estado: string
   lider: string | null
   base: string | null
+  /** ISO alpha-2, o null. Para la bandera de la ficha del panel. */
+  pais: string | null
   zona: string | null
   franjas: string | null
   horas: number

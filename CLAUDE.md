@@ -4025,3 +4025,61 @@ anuncios en sus tres, y el reglamento. Lo que NO se pudo ver es el lobby
 ENSAMBLADO con datos reales: la liga sigue en `borrador` y no hay sesión en el
 navegador de pruebas, así que el orden de los bloques está verificado leyendo,
 no mirando.
+
+### 4x. LIGA — el panel en teléfono, y `liga_configurar`
+
+Cierra la Fase 3. `PanelLiga` nació como **escritorio metido en una app de
+teléfono**: 1.131 líneas con **UN solo breakpoint**, la tabla de inscritos en
+`min-w-[420px]` con scroll lateral y el mapa de calor en otro `min-w-[300px]`.
+Y es la pantalla desde la que se arman los grupos de 128 personas.
+
+**Las dos vistas CONVIVEN, no se reemplazan.** La tabla ordenable y la rejilla
+de 168 casillas siguen siendo la forma correcta en una compu; lo que faltaba era
+la forma correcta en una mano. `sm:hidden` / `hidden sm:block`.
+
+**La ficha muestra lo que decide un grupo**: bandera, tier, líder, zona, horas
+declaradas y **cuándo** puede. El cero de horas va en rojo con triángulo — es el
+dato que decide si esa persona puede entrar a un grupo, y se ve de lejos o no se
+ve.
+
+**LOS HORARIOS VAN EN TRAMOS, NO HORA POR HORA.** Enumerarlos es lo que sale del
+formato de 168 casillas y es ilegible: quien declara «los martes de 8 a 11 de la
+noche» aparecía como **«Mar 20:00 · Mar 21:00 · Mar 22:00 +9»** — tres fichas
+que dicen casi lo mismo y un «+9» que esconde toda su semana. `tramosDe` los
+agrupa: **«Mar 20–23 · Jue 20–23 · Sáb 14–20»**. Dice lo mismo en un tercio del
+espacio y además dice CUÁNTO dura, que es la mitad del dato. **Los tramos no
+cruzan la medianoche a propósito**: «Dom 23–24» y «Lun 00–02» son dos ratos
+distintos para quien tiene que ponerse de acuerdo, aunque en el arreglo de 168
+sean consecutivos.
+
+Y se llaman «sus franjas», no «sus mejores franjas»: sin cruzarlas contra las de
+otro, todas valen lo mismo — «mejores» insinuaría un cálculo que ahí no se hizo.
+
+**El mapa por día**: siete filas, la barra de 24 horas y el PICO de ese día.
+El número es el máximo, **no la suma**: sumar las 24 horas daría un número
+enorme y sin sentido, porque la misma persona cuenta en todas las horas que
+declaró.
+
+**`liga_configurar`: abrir la inscripción deja de ser un `UPDATE` a mano.** Es
+la forma del §4s otra vez — la escala de sobres existió meses sin un escritor en
+la app y por eso el 4.º de una final se quedó sin premio. Cambiar el nombre, el
+cupo, el formato o **abrir la inscripción** eran hasta hoy un `update` suelto en
+el SQL Editor.
+
+Tres reglas de esa RPC:
+- **Solo se manda lo que se tocó.** Todo lo que llega `null` queda como estaba.
+  No es comodidad: mandando siempre los siete campos, dos personas editando
+  cosas distintas se pisan y la segunda revierte a la primera sin un error.
+- **El tamaño de grupo se congela con grupos armados.** El calendario se sembró
+  con ese número; cambiarlo dejaría round-robins de largos distintos dentro de
+  la misma temporada.
+- **Abrir la inscripción va aparte, con el efecto escrito.** Es el único control
+  del panel que cambia lo que ve gente de afuera, así que no puede tocarse sin
+  querer mientras se corrige un nombre.
+
+`liga_panel` pasó a devolver `pais` — se reescribió desde su propia `prosrc` con
+un reemplazo que **se planta si no casa**, en vez de re-tipear 60 líneas de
+`jsonb_build_object` y arriesgar una diferencia silenciosa.
+
+Banco: **`/banco-lobby-liga`** lleva también las fichas del panel (con país, sin
+país, sin horas y retirada) y el mapa por día.

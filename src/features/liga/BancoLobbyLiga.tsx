@@ -17,7 +17,8 @@ import { useState } from 'react'
 import { Trophy, Swords, CalendarClock, BookOpen, Megaphone, Settings2, Users, Globe2, Layers, Star, CalendarDays, Timer, ChevronRight, Zap } from 'lucide-react'
 import { Bandera, TarjetaCifra, ContadorPlazo } from './componentes/piezas'
 import { Atajo, AnunciosLiga, ComoFunciona, TopOcho } from './LigaSeccion'
-import type { AnuncioLiga } from '../../services/ligaService'
+import type { AnuncioLiga, InscritoPanel } from '../../services/ligaService'
+import { FichaInscrito, FilaDia } from './PanelLiga'
 
 const hoyMas = (d: number) => {
   const f = new Date()
@@ -56,6 +57,35 @@ const GRUPO = {
 } as never
 /** El día 1: todos en cero. Sin medallas, o el oro lo gana el abecedario. */
 const GRUPO_DIA1 = { ...(GRUPO as never as Record<string, unknown>), partidas: [] } as never
+
+/** Una semana declarada: 168 caracteres, índice = día×24 + hora, lunes primero. */
+const semana = (tramos: Array<[number, number, number]>) => {
+  const a = Array(168).fill('0')
+  for (const [d, desde, hasta] of tramos) for (let h = desde; h < hasta; h++) a[d * 24 + h] = '1'
+  return a.join('')
+}
+const INSCRITOS: InscritoPanel[] = [
+  { inscId: '1', nombre: 'Nelson Morales', tier: 'legendario', estado: 'activa',
+    lider: 'Krennic', base: 'Command', pais: 'SV', zona: 'America/El_Salvador',
+    franjas: semana([[1, 20, 23], [3, 20, 23], [5, 14, 20]]), horas: 12, inscritoEn: '' },
+  { inscId: '2', nombre: 'Rodrigo con un nombre bien largo', tier: 'raro', estado: 'activa',
+    lider: 'Sabine', base: null, pais: 'ES', zona: 'Europe/Madrid',
+    franjas: semana([[5, 10, 14]]), horas: 4, inscritoEn: '' },
+  { inscId: '3', nombre: 'Sin horas ni país', tier: 'comun', estado: 'activa',
+    lider: null, base: null, pais: null, zona: null, franjas: null, horas: 0, inscritoEn: '' },
+  { inscId: '4', nombre: 'Se retiró', tier: 'infrecuente', estado: 'abandonada',
+    lider: 'Vader', base: 'Yellow', pais: 'MX', zona: 'America/Mexico_City',
+    franjas: semana([[6, 18, 22]]), horas: 4, inscritoEn: '' },
+]
+/** El calor global, con la forma que arma el propio panel. */
+const CALOR = (() => {
+  const cuenta = Array(168).fill(0)
+  for (const i of INSCRITOS) {
+    const f = i.franjas ?? ''
+    for (let k = 0; k < f.length; k++) if (f[k] === '1') cuenta[k]++
+  }
+  return { cuenta, conFranjas: 3, sinZona: 1 }
+})() as never
 
 export function BancoLobbyLiga() {
   const [reglas, setReglas] = useState(false)
@@ -194,6 +224,20 @@ export function BancoLobbyLiga() {
             (abajo de esta línea no debería aparecer nada)
             <AnunciosLiga id="b3" ligaId="x" anuncios={[]} puedoPublicar={false}
                           alCambiar={() => {}} alAvisar={setAviso} />
+          </div>
+        </Caso>
+
+        <Caso titulo="Panel en teléfono — fichas apiladas, no tabla con scroll lateral">
+          <div className="space-y-2">
+            {INSCRITOS.map(i => <FichaInscrito key={i.inscId} i={i} />)}
+          </div>
+        </Caso>
+
+        <Caso titulo="Panel en teléfono — mapa de calor por día">
+          <div className="space-y-1 rounded-xl border border-swu-border bg-swu-surface p-3">
+            {['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map((d, i) => (
+              <FilaDia key={d} dia={d} d={i} calor={CALOR} max={3} />
+            ))}
           </div>
         </Caso>
 

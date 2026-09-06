@@ -54,6 +54,8 @@ import {
   TIERS, NOMBRE_TIER,
   type LigaCompleta, type PanelLiga as DatosPanel, type PlanGrupos, type InscritoPanel,
 } from '../../services/ligaService'
+import { configurarLiga } from '../../services/ligaService'
+import { Bandera } from './componentes/piezas'
 
 /* ── El reloj, UNA vez y en el módulo ──────────────────────────────────
  *
@@ -154,6 +156,40 @@ function mapaDeCalor(inscritos: InscritoPanel[], zonaDestino: string | null): Ca
     for (const s of slots) cuenta[((s + delta) % FRANJAS + FRANJAS) % FRANJAS]++
   }
   return { cuenta, sinZona, conFranjas }
+}
+
+/**
+ * Las franjas de alguien, en TRAMOS legibles: «Mar 20–23 · Jue 20–23».
+ *
+ * Enumerarlas hora por hora es lo que sale del formato —168 casillas— y es
+ * ilegible: quien declara «los martes de 8 a 11 de la noche» aparecía como
+ * «Mar 20:00 · Mar 21:00 · Mar 22:00 +9», tres fichas que dicen casi lo mismo
+ * y un «+9» que esconde toda su semana. Un tramo dice lo mismo en un tercio
+ * del espacio y además dice CUÁNTO dura, que es la mitad del dato.
+ *
+ * Los tramos no cruzan la medianoche a propósito: «Dom 23–24» y «Lun 00–02»
+ * son dos ratos distintos para quien tiene que ponerse de acuerdo, aunque en
+ * el arreglo de 168 sean consecutivos.
+ */
+function tramosDe(indices: number[]): string[] {
+  if (indices.length === 0) return []
+  const orden = [...indices].sort((a, b) => a - b)
+  const salida: string[] = []
+  let ini = orden[0]
+  let prev = orden[0]
+  const cerrar = () => {
+    const d = Math.floor(ini / 24)
+    const desde = ini % 24
+    const hasta = (prev % 24) + 1
+    salida.push(`${DIAS[d]} ${String(desde).padStart(2, '0')}–${String(hasta).padStart(2, '0')}`)
+  }
+  for (const i of orden.slice(1)) {
+    // Corta al saltar una hora o al cambiar de día.
+    if (i !== prev + 1 || Math.floor(i / 24) !== Math.floor(prev / 24)) { cerrar(); ini = i }
+    prev = i
+  }
+  cerrar()
+  return salida
 }
 
 function etiquetaFranja(i: number): string {
@@ -386,6 +422,13 @@ export function PanelLiga() {
         {pestana === 'inscritos' && <Inscritos inscritos={panel.inscritos} />}
 
         {pestana === 'grupos' && (
+          <>
+            <ConfigurarLiga liga={liga} tras={tras} />
+            <div className="h-4" />
+          </>
+        )}
+
+        {pestana === 'grupos' && (
           <Grupos
             liga={liga}
             temporadaId={temporada?.id ?? null}
@@ -480,7 +523,19 @@ function Inscritos({ inscritos }: { inscritos: InscritoPanel[] }) {
 
       <MapaCalor calor={calor} enMiHora={enMiHora} onCambiarHora={setEnMiHora} />
 
-      <HudPanel tone="neutral">
+      {/* EN TELÉFONO, FICHAS APILADAS.
+          La tabla tiene `min-w-[420px]` dentro de un `overflow-x-auto`: en un
+          teléfono de 375 px eso es scroll lateral sobre la pantalla desde la
+          que se arman los grupos de 128 personas. Una tabla es la forma
+          correcta en una compu y la forma equivocada en una mano.
+          El resumen de franjas que se muestra acá ya lo calculaba esta misma
+          pantalla para el mapa global: lo único nuevo es mostrarlo POR PERSONA,
+          que es el dato con el que de verdad se decide un grupo. */}
+      <div className="space-y-2 sm:hidden">
+        {filas.map(i => <FichaInscrito key={i.inscId} i={i} />)}
+      </div>
+
+      <HudPanel tone="neutral" className="hidden sm:block">
         <div className="overflow-x-auto barra-fina">
           <table className="w-full min-w-[420px] text-left text-[12px]">
             <thead>
@@ -576,7 +631,18 @@ function MapaCalor({
           </p>
         ) : (
           <>
-            <div className="overflow-x-auto barra-fina">
+            {/* POR DÍA EN TELÉFONO. La rejilla de 168 casillas vive dentro de
+                un `min-w-[300px]` con scroll lateral: en un teléfono eso es
+                una franja de píxeles de 3,5 px de alto que hay que arrastrar.
+                Acá van siete filas, una por día, con las horas en las que esa
+                gente coincide — que es la pregunta que el organizador hace de
+                verdad: «¿qué día conviene?». La rejilla completa se queda para
+                la compu, donde sí se lee. */}
+            <div className="space-y-1 sm:hidden">
+              {DIAS.map((dia, d) => <FilaDia key={dia} dia={dia} d={d} calor={calor} max={max} />)}
+            </div>
+
+            <div className="hidden overflow-x-auto barra-fina sm:block">
               <div className="min-w-[300px]">
                 {/* Las horas van de 3 en 3: 24 rótulos en un teléfono no se leen. */}
                 <div className="mb-0.5 flex pl-7">
@@ -1115,5 +1181,253 @@ function Semilla({ temporada }: { temporada: DatosPanel['temporada'] }) {
         </dl>
       </div>
     </HudPanel>
+  )
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════
+   EL PANEL EN TELÉFONO
+
+   `PanelLiga` nació como escritorio metido en una app de teléfono: 1.131
+   líneas con UN solo breakpoint, la tabla de inscritos en scroll lateral y el
+   mapa de calor en otro. Y es la pantalla desde la que se arman los grupos.
+
+   Las dos piezas de abajo no reemplazan nada: conviven con la tabla y la
+   rejilla, que siguen siendo la forma correcta en una compu.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Una persona inscrita, como ficha.
+ *
+ * Muestra lo que decide un grupo —país, tier, zona, cuántas horas declaró y
+ * CUÁNDO puede— en vez de obligar a arrastrar una tabla de lado.
+ *
+ * Las tres mejores franjas se calculan por persona con el mismo `franjasDe`
+ * que alimenta el mapa global: un segundo parseo acá sería una segunda idea de
+ * qué significa una franja.
+ */
+export function FichaInscrito({ i }: { i: InscritoPanel }) {
+  /* Se muestran los tres primeros TRAMOS de su semana, no «los mejores»: sin
+     cruzarlos contra los de otro, todos valen lo mismo. Decir «mejores»
+     insinuaría un cálculo que acá no se hizo. */
+  const tramos = tramosDe(franjasDe(i.franjas))
+  const muestra = tramos.slice(0, 3)
+
+  return (
+    <div className={`rounded-xl border border-swu-border bg-swu-surface p-3 ${
+      i.estado !== 'activa' ? 'opacity-60' : ''}`}>
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1.5 text-[13px] font-bold text-swu-text">
+            <Bandera pais={i.pais} tam={13} />
+            <span className="truncate">{i.nombre}</span>
+          </p>
+          {i.lider && (
+            <p className="truncate text-[11px] text-swu-muted">
+              {i.lider}{i.base ? ` · ${i.base}` : ''}
+            </p>
+          )}
+        </div>
+        <Badge variant={tonoDelTier(i.tier)}>{NOMBRE_TIER[i.tier] ?? i.tier}</Badge>
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10px] text-swu-muted">
+        <span>{i.zona ?? 'sin zona'}</span>
+        <span aria-hidden>·</span>
+        {/* Cero horas es el dato que decide si esta persona puede entrar a un
+            grupo: se ve de lejos, o no se ve. */}
+        <span className={i.horas === 0 ? 'flex items-center gap-1 font-bold text-swu-red-texto' : 'font-bold text-swu-text'}>
+          {i.horas === 0 && <AlertTriangle size={10} />}
+          {i.horas} h/sem
+        </span>
+        {i.estado !== 'activa' && (
+          <span className="uppercase tracking-widest text-swu-amber">{i.estado}</span>
+        )}
+      </div>
+
+      {muestra.length > 0 && (
+        <p className="mt-1.5 truncate font-mono text-[10px] text-swu-cyan">
+          {muestra.join(' · ')}{tramos.length > 3 ? ` +${tramos.length - 3}` : ''}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Un día del mapa de calor, plegado en una fila.
+ *
+ * La barra son las 24 horas de ese día en 24 segmentos; debajo, las horas
+ * concretas en las que hay gente. El número de la derecha es el MÁXIMO de ese
+ * día —cuánta gente coincide en su mejor hora—, no la suma: sumar 24 horas
+ * daría un número enorme que no significa nada, porque la misma persona cuenta
+ * en todas las horas que declaró.
+ */
+export function FilaDia({ dia, d, calor, max }: { dia: string; d: number; calor: Calor; max: number }) {
+  const horas = Array.from({ length: 24 }, (_, h) => calor.cuenta[d * 24 + h])
+  const pico = Math.max(0, ...horas)
+  const conGente = horas
+    .map((n, h) => ({ n, h }))
+    .filter(x => x.n > 0)
+    .sort((a, b) => b.n - a.n || a.h - b.h)
+    .slice(0, 3)
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="w-7 shrink-0 font-mono text-[9px] uppercase text-swu-muted">{dia}</span>
+      <div className="flex min-w-0 flex-1 gap-px">
+        {horas.map((n, h) => (
+          <div
+            key={h}
+            className="h-4 flex-1 rounded-[1px] border border-swu-border/30"
+            style={{
+              background: n
+                ? `color-mix(in srgb, var(--color-swu-cyan) ${Math.round((n / max) * 100)}%, transparent)`
+                : undefined,
+            }}
+          />
+        ))}
+      </div>
+      <span className={`w-16 shrink-0 text-right font-mono text-[9px] ${
+        pico > 0 ? 'text-swu-cyan' : 'text-swu-muted'}`}>
+        {conGente.length > 0
+          ? `${String(conGente[0].h).padStart(2, '0')}h · ${pico}`
+          : '—'}
+      </span>
+    </div>
+  )
+}
+
+
+/**
+ * CONFIGURAR LA LIGA — y abrir la inscripción.
+ *
+ * Hasta hoy, cambiar el cupo, el formato o **abrir la inscripción** eran un
+ * `update` suelto en el SQL Editor. Es exactamente la forma del §4s: la escala
+ * de sobres existió meses sin un solo escritor en la app, y por eso el 4.º de
+ * una final se quedó sin premio — la decisión de quien organiza no puede
+ * necesitar a un programador ni esperar a que esté disponible.
+ *
+ * ── Solo se manda lo que se TOCÓ ─────────────────────────────────────
+ *
+ * La RPC deja como estaba todo lo que llega `null`. Eso no es comodidad: si la
+ * pantalla mandara siempre los siete campos, dos personas editando cosas
+ * distintas al mismo tiempo se pisarían, y la segunda en guardar revertiría lo
+ * de la primera sin que nadie viera un error.
+ *
+ * ── Abrir la inscripción va aparte, y avisa de qué hace ──────────────
+ *
+ * Es el único control de esta pantalla que cambia lo que ve gente de afuera.
+ * Va separado de los campos, con el efecto escrito, y no se puede tocar sin
+ * querer mientras se corrige un nombre.
+ */
+function ConfigurarLiga({ liga, tras }: {
+  liga: LigaCompleta
+  tras: (r: { ok: boolean; mensaje?: string }, exito: string) => void
+}) {
+  const [nombre, setNombre] = useState(liga.liga.nombre)
+  const [cupo, setCupo] = useState(String(liga.liga.cupo ?? ''))
+  const [formato, setFormato] = useState(liga.liga.formato)
+  const [tamano, setTamano] = useState(String(liga.liga.tamanoGrupo))
+  const [ocupado, setOcupado] = useState(false)
+
+  const cambiado =
+    nombre.trim() !== liga.liga.nombre ||
+    (cupo.trim() === '' ? liga.liga.cupo !== null : Number(cupo) !== liga.liga.cupo) ||
+    formato !== liga.liga.formato ||
+    Number(tamano) !== liga.liga.tamanoGrupo
+
+  const mandar = (extra: Parameters<typeof configurarLiga>[1] = {}, exito = 'Guardado.') => {
+    setOcupado(true)
+    void configurarLiga(liga.liga.id, {
+      // Solo lo que de verdad cambió: lo demás queda como está.
+      ...(nombre.trim() !== liga.liga.nombre ? { nombre: nombre.trim() } : {}),
+      ...(Number(cupo) !== liga.liga.cupo && cupo.trim() !== '' ? { cupo: Number(cupo) } : {}),
+      ...(formato !== liga.liga.formato ? { formato } : {}),
+      ...(Number(tamano) !== liga.liga.tamanoGrupo ? { tamanoGrupo: Number(tamano) } : {}),
+      ...extra,
+    }).then(r => {
+      setOcupado(false)
+      tras(r, exito)
+    })
+  }
+
+  const abierta = liga.liga.estado === 'inscripcion'
+
+  return (
+    <HudPanel tone="neutral">
+      <div className="space-y-3 p-3">
+        <h2 className="text-sm font-bold text-swu-text">Configuración de la liga</h2>
+
+        <Campo rotulo="Nombre">
+          <input value={nombre} onChange={e => setNombre(e.target.value)}
+                 className="w-full rounded-lg border border-swu-border bg-swu-bg px-3 py-2 text-[13px] text-swu-text outline-none focus:border-swu-cyan" />
+        </Campo>
+
+        <div className="grid grid-cols-2 gap-2">
+          <Campo rotulo="Cupo">
+            <input value={cupo} onChange={e => setCupo(e.target.value.replace(/\D/g, ''))}
+                   inputMode="numeric" placeholder="sin tope"
+                   className="w-full rounded-lg border border-swu-border bg-swu-bg px-3 py-2 text-[13px] tabular-nums text-swu-text outline-none focus:border-swu-cyan" />
+          </Campo>
+          <Campo rotulo="Por grupo">
+            <input value={tamano} onChange={e => setTamano(e.target.value.replace(/\D/g, ''))}
+                   inputMode="numeric"
+                   className="w-full rounded-lg border border-swu-border bg-swu-bg px-3 py-2 text-[13px] tabular-nums text-swu-text outline-none focus:border-swu-cyan" />
+          </Campo>
+        </div>
+
+        <Campo rotulo="Formato">
+          <select value={formato} onChange={e => setFormato(e.target.value)}
+                  className="min-h-11 w-full rounded-lg border border-swu-border bg-swu-bg px-3 text-[13px] text-swu-text outline-none focus:border-swu-cyan">
+            {[['premier','Premier'],['twin_suns','Twin Suns'],['draft','Draft'],
+              ['sealed','Sellado'],['libre','Libre']].map(([v, r]) => (
+              <option key={v} value={v}>{r}</option>
+            ))}
+          </select>
+        </Campo>
+
+        <button
+          onClick={() => mandar()}
+          disabled={ocupado || !cambiado}
+          className="min-h-11 w-full rounded-lg bg-swu-cyan/20 text-[12px] font-black uppercase tracking-wider text-swu-cyan disabled:opacity-40"
+        >
+          {ocupado ? 'Guardando…' : cambiado ? 'Guardar cambios' : 'Sin cambios'}
+        </button>
+
+        {/* LO QUE VE GENTE DE AFUERA, aparte y con el efecto escrito. */}
+        <div className="rounded-lg border border-swu-border p-3">
+          <p className="text-[11px] font-bold text-swu-text">
+            {abierta ? 'La inscripción está ABIERTA' : 'La inscripción está cerrada'}
+          </p>
+          <p className="mt-1 text-[11px] leading-snug text-swu-muted">
+            {abierta
+              ? 'Cualquiera con el enlace puede entrar a la liga y llenar sus horarios.'
+              : 'Al abrirla, la liga se vuelve pública y cualquiera con el enlace puede inscribirse. Podés volver a cerrarla.'}
+          </p>
+          <button
+            onClick={() => mandar(
+              abierta ? { estado: 'borrador', publica: false }
+                      : { estado: 'inscripcion', publica: true },
+              abierta ? 'La inscripción quedó cerrada.' : 'La inscripción está abierta.')}
+            disabled={ocupado}
+            className={`mt-2 min-h-11 w-full rounded-lg text-[12px] font-black uppercase tracking-wider disabled:opacity-40 ${
+              abierta ? 'bg-swu-red/20 text-swu-red-texto' : 'bg-swu-green/20 text-swu-green'}`}
+          >
+            {abierta ? 'Cerrar la inscripción' : 'Abrir la inscripción'}
+          </button>
+        </div>
+
+      </div>
+    </HudPanel>
+  )
+}
+
+function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block font-mono text-[9px] uppercase tracking-widest text-swu-muted">{rotulo}</span>
+      {children}
+    </label>
   )
 }
