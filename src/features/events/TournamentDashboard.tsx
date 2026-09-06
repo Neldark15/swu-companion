@@ -327,12 +327,12 @@ export default function TournamentDashboard() {
   const isFinished = event.status === 'finished'
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'rounds', label: 'Rondas', icon: <Play size={16} /> },
-    { id: 'pairings', label: 'Pairings', icon: <Users size={16} /> },
-    { id: 'standings', label: 'Standings', icon: <Trophy size={16} /> },
-    { id: 'timer', label: 'Timer', icon: <Clock size={16} /> },
+    { id: 'pairings', label: 'Emparejamientos', icon: <Users size={16} /> },
+    { id: 'standings', label: 'Clasificación', icon: <Trophy size={16} /> },
+    { id: 'timer', label: 'Reloj', icon: <Clock size={16} /> },
   ]
   if (event.tournament_type === 'elimination') {
-    tabs.push({ id: 'bracket', label: 'Bracket', icon: <GitBranch size={16} /> })
+    tabs.push({ id: 'bracket', label: 'Llaves', icon: <GitBranch size={16} /> })
   }
   /* La pestaña de Mesas se ofrece SIEMPRE, no solo si el torneo ya es de ese
      tipo: escondida detras del tipo, la herramienta existia y no aparecia en

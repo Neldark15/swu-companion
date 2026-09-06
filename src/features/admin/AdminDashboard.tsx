@@ -20,7 +20,7 @@ export function AdminDashboard() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-swu-text">Dashboard</h1>
+        <h1 className="text-2xl font-bold text-swu-text">Panel</h1>
         <p className="text-sm text-swu-muted mt-1">Resumen del sistema en producción</p>
       </header>
 

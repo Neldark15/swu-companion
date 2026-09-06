@@ -420,13 +420,20 @@ function Mesa({
         <div className="space-y-1.5">
           {mesa.jugadores.map(j => (
             <div key={j.id} className="flex items-center gap-2">
-              <span className="min-w-0 flex-1 truncate text-sm text-swu-text">
-                {j.player_name}
-                {!j.user_id && (
-                  <span className="ml-1.5 font-mono text-[9px] uppercase text-swu-muted">sin cuenta</span>
-                )}
+              {/* El contador va FUERA del renglón del nombre. Estaba dentro del
+                  mismo `span` con `truncate`, y ese `overflow: hidden` le
+                  recortaba el borde derecho: con cuatro botones de puesto, la
+                  fila terminaba comiéndose parte del contador. El nombre se
+                  trunca solo, en su propio renglón. */}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm text-swu-text">
+                  {j.player_name}
+                  {!j.user_id && (
+                    <span className="ml-1.5 font-mono text-[9px] uppercase text-swu-muted">sin cuenta</span>
+                  )}
+                </p>
                 <ContadorVida asiento={j} bloqueada={bloqueada} onError={onError} />
-              </span>
+              </div>
               <div className="flex flex-shrink-0 gap-1">
                 {Array.from({ length: k }, (_, i) => i + 1).map(p => {
                   const activo = puestos[j.player_name] === p

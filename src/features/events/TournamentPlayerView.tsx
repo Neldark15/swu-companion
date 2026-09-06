@@ -359,7 +359,7 @@ export function TournamentPlayerView() {
               tab === t ? 'bg-swu-accent/20 text-swu-accent-texto' : 'text-swu-muted hover:text-swu-text'
             }`}
           >
-            {t === 'mine' ? 'Mi mesa' : t === 'all' ? 'Todas' : 'Standings'}
+            {t === 'mine' ? 'Mi mesa' : t === 'all' ? 'Todas' : 'Clasificación'}
           </button>
         ))}
       </div>

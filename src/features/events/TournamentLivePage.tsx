@@ -322,10 +322,10 @@ export function TournamentLivePage() {
   // ─── Tab list ─────────────────────────────────────────────
   const tabs: Array<{ key: TabKey; label: string; icon: typeof Users }> = [
     { key: 'pairings', label: 'Emparejamientos', icon: Users },
-    { key: 'standings', label: 'Standings', icon: BarChart3 },
+    { key: 'standings', label: 'Clasificación', icon: BarChart3 },
   ]
   if (isElimination) {
-    tabs.push({ key: 'bracket', label: 'Bracket', icon: GitBranch })
+    tabs.push({ key: 'bracket', label: 'Llaves', icon: GitBranch })
   }
 
   return (

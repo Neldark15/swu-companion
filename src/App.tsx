@@ -46,6 +46,7 @@ const SobresPage = lazy(() => import('./features/sobres/SobresPage').then(m => (
 const BinderDigital = lazy(() => import('./features/sobres/BinderDigital').then(m => ({ default: m.BinderDigital })))
 const BancoSobres = lazy(() => import('./features/sobres/BancoSobres').then(m => ({ default: m.BancoSobres })))
 const BancoProyeccion = lazy(() => import('./features/events/proyeccion/BancoProyeccion').then(m => ({ default: m.BancoProyeccion })))
+const BancoMesaFila = lazy(() => import('./features/events/BancoMesaFila').then(m => ({ default: m.BancoMesaFila })))
 const BancoAmistosas = lazy(() => import('./features/amistosas/BancoAmistosas').then(m => ({ default: m.BancoAmistosas })))
 const BancoIconos = lazy(() => import('./components/BancoIconos').then(m => ({ default: m.BancoIconos })))
 const BancoUbicacion = lazy(() => import('./features/profile/BancoUbicacion').then(m => ({ default: m.BancoUbicacion })))
@@ -347,6 +348,7 @@ export default function App() {
             {import.meta.env.DEV && BancoSable3D && <Route path="/banco-sable-3d" element={<BancoSable3D />} />}
             {import.meta.env.DEV && BancoKyber && <Route path="/banco-kyber" element={<BancoKyber />} />}
             {import.meta.env.DEV && <Route path="/banco-sobres" element={<BancoSobres />} />}
+            {import.meta.env.DEV && <Route path="/banco-mesa-fila" element={<BancoMesaFila />} />}
             {import.meta.env.DEV && <Route path="/banco-amistosas" element={<BancoAmistosas />} />}
             {import.meta.env.DEV && <Route path="/banco-copias" element={<BancoCopias />} />}
             {import.meta.env.DEV && <Route path="/banco-paneles" element={<BancoPaneles />} />}

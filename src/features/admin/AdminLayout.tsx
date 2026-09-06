@@ -23,7 +23,7 @@ interface NavItemDef {
 }
 
 const NAV_ITEMS: NavItemDef[] = [
-  { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/admin', label: 'Panel', icon: LayoutDashboard, end: true },
   { to: '/admin/announcements', label: 'Anuncios', icon: Megaphone },
   { to: '/admin/users', label: 'Usuarios', icon: Users },
   { to: '/admin/news', label: 'Noticias', icon: Newspaper },
