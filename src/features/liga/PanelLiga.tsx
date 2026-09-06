@@ -54,7 +54,7 @@ import {
   TIERS, NOMBRE_TIER,
   type LigaCompleta, type PanelLiga as DatosPanel, type PlanGrupos, type InscritoPanel,
 } from '../../services/ligaService'
-import { configurarLiga } from '../../services/ligaService'
+import { configurarLiga, cerrarTemporada, tablaDe } from '../../services/ligaService'
 import { Bandera } from './componentes/piezas'
 
 /* ── El reloj, UNA vez y en el módulo ──────────────────────────────────
@@ -482,7 +482,12 @@ export function PanelLiga() {
 
         {pestana === 'cola' && <Cola liga={liga} cola={panel.cola} tras={tras} />}
 
-        {pestana === 'semilla' && <Semilla temporada={panel.temporada} />}
+        {pestana === 'semilla' && (
+          <div className="space-y-4">
+            <Semilla temporada={panel.temporada} />
+            <CerrarTemporada liga={liga} temporada={panel.temporada} tras={tras} />
+          </div>
+        )}
         </div>
       </main>
     </div>
@@ -1472,5 +1477,132 @@ function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode
       <span className="mb-1 block font-mono text-[9px] uppercase tracking-widest text-swu-muted">{rotulo}</span>
       {children}
     </label>
+  )
+}
+
+
+/**
+ * CERRAR LA TEMPORADA.
+ *
+ * Hasta hoy la liga era un viaje de ida: `liga_cerrar` cierra la LIGA entera y
+ * el índice `liga_una_temporada_viva` impide una segunda temporada mientras la
+ * primera siga abierta. Sin esta pantalla, la Temporada 2 no existía.
+ *
+ * ── El ensayo es obligatorio, y no es una cortesía ───────────────────
+ *
+ * Cerrar mueve el tier de cada persona y NO se puede deshacer. El mismo patrón
+ * que el armado de grupos: primero se ve exactamente qué va a pasar —quién
+ * sube, quién baja, cuántas partidas quedan sin jugar— y recién después se
+ * firma. El ensayo lo calcula **el servidor, por el mismo camino que el cierre
+ * real**: un ensayo que use otro código enseña una maqueta del resultado, no el
+ * resultado.
+ *
+ * ── La clasificación sale de `tablaDe`, acá, en el cliente ───────────
+ *
+ * Es la MISMA función que pinta la tabla pública toda la temporada. Así, lo que
+ * reparte los ascensos es literalmente lo que la gente estuvo mirando.
+ */
+function CerrarTemporada({ liga, temporada, tras }: {
+  liga: LigaCompleta
+  temporada: DatosPanel['temporada']
+  tras: (r: { ok: boolean; mensaje?: string }, exito: string) => void
+}) {
+  const [ensayo, setEnsayo] = useState<{
+    plazas: number; suben: number; bajan: number; sin_jugar: number
+    detalle: Array<{ nombre: string; puesto: number; de: string; a: string; abandono: boolean }>
+  } | null>(null)
+  const [ocupado, setOcupado] = useState(false)
+
+  /* Un puesto por plaza, de TODOS los grupos. `tablaDe` ya viene ordenada, así
+     que el puesto es la posición en su propio grupo — que es lo que el servidor
+     necesita para saber quién fue primero y quién último. */
+  const resultado = useMemo(
+    () => liga.grupos.flatMap(g =>
+      tablaDe(g.plazas, g.partidas, g.id).map((f, i) => ({ plazaId: f.plazaId, puesto: i + 1 }))),
+    [liga])
+
+  if (!temporada || temporada.estado === 'cerrada') return null
+
+  const correr = (esEnsayo: boolean) => {
+    setOcupado(true)
+    void cerrarTemporada(temporada.id, resultado, esEnsayo).then(r => {
+      setOcupado(false)
+      if (!r.ok) { setEnsayo(null); tras(r, ''); return }
+      if (esEnsayo) { setEnsayo(r as never); return }
+      setEnsayo(null)
+      tras(r, 'Temporada cerrada. Ya se puede abrir la siguiente.')
+    })
+  }
+
+  return (
+    <HudPanel tone="neutral">
+      <div className="space-y-3 p-3">
+        <h2 className="text-sm font-bold text-swu-text">Cerrar la temporada</h2>
+        <p className="text-[11px] leading-snug text-swu-muted">
+          Reparte ascensos y descensos —sube el 1.º de cada grupo, baja el último— y libera
+          la liga para la temporada siguiente. <b className="text-swu-text">No se puede deshacer.</b>
+        </p>
+
+        {!ensayo ? (
+          <button
+            onClick={() => correr(true)}
+            disabled={ocupado || resultado.length === 0}
+            className="min-h-11 w-full rounded-lg bg-swu-cyan/20 text-[12px] font-black uppercase tracking-wider text-swu-cyan disabled:opacity-40"
+          >
+            {ocupado ? 'Calculando…' : resultado.length === 0 ? 'No hay grupos que cerrar' : 'Ensayar el cierre'}
+          </button>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-2">
+              {[['Suben', ensayo.suben], ['Bajan', ensayo.bajan], ['Sin jugar', ensayo.sin_jugar]].map(([r, v]) => (
+                <div key={r as string} className="rounded-xl border border-swu-border bg-swu-bg px-2 py-2 text-center">
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-swu-muted">{r}</p>
+                  <p className="text-[18px] font-black tabular-nums text-swu-text">{v}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* SOLO quien cambia de escalón. Listar a los 120 con «se queda» al
+                lado esconde a los 8 que importan. */}
+            {ensayo.detalle.length > 0 ? (
+              <div className="max-h-56 space-y-1 overflow-y-auto barra-fina">
+                {ensayo.detalle.map((d, i) => (
+                  <div key={i} className="flex items-center gap-2 rounded-lg border border-swu-border px-2.5 py-1.5 text-[11px]">
+                    <span className="w-6 shrink-0 text-center font-mono text-swu-muted">{d.puesto}º</span>
+                    <span className="min-w-0 flex-1 truncate font-bold text-swu-text">{d.nombre}</span>
+                    <span className="shrink-0 font-mono text-[10px] text-swu-muted">{d.de}</span>
+                    <span className="shrink-0 text-swu-muted" aria-hidden>→</span>
+                    <Badge variant={tonoDelTier(d.a)}>{NOMBRE_TIER[d.a] ?? d.a}</Badge>
+                    {d.abandono && (
+                      <span className="shrink-0 font-mono text-[9px] uppercase text-swu-amber">abandonó</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-lg border border-dashed border-swu-border px-3 py-3 text-center text-[11px] text-swu-muted">
+                Nadie cambia de escalón con esta clasificación.
+              </p>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setEnsayo(null)}
+                className="min-h-11 flex-1 rounded-lg border border-swu-border text-[12px] font-bold text-swu-text"
+              >
+                Volver
+              </button>
+              <button
+                onClick={() => correr(false)}
+                disabled={ocupado}
+                className="min-h-11 flex-1 rounded-lg bg-swu-red/20 text-[12px] font-black uppercase tracking-wider text-swu-red-texto disabled:opacity-40"
+              >
+                {ocupado ? 'Cerrando…' : 'Cerrar de verdad'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </HudPanel>
   )
 }

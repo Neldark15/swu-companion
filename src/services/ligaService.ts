@@ -529,6 +529,27 @@ export const armarGrupos = (temporada: string, asignacion: unknown) =>
 
 export const sembrarGrupo = (grupo: string) => rpc('liga_sembrar_grupo', { p_grupo: grupo })
 
+/**
+ * Cerrar una temporada: reparte ascensos y descensos, y libera el índice
+ * `liga_una_temporada_viva` para que pueda existir una Temporada 2.
+ *
+ * **El resultado lo calcula el CLIENTE con `tablaDe`** y el servidor lo valida.
+ * `tablaDe` es la única implementación de la tabla de posiciones y tiene prueba
+ * golden; reimplementarla en SQL serían dos verdades de la misma tabla, y la
+ * que reparte los ascensos no sería la que la gente vio toda la temporada.
+ *
+ * Con `ensayo` en true devuelve exactamente lo que haría —quién sube, quién
+ * baja, cuántas partidas se sellan— **sin escribir nada**, por el MISMO camino
+ * que el cierre real. Un ensayo que use otro camino no prueba nada.
+ */
+export const cerrarTemporada = (
+  temporada: string,
+  resultado: Array<{ plazaId: string; puesto: number }>,
+  ensayo = false,
+) => rpc('liga_cerrar_temporada', {
+  p_temporada: temporada, p_resultado: resultado, p_ensayo: ensayo,
+})
+
 export const reportar = (partida: string, vl: number, vv: number, vod?: string, vodT?: number | null) =>
   rpc('liga_reportar', { p_partida: partida, p_victorias_local: vl, p_victorias_visita: vv,
                          p_vod: vod || null, p_vod_t: vodT ?? null })

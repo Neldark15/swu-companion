@@ -72,6 +72,17 @@ const FORMATO: Record<string, string> = {
   premier: 'Premier', twin_suns: 'Twin Suns', draft: 'Draft', sealed: 'Sellado', libre: 'Libre',
 }
 
+/**
+ * Cuánto se queda la portada como MÍNIMO.
+ *
+ * La consulta tarda medio segundo, así que el afiche era un parpadeo: se veía
+ * que algo pasó, no QUÉ. Dos segundos alcanzan para leer «Liga Internacional»
+ * y ver la cruz de sables, y son pocos como para que entrar no se sienta lento.
+ *
+ * Es un piso, no un tope: si la consulta tarda más, se sigue esperando.
+ */
+const MINIMO_MS = 2000
+
 const CON_MARCADOR = new Set<EstadoPartida>(['reportada', 'confirmada', 'disputada', 'wo_local', 'wo_visita'])
 
 /**
@@ -112,6 +123,14 @@ export function LigaSeccion() {
   const [recarga, setRecarga] = useState(0)
   const [aviso, setAviso] = useState<string | null>(null)
   const [reglas, setReglas] = useState(false)
+  /* El piso de la portada. Arranca en false SIEMPRE, también cuando la liga ya
+     está en caché: si dependiera de si hay datos, quien vuelve a entrar no
+     vería el afiche nunca y la portada existiría solo para la primera visita. */
+  const [minimo, setMinimo] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setMinimo(true), MINIMO_MS)
+    return () => clearTimeout(t)
+  }, [])
   /** `null` = «el que decida la pantalla»; `''` = los plegué todos a mano. */
   const [abierto, setAbierto] = useState<string | null>(null)
 
@@ -136,8 +155,8 @@ export function LigaSeccion() {
     [grupos])
 
   // El afiche mientras carga: entrar a la liga tiene que sentirse como entrar
-  // a otro sitio, y ese medio segundo es donde se nota.
-  if (!listo) return <PortadaLiga />
+  // a otro sitio. Se va cuando la consulta terminó Y se cumplió el piso.
+  if (!listo || !minimo) return <PortadaLiga ms={MINIMO_MS} />
 
   if (!liga) {
     // La policy del demo cerrado devuelve VACÍO, no error: acá «no existe» y

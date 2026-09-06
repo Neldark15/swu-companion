@@ -17,6 +17,7 @@ import { useState } from 'react'
 import { Trophy, Swords, CalendarClock, BookOpen, Megaphone, Settings2, Users, Globe2, Layers, Star, CalendarDays, Timer, ChevronRight, Zap } from 'lucide-react'
 import { Bandera, TarjetaCifra, ContadorPlazo } from './componentes/piezas'
 import { Atajo, AnunciosLiga, ComoFunciona, TopOcho } from './LigaSeccion'
+import { PortadaLiga } from './PortadaLiga'
 import type { AnuncioLiga, InscritoPanel } from '../../services/ligaService'
 import { FichaInscrito, FilaDia } from './PanelLiga'
 
@@ -88,6 +89,7 @@ const CALOR = (() => {
 })() as never
 
 export function BancoLobbyLiga() {
+  const [portada, setPortada] = useState(false)
   const [reglas, setReglas] = useState(false)
   const [aviso, setAviso] = useState<string | null>(null)
 
@@ -104,7 +106,25 @@ export function BancoLobbyLiga() {
         </p>
       )}
 
+      {/* La portada tapa TODO (fixed z-[60]), así que se monta a pedido y se
+          va sola a los 2 s — igual que en la liga de verdad. */}
+      {portada && <PortadaLiga ms={2000} />}
+
       <div className="mx-auto max-w-2xl space-y-6">
+        <Caso titulo="La portada, con su piso de 2 segundos">
+          <button
+            onClick={() => { setPortada(true); setTimeout(() => setPortada(false), 2000) }}
+            className="min-h-11 w-full rounded-xl border px-3 text-[12px] font-bold text-swu-text"
+            style={{ borderColor: 'var(--liga-borde)', background: 'var(--liga-acento-suave)' }}
+          >
+            Ver la portada (2 s)
+          </button>
+          <p className="mt-1.5 text-[10px] leading-snug text-swu-muted">
+            La barra mide los 2 segundos —un plazo real y nuestro—, no la consulta.
+            Si el servidor tarda más, llega al final y espera ahí.
+          </p>
+        </Caso>
+
         <Caso titulo="Cabecera sobre la portada + carrusel de cifras">
           <header className="relative overflow-hidden rounded-2xl border" style={{ borderColor: 'var(--liga-borde)' }}>
             <div aria-hidden className="absolute inset-0 bg-cover bg-center opacity-25 blur-[2px]"

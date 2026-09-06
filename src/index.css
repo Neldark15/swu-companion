@@ -1633,3 +1633,20 @@ input:focus, textarea:focus, select:focus {
   -webkit-overflow-scrolling: touch;
 }
 .liga-carrusel::-webkit-scrollbar { display: none }
+
+/* La barra de la portada de la liga. CSS plano y no `@utility`: Tailwind solo
+   emite una utilidad si DETECTA la clase escrita, y la duración entra por
+   `style` (§3i). `scaleX` y no `width`: lo anima el compositor. */
+@keyframes portada-carga {
+  from { transform: scaleX(0) }
+  to   { transform: scaleX(1) }
+}
+.portada-barra {
+  animation: portada-carga linear forwards;
+  transform: scaleX(0);
+}
+/* Movimiento reducido: la barra SIGUE —es información, no adorno— pero llega
+   de una vez en vez de recorrer la pantalla. */
+@media (prefers-reduced-motion: reduce) {
+  .portada-barra { animation-duration: 1ms !important }
+}

@@ -29,8 +29,23 @@
  * el logo abajo. Escribir el nombre otra vez sería repetirlo sobre sí mismo.
  *
  * Y **se va sola y no se puede tocar.** Es un estado de carga, no una
- *    bienvenida con botón: si la liga ya cargó, quedarse mirando el afiche es
- *    tiempo perdido. Con `prefers-reduced-motion` el latido se apaga.
+ *    bienvenida con botón. Con `prefers-reduced-motion` el latido se apaga.
+ *
+ * ── La barra, y por qué NO miente ────────────────────────────────────
+ *
+ * El afiche se llevaba medio segundo de pantalla: se veía un parpadeo, no una
+ * portada. Ahora hay un mínimo de 2 s (`MINIMO_MS` en `LigaSeccion`) para que
+ * el arte se lea, con una barra que lo acompaña.
+ *
+ * Esa barra NO dice «cuánto falta de la consulta» —eso no se sabe— sino
+ * **cuánto falta de los 2 segundos**, que es un plazo real y nuestro. Si la
+ * consulta tarda MÁS, la barra llega al final y se queda ahí, latiendo: el
+ * plazo se cumplió y lo que falta es el servidor. Una barra que fingiera
+ * avanzar durante una espera que no controla es la clase de progreso que
+ * nadie vuelve a creer.
+ *
+ * Va con `transform: scaleX`, no con `width`: es la única forma de que la
+ * anime el compositor en vez de recalcular el diseño por cuadro (§3u).
  *
  * El peso: 154 KB en WebP, y solo lo baja quien entra a la liga. La misma
  * imagen sirve de fondo del encabezado una vez cargada, así que la segunda
@@ -39,7 +54,9 @@
 
 import { Loader2 } from 'lucide-react'
 
-export function PortadaLiga({ mensaje = 'Entrando a la liga…' }: { mensaje?: string }) {
+export function PortadaLiga(
+  { mensaje = 'Entrando a la liga…', ms = 0 }: { mensaje?: string; ms?: number },
+) {
   return (
     <div
       className="fixed inset-0 z-[60] flex flex-col bg-[#05050A]"
@@ -56,6 +73,18 @@ export function PortadaLiga({ mensaje = 'Entrando a la liga…' }: { mensaje?: s
       aria-live="polite"
     >
       <div className="flex-1" />
+
+      {/* La barra va PEGADA arriba de la franja, del ancho entero: es lo único
+          que se mueve en la pantalla y ahí no le pisa nada al afiche. */}
+      {ms > 0 && (
+        <div className="h-[3px] w-full overflow-hidden bg-white/10" aria-hidden>
+          <div
+            className="portada-barra h-full w-full origin-left"
+            style={{ background: 'var(--liga-acento, #3B82F6)', animationDuration: `${ms}ms` }}
+          />
+        </div>
+      )}
+
       {/* Franja sólida: el logo de PUENTE 3 vive en el tercio inferior del
           afiche y cualquier texto flotando ahí se le monta encima. */}
       <p

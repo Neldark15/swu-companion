@@ -4190,3 +4190,52 @@ igual de legible.
 
 **País es COLUMNA propia en el Top 8**, como la maqueta, y queda **vacía** sin
 país: una bandera genérica afirmaría una nacionalidad que nadie declaró.
+
+### 5a. LIGA — la puerta del cierre, y la portada con su piso
+
+**LA FUNCIÓN DE CERRAR TEMPORADA NACIÓ SIN PUERTA — Y LA ESCRIBÍ YO ESE MISMO
+DÍA.** `liga_cerrar_temporada` quedó probada contra la base y con **cero
+llamadores en `src/`**: exactamente el patrón que este archivo documenta cuatro
+veces (§3l, §4s, §3h-ter). Vale anotarlo justamente porque no es un descuido
+ajeno: pasa cuando el trabajo del servidor se siente terminado.
+
+**El ensayo es obligatorio y lo calcula el SERVIDOR.** Cerrar mueve el tier de
+cada persona y no se deshace. La RPC toma `p_ensayo`: devuelve quién sube, quién
+baja y cuántas partidas se sellan **sin escribir nada**, por el MISMO camino que
+el cierre real. Un ensayo que use otro código enseña una maqueta del resultado,
+no el resultado. Verificado: tras el ensayo, 0 carnés tocados y la temporada
+sigue abierta.
+
+**§3s, aplicado a tiempo:** agregar `p_ensayo` con default habría creado una
+SEGUNDA función y una PWA sin actualizar caería en la vieja. Se soltó la firma
+anterior con `drop function` en la misma migración, y la prueba comprueba que
+quede **una sola sobrecarga viva**.
+
+**El detalle lista SOLO a quien cambia de escalón.** Con 120 personas, poner a
+todas con «se queda» al lado esconde a las 8 que importan.
+
+**La clasificación la calcula `tablaDe` en el cliente** —la misma función que
+pinta la tabla pública toda la temporada— y el servidor la valida. Así, lo que
+reparte los ascensos es literalmente lo que la gente estuvo mirando.
+
+**LA PORTADA TIENE UN PISO DE 2 SEGUNDOS.** La consulta tarda medio segundo, así
+que el afiche era un parpadeo: se veía que algo pasó, no QUÉ. `MINIMO_MS` es un
+piso, no un tope — si la consulta tarda más, se sigue esperando. Y arranca en
+`false` SIEMPRE: si dependiera de si hay datos en caché, quien vuelve a entrar no
+vería el afiche nunca y la portada existiría solo para la primera visita.
+
+**Y LA BARRA NO MIENTE.** No dice «cuánto falta de la consulta» —eso no se sabe—
+sino **cuánto falta de los 2 segundos**, que es un plazo real y nuestro. Si el
+servidor tarda más, llega al final y espera ahí. Va con `transform: scaleX`, no
+`width`, y con movimiento reducido llega de una vez en vez de recorrer la
+pantalla: es información, no adorno (§3u).
+
+**Y AL VERIFICARLA, EL MÉTODO MINTIÓ POR TERCERA VEZ EN EL DÍA.** La barra leía
+`scaleX(0)` a los 900 ms y parecía muerta. Era el §4c: el navegador de pruebas
+reporta `document.hidden === true` y el reloj de las animaciones no avanza hasta
+que algo fuerza un cuadro. Midiendo con DOS lecturas separadas: `currentTime`
+0 → 1000 ms y `scaleX(0.49998)` justo a la mitad. Las otras dos del mismo día
+fueron leer el DOM en el mismo tick de un `.click()` y una aserción propia mal
+escrita que abortó antes de escribir el archivo. **Antes de creerle a una
+medición que dice que el código está roto, hay que comprobar que la medición
+midió.**
