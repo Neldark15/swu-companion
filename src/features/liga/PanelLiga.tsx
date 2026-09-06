@@ -287,7 +287,7 @@ const PESTANAS = [
   { value: 'inscritos' as const, label: 'Inscritos', icon: <Users size={13} /> },
   { value: 'grupos' as const, label: 'Grupos', icon: <CalendarPlus size={13} /> },
   { value: 'cola' as const, label: 'Cola', icon: <Gavel size={13} /> },
-  { value: 'semilla' as const, label: 'Semilla', icon: <KeyRound size={13} /> },
+  { value: 'semilla' as const, label: 'Temporada', icon: <KeyRound size={13} /> },
 ]
 
 function Centrado({ children }: { children: React.ReactNode }) {
@@ -442,8 +442,13 @@ export function PanelLiga() {
           </button>
         </div>
         <div className="mx-auto max-w-5xl px-3 pb-2">
+          {/* El contador en la pestaña, no solo en la franja de arriba: quien
+              entra al panel por otra pestaña tiene que ver que hay algo
+              atorado sin depender de haber leído el aviso. */}
           <SegmentedControl
-            options={PESTANAS}
+            options={PESTANAS.map(o => o.value === 'cola' && panel.cola.length
+              ? { ...o, label: `Cola · ${panel.cola.length}` }
+              : o)}
             value={pestana}
             onChange={setPestana}
             label="Herramienta del panel"
@@ -467,6 +472,10 @@ export function PanelLiga() {
             <button onClick={() => setAviso(null)} className="shrink-0 text-[11px] underline">cerrar</button>
           </div>
         )}
+
+        <QueSigue
+          liga={liga} panel={panel} setPestana={setPestana} tras={tras}
+        />
 
         {pestana === 'inscritos' && <Inscritos inscritos={panel.inscritos} />}
 
@@ -1699,5 +1708,135 @@ function CerrarTemporada({ liga, temporada, tras }: {
         )}
       </div>
     </HudPanel>
+  )
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════
+   ¿QUÉ SIGUE?
+
+   El panel tiene cuatro pestañas y la secuencia real —abrir, cerrar, armar,
+   abrir temporada, sembrar— repartida entre ellas, sin decir en qué paso
+   estás. Quien organiza una liga lo hace UNA vez cada tres meses: no se
+   acuerda del orden, y no tiene por qué.
+
+   Esta franja lo deriva de los datos y ofrece UNA cosa. No reemplaza las
+   pestañas —ahí está el detalle— sino que contesta la única pregunta que se
+   hace alguien al abrir esta pantalla.
+
+   Y lo ATORADO va aparte y arriba: no es un paso de la secuencia, es algo que
+   se rompió y que solo una persona puede resolver. Mezclarlo con el paso
+   siguiente lo esconde justo cuando corre el reloj.
+   ══════════════════════════════════════════════════════════════════════ */
+
+export function QueSigue({ liga, panel, setPestana, tras }: {
+  liga: LigaCompleta
+  panel: DatosPanel
+  setPestana: (p: Pestana) => void
+  tras: (r: { ok: boolean; mensaje?: string }, exito: string) => void
+}) {
+  const [ocupado, setOcupado] = useState(false)
+  const activos = panel.inscritos.filter(i => carneActivo(i.estado)).length
+  const grupos = liga.grupos
+  const sinSembrar = grupos.filter(g => g.partidas.length === 0).length
+  const atorado = panel.cola.length
+
+  const correr = (fn: () => Promise<{ ok: boolean; mensaje?: string }>, exito: string) => {
+    setOcupado(true)
+    void fn().then(r => { setOcupado(false); tras(r, exito) })
+  }
+
+  /* El paso, derivado. El orden de las ramas ES la secuencia: la primera que
+     aplica es donde estás. */
+  const paso = (() => {
+    if (liga.liga.estado === 'borrador') return {
+      titulo: 'Abrí la inscripción',
+      pie: 'La liga se vuelve pública y cualquiera con el enlace puede entrar.',
+      boton: 'Abrir inscripción',
+      hacer: () => correr(() => configurarLiga(liga.liga.id, { estado: 'inscripcion', publica: true }),
+                          'La inscripción está abierta.'),
+    }
+    if (liga.liga.estado === 'inscripcion') return {
+      titulo: activos === 0 ? 'Esperando inscritos' : `${activos} ${activos === 1 ? 'persona inscrita' : 'personas inscritas'}`,
+      pie: 'Cuando ya no quieras más gente, cerrá la inscripción y armá los grupos.',
+      boton: activos >= 4 ? 'Cerrar inscripción' : null,
+      porQueNo: activos >= 4 ? null : `Hacen falta al menos 4 para armar un grupo (van ${activos}).`,
+      hacer: () => correr(() => configurarLiga(liga.liga.id, { estado: 'activa' }),
+                          'Inscripción cerrada. Ahora armá los grupos.'),
+      ver: 'inscritos' as Pestana,
+    }
+    if (!panel.temporada) return {
+      titulo: 'Abrí la temporada',
+      pie: 'Con sus fechas. Después se arman los grupos y se siembra el calendario.',
+      boton: null, ver: 'semilla' as Pestana, verTexto: 'Ir a Temporada',
+    }
+    if (grupos.length === 0) return {
+      titulo: 'Armá los grupos',
+      pie: `${activos} ${activos === 1 ? 'persona' : 'personas'} esperando. Primero se ensaya y se ve el reparto.`,
+      boton: null, ver: 'grupos' as Pestana, verTexto: 'Ir a Grupos',
+    }
+    if (sinSembrar > 0) return {
+      titulo: `Sembrá el calendario`,
+      pie: `${sinSembrar} de ${grupos.length} ${grupos.length === 1 ? 'grupo' : 'grupos'} sin calendario. Hasta que se siembre, nadie tiene partidas.`,
+      boton: null, ver: 'grupos' as Pestana, verTexto: 'Ir a Grupos',
+    }
+    return {
+      titulo: 'La liga está corriendo',
+      pie: 'El reloj cobra los plazos solo. Acá solo hay que atender lo que se atore.',
+      boton: null,
+    }
+  })()
+
+  return (
+    <div className="mb-4 space-y-2">
+      {/* LO ATORADO, ARRIBA DE TODO. Una disputa sin resolver bloquea a dos
+          personas y el plazo sigue corriendo. */}
+      {atorado > 0 && (
+        <button
+          onClick={() => setPestana('cola')}
+          className="flex w-full items-center gap-2 rounded-xl border border-swu-red/50 bg-swu-red/10 px-3 py-2.5 text-left"
+        >
+          <AlertTriangle size={15} className="shrink-0 text-swu-red-texto" />
+          <span className="flex-1 text-[12px] font-bold leading-snug text-swu-red-texto">
+            {atorado === 1
+              ? 'Hay 1 partida atorada esperándote'
+              : `Hay ${atorado} partidas atoradas esperándote`}
+          </span>
+          <span className="shrink-0 text-[11px] font-bold text-swu-red-texto">Resolver →</span>
+        </button>
+      )}
+
+      <div className="rounded-xl border border-swu-cyan/40 bg-swu-cyan/5 p-3">
+        <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-swu-muted">Qué sigue</p>
+        <p className="mt-0.5 text-[14px] font-black text-swu-text">{paso.titulo}</p>
+        <p className="mt-1 text-[11px] leading-snug text-swu-muted">{paso.pie}</p>
+
+        {'porQueNo' in paso && paso.porQueNo && (
+          <p className="mt-2 text-[11px] font-bold text-swu-amber">{paso.porQueNo}</p>
+        )}
+
+        {(paso.boton || paso.ver) && (
+          <div className="mt-2.5 flex gap-2">
+            {paso.boton && (
+              <button
+                onClick={paso.hacer}
+                disabled={ocupado}
+                className="min-h-11 flex-1 rounded-lg bg-swu-cyan/20 text-[12px] font-black uppercase tracking-wider text-swu-cyan disabled:opacity-40"
+              >
+                {ocupado ? 'Un momento…' : paso.boton}
+              </button>
+            )}
+            {paso.ver && (
+              <button
+                onClick={() => setPestana(paso.ver!)}
+                className="min-h-11 flex-1 rounded-lg border border-swu-border text-[12px] font-bold text-swu-text"
+              >
+                {'verTexto' in paso && paso.verTexto ? paso.verTexto : 'Ver la lista'}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   )
 }

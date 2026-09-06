@@ -4540,3 +4540,38 @@ le enseña una lista vacía con un «no tenés mazos».
 para el creador y el staff —para probarlo— y la liga sigue invisible para las
 otras 40 cuentas. Son dos interruptores distintos y esa es la razón de que lo
 sean.
+
+### 5i. LIGA — «Qué sigue», o el panel dejando de ser un tablero de instrumentos
+
+El panel tenía cuatro pestañas y **la secuencia real repartida entre ellas**:
+abrir la inscripción vivía en Grupos, abrir la temporada en Semilla, sembrar en
+Grupos otra vez, cerrar la temporada en Semilla. Sin decir en qué paso estás.
+
+**Quien organiza una liga lo hace UNA vez cada tres meses.** No se acuerda del
+orden, y no tiene por qué: eso es trabajo de la pantalla.
+
+`QueSigue` deriva el paso de los datos y ofrece **UNA cosa**. El orden de las
+ramas ES la secuencia —la primera que aplica es donde estás—: borrador → abrir ·
+inscripción → cerrar · sin temporada → abrirla · sin grupos → armarlos · sin
+sembrar → sembrar · todo listo → «la liga está corriendo».
+
+No reemplaza las pestañas: ahí sigue el detalle. Contesta la única pregunta que
+se hace alguien al abrir esta pantalla.
+
+**LO ATORADO VA APARTE Y ARRIBA.** Una disputa sin resolver no es un paso de la
+secuencia: es algo que se rompió, que bloquea a dos personas y sobre lo que
+corre un plazo. Mezclarlo con el paso siguiente lo esconde justo cuando más
+urge. Y el contador va TAMBIÉN en la pestaña («Cola · 3»), porque quien entra
+por otra pestaña tiene que verlo sin depender de haber leído el aviso.
+
+**Con menos de 4 inscritos no hay botón: hay motivo.** «Hacen falta al menos 4
+para armar un grupo (van 2)» es accionable; un botón gris no dice qué falta.
+Misma regla que el guardia del reparto.
+
+Y **«Semilla» pasó a llamarse «Temporada»**: la semilla es un detalle de esa
+pestaña, no lo que se va a hacer ahí.
+
+Verificado en `/banco-lobby-liga` con los siete estados sembrados. Dos veces
+tuve que rehacer la medición: dividir el alto de un botón por su `line-height`
+da 2 renglones aunque no envuelva —el `min-h-11` de 44 px lo infla—, y lo que
+de verdad dice si un texto envuelve es `range.getClientRects().length`.

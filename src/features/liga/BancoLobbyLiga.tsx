@@ -21,7 +21,7 @@ import { PortadaLiga } from './PortadaLiga'
 import { BotonLiga } from './BotonLigaInicio'
 import { useActualizacion } from '../../services/actualizacion'
 import type { AnuncioLiga, InscritoPanel } from '../../services/ligaService'
-import { FichaInscrito, FilaDia } from './PanelLiga'
+import { FichaInscrito, FilaDia, QueSigue } from './PanelLiga'
 
 const hoyMas = (d: number) => {
   const f = new Date()
@@ -89,6 +89,25 @@ const CALOR = (() => {
   }
   return { cuenta, conFranjas: 3, sinZona: 1 }
 })() as never
+
+/** Lo mínimo que `QueSigue` mira, con la forma real. */
+const ligaBase = (estado: string, grupos: unknown[] = []) => ({
+  liga: { id: 'x', code: 'x', nombre: 'Liga', estado, descripcion: null,
+          tamanoGrupo: 8, formato: 'premier', cupo: 128, esStaff: true },
+  temporada: null, miInscripcion: null,
+  cifras: { inscritos: 10, paises: 8 }, padron: [], anuncios: [], grupos,
+}) as never
+const panelBase = (inscritos: number, cola: number, temporada: unknown = null) => ({
+  inscritos: Array.from({ length: inscritos }, (_, i) => ({
+    inscId: String(i), nombre: `J${i}`, tier: 'comun', estado: 'activo',
+    lider: null, base: null, pais: 'SV', zona: null, franjas: null, horas: 8, inscritoEn: '',
+  })),
+  cola: Array.from({ length: cola }, (_, i) => ({ id: String(i) })),
+  temporada,
+}) as never
+const grupoSembrado = { id: 'g1', tier: 'comun', orden: 1, estado: 'en_curso',
+  arranca: '', cierra: '', plazas: [], partidas: [{ id: 'p' }] }
+const grupoSinSembrar = { ...grupoSembrado, id: 'g2', partidas: [] }
 
 export function BancoLobbyLiga() {
   const [portada, setPortada] = useState(false)
@@ -318,6 +337,25 @@ export function BancoLobbyLiga() {
             <AnunciosLiga id="b3" ligaId="x" anuncios={[]} puedoPublicar={false}
                           alCambiar={() => {}} alAvisar={setAviso} />
           </div>
+        </Caso>
+
+        <Caso titulo="Panel — «Qué sigue», los seis pasos">
+          {[
+            ['liga en borrador',            ligaBase('borrador'),   panelBase(0, 0)],
+            ['inscripción abierta, 2 gente',ligaBase('inscripcion'),panelBase(2, 0)],
+            ['inscripción abierta, 10',     ligaBase('inscripcion'),panelBase(10, 0)],
+            ['cerrada, sin temporada',      ligaBase('activa'),     panelBase(10, 0)],
+            ['temporada, sin grupos',       ligaBase('activa'),     panelBase(10, 0, { id: 't' })],
+            ['grupos sin sembrar',          ligaBase('activa', [grupoSembrado, grupoSinSembrar]), panelBase(10, 0, { id: 't' })],
+            ['todo sembrado + 3 atoradas',  ligaBase('activa', [grupoSembrado]), panelBase(10, 3, { id: 't' })],
+          ].map(([rotulo, lg, pn], i) => (
+            <div key={i} className="mb-3">
+              <p className="mb-1 font-mono text-[9px] uppercase tracking-wider text-swu-muted">{rotulo as string}</p>
+              <QueSigue liga={lg as never} panel={pn as never}
+                        setPestana={p => setAviso(`ir a la pestaña «${p}»`)}
+                        tras={(r, e) => setAviso(r.ok ? e : (r.mensaje ?? 'falló'))} />
+            </div>
+          ))}
         </Caso>
 
         <Caso titulo="Panel en teléfono — fichas apiladas, no tabla con scroll lateral">
