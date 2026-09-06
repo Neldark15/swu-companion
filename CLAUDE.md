@@ -4311,3 +4311,43 @@ sin explicación, el organizador buscaría un bug que no existe.
 teléfono no existe. Y la intensidad es **relativa al máximo**: 1 de 1 persona se
 pinta igual de oscuro que 20 de 20, así que sin una cifra a la vista el mapa se
 puede leer al revés. Ahora cada día lleva su pico escrito, en las dos vistas.
+
+### 5d. LIGA — el botón de Inicio, y `liga_para_inicio()`
+
+Alejo ya tenía **acceso** a su liga —es el `creador_id`, así que `liga_visible()`
+y `liga_es_staff()` le dan `true`— y no tenía **por dónde**: había que teclear
+el URL. Es el §3l otra vez, y esta vez le tocaba al creador de la liga, que es
+quien más la abre.
+
+**Va debajo de La Galaxia, en su propio botón, y NO en la cuadrícula de
+módulos.** Ahí es una casilla de 60 px entre veinte, y una liga con fecha límite
+no es un módulo más: va donde está la acción principal.
+
+**`liga_para_inicio()` en vez de un `puente3` cableado.** El día que exista
+Puente 4 —o la liga de otro creador— un code escrito a mano manda a todo el
+mundo a la liga equivocada. La pregunta es «cuál es MI liga» y la contesta el
+servidor, con un orden que no es arbitrario: primero donde TENGO algo que hacer
+(staff o inscrito), y solo si no, una pública. Devuelve **seis campos**, no la
+liga entera: `liga_ver` trae grupos, plazas y partidas, y eso en la pantalla que
+más se abre serían cientos de filas para pintar un botón.
+
+Verificado: Alejo `puente3`, Nelson `puente3`, alguien de afuera **nada** — y
+entonces el botón no se dibuja. Ni un esqueleto: un hueco que casi siempre
+termina en nada es un parpadeo en cada apertura de Inicio (§3h-quinquies).
+
+**La segunda línea dice el PLAZO, no el estado.** «En curso» no le pide nada a
+nadie; lo que hace entrar es «cierra en 21 días». Cuando no hay plazo se cae al
+estado, que es lo único cierto que queda.
+
+**Y LOS DOS NÚMEROS NO COINCIDÍAN.** El botón redondeaba hacia arriba —«cierra
+en 22 días»— y la cuenta atrás del lobby hacia abajo —«21 días 10 h»—. Dos
+números para la misma fecha, los dos defendibles, y quien ve los dos concluye
+que uno está mal, que es peor que si uno lo estuviera. La cuenta vive ahora en
+`restanHasta` (`componentes/tiempo.ts`) y la usan los dos. Verificado en
+pantalla: 21 y 21.
+
+**El olvido al cambiar de cuenta va en el RENDER, no en un efecto.** Un
+`setState` síncrono dentro de un `useEffect` encadena un render de más y el
+linter lo marca como error; el patrón correcto —el mismo del contador de vida de
+las mesas— es comparar contra el id anterior durante el render. Sin eso, cerrar
+sesión dejaba en pantalla el botón de la liga de la cuenta anterior.

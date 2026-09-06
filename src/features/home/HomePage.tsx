@@ -60,6 +60,7 @@ import { type PlayerStats, calculateLevel } from '../../services/gamification'
 import { db } from '../../services/db'
 import { WelcomeHome } from './components/WelcomeHome'
 import { ChatRegion } from './ChatRegion'
+import { BotonLigaInicio } from '../liga/BotonLigaInicio'
 
 /* Avatar helper: detect image-based avatar vs emoji */
 
@@ -535,6 +536,13 @@ export function HomePage() {
           </HudPanel>
         </button>
       </div>
+
+      {/* ── La liga, en su propio botón, justo debajo de La Galaxia ──
+          No entra a la cuadrícula de módulos: ahí es una casilla de 60 px entre
+          veinte, y una liga con fecha límite no es un módulo más. Se dibuja
+          SOLO para quien puede entrar —creador, staff, inscrito o probador— y
+          si no, no ocupa nada. */}
+      <BotonLigaInicio />
 
       {/* ── Tu torneo ──
           Pegado a la acción principal, no en la franja del pie. «Próximos

@@ -18,6 +18,7 @@ import { Trophy, Swords, CalendarClock, BookOpen, Megaphone, Settings2, Users, G
 import { Bandera, TarjetaCifra, ContadorPlazo } from './componentes/piezas'
 import { Atajo, AnunciosLiga, ComoFunciona, TopOcho } from './LigaSeccion'
 import { PortadaLiga } from './PortadaLiga'
+import { BotonLiga } from './BotonLigaInicio'
 import type { AnuncioLiga, InscritoPanel } from '../../services/ligaService'
 import { FichaInscrito, FilaDia } from './PanelLiga'
 
@@ -111,6 +112,20 @@ export function BancoLobbyLiga() {
       {portada && <PortadaLiga ms={2000} />}
 
       <div className="mx-auto max-w-2xl space-y-6">
+        <Caso titulo="El botón de Inicio — sus tres estados">
+          {[
+            { code: 'x', nombre: 'Liga Internacional PUENTE', estado: 'inscripcion', esStaff: true, inscrito: false,
+              temporada: { estado: 'inscripcion', inscripcionCierra: hoyMas(21), arranca: hoyMas(35) } },
+            { code: 'x', nombre: 'Liga Internacional PUENTE', estado: 'activa', esStaff: false, inscrito: true,
+              temporada: { estado: 'en_curso', inscripcionCierra: null, arranca: hoyMas(35) } },
+            { code: 'x', nombre: 'Liga Internacional PUENTE', estado: 'borrador', esStaff: true, inscrito: false,
+              temporada: null },
+          ].map((l, i) => <div key={i} className="-mx-4"><BotonLiga liga={l} /></div>)}
+          <p className="mt-1 text-[10px] leading-snug text-swu-muted">
+            La segunda línea dice el PLAZO, no el estado: «en curso» no le pide nada a nadie.
+          </p>
+        </Caso>
+
         <Caso titulo="La portada, con su piso de 2 segundos">
           <button
             onClick={() => { setPortada(true); setTimeout(() => setPortada(false), 2000) }}

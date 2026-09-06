@@ -26,6 +26,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { getCountryByCode } from '../../../data/regions'
+import { restanHasta } from './tiempo'
 
 /**
  * La bandera de un país, o nada.
@@ -118,16 +119,15 @@ export function ContadorPlazo(
     return () => clearInterval(t)
   }, [])
 
-  if (!hasta) return null
-  const fin = new Date(`${hasta}T23:59:59`).getTime()
-  if (!Number.isFinite(fin)) return null
-  const falta = fin - ahora
-
-  if (falta <= 0) {
+  /* La cuenta vive en `restanHasta`, compartida con el botón de Inicio: los dos
+     hablan del MISMO plazo y cada uno la hacía por su lado — uno redondeaba
+     hacia arriba y decía «22 días» mientras el otro decía «21 días 10 h». */
+  const r = restanHasta(hasta, ahora)
+  if (!r) return null
+  if (r.vencido) {
     return <span className="font-black text-swu-red-texto">el plazo ya venció</span>
   }
-  const dias = Math.floor(falta / 86_400_000)
-  const horas = Math.floor((falta % 86_400_000) / 3_600_000)
+  const { dias, horas } = r
   return (
     <span className={`font-black tabular-nums ${urgente ? 'text-swu-red-texto' : 'text-swu-text'}`}>
       {dias > 0 ? `${dias} ${dias === 1 ? 'día' : 'días'} ` : ''}

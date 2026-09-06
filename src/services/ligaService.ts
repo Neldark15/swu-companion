@@ -542,6 +542,35 @@ export const sembrarGrupo = (grupo: string) => rpc('liga_sembrar_grupo', { p_gru
  * baja, cuántas partidas se sellan— **sin escribir nada**, por el MISMO camino
  * que el cierre real. Un ensayo que use otro camino no prueba nada.
  */
+/** Lo mínimo para pintar el botón de la liga en Inicio. Ver `liga_para_inicio`. */
+export interface LigaDeInicio {
+  code: string
+  nombre: string
+  estado: string
+  esStaff: boolean
+  inscrito: boolean
+  temporada: { estado: string; inscripcionCierra: string | null; arranca: string | null } | null
+}
+
+/**
+ * Qué liga le toca a esta persona en Inicio, o `null`.
+ *
+ * **No se cablea `puente3` en el cliente.** El día que exista Puente 4 —o la
+ * liga de otro creador— un code escrito a mano manda a todo el mundo a la liga
+ * equivocada. La pregunta es «cuál es MI liga» y la contesta el servidor.
+ *
+ * Devuelve seis campos, no la liga entera: `verLiga` trae grupos, plazas y
+ * partidas, y eso en la pantalla que más se abre serían cientos de filas para
+ * pintar un botón.
+ */
+export async function ligaParaInicio(): Promise<LigaDeInicio | null> {
+  if (!isSupabaseReady()) return null
+  const { data, error } = await supabase.rpc('liga_para_inicio')
+  if (error) { console.warn('[Liga] inicio:', error.message); return null }
+  const r = data as (LigaDeInicio & { code: string | null }) | null
+  return r?.code ? (r as LigaDeInicio) : null
+}
+
 export const cerrarTemporada = (
   temporada: string,
   resultado: Array<{ plazaId: string; puesto: number }>,
