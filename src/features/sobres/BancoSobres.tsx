@@ -18,6 +18,8 @@ import { PaginaAlbum } from './PaginaAlbum'
 import { LupaCarta } from './LupaCarta'
 import { ReversoCarta } from './ReversoCarta'
 import { FranjaSobreDiario } from './AvisoSobreDiario'
+import { TiendaSobres, type AccionesTienda } from './TiendaSobres'
+import type { EstadoTienda } from '../../services/tiendaSobres'
 import { Acabado } from './Acabado'
 import { AcabadoDeImagen } from './AcabadoDeImagen'
 import { CardImage } from '../../components/CardImage'
@@ -145,6 +147,163 @@ function seccionDePrueba(rareza: Rareza): { seccion: SeccionAlbum; casillas: Cas
     seccion: { setCode: 'ASH', variante: VARIANTE_DE[rareza], rareza, total, tenidas: casillas.filter(c => c.tenida).length },
     casillas,
   }
+}
+
+/**
+ * LA TIENDA, sin sesión y sin haber abierto un solo sobre.
+ *
+ * Vive detrás de DOS puertas —tener cuenta y tener repetidas— así que en el
+ * navegador la única forma de verla con carga sería abrir sobres hasta que una
+ * carta se repita. Acá las tres situaciones que de verdad existen se eligen a
+ * dedo, y las acciones son de mentira pero MUEVEN el estado: canjear vacía el
+ * bloque de repetidas y comprar sube el contador del día, que es justo lo que
+ * hay que mirar.
+ *
+ * LOS DATOS SON LOS DE VERDAD, no unos parecidos. La variante es
+ * `Serialized Prestige` —así, como la escribe `sobres_pool`— y no
+ * «Serializada»: esa cadena inventada es exactamente el error que hizo que la
+ * tarifa de la carta más rara no casara con nada y pagara 10 en vez de 150. Un
+ * banco con la mentira adentro habría dado verde con el bug puesto (§4y).
+ */
+const REPETIDAS_DE_PRUEBA = [
+  { nombre: 'Rogue Squadron Skirmisher', variante: 'Hyperspace Foil', n: 3, cu: 10 },
+  { nombre: 'Vanquish', variante: 'Showcase', n: 2, cu: 25 },
+  { nombre: 'Obi-Wan Kenobi', variante: 'Serialized Prestige', n: 1, cu: 150 },
+  { nombre: 'Cell Block Guard', variante: 'Standard Prestige', n: 4, cu: 35 },
+  { nombre: 'Wing Leader', variante: 'Foil Prestige', n: 2, cu: 50 },
+  { nombre: 'Restock', variante: '?', n: 1, cu: 10 },
+]
+
+const TARIFAS_DE_PRUEBA: Record<string, number> = {
+  'Hyperspace Foil': 10, Showcase: 25, 'Standard Prestige': 35,
+  'Foil Prestige': 50, 'Serialized Prestige': 150, '*': 10,
+}
+
+function tiendaDePrueba(caso: 'carga' | 'vacia' | 'tope'): EstadoTienda {
+  const filas = caso === 'carga'
+    ? REPETIDAS_DE_PRUEBA.map((r, i) => ({
+        cardId: `rep-${i}`,
+        variante: r.variante,
+        repetidas: r.n,
+        creditosCadaUna: r.cu,
+        creditos: r.n * r.cu,
+        carta: cartaFalsa(r.nombre, 900 + i),
+        arte: ARTE_PRUEBA,
+      }))
+    : []
+  return {
+    // «vacía» es el caso de la MAYORÍA: 25 de las 42 cuentas no tienen ni una
+    // repetida, y la mediana de créditos no llega a un sobre.
+    saldo: caso === 'carga' ? 4467 : caso === 'tope' ? 3000 : 90,
+    precio: 250,
+    tope: 5,
+    hoy: caso === 'tope' ? 5 : 0,
+    disponibles: caso === 'carga' ? 2 : 0,
+    tarifas: TARIFAS_DE_PRUEBA,
+    repetidas: filas,
+    repetidasCartas: filas.reduce((s, f) => s + f.repetidas, 0),
+    repetidasCreditos: filas.reduce((s, f) => s + f.creditos, 0),
+  }
+}
+
+/** Una caja mutable, no una `ref`: el linter prohíbe pasarle una ref a una
+ *  función durante el render, y acá no hace falta ninguna de las dos cosas que
+ *  una ref aporta. */
+interface CajaTienda { actual: EstadoTienda }
+
+function accionesDePrueba(caja: CajaTienda): AccionesTienda {
+  return {
+    recargar: async () => caja.actual,
+    canjear: async () => {
+      const e = caja.actual
+      if (e.repetidasCartas === 0) return { ok: false, mensaje: 'No tenés repetidas para canjear.' }
+      const cartas = e.repetidasCartas
+      const creditos = e.repetidasCreditos
+      caja.actual = {
+        ...e, saldo: e.saldo + creditos,
+        repetidas: [], repetidasCartas: 0, repetidasCreditos: 0,
+      }
+      return { ok: true, cartas, creditos, saldo: caja.actual.saldo }
+    },
+    comprar: async (n: number) => {
+      const e = caja.actual
+      const costo = e.precio * n
+      if (e.tope != null && e.hoy + n > e.tope) {
+        return { ok: false, mensaje: `Hoy podés comprar ${e.tope} sobres y ya llevás ${e.hoy}.` }
+      }
+      if (e.saldo < costo) return { ok: false, mensaje: `Te faltan ${costo - e.saldo} créditos.` }
+      caja.actual = {
+        ...e, saldo: e.saldo - costo, hoy: e.hoy + n, disponibles: e.disponibles + n,
+      }
+      return {
+        ok: true, sobres: n, costo,
+        saldo: caja.actual.saldo, hoy: caja.actual.hoy,
+        disponibles: caja.actual.disponibles,
+      }
+    },
+  }
+}
+
+/**
+ * Una situación, con su caja propia.
+ *
+ * Va en componente aparte y montado por `key` para que cambiar de situación
+ * REMONTE: así la caja nace de cero sin que nadie tenga que mutarla desde un
+ * manejador —cosa que el compilador de React prohíbe sobre un valor de
+ * `useState`— y de paso el panel vuelve a pedir el estado y se le olvidan el
+ * aviso y el paso de confirmación de la situación anterior. Sin eso quedaba un
+ * «2 sobres a la bóveda» encima de una tienda vacía.
+ */
+function CasoDeTienda({ caso }: { caso: 'carga' | 'vacia' | 'tope' }) {
+  const [banco] = useState(() => {
+    const caja: CajaTienda = { actual: tiendaDePrueba(caso) }
+    return { acciones: accionesDePrueba(caja) }
+  })
+  return <TiendaSobres acciones={banco.acciones} />
+}
+
+function BancoTienda() {
+  const [caso, setCaso] = useState<'carga' | 'vacia' | 'tope'>('carga')
+
+  /* El estado de mentira vive en una CAJA MUTABLE, y las acciones se arman una
+   * sola vez contra ella.
+   *
+   * Con `useState` + `useMemo` las acciones quedaban congeladas contra el valor
+   * del render en que se crearon: canjear cambiaba el estado, pero el
+   * `recargar()` que el panel llama justo después seguía devolviendo el
+   * ANTERIOR. En pantalla se veía «13 copias cambiadas por 480 créditos» encima
+   * de un bloque que seguía diciendo 13 copias y 480 créditos — el banco
+   * mintiendo sobre un componente que está bien (§4r). Leyendo la caja, las
+   * acciones ven siempre lo último, que es lo que hace el servidor de verdad. */
+
+  return (
+    <div className="mt-10 border-t border-swu-border pt-6">
+      <p className="mb-2 text-center text-sm text-swu-muted">La tienda</p>
+      <div className="mb-2 flex flex-wrap justify-center gap-2">
+        {([
+          ['carga', 'con repetidas'],
+          ['vacia', 'sin nada (25 de 42)'],
+          ['tope', 'tope del día alcanzado'],
+        ] as const).map(([id, rotulo]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setCaso(id)}
+            className={`rounded-lg px-3 py-1.5 text-xs ${
+              caso === id ? 'bg-swu-accent text-white' : 'bg-swu-surface text-swu-muted'
+            }`}
+          >
+            {rotulo}
+          </button>
+        ))}
+      </div>
+      {/* `key` por caso: remonta el panel. Sin eso, su aviso y su paso de
+          confirmación quedarían hablando de la situación anterior —un «2 sobres
+          a la bóveda» encima de una tienda vacía— y además no volvería a
+          pedir el estado. */}
+      <CasoDeTienda key={caso} caso={caso} />
+    </div>
+  )
 }
 
 export function BancoSobres() {
@@ -283,6 +442,8 @@ export function BancoSobres() {
               <FranjaSobreDiario saldo={173} alAbrir={() => {}} alCerrar={() => {}} />
             </div>
           </div>
+
+          <BancoTienda />
 
           {/* Y el dorso redibujado, solo. */}
           <div className="mt-10 border-t border-swu-border pt-6">

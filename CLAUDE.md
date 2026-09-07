@@ -4617,3 +4617,111 @@ update public.ligas set estado = 'inscripcion' where code = 'puente3';
 
 El orden importa: `liga_plazas` tiene FK a `liga_inscripciones`, así que borrar
 los carnés primero falla con un 23503.
+
+### 5k. La TIENDA: repetidas → créditos, y sobres que se compran
+
+Dos mitades de la misma idea. Lo que sobra del álbum se vuelve la moneda que ya
+existía, y con esa moneda se compran más sobres —y piezas de sable, y
+terraformación: es UNA billetera (§4i)—.
+
+**UNA REPETIDA SALE DE `cartas_desbloqueadas`, NUNCA DE `collection`.** Son dos
+tablas parecidas con dos orígenes distintos y confundirlas es una impresora de
+dinero: `collection` la escribe el cliente y se puede IMPORTAR —la colección más
+grande son 2.089 filas con `quantity = 3` de una importación—, así que canjear
+desde ahí sería regalar créditos por un archivo de texto. `cartas_desbloqueadas`
+solo la escribe `abrir_sobre()`; verificado, `authenticated` tiene sobre ella
+`rm`, o sea SELECT y nada más.
+
+**LA PRIMERA COPIA NUNCA SE CANJEA.** El techo es `cantidad - 1`, del lado del
+servidor. El álbum ES la colección: si el canje pudiera vaciar una casilla,
+alguien perdería su Showcase por tocar un botón que decía «cambiá lo que te
+sobra». Probado en transacción revertida: canjeando TODO, casillas vaciadas 0.
+
+**POR QUÉ UN SOBRE CUESTA 250 Y NO 50.** `abrir_sobre()` paga 50 XP (§4a) y los
+créditos SON el XP, así que un sobre por debajo de 50 se paga solo: comprar,
+abrir, cobrar, comprar. Medido sobre las 700 aperturas reales: 211 repetidas
+(6%), o sea que un sobre devuelve ~55 créditos entre el XP y lo canjeable. A
+250, cada compra **drena ~195**. La tienda es un sumidero, que es lo que a esta
+economía le faltaba.
+
+**Y NO ES UNA TRAGAMONEDAS: HAY MENORES.** Tope de 5 por día, con el día de El
+Salvador calculado DENTRO del servidor (§3i). No se compra con dinero real.
+
+#### La tarifa de la serializada no casaba con nada
+
+La fila decía `repetida:Serializada` y la variante que guarda `sobres_pool` es
+**`Serialized Prestige`**. La clave no casaba, caía en el comodín `repetida:*`,
+y la carta más rara del juego pagaba **10 créditos en vez de 150** — un número
+plausible, quince veces más chico, sin un solo error. Peor: la pantalla iba a
+anunciar la tarifa de la tabla mientras el servidor pagaba otra, que es
+exactamente lo que el §4a prohíbe.
+
+La tabla sigue siendo editable (§4s); lo que ya no se puede es teclear una clave
+que no paga. **`trg_sobres_tarifa_clave`** rechaza una clave `repetida:<X>` cuyo
+`<X>` no exista en `sobres_pool`. Se admiten `*` (comodín) y `?` (la carta que
+está en el álbum y ya no en el pool, o sea una impresión retirada).
+
+#### Una sola lectura, y una sola aritmética
+
+`tienda_sobres()` devuelve saldo, precio, tope, cuántos llevás hoy, tus
+repetidas con su tarifa YA aplicada, y los totales — el criterio de `mi_liga()`.
+Los totales los suma el SERVIDOR con la MISMA expresión que después cobra
+`canjear_repetidas()`: sumarlos en la pantalla sería una segunda aritmética que
+se puede separar de la que paga. `mis_repetidas()` quedó absorbida y se dropeó
+(barrido de llamadores antes, §5h).
+
+La regla del día vive UNA vez, en `sobres_comprados_hoy(uuid)`, y la comparten
+la función que la muestra y la que la aplica. Con dos copias, la pantalla diría
+«te quedan 3» y el servidor rechazaría.
+
+**La tienda habla el idioma del álbum.** El servidor manda la variante cruda
+porque es su clave de tarifa; `nombreDeVariante()` la traduce con
+`RAREZA` + `NOMBRE_RAREZA`. Sin ese paso decía «Serialized Prestige» al lado de
+un álbum que dice «Serializada» — la misma carta con dos nombres (§4q).
+
+#### Lo que NO se promete
+
+Medido sobre la comunidad: **15 de 42 personas tienen repetidas, 211 copias en
+total, y de promedio valen 144 créditos** — menos de UN sobre. Por eso debajo del
+total va lo que de verdad alcanza, con el número que falta cuando no alcanza. Un
+«canjeá y seguí abriendo» encima de 144 créditos es una promesa que la mitad de
+abajo desmiente en el acto.
+
+Y la tienda va **DEBAJO** de la caja de sobres: hay **882 sobres sin abrir** en
+la comunidad. Vender sobres arriba de la pantalla a alguien que tiene 21 sin
+abrir es la peor jerarquía posible; el valor real de esto es convertir repetidas
+muertas en tiradas nuevas, no resolver una escasez que no existe.
+
+#### El banco, y el banco mintiendo
+
+`/banco-sobres`, sección «La tienda»: tres situaciones —con repetidas, sin nada
+(que es el caso de 25 de 42), y tope del día alcanzado—. Vive detrás de DOS
+puertas (tener cuenta y tener repetidas), así que sin el banco la única forma de
+revisarla sería abrir sobres hasta que una carta se repita. Por eso el panel
+recibe sus tres llamadas al servidor **inyectadas** (`AccionesTienda`), el mismo
+costurón con el que `/banco-lobby-liga` mira el botón de actualizar (§5f).
+
+**El fixture usa `Serialized Prestige`, así, como lo escribe `sobres_pool`.** Un
+banco con «Serializada» adentro habría dado verde con el bug de la tarifa puesto
+— es el §4y otra vez.
+
+Y el banco mintió una vez antes de estar bien: con el estado de mentira en
+`useState` + `useMemo`, las acciones quedaban congeladas contra el render en que
+se crearon, así que el `recargar()` posterior al canje devolvía el estado
+ANTERIOR. En pantalla: «13 copias cambiadas por 480 créditos» encima de un
+bloque que seguía diciendo 13 copias y 480 créditos — el banco acusando a un
+componente que estaba bien (§4r). Va con una caja mutable creada en el montaje,
+y cada situación en su propio componente montado por `key`: el compilador de
+React no deja mutar un valor de `useState` desde un manejador, ni preservar una
+memoización que lee una ref.
+
+#### Un `<span>` suelto dentro de un `flex` es una COLUMNA
+
+La nota «La **primera copia** de cada carta se queda en tu álbum» salía partida:
+«La primera de cada carta se queda… Solo copia se cambia…», con las dos palabras
+en negrita apiladas en su propio carril. El `<p>` era `flex` para colgarle el
+ícono, y el `<strong>` era hermano del ícono, o sea otro ítem del flex. Todo el
+texto va dentro de UN solo hijo. No se ve leyendo el código.
+
+**`FUENTES` se actualizó en el mismo commit** (§4a): ahora hay una quinta forma
+de conseguir sobres y la lista lo dice.

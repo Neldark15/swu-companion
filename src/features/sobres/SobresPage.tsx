@@ -27,6 +27,7 @@ import {
   type CartaSacada,
 } from '../../services/sobres'
 import { CajaDeSobres } from './CajaDeSobres'
+import { TiendaSobres } from './TiendaSobres'
 import { AperturaSobre } from './AperturaSobre'
 import { alternarSilencio, estaEnSilencio } from './sonido'
 
@@ -44,6 +45,7 @@ const FUENTES = [
   { que: 'Cada mañana a las 8:00', cuanto: '1 sobre · 3 con los avisos puestos' },
   { que: 'Una amistosa confirmada', cuanto: '1 sobre para cada uno' },
   { que: 'Jugar un torneo', cuanto: '5 sobres y 500 XP' },
+  { que: 'Comprándolos en la tienda', cuanto: '250 créditos cada uno' },
 ]
 
 /** Lo que paga abrir UN sobre. Lo acredita `abrir_sobre()` en el servidor. */
@@ -230,13 +232,23 @@ export function SobresPage() {
               <Package size={30} className="mx-auto mb-3 text-swu-muted" />
               <p className="font-bold text-swu-text">No te quedan sobres</p>
               <p className="mx-auto mt-1 max-w-sm text-sm text-swu-muted">
-                Se ganan jugando. Cada amistosa que tu rival confirme les da uno a los dos.
+                Se ganan jugando —cada amistosa que tu rival confirme les da uno a los dos— y
+                acá abajo se compran con créditos.
               </p>
               <Button variant="secondary" className="mt-4" onClick={() => void recargar()}>
                 Ya jugué, revisá otra vez
               </Button>
             </div>
           )}
+
+          {/* La tienda va DEBAJO de la caja: primero lo que ya tenés para
+              abrir, después en qué gastar. Al revés, la pantalla te vende algo
+              teniendo sobres sin abrir en la mano — y en esta comunidad hay 882
+              esperando. */}
+          <TiendaSobres alCambiarSobres={n => {
+            setSaldo(n)
+            useSobres.getState().fijar(n)
+          }} />
 
           {/* Cómo se ganan */}
           <div className="mt-8">
