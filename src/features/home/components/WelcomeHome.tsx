@@ -7,16 +7,18 @@
 
 import { useState } from 'react'
 import { TarjetaOferta } from '../../sobres/OfertaSobresDiarios'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   LogIn, UserPlus, Eye, EyeOff, AlertTriangle, Loader2, ArrowRight,
   CircleArrowDown,
 } from 'lucide-react'
 import { useAuth } from '../../../hooks/useAuth'
 import { PWAInstallCard } from './PWAInstallCard'
+import { rutaAccesoPerfil } from '../../profile/accesoPerfil'
 
 export function WelcomeHome() {
   const navigate = useNavigate()
+  const { search } = useLocation()
   const login = useAuth(s => s.login)
 
   const [email, setEmail] = useState('')
@@ -105,10 +107,11 @@ export function WelcomeHome() {
 
           <form onSubmit={handleLogin} className="space-y-3">
             <div>
-              <label className="text-[10px] uppercase tracking-wider text-swu-muted font-medium block mb-1">
+              <label htmlFor="bienvenida-email" className="text-[10px] uppercase tracking-wider text-swu-muted font-medium block mb-1">
                 Email
               </label>
               <input
+                id="bienvenida-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -119,11 +122,12 @@ export function WelcomeHome() {
             </div>
 
             <div>
-              <label className="text-[10px] uppercase tracking-wider text-swu-muted font-medium block mb-1">
+              <label htmlFor="bienvenida-clave" className="text-[10px] uppercase tracking-wider text-swu-muted font-medium block mb-1">
                 Contraseña
               </label>
               <div className="relative">
                 <input
+                  id="bienvenida-clave"
                   type={showPw ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -160,7 +164,7 @@ export function WelcomeHome() {
 
             <button
               type="button"
-              onClick={() => navigate('/profile')}
+              onClick={() => navigate(rutaAccesoPerfil('forgot-password', search))}
               className="w-full text-[11px] text-swu-muted hover:text-swu-text"
             >
               ¿Olvidaste tu contraseña?
@@ -174,7 +178,7 @@ export function WelcomeHome() {
           </div>
 
           <button
-            onClick={() => navigate('/profile')}
+            onClick={() => navigate(rutaAccesoPerfil('register', search))}
             className="w-full py-2.5 rounded-lg bg-swu-surface border border-swu-accent/30 text-swu-accent-texto font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98]"
           >
             <UserPlus size={14} />

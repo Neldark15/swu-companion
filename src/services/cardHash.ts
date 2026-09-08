@@ -252,6 +252,8 @@ export interface Candidato {
 export interface Resultado {
   mejor: Candidato
   segundo: Candidato | null
+  /** Impresiones con un hash realmente idéntico, no un empate de distancias. */
+  repetidas: string[]
   /**
    * ¿Se puede confiar?
    *
@@ -284,6 +286,22 @@ export interface Resultado {
 const MAX_DISTANCIA = 220
 const MARGEN_MINIMO = 28
 
+const gruposPorIndice = new WeakMap<IndiceArte, number[][]>()
+function gruposDeArte(idx: IndiceArte): number[][] {
+  const previos = gruposPorIndice.get(idx)
+  if (previos) return previos
+  const grupos = new Map<string, number[]>()
+  for (let i = 0; i < idx.ids.length; i++) {
+    const clave = idx.hashes.subarray(i * BYTES_HASH, (i + 1) * BYTES_HASH).join(',')
+    const grupo = grupos.get(clave)
+    if (grupo) grupo.push(i)
+    else grupos.set(clave, [i])
+  }
+  const resultado = [...grupos.values()]
+  gruposPorIndice.set(idx, resultado)
+  return resultado
+}
+
 /**
  * Busca el arte más parecido.
  *
@@ -291,14 +309,15 @@ const MARGEN_MINIMO = 28
  * un milisegundo, así que se puede hacer en cada fotograma.
  */
 export function buscarPorArte(hash: Uint8Array, idx: IndiceArte): Resultado | null {
-  const n = idx.ids.length
+  const grupos = gruposDeArte(idx)
+  const n = grupos.length
   if (n === 0) return null
 
   let mejorD = Infinity, mejorI = -1
   let segD = Infinity, segI = -1
 
   for (let i = 0; i < n; i++) {
-    const off = i * BYTES_HASH
+    const off = grupos[i][0] * BYTES_HASH
     let d = 0
     for (let b = 0; b < BYTES_HASH; b++) {
       d += POP[hash[b] ^ idx.hashes[off + b]]
@@ -315,17 +334,16 @@ export function buscarPorArte(hash: Uint8Array, idx: IndiceArte): Resultado | nu
   }
   if (mejorI < 0) return null
 
-  const mejor = { id: idx.ids[mejorI], distancia: mejorD }
-  const segundo = segI >= 0 && Number.isFinite(segD) ? { id: idx.ids[segI], distancia: segD } : null
-  // Un EMPATE EXACTO no es duda, es arte repetido: hay cartas publicadas con
-  // la misma ilustración y números distintos. Rechazarlas sería descartar una
-  // lectura correcta; quien llama las ofrece a elegir.
-  const empate = segundo !== null && segundo.distancia === mejorD
+  const mejor = { id: idx.ids[grupos[mejorI][0]], distancia: mejorD }
+  const segundo = segI >= 0 && Number.isFinite(segD) ? { id: idx.ids[grupos[segI][0]], distancia: segD } : null
+  // Comparar contra el siguiente ARTE DISTINTO. Dos ilustraciones distintas
+  // pueden quedar a la misma distancia: ese empate es ambiguo y se rechaza.
   const margen = segundo ? segundo.distancia - mejorD : Infinity
 
   return {
     mejor,
     segundo,
-    confiable: mejorD <= MAX_DISTANCIA && (empate || margen >= MARGEN_MINIMO),
+    repetidas: grupos[mejorI].slice(1).map(i => idx.ids[i]),
+    confiable: mejorD <= MAX_DISTANCIA && margen >= MARGEN_MINIMO,
   }
 }

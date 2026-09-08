@@ -84,56 +84,42 @@ export async function updateCollectionQuantity(
   quantity: number,
   profileId?: string,
   userId?: string,
-): Promise<void> {
+): Promise<boolean> {
+  let antes = 0
   try {
-    /* La cantidad ANTERIOR, para saber si esto es un alta o una baja.
-     *
-     * El llamador no lo dice: la misma función la usan el botón +, el −, el
-     * ×3 de la rejilla, el detalle de carta, Mi Botín y el escáner. Sin
-     * comparar, restar una copia contaría como agregarla y la misión subiría
-     * tocando +/− sobre la misma carta.
-     *
-     * Va acá adentro y no en las cuatro pantallas a propósito: cuatro copias
-     * de la misma regla es como se separan (§3c). */
-    const antes = (await db.collection.get(cardId))?.quantity ?? 0
+    const previa = await db.collection.get(cardId)
+    antes = previa && previa.profileId === profileId ? previa.quantity : 0
+    if (quantity <= 0) await db.collection.delete(cardId)
+    else await db.collection.put({ cardId, quantity, ...(profileId ? { profileId } : {}) })
+  } catch (e) {
+    console.warn('[Collection] Failed to save local quantity:', e)
+    return false
+  }
 
-    if (quantity <= 0) {
-      // Remove from collection
-      await db.collection.delete(cardId)
-    } else {
-      await db.collection.put({
-        cardId,
-        quantity,
-        ...(profileId ? { profileId } : {}),
-      })
+  // El retorno confirma persistencia LOCAL. La sincronización durable se
+  // aborda aparte; un fallo remoto no debe inducir a agregar la misma copia
+  // otra vez cuando ya quedó en Dexie. Una sesión ajena al perfil no se usa.
+  if (userId && userId === profileId && isSupabaseReady()) {
+    try {
+      const { error } = quantity <= 0
+        ? await supabase.from('collection').delete().eq('user_id', userId).eq('card_id', cardId)
+        : await supabase.from('collection').upsert({ user_id: userId, card_id: cardId, quantity })
+      if (error) console.warn('[Collection] Cloud quantity not saved:', error.message)
+    } catch (e) {
+      console.warn('[Collection] Cloud quantity not saved:', e)
     }
-
-    // Sync to cloud if logged in
-    if (userId && isSupabaseReady()) {
-      if (quantity <= 0) {
-        await supabase
-          .from('collection')
-          .delete()
-          .eq('user_id', userId)
-          .eq('card_id', cardId)
-      } else {
-        await supabase
-          .from('collection')
-          .upsert({
-            user_id: userId,
-            card_id: cardId,
-            quantity,
-          })
-      }
-    }
-    // Solo cuando SUBE, y solo con sesión: sin ella la colección es local y
-    // no hay a quién acreditarle nada.
-    if (userId && quantity > antes) {
+    if (quantity > antes) {
       void updateMissionProgress(userId, 'carta_agregada', quantity - antes).catch(() => {})
     }
-  } catch (e) {
-    console.warn('[Collection] Failed to update quantity:', e)
   }
+  return true
+}
+
+/** El escáner no debe confundir un fallo de almacenamiento con cero copias,
+ * ni mostrar las existencias de otro perfil al confirmar una carta. */
+export async function getScanQuantity(cardId: string, profileId?: string): Promise<number> {
+  const item = await db.collection.get(cardId)
+  return item?.profileId === profileId ? item?.quantity ?? 0 : 0
 }
 
 /** Get the quantity of a specific card in collection */

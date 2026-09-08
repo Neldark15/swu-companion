@@ -34,6 +34,9 @@ const SedesPage = lazy(() => import('./features/venues/SedesPage').then(m => ({ 
 const SedePage = lazy(() => import('./features/venues/SedePage').then(m => ({ default: m.SedePage })))
 const AdminVenuePage = lazy(() => import('./features/admin/AdminVenuePage').then(m => ({ default: m.AdminVenuePage })))
 const ScanPage = lazy(() => import('./features/scan/ScanPage').then(m => ({ default: m.ScanPage })))
+const BancoEscaner = import.meta.env.DEV
+  ? lazy(() => import('./features/scan/BancoEscaner').then(m => ({ default: m.BancoEscaner })))
+  : null
 const MetaPage = lazy(() => import('./features/meta/MetaPage').then(m => ({ default: m.MetaPage })))
 const ContadorPage = lazy(() => import('./features/contador/ContadorPage').then(m => ({ default: m.ContadorPage })))
 // El Contador para una mesa de Twin Suns (3 o 4). Comparte las piezas con el
@@ -348,6 +351,7 @@ export default function App() {
             {import.meta.env.DEV && <Route path="/banco-sable" element={<BancoSable />} />}
             {import.meta.env.DEV && BancoCredito && <Route path="/banco-credito" element={<BancoCredito />} />}
             {import.meta.env.DEV && BancoSable3D && <Route path="/banco-sable-3d" element={<BancoSable3D />} />}
+            {import.meta.env.DEV && BancoEscaner && <Route path="/banco-escaner" element={<BancoEscaner />} />}
             {import.meta.env.DEV && BancoKyber && <Route path="/banco-kyber" element={<BancoKyber />} />}
             {import.meta.env.DEV && <Route path="/banco-sobres" element={<BancoSobres />} />}
             {import.meta.env.DEV && <Route path="/banco-mesa-fila" element={<BancoMesaFila />} />}
