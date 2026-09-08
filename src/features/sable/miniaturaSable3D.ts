@@ -21,9 +21,10 @@
  */
 
 import * as THREE from 'three'
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { piezasDeSable, colorDeHoja, type Diseno } from './partesSable'
 import { abrirTallerTres, vestirPieza } from './herrajesTres'
+import { crearGeometriaPieza } from './geometriaSable'
+import { crearEntornoKyber } from './entornoKyber'
 
 /** `null` si este navegador no puede dibujar en 3D: la barra usa su SVG. */
 export function renderizarMango(d: Diseno, anchoPx = 216, altoPx = 66): string | null {
@@ -42,16 +43,14 @@ export function renderizarMango(d: Diseno, anchoPx = 216, altoPx = 66): string |
     renderer.toneMappingExposure = 1.12
 
     const scene = new THREE.Scene()
-    const pmrem = new THREE.PMREMGenerator(renderer)
-    const envRT = pmrem.fromScene(new RoomEnvironment(), 0.04)
+    const envRT = crearEntornoKyber(renderer)
     scene.environment = envRT.texture
-    pmrem.dispose()
     basura.push(envRT)
 
-    scene.add(new THREE.AmbientLight(0x44506a, 0.5))
-    const focoCalido = new THREE.DirectionalLight(0xffc27a, 1.9)
+    scene.add(new THREE.HemisphereLight(0xdde8ff, 0x11151c, 0.6))
+    const focoCalido = new THREE.DirectionalLight(0xffe0b6, 2.4)
     focoCalido.position.set(7, 9, 7)
-    const focoFrio = new THREE.DirectionalLight(0x8fb4ff, 0.7)
+    const focoFrio = new THREE.DirectionalLight(0xbddfff, 1.8)
     focoFrio.position.set(-8, -3, 5)
     scene.add(focoCalido, focoFrio)
     basura.push(focoCalido, focoFrio)
@@ -73,7 +72,7 @@ export function renderizarMango(d: Diseno, anchoPx = 216, altoPx = 66): string |
     const pxPorUnidad = anchoPx / (altoTotal * 1.15)
     sueltas.forEach((sp) => {
       // 48 segmentos y no 96: a 22 px nadie distingue la diferencia.
-      const geo = new THREE.LatheGeometry(sp.puntos.map(([r, y]) => new THREE.Vector2(r, y)), 48)
+      const geo = crearGeometriaPieza(sp, 48)
       basura.push(geo)
       const malla = new THREE.Mesh(geo, taller.material(sp.material))
       malla.position.y = -altoTotal / 2 + sp.base

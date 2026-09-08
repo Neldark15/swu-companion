@@ -186,9 +186,9 @@ export type Herraje =
   /** Cable de aislante: un toro PARCIAL que abraza el mango. */
   | { tipo: 'cable'; y: number; grosor: number; arco: number; giro?: number; inclina?: number; material: MaterialId }
   /** Aletas, dientes o respiraderos: tablillas repetidas alrededor del eje. */
-  | { tipo: 'aleta'; y: number; alto: number; ancho: number; salida: number; giro?: number; vueltas: number; material: MaterialId }
+  | { tipo: 'aleta'; y: number; alto: number; ancho: number; salida: number; giro?: number; vueltas: number; material: MaterialId; bisel?: number }
   /** Gema engarzada. Facetada a propósito para que cada cara agarre distinto. */
-  | { tipo: 'gema'; y: number; radio: number; giro?: number; vueltas?: number; material: MaterialId }
+  | { tipo: 'gema'; y: number; radio: number; giro?: number; vueltas?: number; material: MaterialId; alojamiento?: boolean }
   /**
    * DESTELLOS: puntitos que TITILAN en secuencia alrededor del eje.
    *
@@ -202,6 +202,8 @@ export type Herraje =
 
 /** Cuántas mallas cuesta un herraje. `vueltas` es la que multiplica. */
 export function mallasDe(h: Herraje): number {
+  // Dos ventanas fusionadas por material: marco, fondo y cristal.
+  if (h.tipo === 'gema' && h.alojamiento) return 3
   return (h.tipo === 'aleta' || h.tipo === 'destello') ? h.vueltas
     : (h.tipo === 'boton' || h.tipo === 'gema') ? (h.vueltas ?? 1)
     : 1
@@ -209,6 +211,7 @@ export function mallasDe(h: Herraje): number {
 
 /** Cuánto ocupa un herraje a lo largo del mango. Los chatos devuelven ~0. */
 function altoDe(h: Herraje): number {
+  if (h.tipo === 'gema' && h.alojamiento) return h.radio * 5
   return h.tipo === 'caja' || h.tipo === 'aleta' ? h.alto
     : (h.tipo === 'boton' || h.tipo === 'gema' || h.tipo === 'destello') ? h.radio * 2
     : 0
@@ -678,21 +681,23 @@ const CUERPOS: Record<string, Pieza> = {
   },
   cue_placas: {
     alto: 14,
-    // Tres placas planas de blindaje, con hombros francos.
+    // Tres zonas de blindaje de acero. Los hombros finos dejan leer los
+    // paneles longitudinales de agarre sin convertir el cuerpo en tres discos.
     puntos: h => [
       [R, 0], [R, h * 0.1],
-      [R * 1.16, h * 0.12], [R * 1.16, h * 0.3], [R, h * 0.32],
-      [R, h * 0.36], [R * 1.16, h * 0.38], [R * 1.16, h * 0.56], [R, h * 0.58],
-      [R, h * 0.62], [R * 1.16, h * 0.64], [R * 1.16, h * 0.82], [R, h * 0.84],
+      [R * 1.08, h * 0.12], [R * 1.08, h * 0.3], [R, h * 0.32],
+      [R, h * 0.36], [R * 1.08, h * 0.38], [R * 1.08, h * 0.56], [R, h * 0.58],
+      [R, h * 0.62], [R * 1.08, h * 0.64], [R * 1.08, h * 0.82], [R, h * 0.84],
       [R, h],
     ],
-    // BLINDAJE. Cuatro remaches en la placa del MEDIO y nada en las otras
-    // dos: remachar las tres cuesta doce mallas y se lee peor.
+    // BLINDAJE. Cuatro insertos de agarre sobre acero, retenidos por los dos
+    // aros. El meridiano del botón y el de las ventanas quedan entre paneles.
     material: 'acero',
     herrajes: [
-      { tipo: 'boton', y: 0.47, radio: 0.12, salida: 0.08, vueltas: 4, material: 'negro' },
-      { tipo: 'boton', y: 0.21, radio: 0.17, salida: 0.12, material: 'luz' },
-      { tipo: 'anillo', y: 0.73, grosor: 0.09, material: 'laton' },
+      { tipo: 'aleta', y: 0.50, alto: 8.4, ancho: 1.35, salida: 0.13, vueltas: 4, giro: Math.PI / 4, material: 'grafito', bisel: 0.12 },
+      { tipo: 'boton', y: 0.88, radio: 0.19, salida: 0.14, material: 'luz' },
+      { tipo: 'anillo', y: 0.19, grosor: 0.11, material: 'laton' },
+      { tipo: 'anillo', y: 0.81, grosor: 0.11, material: 'laton' },
     ],
   },
   cue_helice: {
@@ -844,14 +849,23 @@ const EMISORES: Record<string, Pieza> = {
   // ── Nuevos (catálogo grande, 2026-08-24) ──
   emi_faro: {
     alto: 5,
-    // El más simple de los pagos: tubo con labio fino.
-    puntos: h => [[R, 0], [R * 1.1, h * 0.15], [R * 1.1, h * 0.8], [R * 0.95, h * 0.85], [R * 0.95, h], [R * 0.62, h]],
-    // FARO. Tres aletas cortas y un aro de cobre. El más simple de los que
-    // se pagan, pero ya no es un tubo.
+    // Casquillo recto entre dos labios mecanizados. Sigue siendo el tubo de
+    // FARO: los pequeños escalones dan escala al metal y reciben el brillo.
+    puntos: h => [
+      [R, 0], [R * 1.04, h * 0.035],
+      [R * 1.14, h * 0.07], [R * 1.14, h * 0.12],
+      [R * 1.10, h * 0.15], [R * 1.10, h * 0.80],
+      [R * 1.16, h * 0.83], [R * 1.16, h * 0.88],
+      [R * 0.95, h * 0.92], [R * 0.95, h * 0.975],
+      [R * 0.91, h], [R * 0.62, h],
+    ],
+    // Seis respiraderos negros de salida baja, con extremos biselados: son
+    // insertos en la camisa de acero, no púas. Ocho mallas en total.
     material: 'acero',
     herrajes: [
-      { tipo: 'anillo', y: 0.22, grosor: 0.10, material: 'cobre' },
-      { tipo: 'aleta', y: 0.55, alto: 1.40, ancho: 0.35, salida: 0.16, vueltas: 3, material: 'negro' },
+      { tipo: 'anillo', y: 0.105, grosor: 0.065, material: 'laton' },
+      { tipo: 'aleta', y: 0.48, alto: 3.0, ancho: 0.34, salida: 0.055, vueltas: 6, material: 'negro', bisel: 0.10 },
+      { tipo: 'anillo', y: 0.855, grosor: 0.055, material: 'negro' },
     ],
   },
   emi_campo: {
@@ -1298,10 +1312,8 @@ export function piezasDeSable(d: Diseno): PiezaSuelta[] {
     if (puntos[0][0] > 0) puntos.unshift([0, puntos[0][1]])
     if (puntos[puntos.length - 1][0] > 0) puntos.push([0, puntos[puntos.length - 1][1]])
     let herrajes = p.herrajes ?? []
-    /* La ventana del cristal va en el CUERPO y a media altura: dos gemas de
-       plasma enfrentadas (giradas para no chocar con el botón, que casi
-       siempre vive en giro 0) y un aro oscuro de marco. Sintéticas y no
-       catálogo: son del DISEÑO, no de la pieza. */
+    /* Ventanas enfrentadas del cartucho kyber. El dato sigue siendo del diseño;
+       alojamiento le añade marco, cavidad y facetas a la gema sintética. */
     if (claves[i] === 'cuerpo' && d.cristalVisto) {
       herrajes = [
         ...herrajes,
@@ -1309,8 +1321,7 @@ export function piezasDeSable(d: Diseno): PiezaSuelta[] {
            más chica se leía como un remache de color, no como el kyber. El
            giro de 90° la saca del meridiano del botón, que casi siempre vive
            en giro 0. */
-        { tipo: 'gema', y: 0.5, radio: 0.44, vueltas: 2, giro: Math.PI / 2, material: 'plasma' },
-        { tipo: 'anillo', y: 0.5, grosor: 0.09, material: 'negro' },
+        { tipo: 'gema', y: 0.5, radio: 0.44, vueltas: 2, giro: Math.PI / 2, material: 'plasma', alojamiento: true },
       ]
     }
     salida.push({

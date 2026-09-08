@@ -26,10 +26,13 @@
  */
 
 import * as THREE from 'three'
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import {
   MATERIALES, asientoDe, emite, tomaElColorDelCristal,
   type Herraje, type MaterialId, type PiezaSuelta,
 } from './partesSable'
+import { crearTexturasSuperficie, type SuperficieSable } from './texturasSable'
 
 /**
  * Un herraje más fino que esto, en píxeles, es ruido: no se lee como un botón,
@@ -54,62 +57,11 @@ export interface Taller {
   /** La geometría de un herraje, ya orientada. La usa `vestirPieza`; va acá
       para que el caché de geometrías no se escape del taller que las destruye. */
   geometriaDe: (h: Herraje, espesor: number, apoyo: number) => THREE.BufferGeometry
+  /** Cartucho y cristal comparten caché y dueño con los demás herrajes. */
+  camaraDe: (radio: number, espesor: number, vueltas: number, giro: number, centro: number) => {
+    marco: THREE.BufferGeometry; fondo: THREE.BufferGeometry; cristal: THREE.BufferGeometry
+  }
   soltar: () => void
-}
-
-/** Rombos en relieve para el bump del agarre. Gris medio = plano. */
-function texturaMoleteado(): THREE.CanvasTexture {
-  const S = 128
-  const c = document.createElement('canvas')
-  c.width = c.height = S
-  const x = c.getContext('2d')!
-  x.fillStyle = '#808080'
-  x.fillRect(0, 0, S, S)
-  x.lineWidth = 5
-  // Dos familias de diagonales: el cruce dibuja los rombos del moleteado.
-  for (const [inclinacion, tono] of [[1, '#b4b4b4'], [-1, '#4a4a4a']] as const) {
-    x.strokeStyle = tono
-    for (let i = -S; i < S * 2; i += 16) {
-      x.beginPath()
-      x.moveTo(i, 0)
-      x.lineTo(i + inclinacion * S, S)
-      x.stroke()
-    }
-  }
-  const t = new THREE.CanvasTexture(c)
-  t.wrapS = t.wrapT = THREE.RepeatWrapping
-  t.repeat.set(10, 4)
-  return t
-}
-
-/** Vetas del acero cepillado, como roughness: la veta refleja distinto. */
-function texturaCepillado(): THREE.CanvasTexture {
-  const S = 128
-  const c = document.createElement('canvas')
-  c.width = c.height = S
-  const x = c.getContext('2d')!
-  x.fillStyle = '#3c3c3c'
-  x.fillRect(0, 0, S, S)
-  /* Sin `Math.random`: la veta se calcula con una función revuelta pero
-     DETERMINISTA, así la foto de la barra de XP sale idéntica en cada visita.
-     Con azar, dos renders del mismo mango daban dos PNG distintos y el caché
-     dejaba de tener sentido. */
-  for (let i = 0; i < 340; i++) {
-    const a = Math.sin(i * 12.9898) * 43758.5453
-    const b = Math.sin(i * 78.233) * 12345.6789
-    const y = (a - Math.floor(a)) * S
-    const tono = 40 + Math.floor((b - Math.floor(b)) * 60)
-    x.strokeStyle = `rgba(${tono},${tono},${tono},0.5)`
-    x.lineWidth = 1
-    x.beginPath()
-    x.moveTo(0, y)
-    x.lineTo(S, y + ((a - Math.floor(a)) - 0.5) * 2)
-    x.stroke()
-  }
-  const t = new THREE.CanvasTexture(c)
-  t.wrapS = t.wrapT = THREE.RepeatWrapping
-  t.repeat.set(3, 2)
-  return t
 }
 
 /**
@@ -119,10 +71,17 @@ function texturaCepillado(): THREE.CanvasTexture {
 export function abrirTallerTres(detalle = true): Taller {
   const materiales = new Map<MaterialId, THREE.MeshStandardMaterial>()
   const texturas: THREE.Texture[] = []
-  const moleteado = detalle ? texturaMoleteado() : null
-  const cepillado = detalle ? texturaCepillado() : null
-  if (moleteado) texturas.push(moleteado)
-  if (cepillado) texturas.push(cepillado)
+  const superficies = new Map<SuperficieSable, ReturnType<typeof crearTexturasSuperficie>>()
+  let colorCristal: string | null = null
+
+  function superficie(tipo: SuperficieSable): ReturnType<typeof crearTexturasSuperficie> {
+    const hecha = superficies.get(tipo)
+    if (hecha) return hecha
+    const nueva = crearTexturasSuperficie(tipo)
+    superficies.set(tipo, nueva)
+    texturas.push(nueva.relieve, nueva.rugosidad)
+    return nueva
+  }
 
   function material(id: MaterialId): THREE.MeshStandardMaterial {
     const hecho = materiales.get(id)
@@ -131,7 +90,8 @@ export function abrirTallerTres(detalle = true): Taller {
     const m = new THREE.MeshStandardMaterial({
       color: new THREE.Color(d.hex),
       metalness: d.metalico,
-      roughness: d.rugoso,
+      // Acabados promediados también en la miniatura sin texturas.
+      roughness: id === 'negro' ? 0.42 : d.rugoso,
     })
     if (emite(id)) {
       /* Lo que emite no refleja: brilla. Sin `emissive` un testigo sería un
@@ -145,18 +105,23 @@ export function abrirTallerTres(detalle = true): Taller {
       m.emissive = new THREE.Color(d.hex)
       m.emissiveIntensity = id === 'luz' ? 0.95 : id === 'plasma' ? 1.6 : id === 'brasa' ? 1.2 : 1.5
       m.color.multiplyScalar(id === 'luz' ? 0.25 : 0.18)
+      if (colorCristal && tomaElColorDelCristal(id)) {
+        m.emissive.set(colorCristal)
+        m.color.set(colorCristal).multiplyScalar(id === 'luz' ? 0.25 : 0.18)
+      }
     }
-    /* El moleteado va SOLO en lo que se agarra. Puesto también en el negro,
-       el emisor TITÁN salía escamoso como piel de reptil: el patrón se repite
-       10×4 sobre el mango entero, y en una pieza de 6 de alto esa densidad deja
-       de leerse como agarre y pasa a ser ruido. Los colores planos (esmalte,
-       jade, luz) van lisos: una veta sobre pintura es un error. */
-    if (moleteado && !emite(id) && (id === 'grafito' || id === 'cuero')) {
-      m.bumpMap = moleteado
-      m.bumpScale = id === 'cuero' ? 0.45 : 0.9
-    }
-    if (cepillado && !emite(id) && (id === 'acero' || id === 'laton' || id === 'cobre' || id === 'bronce')) {
-      m.roughnessMap = cepillado
+    if (detalle && !emite(id)) {
+      const tipo = id === 'grafito' ? 'moleteado' : id === 'cuero' ? 'cuero'
+        : id === 'negro' ? 'anodizado'
+        : ['acero', 'laton', 'cobre', 'bronce'].includes(id) ? 'cepillado' : null
+      if (tipo) {
+        const t = superficie(tipo)
+        m.bumpMap = t.relieve
+        m.roughnessMap = t.rugosidad
+        // Relieve de décimas de milímetro: evita el viejo aspecto de escamas.
+        m.bumpScale = tipo === 'moleteado' ? 0.065 : tipo === 'cuero' ? 0.045
+          : tipo === 'cepillado' ? 0.018 : 0.012
+      }
     }
     materiales.set(id, m)
     return m
@@ -174,7 +139,7 @@ export function abrirTallerTres(detalle = true): Taller {
     return nueva
   }
 
-  const n = (v: number) => v.toFixed(2)
+  const n = (v: number) => v.toFixed(5)
 
   /** La geometría de un herraje, ya orientada: +Z apunta hacia afuera. */
   function geoDe(h: Herraje, espesor: number, apoyo: number): THREE.BufferGeometry {
@@ -193,18 +158,24 @@ export function abrirTallerTres(detalle = true): Taller {
         })
       case 'boton':
         return geo(`bot:${n(h.radio)}:${n(espesor)}`, () => {
-          // Ligeramente cónico: un botón con la cara de arriba más chica que la
-          // base agarra la luz por el bisel y deja de ser un disco pegado.
-          const g = new THREE.CylinderGeometry(h.radio * 0.86, h.radio, espesor, 14)
-          g.rotateX(Math.PI / 2) // el eje pasa a ser +Z: hacia afuera
+          const bisel = Math.min(0.045, h.radio * 0.2, espesor * 0.2)
+          const medio = espesor / 2
+          const g = new THREE.LatheGeometry([
+            new THREE.Vector2(0, -medio), new THREE.Vector2(h.radio - bisel, -medio),
+            new THREE.Vector2(h.radio, -medio + bisel), new THREE.Vector2(h.radio, medio - bisel),
+            new THREE.Vector2(h.radio - bisel, medio), new THREE.Vector2(0, medio),
+          ], detalle ? 24 : 14)
+          g.rotateX(Math.PI / 2)
           return g
         })
       case 'caja':
         return geo(`caj:${n(h.ancho)}:${n(h.alto)}:${n(espesor)}`,
-          () => new THREE.BoxGeometry(h.ancho, h.alto, espesor))
+          () => detalle ? new RoundedBoxGeometry(h.ancho, h.alto, espesor, 1, Math.min(0.065, espesor * 0.16))
+            : new THREE.BoxGeometry(h.ancho, h.alto, espesor))
       case 'aleta':
-        return geo(`ale:${n(h.ancho)}:${n(h.alto)}:${n(espesor)}`,
-          () => new THREE.BoxGeometry(h.ancho, h.alto, espesor))
+        return geo(`ale:${n(h.ancho)}:${n(h.alto)}:${n(espesor)}:${n(h.bisel ?? 0.045)}`,
+          () => detalle ? new RoundedBoxGeometry(h.ancho, h.alto, espesor, 1, Math.min(h.bisel ?? 0.045, h.ancho * 0.3))
+            : new THREE.BoxGeometry(h.ancho, h.alto, espesor))
       case 'gema':
         // Octaedro: pocas caras y bien marcadas. Una esfera a este tamaño es un
         // punto de color; las facetas son lo que se lee como piedra.
@@ -220,7 +191,60 @@ export function abrirTallerTres(detalle = true): Taller {
   return {
     material,
     geometriaDe: geoDe,
+    camaraDe(radio, espesor, vueltas, giro, centro) {
+      const clave = `cam:${n(radio)}:${n(espesor)}:${vueltas}:${n(giro)}:${n(centro)}`
+      const ancho = radio * 2, alto = radio * 5
+      const borde = radio * 0.19, labio = espesor / 2
+      // Los dos cartuchos se fusionan por material: tres draw calls en total,
+      // el mismo presupuesto que las dos gemas y su aro anteriores.
+      function repetir(g: THREE.BufferGeometry): THREE.BufferGeometry {
+        const copias: THREE.BufferGeometry[] = []
+        for (let i = 0; i < vueltas; i++) {
+          const angulo = giro + i * Math.PI * 2 / vueltas
+          copias.push(g.clone().translate(0, 0, centro).rotateY(angulo))
+        }
+        const unida = mergeGeometries(copias, false)!
+        for (const copia of copias) copia.dispose()
+        g.dispose()
+        return unida
+      }
+      return {
+        marco: geo(`${clave}:marco`, () => {
+          const forma = new THREE.Shape()
+          const r = radio * 0.22, w = ancho / 2, h = alto / 2
+          forma.moveTo(-w + r, -h)
+          forma.lineTo(w - r, -h); forma.quadraticCurveTo(w, -h, w, -h + r)
+          forma.lineTo(w, h - r); forma.quadraticCurveTo(w, h, w - r, h)
+          forma.lineTo(-w + r, h); forma.quadraticCurveTo(-w, h, -w, h - r)
+          forma.lineTo(-w, -h + r); forma.quadraticCurveTo(-w, -h, -w + r, -h)
+          const hueco = new THREE.Path()
+          hueco.moveTo(-w + borde, -h + borde)
+          hueco.lineTo(-w + borde, h - borde)
+          hueco.lineTo(w - borde, h - borde)
+          hueco.lineTo(w - borde, -h + borde)
+          hueco.closePath()
+          forma.holes.push(hueco)
+          const bisel = borde * 0.22
+          const g = new THREE.ExtrudeGeometry(forma, {
+            depth: espesor - bisel * 2, steps: 1, curveSegments: 3,
+            bevelEnabled: true, bevelThickness: bisel, bevelSize: bisel, bevelSegments: 1,
+          })
+          g.translate(0, 0, -espesor / 2 + bisel)
+          return repetir(g)
+        }),
+        fondo: geo(`${clave}:fondo`, () => repetir(new THREE.BoxGeometry(ancho * 0.94, alto * 0.94, 0.025)
+          .translate(0, 0, labio - 0.18))),
+        cristal: geo(`${clave}:cristal`, () => {
+          // Facetas largas sujetas dentro del labio, con oscuridad a su alrededor.
+          const g = new THREE.OctahedronGeometry(1, 0)
+          g.scale(radio * 0.48, radio * 2.12, 0.065)
+          g.translate(0, 0, labio - 0.09)
+          return repetir(g)
+        }),
+      }
+    },
     alumbrar(hex: string) {
+      colorCristal = hex
       for (const id of ['luz', 'plasma'] as const) {
         if (!tomaElColorDelCristal(id)) continue
         const m = materiales.get(id)
@@ -247,6 +271,8 @@ export function abrirTallerTres(detalle = true): Taller {
       for (const t of texturas) t.dispose()
       materiales.clear()
       geometrias.clear()
+      superficies.clear()
+      texturas.length = 0
     },
   }
 }
@@ -283,10 +309,25 @@ export function vestirPieza(
 
   for (const h of pieza.herrajes) {
     const { apoyo, dentro, fuera } = asientoDe(pieza.perfil, h, pieza.alto)
-    if (pxPorUnidad && (fuera - apoyo) * pxPorUnidad < PX_MINIMOS) continue
+    // Un inserto casi enrasado sigue siendo una superficie de color visible.
+    // Medir solo su salida borraba los paneles negros anchos en la miniatura.
+    const tamanoVisible = h.tipo === 'aleta' || h.tipo === 'caja' ? Math.min(h.ancho, h.alto)
+      : h.tipo === 'boton' ? h.radio * 2 : fuera - apoyo
+    if (pxPorUnidad && tamanoVisible * pxPorUnidad < PX_MINIMOS) continue
     const espesor = fuera - dentro
     const centro = (dentro + fuera) / 2
     const y = h.y * pieza.alto
+    if (h.tipo === 'gema' && h.alojamiento) {
+      const camara = taller.camaraDe(h.radio, espesor, h.vueltas ?? 1, h.giro ?? 0, centro)
+      for (const [geometria, id] of [
+        [camara.marco, 'laton'], [camara.fondo, 'grafito'], [camara.cristal, h.material],
+      ] as const) {
+        const m = new THREE.Mesh(geometria, taller.material(id))
+        m.position.y = y
+        malla.add(m)
+      }
+      continue
+    }
     const geometria = taller.geometriaDe(h, espesor, apoyo)
     const material = taller.material(h.material)
 
