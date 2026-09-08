@@ -125,7 +125,7 @@ export function ResumenFaltantesMazo({ resultado, reintentando = false, alReinte
                 <AlertTriangle size={18} className="mt-0.5 shrink-0 text-swu-amber" aria-hidden />{mensaje}
               </p>
               {resultado.estado === 'sin-perfil' ? (
-                <Link to="/perfil" className="min-h-11 inline-flex items-center text-xs font-bold text-swu-accent-texto">Abrir mi perfil <ChevronRight size={14} aria-hidden /></Link>
+                <Link to="/profile" className="min-h-11 inline-flex items-center text-xs font-bold text-swu-accent-texto">Abrir mi perfil <ChevronRight size={14} aria-hidden /></Link>
               ) : resultado.estado !== 'cantidades-invalidas' && (
                 <button type="button" onClick={alReintentar} className="min-h-11 inline-flex items-center gap-2 rounded-lg border border-swu-border bg-swu-surface px-3 text-xs font-bold text-swu-text">
                   <RefreshCw size={14} aria-hidden />{resultado.estado === 'error' ? 'Reintentar lectura' : 'Actualizar catálogo'}
