@@ -12,6 +12,12 @@ Registro compartido entre Claude y ChatGPT. **La entrada más nueva va arriba.**
 
 ---
 
+## 2026-09-07 · ChatGPT · Publicación autorizada del escáner y funciones
+**Qué cambió:** Nel autoriza explícitamente publicar la tanda del PR #2: escáner automático, faltantes del mazo y accesos. Se prepara la integración de `feature/escaner-y-funciones` en `main`, conservando la tarjeta de jugador. La autorización sustituye el estado de borrador descrito en la entrada anterior.
+**Archivos:** Implementación `400ed32` y esta constancia de publicación. Sin SQL ni cambios de configuración del servicio de datos.
+**Cómo verificar:** Se repiten build y lint (0 errores; 6 advertencias previas), las cinco pruebas del escáner/acceso/faltantes y la exclusión de banco/fixtures del build. El preview de Vercel pasa. Antes de integrar se verifica que el proyecto `swu-companion` enlaza `Neldark15/swu-companion`, producción `main`, dominios `swusv.com` y `www.swusv.com`. La publicación se confirma por SHA integrado y estado READY/PROMOTED en la API de Vercel.
+**Pendiente / notas para el siguiente:** La validación física de cámara, fundas y reflejos sigue pendiente; las pruebas simuladas no se presentan como precisión real en todos los móviles. No se crearon cuentas ni guardados cloud durante pruebas. La cola durable offline sigue fuera de esta tanda. El resultado final del despliegue se consulta en el PR #2 y sus comprobaciones.
+
 ## 2026-09-07 · ChatGPT · Escáner automático y funciones sin rediseño
 **Qué cambió:** Se conserva la tarjeta de jugador. El escáner corrige el encuadre físico en móvil y separa arte/OCR, confirma con dos fotogramas, descarta lecturas antiguas, recupera cámara/lectores y evita reofrecer la misma carta hasta retirarla/cambiarla. El modal ahora usa Sheet para que la barra móvil no tape Agregar. Guardado local con resultado verificable y lectura de existencias por perfil. También: faltantes de copias físicas en mazos con enlaces a mercado filtrado, Mercado móvil correcto y formularios de registro/recuperación directos.
 **Archivos:** ScanPage, cardScanner/cardHash, encuadreEscaner/cicloEscaner, collectionService, PanelFaltantesMazo/faltantesMazo, DeckBuilderPage, ExplorePage, TabBar, WelcomeHome y ProfilePage/accesoPerfil. BancoEscaner y cinco fixtures oficiales solo DEV; plan y reglas en CLAUDE §5m y AGENTS.
