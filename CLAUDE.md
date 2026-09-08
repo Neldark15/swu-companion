@@ -1,5 +1,8 @@
 # HOLOCRON SWU — Contexto para Claude Code
 
+<!-- contexto-compartido -->
+> **Contexto compartido entre IAs:** antes de tocar nada leé `AGENTS.md` (resumen operativo: correr, probar, desplegar, qué NO tocar) y las últimas entradas de `BITACORA.md` (qué cambió la otra IA y qué quedó pendiente). Al terminar, dejá tu entrada en `BITACORA.md`. Protocolo general: repo privado `Neldark15/proyectos-hub`.
+
 > Este archivo lo lee Claude Code automáticamente al abrir el repo. Mantenerlo al día.
 
 ---
@@ -4725,3 +4728,62 @@ texto va dentro de UN solo hijo. No se ve leyendo el código.
 
 **`FUENTES` se actualizó en el mismo commit** (§4a): ahora hay una quinta forma
 de conseguir sobres y la lista lo dice.
+
+### 5l. TALLER KYBER — materiales, encuadre de detalle y editor móvil
+
+**2026-09-07 · ChatGPT.** Prueba visual pedida por Nel, limitada al Taller Kyber.
+`TallerKyber.tsx` comparte el editor de `/sable` con `/banco-sable-3d` (solo DEV).
+`SablePage.tsx` conserva las RPC y el inventario real; el banco usa un catálogo
+de prueba explícito y guarda únicamente en `localStorage`. No agregar el banco
+al router de producción ni usar sus precios, nombres o stats como catálogo real.
+
+**Una cabecera, cuatro pasos.** El Header general se omite solo en esas dos
+rutas: el taller tiene su propia vuelta a Inicio y control de sonido. Se mantienen
+Piezas → Cristal → Color → Prueba. En móvil las piezas siguen en carrusel
+horizontal junto al modelo. El editor cambia a dos columnas a **1024px**, igual
+que el shell: a 768px el shell todavía limita el contenido a 512px, y partirlo
+en dos dejaba el visor de tablet con unos 150px.
+
+**Materiales compartidos, sin HDR remoto.** `texturasSable.ts` genera mapas
+deterministas de 128² para cepillado, rugosidad y agarres; cuero tiene su propio
+patrón. `geometriaSable.ts` tornea perfiles con microbiseles y UV proporcionales
+a la longitud real. La escena y las miniaturas usan el mismo helper y el entorno
+PMREM de `entornoKyber.ts`. Los herrajes redondeados se cachean, y el cristal
+visible tiene marco de latón y alojamiento oscuro. Faro y Blindaje reciben más
+detalle conservando IDs, dimensiones funcionales y estadísticas. Los cambios
+de acabado ya no reconstruyen el torneado. Las miniaturas omiten texturas finas;
+`mangoBarra` usa la versión de caché 3 para invalidar PNG anteriores.
+
+**Detalle recorta la hoja a propósito; Completo incluye sus extremos.** La prop
+opcional `encuadre` de `SableEscena` conserva `completo` por defecto para otros
+llamadores; el editor elige `detalle`. `encuadreKyber.ts` proyecta los límites
+del sable en los ejes reales de cámara, con inclinación, despiece, perspectiva y
+radio de herrajes/bruma. Las poses giran alrededor del eje local para conservar
+la inclinación elegida. La luz del emisor y el cristal es local; el halo usa un
+shader de caída suave, sin bloom ni sombras adicionales.
+
+**La limpieza sigue siendo parte del render.** Se conserva movimiento reducido,
+pausa al ocultar pestaña o visor y fallback de WebGL. Un cambio mientras el
+documento está oculto se pinta una vez: esperar solamente a `requestAnimationFrame`
+dejaba la vista sin actualizar en el navegador de prueba. Al desmontar se liberan
+texturas, materiales, geometrías y entorno; quitar el listener de pérdida de
+contexto antes de `forceContextLoss()` sigue siendo obligatorio (§2s).
+
+**Recargar inventario no debe borrar la edición.** El diseño y el nombre solo
+se hidratan en la primera lectura. Una compra confirmada por RPC marca esa pieza
+como propia; saldo y contadores siempre esperan al servidor. Si falla la recarga,
+queda una acción visible para actualizar saldo/inventario y se bloquean nuevas
+compras hasta reconciliar. No borrar ese aviso al cambiar de paso.
+
+**Verificación:** build y lint (0 errores, 6 advertencias ajenas al taller);
+`sable-perfiles.test.mts` (1.716 combinaciones), `kyber-geometria.test.mts`
+(36 perfiles, UV, texturas y liberación de caché), `kyber-encuadre.test.mts`
+(extremos en rotaciones y tamaños distintos). Banco interactuado en 360×740,
+390×844, 820×1180 y 1280×900: piezas, acabados, cristal, color, encuadres y
+guardado local. Revisión independiente del diff. Esto es emulación de viewport
+en Mac; rendimiento y WebGL en un teléfono físico siguen pendientes de medir.
+
+**Arranque local medido:** `supabase.ts` avisa si faltan variables, pero luego
+`createClient('', '')` lanza `supabaseUrl is required`. Incluso el shell del banco
+necesita configuración válida en `.env.local`; no funciona desconectado por omitir
+esas variables. No commitear el archivo ni sus valores.

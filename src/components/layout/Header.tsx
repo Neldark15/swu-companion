@@ -52,6 +52,10 @@ export function Header() {
   const isHome = location.pathname === '/'
   const pageTitle = getPageTitle(location.pathname)
 
+  // El taller tiene cabecera propia (volver, título y sonido). Dos barras
+  // quitarían espacio al visor y al carrusel en móvil. Solo estas rutas.
+  if (/^\/(sable|banco-sable-3d)\/?$/.test(location.pathname)) return null
+
   return (
     <header className="sticky top-0 z-50 bg-swu-surface shadow-[0_4px_10px_#111118] px-4 lg:px-6 py-3 flex items-center justify-between">
       {/* Left side: Base button (on inner pages) or logo (on home) */}

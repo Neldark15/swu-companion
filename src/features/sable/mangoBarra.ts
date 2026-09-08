@@ -21,8 +21,8 @@ interface EntradaMango {
    es opcional: el PNG vive en localStorage y sobrevive al deploy, al service
    worker y a la recarga. Sin subirla, quien ya tenía su foto seguiría viendo
    para siempre el mango viejo —sin herrajes y todo gris— en el Inicio, mientras
-   el taller le enseña otro. v2 = materiales por pieza + herrajes. */
-const LS = 'sable_minibarra_v2'
+   el taller le enseña otro. v3 = biseles, cartucho kyber y entorno de estudio. */
+const LS = 'sable_minibarra_v3'
 
 /* El COLOR entra en la clave desde que los testigos y las gemas del mango se
    prenden del color del cristal: dos diseños con las mismas piezas y distinta
