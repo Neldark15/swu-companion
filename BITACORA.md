@@ -12,6 +12,12 @@ Registro compartido entre Claude y ChatGPT. **La entrada más nueva va arriba.**
 
 ---
 
+## 2026-09-07 · ChatGPT · Publicación autorizada del Taller Kyber
+**Qué cambió:** Nel autorizó llevar las mejoras visuales a producción. Se prepara la integración de `feature/taller-kyber-materiales` mediante PR a `main`, que dispara el despliegue automático de Vercel. Alcance del código: el taller y su cabecera; sin SQL ni cambios de datos.
+**Archivos:** Implementación de `836457c` y esta entrada de publicación.
+**Cómo verificar:** Se repitieron build, lint (0 errores; 6 advertencias fuera del taller) y las tres pruebas de perfiles, geometría y encuadre; todas pasan. Revisión independiente confirmó el banco solo DEV. Antes de publicar se verificó que Vercel enlaza `Neldark15/swu-companion`, rama de producción `main`, con `swusv.com` entre sus dominios. Confirmar el SHA integrado y estado `READY`/`PROMOTED` mediante la API de Vercel.
+**Pendiente / notas para el siguiente:** La entrada anterior describe el estado previo a esta autorización. La evidencia final del despliegue queda en el PR y sus comprobaciones de Vercel. El rendimiento en un teléfono físico aún no fue medido; no se realizaron compras ni guardados de cuenta durante las pruebas.
+
 ## 2026-09-07 · ChatGPT · Taller Kyber: materiales 3D y editor móvil
 **Qué cambió:** Prueba limitada al taller, basada en la maqueta móvil aprobada. Metal cepillado y agarres con mapas deterministas, microbiseles, herrajes redondeados, alojamiento del cristal, iluminación de estudio y halo suave. Más detalle en Faro/Blindaje. Editor compartido con el banco DEV, cuatro pasos, carrusel horizontal y encuadres Detalle/Completo. Recuperación de saldo/inventario sin perder la edición. Se incorpora el contexto compartido creado por Claude conservando su entrada anterior.
 **Archivos:** `src/features/sable/` (editor, escena, geometría, materiales, entorno y miniaturas); `Header.tsx` omite la cabecera duplicada solo en el taller; pruebas `kyber-geometria.test.mts` y `kyber-encuadre.test.mts`; plan en `docs/superpowers/plans/2026-09-07-taller-kyber.md`; contexto en CLAUDE.md §5l y AGENTS.md.
