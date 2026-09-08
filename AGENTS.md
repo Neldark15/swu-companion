@@ -91,3 +91,5 @@ Lo que NO se publica solo: las migraciones SQL (`supabase/migrations/`) se aplic
 - Al terminar una sesión: entrada arriba de todo en `BITACORA.md` (fecha · IA · qué cambió · archivos · cómo verificar · pendiente).
 - Nunca secretos en el repo ni en estos .md.
 - Todo hallazgo medido que cambie una regla va también al `CLAUDE.md`, como sección nueva al final con el § siguiente; no reescribir secciones ajenas.
+
+- §5m Escáner: guías y recortes comparten `encuadreEscaner.ts` y mantienen proporción física; `CicloEscaner` separa arte/OCR, confirma dos frames y descarta resultados viejos. No bajar umbrales del hash. `updateCollectionQuantity` devuelve éxito local booleano (sin cola durable aún). `getScanQuantity` filtra perfil exacto. Faltantes de mazo suma impresiones compatibles de colección física y enlaza a mercado filtrado. Banco `/banco-escaner` e imágenes solo DEV. Ver pruebas y limitaciones en §5m.

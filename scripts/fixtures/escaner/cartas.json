@@ -1,0 +1,57 @@
+[
+  {
+    "id": "019e8f15-ee23-71c0-a77c-a9e4823aa3d2",
+    "name": "Gallius Rax",
+    "subtitle": "Counselor to the Empire",
+    "type": "Unit",
+    "setCode": "ASH",
+    "setNumber": 100,
+    "variantType": "Standard",
+    "imagen": "019e8f15-ee23-71c0-a77c-a9e4823aa3d2.png",
+    "fuente": "https://cdn.starwarsunlimited.com//card_08010100_EN_Gallius_Rax_472b008c1a.png"
+  },
+  {
+    "id": "019e6d32-e10e-7092-84a3-de22ed4c4b5b",
+    "name": "Long Live the Empire",
+    "subtitle": null,
+    "type": "Event",
+    "setCode": "ASH",
+    "setNumber": 103,
+    "variantType": "Standard",
+    "imagen": "019e6d32-e10e-7092-84a3-de22ed4c4b5b.png",
+    "fuente": "https://cdn.starwarsunlimited.com//card_08010103_EN_Long_Live_the_Empire_a768bbbe4f.png"
+  },
+  {
+    "id": "019e8f15-ef39-7a3d-a460-8ebfe29a4661",
+    "name": "Sabine's Lightsaber",
+    "subtitle": "Not Alone",
+    "type": "Upgrade",
+    "setCode": "ASH",
+    "setNumber": 114,
+    "variantType": "Standard",
+    "imagen": "019e8f15-ef39-7a3d-a460-8ebfe29a4661.png",
+    "fuente": "https://cdn.starwarsunlimited.com//card_08010114_EN_Sabine_s_Lightsaber_e147bae5a3.png"
+  },
+  {
+    "id": "019e8f15-e4f1-783e-a20c-1c959bbd9771",
+    "name": "The Armorer",
+    "subtitle": "Steel Shapes Us",
+    "type": "Leader",
+    "setCode": "ASH",
+    "setNumber": 1,
+    "variantType": "Standard",
+    "imagen": "019e8f15-e4f1-783e-a20c-1c959bbd9771.png",
+    "fuente": "https://cdn.starwarsunlimited.com//card_08010001_EN_The_Armorer_Leader_7f473bab82.png"
+  },
+  {
+    "id": "019e8f15-e7d0-7ee0-8e7d-33f08fbb22cd",
+    "name": "Fortress of the Great Mothers",
+    "subtitle": null,
+    "type": "Base",
+    "setCode": "ASH",
+    "setNumber": 19,
+    "variantType": "Standard",
+    "imagen": "019e8f15-e7d0-7ee0-8e7d-33f08fbb22cd.png",
+    "fuente": "https://cdn.starwarsunlimited.com//card_08010019_EN_Fortress_of_the_Great_Mothers_Base_88cb8bca99.png"
+  }
+]

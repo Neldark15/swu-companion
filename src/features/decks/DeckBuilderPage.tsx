@@ -29,6 +29,7 @@ import {
   type PrecioMazo, type VarianteMazo,
 } from '../../services/precioMazo'
 import { CopiasDeCarta } from './CopiasDeCarta'
+import { FaltantesMazo } from './PanelFaltantesMazo'
 
 const BUILDER_COSTS = [0, 1, 2, 3, 4, 5, 6, COST_MAX_BUCKET]
 
@@ -553,6 +554,8 @@ export function DeckBuilderPage() {
         <span className={`text-xs font-bold ${deck.isValid ? 'text-swu-green' : 'text-swu-amber'}`}>{deck.isValid ? 'Deck válido' : deck.validationErrors[0] || 'Deck incompleto'}</span>
         <span className="text-[10px] text-swu-muted ml-auto">{mainCount}/{targetSize} mín.</span>
       </div>
+
+      <FaltantesMazo mazo={deck} />
 
       {/* Format info banners */}
       {deck.format === 'twin_suns' && (

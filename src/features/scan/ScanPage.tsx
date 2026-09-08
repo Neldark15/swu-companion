@@ -2,7 +2,7 @@
  * ScanPage — apuntar la cámara a una carta y sumarla a la colección.
  *
  * Reconoce la carta por su ILUSTRACIÓN, comparándola contra un índice de
- * hashes que viaja con la app: 0,4 ms medidos, sin CDN y sin conexión. El
+ * hashes que viaja con la app, sin enviar fotogramas al servidor. El
  * código impreso al pie (`ASH·EN 1/264`) queda de respaldo por OCR, para las
  * cartas que comparten arte. El porqué está en services/cardScanner.ts.
  *
@@ -24,290 +24,424 @@ import {
   Zap, ZapOff, ImageUp,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
+import { Sheet } from '../../components/ui/Sheet'
 import { CardImage } from '../../components/CardImage'
 import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import { EmptyState } from '../../components/ui/EmptyState'
 import {
   leerCodigo, leerCodigoDeImagen, buscarPorCodigo, parseCodigo, detenerOCR,
   iniciarOCR, abrirCamara, linterna, reconocerPorArte,
-  BANDA, MARCO_VERTICAL, MARCO_APAISADO,
+  marcosDeCamara, bandaDelMarco,
   type Coincidencia,
 } from '../../services/cardScanner'
 import { cargarIndice } from '../../services/cardHash'
-import { updateCollectionQuantity, getCardQuantity } from '../../services/collectionService'
-import { getMainSets, ensureCards } from '../../services/swuApi'
+import { updateCollectionQuantity, getScanQuantity } from '../../services/collectionService'
+import { getMainSets, loadFullDatabase, isDatabaseComplete } from '../../services/swuApi'
 import { useAuth } from '../../hooks/useAuth'
 import type { Card } from '../../types'
+import { CicloEscaner, cambioDeCarta } from './cicloEscaner'
 
 type Estado = 'pidiendo' | 'escaneando' | 'sin-camara' | 'manual'
 
-/**
- * Cada cuánto se mira el fotograma.
- *
- * Son DOS ritmos distintos porque son dos costos distintos:
- *
- * - **Arte (450 ms).** Hashear y buscar entre 2.903 cartas cuesta 0,4 ms
- *   medidos. Se puede mirar casi continuo sin trabar la vista previa, y así
- *   la carta se reconoce apenas queda encuadrada.
- * - **Código impreso (2,5 s).** El OCR tarda de 1 a 5 s y bloquea. Solo entra
- *   cuando el arte NO resolvió, que es el caso de las cartas que comparten
- *   ilustración.
- */
-const INTERVALO_MS = 450
+/** Arte y texto tienen ritmos propios: el worker de texto no frena la cámara. */
+const INTERVALO_MS = 300
 const MINIMO_ENTRE_OCR_MS = 2500
 
-export function ScanPage() {
+interface PropsEscaner {
+  crearCamara?: typeof abrirCamara
+  prepararCatalogo?: () => Promise<void>
+  leerCantidad?: typeof getScanQuantity
+  guardarCantidad?: typeof updateCollectionQuantity
+}
+
+export function ScanPage({
+  crearCamara = abrirCamara, prepararCatalogo,
+  leerCantidad = getScanQuantity, guardarCantidad = updateCollectionQuantity,
+}: PropsEscaner = {}) {
   const navigate = useNavigate()
   const { currentProfile, supabaseUser } = useAuth()
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
-  const ocupado = useRef(false)
-  const vivo = useRef(true)
-  /** Cuándo se corrió el OCR por última vez, para no encadenarlo. */
-  const ultimoOCR = useRef(0)
+  const [ciclo] = useState(() => new CicloEscaner())
+  const arteEnCurso = useRef(false)
+  const textoEnCurso = useRef(false)
+  const fotoActiva = useRef(false)
+  const presentando = useRef(false)
+  const guardandoRef = useRef(false)
+  const hallazgoRef = useRef<Coincidencia | null>(null)
+  const firmaCanvas = useRef<HTMLCanvasElement | null>(null)
+  const ultimoOCR = useRef(-Infinity)
 
   const [estado, setEstado] = useState<Estado>('pidiendo')
+  const [intentoCamara, setIntentoCamara] = useState(0)
+  const [intentoLectores, setIntentoLectores] = useState(0)
+  const [paginaVisible, setPaginaVisible] = useState(() => !document.hidden)
   const [error, setError] = useState<string | null>(null)
   const [leyendo, setLeyendo] = useState(false)
+  const [leyendoTexto, setLeyendoTexto] = useState(false)
   const [hallazgo, setHallazgo] = useState<Coincidencia | null>(null)
   const [cantidad, setCantidad] = useState(1)
   const [yaTenia, setYaTenia] = useState(0)
+  const [guardando, setGuardando] = useState(false)
+  const [seleccionando, setSeleccionando] = useState(false)
+  const [errorGuardar, setErrorGuardar] = useState<string | null>(null)
+  const [esperandoRetiro, setEsperandoRetiro] = useState(false)
   const [agregadas, setAgregadas] = useState<{ card: Card; qty: number }[]>([])
-  const [ultimoCrudo, setUltimoCrudo] = useState<string>('')
+  const [ultimoCrudo, setUltimoCrudo] = useState('')
   const [motor, setMotor] = useState<'cargando' | 'listo' | 'error'>('cargando')
-  /** Cartas locales. Sin esto el escáner leía el código bien y no encontraba
-   *  NADA contra qué compararlo, con lo que parecía que el OCR fallaba. */
-  const [baseCartas, setBaseCartas] = useState<'cargando' | 'lista' | 'vacia'>('cargando')
-  /** Proporción real del vídeo. La caja se adapta a ella para que el recuadro
-   *  de la guía caiga exactamente sobre las mismas fracciones del fotograma:
-   *  con una proporción fija, `object-contain` deja bandas y la guía vuelve a
-   *  señalar un pedazo distinto del que se lee. */
+  const [indice, setIndice] = useState<'cargando' | 'listo' | 'error'>('cargando')
+  const [baseCartas, setBaseCartas] = useState<'cargando' | 'lista' | 'parcial' | 'vacia'>('cargando')
   const [proporcion, setProporcion] = useState(4 / 3)
   const [tieneLinterna, setTieneLinterna] = useState(false)
   const [luz, setLuz] = useState(false)
   const [leyendoFoto, setLeyendoFoto] = useState(false)
   const fotoRef = useRef<HTMLInputElement>(null)
   const [motorError, setMotorError] = useState<string | null>(null)
-
-  // Entrada manual
   const [sets, setSets] = useState<{ code: string; name: string }[]>([])
   const [mSet, setMSet] = useState('')
   const [mNum, setMNum] = useState('')
   const [mError, setMError] = useState<string | null>(null)
 
-  const pausado = hallazgo !== null
+  const manual = estado === 'manual'
+  const catalogoDisponible = baseCartas === 'lista' || baseCartas === 'parcial'
+  const marcos = marcosDeCamara(proporcion, 1)
 
-  // ── Cámara ──
   useEffect(() => {
-    vivo.current = true
-    if (estado === 'manual') return
+    const visibilidad = () => {
+      ciclo.invalidar()
+      setPaginaVisible(!document.hidden)
+    }
+    document.addEventListener('visibilitychange', visibilidad)
+    return () => {
+      document.removeEventListener('visibilitychange', visibilidad)
+      ciclo.invalidar()
+      void detenerOCR()
+    }
+  }, [ciclo])
 
-    // `abrirCamara` prueba de la mejor opción a la más básica: pedir todo
-    // junto y fallar dejaba al usuario sin cámara en navegadores que solo
-    // aceptan restricciones simples.
-    abrirCamara()
-      .then(({ stream, tieneLinterna: luzOk }) => {
-        if (!vivo.current) { stream.getTracks().forEach(t => t.stop()); return }
-        streamRef.current = stream
-        setTieneLinterna(luzOk)
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          void videoRef.current.play().catch(() => {})
-        }
+  // Cada apertura posee SU stream y SU cancelación. Una petición antigua que
+  // termina después de cambiar de modo se cierra sin tocar la cámara nueva.
+  useEffect(() => {
+    ciclo.invalidar()
+    if (manual || !paginaVisible) return
+    let cancelada = false
+    let propia: MediaStream | null = null
+    const video = videoRef.current
+    const dimensiones = () => {
+      if (!cancelada && video?.videoWidth && video.videoHeight) setProporcion(video.videoWidth / video.videoHeight)
+    }
+    const terminada = () => {
+      if (cancelada) return
+      ciclo.invalidar()
+      setError('La cámara se interrumpió. Volvé a abrirla para continuar.')
+      setEstado('sin-camara')
+    }
+    video?.addEventListener('resize', dimensiones)
+    void (async () => {
+      await Promise.resolve()
+      if (cancelada) return
+      setEstado('pidiendo'); setError(null); setLuz(false)
+      try {
+        const camara = await crearCamara()
+        propia = camara.stream
+        if (cancelada || !video) { propia.getTracks().forEach(t => t.stop()); return }
+        streamRef.current = propia
+        propia.getVideoTracks().forEach(t => t.addEventListener('ended', terminada))
+        video.srcObject = propia
+        await video.play()
+        if (cancelada) return
+        dimensiones()
+        setTieneLinterna(camara.tieneLinterna)
         setEstado('escaneando')
-      })
-      .catch((e: unknown) => {
-        if (!vivo.current) return
+      } catch (e) {
+        propia?.getTracks().forEach(t => t.stop())
+        if (cancelada) return
         setError(e instanceof Error ? e.message : 'No se pudo abrir la cámara.')
         setEstado('sin-camara')
-      })
-
+      }
+    })()
     return () => {
-      vivo.current = false
-      streamRef.current?.getTracks().forEach(t => t.stop())
-      streamRef.current = null
+      cancelada = true
+      ciclo.invalidar()
+      video?.removeEventListener('resize', dimensiones)
+      propia?.getVideoTracks().forEach(t => t.removeEventListener('ended', terminada))
+      propia?.getTracks().forEach(t => t.stop())
+      if (streamRef.current === propia) streamRef.current = null
+      if (video?.srcObject === propia) video.srcObject = null
     }
-  }, [estado === 'manual']) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [manual, paginaVisible, intentoCamara, ciclo, crearCamara])
 
-  // El índice de arte pesa ~250 KB y viaja con la app: se carga apenas se
-  // abre la pantalla y a partir de ahí el reconocimiento es instantáneo y
-  // funciona sin conexión.
-  useEffect(() => { void cargarIndice().catch(() => {}) }, [])
-
-  // El motor de OCR pesa varios MB: se suelta al salir de la pantalla.
-  useEffect(() => () => { void detenerOCR() }, [])
-
-  const intentarLeer = useCallback(async (forzado = false) => {
-    const v = videoRef.current
-    if (!v || ocupado.current || v.videoWidth === 0) return
-    // Con la app en segundo plano el vídeo se congela: releer el mismo
-    // fotograma una y otra vez solo gasta batería.
-    if (document.hidden) return
-    ocupado.current = true
-    setLeyendo(true)
-    try {
-      // Primero por ARTE: tarda menos de un milisegundo y no necesita el
-      // motor de OCR ni conexión. El código impreso queda de respaldo.
-      const porArte = await reconocerPorArte(v, v.videoWidth, v.videoHeight).catch(() => null)
-      if (porArte && vivo.current) {
-        setHallazgo({ card: porArte.card, alternativas: porArte.gemelas })
-        setCantidad(1)
-        setYaTenia(await getCardQuantity(porArte.card.id))
-        navigator.vibrate?.(60)
-        return
-      }
-      // El arte no dio. Recién ahí se paga el OCR, y espaciado: si se
-      // encadenara a 450 ms la vista previa se trabaría, que es justo lo que
-      // se arregló antes.
-      if (motor !== 'listo' || !forzado) {
-        const ahora = performance.now()
-        if (ahora - ultimoOCR.current < MINIMO_ENTRE_OCR_MS) return
-        if (motor !== 'listo') return
-      }
-      ultimoOCR.current = performance.now()
-      const codigo = await leerCodigo(v, v.videoWidth, v.videoHeight)
-      setUltimoCrudo(codigo.crudo)
-      setMotor('listo')
-      const m = await buscarPorCodigo(codigo)
-      if (m && vivo.current) {
-        setHallazgo(m)
-        setCantidad(1)
-        setYaTenia(await getCardQuantity(m.card.id))
-        navigator.vibrate?.(60)
-      }
-    } catch (e) {
-      // Un fotograma ilegible se ignora, pero un motor que no carga NO: eso
-      // deja el escáner muerto y hay que decirlo, no seguir «leyendo» de
-      // adorno para siempre.
-      if (vivo.current) {
-        setMotor('error')
-        setMotorError(e instanceof Error ? e.message : 'no se pudo leer')
-      }
-    } finally {
-      ocupado.current = false
-      setLeyendo(false)
-    }
-  }, [motor])
-
-  // El motor se carga apenas se abre la cámara, para que su descarga —varios
-  // MB de CDN— sea visible como «Preparando lector» y no como un escáner que
-  // no engancha nada.
   useEffect(() => {
-    if (estado !== 'escaneando') return
-    let vive = true
-    setMotor('cargando')
-    iniciarOCR()
-      .then(() => { if (vive) { setMotor('listo'); setMotorError(null) } })
-      .catch((e: unknown) => {
-        if (!vive) return
-        setMotor('error')
-        setMotorError(e instanceof Error ? e.message : 'no se pudo cargar el lector')
-      })
-    return () => { vive = false }
-  }, [estado])
+    let cancelada = false
+    void (async () => {
+      await Promise.resolve()
+      if (cancelada) return
+      setIndice('cargando')
+      try {
+        const datos = await cargarIndice()
+        if (!datos) throw new Error('No se pudo preparar el lector por imagen.')
+        if (!cancelada) setIndice('listo')
+      } catch {
+        if (!cancelada) setIndice('error')
+      }
+    })()
+    return () => { cancelada = true }
+  }, [intentoLectores])
 
-  // ── Bucle de lectura ──
   useEffect(() => {
-    // Ojo: NO se espera a `motor === 'listo'`. El reconocimiento por arte no
-    // usa el OCR, y bloquear el bucle hasta que terminara de bajar varios MB
-    // dejaba el escáner inerte durante toda esa descarga sin ninguna razón.
-    if (estado !== 'escaneando' || pausado || baseCartas !== 'lista') return
-    const id = setInterval(() => { void intentarLeer() }, INTERVALO_MS)
-    return () => clearInterval(id)
-  }, [estado, pausado, baseCartas, intentarLeer])
-
-  // La base de cartas es la mitad del escáner: leer «ASH 1» no sirve de nada
-  // si no hay contra qué resolverlo. /scan se abre directo desde Inicio, así
-  // que nadie garantiza que esté cargada.
-  useEffect(() => {
-    let vive = true
+    let cancelada = false
     void (async () => {
       const { db } = await import('../../services/db')
-      if ((await db.cards.count()) > 0) { if (vive) setBaseCartas('lista'); return }
-      await ensureCards()
-      if (!vive) return
-      setBaseCartas((await db.cards.count()) > 0 ? 'lista' : 'vacia')
+      if (cancelada) return
+      setBaseCartas('cargando')
+      try {
+        // Una tabla con filas no garantiza que la descarga haya terminado.
+        if (prepararCatalogo) await prepararCatalogo()
+        else if (!await isDatabaseComplete()) await loadFullDatabase()
+        const cantidadLocal = await db.cards.count()
+        const completa = prepararCatalogo ? cantidadLocal > 0 : await isDatabaseComplete()
+        if (!cancelada) setBaseCartas(completa ? 'lista' : cantidadLocal > 0 ? 'parcial' : 'vacia')
+      } catch {
+        const cantidadLocal = await db.cards.count().catch(() => 0)
+        if (!cancelada) setBaseCartas(cantidadLocal > 0 ? 'parcial' : 'vacia')
+      }
+      const disponibles = await getMainSets().catch(() => [])
+      if (!cancelada) {
+        setSets(disponibles.map(x => ({ code: x.code, name: x.name })))
+        setMSet(prev => prev || disponibles[0]?.code || '')
+      }
     })()
-    return () => { vive = false }
-  }, [])
+    return () => { cancelada = true }
+  }, [intentoLectores, prepararCatalogo])
 
-  // Sets para el desplegable manual
   useEffect(() => {
-    void getMainSets().then(s => {
-      setSets(s.map(x => ({ code: x.code, name: x.name })))
-      setMSet(prev => prev || s[0]?.code || '')
-    }).catch(() => {})
-  }, [])
-
-  const confirmar = async (card: Card) => {
-    const nueva = yaTenia + cantidad
-    await updateCollectionQuantity(card.id, nueva, currentProfile?.id, supabaseUser?.id)
-    setAgregadas(prev => [{ card, qty: cantidad }, ...prev].slice(0, 30))
-    setHallazgo(null)
-    navigator.vibrate?.(30)
-  }
-
-  /** Vía de compatibilidad: la foto la saca la app de cámara del teléfono,
-   *  que enfoca, hace zoom y tiene flash mucho mejor que nosotros. */
-  const leerFoto = async (archivo: File) => {
-    setLeyendoFoto(true)
-    setMotorError(null)
-    try {
-      // Igual que en vivo: primero el arte, que es rápido y no falla con la
-      // letra chica.
-      const img = await createImageBitmap(archivo).catch(() => null)
-      if (img) {
-        const lienzo = document.createElement('canvas')
-        lienzo.width = img.width
-        lienzo.height = img.height
-        lienzo.getContext('2d')!.drawImage(img, 0, 0)
-        const porArte = await reconocerPorArte(lienzo, img.width, img.height).catch(() => null)
-        img.close?.()
-        if (porArte) {
-          setHallazgo({ card: porArte.card, alternativas: porArte.gemelas })
-          setCantidad(1)
-          setYaTenia(await getCardQuantity(porArte.card.id))
-          navigator.vibrate?.(60)
-          return
+    if (manual || !paginaVisible) return
+    let cancelada = false
+    void (async () => {
+      await Promise.resolve()
+      if (cancelada) return
+      setMotor('cargando')
+      try {
+        await iniciarOCR()
+        if (!cancelada) { setMotor('listo'); setMotorError(null) }
+      } catch (e) {
+        if (!cancelada) {
+          setMotor('error')
+          setMotorError(e instanceof Error ? e.message : 'No se pudo preparar el lector del código.')
         }
       }
-      const codigo = await leerCodigoDeImagen(archivo)
-      setUltimoCrudo(codigo.crudo)
-      const m = await buscarPorCodigo(codigo)
-      if (!m) {
-        setMotorError(
-          codigo.numero != null
-            ? `Leí la carta ${codigo.numero}${codigo.setCode ? ' de ' + codigo.setCode : ''} pero no está en la base.`
-            : 'No se pudo leer el código en esa foto. Probá más cerca del pie de la carta.',
-        )
+    })()
+    return () => { cancelada = true }
+  }, [manual, paginaVisible, intentoLectores])
+
+  // Esta miniatura solo detecta un cambio de escena; no se usa para calcular
+  // el hash de reconocimiento, cuyo redimensionado debe mantener su paridad.
+  const firmaVisual = useCallback((video: HTMLVideoElement): Uint8Array | null => {
+    try {
+      const canvas = firmaCanvas.current ?? (firmaCanvas.current = document.createElement('canvas'))
+      canvas.width = 24; canvas.height = 24
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })
+      if (!ctx) return null
+      ctx.drawImage(video, video.videoWidth * 0.15, video.videoHeight * 0.15,
+        video.videoWidth * 0.7, video.videoHeight * 0.7, 0, 0, 24, 24)
+      const rgba = ctx.getImageData(0, 0, 24, 24).data
+      return Uint8Array.from({ length: 24 * 24 }, (_, i) => Math.round(
+        rgba[i * 4] * 0.299 + rgba[i * 4 + 1] * 0.587 + rgba[i * 4 + 2] * 0.114,
+      ))
+    } catch { return null }
+  }, [])
+
+  const presentar = useCallback(async (m: Coincidencia, generacion: number, firma: Uint8Array | null) => {
+    if (!ciclo.vigente(generacion) || hallazgoRef.current || presentando.current) return
+    presentando.current = true
+    ciclo.bloquear(m.card.id, firma)
+    const vigente = ciclo.actual()
+    try {
+      const existentes = await leerCantidad(m.card.id, currentProfile?.id)
+      if (!ciclo.vigente(vigente)) return
+      setYaTenia(existentes); setCantidad(1); setErrorGuardar(null)
+      hallazgoRef.current = m
+      setHallazgo(m)
+      setEsperandoRetiro(true)
+      navigator.vibrate?.(60)
+    } catch {
+      if (ciclo.vigente(vigente)) setMotorError('No se pudo leer tu colección. Tocá Leer ahora para volver a intentar.')
+    } finally { presentando.current = false }
+  }, [ciclo, currentProfile?.id, leerCantidad])
+
+  const intentarLeer = useCallback(async (forzado = false) => {
+    const video = videoRef.current
+    if (!video || arteEnCurso.current || fotoActiva.current || hallazgoRef.current || presentando.current ||
+        video.readyState < 2 || video.videoWidth === 0 || video.paused || document.hidden) return
+    if (!ciclo.admitirFotograma(video.currentTime, forzado)) return
+    const generacion = ciclo.actual()
+    const fotograma = video.currentTime
+    const firma = firmaVisual(video)
+    if (ciclo.observarEscena(firma)) setEsperandoRetiro(false)
+    arteEnCurso.current = true
+    setLeyendo(true)
+    try {
+      let porArte = null
+      if (indice === 'listo') {
+        try { porArte = await reconocerPorArte(video, video.videoWidth, video.videoHeight) }
+        catch { if (ciclo.vigente(generacion)) setIndice('error') }
+      }
+      if (!ciclo.vigente(generacion) || fotoActiva.current) return
+      if (ciclo.observar(porArte?.card.id ?? null, 'arte', fotograma, forzado) && porArte) {
+        await presentar({ card: porArte.card, alternativas: porArte.gemelas }, generacion, firma)
         return
       }
-      setHallazgo(m)
-      setCantidad(1)
-      setYaTenia(await getCardQuantity(m.card.id))
-      navigator.vibrate?.(60)
+      // La primera coincidencia por arte espera otro fotograma, sin pagar OCR.
+      if (porArte || motor !== 'listo' || textoEnCurso.current ||
+          (!forzado && performance.now() - ultimoOCR.current < MINIMO_ENTRE_OCR_MS)) return
+      ultimoOCR.current = performance.now()
+      // El OCR conserva el fotograma que lo originó, aunque deba esperar a una foto.
+      const captura = document.createElement('canvas')
+      captura.width = video.videoWidth; captura.height = video.videoHeight
+      const contexto = captura.getContext('2d')
+      if (!contexto) throw new Error('No se pudo preparar el fotograma. Probá reabrir la cámara.')
+      contexto.drawImage(video, 0, 0)
+      textoEnCurso.current = true
+      setLeyendoTexto(true)
+      void ciclo.encolarTexto(generacion, () => leerCodigo(captura, captura.width, captura.height))
+        .then(async codigo => {
+          if (!codigo || !ciclo.vigente(generacion)) return
+          const m = await buscarPorCodigo(codigo)
+          if (!ciclo.vigente(generacion)) return
+          const actual = videoRef.current
+          const firmaActual = actual?.videoWidth ? firmaVisual(actual) : null
+          if (!actual || actual.paused || (firma && firmaActual && cambioDeCarta(firma, firmaActual))) {
+            ciclo.observar(null, 'texto', fotograma)
+            return
+          }
+          setUltimoCrudo(codigo.crudo)
+          if (ciclo.observar(m?.card.id ?? null, 'texto', fotograma, forzado) && m) await presentar(m, generacion, firma)
+        })
+        .catch(e => {
+          if (ciclo.vigente(generacion)) {
+            setMotor('error')
+            setMotorError(e instanceof Error ? e.message : 'No se pudo leer el código.')
+          }
+        })
+        .finally(() => { textoEnCurso.current = false; setLeyendoTexto(false) })
     } catch (e) {
-      setMotorError(e instanceof Error ? e.message : 'No se pudo leer la foto.')
-    } finally {
-      setLeyendoFoto(false)
+      if (ciclo.vigente(generacion)) setMotorError(e instanceof Error ? e.message : 'No se pudo leer el fotograma.')
+    } finally { arteEnCurso.current = false; setLeyendo(false) }
+  }, [ciclo, firmaVisual, indice, motor, presentar])
+
+  useEffect(() => {
+    if (estado !== 'escaneando' || hallazgo || leyendoFoto || !catalogoDisponible || !paginaVisible) return
+    const video = videoRef.current
+    if (!video) return
+    let cancelada = false
+    let callback = 0
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let ultimo = -Infinity
+    const siguiente = (ahora: number) => {
+      if (cancelada) return
+      if (ahora - ultimo >= INTERVALO_MS) { ultimo = ahora; void intentarLeer() }
+      if (typeof video.requestVideoFrameCallback === 'function') callback = video.requestVideoFrameCallback(siguiente)
+      else timer = setTimeout(() => siguiente(performance.now()), INTERVALO_MS)
     }
+    siguiente(performance.now())
+    return () => {
+      cancelada = true
+      clearTimeout(timer)
+      if (callback) video.cancelVideoFrameCallback(callback)
+    }
+  }, [estado, hallazgo, leyendoFoto, catalogoDisponible, paginaVisible, intentarLeer])
+
+  const cerrarHallazgo = () => {
+    if (guardandoRef.current || seleccionando) return
+    ciclo.invalidar()
+    hallazgoRef.current = null
+    setHallazgo(null)
+  }
+
+  const confirmar = async (card: Card) => {
+    if (guardandoRef.current || seleccionando) return
+    guardandoRef.current = true
+    setGuardando(true); setErrorGuardar(null)
+    const generacion = ciclo.actual()
+    const perfilId = currentProfile?.id
+    try {
+      const existentes = await leerCantidad(card.id, perfilId)
+      if (useAuth.getState().currentProfile?.id !== perfilId) throw new Error('La cuenta cambió. Volvé a escanear la carta.')
+      const ok = await guardarCantidad(card.id, existentes + cantidad, perfilId,
+        supabaseUser?.id === perfilId ? supabaseUser?.id : undefined)
+      if (!ok) throw new Error('No se pudo guardar la carta en este dispositivo. Volvé a intentar.')
+      if (!ciclo.vigente(generacion)) return
+      setAgregadas(prev => [{ card, qty: cantidad }, ...prev].slice(0, 30))
+      hallazgoRef.current = null
+      setHallazgo(null)
+      navigator.vibrate?.(30)
+    } catch (e) {
+      if (ciclo.vigente(generacion)) setErrorGuardar(e instanceof Error ? e.message : 'No se pudo guardar la carta.')
+    } finally { guardandoRef.current = false; setGuardando(false) }
+  }
+
+  const leerFoto = async (archivo: File) => {
+    if (fotoActiva.current || hallazgoRef.current) return
+    fotoActiva.current = true
+    const generacion = ciclo.invalidar()
+    setLeyendoFoto(true); setMotorError(null)
+    try {
+      const imagen = await createImageBitmap(archivo).catch(() => null)
+      if (imagen) {
+        try {
+          if (!ciclo.vigente(generacion)) return
+          const porArte = await reconocerPorArte(imagen, imagen.width, imagen.height, 'foto').catch(() => null)
+          if (!ciclo.vigente(generacion)) return
+          if (porArte) {
+            await presentar({ card: porArte.card, alternativas: porArte.gemelas }, generacion, null)
+            return
+          }
+        } finally { imagen.close() }
+      }
+      // El mismo worker atiende foto y vivo en serie; una lectura vieja pierde
+      // permiso de publicar, pero termina antes de empezar la nueva.
+      const codigo = await ciclo.encolarTexto(generacion, () => leerCodigoDeImagen(archivo))
+      if (!codigo || !ciclo.vigente(generacion)) return
+      setUltimoCrudo(codigo.crudo)
+      const m = await buscarPorCodigo(codigo)
+      if (!ciclo.vigente(generacion)) return
+      if (m) await presentar(m, generacion, null)
+      else setMotorError(codigo.numero != null
+        ? `Leí la carta ${codigo.numero}${codigo.setCode ? ' de ' + codigo.setCode : ''} pero no está en la base.`
+        : 'No se pudo leer el código de esa foto. Probá más cerca del pie de la carta.')
+    } catch (e) {
+      if (ciclo.vigente(generacion)) setMotorError(e instanceof Error ? e.message : 'No se pudo leer la foto.')
+    } finally { fotoActiva.current = false; setLeyendoFoto(false) }
   }
 
   const buscarManual = async () => {
     setMError(null)
     const n = parseInt(mNum, 10)
     if (!Number.isFinite(n) || n <= 0) { setMError('Escribí el número de la carta.'); return }
-    const m = await buscarPorCodigo(parseCodigo(`${mSet}·EN ${n}/999`))
-    if (!m) { setMError(`No hay carta ${n} en ${mSet}.`); return }
-    setHallazgo(m)
-    setCantidad(1)
-    setYaTenia(await getCardQuantity(m.card.id))
+    const generacion = ciclo.actual()
+    try {
+      const m = await buscarPorCodigo(parseCodigo(`${mSet}·EN ${n}/999`))
+      if (!ciclo.vigente(generacion)) return
+      if (!m) { setMError(`No hay carta ${n} en ${mSet}.`); return }
+      await presentar(m, generacion, null)
+    } catch { setMError('No se pudo consultar la base de cartas. Volvé a intentar.') }
   }
 
-  const elegirAlternativa = async (c: Card) => {
-    setHallazgo({ card: c, alternativas: [] })
-    setYaTenia(await getCardQuantity(c.id))
+  const elegirAlternativa = async (card: Card) => {
+    if (guardandoRef.current || seleccionando || !hallazgo) return
+    setSeleccionando(true)
+    const generacion = ciclo.actual()
+    try {
+      const existentes = await leerCantidad(card.id, currentProfile?.id)
+      if (!ciclo.vigente(generacion)) return
+      const otras = [hallazgo.card, ...hallazgo.alternativas].filter(c => c.id !== card.id)
+      const siguiente = { card, alternativas: otras }
+      setYaTenia(existentes)
+      hallazgoRef.current = siguiente
+      setHallazgo(siguiente)
+    } catch { setErrorGuardar('No se pudo leer la cantidad de esa impresión.') }
+    finally { setSeleccionando(false) }
   }
 
   return (
@@ -321,7 +455,8 @@ export function ScanPage() {
           <Button
             size="xs"
             variant="ghost"
-            onClick={() => setEstado(e => (e === 'manual' ? 'pidiendo' : 'manual'))}
+            onClick={() => { ciclo.invalidar(); setEstado(e => (e === 'manual' ? 'pidiendo' : 'manual')) }}
+            disabled={guardando || leyendoFoto}
           >
             {estado === 'manual'
               ? <><Camera size={13} aria-hidden /> Cámara</>
@@ -355,7 +490,7 @@ export function ScanPage() {
                 verticales y los líderes y bases apaisados, y el escáner prueba
                 ambas orientaciones en cada intento. */}
             <div className="pointer-events-none absolute inset-0" aria-hidden>
-              {[MARCO_VERTICAL, MARCO_APAISADO].map((mk, i) => (
+              {marcos.map((mk, i) => (
                 <div
                   key={i}
                   className={`absolute rounded-lg border-2 ${i === 0 ? 'border-swu-cyan' : 'border-swu-cyan/45 border-dashed'}`}
@@ -367,13 +502,11 @@ export function ScanPage() {
               ))}
               {/* La banda del código sigue marcada, tenue: es el respaldo
                   cuando dos cartas comparten ilustración. */}
-              <div
-                className="absolute border border-swu-amber/40 rounded"
-                style={{
-                  left: `${BANDA.x * 100}%`, top: `${BANDA.y * 100}%`,
-                  width: `${BANDA.w * 100}%`, height: `${BANDA.h * 100}%`,
-                }}
-              />
+              {marcos.map((marco, i) => {
+                const banda = bandaDelMarco(marco)
+                return <div key={`banda-${i}`} className="absolute border border-swu-amber/30 rounded"
+                  style={{ left: `${banda.x * 100}%`, top: `${banda.y * 100}%`, width: `${banda.w * 100}%`, height: `${banda.h * 100}%` }} />
+              })}
             </div>
 
             {/* Estado siempre visible: sin esto, «el motor no cargó» y «la
@@ -393,6 +526,8 @@ export function ScanPage() {
                   <span className="text-[11px] text-swu-red-texto font-mono text-center px-2">
                     No se pudo descargar la base de cartas. Sin ella no hay con qué comparar.
                   </span>
+                ) : esperandoRetiro ? (
+                  <span className="text-[11px] text-white/85 font-mono text-center px-2">Retirá la carta o colocá la siguiente. Para repetirla, tocá Leer ahora.</span>
                 ) : leyendo ? (
                   <><Loader2 size={13} className="animate-spin text-swu-cyan" aria-hidden />
                     <span className="text-[11px] text-swu-cyan font-mono">Leyendo…</span></>
@@ -402,11 +537,11 @@ export function ScanPage() {
                   </span>
                 )}
               </div>
-              {baseCartas === 'lista' && motor !== 'listo' && (
+              {catalogoDisponible && motor !== 'listo' && (
                 <span className="text-[10px] text-white/40 font-mono text-center px-2">
                   {motor === 'cargando'
                     ? 'Preparando además el lector del código…'
-                    : `Sin lector de código (${motorError ?? 'no cargó'}): se reconoce por la ilustración`}
+                    : 'El lector de código no está listo. Podés reintentarlo.'}
                 </span>
               )}
             </div>
@@ -432,6 +567,18 @@ export function ScanPage() {
           </div>
         )}
 
+        {(indice === 'error' || baseCartas === 'parcial' || baseCartas === 'vacia' || motor === 'error') && (
+          <div role="status" className="rounded-xl border border-swu-amber/30 bg-swu-amber/5 p-3 space-y-2">
+            {indice === 'error' && <p className="text-xs text-swu-amber">No se pudo preparar el reconocimiento por imagen. El código y la búsqueda manual siguen disponibles.</p>}
+            {baseCartas === 'parcial' && <p className="text-xs text-swu-amber">La base está incompleta: podemos buscar las cartas descargadas. Actualizala para reconocer las demás.</p>}
+            {baseCartas === 'vacia' && <p className="text-xs text-swu-amber">Necesitamos descargar la base de cartas para identificar tu carta.</p>}
+            {motor === 'error' && <p className="text-xs text-swu-amber">No se pudo preparar el lector del código.</p>}
+            <Button size="sm" onClick={() => setIntentoLectores(n => n + 1)}>Reintentar lectores y base</Button>
+          </div>
+        )}
+        {motorError && <p role="status" className="text-xs text-swu-amber">{motorError}</p>}
+        {leyendoTexto && !hallazgo && <p className="text-[11px] text-swu-muted text-center">Comprobando el código; podés seguir encuadrando la carta.</p>}
+
         {/* Disparo manual. El bucle automático es cómodo pero deja a la persona
             sin nada que hacer cuando no engancha; esto le devuelve el control. */}
         {estado === 'escaneando' && (
@@ -440,16 +587,11 @@ export function ScanPage() {
               size="sm"
               block
               loading={leyendo}
-              disabled={baseCartas !== 'lista'}
+              disabled={!catalogoDisponible || leyendoFoto}
               onClick={() => void intentarLeer(true)}
             >
               <Camera size={14} aria-hidden /> Leer ahora
             </Button>
-            {motor === 'error' && (
-              <Button size="sm" variant="secondary" onClick={() => { setMotor('cargando'); setEstado('pidiendo') }}>
-                Reintentar
-              </Button>
-            )}
           </div>
         )}
 
@@ -475,7 +617,7 @@ export function ScanPage() {
               block
               variant="secondary"
               loading={leyendoFoto}
-              disabled={baseCartas !== 'lista'}
+              disabled={!catalogoDisponible || guardando}
               onClick={() => fotoRef.current?.click()}
             >
               <ImageUp size={14} aria-hidden /> Tomar o subir una foto
@@ -489,9 +631,10 @@ export function ScanPage() {
             title="Sin cámara"
             hint={error ?? undefined}
             action={
-              <Button size="sm" variant="secondary" onClick={() => setEstado('manual')}>
-                Escribir el número
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="secondary" onClick={() => setIntentoCamara(n => n + 1)}>Reabrir cámara</Button>
+                <Button size="sm" variant="secondary" onClick={() => setEstado('manual')}>Escribir el número</Button>
+              </div>
             }
           />
         )}
@@ -515,7 +658,7 @@ export function ScanPage() {
               </select>
               <input
                 value={mNum}
-                onChange={e => setMNum(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                onChange={e => setMNum(e.target.value.replace(/\D/g, '').slice(0, 4))}
                 inputMode="numeric"
                 placeholder="N.º"
                 aria-label="Número de la carta"
@@ -557,8 +700,8 @@ export function ScanPage() {
 
       {/* ── Confirmación ── */}
       {hallazgo && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-sm bg-swu-surface border border-swu-border rounded-xl overflow-hidden">
+        <Sheet open onClose={cerrarHallazgo} title="Confirmar carta identificada" bare>
+          <div className="w-full max-w-sm mx-auto bg-swu-surface rounded-xl overflow-hidden">
             <div className="flex items-start gap-3 p-3">
               <div className="w-20 flex-shrink-0 rounded-lg overflow-hidden bg-swu-bg">
                 <CardImage
@@ -582,7 +725,7 @@ export function ScanPage() {
                   <p className="text-[10px] text-swu-amber mt-1">Ya tenías {yaTenia}</p>
                 )}
               </div>
-              <button onClick={() => setHallazgo(null)} aria-label="Cancelar" className="text-swu-muted p-1">
+              <button onClick={cerrarHallazgo} disabled={guardando || seleccionando} aria-label="Cancelar" className="text-swu-muted p-1">
                 <X size={16} aria-hidden />
               </button>
             </div>
@@ -590,13 +733,14 @@ export function ScanPage() {
             {hallazgo.alternativas.length > 0 && (
               <div className="px-3 pb-2">
                 <p className="text-[10px] text-swu-muted mb-1">
-                  Ese número existe en varias impresiones. ¿Cuál es la tuya?
+                  Hay varias impresiones posibles. Elegí la tuya.
                 </p>
                 <div className="flex gap-1 flex-wrap">
                   {[hallazgo.card, ...hallazgo.alternativas].map(c => (
                     <button
                       key={c.id}
                       onClick={() => void elegirAlternativa(c)}
+                      disabled={guardando || seleccionando}
                       className={`text-[10px] font-mono px-2 py-1 rounded border ${
                         c.id === hallazgo.card.id
                           ? 'border-swu-cyan text-swu-cyan'
@@ -610,10 +754,13 @@ export function ScanPage() {
               </div>
             )}
 
+            {errorGuardar && <p role="alert" className="px-3 pb-2 text-xs text-swu-red-texto">{errorGuardar}</p>}
+
             <div className="flex items-center gap-3 px-3 pb-3">
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setCantidad(q => Math.max(1, q - 1))}
+                  disabled={guardando || seleccionando}
                   aria-label="Menos"
                   className="w-9 h-9 rounded-lg border border-swu-border text-swu-text flex items-center justify-center"
                 >
@@ -622,18 +769,19 @@ export function ScanPage() {
                 <span className="w-6 text-center font-mono font-bold text-swu-text">{cantidad}</span>
                 <button
                   onClick={() => setCantidad(q => Math.min(99, q + 1))}
+                  disabled={guardando || seleccionando}
                   aria-label="Más"
                   className="w-9 h-9 rounded-lg border border-swu-border text-swu-text flex items-center justify-center"
                 >
                   <Plus size={14} aria-hidden />
                 </button>
               </div>
-              <Button size="sm" block onClick={() => void confirmar(hallazgo.card)}>
+              <Button size="sm" block loading={guardando || seleccionando} onClick={() => void confirmar(hallazgo.card)}>
                 <Check size={14} aria-hidden /> Agregar a Mi Botín
               </Button>
             </div>
           </div>
-        </div>
+        </Sheet>
       )}
     </div>
   )

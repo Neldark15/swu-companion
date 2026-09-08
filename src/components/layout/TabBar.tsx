@@ -79,7 +79,7 @@ export function TabBar() {
           return (
             <button
               key={tab.id}
-              onClick={() => navigate(tab.id)}
+              onClick={() => navigate(tab.id === '/explore' ? '/explore?tab=market' : tab.id)}
               aria-current={active ? 'page' : undefined}
               className={`
                 flex-1 flex flex-col items-center justify-center gap-0.5 min-h-14 px-1 py-1.5

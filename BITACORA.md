@@ -12,6 +12,12 @@ Registro compartido entre Claude y ChatGPT. **La entrada más nueva va arriba.**
 
 ---
 
+## 2026-09-07 · ChatGPT · Escáner automático y funciones sin rediseño
+**Qué cambió:** Se conserva la tarjeta de jugador. El escáner corrige el encuadre físico en móvil y separa arte/OCR, confirma con dos fotogramas, descarta lecturas antiguas, recupera cámara/lectores y evita reofrecer la misma carta hasta retirarla/cambiarla. El modal ahora usa Sheet para que la barra móvil no tape Agregar. Guardado local con resultado verificable y lectura de existencias por perfil. También: faltantes de copias físicas en mazos con enlaces a mercado filtrado, Mercado móvil correcto y formularios de registro/recuperación directos.
+**Archivos:** ScanPage, cardScanner/cardHash, encuadreEscaner/cicloEscaner, collectionService, PanelFaltantesMazo/faltantesMazo, DeckBuilderPage, ExplorePage, TabBar, WelcomeHome y ProfilePage/accesoPerfil. BancoEscaner y cinco fixtures oficiales solo DEV; plan y reglas en CLAUDE §5m y AGENTS.
+**Cómo verificar:** Build y lint completos pasan (0 errores, las mismas 6 advertencias previas). Pasan escaner-imagen, escaner-encuadre, escaner-ciclo, acceso-perfil y deck-faltantes. Reproducción antes: 2/20 fotogramas centrados reconocidos; después: 80/80 incluyendo pequeñas variaciones, más cinco imágenes recortadas. Banco a 390×844: detección automática de unidad/líder, confirmación y guardado en memoria, panel de faltantes y enlace a mercado; registro y recuperación directos. Se verifica que banco y cinco imágenes no entran en build/precache. Revisión independiente sin bloqueantes pendientes.
+**Pendiente / notas para el siguiente:** No se ha publicado esta tanda en producción ni aplicado SQL. La cámara física, reflejos, fundas y latencia en teléfonos necesitan validación real. No se crearon cuentas ni escrituras cloud en pruebas; el mercado queda protegido por AuthGate. La cola durable offline se pospuso al priorizar el escáner; el envío de colección a nube sigue siendo de mejor esfuerzo. La precisión simulada no es una tasa real de reconocimiento de cualquier carta.
+
 ## 2026-09-07 · ChatGPT · Publicación autorizada del Taller Kyber
 **Qué cambió:** Nel autorizó llevar las mejoras visuales a producción. Se prepara la integración de `feature/taller-kyber-materiales` mediante PR a `main`, que dispara el despliegue automático de Vercel. Alcance del código: el taller y su cabecera; sin SQL ni cambios de datos.
 **Archivos:** Implementación de `836457c` y esta entrada de publicación.

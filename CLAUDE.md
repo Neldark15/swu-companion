@@ -4787,3 +4787,19 @@ en Mac; rendimiento y WebGL en un teléfono físico siguen pendientes de medir.
 `createClient('', '')` lanza `supabaseUrl is required`. Incluso el shell del banco
 necesita configuración válida en `.env.local`; no funciona desconectado por omitir
 esas variables. No commitear el archivo ni sus valores.
+
+### 5m. Escáner automático, faltantes del mazo y accesos (2026-09-07)
+
+Nel conserva la tarjeta de jugador y pide mejoras funcionales sin rediseño. El escáner era lento al colocar la carta: en una reproducción con cinco imágenes inglesas conocidas y cuatro formatos de cámara, solo reconocía 2/20 fotogramas centrados. Las guías usaban porcentajes fijos de ancho y alto: una carta vertical terminaba con relación 1.244 en vídeo 16:9, en vez de 286/400. Además, el mismo indicador de ocupación retenía el reconocimiento por imagen durante todo el OCR.
+
+`encuadreEscaner.ts` calcula ambas guías conservando la proporción física según las dimensiones del vídeo. Visor, recorte de imagen y franja OCR usan estos mismos marcos. No volver a introducir porcentajes fijos independientes. `cardHash.ts` conserva su DCT y reducción por áreas; agrupa hashes realmente idénticos antes de medir el margen frente al siguiente arte distinto. Dos distancias iguales NO demuestran que sea la misma ilustración. No se relajaron MAX_DISTANCIA ni MARGEN_MINIMO.
+
+`CicloEscaner` separa reconocimiento por imagen y cola OCR. Exige dos fotogramas distintos para proponer automáticamente, ignora resultados de una generación anterior y serializa foto/vídeo en el worker. Tras agregar o cancelar, la misma carta queda bloqueada hasta detectar cambio visual sostenido o pulsar Leer ahora. Un cambio uniforme de exposición no rearma. La apertura de cámara tiene cancelación propia, recuperación explícita y autofocus continuo cuando la cámara lo expone. La confirmación usa `Sheet`: dentro del contenedor de la app un modal fijo quedaba debajo de la barra móvil.
+
+`updateCollectionQuantity` ahora devuelve booleano según persistencia local; el escáner no anuncia éxito si Dexie falla. `getScanQuantity` filtra el perfil exacto y no convierte un error de lectura en cero. Se relee al confirmar y se bloquea el doble clic. La nube conserva su envío actual de mejor esfuerzo, comprobando el error; **no hay todavía cola durable ni garantía de sincronización offline**. Esa mejora se pospuso al priorizar este escáner.
+
+`FaltantesMazo` compara principal, sideboard, líderes y base contra colección física del perfil local. Agrupa impresiones por nombre, subtítulo y tipo, resuelve legacyId y no reutiliza copias entre zonas. No reserva entre mazos. Un catálogo incompleto, IDs no resueltos o fallo local se muestran como comparación pendiente. Sus enlaces usan `/explore?tab=market&carta=UUID`, con filtro real de impresiones compatibles. Mercado móvil abre la pestaña correcta y la URL gobierna atrás/adelante.
+
+`/profile?modo=register|forgot-password|login` abre el formulario correspondiente y conserva `next` interno. La recuperación activa de Supabase prevalece sobre hidratación local. La tarjeta de jugador y HomePage no cambian.
+
+Pruebas: `npx tsx scripts/escaner-imagen.test.mts`, `escaner-encuadre.test.mts`, `escaner-ciclo.test.mts`, `acceso-perfil.test.mts`, `deck-faltantes.test.mts`; además build/lint. Los fixtures oficiales están en `scripts/fixtures/escaner`, con procedencia y limitaciones. El banco `/banco-escaner` usa Canvas.captureStream y guarda cantidades en memoria; solo se importa y registra bajo DEV. Verificar que banco e imágenes se podan del build. 80/80 fotogramas simulados y cinco imágenes recortadas pasan; eso no mide la latencia ni la precisión de un teléfono físico.

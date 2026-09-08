@@ -4,11 +4,11 @@
  * ── Dos métodos, y por qué en ese orden ───────────────────────────────
  *
  * 1. **Por el ARTE** (services/cardHash.ts). Es el principal. Se compara la
- *    ilustración contra un índice de hashes que viaja con la app. Tarda menos
- *    de un milisegundo, funciona sin conexión desde el primer escaneo y
- *    aguanta reflejos, fundas y ángulo. Es lo que usan los escáneres que
- *    funcionan: ManaBox dice explícitamente que «detecta las cartas usando el
- *    arte».
+ *    ilustración contra un índice local. La comparación de hashes es rápida;
+ *    el recorte, la cámara y la estabilidad también influyen en la latencia.
+ *    Funciona sin conexión después de cachear índice y catálogo, y
+ *    necesita que la carta esté encuadrada. Reflejos fuertes o perspectiva
+ *    pueden impedir la identificación: en ese caso queda el código de respaldo.
  *
  * 2. **Por el CÓDIGO impreso al pie**, con OCR:
  *
@@ -32,31 +32,11 @@
 import { db } from './db'
 import { hashDeImagen, cargarIndice, buscarPorArte } from './cardHash'
 import type { Card } from '../types'
+import { marcosDeCamara, bandaDelMarco } from './encuadreEscaner'
+export { marcosDeCamara, bandaDelMarco } from './encuadreEscaner'
 
-/**
- * La banda que se lee, en fracciones del fotograma.
- *
- * ES LA MISMA que dibuja la guía en pantalla, y por eso vive acá y se exporta:
- * cuando cada lado tenía su propio número, la persona alineaba el código con
- * un rectángulo y el OCR leía otro pedazo del fotograma. Si se toca esto, se
- * mueve la guía sola.
- *
- * OJO: para que la cuenta cierre, el <video> tiene que ir con `object-contain`.
- * Con `object-cover` el navegador recorta el vídeo para llenar la caja y lo que
- * se ve deja de corresponder con las coordenadas del fotograma.
- */
-export const BANDA = { x: 0.05, y: 0.60, w: 0.90, h: 0.22 } as const
-
-/**
- * Marcos donde va la CARTA ENTERA para reconocerla por su arte.
- *
- * Son dos porque las cartas de SWU vienen en dos orientaciones: las unidades y
- * eventos son verticales, y los líderes y bases, apaisados. Se prueban las dos
- * en cada intento —comparar un hash cuesta menos de un milisegundo— así que la
- * cámara acierta aunque la persona no toque el selector.
- */
-export const MARCO_VERTICAL = { x: 0.22, y: 0.10, w: 0.56, h: 0.80 } as const
-export const MARCO_APAISADO = { x: 0.08, y: 0.26, w: 0.84, h: 0.48 } as const
+// Las guías y las franjas del pie se calculan según la proporción real del
+// vídeo. No volver a usar fracciones fijas: en móviles recortaban el fondo.
 
 /** Solo lo que puede aparecer en el código: mayúsculas, dígitos y separadores. */
 const LISTA_BLANCA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/·.- '
@@ -202,6 +182,7 @@ export async function buscarPorCodigo(codigo: CodigoLeido): Promise<Coincidencia
 type Worker = { recognize: (img: unknown) => Promise<{ data: { text: string } }>; terminate: () => Promise<unknown> }
 let worker: Worker | null = null
 let cargando: Promise<Worker> | null = null
+let generacionOCR = 0
 
 /**
  * Arranca el motor de OCR. Se carga una sola vez y solo al abrir el escáner,
@@ -216,23 +197,33 @@ let cargando: Promise<Worker> | null = null
 export function iniciarOCR(): Promise<Worker> {
   if (worker) return Promise.resolve(worker)
   if (cargando) return cargando
+  const generacion = generacionOCR
   cargando = (async () => {
+    let nuevo: Worker | null = null
     try {
-      const { createWorker } = await import('tesseract.js')
+      const { createWorker, PSM } = await import('tesseract.js')
       const w = await createWorker('eng')
+      nuevo = w
+      if (generacion !== generacionOCR) {
+        throw new Error('Lectura cancelada')
+      }
       await w.setParameters({
         tessedit_char_whitelist: LISTA_BLANCA,
         // Una sola línea de texto: es lo que hay en la banda.
-        tessedit_pageseg_mode: '7' as unknown as never,
+        tessedit_pageseg_mode: PSM.SINGLE_LINE,
       })
+      if (generacion !== generacionOCR) {
+        throw new Error('Lectura cancelada')
+      }
       worker = w as unknown as Worker
       return worker
     } catch (e) {
+      await nuevo?.terminate().catch(() => {})
       // Que un fallo de descarga se pueda REINTENTAR y, sobre todo, que se
       // pueda MOSTRAR: mientras esto se tragaba en silencio, quedarse sin
       // motor se veía igual que una carta que no engancha, y no había forma
       // de distinguir «no hay internet» de «acercá más la carta».
-      cargando = null
+      if (generacion === generacionOCR) cargando = null
       throw new Error(
         `No se pudo cargar el lector de texto: ${e instanceof Error ? e.message : 'error de red'}`,
       )
@@ -245,6 +236,7 @@ export function iniciarOCR(): Promise<Worker> {
 export const ocrListo = () => worker !== null
 
 export async function detenerOCR(): Promise<void> {
+  generacionOCR++
   const w = worker
   worker = null
   cargando = null
@@ -298,7 +290,7 @@ export function recortarFranja(
   ancho: number,
   alto: number,
   /** Rectángulo a leer, en fracciones. Por defecto, la banda de la guía. */
-  banda: { x: number; y: number; w: number; h: number } = BANDA,
+  banda: { x: number; y: number; w: number; h: number } = bandaDelMarco(marcosDeCamara(ancho, alto)[0]),
   /**
    * ¿Se puede REDUCIR el recorte?
    *
@@ -362,9 +354,18 @@ export async function leerCodigo(
   alto: number,
 ): Promise<CodigoLeido> {
   const w = await iniciarOCR()
-  const franja = recortarFranja(fuente, ancho, alto)
-  const { data } = await w.recognize(franja)
-  return parseCodigo(data.text ?? '')
+  // Capturar ambas orientaciones antes del primer await de OCR: el teléfono
+  // puede moverse mientras el worker lee y no queremos mezclar dos cartas.
+  const franjas = marcosDeCamara(ancho, alto).map(marco =>
+    recortarFranja(fuente, ancho, alto, bandaDelMarco(marco)).toDataURL('image/png'))
+  let ultimo: CodigoLeido = { setCode: null, numero: null, crudo: '' }
+  for (const franja of franjas) {
+    const { data } = await w.recognize(franja)
+    const codigo = parseCodigo(data.text ?? '')
+    if (codigo.setCode && codigo.numero !== null) return codigo
+    if (codigo.crudo.length > ultimo.crudo.length) ultimo = codigo
+  }
+  return ultimo
 }
 
 /**
@@ -460,7 +461,7 @@ export async function abrirCamara(): Promise<Camara> {
   }
 
   const intentos: MediaStreamConstraints[] = [
-    { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 } } },
+    { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
     { video: { facingMode: { ideal: 'environment' } } },
     { video: { facingMode: 'environment' } },
     { video: true },
@@ -471,7 +472,11 @@ export async function abrirCamara(): Promise<Camara> {
     try {
       const stream = await navigator.mediaDevices.getUserMedia(c)
       const track = stream.getVideoTracks()[0]
-      const caps = (track?.getCapabilities?.() ?? {}) as { torch?: boolean }
+      const caps = (track?.getCapabilities?.() ?? {}) as { torch?: boolean; focusMode?: string[] }
+      if (caps.focusMode?.includes('continuous')) {
+        // Opcional: que un navegador rechace autofocus no pierda la cámara.
+        await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] } as unknown as MediaTrackConstraints).catch(() => {})
+      }
       return { stream, tieneLinterna: caps.torch === true }
     } catch (e) {
       ultimo = e
@@ -531,12 +536,17 @@ export async function reconocerPorArte(
   fuente: CanvasImageSource,
   ancho: number,
   alto: number,
+  modo: 'camara' | 'foto' = 'camara',
 ): Promise<PorArte | null> {
   const idx = await cargarIndice()
   if (!idx) return null
 
-  let mejor: { id: string; distancia: number; margen: number } | null = null
-  for (const marco of [MARCO_VERTICAL, MARCO_APAISADO]) {
+  let mejor: { id: string; distancia: number; margen: number; repetidas: string[] } | null = null
+  const marcos = marcosDeCamara(ancho, alto)
+  // Una imagen de carta recortada llena el archivo; no lleva el fondo de
+  // una cámara. Probarla completa antes de las guías conserva esa entrada.
+  if (modo === 'foto') marcos.unshift({ x: 0, y: 0, w: 1, h: 1 })
+  for (const marco of marcos) {
     const rect = {
       x: ancho * marco.x, y: alto * marco.y,
       w: ancho * marco.w, h: alto * marco.h,
@@ -545,7 +555,7 @@ export async function reconocerPorArte(
     if (!r || !r.confiable) continue
     const margen = r.segundo ? r.segundo.distancia - r.mejor.distancia : Infinity
     if (!mejor || r.mejor.distancia < mejor.distancia) {
-      mejor = { id: r.mejor.id, distancia: r.mejor.distancia, margen }
+      mejor = { id: r.mejor.id, distancia: r.mejor.distancia, margen, repetidas: r.repetidas }
     }
   }
   if (!mejor) return null
@@ -566,10 +576,11 @@ export async function reconocerPorArte(
   // El código impreso sí las separa, pero el OCR tarda segundos y falla
   // seguido: preguntar es más barato y más honesto que adivinar.
   const orden = ['Standard', 'Hyperspace', 'Showcase', 'Standard Prestige', 'Serialized Prestige']
-  const gemelas = (await db.cards
+  const impresiones = (await db.cards
     .where('name').equals(card.name)
     .toArray())
     .filter(c => c.id !== card.id && c.setCode === card.setCode
+      && (c.subtitle ?? '') === (card.subtitle ?? '') && c.type === card.type
       && !String(c.type ?? '').toLowerCase().startsWith('token'))
     .sort((a, b) => {
       // Las foil al final: son las menos frecuentes de tener en la mano.
@@ -581,6 +592,8 @@ export async function reconocerPorArte(
       return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
     })
 
+  const repetidas = (await db.cards.bulkGet(mejor.repetidas)).filter((c): c is Card => !!c)
+  const gemelas = [...new Map([...impresiones, ...repetidas].map(c => [c.id, c])).values()]
   return { card, distancia: mejor.distancia, margen: mejor.margen, gemelas }
 }
 

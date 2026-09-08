@@ -45,6 +45,7 @@ import {
 } from '../../services/filtrosCarta'
 import { translateType, translateAspect } from '../../services/translations'
 import { irA, posicion } from '../../services/scrollApp'
+import { identidadCartaJugable } from '../decks/faltantesMazo'
 
 /**
  * Sección de coincidencias de intercambio, arriba del catálogo.
@@ -213,13 +214,19 @@ function BotonPedidos() {
 
 export function ExplorePage() {
   const navigate = useNavigate()
-  const [params] = useSearchParams()
-  // `?tab=market` abre directo en el mercado. Es el acceso directo de
-  // «Mercancía» desde Inicio: sin esto el enlace dejaba a la persona en
-  // Colecciones y había que cambiar de pestaña a mano.
-  const [tab, setTab] = useState<Tab>(
-    () => (params.get('tab') === 'market' ? 'market' : 'collections'),
-  )
+  const [params, setParams] = useSearchParams()
+  // La URL es la fuente de verdad: el acceso Mercado debe funcionar también
+  // si esta pantalla ya está montada en Colecciones. Atrás/adelante restaura
+  // igualmente la pestaña elegida y se conservan los demás parámetros.
+  const tab: Tab = params.get('tab') === 'market' ? 'market' : 'collections'
+  const setTab = (siguiente: Tab) => {
+    setParams(actuales => {
+      const nuevos = new URLSearchParams(actuales)
+      if (siguiente === 'market') nuevos.set('tab', 'market')
+      else nuevos.delete('tab')
+      return nuevos
+    })
+  }
 
   return (
     <div className="min-h-screen bg-swu-bg pb-8">
@@ -263,7 +270,7 @@ export function ExplorePage() {
           />
         </div>
 
-        {tab === 'collections' ? <CollectionsTab /> : <MarketTab />}
+        {tab === 'collections' ? <CollectionsTab /> : <MarketTab key={params.get('carta') ?? ''} cartaId={params.get('carta')} />}
       </div>
     </div>
   )
@@ -411,6 +418,8 @@ function CollectionsTab() {
  */
 interface InstantaneaMercado {
   listings: MarketplaceListing[]
+  cards: Map<string, Card>
+  cartaId: string | null
   filter: string
   busqueda: string
   vendedorSel: string | null
@@ -424,13 +433,14 @@ interface InstantaneaMercado {
 let _instMercado: InstantaneaMercado | null = null
 
 /** Se llama antes de leerla: si no es de este perfil, no sirve. */
-function instantaneaDe(perfilId: string | null): InstantaneaMercado | null {
-  if (_instMercado && _instMercado.perfilId !== perfilId) _instMercado = null
+function instantaneaDe(perfilId: string | null, cartaId: string | null): InstantaneaMercado | null {
+  if (_instMercado && (_instMercado.perfilId !== perfilId || _instMercado.cartaId !== cartaId)) _instMercado = null
   return _instMercado
 }
 
-function MarketTab() {
+function MarketTab({ cartaId }: { cartaId: string | null }) {
   const navigate = useNavigate()
+  const [, setParams] = useSearchParams()
   // Para distinguir lo propio de lo ajeno: sobre lo propio se edita, no se
   // escribe uno mismo por WhatsApp.
   const { supabaseUser } = useAuth()
@@ -438,7 +448,7 @@ function MarketTab() {
   // Se resuelve UNA vez, antes de sembrar el estado, y con inicializador
   // perezoso: leerla en cada render devolvería a la instantánea cada vez que
   // tocás un filtro.
-  const guardada = useRef(instantaneaDe(supabaseUser?.id ?? null)).current
+  const guardada = useRef(instantaneaDe(supabaseUser?.id ?? null, cartaId)).current
 
   /** La publicación propia que se está corrigiendo, si hay alguna. */
   const [editando, setEditando] = useState<MarketplaceListing | null>(null)
@@ -472,7 +482,7 @@ function MarketTab() {
     if (r.ok) setCarritos(r.datos.filter(p => p.estado === 'carrito'))
     void reservasDelMercado().then(setReservas)
   }, [supabaseUser])
-  const [cards, setCards] = useState<Map<string, Card>>(new Map())
+  const [cards, setCards] = useState<Map<string, Card>>(guardada?.cards ?? new Map())
   // Con instantánea NO se arranca cargando: ya hay qué mostrar, y un spinner
   // encima de datos buenos es una pantalla que parpadea sin razón.
   const [loading, setLoading] = useState(!guardada)
@@ -509,7 +519,9 @@ function MarketTab() {
       }
       setFailed(false)
       // Hydrate card details
-      const cardIds = Array.from(new Set(list.map(l => l.cardId)))
+      // La carta del enlace puede no tener publicaciones en esta impresión;
+      // se hidrata igualmente para encontrar otras impresiones jugables.
+      const cardIds = Array.from(new Set([...list.map(l => l.cardId), ...(cartaId ? [cartaId] : [])]))
       if (cardIds.length > 0) {
         const cardMap = await getCardsByIds(cardIds)
         setCards(cardMap)
@@ -522,7 +534,7 @@ function MarketTab() {
     }
     // `recargarCarritos` ya depende de `supabaseUser`, así que listar las dos
     // no agrega nada: cuando cambia la sesión cambian las dos a la vez.
-  }, [recargarCarritos, supabaseUser])
+  }, [recargarCarritos, supabaseUser, cartaId])
 
   // Al montar CON instantánea no se recarga: los datos ya están y una consulta
   // que tarda medio segundo reemplazaría la lista justo cuando estás volviendo
@@ -612,7 +624,7 @@ function MarketTab() {
   // que hacía que la instantánea del buscador naciera con datos a medio cargar.
   const vivoRef = useRef<InstantaneaMercado | null>(null)
   vivoRef.current = {
-    listings, filter, busqueda, vendedorSel, tipoSel, aspectoSel, tope,
+    listings, cards, cartaId, filter, busqueda, vendedorSel, tipoSel, aspectoSel, tope,
     scrollY: 0,
     perfilId: supabaseUser?.id ?? null,
   }
@@ -626,10 +638,20 @@ function MarketTab() {
   }, [])
 
   /** ¿Hay algún filtro puesto? Decide el vacío que se muestra y el botón de limpiar. */
-  const hayFiltros = hayFiltrosPuestos(filtros)
+  const hayFiltros = hayFiltrosPuestos(filtros) || Boolean(cartaId)
+  const cartaBuscada = cartaId ? cards.get(cartaId) : undefined
+
+  const quitarCarta = () => {
+    setParams(actuales => {
+      const nuevos = new URLSearchParams(actuales)
+      nuevos.delete('carta')
+      return nuevos
+    })
+  }
 
   const limpiarFiltros = () => {
     setFilter(''); setBusqueda(''); setVendedorSel(null); setTipoSel(null); setAspectoSel(null)
+    if (cartaId) quitarCarta()
   }
 
   // El predicado vive en `filtrosCarta.ts` y no acá: la regla de qué hacer con
@@ -638,8 +660,12 @@ function MarketTab() {
   // componente se puede probar.
   const filtered = useMemo(() => {
     if (!hayFiltros) return listings
-    return listings.filter(l => pasaFiltros(l, cards.get(l.cardId) ?? null, filtros))
-  }, [listings, cards, filtros, hayFiltros])
+    return listings.filter(l => {
+      const carta = cards.get(l.cardId) ?? null
+      if (cartaId && (!cartaBuscada || !carta || identidadCartaJugable(carta) !== identidadCartaJugable(cartaBuscada))) return false
+      return pasaFiltros(l, carta, filtros)
+    })
+  }, [listings, cards, filtros, hayFiltros, cartaId, cartaBuscada])
 
   return (
     <div className="space-y-3">
@@ -647,7 +673,7 @@ function MarketTab() {
           filtros puestos, el total solo confunde: manda lo que estás viendo. */}
       <p className="text-xs text-swu-amber/80 font-mono text-center bg-swu-amber/5 rounded-lg border border-swu-amber/20 p-2">
         Cartas en venta de la comunidad
-        {!failed && (
+        {!failed && (!cartaId || cartaBuscada) && (
           hayFiltros
             ? ` · ${filtered.length} de ${listings.length}`
             : ` · ${listings.length} publicacion${listings.length === 1 ? '' : 'es'} de ${vendedores.length} vendedor${vendedores.length === 1 ? '' : 'es'}`
@@ -682,7 +708,7 @@ function MarketTab() {
           {hayFiltros && (
             <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-swu-amber
                              text-[9px] font-black text-swu-bg grid place-items-center">
-              {[vendedorSel, tipoSel, aspectoSel].filter(Boolean).length + (busqueda.trim() ? 1 : 0)}
+              {[vendedorSel, tipoSel, aspectoSel, cartaId].filter(Boolean).length + (busqueda.trim() ? 1 : 0)}
             </span>
           )}
         </button>
@@ -699,6 +725,11 @@ function MarketTab() {
           Es lo que evita mirar un mercado casi vacío sin saber por qué. */}
       {hayFiltros && (
         <div className="flex flex-wrap items-center gap-1.5">
+          {cartaId && (
+            <Chip tone="cyan" active onRemove={quitarCarta}>
+              {cartaBuscada ? `${cartaBuscada.name}${cartaBuscada.subtitle ? ` · ${cartaBuscada.subtitle}` : ''}` : 'Carta del mazo'}
+            </Chip>
+          )}
           {busqueda.trim() && (
             <Chip tone="cyan" active onRemove={() => { setFilter(''); setBusqueda('') }}>
               «{busqueda.trim()}»
@@ -723,6 +754,13 @@ function MarketTab() {
             Limpiar
           </button>
         </div>
+      )}
+
+      {cartaId && cartaBuscada && (
+        <p className="text-[11px] text-swu-muted">Incluye impresiones de la misma carta para jugar tu mazo.</p>
+      )}
+      {cartaId && !cartaBuscada && !loading && !failed && (
+        <p role="status" className="text-xs text-swu-amber">No pudimos identificar la carta de este enlace. Refrescá el mercado o quitá el filtro para ver todas las ventas.</p>
       )}
 
       {panelFiltros && (
@@ -813,7 +851,7 @@ function MarketTab() {
         </div>
       )}
 
-      {!loading && !failed && filtered.length === 0 && (
+      {!loading && !failed && (!cartaId || cartaBuscada) && filtered.length === 0 && (
         <div className="text-center py-12">
           <ShoppingBag size={48} className="mx-auto text-swu-muted/30 mb-4" />
           {/* Un vacío por filtros NO es un mercado vacío. Antes los dos casos

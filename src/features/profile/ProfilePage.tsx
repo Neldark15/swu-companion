@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   ChevronRight, History, Heart, Star, Layers, BookOpen, Trophy,
   LogOut, UserPlus, User, Shield, Palette, Package, Globe,
@@ -29,6 +29,7 @@ import { AvisoForjaSable } from '../sable/AvisoForjaSable'
 import { MiLigaTarjeta } from '../liga/MiLigaTarjeta'
 import { leerEnlaceMelee } from '../../services/meleeProfileService'
 import { Avatar } from '../../components/ui/Avatar'
+import { destinoTrasAcceso, leerModoAcceso } from './accesoPerfil'
 
 /** Compress and resize image to a max dimension, returns data URI */
 async function compressImage(file: File, maxSize = 200, quality = 0.7): Promise<string> {
@@ -73,12 +74,21 @@ function BackButton({ to, label, onIr }: { to: View; label?: string; onIr: (v: V
 }
 
 export function ProfilePage() {
+  const { search } = useLocation()
+  // Un acceso distinto a un formulario también funciona si Perfil ya estaba
+  // abierto. El resto del query (incluido next) no reinicia el formulario.
+  return <ContenidoPerfil key={leerModoAcceso(search)} />
+}
+
+function ContenidoPerfil() {
   // El marco que la persona ELIGIÓ en Ajustes: es SU perfil, así que acá sí
   // se pasa al ProfileFrame (en perfiles ajenos se queda el 'auto' por nivel).
   const marcoElegido = useSettings((s) => s.marcoElegido)
   const navigate = useNavigate()
+  const location = useLocation()
   const auth = useAuth()
   const { currentProfile, profiles, loadProfiles, logout, supabaseUser } = auth
+  const modoInicial = useRef(leerModoAcceso(location.search))
 
   // `?editar=perfil` abre directo la personalización (portada, vitrina…). Lo usa
   // el asistente de «terminá tu perfil» para no dejar al usuario buscando dónde
@@ -86,22 +96,25 @@ export function ProfilePage() {
   // vez de en un efecto: setear el estado dentro de un efecto dispara la regla
   // `set-state-in-effect`. Llega acá por navegación DENTRO de la app, con la
   // sesión ya cargada, así que `currentProfile` existe.
-  const [view, setView] = useState<View>(() => {
-    const editar = typeof window !== 'undefined'
-      ? new URLSearchParams(window.location.search).get('editar')
-      : null
+  const [vistaElegida, setView] = useState<View>(() => {
+    const editar = new URLSearchParams(location.search).get('editar')
     if (currentProfile && editar === 'perfil') return 'customize'
-    return currentProfile ? 'profile' : 'select'
+    return currentProfile ? 'profile' : leerModoAcceso(location.search)
   })
+  // El evento de Supabase manda sobre la vista local, incluso si el perfil se
+  // hidrata después: un enlace de recuperación no debe acabar en Mi Perfil.
+  const view = auth.isRecoveryMode ? 'reset-password' : vistaElegida
   // Limpia el `?editar` para que un refresco no reabra la personalización, y
   // para no dejar un query que la restauración de ruta (gotcha 2w) rechaza.
   // Se usa `navigate` y NO un setState, justamente para no volver a chocar con
   // la regla del efecto.
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('editar')) {
-      navigate('/profile', { replace: true })
+    const params = new URLSearchParams(location.search)
+    if (params.has('editar')) {
+      params.delete('editar')
+      navigate({ pathname: '/profile', search: params.toString() }, { replace: true })
     }
-  }, [navigate])
+  }, [location.search, navigate])
 
   /**
    * VOLVER A DONDE IBA.
@@ -118,15 +131,11 @@ export function ProfilePage() {
    *   · `replace`, para que el botón de atrás no devuelva al muro que ya pasó.
    */
   useEffect(() => {
-    if (!currentProfile) return
-    const destino = new URLSearchParams(window.location.search).get('next')
+    if (!currentProfile || auth.isRecoveryMode) return
+    const destino = destinoTrasAcceso(location.search)
     if (!destino) return
-    if (!destino.startsWith('/') || destino.startsWith('//')) {
-      navigate('/profile', { replace: true })
-      return
-    }
     navigate(destino, { replace: true })
-  }, [currentProfile, navigate])
+  }, [currentProfile, auth.isRecoveryMode, location.search, navigate])
   const [stats, setStats] = useState({ matches: 0, tournaments: 0, decks: 0, favorites: 0 })
   const [passkeySupported, setPasskeySupported] = useState(false)
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null)
@@ -196,8 +205,7 @@ export function ProfilePage() {
    * personalización que se acaba de cerrar.
    */
   const pidioEditar = useRef(
-    typeof window !== 'undefined' &&
-    new URLSearchParams(window.location.search).get('editar') === 'perfil',
+    new URLSearchParams(location.search).get('editar') === 'perfil',
   )
 
   /* Acá había también un `auth.initAuth()`. AppLayout —que es ancestro de esta
@@ -349,7 +357,7 @@ export function ProfilePage() {
       // sincronizar con el almacén de sesión, y va en un microtask para no
       // encadenar un render dentro del efecto.
       queueMicrotask(() => {
-        setView('select')
+        setView(modoInicial.current)
         setPlayerStats(null)
       })
     }
@@ -425,6 +433,7 @@ export function ProfilePage() {
       setResetError(result.error || 'Error al actualizar la contraseña')
       return
     }
+    setView('reset-password')
     setResetSuccess(true)
   }
 
@@ -547,35 +556,35 @@ export function ProfilePage() {
           </div>
           {/* Name */}
           <div>
-            <p className="text-xs text-swu-muted mb-1.5">Nombre de Jugador *</p>
-            <input value={regName} onChange={(e) => setRegName(e.target.value)} placeholder="Su nombre o nickname" maxLength={30}
+            <label htmlFor="registro-nombre" className="block text-xs text-swu-muted mb-1.5">Nombre de Jugador *</label>
+            <input id="registro-nombre" autoComplete="nickname" value={regName} onChange={(e) => setRegName(e.target.value)} placeholder="Su nombre o nickname" maxLength={30}
               className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 text-sm text-swu-text outline-none focus:border-swu-accent" />
           </div>
           {/* Email */}
           <div>
-            <p className="text-xs text-swu-muted mb-1.5">Correo Electrónico *</p>
+            <label htmlFor="registro-email" className="block text-xs text-swu-muted mb-1.5">Correo Electrónico *</label>
             <div className="relative">
               <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-swu-muted" />
-              <input type="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} placeholder="correo@ejemplo.com"
+              <input id="registro-email" type="email" autoComplete="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} placeholder="correo@ejemplo.com"
                 className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 pl-10 text-sm text-swu-text outline-none focus:border-swu-accent" />
             </div>
           </div>
           {/* Password */}
           <div>
-            <p className="text-xs text-swu-muted mb-1.5">Contraseña * (mínimo 6 caracteres)</p>
+            <label htmlFor="registro-clave" className="block text-xs text-swu-muted mb-1.5">Contraseña * (mínimo 6 caracteres)</label>
             <div className="relative">
               <KeyRound size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-swu-muted" />
-              <input type={showPassword ? 'text' : 'password'} value={regPassword} onChange={(e) => setRegPassword(e.target.value)} placeholder="••••••••"
+              <input id="registro-clave" autoComplete="new-password" type={showPassword ? 'text' : 'password'} value={regPassword} onChange={(e) => setRegPassword(e.target.value)} placeholder="••••••••"
                 className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 pl-10 pr-12 text-sm text-swu-text outline-none focus:border-swu-accent" />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-swu-muted p-1">
+              <button type="button" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-swu-muted p-1">
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
           </div>
           {/* Confirm Password */}
           <div>
-            <p className="text-xs text-swu-muted mb-1.5">Confirmar Contraseña *</p>
-            <input type={showPassword ? 'text' : 'password'} value={regPasswordConfirm} onChange={(e) => setRegPasswordConfirm(e.target.value)} placeholder="••••••••"
+            <label htmlFor="registro-confirmar" className="block text-xs text-swu-muted mb-1.5">Confirmar Contraseña *</label>
+            <input id="registro-confirmar" autoComplete="new-password" type={showPassword ? 'text' : 'password'} value={regPasswordConfirm} onChange={(e) => setRegPasswordConfirm(e.target.value)} placeholder="••••••••"
               onKeyDown={(e) => { if (e.key === 'Enter') handleRegister() }}
               className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 text-sm text-swu-text outline-none focus:border-swu-accent" />
           </div>
@@ -642,22 +651,22 @@ export function ProfilePage() {
         </div>
         <div className="bg-swu-surface rounded-2xl p-5 border border-swu-border space-y-4">
           <div>
-            <p className="text-xs text-swu-muted mb-1.5">Correo Electrónico</p>
+            <label htmlFor="acceso-email" className="block text-xs text-swu-muted mb-1.5">Correo Electrónico</label>
             <div className="relative">
               <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-swu-muted" />
-              <input type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="correo@ejemplo.com" autoFocus
+              <input id="acceso-email" autoComplete="email" type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="correo@ejemplo.com" autoFocus
                 className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 pl-10 text-sm text-swu-text outline-none focus:border-swu-accent" />
             </div>
           </div>
           <div>
-            <p className="text-xs text-swu-muted mb-1.5">Contraseña</p>
+            <label htmlFor="acceso-clave" className="block text-xs text-swu-muted mb-1.5">Contraseña</label>
             <div className="relative">
               <KeyRound size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-swu-muted" />
-              <input type={showPassword ? 'text' : 'password'} value={loginPassword}
+              <input id="acceso-clave" autoComplete="current-password" type={showPassword ? 'text' : 'password'} value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)} placeholder="••••••••"
                 onKeyDown={(e) => { if (e.key === 'Enter') handleLogin() }}
                 className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 pl-10 pr-12 text-sm text-swu-text outline-none focus:border-swu-accent" />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-swu-muted p-1">
+              <button type="button" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-swu-muted p-1">
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
@@ -700,10 +709,10 @@ export function ProfilePage() {
         </div>
         <div className="bg-swu-surface rounded-2xl p-5 border border-swu-border space-y-4">
           <div>
-            <p className="text-xs text-swu-muted mb-1.5">Correo Electrónico</p>
+            <label htmlFor="recuperar-email" className="block text-xs text-swu-muted mb-1.5">Correo Electrónico</label>
             <div className="relative">
               <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-swu-muted" />
-              <input type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} placeholder="correo@ejemplo.com" autoFocus
+              <input id="recuperar-email" autoComplete="email" type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} placeholder="correo@ejemplo.com" autoFocus
                 onKeyDown={(e) => { if (e.key === 'Enter') handleForgotPassword() }}
                 className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 pl-10 text-sm text-swu-text outline-none focus:border-swu-accent" />
             </div>
@@ -741,19 +750,19 @@ export function ProfilePage() {
           {!resetSuccess ? (
             <>
               <div>
-                <p className="text-xs text-swu-muted mb-1.5">Nueva Contraseña * (mínimo 6 caracteres)</p>
+                <label htmlFor="recuperar-clave" className="block text-xs text-swu-muted mb-1.5">Nueva Contraseña * (mínimo 6 caracteres)</label>
                 <div className="relative">
                   <KeyRound size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-swu-muted" />
-                  <input type={showPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" autoFocus
+                  <input id="recuperar-clave" autoComplete="new-password" type={showPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" autoFocus
                     className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 pl-10 pr-12 text-sm text-swu-text outline-none focus:border-swu-accent" />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-swu-muted p-1">
+                  <button type="button" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-swu-muted p-1">
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
               </div>
               <div>
-                <p className="text-xs text-swu-muted mb-1.5">Confirmar Nueva Contraseña *</p>
-                <input type={showPassword ? 'text' : 'password'} value={newPasswordConfirm} onChange={(e) => setNewPasswordConfirm(e.target.value)} placeholder="••••••••"
+                <label htmlFor="recuperar-confirmar" className="block text-xs text-swu-muted mb-1.5">Confirmar Nueva Contraseña *</label>
+                <input id="recuperar-confirmar" autoComplete="new-password" type={showPassword ? 'text' : 'password'} value={newPasswordConfirm} onChange={(e) => setNewPasswordConfirm(e.target.value)} placeholder="••••••••"
                   onKeyDown={(e) => { if (e.key === 'Enter') handleResetPassword() }}
                   className="w-full bg-swu-bg border border-swu-border rounded-xl p-3 text-sm text-swu-text outline-none focus:border-swu-accent" />
               </div>
