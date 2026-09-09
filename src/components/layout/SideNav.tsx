@@ -67,6 +67,7 @@ type NavItem =
 const mainNav: NavItem[] = [
   { id: '/', label: 'Base', sub: 'Centro de mando', icon: BaseIcon },
   { id: '/play', label: 'Duelo', sub: 'Tracker en vivo', icon: SaberIcon },
+  { id: '/jugar', label: 'Jugar online', sub: 'Partida virtual privada', icon: BlasterIcon },
   { id: '/galaxia', label: 'La Galaxia', sub: 'Universo 3D', icon: StarfighterIcon },
   { id: '/blog', label: 'Blog', sub: 'Análisis y artículos', icon: ArticuloIcon },
   { id: '/profile', label: 'Mi Perfil', sub: 'Holocrón', img: '/holocron-icon.png' },

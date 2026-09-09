@@ -15,6 +15,7 @@ const menuItems = [
 function getPageTitle(pathname: string): string {
   if (pathname === '/') return 'Base'
   if (pathname.startsWith('/play')) return 'Duelo'
+  if (pathname.startsWith('/jugar')) return 'Jugar online'
   if (pathname.startsWith('/rank')) return 'Ranking'
   if (pathname.startsWith('/amistosas')) return 'Amistosas'
   if (pathname.startsWith('/torneos')) return 'Torneos'

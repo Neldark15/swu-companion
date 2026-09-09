@@ -1,0 +1,470 @@
+[
+  {
+    "nombre": "numero",
+    "prompt": {
+      "menuTitle": "Choose a number",
+      "promptTitle": "Fuente de prueba",
+      "selectNumber": {
+        "min": -2,
+        "max": 5
+      },
+      "promptUuid": "36bda5b0-abfd-11f1-85c7-d7f467ec0b82",
+      "promptType": "number"
+    }
+  },
+  {
+    "nombre": "lista",
+    "prompt": {
+      "menuTitle": "Choose an option from the list",
+      "promptTitle": "Fuente de prueba",
+      "dropdownListOptions": [
+        "Ambush",
+        "Sentinel"
+      ],
+      "promptUuid": "36bda5b1-abfd-11f1-85c7-d7f467ec0b82"
+    }
+  },
+  {
+    "nombre": "distributeDamage",
+    "prompt": {
+      "menuTitle": "Distribute 3 damage up to 2 targets",
+      "promptTitle": "Fuente de prueba",
+      "distributeAmongTargets": {
+        "type": "distributeDamage",
+        "amount": 3,
+        "isIndirectDamage": false,
+        "canDistributeLess": false,
+        "maxTargets": 2,
+        "canChooseNoTargets": false
+      },
+      "buttons": [
+        {
+          "text": "Done",
+          "arg": "done",
+          "command": "statefulPromptResults",
+          "uuid": "36bdccc0-abfd-11f1-85c7-d7f467ec0b82"
+        }
+      ],
+      "promptUuid": "36bdccc0-abfd-11f1-85c7-d7f467ec0b82",
+      "promptType": "distributeAmongTargets"
+    }
+  },
+  {
+    "nombre": "distributeIndirectDamage",
+    "prompt": {
+      "menuTitle": "Distribute 3 indirect damage up to 2 targets",
+      "promptTitle": "Fuente de prueba",
+      "distributeAmongTargets": {
+        "type": "distributeIndirectDamage",
+        "amount": 3,
+        "isIndirectDamage": true,
+        "canDistributeLess": false,
+        "maxTargets": 2,
+        "canChooseNoTargets": false
+      },
+      "buttons": [
+        {
+          "text": "Done",
+          "arg": "done",
+          "command": "statefulPromptResults",
+          "uuid": "36bdccc1-abfd-11f1-85c7-d7f467ec0b82"
+        }
+      ],
+      "promptUuid": "36bdccc1-abfd-11f1-85c7-d7f467ec0b82",
+      "promptType": "distributeAmongTargets"
+    }
+  },
+  {
+    "nombre": "distributeHealing",
+    "prompt": {
+      "menuTitle": "Distribute 3 healing up to 2 targets",
+      "promptTitle": "Fuente de prueba",
+      "distributeAmongTargets": {
+        "type": "distributeHealing",
+        "amount": 3,
+        "isIndirectDamage": false,
+        "canDistributeLess": false,
+        "maxTargets": 2,
+        "canChooseNoTargets": false
+      },
+      "buttons": [
+        {
+          "text": "Done",
+          "arg": "done",
+          "command": "statefulPromptResults",
+          "uuid": "36bdccc2-abfd-11f1-85c7-d7f467ec0b82"
+        }
+      ],
+      "promptUuid": "36bdccc2-abfd-11f1-85c7-d7f467ec0b82",
+      "promptType": "distributeAmongTargets"
+    }
+  },
+  {
+    "nombre": "distributeTokenUpgrade",
+    "prompt": {
+      "menuTitle": "Distribute 3 Shield tokens up to 2 targets",
+      "promptTitle": "Fuente de prueba",
+      "distributeAmongTargets": {
+        "type": "distributeTokenUpgrade",
+        "tokenType": "shield",
+        "amount": 3,
+        "isIndirectDamage": false,
+        "canDistributeLess": false,
+        "maxTargets": 2,
+        "canChooseNoTargets": false
+      },
+      "buttons": [
+        {
+          "text": "Done",
+          "arg": "done",
+          "command": "statefulPromptResults",
+          "uuid": "36bdccc3-abfd-11f1-85c7-d7f467ec0b82"
+        }
+      ],
+      "promptUuid": "36bdccc3-abfd-11f1-85c7-d7f467ec0b82",
+      "promptType": "distributeAmongTargets"
+    }
+  },
+  {
+    "nombre": "orden-vacio",
+    "prompt": {
+      "menuTitle": "Choose cards for Fuente de prueba ability",
+      "promptTitle": "Fuente de prueba",
+      "promptUuid": "36beb720-abfd-11f1-85c7-d7f467ec0b82",
+      "selectCardMode": "multiple",
+      "displayCards": [
+        {
+          "cardUuid": "objetivo-a",
+          "setId": {
+            "set": "JTL",
+            "number": 132
+          },
+          "internalName": "b1-security-team",
+          "selectionState": "selectable",
+          "selectionOrder": null
+        },
+        {
+          "cardUuid": "objetivo-b",
+          "setId": {
+            "set": "JTL",
+            "number": 133
+          },
+          "internalName": "on-the-doorstep",
+          "selectionState": "selectable",
+          "selectionOrder": null
+        }
+      ],
+      "buttons": [
+        {
+          "text": "Done",
+          "arg": "done",
+          "disabled": true,
+          "command": "menuButton",
+          "uuid": "36beb720-abfd-11f1-85c7-d7f467ec0b82"
+        }
+      ],
+      "promptType": "displayCards"
+    }
+  },
+  {
+    "nombre": "orden-uno",
+    "prompt": {
+      "menuTitle": "Choose cards for Fuente de prueba ability",
+      "promptTitle": "Fuente de prueba",
+      "promptUuid": "36beb720-abfd-11f1-85c7-d7f467ec0b82",
+      "selectCardMode": "multiple",
+      "displayCards": [
+        {
+          "cardUuid": "objetivo-a",
+          "setId": {
+            "set": "JTL",
+            "number": 132
+          },
+          "internalName": "b1-security-team",
+          "selectionState": "selectable",
+          "selectionOrder": null
+        },
+        {
+          "cardUuid": "objetivo-b",
+          "setId": {
+            "set": "JTL",
+            "number": 133
+          },
+          "internalName": "on-the-doorstep",
+          "selectionState": "selected",
+          "selectionOrder": 1
+        }
+      ],
+      "buttons": [
+        {
+          "text": "Done",
+          "arg": "done",
+          "disabled": true,
+          "command": "menuButton",
+          "uuid": "36beb720-abfd-11f1-85c7-d7f467ec0b82"
+        }
+      ],
+      "promptType": "displayCards"
+    }
+  },
+  {
+    "nombre": "por-carta",
+    "prompt": {
+      "menuTitle": "Choose cards for Fuente de prueba ability",
+      "promptTitle": "Fuente de prueba",
+      "promptUuid": "36beb721-abfd-11f1-85c7-d7f467ec0b82",
+      "selectCardMode": "multiple",
+      "displayCards": [
+        {
+          "cardUuid": "objetivo-a",
+          "setId": {
+            "set": "JTL",
+            "number": 132
+          },
+          "internalName": "b1-security-team",
+          "selectionState": "selectable"
+        },
+        {
+          "cardUuid": "objetivo-b",
+          "setId": {
+            "set": "JTL",
+            "number": 133
+          },
+          "internalName": "on-the-doorstep",
+          "selectionState": "selectable"
+        }
+      ],
+      "perCardButtons": [
+        {
+          "text": "Top",
+          "arg": "top",
+          "command": "perCardMenuButton",
+          "uuid": "36beb721-abfd-11f1-85c7-d7f467ec0b82"
+        },
+        {
+          "text": "Bottom",
+          "arg": "bottom",
+          "command": "perCardMenuButton",
+          "uuid": "36beb721-abfd-11f1-85c7-d7f467ec0b82"
+        }
+      ],
+      "promptType": "displayCards"
+    }
+  },
+  {
+    "nombre": "solo-ver",
+    "prompt": {
+      "menuTitle": "View cards for Fuente de prueba ability",
+      "promptTitle": "Fuente de prueba",
+      "promptUuid": "36beb722-abfd-11f1-85c7-d7f467ec0b82",
+      "selectCardMode": null,
+      "displayCards": [
+        {
+          "cardUuid": "objetivo-a",
+          "setId": {
+            "set": "JTL",
+            "number": 132
+          },
+          "internalName": "b1-security-team",
+          "selectionState": "viewOnly"
+        },
+        {
+          "cardUuid": "objetivo-b",
+          "setId": {
+            "set": "JTL",
+            "number": 133
+          },
+          "internalName": "on-the-doorstep",
+          "selectionState": "viewOnly"
+        }
+      ],
+      "buttons": [
+        {
+          "text": "Done",
+          "arg": "done",
+          "command": "menuButton",
+          "uuid": "36beb722-abfd-11f1-85c7-d7f467ec0b82"
+        }
+      ],
+      "promptType": "displayCards"
+    }
+  },
+  {
+    "nombre": "opcional",
+    "prompt": {
+      "menuTitle": "You may trigger this ability",
+      "buttons": [
+        {
+          "text": "Trigger",
+          "arg": "trigger",
+          "sourceCard": {
+            "uuid": "objetivo-a",
+            "setId": {
+              "set": "JTL",
+              "number": 132
+            },
+            "internalName": "b1-security-team",
+            "name": "B1 Security Team"
+          },
+          "label": "Draw a card",
+          "command": "menuButton",
+          "uuid": "36bede30-abfd-11f1-85c7-d7f467ec0b82"
+        },
+        {
+          "text": "Pass",
+          "arg": "pass",
+          "command": "menuButton",
+          "uuid": "36bede30-abfd-11f1-85c7-d7f467ec0b82"
+        }
+      ],
+      "promptTitle": "B1 Security Team",
+      "promptUuid": "36bede30-abfd-11f1-85c7-d7f467ec0b82",
+      "promptType": "optionalTrigger"
+    }
+  },
+  {
+    "nombre": "pausa",
+    "prompt": {
+      "menuTitle": "Pausing",
+      "buttons": [
+        {
+          "text": "Skip",
+          "arg": "done",
+          "command": "menuButton",
+          "uuid": "36bede31-abfd-11f1-85c7-d7f467ec0b82"
+        }
+      ],
+      "promptTitle": "Fuente de prueba",
+      "promptUuid": "36bede31-abfd-11f1-85c7-d7f467ec0b82",
+      "promptType": "passDelay"
+    }
+  },
+  {
+    "nombre": "menu-multiple",
+    "prompt": {
+      "menuTitle": "Select up to 2 choices and then choose \"Done\"",
+      "buttons": [
+        {
+          "text": "Yourself",
+          "arg": 0,
+          "selected": false,
+          "command": "menuButton",
+          "uuid": "36bede32-abfd-11f1-85c7-d7f467ec0b82"
+        },
+        {
+          "text": "Opponent",
+          "arg": 1,
+          "selected": false,
+          "command": "menuButton",
+          "uuid": "36bede32-abfd-11f1-85c7-d7f467ec0b82"
+        },
+        {
+          "text": "Done",
+          "arg": 2,
+          "selected": false,
+          "command": "menuButton",
+          "uuid": "36bede32-abfd-11f1-85c7-d7f467ec0b82"
+        }
+      ],
+      "controls": [],
+      "promptTitle": "Fuente de prueba",
+      "promptUuid": "36bede32-abfd-11f1-85c7-d7f467ec0b82"
+    }
+  },
+  {
+    "nombre": "menu-multiple-elegido",
+    "prompt": {
+      "menuTitle": "Select up to 2 choices and then choose \"Done\"",
+      "buttons": [
+        {
+          "text": "Yourself",
+          "arg": 0,
+          "selected": false,
+          "command": "menuButton",
+          "uuid": "36bede32-abfd-11f1-85c7-d7f467ec0b82"
+        },
+        {
+          "text": "Opponent",
+          "arg": 1,
+          "selected": true,
+          "command": "menuButton",
+          "uuid": "36bede32-abfd-11f1-85c7-d7f467ec0b82"
+        },
+        {
+          "text": "Done",
+          "arg": 2,
+          "selected": false,
+          "command": "menuButton",
+          "uuid": "36bede32-abfd-11f1-85c7-d7f467ec0b82"
+        }
+      ],
+      "controls": [],
+      "promptTitle": "Fuente de prueba",
+      "promptUuid": "36bede32-abfd-11f1-85c7-d7f467ec0b82"
+    }
+  },
+  {
+    "nombre": "grupo",
+    "prompt": {
+      "menuTitle": "Resolve \"Advantage\"",
+      "buttons": [
+        {
+          "text": "Resolve next",
+          "arg": "next",
+          "command": "menuButton",
+          "uuid": "prueba-grupo"
+        },
+        {
+          "text": "Resolve all (3)",
+          "arg": "all",
+          "command": "menuButton",
+          "uuid": "prueba-grupo"
+        }
+      ],
+      "promptTitle": "Fuente de prueba",
+      "promptUuid": "prueba-grupo",
+      "promptType": "batchTriggerResolution",
+      "batchTriggerResolution": {
+        "sourceCard": {
+          "uuid": "objetivo-a",
+          "setId": {
+            "set": "JTL",
+            "number": 132
+          },
+          "internalName": "b1-security-team",
+          "name": "B1 Security Team"
+        },
+        "title": "Advantage",
+        "remainingCount": 3
+      }
+    }
+  },
+  {
+    "nombre": "orden-habilidades",
+    "prompt": {
+      "menuTitle": "You have multiple triggers to resolve. Choose which to resolve first:",
+      "buttons": [
+        {
+          "text": "Draw a card",
+          "arg": "0",
+          "sourceCard": {
+            "uuid": "objetivo-a",
+            "setId": {
+              "set": "JTL",
+              "number": 132
+            },
+            "internalName": "b1-security-team",
+            "name": "B1 Security Team"
+          },
+          "hasLegalEffects": true,
+          "count": 2,
+          "command": "menuButton",
+          "uuid": "prueba-orden-habilidades"
+        }
+      ],
+      "promptTitle": "Fuente de prueba",
+      "promptUuid": "prueba-orden-habilidades",
+      "promptType": "triggerWindow"
+    }
+  }
+]

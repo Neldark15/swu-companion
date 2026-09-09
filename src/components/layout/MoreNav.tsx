@@ -56,6 +56,7 @@ const GROUPS: MoreGroup[] = [
     title: 'Jugar',
     items: [
       { to: '/play', label: 'Duelo', sub: 'Tracker en vivo', icon: SaberIcon },
+      { to: '/jugar', label: 'Jugar online', sub: 'Partida virtual privada', icon: BlasterIcon },
       { to: '/torneos', label: 'Torneos', sub: 'Lo que viene y el archivo', icon: MandoTrophyIcon },
       // Vive en «Jugar»: se consulta EN la mesa, en medio de una partida.
       { to: '/envivo', label: 'En Vivo', sub: 'Transmisión de torneos', icon: EmisionIcon },
