@@ -24,6 +24,15 @@ export function BancoJugar() {
   const valor = params.get('jugador')
   const jugador = valor === 'beta' || valor === 'gamma' ? valor : 'alpha'
   const codigo = params.get('sala') ?? undefined
+  /* Las dos pantallas que la gente SÍ puede ver hoy —el módulo sin servicio y
+     el módulo con la variable mal escrita— viven detrás de la puerta de
+     instalación en `/jugar`, así que sin este selector no hay forma de mirarlas
+     en un navegador normal. Y son justo las dos que se publican: el servicio
+     todavía no está encendido. */
+  const servicio = params.get('servicio')
+  const url = servicio === 'vacio' ? ''
+    : servicio === 'malo' ? 'juego.swusv.com/sala?x=1'
+    : 'http://127.0.0.1:3001'
   const token = useCallback(() => Promise.resolve(`dev:${jugador}`), [jugador])
   const abrir = useCallback((sala: SalaJuego) => {
     setParams({ jugador, sala: sala.codigo }, { replace: true })
@@ -38,10 +47,16 @@ export function BancoJugar() {
         onChange={event => setParams({ jugador: event.target.value, ...(codigo ? { sala: codigo } : {}) })}>
         <option value="alpha">Piloto Alfa</option><option value="beta">Piloto Beta</option><option value="gamma">Tercero (sin asiento)</option>
       </select></label>
-        <a className="underline min-h-10 flex items-center" target="_blank" rel="noreferrer" href={`/banco-jugar?jugador=${otro}${codigo ? `&sala=${codigo}` : ''}`}>Abrir rival en otra pestaña</a></div>
+        <a className="underline min-h-10 flex items-center" target="_blank" rel="noreferrer" href={`/banco-jugar?jugador=${otro}${codigo ? `&sala=${codigo}` : ''}`}>Abrir rival en otra pestaña</a>
+        <label>Servicio <select className="rounded bg-swu-surface border border-swu-border px-2 py-2" value={servicio ?? 'local'}
+          onChange={event => setParams({ jugador, servicio: event.target.value, ...(codigo ? { sala: codigo } : {}) })}>
+          <option value="local">Local (127.0.0.1:3001)</option>
+          <option value="vacio">Sin configurar — lo que se publica hoy</option>
+          <option value="malo">VITE_JUEGO_URL mal escrita</option>
+        </select></label></div>
     </div>
-    <EspacioJuego key={`${jugador}:${codigo ?? ''}`} usuarioId={`dev-${jugador}`} obtenerToken={token}
-      url="http://127.0.0.1:3001" cargarMazos={mazosDePrueba} codigoInicial={codigo}
+    <EspacioJuego key={`${jugador}:${codigo ?? ''}:${servicio ?? ''}`} usuarioId={`dev-${jugador}`} obtenerToken={token}
+      url={url} cargarMazos={mazosDePrueba} codigoInicial={codigo}
       alAbrirSala={abrir} alSalir={salir} desarrollo />
   </main>
 }

@@ -4,7 +4,7 @@ import { ArrowLeft, Check, Copy, Flag, Gamepad2, Link2, LoaderCircle, LogIn, Ref
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../services/supabase'
 import { Sheet } from '../../components/ui/Sheet'
-import { ClienteJuego, ErrorJuego, type ConexionJuego } from './cliente'
+import { ClienteJuego, ErrorJuego, normalizarUrlJuego, type ConexionJuego } from './cliente'
 import { cargarMazosPropios, obtenerTokenJuego, type OpcionMazo } from './mazosCloud'
 import { importarMazoOnline } from './mazos'
 import { TableroJuego } from './TableroJuego'
@@ -67,7 +67,21 @@ export function EspacioJuego(props: PropsEspacio) {
 
 function SesionJuego({ usuarioId, url, obtenerToken, cargarMazos, codigoInicial,
   alAbrirSala, alSalir, desarrollo = false, alReiniciar }: PropsEspacio & { alReiniciar: () => void }) {
-  const cliente = useMemo(() => new ClienteJuego(url, usuarioId, obtenerToken), [url, usuarioId, obtenerToken])
+  /* `normalizarUrlJuego` LANZA con una dirección mal escrita, y acá se llamaba
+     dentro del constructor sin red debajo: `VITE_JUEGO_URL=juego.swusv.com`
+     —sin protocolo, o con una barra de más, o con un `?` de seguimiento— no
+     daba la pantalla de «todavía no hay servicio», tiraba la app ENTERA al
+     ErrorBoundary raíz. Y en la PWA instalada no hay barra de direcciones para
+     salir de ahí. Es justo el error que se comete al cargar la variable a mano
+     el día que se enciende el módulo. */
+  const [urlValida, urlMalEscrita] = useMemo(() => {
+    if (!url.trim()) return ['', false] as const
+    try { return [normalizarUrlJuego(url), false] as const } catch { return ['', true] as const }
+  }, [url])
+  const cliente = useMemo(
+    () => new ClienteJuego(urlValida, usuarioId, obtenerToken),
+    [urlValida, usuarioId, obtenerToken],
+  )
   const [nombre, setNombre] = useState('Tu cuenta')
   const [cargando, setCargando] = useState(true)
   const [disponible, setDisponible] = useState(false)
@@ -210,9 +224,24 @@ function SesionJuego({ usuarioId, url, obtenerToken, cargarMazos, codigoInicial,
     } catch (error) { setError(error instanceof Error ? error.message : 'No pudimos leer el JSON.') }
   }
 
-  if (!url) return <section className="p-5 space-y-4">
+  if (!urlValida) return <section className="p-5 space-y-4">
     <Gamepad2 size={32} className="text-swu-accent-texto" /><h1 className="text-2xl font-bold">Jugar online</h1>
-    <p className="text-sm text-swu-muted">Estamos preparando las partidas virtuales de HOLOCRON. Este módulo todavía no tiene un servicio de partidas disponible.</p>
+    <p className="text-sm text-swu-muted">
+      Partidas de verdad contra otro jugador de la comunidad: tu mazo, un código de sala y
+      el reglamento aplicado por el servidor. <span className="text-swu-text font-bold">Todavía no está encendido</span> —
+      falta levantar el servicio de partidas.
+    </p>
+    <p className="text-sm text-swu-muted">
+      Mientras tanto podés dejar listo el mazo con el que vas a entrar: va a ser Premier, 1 contra 1.
+    </p>
+    {urlMalEscrita && (
+      /* Solo lo ve quien administra: si la variable está cargada pero mal, sin
+         este renglón el síntoma es idéntico a no haberla cargado nunca. */
+      <p role="alert" className="rounded-xl border border-amber-400/40 bg-amber-400/10 p-3 text-xs text-amber-100">
+        La dirección configurada en <code>VITE_JUEGO_URL</code> no es válida: tiene que ser un origen
+        HTTPS pelado, sin ruta, sin query y sin usuario (por ejemplo <code>https://juego.swusv.com</code>).
+      </p>
+    )}
     <Link to="/decks" className={`${secundario} inline-flex`}>Ver mis mazos</Link>
   </section>
 

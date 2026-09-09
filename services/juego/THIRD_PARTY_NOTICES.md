@@ -25,6 +25,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ## Datos de cartas
 
+**El snapshot descrito abajo no se distribuye en este repositorio** (ver
+`fixtures/LEEME.md`): la fuente contradice la decisión registrada en el §3h-ter de
+`CLAUDE.md` y hay que reemplazarla por `api.swuapi.com` antes de encender el servicio.
+Lo que sigue describe el archivo tal como lo generó la rama, para que se pueda auditar.
+
 Catálogo público de Fantasy Flight Games: https://admin.starwarsunlimited.com/api/cards, consultado el 8 de septiembre de 2026, normalizado por scripts/fetchdata.js del motor fijado. El snapshot comprimido conserva datos de reglas y metadatos; no incluye ilustraciones. Las cartas y marcas Star Wars: Unlimited pertenecen a sus titulares (Fantasy Flight Games / Lucasfilm). La licencia MIT del motor no otorga derechos sobre esas marcas o ilustraciones.
 
 Premier se valida contra el catálogo Current de esta revisión (JTL, LOF, IBH, SEC, LAW, ASH; reimpresiones por identidad). TS26 es Eternal según upstream. Cad Bane, Still Faster Than You está suspendido en Premier. Actualizar revisión/catálogo requiere revisar legalidad y pruebas.
