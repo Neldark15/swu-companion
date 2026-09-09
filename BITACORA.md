@@ -12,6 +12,18 @@ Registro compartido entre Claude y ChatGPT. **La entrada más nueva va arriba.**
 
 ---
 
+## 2026-09-09 · ChatGPT · Jugar online: módulo y uniones rápidas
+**Qué cambió:** Se movió el acceso rápido a **Jugar online** dentro de **Mini Juegos** (`/jugar`) para que aparezca en esa grilla, y se mejoró el ingreso por código en sala para evitar intentos inválidos. El campo ahora acepta solo `A-Z2-9`, lo normaliza a 10 caracteres, muestra feedback cuando el formato no es correcto y bloquea el botón de unión hasta que el código sea válido y el mazo esté listo.
+**Archivos:** `src/features/home/HomePage.tsx`, `src/features/jugar/JugarPage.tsx`.
+**Cómo verificar:** `npm run lint` (0 errores, 6 advertencias preexistentes), `npm run build` exitoso; sin cambios de servicios ni schema. En móvil y escritorio, probar `/` → Mini Juegos → Jugar online y validar que el botón de “Entrar a la sala” no habilita hasta pegar un código de 10 chars válidos.
+**Pendiente / notas para el siguiente:** Confirmar configuración de producción de juego en `services/juego` (`VITE_JUEGO_URL`, `JUEGO_ORIGENES`, SSL/proxy) y desplegar; el front ahora tiene la nueva ruta visual pero depende de ese servicio activo para funcionar.
+
+## 2026-09-08 · ChatGPT · Jugar online Premier privado
+**Qué cambió:** Primera beta aprobada por Nel: partidas reales Premier casual BO1 entre dos usuarios, salas por código, mazos propios o JSON, preparación, tablero móvil/escritorio y reconexión. Motor automático Forceteki fijado y servicio propio autenticado, con vistas privadas y resultado. Tarjeta de jugador, HomePage, módulos previos y estadísticas conservados.
+**Archivos:** `services/juego/`, `src/features/jugar/`, rutas/menús, pruebas y fixtures, `scripts/vite-jugar.config.mts`, variables de ejemplo e ignores. Diseño/plan en `docs/superpowers/`; operación en README del servicio, reglas en CLAUDE §5n y AGENTS.
+**Cómo verificar:** Node24: build y lint pasan (0 errores, 6 avisos previos); 29 pruebas motor+salas sin skips, programas mazos/cliente/vistas y 7 pruebas de reconexión Socket.IO pasan. Revisiones independientes cerraron fallos de comando por carta Improvise, cupo concurrente de sockets y respuesta vieja al iniciar otra partida. Dos usuarios en navegador: setup, recursos, unidades, habilidad Han, cambio de ronda, ataque/daño de base, ampliación, recarga, concesión y regreso al lobby. Móvil 390×844 y escritorio 1280×900 revisados; banco/identidades de prueba/servicio fuera del build.
+**Pendiente / notas para el siguiente:** Rama `feature/jugar-online`, PR borrador [#3](https://github.com/Neldark15/swu-companion/pull/3), implementación `7bb3422` + `032db71`; no está publicado el servicio ni se aplicó SQL/DNS. Necesita proceso Node24 único con volumen, HTTPS, Auth/orígenes y VITE_JUEGO_URL para habilitar producción. Reinicios interrumpen partidas sin adjudicar ganador, mientras la desconexión de red sí permite volver al proceso vivo. Docker incluido, despliegue Docker no probado. Compatibilidad limitada al pin/sets y cartas implementadas; rechazos explícitos. Sin cuentas ni datos de prueba en Supabase real. No se midió teléfono físico.
+
 ## 2026-09-07 · ChatGPT · Publicación autorizada del escáner y funciones
 **Qué cambió:** Nel autoriza explícitamente publicar la tanda del PR #2: escáner automático, faltantes del mazo y accesos. Se prepara la integración de `feature/escaner-y-funciones` en `main`, conservando la tarjeta de jugador. La autorización sustituye el estado de borrador descrito en la entrada anterior.
 **Archivos:** Implementación `400ed32`, esta constancia y corrección del enlace a `/profile` en el estado sin perfil de PanelFaltantesMazo. Sin SQL ni cambios de configuración del servicio de datos.

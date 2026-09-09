@@ -9,6 +9,10 @@ import { useRutaPersistente } from './hooks/useRutaPersistente'
 // Lazy-loaded pages — each becomes its own chunk
 const HomePage = lazy(() => import('./features/home/HomePage').then(m => ({ default: m.HomePage })))
 const PlayPage = lazy(() => import('./features/play/PlayPage').then(m => ({ default: m.PlayPage })))
+const JugarPage = lazy(() => import('./features/jugar/JugarPage').then(m => ({ default: m.JugarPage })))
+const BancoJugar = import.meta.env.DEV
+  ? lazy(() => import('./features/jugar/BancoJugar').then(m => ({ default: m.BancoJugar })))
+  : null
 const TrackerPage = lazy(() => import('./features/play/TrackerPage').then(m => ({ default: m.TrackerPage })))
 const SavedMatchesPage = lazy(() => import('./features/play/SavedMatchesPage').then(m => ({ default: m.SavedMatchesPage })))
 const JoinEventPage = lazy(() => import('./features/events/JoinEventPage').then(m => ({ default: m.JoinEventPage })))
@@ -227,6 +231,7 @@ export default function App() {
       <ErrorBoundary>
       <Suspense fallback={<PageLoader />}>
         <Routes>
+          {import.meta.env.DEV && BancoJugar && <Route path="/banco-jugar" element={<BancoJugar />} />}
           {/* ── Admin panel — own layout, isAdmin guard inside ── */}
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
@@ -336,6 +341,9 @@ export default function App() {
             <Route path="/sobres" element={<P><SobresPage /></P>} />
             <Route path="/binder-digital" element={<P><BinderDigital /></P>} />
             <Route path="/laboratorio" element={<P><LabPage /></P>} />
+            <Route path="/jugar" element={<JugarPage />} />
+            <Route path="/jugar/sala/:codigo" element={<JugarPage />} />
+            <Route path="/jugar/partida/:codigo" element={<JugarPage />} />
             {/* Pegada al Laboratorio porque es su continuación: allí se MIDE un
                 emparejamiento y aquí se VE una partida de esa misma medición. */}
             <Route path="/mesa" element={<P><MesaPage /></P>} />

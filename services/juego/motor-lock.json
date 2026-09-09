@@ -1,0 +1,34 @@
+{
+  "repositorio": "https://github.com/SWU-Karabast/forceteki.git",
+  "revision": "139c14a240b75498b403ccdb06144a136972ecb6",
+  "dependenciasSha256": "7398fdac66cc1ebea53a7a6f6c983ab366ef3dba99972e21899f080e549976bd",
+  "catalogo": {
+    "archivo": "fixtures/catalogo-cartas.json.gz",
+    "sha256": "ac63c3a67bf7fa5ea2b0aaa8533f6924a06da4edcbffe1fab2039f62bad2776f",
+    "fuente": "https://admin.starwarsunlimited.com/api/cards",
+    "fecha": "2026-09-08",
+    "cartas": 2358
+  },
+  "formato": {
+    "nombre": "premier",
+    "cardPool": "current",
+    "sets": [
+      "JTL",
+      "LOF",
+      "IBH",
+      "SEC",
+      "LAW",
+      "ASH"
+    ],
+    "suspendidas": [
+      "5648009238"
+    ],
+    "fuentes": [
+      "https://starwarsunlimited.com/articles/updates-and-rotations",
+      "https://starwarsunlimited.com/articles/cad-banned-fr"
+    ]
+  },
+  "limitesCopias": {
+    "2177194044": 15
+  }
+}

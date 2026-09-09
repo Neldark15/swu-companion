@@ -206,6 +206,9 @@ const mainSystems: Sistema[] = [
   { icon: SobreIcon,      label: 'Sobredosis',   tone: 'amber',  to: '/sobres',  cat: 'minijuegos', auth: true },
   { icon: HolocronIcon,   label: 'Trivia',       tone: 'cyan',   to: '/trivia',  cat: 'minijuegos', auth: true },
 
+  // Juego online: acceso directo al modo de sala privada de SWU.
+  { icon: DatapadIcon, label: 'Jugar online', tone: 'green', to: '/jugar', cat: 'minijuegos', auth: true },
+
   // Los gastan. Comparten la misma bolsa: `creditos_saldo()` resta de las dos.
   { icon: SaberIcon, label: 'Taller Kyber', tone: 'amber', to: '/sable', cat: 'minijuegos', auth: true },
   { icon: PlanetaAnilladoIcon, label: 'Terraformar', tone: 'green', to: '/terraformar', cat: 'minijuegos', auth: true },

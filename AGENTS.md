@@ -11,6 +11,7 @@ Módulos LIVE: colección (`/collection`, escáner `/scan`), La Bóveda (sobres 
 Vite 7 + React 19 + TypeScript 5.9 (strict, `noUnusedLocals/Parameters`) + Tailwind 4 + Zustand 5 + Dexie 4 (IndexedDB, **local-first**) + React Router 7 (lazy) + framer-motion + three.js pelado (sin R3F). Backend: Supabase (Postgres + Auth + Storage + Realtime + PostgREST). Hosting: Vercel, Node 24.
 - `src/App.tsx` — router (~130 rutas lazy). `<P>` = AuthGate (ruta con login). Los `/banco-*` son bancos de prueba visuales SOLO en dev (`import.meta.env.DEV`, se podan del bundle).
 - `src/features/<módulo>/` — 41 carpetas de feature (cards, collection, sobres, torneos, events, liga, creadores, meta, rulings, galaxia, mesa, stream, lab, sable, planeta, mercado, etc.).
+- `src/features/jugar/` y `services/juego/` — beta Premier privado BO1; frontend lazy + servicio Node24/Socket.IO/SQLite separado. Configuración y operación en `services/juego/README.md`, decisiones en CLAUDE §5n. No confundir con Mesa/SWUSIM.
 - `src/services/` — ~120 servicios. Claves: `supabase.ts` (cliente), `swuApi.ts` (catálogo Dexie + red), `db/` (esquema Dexie), `sync.ts` (patrón de referencia para joins), `sobres.ts`, `ligaService.ts`, `tournamentCloud.ts`, `swiss.ts`, `pricing.ts`, `cardHash.ts`, `rulingsService.ts`.
 - `src/hooks/useAuth.ts` — sesión (Zustand persist), `useRutaPersistente.ts` — restaura la ruta en la PWA.
 - `src/sw.ts` — service worker propio (`injectManifest`); `src/components/UpdatePrompt.tsx` — aviso de versión nueva.
@@ -93,3 +94,5 @@ Lo que NO se publica solo: las migraciones SQL (`supabase/migrations/`) se aplic
 - Todo hallazgo medido que cambie una regla va también al `CLAUDE.md`, como sección nueva al final con el § siguiente; no reescribir secciones ajenas.
 
 - §5m Escáner: guías y recortes comparten `encuadreEscaner.ts` y mantienen proporción física; `CicloEscaner` separa arte/OCR, confirma dos frames y descarta resultados viejos. No bajar umbrales del hash. `updateCollectionQuantity` devuelve éxito local booleano (sin cola durable aún). `getScanQuantity` filtra perfil exacto. Faltantes de mazo suma impresiones compatibles de colección física y enlaza a mercado filtrado. Banco `/banco-escaner` e imágenes solo DEV. Ver pruebas y limitaciones en §5m.
+
+- §5n Jugar online: preparar motor fijado antes de probar; `npm --prefix services/juego test` + `run test:motor`, programas `scripts/jugar-{cliente,conexion,mazos,vista}.test.mts`. Banco DEV con `npm run dev:jugar`. Sala/hand privadas por Auth; UUID inmutable, reconexión con GET, generación al iniciar otra partida. Un proceso/volumen; reinicio interrumpe sin ganador. Hosting y `VITE_JUEGO_URL` pendientes de configurar para publicar; sin SQL ni estadísticas nuevas.
