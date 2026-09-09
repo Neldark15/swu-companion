@@ -14,6 +14,14 @@ const boton = 'min-h-11 rounded-xl px-4 py-2.5 text-sm font-semibold transition-
 const principal = `${boton} bg-swu-accent text-swu-bg hover:brightness-110`
 const secundario = `${boton} border border-swu-border bg-swu-surface text-swu-text hover:bg-swu-surface-hover`
 const campo = 'w-full min-h-11 rounded-xl border border-swu-border bg-swu-bg px-3 py-2 text-sm text-swu-text focus:outline-2 focus:outline-swu-accent'
+const CODIGO_REGEXP = /^[A-Z2-9]{10}$/
+
+function limpiarCodigoSala(valor: string) {
+  return valor
+    .toUpperCase()
+    .replace(/[^A-Z2-9]/g, '')
+    .slice(0, 10)
+}
 
 export function JugarPage() {
   const usuarioId = useAuth(s => s.supabaseUser?.id)
@@ -68,7 +76,7 @@ function SesionJuego({ usuarioId, url, obtenerToken, cargarMazos, codigoInicial,
   const [mazos, setMazos] = useState<OpcionMazo[]>([])
   const [mazoId, setMazoId] = useState('')
   const [sala, setSala] = useState<SalaJuego | null>(null)
-  const [codigo, setCodigo] = useState(codigoInicial?.toUpperCase() ?? '')
+  const [codigo, setCodigo] = useState(() => limpiarCodigoSala(codigoInicial ?? ''))
   const [ocupado, setOcupado] = useState(false)
   const [conexion, setConexion] = useState<ConexionJuego>('conectando')
   const [importando, setImportando] = useState(false)
@@ -107,8 +115,9 @@ function SesionJuego({ usuarioId, url, obtenerToken, cargarMazos, codigoInicial,
         if (!activa) return
         if (propia) aceptarSala(propia)
         else if (codigoInicial) {
+          const codigoLimpio = limpiarCodigoSala(codigoInicial)
           // Un enlace de invitación no concede acceso a la sala antes de unirse.
-          try { aceptarSala(await cliente.leer(codigoInicial.toUpperCase())) } catch (error) {
+          try { if (codigoLimpio) aceptarSala(await cliente.leer(codigoLimpio)) } catch (error) {
             if (!(error instanceof ErrorJuego && [403, 404].includes(error.estado))) throw error
           }
         }
@@ -259,8 +268,9 @@ function SesionJuego({ usuarioId, url, obtenerToken, cargarMazos, codigoInicial,
           <button className={secundario} aria-label="Actualizar lista de mazos" disabled={ocupado} onClick={() => void ejecutar(async () => { const opciones = await cargarMazos(cliente); setMazos(opciones); setErrorMazos(null) })}><RefreshCw size={16} /></button></div>
         {sala ? <button className={`${secundario} w-full`} disabled={!elegido || bloqueado || propio?.preparado} onClick={() => void ejecutar(async () => { if (elegido) aceptarSala(await cliente.cambiarMazo(sala.codigo, elegido)) })}>Usar este mazo en la sala</button>
           : <><button className={`${principal} w-full flex items-center justify-center gap-2`} disabled={!elegido || ocupado} onClick={() => void ejecutar(async () => { if (elegido) abrirSala(await cliente.crear(elegido)) })}><Gamepad2 size={18} /> Crear sala privada</button>
-            <div className="border-t border-swu-border pt-3 space-y-2"><label className="block text-sm text-swu-muted">Código de tu rival<input className={`${campo} mt-1 uppercase font-mono tracking-widest`} value={codigo} maxLength={16} autoCapitalize="characters" autoCorrect="off" placeholder="CÓDIGO" onChange={event => setCodigo(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} /></label>
-              <button className={`${secundario} w-full`} disabled={!elegido || codigo.length < 6 || ocupado} onClick={() => void ejecutar(async () => { if (elegido) abrirSala(await cliente.unirse(codigo, elegido)) })}>Entrar a la sala</button></div></>}
+            <div className="border-t border-swu-border pt-3 space-y-2"><label className="block text-sm text-swu-muted">Código de tu rival<input className={`${campo} mt-1 uppercase font-mono tracking-widest`} value={codigo} maxLength={10} autoCapitalize="characters" autoCorrect="off" inputMode="text" placeholder="CÓDIGO" onChange={event => setCodigo(limpiarCodigoSala(event.target.value))} /></label>
+              {codigo.length > 0 && !CODIGO_REGEXP.test(codigo) && <p className="text-xs text-amber-300">El código de sala debe tener 10 caracteres (A-Z y 2-9).</p>}
+              <button className={`${secundario} w-full`} disabled={!elegido || !CODIGO_REGEXP.test(codigo) || ocupado} onClick={() => void ejecutar(async () => { if (elegido) abrirSala(await cliente.unirse(codigo, elegido)) })}>Entrar a la sala</button></div></>}
         <p className="flex gap-2 text-xs text-swu-muted"><ShieldCheck size={15} className="shrink-0" /><span>Las habilidades se resuelven automáticamente. Si alguna carta aún no es compatible, te indicaremos cuál antes de empezar.</span></p>
       </section>}
 
