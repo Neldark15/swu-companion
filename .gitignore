@@ -30,6 +30,12 @@ scripts/.cache/
 .env*.local
 .claude/
 
+# Motor de partidas y datos privados del servicio Node (no son el frontend).
+services/juego/.motor/
+services/juego/.datos/
+services/juego/*.sqlite*
+.superpowers/
+
 
 # Los originales de las imágenes de la liga. Se versiona el .webp convertido
 # (20-27 KB); el PNG de 1,4-2 MB no lo usa nadie y `public/` se DESPLIEGA.

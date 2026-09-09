@@ -1,0 +1,4730 @@
+[
+  {
+    "momento": "iniciativa",
+    "usuarioId": "dev-alpha",
+    "estado": {
+      "playerUpdate": "dev-alpha",
+      "id": "prueba-privacidad",
+      "manualMode": false,
+      "owner": "dev-alpha",
+      "players": {
+        "dev-alpha": {
+          "cardPiles": {
+            "hand": [],
+            "outsideTheGame": [
+              {
+                "id": "4571900905",
+                "setId": {
+                  "set": "LOF"
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [],
+                "zone": "outsideTheGame",
+                "name": "The Force",
+                "type": "tokenCard",
+                "uuid": "Card_360",
+                "printedType": "tokenCard",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "capturedZone": [],
+            "resources": [],
+            "groundArena": [],
+            "spaceArena": [],
+            "discard": [],
+            "credits": []
+          },
+          "disconnected": false,
+          "hasInitiative": false,
+          "availableResources": 0,
+          "leader": {
+            "id": "0616724418",
+            "setId": {
+              "set": "JTL",
+              "number": 17
+            },
+            "controllerId": "dev-alpha",
+            "ownerId": "dev-alpha",
+            "aspects": [
+              "cunning",
+              "heroism"
+            ],
+            "zone": "base",
+            "name": "Han Solo",
+            "power": 3,
+            "hp": 7,
+            "type": "leader",
+            "uuid": "Card_344",
+            "printedType": "leader",
+            "isBlanked": false,
+            "selectable": false,
+            "exhausted": false,
+            "epicDeployActionSpent": false
+          },
+          "base": {
+            "id": "7720892024",
+            "setId": {
+              "set": "JTL",
+              "number": 26
+            },
+            "controllerId": "dev-alpha",
+            "ownerId": "dev-alpha",
+            "aspects": [
+              "aggression"
+            ],
+            "zone": "base",
+            "name": "Massassi Temple",
+            "hp": 30,
+            "type": "base",
+            "uuid": "Card_342",
+            "printedType": "base",
+            "isBlanked": false,
+            "selectable": false,
+            "damage": 0,
+            "epicActionSpent": false,
+            "isDefender": false,
+            "upgrades": []
+          },
+          "id": "dev-alpha",
+          "left": false,
+          "name": "Piloto Alfa",
+          "phase": "setup",
+          "promptedActionWindows": {
+            "setup": true,
+            "action": true,
+            "regroup": true
+          },
+          "user": {
+            "id": "dev-alpha",
+            "username": "Piloto Alfa"
+          },
+          "promptState": {
+            "selectOrder": false,
+            "dropdownListOptions": [],
+            "menuTitle": "Waiting for opponent",
+            "buttons": [],
+            "displayCards": [],
+            "perCardButtons": []
+          },
+          "aspects": [
+            "cunning",
+            "heroism",
+            "aggression"
+          ],
+          "forceToken": {
+            "active": false
+          },
+          "credits": [],
+          "mainTimeRemainingSeconds": 120,
+          "timeRemainingStatus": "NoAlert",
+          "timerIsRunning": false,
+          "numCardsInDeck": 50
+        },
+        "dev-beta": {
+          "cardPiles": {
+            "hand": [],
+            "outsideTheGame": [
+              {
+                "id": "4571900905",
+                "setId": {
+                  "set": "LOF"
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [],
+                "zone": "outsideTheGame",
+                "name": "The Force",
+                "type": "tokenCard",
+                "uuid": "Card_383",
+                "printedType": "tokenCard",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "capturedZone": [],
+            "resources": [],
+            "groundArena": [],
+            "spaceArena": [],
+            "discard": [],
+            "credits": []
+          },
+          "disconnected": false,
+          "hasInitiative": false,
+          "availableResources": 0,
+          "leader": {
+            "id": "0766281795",
+            "setId": {
+              "set": "JTL",
+              "number": 12
+            },
+            "controllerId": "dev-beta",
+            "ownerId": "dev-beta",
+            "aspects": [
+              "aggression",
+              "heroism"
+            ],
+            "zone": "base",
+            "name": "Luke Skywalker",
+            "power": 5,
+            "hp": 6,
+            "type": "leader",
+            "uuid": "Card_361",
+            "printedType": "leader",
+            "isBlanked": false,
+            "selectable": false,
+            "exhausted": false,
+            "epicDeployActionSpent": false
+          },
+          "base": {
+            "id": "6093792814",
+            "setId": {
+              "set": "JTL",
+              "number": 29
+            },
+            "controllerId": "dev-beta",
+            "ownerId": "dev-beta",
+            "aspects": [
+              "cunning"
+            ],
+            "zone": "base",
+            "name": "Chopper Base",
+            "hp": 30,
+            "type": "base",
+            "uuid": "Card_343",
+            "printedType": "base",
+            "isBlanked": false,
+            "selectable": false,
+            "damage": 0,
+            "epicActionSpent": false,
+            "isDefender": false,
+            "upgrades": []
+          },
+          "id": "dev-beta",
+          "left": false,
+          "name": "Piloto Beta",
+          "phase": "setup",
+          "promptedActionWindows": {
+            "setup": true,
+            "action": true,
+            "regroup": true
+          },
+          "user": {
+            "id": "dev-beta",
+            "username": "Piloto Beta"
+          },
+          "promptState": {},
+          "aspects": [
+            "aggression",
+            "heroism",
+            "cunning"
+          ],
+          "forceToken": {
+            "active": false
+          },
+          "credits": [],
+          "mainTimeRemainingSeconds": 120,
+          "timeRemainingStatus": "NoAlert",
+          "timerIsRunning": false,
+          "numCardsInDeck": 50
+        }
+      },
+      "phase": "setup",
+      "newMessages": [],
+      "messageOffset": 0,
+      "totalMessages": 0,
+      "initiativeClaimed": false,
+      "clientUIProperties": {},
+      "spectators": [],
+      "started": true,
+      "gameMode": "premier",
+      "winners": [],
+      "undoEnabled": false,
+      "ongoingEffects": []
+    }
+  },
+  {
+    "momento": "iniciativa",
+    "usuarioId": "dev-beta",
+    "estado": {
+      "playerUpdate": "dev-beta",
+      "id": "prueba-privacidad",
+      "manualMode": false,
+      "owner": "dev-alpha",
+      "players": {
+        "dev-alpha": {
+          "cardPiles": {
+            "hand": [],
+            "outsideTheGame": [
+              {
+                "id": "4571900905",
+                "setId": {
+                  "set": "LOF"
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [],
+                "zone": "outsideTheGame",
+                "name": "The Force",
+                "type": "tokenCard",
+                "uuid": "Card_360",
+                "printedType": "tokenCard",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "capturedZone": [],
+            "resources": [],
+            "groundArena": [],
+            "spaceArena": [],
+            "discard": [],
+            "credits": []
+          },
+          "disconnected": false,
+          "hasInitiative": false,
+          "availableResources": 0,
+          "leader": {
+            "id": "0616724418",
+            "setId": {
+              "set": "JTL",
+              "number": 17
+            },
+            "controllerId": "dev-alpha",
+            "ownerId": "dev-alpha",
+            "aspects": [
+              "cunning",
+              "heroism"
+            ],
+            "zone": "base",
+            "name": "Han Solo",
+            "power": 3,
+            "hp": 7,
+            "type": "leader",
+            "uuid": "Card_344",
+            "printedType": "leader",
+            "isBlanked": false,
+            "selectable": false,
+            "exhausted": false,
+            "epicDeployActionSpent": false
+          },
+          "base": {
+            "id": "7720892024",
+            "setId": {
+              "set": "JTL",
+              "number": 26
+            },
+            "controllerId": "dev-alpha",
+            "ownerId": "dev-alpha",
+            "aspects": [
+              "aggression"
+            ],
+            "zone": "base",
+            "name": "Massassi Temple",
+            "hp": 30,
+            "type": "base",
+            "uuid": "Card_342",
+            "printedType": "base",
+            "isBlanked": false,
+            "selectable": false,
+            "damage": 0,
+            "epicActionSpent": false,
+            "isDefender": false,
+            "upgrades": []
+          },
+          "id": "dev-alpha",
+          "left": false,
+          "name": "Piloto Alfa",
+          "phase": "setup",
+          "promptedActionWindows": {
+            "setup": true,
+            "action": true,
+            "regroup": true
+          },
+          "user": {
+            "id": "dev-alpha",
+            "username": "Piloto Alfa"
+          },
+          "promptState": {},
+          "aspects": [
+            "cunning",
+            "heroism",
+            "aggression"
+          ],
+          "forceToken": {
+            "active": false
+          },
+          "credits": [],
+          "mainTimeRemainingSeconds": 120,
+          "timeRemainingStatus": "NoAlert",
+          "timerIsRunning": false,
+          "numCardsInDeck": 50
+        },
+        "dev-beta": {
+          "cardPiles": {
+            "hand": [],
+            "outsideTheGame": [
+              {
+                "id": "4571900905",
+                "setId": {
+                  "set": "LOF"
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [],
+                "zone": "outsideTheGame",
+                "name": "The Force",
+                "type": "tokenCard",
+                "uuid": "Card_383",
+                "printedType": "tokenCard",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "capturedZone": [],
+            "resources": [],
+            "groundArena": [],
+            "spaceArena": [],
+            "discard": [],
+            "credits": []
+          },
+          "disconnected": false,
+          "hasInitiative": false,
+          "availableResources": 0,
+          "leader": {
+            "id": "0766281795",
+            "setId": {
+              "set": "JTL",
+              "number": 12
+            },
+            "controllerId": "dev-beta",
+            "ownerId": "dev-beta",
+            "aspects": [
+              "aggression",
+              "heroism"
+            ],
+            "zone": "base",
+            "name": "Luke Skywalker",
+            "power": 5,
+            "hp": 6,
+            "type": "leader",
+            "uuid": "Card_361",
+            "printedType": "leader",
+            "isBlanked": false,
+            "selectable": false,
+            "exhausted": false,
+            "epicDeployActionSpent": false
+          },
+          "base": {
+            "id": "6093792814",
+            "setId": {
+              "set": "JTL",
+              "number": 29
+            },
+            "controllerId": "dev-beta",
+            "ownerId": "dev-beta",
+            "aspects": [
+              "cunning"
+            ],
+            "zone": "base",
+            "name": "Chopper Base",
+            "hp": 30,
+            "type": "base",
+            "uuid": "Card_343",
+            "printedType": "base",
+            "isBlanked": false,
+            "selectable": false,
+            "damage": 0,
+            "epicActionSpent": false,
+            "isDefender": false,
+            "upgrades": []
+          },
+          "id": "dev-beta",
+          "left": false,
+          "name": "Piloto Beta",
+          "phase": "setup",
+          "promptedActionWindows": {
+            "setup": true,
+            "action": true,
+            "regroup": true
+          },
+          "user": {
+            "id": "dev-beta",
+            "username": "Piloto Beta"
+          },
+          "promptState": {
+            "selectOrder": false,
+            "dropdownListOptions": [],
+            "menuTitle": "You won the flip. Choose the player to start with initiative:",
+            "promptTitle": "choose initiative player",
+            "buttons": [
+              {
+                "text": "Yourself",
+                "arg": 0,
+                "command": "menuButton",
+                "uuid": "f93f0080-abfc-11f1-b759-9d3954266e18"
+              },
+              {
+                "text": "Opponent",
+                "arg": 1,
+                "command": "menuButton",
+                "uuid": "f93f0080-abfc-11f1-b759-9d3954266e18"
+              }
+            ],
+            "promptUuid": "f93f0080-abfc-11f1-b759-9d3954266e18",
+            "promptType": "initiative",
+            "displayCards": [],
+            "perCardButtons": [],
+            "playerIsNewlyActive": true
+          },
+          "aspects": [
+            "aggression",
+            "heroism",
+            "cunning"
+          ],
+          "forceToken": {
+            "active": false
+          },
+          "credits": [],
+          "mainTimeRemainingSeconds": 120,
+          "timeRemainingStatus": "NoAlert",
+          "timerIsRunning": false,
+          "numCardsInDeck": 50
+        }
+      },
+      "phase": "setup",
+      "newMessages": [],
+      "messageOffset": 0,
+      "totalMessages": 0,
+      "initiativeClaimed": false,
+      "clientUIProperties": {},
+      "spectators": [],
+      "started": true,
+      "gameMode": "premier",
+      "winners": [],
+      "undoEnabled": false,
+      "ongoingEffects": []
+    }
+  },
+  {
+    "momento": "mulligan",
+    "usuarioId": "dev-alpha",
+    "estado": {
+      "playerUpdate": "dev-alpha",
+      "id": "prueba-privacidad",
+      "manualMode": false,
+      "owner": "dev-alpha",
+      "players": {
+        "dev-alpha": {
+          "cardPiles": {
+            "hand": [
+              {
+                "id": "2283726359",
+                "setId": {
+                  "set": "JTL",
+                  "number": 145
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [
+                  "aggression",
+                  "heroism"
+                ],
+                "zone": "hand",
+                "name": "BB-8",
+                "power": 1,
+                "hp": 4,
+                "type": "basicUnit",
+                "uuid": "Card_188",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              },
+              {
+                "id": "4164902248",
+                "setId": {
+                  "set": "JTL",
+                  "number": 255
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [],
+                "zone": "hand",
+                "name": "Sullustan Spacer",
+                "power": 1,
+                "hp": 1,
+                "type": "basicUnit",
+                "uuid": "Card_18",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              },
+              {
+                "id": "3923779254",
+                "setId": {
+                  "set": "JTL",
+                  "number": 212
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [
+                  "cunning"
+                ],
+                "zone": "hand",
+                "name": "Republic Y-Wing",
+                "power": 1,
+                "hp": 3,
+                "type": "basicUnit",
+                "uuid": "Card_102",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              },
+              {
+                "id": "0514089787",
+                "setId": {
+                  "set": "JTL",
+                  "number": 148
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [
+                  "aggression",
+                  "heroism"
+                ],
+                "zone": "hand",
+                "name": "Frisk",
+                "power": 3,
+                "hp": 2,
+                "type": "basicUnit",
+                "uuid": "Card_270",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              },
+              {
+                "id": "7831643253",
+                "setId": {
+                  "set": "JTL",
+                  "number": 149
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [
+                  "aggression",
+                  "heroism"
+                ],
+                "zone": "hand",
+                "name": "Red Squadron Y-Wing",
+                "power": 1,
+                "hp": 3,
+                "type": "basicUnit",
+                "uuid": "Card_294",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              },
+              {
+                "id": "6600603122",
+                "setId": {
+                  "set": "JTL",
+                  "number": 146
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [
+                  "aggression",
+                  "heroism"
+                ],
+                "zone": "hand",
+                "name": "Massassi Tactical Officer",
+                "power": 0,
+                "hp": 4,
+                "type": "basicUnit",
+                "uuid": "Card_212",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "outsideTheGame": [
+              {
+                "id": "4571900905",
+                "setId": {
+                  "set": "LOF"
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [],
+                "zone": "outsideTheGame",
+                "name": "The Force",
+                "type": "tokenCard",
+                "uuid": "Card_360",
+                "printedType": "tokenCard",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "capturedZone": [],
+            "resources": [],
+            "groundArena": [],
+            "spaceArena": [],
+            "discard": [],
+            "credits": []
+          },
+          "disconnected": false,
+          "hasInitiative": false,
+          "availableResources": 0,
+          "leader": {
+            "id": "0616724418",
+            "setId": {
+              "set": "JTL",
+              "number": 17
+            },
+            "controllerId": "dev-alpha",
+            "ownerId": "dev-alpha",
+            "aspects": [
+              "cunning",
+              "heroism"
+            ],
+            "zone": "base",
+            "name": "Han Solo",
+            "power": 3,
+            "hp": 7,
+            "type": "leader",
+            "uuid": "Card_344",
+            "printedType": "leader",
+            "isBlanked": false,
+            "selectable": false,
+            "exhausted": false,
+            "epicDeployActionSpent": false
+          },
+          "base": {
+            "id": "7720892024",
+            "setId": {
+              "set": "JTL",
+              "number": 26
+            },
+            "controllerId": "dev-alpha",
+            "ownerId": "dev-alpha",
+            "aspects": [
+              "aggression"
+            ],
+            "zone": "base",
+            "name": "Massassi Temple",
+            "hp": 30,
+            "type": "base",
+            "uuid": "Card_342",
+            "printedType": "base",
+            "isBlanked": false,
+            "selectable": false,
+            "damage": 0,
+            "epicActionSpent": false,
+            "isDefender": false,
+            "upgrades": []
+          },
+          "id": "dev-alpha",
+          "left": false,
+          "name": "Piloto Alfa",
+          "phase": "setup",
+          "promptedActionWindows": {
+            "setup": true,
+            "action": true,
+            "regroup": true
+          },
+          "user": {
+            "id": "dev-alpha",
+            "username": "Piloto Alfa"
+          },
+          "promptState": {
+            "selectOrder": false,
+            "dropdownListOptions": [],
+            "menuTitle": "Choose whether to mulligan or keep your hand",
+            "promptTitle": "Mulligan Step",
+            "buttons": [
+              {
+                "text": "Mulligan",
+                "arg": "mulligan",
+                "command": "menuButton",
+                "uuid": "f93eb260-abfc-11f1-b759-9d3954266e18"
+              },
+              {
+                "text": "Keep",
+                "arg": "keep",
+                "command": "menuButton",
+                "uuid": "f93eb260-abfc-11f1-b759-9d3954266e18"
+              }
+            ],
+            "promptUuid": "f93eb260-abfc-11f1-b759-9d3954266e18",
+            "displayCards": [],
+            "perCardButtons": [],
+            "playerIsNewlyActive": true
+          },
+          "aspects": [
+            "cunning",
+            "heroism",
+            "aggression"
+          ],
+          "forceToken": {
+            "active": false
+          },
+          "credits": [],
+          "mainTimeRemainingSeconds": 120,
+          "timeRemainingStatus": "NoAlert",
+          "timerIsRunning": false,
+          "numCardsInDeck": 44
+        },
+        "dev-beta": {
+          "cardPiles": {
+            "hand": [
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "hand",
+                "selectable": false
+              }
+            ],
+            "outsideTheGame": [
+              {
+                "id": "4571900905",
+                "setId": {
+                  "set": "LOF"
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [],
+                "zone": "outsideTheGame",
+                "name": "The Force",
+                "type": "tokenCard",
+                "uuid": "Card_383",
+                "printedType": "tokenCard",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "capturedZone": [],
+            "resources": [],
+            "groundArena": [],
+            "spaceArena": [],
+            "discard": [],
+            "credits": []
+          },
+          "disconnected": false,
+          "hasInitiative": true,
+          "availableResources": 0,
+          "leader": {
+            "id": "0766281795",
+            "setId": {
+              "set": "JTL",
+              "number": 12
+            },
+            "controllerId": "dev-beta",
+            "ownerId": "dev-beta",
+            "aspects": [
+              "aggression",
+              "heroism"
+            ],
+            "zone": "base",
+            "name": "Luke Skywalker",
+            "power": 5,
+            "hp": 6,
+            "type": "leader",
+            "uuid": "Card_361",
+            "printedType": "leader",
+            "isBlanked": false,
+            "selectable": false,
+            "exhausted": false,
+            "epicDeployActionSpent": false
+          },
+          "base": {
+            "id": "6093792814",
+            "setId": {
+              "set": "JTL",
+              "number": 29
+            },
+            "controllerId": "dev-beta",
+            "ownerId": "dev-beta",
+            "aspects": [
+              "cunning"
+            ],
+            "zone": "base",
+            "name": "Chopper Base",
+            "hp": 30,
+            "type": "base",
+            "uuid": "Card_343",
+            "printedType": "base",
+            "isBlanked": false,
+            "selectable": false,
+            "damage": 0,
+            "epicActionSpent": false,
+            "isDefender": false,
+            "upgrades": []
+          },
+          "id": "dev-beta",
+          "left": false,
+          "name": "Piloto Beta",
+          "phase": "setup",
+          "promptedActionWindows": {
+            "setup": true,
+            "action": true,
+            "regroup": true
+          },
+          "user": {
+            "id": "dev-beta",
+            "username": "Piloto Beta"
+          },
+          "promptState": {},
+          "aspects": [
+            "aggression",
+            "heroism",
+            "cunning"
+          ],
+          "forceToken": {
+            "active": false
+          },
+          "credits": [],
+          "mainTimeRemainingSeconds": 120,
+          "timeRemainingStatus": "NoAlert",
+          "timerIsRunning": false,
+          "numCardsInDeck": 44
+        }
+      },
+      "phase": "setup",
+      "newMessages": [
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " is shuffling their deck"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " draws 6 cards in their starting hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " is shuffling their deck"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " draws 6 cards in their starting hand"
+          ]
+        }
+      ],
+      "messageOffset": 0,
+      "totalMessages": 4,
+      "initiativeClaimed": false,
+      "clientUIProperties": {},
+      "spectators": [],
+      "started": true,
+      "gameMode": "premier",
+      "winners": [],
+      "undoEnabled": false,
+      "ongoingEffects": []
+    }
+  },
+  {
+    "momento": "mulligan",
+    "usuarioId": "dev-beta",
+    "estado": {
+      "playerUpdate": "dev-beta",
+      "id": "prueba-privacidad",
+      "manualMode": false,
+      "owner": "dev-alpha",
+      "players": {
+        "dev-alpha": {
+          "cardPiles": {
+            "hand": [
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "hand",
+                "selectable": false
+              }
+            ],
+            "outsideTheGame": [
+              {
+                "id": "4571900905",
+                "setId": {
+                  "set": "LOF"
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [],
+                "zone": "outsideTheGame",
+                "name": "The Force",
+                "type": "tokenCard",
+                "uuid": "Card_360",
+                "printedType": "tokenCard",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "capturedZone": [],
+            "resources": [],
+            "groundArena": [],
+            "spaceArena": [],
+            "discard": [],
+            "credits": []
+          },
+          "disconnected": false,
+          "hasInitiative": false,
+          "availableResources": 0,
+          "leader": {
+            "id": "0616724418",
+            "setId": {
+              "set": "JTL",
+              "number": 17
+            },
+            "controllerId": "dev-alpha",
+            "ownerId": "dev-alpha",
+            "aspects": [
+              "cunning",
+              "heroism"
+            ],
+            "zone": "base",
+            "name": "Han Solo",
+            "power": 3,
+            "hp": 7,
+            "type": "leader",
+            "uuid": "Card_344",
+            "printedType": "leader",
+            "isBlanked": false,
+            "selectable": false,
+            "exhausted": false,
+            "epicDeployActionSpent": false
+          },
+          "base": {
+            "id": "7720892024",
+            "setId": {
+              "set": "JTL",
+              "number": 26
+            },
+            "controllerId": "dev-alpha",
+            "ownerId": "dev-alpha",
+            "aspects": [
+              "aggression"
+            ],
+            "zone": "base",
+            "name": "Massassi Temple",
+            "hp": 30,
+            "type": "base",
+            "uuid": "Card_342",
+            "printedType": "base",
+            "isBlanked": false,
+            "selectable": false,
+            "damage": 0,
+            "epicActionSpent": false,
+            "isDefender": false,
+            "upgrades": []
+          },
+          "id": "dev-alpha",
+          "left": false,
+          "name": "Piloto Alfa",
+          "phase": "setup",
+          "promptedActionWindows": {
+            "setup": true,
+            "action": true,
+            "regroup": true
+          },
+          "user": {
+            "id": "dev-alpha",
+            "username": "Piloto Alfa"
+          },
+          "promptState": {},
+          "aspects": [
+            "cunning",
+            "heroism",
+            "aggression"
+          ],
+          "forceToken": {
+            "active": false
+          },
+          "credits": [],
+          "mainTimeRemainingSeconds": 120,
+          "timeRemainingStatus": "NoAlert",
+          "timerIsRunning": false,
+          "numCardsInDeck": 44
+        },
+        "dev-beta": {
+          "cardPiles": {
+            "hand": [
+              {
+                "id": "8930110877",
+                "setId": {
+                  "set": "JTL",
+                  "number": 246
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [
+                  "heroism"
+                ],
+                "zone": "hand",
+                "name": "Hopeful Volunteer",
+                "power": 1,
+                "hp": 3,
+                "type": "basicUnit",
+                "uuid": "Card_78",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              },
+              {
+                "id": "2177194044",
+                "setId": {
+                  "set": "JTL",
+                  "number": 256
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [],
+                "zone": "hand",
+                "name": "Swarming Vulture Droid",
+                "power": 2,
+                "hp": 2,
+                "type": "basicUnit",
+                "uuid": "Card_43",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              },
+              {
+                "id": "4240570958",
+                "setId": {
+                  "set": "JTL",
+                  "number": 198
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [
+                  "cunning",
+                  "heroism"
+                ],
+                "zone": "hand",
+                "name": "Fireball",
+                "power": 3,
+                "hp": 3,
+                "type": "basicUnit",
+                "uuid": "Card_172",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              },
+              {
+                "id": "3287404938",
+                "setId": {
+                  "set": "JTL",
+                  "number": 159
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [
+                  "aggression"
+                ],
+                "zone": "hand",
+                "name": "Determined Recruit",
+                "power": 3,
+                "hp": 1,
+                "type": "basicUnit",
+                "uuid": "Card_338",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              },
+              {
+                "id": "2177194044",
+                "setId": {
+                  "set": "JTL",
+                  "number": 256
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [],
+                "zone": "hand",
+                "name": "Swarming Vulture Droid",
+                "power": 2,
+                "hp": 2,
+                "type": "basicUnit",
+                "uuid": "Card_46",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              },
+              {
+                "id": "7198833142",
+                "setId": {
+                  "set": "JTL",
+                  "number": 214
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [
+                  "cunning"
+                ],
+                "zone": "hand",
+                "name": "X-34 Landspeeder",
+                "power": 2,
+                "hp": 3,
+                "type": "basicUnit",
+                "uuid": "Card_122",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "outsideTheGame": [
+              {
+                "id": "4571900905",
+                "setId": {
+                  "set": "LOF"
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [],
+                "zone": "outsideTheGame",
+                "name": "The Force",
+                "type": "tokenCard",
+                "uuid": "Card_383",
+                "printedType": "tokenCard",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "capturedZone": [],
+            "resources": [],
+            "groundArena": [],
+            "spaceArena": [],
+            "discard": [],
+            "credits": []
+          },
+          "disconnected": false,
+          "hasInitiative": true,
+          "availableResources": 0,
+          "leader": {
+            "id": "0766281795",
+            "setId": {
+              "set": "JTL",
+              "number": 12
+            },
+            "controllerId": "dev-beta",
+            "ownerId": "dev-beta",
+            "aspects": [
+              "aggression",
+              "heroism"
+            ],
+            "zone": "base",
+            "name": "Luke Skywalker",
+            "power": 5,
+            "hp": 6,
+            "type": "leader",
+            "uuid": "Card_361",
+            "printedType": "leader",
+            "isBlanked": false,
+            "selectable": false,
+            "exhausted": false,
+            "epicDeployActionSpent": false
+          },
+          "base": {
+            "id": "6093792814",
+            "setId": {
+              "set": "JTL",
+              "number": 29
+            },
+            "controllerId": "dev-beta",
+            "ownerId": "dev-beta",
+            "aspects": [
+              "cunning"
+            ],
+            "zone": "base",
+            "name": "Chopper Base",
+            "hp": 30,
+            "type": "base",
+            "uuid": "Card_343",
+            "printedType": "base",
+            "isBlanked": false,
+            "selectable": false,
+            "damage": 0,
+            "epicActionSpent": false,
+            "isDefender": false,
+            "upgrades": []
+          },
+          "id": "dev-beta",
+          "left": false,
+          "name": "Piloto Beta",
+          "phase": "setup",
+          "promptedActionWindows": {
+            "setup": true,
+            "action": true,
+            "regroup": true
+          },
+          "user": {
+            "id": "dev-beta",
+            "username": "Piloto Beta"
+          },
+          "promptState": {
+            "selectOrder": false,
+            "dropdownListOptions": [],
+            "menuTitle": "Choose whether to mulligan or keep your hand",
+            "promptTitle": "Mulligan Step",
+            "buttons": [
+              {
+                "text": "Mulligan",
+                "arg": "mulligan",
+                "command": "menuButton",
+                "uuid": "f93eb260-abfc-11f1-b759-9d3954266e18"
+              },
+              {
+                "text": "Keep",
+                "arg": "keep",
+                "command": "menuButton",
+                "uuid": "f93eb260-abfc-11f1-b759-9d3954266e18"
+              }
+            ],
+            "promptUuid": "f93eb260-abfc-11f1-b759-9d3954266e18",
+            "displayCards": [],
+            "perCardButtons": [],
+            "playerIsNewlyActive": false
+          },
+          "aspects": [
+            "aggression",
+            "heroism",
+            "cunning"
+          ],
+          "forceToken": {
+            "active": false
+          },
+          "credits": [],
+          "mainTimeRemainingSeconds": 120,
+          "timeRemainingStatus": "NoAlert",
+          "timerIsRunning": false,
+          "numCardsInDeck": 44
+        }
+      },
+      "phase": "setup",
+      "newMessages": [
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " is shuffling their deck"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " draws 6 cards in their starting hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " is shuffling their deck"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " draws 6 cards in their starting hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.700Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " will keep their hand"
+          ]
+        }
+      ],
+      "messageOffset": 0,
+      "totalMessages": 5,
+      "initiativeClaimed": false,
+      "clientUIProperties": {},
+      "spectators": [],
+      "started": true,
+      "gameMode": "premier",
+      "winners": [],
+      "undoEnabled": false,
+      "ongoingEffects": []
+    }
+  },
+  {
+    "momento": "recursos",
+    "usuarioId": "dev-alpha",
+    "estado": {
+      "playerUpdate": "dev-alpha",
+      "id": "prueba-privacidad",
+      "manualMode": false,
+      "owner": "dev-alpha",
+      "players": {
+        "dev-alpha": {
+          "cardPiles": {
+            "hand": [
+              {
+                "id": "2283726359",
+                "setId": {
+                  "set": "JTL",
+                  "number": 145
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [
+                  "aggression",
+                  "heroism"
+                ],
+                "zone": "hand",
+                "name": "BB-8",
+                "power": 1,
+                "hp": 4,
+                "type": "basicUnit",
+                "uuid": "Card_188",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": true,
+                "selected": false,
+                "unselectable": false
+              },
+              {
+                "id": "4164902248",
+                "setId": {
+                  "set": "JTL",
+                  "number": 255
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [],
+                "zone": "hand",
+                "name": "Sullustan Spacer",
+                "power": 1,
+                "hp": 1,
+                "type": "basicUnit",
+                "uuid": "Card_18",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": true,
+                "selected": false,
+                "unselectable": false
+              },
+              {
+                "id": "3923779254",
+                "setId": {
+                  "set": "JTL",
+                  "number": 212
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [
+                  "cunning"
+                ],
+                "zone": "hand",
+                "name": "Republic Y-Wing",
+                "power": 1,
+                "hp": 3,
+                "type": "basicUnit",
+                "uuid": "Card_102",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": true,
+                "selected": false,
+                "unselectable": false
+              },
+              {
+                "id": "0514089787",
+                "setId": {
+                  "set": "JTL",
+                  "number": 148
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [
+                  "aggression",
+                  "heroism"
+                ],
+                "zone": "hand",
+                "name": "Frisk",
+                "power": 3,
+                "hp": 2,
+                "type": "basicUnit",
+                "uuid": "Card_270",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": true,
+                "selected": false,
+                "unselectable": false
+              },
+              {
+                "id": "7831643253",
+                "setId": {
+                  "set": "JTL",
+                  "number": 149
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [
+                  "aggression",
+                  "heroism"
+                ],
+                "zone": "hand",
+                "name": "Red Squadron Y-Wing",
+                "power": 1,
+                "hp": 3,
+                "type": "basicUnit",
+                "uuid": "Card_294",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": true,
+                "selected": false,
+                "unselectable": false
+              },
+              {
+                "id": "6600603122",
+                "setId": {
+                  "set": "JTL",
+                  "number": 146
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [
+                  "aggression",
+                  "heroism"
+                ],
+                "zone": "hand",
+                "name": "Massassi Tactical Officer",
+                "power": 0,
+                "hp": 4,
+                "type": "basicUnit",
+                "uuid": "Card_212",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": true,
+                "selected": false,
+                "unselectable": false
+              }
+            ],
+            "outsideTheGame": [
+              {
+                "id": "4571900905",
+                "setId": {
+                  "set": "LOF"
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [],
+                "zone": "outsideTheGame",
+                "name": "The Force",
+                "type": "tokenCard",
+                "uuid": "Card_360",
+                "printedType": "tokenCard",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "capturedZone": [],
+            "resources": [],
+            "groundArena": [],
+            "spaceArena": [],
+            "discard": [],
+            "credits": []
+          },
+          "disconnected": false,
+          "hasInitiative": false,
+          "availableResources": 0,
+          "leader": {
+            "id": "0616724418",
+            "setId": {
+              "set": "JTL",
+              "number": 17
+            },
+            "controllerId": "dev-alpha",
+            "ownerId": "dev-alpha",
+            "aspects": [
+              "cunning",
+              "heroism"
+            ],
+            "zone": "base",
+            "name": "Han Solo",
+            "power": 3,
+            "hp": 7,
+            "type": "leader",
+            "uuid": "Card_344",
+            "printedType": "leader",
+            "isBlanked": false,
+            "selectable": false,
+            "exhausted": false,
+            "epicDeployActionSpent": false
+          },
+          "base": {
+            "id": "7720892024",
+            "setId": {
+              "set": "JTL",
+              "number": 26
+            },
+            "controllerId": "dev-alpha",
+            "ownerId": "dev-alpha",
+            "aspects": [
+              "aggression"
+            ],
+            "zone": "base",
+            "name": "Massassi Temple",
+            "hp": 30,
+            "type": "base",
+            "uuid": "Card_342",
+            "printedType": "base",
+            "isBlanked": false,
+            "selectable": false,
+            "damage": 0,
+            "epicActionSpent": false,
+            "isDefender": false,
+            "upgrades": []
+          },
+          "id": "dev-alpha",
+          "left": false,
+          "name": "Piloto Alfa",
+          "phase": "setup",
+          "promptedActionWindows": {
+            "setup": true,
+            "action": true,
+            "regroup": true
+          },
+          "user": {
+            "id": "dev-alpha",
+            "username": "Piloto Alfa"
+          },
+          "promptState": {
+            "selectCardMode": "multiple",
+            "selectOrder": false,
+            "dropdownListOptions": [],
+            "menuTitle": "Select 2 cards to resource",
+            "promptTitle": "Resource Step",
+            "buttons": [
+              {
+                "text": "Confirm Resources",
+                "arg": "done",
+                "disabled": true,
+                "command": "menuButton",
+                "uuid": "f93ed970-abfc-11f1-b759-9d3954266e18"
+              }
+            ],
+            "promptUuid": "f93ed970-abfc-11f1-b759-9d3954266e18",
+            "promptType": "resource",
+            "displayCards": [],
+            "perCardButtons": [],
+            "playerIsNewlyActive": true
+          },
+          "aspects": [
+            "cunning",
+            "heroism",
+            "aggression"
+          ],
+          "forceToken": {
+            "active": false
+          },
+          "credits": [],
+          "mainTimeRemainingSeconds": 120,
+          "timeRemainingStatus": "NoAlert",
+          "timerIsRunning": false,
+          "numCardsInDeck": 44
+        },
+        "dev-beta": {
+          "cardPiles": {
+            "hand": [
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "hand",
+                "selectable": false
+              }
+            ],
+            "outsideTheGame": [
+              {
+                "id": "4571900905",
+                "setId": {
+                  "set": "LOF"
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [],
+                "zone": "outsideTheGame",
+                "name": "The Force",
+                "type": "tokenCard",
+                "uuid": "Card_383",
+                "printedType": "tokenCard",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "capturedZone": [],
+            "resources": [],
+            "groundArena": [],
+            "spaceArena": [],
+            "discard": [],
+            "credits": []
+          },
+          "disconnected": false,
+          "hasInitiative": true,
+          "availableResources": 0,
+          "leader": {
+            "id": "0766281795",
+            "setId": {
+              "set": "JTL",
+              "number": 12
+            },
+            "controllerId": "dev-beta",
+            "ownerId": "dev-beta",
+            "aspects": [
+              "aggression",
+              "heroism"
+            ],
+            "zone": "base",
+            "name": "Luke Skywalker",
+            "power": 5,
+            "hp": 6,
+            "type": "leader",
+            "uuid": "Card_361",
+            "printedType": "leader",
+            "isBlanked": false,
+            "selectable": false,
+            "exhausted": false,
+            "epicDeployActionSpent": false
+          },
+          "base": {
+            "id": "6093792814",
+            "setId": {
+              "set": "JTL",
+              "number": 29
+            },
+            "controllerId": "dev-beta",
+            "ownerId": "dev-beta",
+            "aspects": [
+              "cunning"
+            ],
+            "zone": "base",
+            "name": "Chopper Base",
+            "hp": 30,
+            "type": "base",
+            "uuid": "Card_343",
+            "printedType": "base",
+            "isBlanked": false,
+            "selectable": false,
+            "damage": 0,
+            "epicActionSpent": false,
+            "isDefender": false,
+            "upgrades": []
+          },
+          "id": "dev-beta",
+          "left": false,
+          "name": "Piloto Beta",
+          "phase": "setup",
+          "promptedActionWindows": {
+            "setup": true,
+            "action": true,
+            "regroup": true
+          },
+          "user": {
+            "id": "dev-beta",
+            "username": "Piloto Beta"
+          },
+          "promptState": {},
+          "aspects": [
+            "aggression",
+            "heroism",
+            "cunning"
+          ],
+          "forceToken": {
+            "active": false
+          },
+          "credits": [],
+          "mainTimeRemainingSeconds": 120,
+          "timeRemainingStatus": "NoAlert",
+          "timerIsRunning": false,
+          "numCardsInDeck": 44
+        }
+      },
+      "phase": "setup",
+      "newMessages": [
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " is shuffling their deck"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " draws 6 cards in their starting hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " is shuffling their deck"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " draws 6 cards in their starting hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.700Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " will keep their hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.701Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " will keep their hand"
+          ]
+        }
+      ],
+      "messageOffset": 0,
+      "totalMessages": 6,
+      "initiativeClaimed": false,
+      "clientUIProperties": {},
+      "spectators": [],
+      "started": true,
+      "gameMode": "premier",
+      "winners": [],
+      "undoEnabled": false,
+      "ongoingEffects": []
+    }
+  },
+  {
+    "momento": "recursos",
+    "usuarioId": "dev-beta",
+    "estado": {
+      "playerUpdate": "dev-beta",
+      "id": "prueba-privacidad",
+      "manualMode": false,
+      "owner": "dev-alpha",
+      "players": {
+        "dev-alpha": {
+          "cardPiles": {
+            "hand": [
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "hand",
+                "selectable": false
+              }
+            ],
+            "outsideTheGame": [
+              {
+                "id": "4571900905",
+                "setId": {
+                  "set": "LOF"
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [],
+                "zone": "outsideTheGame",
+                "name": "The Force",
+                "type": "tokenCard",
+                "uuid": "Card_360",
+                "printedType": "tokenCard",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "capturedZone": [],
+            "resources": [],
+            "groundArena": [],
+            "spaceArena": [],
+            "discard": [],
+            "credits": []
+          },
+          "disconnected": false,
+          "hasInitiative": false,
+          "availableResources": 0,
+          "leader": {
+            "id": "0616724418",
+            "setId": {
+              "set": "JTL",
+              "number": 17
+            },
+            "controllerId": "dev-alpha",
+            "ownerId": "dev-alpha",
+            "aspects": [
+              "cunning",
+              "heroism"
+            ],
+            "zone": "base",
+            "name": "Han Solo",
+            "power": 3,
+            "hp": 7,
+            "type": "leader",
+            "uuid": "Card_344",
+            "printedType": "leader",
+            "isBlanked": false,
+            "selectable": false,
+            "exhausted": false,
+            "epicDeployActionSpent": false
+          },
+          "base": {
+            "id": "7720892024",
+            "setId": {
+              "set": "JTL",
+              "number": 26
+            },
+            "controllerId": "dev-alpha",
+            "ownerId": "dev-alpha",
+            "aspects": [
+              "aggression"
+            ],
+            "zone": "base",
+            "name": "Massassi Temple",
+            "hp": 30,
+            "type": "base",
+            "uuid": "Card_342",
+            "printedType": "base",
+            "isBlanked": false,
+            "selectable": false,
+            "damage": 0,
+            "epicActionSpent": false,
+            "isDefender": false,
+            "upgrades": []
+          },
+          "id": "dev-alpha",
+          "left": false,
+          "name": "Piloto Alfa",
+          "phase": "setup",
+          "promptedActionWindows": {
+            "setup": true,
+            "action": true,
+            "regroup": true
+          },
+          "user": {
+            "id": "dev-alpha",
+            "username": "Piloto Alfa"
+          },
+          "promptState": {},
+          "aspects": [
+            "cunning",
+            "heroism",
+            "aggression"
+          ],
+          "forceToken": {
+            "active": false
+          },
+          "credits": [],
+          "mainTimeRemainingSeconds": 120,
+          "timeRemainingStatus": "NoAlert",
+          "timerIsRunning": false,
+          "numCardsInDeck": 44
+        },
+        "dev-beta": {
+          "cardPiles": {
+            "hand": [
+              {
+                "id": "8930110877",
+                "setId": {
+                  "set": "JTL",
+                  "number": 246
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [
+                  "heroism"
+                ],
+                "zone": "hand",
+                "name": "Hopeful Volunteer",
+                "power": 1,
+                "hp": 3,
+                "type": "basicUnit",
+                "uuid": "Card_78",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": true,
+                "selected": false,
+                "unselectable": false
+              },
+              {
+                "id": "2177194044",
+                "setId": {
+                  "set": "JTL",
+                  "number": 256
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [],
+                "zone": "hand",
+                "name": "Swarming Vulture Droid",
+                "power": 2,
+                "hp": 2,
+                "type": "basicUnit",
+                "uuid": "Card_43",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": true,
+                "selected": false,
+                "unselectable": false
+              },
+              {
+                "id": "4240570958",
+                "setId": {
+                  "set": "JTL",
+                  "number": 198
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [
+                  "cunning",
+                  "heroism"
+                ],
+                "zone": "hand",
+                "name": "Fireball",
+                "power": 3,
+                "hp": 3,
+                "type": "basicUnit",
+                "uuid": "Card_172",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": true,
+                "selected": false,
+                "unselectable": false
+              },
+              {
+                "id": "3287404938",
+                "setId": {
+                  "set": "JTL",
+                  "number": 159
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [
+                  "aggression"
+                ],
+                "zone": "hand",
+                "name": "Determined Recruit",
+                "power": 3,
+                "hp": 1,
+                "type": "basicUnit",
+                "uuid": "Card_338",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": true,
+                "selected": false,
+                "unselectable": false
+              },
+              {
+                "id": "2177194044",
+                "setId": {
+                  "set": "JTL",
+                  "number": 256
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [],
+                "zone": "hand",
+                "name": "Swarming Vulture Droid",
+                "power": 2,
+                "hp": 2,
+                "type": "basicUnit",
+                "uuid": "Card_46",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": true,
+                "selected": false,
+                "unselectable": false
+              },
+              {
+                "id": "7198833142",
+                "setId": {
+                  "set": "JTL",
+                  "number": 214
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [
+                  "cunning"
+                ],
+                "zone": "hand",
+                "name": "X-34 Landspeeder",
+                "power": 2,
+                "hp": 3,
+                "type": "basicUnit",
+                "uuid": "Card_122",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": true,
+                "selected": false,
+                "unselectable": false
+              }
+            ],
+            "outsideTheGame": [
+              {
+                "id": "4571900905",
+                "setId": {
+                  "set": "LOF"
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [],
+                "zone": "outsideTheGame",
+                "name": "The Force",
+                "type": "tokenCard",
+                "uuid": "Card_383",
+                "printedType": "tokenCard",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "capturedZone": [],
+            "resources": [],
+            "groundArena": [],
+            "spaceArena": [],
+            "discard": [],
+            "credits": []
+          },
+          "disconnected": false,
+          "hasInitiative": true,
+          "availableResources": 0,
+          "leader": {
+            "id": "0766281795",
+            "setId": {
+              "set": "JTL",
+              "number": 12
+            },
+            "controllerId": "dev-beta",
+            "ownerId": "dev-beta",
+            "aspects": [
+              "aggression",
+              "heroism"
+            ],
+            "zone": "base",
+            "name": "Luke Skywalker",
+            "power": 5,
+            "hp": 6,
+            "type": "leader",
+            "uuid": "Card_361",
+            "printedType": "leader",
+            "isBlanked": false,
+            "selectable": false,
+            "exhausted": false,
+            "epicDeployActionSpent": false
+          },
+          "base": {
+            "id": "6093792814",
+            "setId": {
+              "set": "JTL",
+              "number": 29
+            },
+            "controllerId": "dev-beta",
+            "ownerId": "dev-beta",
+            "aspects": [
+              "cunning"
+            ],
+            "zone": "base",
+            "name": "Chopper Base",
+            "hp": 30,
+            "type": "base",
+            "uuid": "Card_343",
+            "printedType": "base",
+            "isBlanked": false,
+            "selectable": false,
+            "damage": 0,
+            "epicActionSpent": false,
+            "isDefender": false,
+            "upgrades": []
+          },
+          "id": "dev-beta",
+          "left": false,
+          "name": "Piloto Beta",
+          "phase": "setup",
+          "promptedActionWindows": {
+            "setup": true,
+            "action": true,
+            "regroup": true
+          },
+          "user": {
+            "id": "dev-beta",
+            "username": "Piloto Beta"
+          },
+          "promptState": {
+            "selectCardMode": "multiple",
+            "selectOrder": false,
+            "dropdownListOptions": [],
+            "menuTitle": "Select 2 cards to resource",
+            "promptTitle": "Resource Step",
+            "buttons": [
+              {
+                "text": "Confirm Resources",
+                "arg": "done",
+                "disabled": true,
+                "command": "menuButton",
+                "uuid": "f93ed970-abfc-11f1-b759-9d3954266e18"
+              }
+            ],
+            "promptUuid": "f93ed970-abfc-11f1-b759-9d3954266e18",
+            "promptType": "resource",
+            "displayCards": [],
+            "perCardButtons": [],
+            "playerIsNewlyActive": false
+          },
+          "aspects": [
+            "aggression",
+            "heroism",
+            "cunning"
+          ],
+          "forceToken": {
+            "active": false
+          },
+          "credits": [],
+          "mainTimeRemainingSeconds": 120,
+          "timeRemainingStatus": "NoAlert",
+          "timerIsRunning": false,
+          "numCardsInDeck": 44
+        }
+      },
+      "phase": "setup",
+      "newMessages": [
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " is shuffling their deck"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " draws 6 cards in their starting hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " is shuffling their deck"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " draws 6 cards in their starting hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.700Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " will keep their hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.701Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " will keep their hand"
+          ]
+        }
+      ],
+      "messageOffset": 0,
+      "totalMessages": 6,
+      "initiativeClaimed": false,
+      "clientUIProperties": {},
+      "spectators": [],
+      "started": true,
+      "gameMode": "premier",
+      "winners": [],
+      "undoEnabled": false,
+      "ongoingEffects": []
+    }
+  },
+  {
+    "momento": "accion",
+    "usuarioId": "dev-alpha",
+    "estado": {
+      "playerUpdate": "dev-alpha",
+      "id": "prueba-privacidad",
+      "manualMode": false,
+      "owner": "dev-alpha",
+      "players": {
+        "dev-alpha": {
+          "cardPiles": {
+            "hand": [
+              {
+                "id": "2283726359",
+                "setId": {
+                  "set": "JTL",
+                  "number": 145
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [
+                  "aggression",
+                  "heroism"
+                ],
+                "zone": "hand",
+                "name": "BB-8",
+                "power": 1,
+                "hp": 4,
+                "type": "basicUnit",
+                "uuid": "Card_188",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              },
+              {
+                "id": "4164902248",
+                "setId": {
+                  "set": "JTL",
+                  "number": 255
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [],
+                "zone": "hand",
+                "name": "Sullustan Spacer",
+                "power": 1,
+                "hp": 1,
+                "type": "basicUnit",
+                "uuid": "Card_18",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              },
+              {
+                "id": "3923779254",
+                "setId": {
+                  "set": "JTL",
+                  "number": 212
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [
+                  "cunning"
+                ],
+                "zone": "hand",
+                "name": "Republic Y-Wing",
+                "power": 1,
+                "hp": 3,
+                "type": "basicUnit",
+                "uuid": "Card_102",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              },
+              {
+                "id": "0514089787",
+                "setId": {
+                  "set": "JTL",
+                  "number": 148
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [
+                  "aggression",
+                  "heroism"
+                ],
+                "zone": "hand",
+                "name": "Frisk",
+                "power": 3,
+                "hp": 2,
+                "type": "basicUnit",
+                "uuid": "Card_270",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "outsideTheGame": [
+              {
+                "id": "4571900905",
+                "setId": {
+                  "set": "LOF"
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [],
+                "zone": "outsideTheGame",
+                "name": "The Force",
+                "type": "tokenCard",
+                "uuid": "Card_360",
+                "printedType": "tokenCard",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "capturedZone": [],
+            "resources": [
+              {
+                "id": "7831643253",
+                "setId": {
+                  "set": "JTL",
+                  "number": 149
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [
+                  "aggression",
+                  "heroism"
+                ],
+                "zone": "resource",
+                "name": "Red Squadron Y-Wing",
+                "power": 1,
+                "hp": 3,
+                "type": "basicUnit",
+                "uuid": "Card_294",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false,
+                "exhausted": false
+              },
+              {
+                "id": "6600603122",
+                "setId": {
+                  "set": "JTL",
+                  "number": 146
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [
+                  "aggression",
+                  "heroism"
+                ],
+                "zone": "resource",
+                "name": "Massassi Tactical Officer",
+                "power": 0,
+                "hp": 4,
+                "type": "basicUnit",
+                "uuid": "Card_212",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false,
+                "exhausted": false
+              }
+            ],
+            "groundArena": [],
+            "spaceArena": [],
+            "discard": [],
+            "credits": []
+          },
+          "disconnected": false,
+          "hasInitiative": false,
+          "availableResources": 2,
+          "leader": {
+            "id": "0616724418",
+            "setId": {
+              "set": "JTL",
+              "number": 17
+            },
+            "controllerId": "dev-alpha",
+            "ownerId": "dev-alpha",
+            "aspects": [
+              "cunning",
+              "heroism"
+            ],
+            "zone": "base",
+            "name": "Han Solo",
+            "power": 3,
+            "hp": 7,
+            "type": "leader",
+            "uuid": "Card_344",
+            "printedType": "leader",
+            "isBlanked": false,
+            "selectable": false,
+            "exhausted": false,
+            "epicDeployActionSpent": false
+          },
+          "base": {
+            "id": "7720892024",
+            "setId": {
+              "set": "JTL",
+              "number": 26
+            },
+            "controllerId": "dev-alpha",
+            "ownerId": "dev-alpha",
+            "aspects": [
+              "aggression"
+            ],
+            "zone": "base",
+            "name": "Massassi Temple",
+            "hp": 30,
+            "type": "base",
+            "uuid": "Card_342",
+            "printedType": "base",
+            "isBlanked": false,
+            "selectable": false,
+            "damage": 0,
+            "epicActionSpent": false,
+            "isDefender": false,
+            "upgrades": []
+          },
+          "id": "dev-alpha",
+          "left": false,
+          "name": "Piloto Alfa",
+          "phase": "action",
+          "promptedActionWindows": {
+            "setup": true,
+            "action": true,
+            "regroup": true
+          },
+          "user": {
+            "id": "dev-alpha",
+            "username": "Piloto Alfa"
+          },
+          "promptState": {
+            "selectOrder": false,
+            "dropdownListOptions": [],
+            "menuTitle": "Waiting for opponent to take an action or pass",
+            "buttons": [],
+            "displayCards": [],
+            "perCardButtons": []
+          },
+          "isActionPhaseActivePlayer": false,
+          "aspects": [
+            "cunning",
+            "heroism",
+            "aggression"
+          ],
+          "forceToken": {
+            "active": false
+          },
+          "credits": [],
+          "mainTimeRemainingSeconds": 120,
+          "timeRemainingStatus": "NoAlert",
+          "timerIsRunning": false,
+          "numCardsInDeck": 44
+        },
+        "dev-beta": {
+          "cardPiles": {
+            "hand": [
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "hand",
+                "selectable": false
+              }
+            ],
+            "outsideTheGame": [
+              {
+                "id": "4571900905",
+                "setId": {
+                  "set": "LOF"
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [],
+                "zone": "outsideTheGame",
+                "name": "The Force",
+                "type": "tokenCard",
+                "uuid": "Card_383",
+                "printedType": "tokenCard",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "capturedZone": [],
+            "resources": [
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "resource",
+                "selectable": false,
+                "exhausted": false
+              },
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "resource",
+                "selectable": false,
+                "exhausted": false
+              }
+            ],
+            "groundArena": [],
+            "spaceArena": [],
+            "discard": [],
+            "credits": []
+          },
+          "disconnected": false,
+          "hasInitiative": true,
+          "availableResources": 2,
+          "leader": {
+            "id": "0766281795",
+            "setId": {
+              "set": "JTL",
+              "number": 12
+            },
+            "controllerId": "dev-beta",
+            "ownerId": "dev-beta",
+            "aspects": [
+              "aggression",
+              "heroism"
+            ],
+            "zone": "base",
+            "name": "Luke Skywalker",
+            "power": 5,
+            "hp": 6,
+            "type": "leader",
+            "uuid": "Card_361",
+            "printedType": "leader",
+            "isBlanked": false,
+            "selectable": false,
+            "exhausted": false,
+            "epicDeployActionSpent": false
+          },
+          "base": {
+            "id": "6093792814",
+            "setId": {
+              "set": "JTL",
+              "number": 29
+            },
+            "controllerId": "dev-beta",
+            "ownerId": "dev-beta",
+            "aspects": [
+              "cunning"
+            ],
+            "zone": "base",
+            "name": "Chopper Base",
+            "hp": 30,
+            "type": "base",
+            "uuid": "Card_343",
+            "printedType": "base",
+            "isBlanked": false,
+            "selectable": false,
+            "damage": 0,
+            "epicActionSpent": false,
+            "isDefender": false,
+            "upgrades": []
+          },
+          "id": "dev-beta",
+          "left": false,
+          "name": "Piloto Beta",
+          "phase": "action",
+          "promptedActionWindows": {
+            "setup": true,
+            "action": true,
+            "regroup": true
+          },
+          "user": {
+            "id": "dev-beta",
+            "username": "Piloto Beta"
+          },
+          "promptState": {},
+          "isActionPhaseActivePlayer": true,
+          "aspects": [
+            "aggression",
+            "heroism",
+            "cunning"
+          ],
+          "forceToken": {
+            "active": false
+          },
+          "credits": [],
+          "mainTimeRemainingSeconds": 120,
+          "timeRemainingStatus": "NoAlert",
+          "timerIsRunning": false,
+          "numCardsInDeck": 44
+        }
+      },
+      "phase": "action",
+      "newMessages": [
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " is shuffling their deck"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " draws 6 cards in their starting hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " is shuffling their deck"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " draws 6 cards in their starting hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.700Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " will keep their hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.701Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " will keep their hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.702Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " has resourced 2 cards from hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.702Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " has resourced 2 cards from hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.702Z",
+          "message": {
+            "alert": {
+              "type": "notification",
+              "message": [
+                "Round: 1 - Action Phase"
+              ]
+            }
+          }
+        }
+      ],
+      "messageOffset": 0,
+      "totalMessages": 9,
+      "initiativeClaimed": false,
+      "clientUIProperties": {},
+      "spectators": [],
+      "started": true,
+      "gameMode": "premier",
+      "winners": [],
+      "undoEnabled": false,
+      "ongoingEffects": []
+    }
+  },
+  {
+    "momento": "accion",
+    "usuarioId": "dev-beta",
+    "estado": {
+      "playerUpdate": "dev-beta",
+      "id": "prueba-privacidad",
+      "manualMode": false,
+      "owner": "dev-alpha",
+      "players": {
+        "dev-alpha": {
+          "cardPiles": {
+            "hand": [
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "hand",
+                "selectable": false
+              }
+            ],
+            "outsideTheGame": [
+              {
+                "id": "4571900905",
+                "setId": {
+                  "set": "LOF"
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [],
+                "zone": "outsideTheGame",
+                "name": "The Force",
+                "type": "tokenCard",
+                "uuid": "Card_360",
+                "printedType": "tokenCard",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "capturedZone": [],
+            "resources": [
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "resource",
+                "selectable": false,
+                "exhausted": false
+              },
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "resource",
+                "selectable": false,
+                "exhausted": false
+              }
+            ],
+            "groundArena": [],
+            "spaceArena": [],
+            "discard": [],
+            "credits": []
+          },
+          "disconnected": false,
+          "hasInitiative": false,
+          "availableResources": 2,
+          "leader": {
+            "id": "0616724418",
+            "setId": {
+              "set": "JTL",
+              "number": 17
+            },
+            "controllerId": "dev-alpha",
+            "ownerId": "dev-alpha",
+            "aspects": [
+              "cunning",
+              "heroism"
+            ],
+            "zone": "base",
+            "name": "Han Solo",
+            "power": 3,
+            "hp": 7,
+            "type": "leader",
+            "uuid": "Card_344",
+            "printedType": "leader",
+            "isBlanked": false,
+            "selectable": false,
+            "exhausted": false,
+            "epicDeployActionSpent": false
+          },
+          "base": {
+            "id": "7720892024",
+            "setId": {
+              "set": "JTL",
+              "number": 26
+            },
+            "controllerId": "dev-alpha",
+            "ownerId": "dev-alpha",
+            "aspects": [
+              "aggression"
+            ],
+            "zone": "base",
+            "name": "Massassi Temple",
+            "hp": 30,
+            "type": "base",
+            "uuid": "Card_342",
+            "printedType": "base",
+            "isBlanked": false,
+            "selectable": false,
+            "damage": 0,
+            "epicActionSpent": false,
+            "isDefender": false,
+            "upgrades": []
+          },
+          "id": "dev-alpha",
+          "left": false,
+          "name": "Piloto Alfa",
+          "phase": "action",
+          "promptedActionWindows": {
+            "setup": true,
+            "action": true,
+            "regroup": true
+          },
+          "user": {
+            "id": "dev-alpha",
+            "username": "Piloto Alfa"
+          },
+          "promptState": {},
+          "isActionPhaseActivePlayer": false,
+          "aspects": [
+            "cunning",
+            "heroism",
+            "aggression"
+          ],
+          "forceToken": {
+            "active": false
+          },
+          "credits": [],
+          "mainTimeRemainingSeconds": 120,
+          "timeRemainingStatus": "NoAlert",
+          "timerIsRunning": false,
+          "numCardsInDeck": 44
+        },
+        "dev-beta": {
+          "cardPiles": {
+            "hand": [
+              {
+                "id": "8930110877",
+                "setId": {
+                  "set": "JTL",
+                  "number": 246
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [
+                  "heroism"
+                ],
+                "zone": "hand",
+                "name": "Hopeful Volunteer",
+                "power": 1,
+                "hp": 3,
+                "type": "basicUnit",
+                "uuid": "Card_78",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": true,
+                "selected": false
+              },
+              {
+                "id": "2177194044",
+                "setId": {
+                  "set": "JTL",
+                  "number": 256
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [],
+                "zone": "hand",
+                "name": "Swarming Vulture Droid",
+                "power": 2,
+                "hp": 2,
+                "type": "basicUnit",
+                "uuid": "Card_43",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": true,
+                "selected": false
+              },
+              {
+                "id": "4240570958",
+                "setId": {
+                  "set": "JTL",
+                  "number": 198
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [
+                  "cunning",
+                  "heroism"
+                ],
+                "zone": "hand",
+                "name": "Fireball",
+                "power": 3,
+                "hp": 3,
+                "type": "basicUnit",
+                "uuid": "Card_172",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": true,
+                "selected": false
+              },
+              {
+                "id": "3287404938",
+                "setId": {
+                  "set": "JTL",
+                  "number": 159
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [
+                  "aggression"
+                ],
+                "zone": "hand",
+                "name": "Determined Recruit",
+                "power": 3,
+                "hp": 1,
+                "type": "basicUnit",
+                "uuid": "Card_338",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": true,
+                "selected": false
+              }
+            ],
+            "outsideTheGame": [
+              {
+                "id": "4571900905",
+                "setId": {
+                  "set": "LOF"
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [],
+                "zone": "outsideTheGame",
+                "name": "The Force",
+                "type": "tokenCard",
+                "uuid": "Card_383",
+                "printedType": "tokenCard",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "capturedZone": [],
+            "resources": [
+              {
+                "id": "2177194044",
+                "setId": {
+                  "set": "JTL",
+                  "number": 256
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [],
+                "zone": "resource",
+                "name": "Swarming Vulture Droid",
+                "power": 2,
+                "hp": 2,
+                "type": "basicUnit",
+                "uuid": "Card_46",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false,
+                "exhausted": false
+              },
+              {
+                "id": "7198833142",
+                "setId": {
+                  "set": "JTL",
+                  "number": 214
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [
+                  "cunning"
+                ],
+                "zone": "resource",
+                "name": "X-34 Landspeeder",
+                "power": 2,
+                "hp": 3,
+                "type": "basicUnit",
+                "uuid": "Card_122",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false,
+                "exhausted": false
+              }
+            ],
+            "groundArena": [],
+            "spaceArena": [],
+            "discard": [],
+            "credits": []
+          },
+          "disconnected": false,
+          "hasInitiative": true,
+          "availableResources": 2,
+          "leader": {
+            "id": "0766281795",
+            "setId": {
+              "set": "JTL",
+              "number": 12
+            },
+            "controllerId": "dev-beta",
+            "ownerId": "dev-beta",
+            "aspects": [
+              "aggression",
+              "heroism"
+            ],
+            "zone": "base",
+            "name": "Luke Skywalker",
+            "power": 5,
+            "hp": 6,
+            "type": "leader",
+            "uuid": "Card_361",
+            "printedType": "leader",
+            "isBlanked": false,
+            "selectable": true,
+            "selected": false,
+            "exhausted": false,
+            "epicDeployActionSpent": false
+          },
+          "base": {
+            "id": "6093792814",
+            "setId": {
+              "set": "JTL",
+              "number": 29
+            },
+            "controllerId": "dev-beta",
+            "ownerId": "dev-beta",
+            "aspects": [
+              "cunning"
+            ],
+            "zone": "base",
+            "name": "Chopper Base",
+            "hp": 30,
+            "type": "base",
+            "uuid": "Card_343",
+            "printedType": "base",
+            "isBlanked": false,
+            "selectable": false,
+            "damage": 0,
+            "epicActionSpent": false,
+            "isDefender": false,
+            "upgrades": []
+          },
+          "id": "dev-beta",
+          "left": false,
+          "name": "Piloto Beta",
+          "phase": "action",
+          "promptedActionWindows": {
+            "setup": true,
+            "action": true,
+            "regroup": true
+          },
+          "user": {
+            "id": "dev-beta",
+            "username": "Piloto Beta"
+          },
+          "promptState": {
+            "selectOrder": false,
+            "dropdownListOptions": [],
+            "menuTitle": "Choose an action",
+            "promptTitle": "Action Window",
+            "buttons": [
+              {
+                "text": "Pass",
+                "arg": "pass",
+                "disabled": false,
+                "command": "menuButton",
+                "uuid": "f93feae0-abfc-11f1-b759-9d3954266e18"
+              },
+              {
+                "text": "Claim Initiative",
+                "arg": "claimInitiative",
+                "disabled": false,
+                "command": "menuButton",
+                "uuid": "f93feae0-abfc-11f1-b759-9d3954266e18"
+              }
+            ],
+            "promptUuid": "f93feae0-abfc-11f1-b759-9d3954266e18",
+            "promptType": "actionWindow",
+            "displayCards": [],
+            "perCardButtons": [],
+            "playerIsNewlyActive": false
+          },
+          "isActionPhaseActivePlayer": true,
+          "aspects": [
+            "aggression",
+            "heroism",
+            "cunning"
+          ],
+          "forceToken": {
+            "active": false
+          },
+          "credits": [],
+          "mainTimeRemainingSeconds": 120,
+          "timeRemainingStatus": "NoAlert",
+          "timerIsRunning": false,
+          "numCardsInDeck": 44
+        }
+      },
+      "phase": "action",
+      "newMessages": [
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " is shuffling their deck"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " draws 6 cards in their starting hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " is shuffling their deck"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.698Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " draws 6 cards in their starting hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.700Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " will keep their hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.701Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " will keep their hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.702Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " has resourced 2 cards from hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.702Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " has resourced 2 cards from hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.702Z",
+          "message": {
+            "alert": {
+              "type": "notification",
+              "message": [
+                "Round: 1 - Action Phase"
+              ]
+            }
+          }
+        }
+      ],
+      "messageOffset": 0,
+      "totalMessages": 9,
+      "initiativeClaimed": false,
+      "clientUIProperties": {},
+      "spectators": [],
+      "started": true,
+      "gameMode": "premier",
+      "winners": [],
+      "undoEnabled": false,
+      "ongoingEffects": []
+    }
+  },
+  {
+    "momento": "habilidad-revelar",
+    "usuarioId": "dev-alpha",
+    "estado": {
+      "playerUpdate": "dev-alpha",
+      "id": "prueba-habilidad",
+      "manualMode": false,
+      "owner": "dev-alpha",
+      "players": {
+        "dev-alpha": {
+          "cardPiles": {
+            "hand": [
+              {
+                "id": "4159101997",
+                "setId": {
+                  "set": "JTL",
+                  "number": 158
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [
+                  "aggression"
+                ],
+                "zone": "hand",
+                "name": "Crackshot V-Wing",
+                "power": 2,
+                "hp": 2,
+                "type": "basicUnit",
+                "uuid": "Card_314",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              },
+              {
+                "id": "7198833142",
+                "setId": {
+                  "set": "JTL",
+                  "number": 214
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [
+                  "cunning"
+                ],
+                "zone": "hand",
+                "name": "X-34 Landspeeder",
+                "power": 2,
+                "hp": 3,
+                "type": "basicUnit",
+                "uuid": "Card_116",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              },
+              {
+                "id": "3389903389",
+                "setId": {
+                  "set": "JTL",
+                  "number": 147
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [
+                  "aggression",
+                  "heroism"
+                ],
+                "zone": "hand",
+                "name": "Black One",
+                "power": 2,
+                "hp": 3,
+                "type": "basicUnit",
+                "uuid": "Card_242",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              },
+              {
+                "id": "4164902248",
+                "setId": {
+                  "set": "JTL",
+                  "number": 255
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [],
+                "zone": "hand",
+                "name": "Sullustan Spacer",
+                "power": 1,
+                "hp": 1,
+                "type": "basicUnit",
+                "uuid": "Card_18",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "outsideTheGame": [
+              {
+                "id": "4571900905",
+                "setId": {
+                  "set": "LOF"
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [],
+                "zone": "outsideTheGame",
+                "name": "The Force",
+                "type": "tokenCard",
+                "uuid": "Card_360",
+                "printedType": "tokenCard",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "capturedZone": [],
+            "resources": [
+              {
+                "id": "8930110877",
+                "setId": {
+                  "set": "JTL",
+                  "number": 246
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [
+                  "heroism"
+                ],
+                "zone": "resource",
+                "name": "Hopeful Volunteer",
+                "power": 1,
+                "hp": 3,
+                "type": "basicUnit",
+                "uuid": "Card_70",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false,
+                "exhausted": false
+              },
+              {
+                "id": "5052103576",
+                "setId": {
+                  "set": "JTL",
+                  "number": 247
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [
+                  "heroism"
+                ],
+                "zone": "resource",
+                "name": "Resistance X-Wing",
+                "power": 2,
+                "hp": 2,
+                "type": "basicUnit",
+                "uuid": "Card_52",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false,
+                "exhausted": false
+              }
+            ],
+            "groundArena": [],
+            "spaceArena": [],
+            "discard": [],
+            "credits": []
+          },
+          "disconnected": false,
+          "hasInitiative": true,
+          "availableResources": 2,
+          "leader": {
+            "id": "0616724418",
+            "setId": {
+              "set": "JTL",
+              "number": 17
+            },
+            "controllerId": "dev-alpha",
+            "ownerId": "dev-alpha",
+            "aspects": [
+              "cunning",
+              "heroism"
+            ],
+            "zone": "base",
+            "name": "Han Solo",
+            "power": 3,
+            "hp": 7,
+            "type": "leader",
+            "uuid": "Card_344",
+            "printedType": "leader",
+            "isBlanked": false,
+            "selectable": false,
+            "exhausted": true,
+            "epicDeployActionSpent": false
+          },
+          "base": {
+            "id": "7720892024",
+            "setId": {
+              "set": "JTL",
+              "number": 26
+            },
+            "controllerId": "dev-alpha",
+            "ownerId": "dev-alpha",
+            "aspects": [
+              "aggression"
+            ],
+            "zone": "base",
+            "name": "Massassi Temple",
+            "hp": 30,
+            "type": "base",
+            "uuid": "Card_342",
+            "printedType": "base",
+            "isBlanked": false,
+            "selectable": false,
+            "damage": 0,
+            "epicActionSpent": false,
+            "isDefender": false,
+            "upgrades": []
+          },
+          "id": "dev-alpha",
+          "left": false,
+          "name": "Piloto Alfa",
+          "phase": "action",
+          "promptedActionWindows": {
+            "setup": true,
+            "action": true,
+            "regroup": true
+          },
+          "user": {
+            "id": "dev-alpha",
+            "username": "Piloto Alfa"
+          },
+          "promptState": {
+            "selectOrder": false,
+            "dropdownListOptions": [],
+            "menuTitle": "View cards for Han Solo ability",
+            "promptTitle": "Han Solo",
+            "buttons": [
+              {
+                "text": "Done",
+                "arg": "done",
+                "command": "menuButton",
+                "uuid": "f9632a50-abfc-11f1-b759-9d3954266e18"
+              }
+            ],
+            "promptUuid": "f9632a50-abfc-11f1-b759-9d3954266e18",
+            "promptType": "displayCards",
+            "displayCards": [
+              {
+                "cardUuid": "Card_74",
+                "setId": {
+                  "set": "JTL",
+                  "number": 246
+                },
+                "internalName": "hopeful-volunteer",
+                "selectionState": "viewOnly"
+              }
+            ],
+            "perCardButtons": [],
+            "playerIsNewlyActive": false
+          },
+          "isActionPhaseActivePlayer": true,
+          "aspects": [
+            "cunning",
+            "heroism",
+            "aggression"
+          ],
+          "forceToken": {
+            "active": false
+          },
+          "credits": [],
+          "mainTimeRemainingSeconds": 120,
+          "timeRemainingStatus": "NoAlert",
+          "timerIsRunning": false,
+          "numCardsInDeck": 44
+        },
+        "dev-beta": {
+          "cardPiles": {
+            "hand": [
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "hand",
+                "selectable": false
+              }
+            ],
+            "outsideTheGame": [
+              {
+                "id": "4571900905",
+                "setId": {
+                  "set": "LOF"
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [],
+                "zone": "outsideTheGame",
+                "name": "The Force",
+                "type": "tokenCard",
+                "uuid": "Card_383",
+                "printedType": "tokenCard",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "capturedZone": [],
+            "resources": [
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "resource",
+                "selectable": false,
+                "exhausted": false
+              },
+              {
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "zone": "resource",
+                "selectable": false,
+                "exhausted": false
+              }
+            ],
+            "groundArena": [],
+            "spaceArena": [],
+            "discard": [],
+            "credits": []
+          },
+          "disconnected": false,
+          "hasInitiative": false,
+          "availableResources": 2,
+          "leader": {
+            "id": "0766281795",
+            "setId": {
+              "set": "JTL",
+              "number": 12
+            },
+            "controllerId": "dev-beta",
+            "ownerId": "dev-beta",
+            "aspects": [
+              "aggression",
+              "heroism"
+            ],
+            "zone": "base",
+            "name": "Luke Skywalker",
+            "power": 5,
+            "hp": 6,
+            "type": "leader",
+            "uuid": "Card_361",
+            "printedType": "leader",
+            "isBlanked": false,
+            "selectable": false,
+            "exhausted": false,
+            "epicDeployActionSpent": false
+          },
+          "base": {
+            "id": "6093792814",
+            "setId": {
+              "set": "JTL",
+              "number": 29
+            },
+            "controllerId": "dev-beta",
+            "ownerId": "dev-beta",
+            "aspects": [
+              "cunning"
+            ],
+            "zone": "base",
+            "name": "Chopper Base",
+            "hp": 30,
+            "type": "base",
+            "uuid": "Card_343",
+            "printedType": "base",
+            "isBlanked": false,
+            "selectable": false,
+            "damage": 0,
+            "epicActionSpent": false,
+            "isDefender": false,
+            "upgrades": []
+          },
+          "id": "dev-beta",
+          "left": false,
+          "name": "Piloto Beta",
+          "phase": "action",
+          "promptedActionWindows": {
+            "setup": true,
+            "action": true,
+            "regroup": true
+          },
+          "user": {
+            "id": "dev-beta",
+            "username": "Piloto Beta"
+          },
+          "promptState": {},
+          "isActionPhaseActivePlayer": false,
+          "aspects": [
+            "aggression",
+            "heroism",
+            "cunning"
+          ],
+          "forceToken": {
+            "active": false
+          },
+          "credits": [],
+          "mainTimeRemainingSeconds": 120,
+          "timeRemainingStatus": "NoAlert",
+          "timerIsRunning": false,
+          "numCardsInDeck": 44
+        }
+      },
+      "phase": "action",
+      "newMessages": [
+        {
+          "date": "2026-09-09T03:17:22.930Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " is shuffling their deck"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.930Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " draws 6 cards in their starting hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.930Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " is shuffling their deck"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.930Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " draws 6 cards in their starting hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.931Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " will keep their hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.931Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " will keep their hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.932Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " has resourced 2 cards from hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.932Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " has resourced 2 cards from hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.932Z",
+          "message": {
+            "alert": {
+              "type": "notification",
+              "message": [
+                "Round: 1 - Action Phase"
+              ]
+            }
+          }
+        },
+        {
+          "date": "2026-09-09T03:17:22.933Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " uses ",
+            {
+              "id": "0616724418",
+              "name": "Han Solo",
+              "uuid": "Card_344",
+              "controllerId": "dev-alpha",
+              "setId": {
+                "set": "JTL",
+                "number": 17
+              },
+              "type": "card",
+              "printedType": "leader"
+            },
+            ", ",
+            "exhausting ",
+            {
+              "id": "0616724418",
+              "name": "Han Solo",
+              "uuid": "Card_344",
+              "controllerId": "dev-alpha",
+              "setId": {
+                "set": "JTL",
+                "number": 17
+              },
+              "type": "card",
+              "printedType": "leader"
+            },
+            " to ",
+            "reveal ",
+            {
+              "id": "8930110877",
+              "name": "Hopeful Volunteer",
+              "uuid": "Card_74",
+              "controllerId": "dev-alpha",
+              "setId": {
+                "set": "JTL",
+                "number": 246
+              },
+              "type": "card",
+              "printedType": "basicUnit"
+            }
+          ]
+        }
+      ],
+      "messageOffset": 0,
+      "totalMessages": 10,
+      "initiativeClaimed": false,
+      "clientUIProperties": {},
+      "spectators": [],
+      "started": true,
+      "gameMode": "premier",
+      "winners": [],
+      "undoEnabled": false,
+      "ongoingEffects": []
+    }
+  },
+  {
+    "momento": "habilidad-revelar",
+    "usuarioId": "dev-beta",
+    "estado": {
+      "playerUpdate": "dev-beta",
+      "id": "prueba-habilidad",
+      "manualMode": false,
+      "owner": "dev-alpha",
+      "players": {
+        "dev-alpha": {
+          "cardPiles": {
+            "hand": [
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "hand",
+                "selectable": false
+              },
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "hand",
+                "selectable": false
+              }
+            ],
+            "outsideTheGame": [
+              {
+                "id": "4571900905",
+                "setId": {
+                  "set": "LOF"
+                },
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "aspects": [],
+                "zone": "outsideTheGame",
+                "name": "The Force",
+                "type": "tokenCard",
+                "uuid": "Card_360",
+                "printedType": "tokenCard",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "capturedZone": [],
+            "resources": [
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "resource",
+                "selectable": false,
+                "exhausted": false
+              },
+              {
+                "controllerId": "dev-alpha",
+                "ownerId": "dev-alpha",
+                "zone": "resource",
+                "selectable": false,
+                "exhausted": false
+              }
+            ],
+            "groundArena": [],
+            "spaceArena": [],
+            "discard": [],
+            "credits": []
+          },
+          "disconnected": false,
+          "hasInitiative": true,
+          "availableResources": 2,
+          "leader": {
+            "id": "0616724418",
+            "setId": {
+              "set": "JTL",
+              "number": 17
+            },
+            "controllerId": "dev-alpha",
+            "ownerId": "dev-alpha",
+            "aspects": [
+              "cunning",
+              "heroism"
+            ],
+            "zone": "base",
+            "name": "Han Solo",
+            "power": 3,
+            "hp": 7,
+            "type": "leader",
+            "uuid": "Card_344",
+            "printedType": "leader",
+            "isBlanked": false,
+            "selectable": false,
+            "exhausted": true,
+            "epicDeployActionSpent": false
+          },
+          "base": {
+            "id": "7720892024",
+            "setId": {
+              "set": "JTL",
+              "number": 26
+            },
+            "controllerId": "dev-alpha",
+            "ownerId": "dev-alpha",
+            "aspects": [
+              "aggression"
+            ],
+            "zone": "base",
+            "name": "Massassi Temple",
+            "hp": 30,
+            "type": "base",
+            "uuid": "Card_342",
+            "printedType": "base",
+            "isBlanked": false,
+            "selectable": false,
+            "damage": 0,
+            "epicActionSpent": false,
+            "isDefender": false,
+            "upgrades": []
+          },
+          "id": "dev-alpha",
+          "left": false,
+          "name": "Piloto Alfa",
+          "phase": "action",
+          "promptedActionWindows": {
+            "setup": true,
+            "action": true,
+            "regroup": true
+          },
+          "user": {
+            "id": "dev-alpha",
+            "username": "Piloto Alfa"
+          },
+          "promptState": {},
+          "isActionPhaseActivePlayer": true,
+          "aspects": [
+            "cunning",
+            "heroism",
+            "aggression"
+          ],
+          "forceToken": {
+            "active": false
+          },
+          "credits": [],
+          "mainTimeRemainingSeconds": 120,
+          "timeRemainingStatus": "NoAlert",
+          "timerIsRunning": false,
+          "numCardsInDeck": 44
+        },
+        "dev-beta": {
+          "cardPiles": {
+            "hand": [
+              {
+                "id": "0514089787",
+                "setId": {
+                  "set": "JTL",
+                  "number": 148
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [
+                  "aggression",
+                  "heroism"
+                ],
+                "zone": "hand",
+                "name": "Frisk",
+                "power": 3,
+                "hp": 2,
+                "type": "basicUnit",
+                "uuid": "Card_278",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              },
+              {
+                "id": "7420426716",
+                "setId": {
+                  "set": "JTL",
+                  "number": 196
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [
+                  "cunning",
+                  "heroism"
+                ],
+                "zone": "hand",
+                "name": "Dagger Squadron Pilot",
+                "power": 2,
+                "hp": 1,
+                "type": "basicUnit",
+                "uuid": "Card_134",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              },
+              {
+                "id": "7831643253",
+                "setId": {
+                  "set": "JTL",
+                  "number": 149
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [
+                  "aggression",
+                  "heroism"
+                ],
+                "zone": "hand",
+                "name": "Red Squadron Y-Wing",
+                "power": 1,
+                "hp": 3,
+                "type": "basicUnit",
+                "uuid": "Card_306",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              },
+              {
+                "id": "2177194044",
+                "setId": {
+                  "set": "JTL",
+                  "number": 256
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [],
+                "zone": "hand",
+                "name": "Swarming Vulture Droid",
+                "power": 2,
+                "hp": 2,
+                "type": "basicUnit",
+                "uuid": "Card_46",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "outsideTheGame": [
+              {
+                "id": "4571900905",
+                "setId": {
+                  "set": "LOF"
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [],
+                "zone": "outsideTheGame",
+                "name": "The Force",
+                "type": "tokenCard",
+                "uuid": "Card_383",
+                "printedType": "tokenCard",
+                "isBlanked": false,
+                "selectable": false
+              }
+            ],
+            "capturedZone": [],
+            "resources": [
+              {
+                "id": "8930110877",
+                "setId": {
+                  "set": "JTL",
+                  "number": 246
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [
+                  "heroism"
+                ],
+                "zone": "resource",
+                "name": "Hopeful Volunteer",
+                "power": 1,
+                "hp": 3,
+                "type": "basicUnit",
+                "uuid": "Card_76",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false,
+                "exhausted": false
+              },
+              {
+                "id": "7831643253",
+                "setId": {
+                  "set": "JTL",
+                  "number": 149
+                },
+                "controllerId": "dev-beta",
+                "ownerId": "dev-beta",
+                "aspects": [
+                  "aggression",
+                  "heroism"
+                ],
+                "zone": "resource",
+                "name": "Red Squadron Y-Wing",
+                "power": 1,
+                "hp": 3,
+                "type": "basicUnit",
+                "uuid": "Card_302",
+                "printedType": "basicUnit",
+                "isBlanked": false,
+                "selectable": false,
+                "exhausted": false
+              }
+            ],
+            "groundArena": [],
+            "spaceArena": [],
+            "discard": [],
+            "credits": []
+          },
+          "disconnected": false,
+          "hasInitiative": false,
+          "availableResources": 2,
+          "leader": {
+            "id": "0766281795",
+            "setId": {
+              "set": "JTL",
+              "number": 12
+            },
+            "controllerId": "dev-beta",
+            "ownerId": "dev-beta",
+            "aspects": [
+              "aggression",
+              "heroism"
+            ],
+            "zone": "base",
+            "name": "Luke Skywalker",
+            "power": 5,
+            "hp": 6,
+            "type": "leader",
+            "uuid": "Card_361",
+            "printedType": "leader",
+            "isBlanked": false,
+            "selectable": false,
+            "exhausted": false,
+            "epicDeployActionSpent": false
+          },
+          "base": {
+            "id": "6093792814",
+            "setId": {
+              "set": "JTL",
+              "number": 29
+            },
+            "controllerId": "dev-beta",
+            "ownerId": "dev-beta",
+            "aspects": [
+              "cunning"
+            ],
+            "zone": "base",
+            "name": "Chopper Base",
+            "hp": 30,
+            "type": "base",
+            "uuid": "Card_343",
+            "printedType": "base",
+            "isBlanked": false,
+            "selectable": false,
+            "damage": 0,
+            "epicActionSpent": false,
+            "isDefender": false,
+            "upgrades": []
+          },
+          "id": "dev-beta",
+          "left": false,
+          "name": "Piloto Beta",
+          "phase": "action",
+          "promptedActionWindows": {
+            "setup": true,
+            "action": true,
+            "regroup": true
+          },
+          "user": {
+            "id": "dev-beta",
+            "username": "Piloto Beta"
+          },
+          "promptState": {
+            "selectOrder": false,
+            "dropdownListOptions": [],
+            "menuTitle": "Waiting for opponent to finish viewing cards for Han Solo ability",
+            "buttons": [],
+            "displayCards": [],
+            "perCardButtons": []
+          },
+          "isActionPhaseActivePlayer": false,
+          "aspects": [
+            "aggression",
+            "heroism",
+            "cunning"
+          ],
+          "forceToken": {
+            "active": false
+          },
+          "credits": [],
+          "mainTimeRemainingSeconds": 120,
+          "timeRemainingStatus": "NoAlert",
+          "timerIsRunning": false,
+          "numCardsInDeck": 44
+        }
+      },
+      "phase": "action",
+      "newMessages": [
+        {
+          "date": "2026-09-09T03:17:22.930Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " is shuffling their deck"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.930Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " draws 6 cards in their starting hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.930Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " is shuffling their deck"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.930Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " draws 6 cards in their starting hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.931Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " will keep their hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.931Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " will keep their hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.932Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " has resourced 2 cards from hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.932Z",
+          "message": [
+            {
+              "id": "dev-beta",
+              "name": "dev-beta",
+              "uuid": "Player_9",
+              "type": "player"
+            },
+            " has resourced 2 cards from hand"
+          ]
+        },
+        {
+          "date": "2026-09-09T03:17:22.932Z",
+          "message": {
+            "alert": {
+              "type": "notification",
+              "message": [
+                "Round: 1 - Action Phase"
+              ]
+            }
+          }
+        },
+        {
+          "date": "2026-09-09T03:17:22.933Z",
+          "message": [
+            {
+              "id": "dev-alpha",
+              "name": "dev-alpha",
+              "uuid": "Player_3",
+              "type": "player"
+            },
+            " uses ",
+            {
+              "id": "0616724418",
+              "name": "Han Solo",
+              "uuid": "Card_344",
+              "controllerId": "dev-alpha",
+              "setId": {
+                "set": "JTL",
+                "number": 17
+              },
+              "type": "card",
+              "printedType": "leader"
+            },
+            ", ",
+            "exhausting ",
+            {
+              "id": "0616724418",
+              "name": "Han Solo",
+              "uuid": "Card_344",
+              "controllerId": "dev-alpha",
+              "setId": {
+                "set": "JTL",
+                "number": 17
+              },
+              "type": "card",
+              "printedType": "leader"
+            },
+            " to ",
+            "reveal ",
+            {
+              "id": "8930110877",
+              "name": "Hopeful Volunteer",
+              "uuid": "Card_74",
+              "controllerId": "dev-alpha",
+              "setId": {
+                "set": "JTL",
+                "number": 246
+              },
+              "type": "card",
+              "printedType": "basicUnit"
+            }
+          ]
+        }
+      ],
+      "messageOffset": 0,
+      "totalMessages": 10,
+      "initiativeClaimed": false,
+      "clientUIProperties": {},
+      "spectators": [],
+      "started": true,
+      "gameMode": "premier",
+      "winners": [],
+      "undoEnabled": false,
+      "ongoingEffects": []
+    }
+  }
+]

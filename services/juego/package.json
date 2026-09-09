@@ -1,0 +1,16 @@
+{
+  "name": "holocron-juego",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env servidor.mjs",
+    "dev": "JUEGO_DEV_AUTH=1 node --env-file-if-exists=.env servidor.mjs",
+    "preparar-motor": "node preparar-motor.mjs",
+    "test": "node --test tests/salas.test.mjs",
+    "test:motor": "node --test tests/motor.test.mjs"
+  },
+  "dependencies": { "socket.io": "4.8.1" },
+  "devDependencies": { "socket.io-client": "4.8.1" }
+}

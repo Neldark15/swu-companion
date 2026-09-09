@@ -1,0 +1,6 @@
+node_modules
+.motor
+.datos
+.env
+.env.*
+!.env.example

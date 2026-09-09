@@ -13,7 +13,7 @@ export default defineConfig([
   // bundle; pero el linter los trataba como componentes de la app y su
   // instrumentación (reasignar métodos del contexto WebGL) no puede cumplir
   // esas reglas ni tiene por qué.
-  globalIgnores(['dist', 'banco-*.tsx', '*-banco.tsx']),
+  globalIgnores(['dist', 'banco-*.tsx', '*-banco.tsx', 'services/juego/.motor/**']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
