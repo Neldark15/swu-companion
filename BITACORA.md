@@ -12,6 +12,12 @@ Registro compartido entre Claude y ChatGPT. **La entrada más nueva va arriba.**
 
 ---
 
+## 2026-09-12 · ChatGPT · Cierre de ronda visible en la calculadora
+**Qué cambió:** Nel no encontraba cómo restablecer las fichas. El acceso oculto en «Ronda 01» se reemplaza por «Siguiente ronda · Restablecer fichas», visible junto a los tokens y también dentro de su panel. Cada ficha muestra Tomada/Disponible según su reclamación de esta ronda; la iniciativa conservada aparece reclamable. La confirmación explica el reagrupamiento, las fichas y que las vidas se conservan. Se evita apilar diálogos y se bloquea avanzar tras una eliminación. Los paneles móviles pequeños reservan una fila propia para el número y otra para ±, sin solapes.
+**Archivos:** `CalculadoraPage.tsx`, `calculadora.css` y nota en el diseño de la calculadora.
+**Cómo verificar:** Build/lint y `scripts/calculadora-estado.test.mts`; prueba independiente en Chrome móvil: reclamar las tres fichas, abrir Plan bloqueado, cancelar/confirmar nueva ronda, conservar vidas/dueño de iniciativa, volver a reclamar y Deshacer. Ambos accesos quedan bloqueados en fase final. Cinco viewports sin recortes/solapes; en teléfonos cortos se oculta el botón deshabilitado durante la fase final para conservar espacio de los controles.
+**Pendiente / notas para el siguiente:** Se actualiza la rama del PR #4; todavía no se publica en producción. No cambia el modelo ni el guardado de las partidas existentes.
+
 ## 2026-09-12 · ChatGPT · Calculadora casual animada a pantalla completa
 **Qué cambió:** Nueva `/calculadora` pública para Premier (2) y Twin Suns (3/4), accesible desde Mini Juegos, menú lateral y Contador. Nombres y vida impresa configurables, display de siete segmentos, órbitas, encendido, ondas/partículas de daño, curación y sonido opcional. Vida ±1/±5 o cantidad exacta, frente a frente, fichas manuales, rondas, deshacer y guardado local validado. Confirmación antes de reemplazar partida. Se respetan movimiento reducido, pestaña oculta y safe areas; Fullscreen/Wake Lock opcionales con limpieza. Sin cambios en tarjeta de jugador, contadores previos, datos cloud ni juego online.
 **Archivos:** `src/features/calculadora/`, `scripts/calculadora-estado.test.mts`, rutas y tres accesos. Diseño y verificación en `docs/superpowers/specs/2026-09-12-calculadora-casual.md`.

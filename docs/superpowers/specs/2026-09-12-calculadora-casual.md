@@ -16,6 +16,8 @@ Modelo puro independiente en `estadoCalculadora.ts`. La vida está limitada a 0.
 
 Las fichas son marcadores manuales: reclamar no aplica daño ni efectos sobre cartas. Una ficha por jugador y ronda; se conserva iniciativa en reagrupamiento, y Explosión/Plan vuelven al centro. En Twin Suns, al caer el dueño de iniciativa esta se libera, incluso durante la fase final. La primera eliminación muestra que la partida termina al cerrar la fase actual, con victoria por mayor vida y empates compartidos; el usuario anota la curación de 5 al eliminador correspondiente. No se inventa quién causó un daño manual.
 
+El botón explícito **Siguiente ronda · Restablecer fichas** está junto a las fichas y dentro de cada panel de ficha. Requiere confirmar que la mesa terminó el reagrupamiento. Tomada/Disponible depende de la reclamación de la ronda actual: una iniciativa que conserva su dueño vuelve a mostrarse Disponible. Se conserva toda la vida al avanzar; Deshacer recupera fichas y ronda. Durante la fase final los accesos quedan bloqueados; el botón principal se omite en teléfonos cortos para dejar espacio a las bases supervivientes.
+
 Reglas contrastadas con [CR v8.0 oficial, §§11.3.4 y 12.5–12.7](https://cdn.starwarsunlimited.com//SWH_Comp_Rules_v8_0_e26603c6e1.pdf). Esto es una herramienta para la mesa física, no otro motor de juego online.
 
 Persistencia propia: `holocron-calculadora-casual-v1`; opciones en `swu_calculadora_opciones_v1`. Sin cuenta, SQL, estadísticas, llamadas a servicios ni dependencias nuevas. Reemplazar una partida requiere confirmación explícita dentro de la interfaz.

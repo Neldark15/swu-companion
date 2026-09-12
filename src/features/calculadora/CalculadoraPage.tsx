@@ -126,6 +126,7 @@ export function CalculadoraPage() {
   const editando = mesa?.jugadores.find(j => j.id === editarId)
   const finalTwin = mesa?.modo === 'twin-suns' && mesa.jugadores.some(j => j.vida === 0)
   const terminadoPremier = mesa?.modo === 'premier' && mesa.jugadores.some(j => j.vida === 0)
+  const puedeAvanzar = Boolean(mesa && !finalTwin && !terminadoPremier && mesa.ronda < 9999)
 
   function actualizar(nueva: MesaCalculadora) {
     actual.current = nueva
@@ -161,6 +162,18 @@ export function CalculadoraPage() {
   function reclamar(id: string) {
     if (!actual.current || !ficha) return
     actualizar(tomarFicha(actual.current, id, ficha)); setFicha(null); pulso(true)
+  }
+  function abrirSiguienteRonda() {
+    if (!puedeAvanzar) return
+    setFicha(null)
+    setPanel('ronda')
+  }
+  function avanzarRonda() {
+    const antes = actual.current
+    if (!antes || antes.jugadores.some(j => j.vida === 0) || antes.ronda >= 9999) return
+    actualizar(siguienteRonda(antes))
+    setPanel(null)
+    pulso(true)
   }
   const opcionesBotones = <>
     <button className="calc-icono" onClick={() => opcion('sonido')} aria-label={opciones.sonido ? 'Silenciar sonido' : 'Activar sonido'} aria-pressed={opciones.sonido}>{opciones.sonido ? <Volume2 size={19} /> : <VolumeX size={19} />}</button>
@@ -204,13 +217,15 @@ export function CalculadoraPage() {
       </form>
     </div> : mesa && <>
       <div className="calc-barra-ronda">
-        <button className="calc-ronda" onClick={() => setPanel('ronda')} disabled={Boolean(finalTwin || terminadoPremier)} aria-label="Avanzar a la siguiente ronda"><span>{mesa.modo === 'premier' ? 'PREMIER' : 'TWIN SUNS'}</span><strong>Ronda {String(mesa.ronda).padStart(2, '0')} <ChevronRight size={13} /></strong></button>
+        <div className="calc-ronda"><span>{mesa.modo === 'premier' ? 'PREMIER' : 'TWIN SUNS'}</span><strong>Ronda {String(mesa.ronda).padStart(2, '0')}</strong></div>
         <div className="calc-fichas">{(mesa.modo === 'premier' ? ['iniciativa'] as const : ['iniciativa', 'blast', 'plan'] as const).map(f => {
           const { nombre, Icono } = FICHAS[f]
           const duenio = mesa.jugadores.findIndex(j => j.id === mesa.fichas[f])
-          return <button key={f} className={mesa.reclamadas.includes(f) ? 'reclamada' : ''} style={duenio >= 0 ? { '--ficha': COLORES[duenio] } as CSSProperties : undefined}
-            onClick={() => setFicha(f)} aria-label={`${nombre}: ${duenio >= 0 ? mesa.jugadores[duenio].nombre : 'disponible'}`}><Icono size={17} /><span>{nombre}</span>{duenio >= 0 && <b>{duenio + 1}</b>}</button>
+          const tomada = mesa.reclamadas.includes(f)
+          return <button key={f} className={tomada ? 'reclamada' : ''} style={duenio >= 0 ? { '--ficha': COLORES[duenio] } as CSSProperties : undefined}
+            onClick={() => setFicha(f)} aria-label={`${nombre}: ${tomada ? `tomada por ${mesa.jugadores[duenio].nombre}` : `disponible${duenio >= 0 ? `; inicia ${mesa.jugadores[duenio].nombre}` : ''}`}`}><Icono size={17} /><span className="calc-ficha-etiqueta"><span>{nombre}</span><small>{tomada ? 'Tomada' : 'Disponible'}</small></span>{duenio >= 0 && <b>{duenio + 1}</b>}</button>
         })}</div>
+        <button className="calc-siguiente-ronda" onClick={abrirSiguienteRonda} disabled={!puedeAvanzar} aria-label="Siguiente ronda: restablecer fichas"><RotateCcw size={17} /><strong>Siguiente ronda</strong><span>Restablecer fichas</span><ChevronRight size={16} /></button>
       </div>
       {(finalTwin || terminadoPremier) && <div className="calc-final" role="status"><Shield size={17} /><span>{finalTwin ? 'Fase final: al terminar esta fase gana la base con más vida. Empates comparten victoria. Anotá +5 al eliminador, si corresponde.' : `Base destruida. ${mesa.jugadores.find(j => j.vida > 0)?.nombre ?? 'Sin sobrevivientes'}${mesa.jugadores.some(j => j.vida > 0) ? ' gana el duelo.' : '.'}`} <small>¿Fue un toque accidental? Usá Deshacer.</small></span></div>}
       <div className={`calc-tablero jugadores-${mesa.jugadores.length}`}>
@@ -237,8 +252,8 @@ export function CalculadoraPage() {
       <button className="calc-secundario" onClick={() => { setPanel(null); setConfigurando(true) }}><RotateCcw size={17} /> Preparar otra partida</button>
     </Dialogo>}
     {panel === 'nueva' && <Dialogo titulo="¿Encender una nueva mesa?" cerrar={() => setPanel(null)}><p>Esto reemplaza la partida guardada en este dispositivo y su registro.</p><button className="calc-empezar" onClick={empezar}>Empezar nueva partida <ArrowRight size={18} /></button><button className="calc-secundario" onClick={() => setPanel(null)}>Conservar la partida anterior</button></Dialogo>}
-    {panel === 'ronda' && mesa && <Dialogo titulo={`Pasar a ronda ${mesa.ronda + 1}`} cerrar={() => setPanel(null)}><p>Terminá el reagrupamiento con tus cartas antes de avanzar.</p><p className="calc-ayuda">{mesa.modo === 'twin-suns' ? 'Explosión y Plan vuelven al centro. ' : ''}Se conserva quién tiene la iniciativa y se habilita reclamar fichas otra vez.</p><button className="calc-empezar" onClick={() => { if (actual.current) actualizar(siguienteRonda(actual.current)); setPanel(null); pulso(true) }}>Siguiente ronda <ArrowRight size={18} /></button></Dialogo>}
-    {ficha && mesa && <Dialogo titulo={FICHAS[ficha].nombre} cerrar={() => setFicha(null)}><p>{FICHAS[ficha].ayuda}</p><p className="calc-ayuda">Una ficha por jugador en cada ronda. Este control registra quién la tomó; los efectos se resuelven en la mesa.</p><div className="calc-elegir-jugador">{mesa.jugadores.map((j, i) => <button style={{ '--jugador': COLORES[i] } as CSSProperties} key={j.id} disabled={!puedeTomarFicha(mesa, j.id, ficha)} onClick={() => reclamar(j.id)}><span className="calc-asiento">0{i + 1}</span>{j.nombre}<span>{mesa.fichas[ficha] === j.id ? 'La tiene' : 'Reclamar'}</span></button>)}</div></Dialogo>}
+    {panel === 'ronda' && mesa && <Dialogo titulo={`Pasar a ronda ${mesa.ronda + 1}`} cerrar={() => setPanel(null)}><p>Cuando todos hayan terminado el reagrupamiento, confirmá para restablecer las fichas.</p><p className="calc-ayuda">{mesa.modo === 'twin-suns' ? 'Explosión y Plan vuelven al centro. ' : ''}La iniciativa conserva su dueño, pero puede reclamarse de nuevo. Todos vuelven a poder tomar una ficha. Las vidas se conservan.</p><button className="calc-empezar" disabled={!puedeAvanzar} onClick={avanzarRonda}>Siguiente ronda <ArrowRight size={18} /></button></Dialogo>}
+    {ficha && mesa && <Dialogo titulo={FICHAS[ficha].nombre} cerrar={() => setFicha(null)}><p>{FICHAS[ficha].ayuda}</p><p className="calc-ficha-estado">{mesa.reclamadas.includes(ficha) ? `Ya tomada en la ronda ${mesa.ronda}. Volverá a estar disponible en la siguiente ronda.` : ficha === 'iniciativa' && mesa.fichas.iniciativa ? `${mesa.jugadores.find(j => j.id === mesa.fichas.iniciativa)?.nombre} conserva la iniciativa. Se puede reclamar de nuevo en esta ronda.` : 'Disponible para quien todavía no haya tomado otra ficha en esta ronda.'}</p><p className="calc-ayuda">Una ficha por jugador en cada ronda. Este control registra quién la tomó; los efectos se resuelven en la mesa.</p><div className="calc-elegir-jugador">{mesa.jugadores.map((j, i) => <button style={{ '--jugador': COLORES[i] } as CSSProperties} key={j.id} disabled={!puedeTomarFicha(mesa, j.id, ficha)} onClick={() => reclamar(j.id)}><span className="calc-asiento">0{i + 1}</span>{j.nombre}<span>{mesa.fichas[ficha] === j.id && mesa.reclamadas.includes(ficha) ? 'La tomó' : 'Reclamar'}</span></button>)}</div><button className="calc-secundario" disabled={!puedeAvanzar} onClick={abrirSiguienteRonda}><RotateCcw size={17} /> Siguiente ronda · restablecer fichas</button></Dialogo>}
     {editando && <Dialogo titulo={`Ajustar · ${editando.nombre}`} cerrar={() => setEditarId(null)}><p className="calc-ayuda">Vida actual: {editando.vida} de {editando.maxVida}. El daño y la curación respetan los límites de la base.</p><label className="calc-cantidad">Cantidad<input autoFocus type="number" inputMode="numeric" min={1} max={999} step={1} value={cantidad} onChange={e => setCantidad(e.target.value)} /></label><div className="calc-cantidades">{[1, 3, 5, 10].map(n => <button key={n} aria-pressed={Number(cantidad) === n} onClick={() => setCantidad(String(n))}>{n}</button>)}</div><div className="calc-acciones-exactas">
       <button disabled={editando.vida === 0 || !Number.isInteger(Number(cantidad)) || Number(cantidad) < 1 || Number(cantidad) > 999} onClick={() => { ajustar(editando.id, -Number(cantidad)); setEditarId(null) }}><Minus size={18} /> Hacer daño</button>
       <button disabled={editando.vida === 0 || editando.vida === editando.maxVida || !Number.isInteger(Number(cantidad)) || Number(cantidad) < 1 || Number(cantidad) > 999} onClick={() => { ajustar(editando.id, Number(cantidad)); setEditarId(null) }}><Plus size={18} /> Curar</button>
