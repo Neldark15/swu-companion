@@ -69,7 +69,7 @@ const GROUPS: MoreGroup[] = [
       { to: '/decks', label: 'Mis Decks', sub: 'Constructor', icon: DeckCardsIcon },
       { to: '/laboratorio', label: 'Laboratorio', sub: 'Simulador de mazos', icon: LabIcon },
       { to: '/misiones', label: 'Misiones', sub: 'Órdenes del día', icon: DeathStarIcon },
-      { to: '/contador', label: 'Contador de daños', sub: 'Duelo en mesa real', icon: ChanceCubeIcon },
+      { to: '/contador', label: 'Contador de daños', sub: 'Premier y Twin Suns', icon: ChanceCubeIcon },
       { to: '/amistosas', label: 'Amistosas', sub: 'Historial cara a cara', icon: BlasterIcon },
       { to: '/calendario', label: 'Calendario', sub: 'Los torneos del mes', icon: AgendaIcon },
       /* Una sola entrada de mercado, igual que en Inicio y en la barra de

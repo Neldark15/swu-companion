@@ -43,6 +43,7 @@ const BancoEscaner = import.meta.env.DEV
   : null
 const MetaPage = lazy(() => import('./features/meta/MetaPage').then(m => ({ default: m.MetaPage })))
 const ContadorPage = lazy(() => import('./features/contador/ContadorPage').then(m => ({ default: m.ContadorPage })))
+const CalculadoraPage = lazy(() => import('./features/calculadora/CalculadoraPage').then(m => ({ default: m.CalculadoraPage })))
 // El Contador para una mesa de Twin Suns (3 o 4). Comparte las piezas con el
 // de dos, pero es otra pantalla: el duelo entero esta construido sobre DOS
 // lados enfrentados y generalizarlo a N tocaba guardado, nube y misiones.
@@ -292,6 +293,11 @@ export default function App() {
               Sigue en RUTAS_LIBRES (entorno.ts) y tiene que seguir: si la
               puerta de instalación se monta encima, tapa la tele entera. */}
           <Route path="/events/live/:code" element={<ProyeccionPage />} />
+          {/* El contador visual ocupa el viewport y conserva su partida local.
+              Las keys permiten entrar a Twin Suns sin reutilizar la preparación Premier. */}
+          <Route path="/contador" element={<CalculadoraPage key="principal" />} />
+          <Route path="/contador/mesa" element={<CalculadoraPage key="twin-suns" modoInicial="twin-suns" />} />
+          <Route path="/calculadora" element={<Navigate to="/contador" replace />} />
           {/* El banco va FUERA de AppLayout por lo mismo que la pantalla que
               revisa: necesita la ventana entera. Dentro del caparazón, un
               lienzo de tele queda apretado contra el menú lateral. */}
@@ -303,8 +309,9 @@ export default function App() {
             <Route path="/cards" element={<CardsPage />} />
             <Route path="/aurebesh" element={<TraductorPage />} />
             <Route path="/cards/:id" element={<CardDetailPage />} />
-            <Route path="/contador" element={<ContadorPage />} />
-            <Route path="/contador/mesa" element={<MesaContador />} />
+            {/* Los duelos registrados mantienen sesión, misiones e historial anteriores. */}
+            <Route path="/contador/registrado" element={<ContadorPage />} />
+            <Route path="/contador/registrado/mesa" element={<MesaContador />} />
             {/* Torneos: el archivo de lo que ya se jugó. Público —sin <P>— como
                 /rulings: un torneo terminado es historia de la comunidad, no
                 requiere cuenta para mirarlo. */}

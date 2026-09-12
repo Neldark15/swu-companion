@@ -313,10 +313,10 @@ export function MesaContador() {
   return (
     <div className="min-h-screen space-y-3 bg-swu-bg px-4 py-4 pb-24">
       <button
-        onClick={() => navigate('/contador')}
+        onClick={() => navigate('/contador/registrado')}
         className="flex min-h-[44px] items-center gap-1.5 text-xs text-swu-muted"
       >
-        <ArrowLeft size={14} /> Contador de dos
+        <ArrowLeft size={14} /> Duelo registrado
       </button>
 
       <header>

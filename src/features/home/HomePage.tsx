@@ -139,7 +139,7 @@ interface Sistema {
  */
 const mainSystems: Sistema[] = [
   // ── Jugar: lo de la mesa, en vivo o para dejar registro ──
-  { icon: ChanceCubeIcon,  label: 'Contador de daños', tone: 'purple', to: '/contador', cat: 'jugar' },
+  { icon: ChanceCubeIcon,  label: 'Contador de daños', tone: 'cyan', to: '/contador', cat: 'jugar' },
   { icon: BlasterIcon, label: 'Amistosas',    tone: 'green',  to: '/amistosas',  cat: 'jugar' },
   // Duelo ocupa el hueco que dejó el Holocrón, y no es un cambio de rótulo:
   // esa casilla era el ÚNICO salto de un toque desde Inicio hacia el tracker
@@ -213,7 +213,7 @@ const mainSystems: Sistema[] = [
   { icon: SaberIcon, label: 'Taller Kyber', tone: 'amber', to: '/sable', cat: 'minijuegos', auth: true },
   { icon: PlanetaAnilladoIcon, label: 'Terraformar', tone: 'green', to: '/terraformar', cat: 'minijuegos', auth: true },
 
-  // Ni da ni gasta: es el único que se puede tocar sin cuenta.
+  // Ni da ni gasta, también disponible sin cuenta.
   { icon: AurebeshIcon,   label: 'Aurebesh',     tone: 'cyan',   to: '/aurebesh', cat: 'minijuegos' },
 
   // ── Comunidad: mirar a los demás ──

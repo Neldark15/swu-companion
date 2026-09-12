@@ -12,6 +12,7 @@ Vite 7 + React 19 + TypeScript 5.9 (strict, `noUnusedLocals/Parameters`) + Tailw
 - `src/App.tsx` — router (~130 rutas lazy). `<P>` = AuthGate (ruta con login). Los `/banco-*` son bancos de prueba visuales SOLO en dev (`import.meta.env.DEV`, se podan del bundle).
 - `src/features/<módulo>/` — 41 carpetas de feature (cards, collection, sobres, torneos, events, liga, creadores, meta, rulings, galaxia, mesa, stream, lab, sable, planeta, mercado, etc.).
 - `src/features/jugar/` y `services/juego/` — beta Premier privado BO1; frontend lazy + servicio Node24/Socket.IO/SQLite separado. Configuración y operación en `services/juego/README.md`, decisiones en CLAUDE §5n. No confundir con Mesa/SWUSIM.
+- `src/features/calculadora/` — Contador de daños visual `/contador`, Twin Suns `/contador/mesa`, alias `/calculadora`. Bases canónicas y guardado local; los contadores que registran resultados se conservan en `/contador/registrado`, destino de Misiones y Amistosas. Ver CLAUDE §5o.
 - `src/services/` — ~120 servicios. Claves: `supabase.ts` (cliente), `swuApi.ts` (catálogo Dexie + red), `db/` (esquema Dexie), `sync.ts` (patrón de referencia para joins), `sobres.ts`, `ligaService.ts`, `tournamentCloud.ts`, `swiss.ts`, `pricing.ts`, `cardHash.ts`, `rulingsService.ts`.
 - `src/hooks/useAuth.ts` — sesión (Zustand persist), `useRutaPersistente.ts` — restaura la ruta en la PWA.
 - `src/sw.ts` — service worker propio (`injectManifest`); `src/components/UpdatePrompt.tsx` — aviso de versión nueva.

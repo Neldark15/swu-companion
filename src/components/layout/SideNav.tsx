@@ -99,7 +99,7 @@ const secondaryNav: NavItem[] = [
   { id: '/cards', label: 'Buscar Cartas', sub: 'Base de datos', icon: HolonetIcon },
   { id: '/envivo', label: 'En Vivo', sub: 'Transmisión de torneos', icon: EmisionIcon },
   { id: '/rulings', label: 'Rulings', sub: 'Reglamento del juego', icon: HolocronIcon },
-  { id: '/contador', label: 'Contador de daños', sub: 'Duelo en mesa real', icon: ChanceCubeIcon },
+  { id: '/contador', label: 'Contador de daños', sub: 'Premier y Twin Suns', icon: ChanceCubeIcon },
   { id: '/amistosas', label: 'Amistosas', sub: 'Historial cara a cara', icon: BlasterIcon },
   { id: '/torneos', label: 'Torneos', sub: 'Lo que viene y el archivo', icon: MandoTrophyIcon },
   { id: '/calendario', label: 'Calendario', sub: 'Los torneos del mes', icon: AgendaIcon },
