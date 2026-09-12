@@ -208,12 +208,13 @@ const mainSystems: Sistema[] = [
 
   // Juego online: acceso directo al modo de sala privada de SWU.
   { icon: DatapadIcon, label: 'Jugar online', tone: 'green', to: '/jugar', cat: 'minijuegos', auth: true },
+  { icon: ChanceCubeIcon, label: 'Calculadora', tone: 'cyan', to: '/calculadora', cat: 'minijuegos' },
 
   // Los gastan. Comparten la misma bolsa: `creditos_saldo()` resta de las dos.
   { icon: SaberIcon, label: 'Taller Kyber', tone: 'amber', to: '/sable', cat: 'minijuegos', auth: true },
   { icon: PlanetaAnilladoIcon, label: 'Terraformar', tone: 'green', to: '/terraformar', cat: 'minijuegos', auth: true },
 
-  // Ni da ni gasta: es el único que se puede tocar sin cuenta.
+  // Ni da ni gasta, también disponible sin cuenta.
   { icon: AurebeshIcon,   label: 'Aurebesh',     tone: 'cyan',   to: '/aurebesh', cat: 'minijuegos' },
 
   // ── Comunidad: mirar a los demás ──

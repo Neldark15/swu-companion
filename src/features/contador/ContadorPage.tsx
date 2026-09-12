@@ -950,6 +950,11 @@ export function ContadorPage() {
         </button>
       )}
 
+      <button onClick={() => navigate('/calculadora')} className="w-full flex items-center gap-3 rounded-xl border border-swu-cyan/30 bg-swu-cyan/5 p-3 text-left">
+        <Swords size={20} className="text-swu-cyan" />
+        <span><strong className="block text-sm text-swu-text">Calculadora casual a pantalla completa</strong><span className="text-xs text-swu-muted">Premier y Twin Suns · efectos de energía · guardado local</span></span>
+      </button>
+
       {/* El contrincante, buscado entre los usuarios de la app. Elegirlo es lo
           que arma el historial cara-a-cara; sin elegirlo, el duelo se guarda
           igual como «Invitado». Nada de esto toca el ranking: la tabla de

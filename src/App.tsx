@@ -43,6 +43,7 @@ const BancoEscaner = import.meta.env.DEV
   : null
 const MetaPage = lazy(() => import('./features/meta/MetaPage').then(m => ({ default: m.MetaPage })))
 const ContadorPage = lazy(() => import('./features/contador/ContadorPage').then(m => ({ default: m.ContadorPage })))
+const CalculadoraPage = lazy(() => import('./features/calculadora/CalculadoraPage').then(m => ({ default: m.CalculadoraPage })))
 // El Contador para una mesa de Twin Suns (3 o 4). Comparte las piezas con el
 // de dos, pero es otra pantalla: el duelo entero esta construido sobre DOS
 // lados enfrentados y generalizarlo a N tocaba guardado, nube y misiones.
@@ -292,6 +293,8 @@ export default function App() {
               Sigue en RUTAS_LIBRES (entorno.ts) y tiene que seguir: si la
               puerta de instalación se monta encima, tapa la tele entera. */}
           <Route path="/events/live/:code" element={<ProyeccionPage />} />
+          {/* Mesa casual pública: ocupa el viewport, con guardado local y sin avisos durante el juego. */}
+          <Route path="/calculadora" element={<CalculadoraPage />} />
           {/* El banco va FUERA de AppLayout por lo mismo que la pantalla que
               revisa: necesita la ventana entera. Dentro del caparazón, un
               lienzo de tele queda apretado contra el menú lateral. */}

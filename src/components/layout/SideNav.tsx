@@ -110,6 +110,7 @@ const secondaryNav: NavItem[] = [
    después lo que los GASTA —el Taller y Terraformar comparten la misma bolsa—
    y al final Aurebesh, que ni da ni gasta. */
 const MINI_JUEGOS = [
+  { id: '/calculadora', label: 'Calculadora', sub: 'Premier y Twin Suns casual', icon: ChanceCubeIcon },
   { id: '/sobres', label: 'Sobredosis', sub: 'Abrir sobres', icon: SobreIcon },
   { id: '/trivia', label: 'Trivia', sub: 'Preguntas del canon', icon: HolocronIcon },
   { id: '/sable', label: 'Taller Kyber', sub: 'Armá tu sable', icon: SaberIcon },
