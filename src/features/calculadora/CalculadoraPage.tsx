@@ -12,6 +12,8 @@ import {
 } from './estadoCalculadora'
 import { CardImage } from '../../components/CardImage'
 import { DigitosVida } from './DigitosVida'
+import { NombreJugadorCalculadora } from './NombreJugadorCalculadora'
+import { BotonVidaCalculadora } from './BotonVidaCalculadora'
 import { useConsola } from './useConsola'
 import './calculadora.css'
 
@@ -24,12 +26,13 @@ const FICHAS = {
   plan: { nombre: 'Plan', Icono: Orbit, ayuda: 'Robá una carta, poné una carta de tu mano debajo del mazo y pasá tus acciones restantes.' },
 }
 const CLAVE_OPCIONES = 'swu_calculadora_opciones_v1'
-interface Opciones { sonido: boolean; efectos: boolean; enfrentados: boolean }
+interface Opciones { sonido: boolean; efectos: boolean; enfrentados: boolean; volumen: number }
 function leerOpciones(): Opciones {
   try {
     const o = JSON.parse(localStorage.getItem(CLAVE_OPCIONES) ?? '{}') as Partial<Opciones> | null
-    return { sonido: o?.sonido === true, efectos: o?.efectos !== false, enfrentados: o?.enfrentados === true }
-  } catch { return { sonido: false, efectos: true, enfrentados: false } }
+    return { sonido: o?.sonido === true, efectos: o?.efectos !== false, enfrentados: o?.enfrentados === true,
+      volumen: typeof o?.volumen === 'number' && Number.isFinite(o.volumen) ? Math.max(0, Math.min(100, o.volumen)) : 80 }
+  } catch { return { sonido: false, efectos: true, enfrentados: false, volumen: 80 } }
 }
 function cargarMesa() {
   try { return leerMesa(localStorage.getItem(CLAVE_CALCULADORA)) } catch { return null }
@@ -91,12 +94,12 @@ function Jugador({ jugador, indice, impacto, invertir, fichas, ajustar, editar, 
         <span className="calc-estado-base" title={destruida ? 'Base destruida' : fichas.includes('iniciativa') ? 'Conserva la iniciativa' : 'Base activa'}>{fichas.includes('iniciativa') ? <Zap size={14} /> : <Shield size={14} />}</span>
       </header>
       <div className="calc-reactor-fila">
-        <button className="calc-ajustar calc-menos" disabled={destruida} aria-label={`Hacer 1 de daño a ${jugador.nombre}`} onClick={() => ajustar(-1)}><Minus /></button>
+        <BotonVidaCalculadora className="calc-ajustar calc-menos" disabled={destruida} aria-label={`Hacer 1 de daño a ${jugador.nombre}`} alAjustar={() => ajustar(-1)}><Minus /></BotonVidaCalculadora>
         <Reactor vida={jugador.vida} maxVida={jugador.maxVida} impacto={impacto} editar={editar} />
-        <button className="calc-ajustar calc-mas" disabled={destruida || jugador.vida === jugador.maxVida} aria-label={`Curar 1 a ${jugador.nombre}`} onClick={() => ajustar(1)}><Plus /></button>
+        <BotonVidaCalculadora className="calc-ajustar calc-mas" disabled={destruida || jugador.vida === jugador.maxVida} aria-label={`Curar 1 a ${jugador.nombre}`} alAjustar={() => ajustar(1)}><Plus /></BotonVidaCalculadora>
       </div>
       <div className="calc-jugador-pie">
-        <button disabled={destruida} aria-label={`Hacer 5 de daño a ${jugador.nombre}`} onClick={() => ajustar(-5)}>−5 <span>DAÑO</span></button>
+        <BotonVidaCalculadora disabled={destruida} aria-label={`Hacer 5 de daño a ${jugador.nombre}`} alAjustar={() => ajustar(-5)}>−5 <span>DAÑO</span></BotonVidaCalculadora>
         {fuerza ? <button type="button" className={`calc-fuerza${jugador.fuerza ? ' activa' : ''}`} disabled={destruida}
           aria-pressed={jugador.fuerza} aria-label={`${jugador.fuerza ? 'Usar la Fuerza' : 'Crear ficha de Fuerza'} de ${jugador.nombre}`}
           title={jugador.fuerza ? 'Usar la Fuerza: gastar tu ficha' : 'Crear tu ficha cuando una carta lo indique'} onClick={fuerza}>
@@ -106,7 +109,7 @@ function Jugador({ jugador, indice, impacto, invertir, fichas, ajustar, editar, 
           const { Icono, nombre } = FICHAS[f]
           return <span key={f} title={nombre}><Icono size={13} /><span>{nombre}</span></span>
         }) : <span className="calc-senal"><i /><i /><i /><i /><i /></span>}</span>}
-        <button disabled={destruida || jugador.vida === jugador.maxVida} aria-label={`Curar 5 a ${jugador.nombre}`} onClick={() => ajustar(5)}>+5 <span>CURAR</span></button>
+        <BotonVidaCalculadora disabled={destruida || jugador.vida === jugador.maxVida} aria-label={`Curar 5 a ${jugador.nombre}`} alAjustar={() => ajustar(5)}>+5 <span>CURAR</span></BotonVidaCalculadora>
       </div>
     </div>
   </section>
@@ -132,7 +135,7 @@ export function CalculadoraPage({ modoInicial }: { modoInicial?: ModoCalculadora
   const secuencia = useRef(0)
   const [aviso, setAviso] = useState('')
   const [guardado, setGuardado] = useState(true)
-  const { completa, visible, pantallaCompleta, pulso } = useConsola(Boolean(mesa) && !configurando, opciones.sonido)
+  const { completa, visible, pantallaCompleta, pulso, prepararAudio } = useConsola(Boolean(mesa) && !configurando, opciones.sonido, opciones.volumen)
   const total = modo === 'premier' ? 2 : cuantos
   const editando = mesa?.jugadores.find(j => j.id === editarId)
   const finalTwin = mesa?.modo === 'twin-suns' && mesa.jugadores.some(j => j.vida === 0)
@@ -145,10 +148,15 @@ export function CalculadoraPage({ modoInicial }: { modoInicial?: ModoCalculadora
     catch { setGuardado(false) }
     setMesa(nueva)
   }
-  function opcion(clave: keyof Opciones) {
+  function opcion(clave: 'sonido' | 'efectos' | 'enfrentados') {
     const nuevas = { ...opciones, [clave]: !opciones[clave] }
     setOpciones(nuevas)
     try { localStorage.setItem(CLAVE_OPCIONES, JSON.stringify(nuevas)) } catch { /* Las opciones funcionan en memoria. */ }
+  }
+  function cambiarVolumen(volumen: number) {
+    const nuevas = { ...opciones, volumen }
+    setOpciones(nuevas)
+    try { localStorage.setItem(CLAVE_OPCIONES, JSON.stringify(nuevas)) } catch { /* Se aplica en memoria. */ }
   }
   function empezar() {
     const nueva = crearMesa(modo, jugadores.slice(0, total).map(j => ({ nombre: j.nombre, maxVida: Number(j.maxVida), base: j.base })))
@@ -206,7 +214,7 @@ export function CalculadoraPage({ modoInicial }: { modoInicial?: ModoCalculadora
       aria-label={completa ? 'Salir de pantalla completa' : 'Activar pantalla completa'} aria-pressed={completa}><Expand size={19} /></button>}
   </>
 
-  return <main className={`calc-app ${configurando ? 'en-configuracion' : 'en-partida'}`} data-efectos={opciones.efectos ? 'si' : 'no'} data-pausa={!visible ? 'si' : 'no'}>
+  return <main className={`calc-app ${configurando ? 'en-configuracion' : 'en-partida'}`} data-efectos={opciones.efectos ? 'si' : 'no'} data-pausa={!visible ? 'si' : 'no'} onPointerDownCapture={prepararAudio} onKeyDownCapture={prepararAudio}>
     <div className="calc-estrellas" aria-hidden="true" />
     <header className="calc-cabecera">
       <Link className="calc-icono" to="/" aria-label="Volver a Inicio"><ArrowLeft size={19} /></Link>
@@ -230,15 +238,13 @@ export function CalculadoraPage({ modoInicial }: { modoInicial?: ModoCalculadora
         </div>
         {modo === 'twin-suns' && <div className="calc-cuantos"><span>Jugadores en la mesa</span>{([3, 4] as const).map(n => <button key={n} type="button" aria-pressed={cuantos === n} onClick={() => setCuantos(n)}>{n}</button>)}</div>}
         <div className="calc-campos-cabecera"><span>JUGADORES</span><span>VIDA INICIAL</span></div>
-        <div className="calc-jugadores-form">{jugadores.slice(0, total).map((j, i) => <div className="calc-preparacion-jugador" key={i} style={{ '--jugador': COLORES[i] } as CSSProperties}><div className="calc-jugador-form">
-          <span className="calc-asiento">0{i + 1}</span>
-          <input aria-label={`Nombre del jugador ${i + 1}`} maxLength={32} value={j.nombre} placeholder={`Jugador ${i + 1}`} onChange={e => cambiarJugador(i, 'nombre', e.target.value)} />
+        <div className="calc-jugadores-form">{jugadores.slice(0, total).map((j, i) => <div className="calc-preparacion-jugador" key={i} style={{ '--jugador': COLORES[i] } as CSSProperties}><NombreJugadorCalculadora indice={i} nombre={j.nombre} onNombre={nombre => cambiarJugador(i, 'nombre', nombre)}>
           <label><Shield size={14} /><input aria-label={`Vida inicial del jugador ${i + 1}`} type="number" inputMode="numeric" min={1} max={999} step={1} required readOnly={Boolean(j.base)} value={j.maxVida} onChange={e => cambiarJugador(i, 'maxVida', e.target.value)} /></label>
-        </div><button type="button" className="calc-elegir-base" aria-label={`Elegir base del jugador ${i + 1}`} onClick={() => setBasePara(i)}>
+        </NombreJugadorCalculadora><button type="button" className="calc-elegir-base" aria-label={`Elegir base del jugador ${i + 1}`} onClick={() => setBasePara(i)}>
           {j.base ? <CardImage src={j.base.imagen} alt="" orientacion="apaisada" relleno={false} className="calc-base-miniatura" /> : <Shield size={20} />}
           <span><strong>{j.base?.nombre ?? 'Elegir una base'}</strong><small>{j.base ? `${j.base.vidaImpresa} de vida impresa${modo === 'premier' && j.base.usaFuerza ? ' · Fuerza' : ''} · Cambiar` : 'Imagen y vida de tu carta'}</small></span><ChevronRight size={15} />
         </button></div>)}</div>
-        <p className="calc-ayuda">Al elegir una base se usa su vida impresa. También podés jugar con vida manual.</p>
+        <p className="calc-ayuda">Escribí al menos 2 letras para buscar jugadores de Holocron o usá un nombre libre. Al elegir una base se carga su vida impresa.</p>
         {modo === 'premier' && jugadores.slice(0, 2).some(j => j.base?.usaFuerza) && <p className="calc-ayuda">Tu ficha de Fuerza aparece junto a la vida: tocala para crearla cuando una carta lo indique y otra vez para usarla. Se conserva entre rondas.</p>}
         <button type="button" className="calc-opcion-linea" aria-pressed={opciones.enfrentados} onClick={() => opcion('enfrentados')}><Repeat2 size={18} /><span>Frente a frente<small>Girá los paneles de quienes están enfrente.</small></span><i className="calc-switch" /></button>
         <button className="calc-empezar" type="submit"><Zap size={19} /> ENCENDER LA MESA <ArrowRight size={19} /></button>
@@ -278,7 +284,8 @@ export function CalculadoraPage({ modoInicial }: { modoInicial?: ModoCalculadora
     {(!guardado || aviso) && <div className="calc-aviso" role="alert">{!guardado ? 'No se pudo guardar en este dispositivo. Mantené abierta la calculadora para conservar la partida.' : aviso}<button aria-label="Cerrar aviso" onClick={() => setAviso('')} disabled={!guardado}><X size={16} /></button></div>}
     {panel === 'registro' && mesa && <Dialogo titulo="Registro de la mesa" cerrar={() => setPanel(null)}><p className="calc-ayuda">Últimos 100 movimientos. Deshacer restaura también las fichas y la ronda.</p><ol className="calc-registro">{mesa.historial.length ? mesa.historial.slice().reverse().map((m, i) => <li key={i}><span>{String(mesa.historial.length - i).padStart(2, '0')}</span>{m.descripcion}</li>) : <li>La mesa está lista. Todavía no hay movimientos.</li>}</ol></Dialogo>}
     {panel === 'ajustes' && <Dialogo titulo="Ajustes de la consola" cerrar={() => setPanel(null)}>
-      {([{ clave: 'sonido', titulo: 'Sonido de energía', texto: 'Un pulso suave para daño y curación.', Icono: Volume2 }, { clave: 'efectos', titulo: 'Efectos animados', texto: 'Órbitas, ondas de choque y partículas.', Icono: Sparkles }, { clave: 'enfrentados', titulo: 'Frente a frente', texto: 'Paneles superiores girados 180°.', Icono: Repeat2 }] as const).map(o => <button className="calc-opcion-linea" key={o.clave} aria-pressed={opciones[o.clave]} onClick={() => opcion(o.clave)}><o.Icono size={20} /><span>{o.titulo}<small>{o.texto}</small></span><i className="calc-switch" /></button>)}
+      {([{ clave: 'sonido', titulo: 'Sonido de energía', texto: 'Impacto de daño y pulso de curación.', Icono: Volume2 }, { clave: 'efectos', titulo: 'Efectos animados', texto: 'Órbitas, ondas de choque y partículas.', Icono: Sparkles }, { clave: 'enfrentados', titulo: 'Frente a frente', texto: 'Paneles superiores girados 180°.', Icono: Repeat2 }] as const).map(o => <button className="calc-opcion-linea" key={o.clave} aria-pressed={opciones[o.clave]} onClick={() => opcion(o.clave)}><o.Icono size={20} /><span>{o.titulo}<small>{o.texto}</small></span><i className="calc-switch" /></button>)}
+      <div className="calc-volumen"><label htmlFor="calc-volumen">Volumen de efectos <output>{opciones.volumen}%</output></label><input id="calc-volumen" aria-label="Volumen de efectos" type="range" min={0} max={100} step={5} value={opciones.volumen} disabled={!opciones.sonido} onChange={e => cambiarVolumen(Number(e.target.value))} /><button type="button" className="calc-secundario" disabled={!opciones.sonido || opciones.volumen === 0} onClick={() => pulso(false)}><Volume2 size={17} /> Probar sonido de daño</button></div>
       <p className="calc-ayuda">La preferencia de movimiento reducido de tu dispositivo siempre se respeta. La pantalla se mantiene encendida cuando tu navegador lo permite.</p>
       <button className="calc-secundario" onClick={() => { setPanel(null); setConfigurando(true) }}><RotateCcw size={17} /> Preparar otra partida</button>
       <Link className="calc-acceso-registrado" to="/contador/registrado"><History size={16} /><span>Duelo registrado<small>Partidas anteriores, Amistosas y Misiones</small></span><ChevronRight size={15} /></Link>
