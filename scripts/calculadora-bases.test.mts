@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import type { Card } from '../src/types/index.ts'
-import { catalogoBasesCalculadora, filtrarBasesCalculadora } from '../src/features/calculadora/basesCalculadora.ts'
+import { baseUsaFuerza, catalogoBasesCalculadora, filtrarBasesCalculadora } from '../src/features/calculadora/basesCalculadora.ts'
 import { crearMesa, leerMesa } from '../src/features/calculadora/estadoCalculadora.ts'
 
 function carta(cambios: Partial<Card> = {}): Card {
@@ -49,7 +49,29 @@ const base = variantes[1]
 const mesa = crearMesa('premier', [{ nombre: 'Leia', maxVida: 30, base }, { nombre: 'Han', maxVida: 30 }])
 assert.equal(mesa.jugadores[0].maxVida, 25, 'La selección lleva la vida impresa real al contador')
 assert.deepEqual(leerMesa(JSON.stringify(mesa))?.jugadores[0].base, {
-  id: base.id, nombre: base.nombre, imagen: base.imagen, vidaImpresa: base.vidaImpresa,
+  id: base.id, nombre: base.nombre, imagen: base.imagen, vidaImpresa: base.vidaImpresa, usaFuerza: false,
 }, 'La metadata del catálogo se puede guardar y recuperar sin campos de búsqueda')
 
-console.log('Calculadora: catálogo de bases, filtros y selección persistente correctos.')
+const textoComun = 'When a friendly Force unit attacks: The Force is with you (create your Force token).'
+const textoAccion = 'Action: The Force is with you.'
+assert.equal(baseUsaFuerza(carta({ text: textoComun })), true)
+assert.equal(baseUsaFuerza(carta({ text: textoAccion })), true)
+assert.equal(baseUsaFuerza(carta({ text: 'When the regroup phase starts: If you control a unit, the Force is with you.' })), true)
+assert.equal(baseUsaFuerza(carta({ text: '<b>Action:</b> The Force is with you.' })), true)
+assert.equal(baseUsaFuerza(carta({ text: '', epicAction: textoAccion })), true)
+assert.equal(baseUsaFuerza(carta({ text: 'Acción: La Fuerza está contigo.' })), true)
+assert.equal(baseUsaFuerza(carta({ type: 'Unit', text: textoComun })), false)
+assert.equal(baseUsaFuerza(carta({ text: 'A friendly Force unit gets +1/+1.' })), false)
+assert.equal(baseUsaFuerza(carta({ text: 'If the Force is with you, draw a card.' })), false, 'Consultar si se tiene Fuerza no crea ficha')
+const basesFuerza = catalogoBasesCalculadora([
+  carta({ id: 'fuerza-28', hp: 28, text: textoComun }),
+  carta({ id: 'fuerza-25', hp: 25, text: textoAccion }),
+  carta({ id: 'normal-28', hp: 28, text: '' }),
+  carta({ id: 'nombre-fuerza', name: 'Jedi Temple', hp: 28, text: '' }),
+])
+assert.deepEqual(basesFuerza.filter(b => b.usaFuerza).map(b => b.id).sort(), ['fuerza-25', 'fuerza-28'], 'La capacidad depende de la habilidad de la base, no de sus PG o nombre')
+const desdeCatalogo = crearMesa('premier', [{ nombre: 'A', maxVida: 30, base: basesFuerza.find(b => b.id === 'fuerza-25')! }, { nombre: 'B', maxVida: 30 }])
+assert.equal(leerMesa(JSON.stringify(desdeCatalogo))?.jugadores[0].base?.usaFuerza, true)
+assert.equal(desdeCatalogo.jugadores[0].fuerza, false, 'La selección configura el marcador; no activa la habilidad')
+
+console.log('Calculadora: catálogo de bases, Fuerza por habilidad, filtros y selección persistente correctos.')

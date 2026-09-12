@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {
-  cambiarVida, crearMesa, deshacer, leerMesa, puedeTomarFicha, siguienteRonda, tomarFicha,
+  cambiarFuerza, cambiarVida, crearMesa, deshacer, leerBaseCalculadora, leerMesa, puedeTomarFicha, siguienteRonda, tomarFicha,
 } from '../src/features/calculadora/estadoCalculadora.ts'
 import type { BaseCalculadora } from '../src/features/calculadora/estadoCalculadora.ts'
 
@@ -127,7 +127,7 @@ const camposExtra = guardar({ ...mesa, secreto: 'descartado', historial: mesa.hi
 assert.deepEqual(camposExtra, mesa, 'La carga reconstruye únicamente campos validados; no conserva datos recursivos extra')
 
 const baseCarta: BaseCalculadora = {
-  id: 'base-prueba-25', nombre: 'Base de prueba', imagen: 'https://cdn.starwarsunlimited.com/base.png', vidaImpresa: 25,
+  id: 'base-prueba-25', nombre: 'Base de prueba', imagen: 'https://cdn.starwarsunlimited.com/base.png', vidaImpresa: 25, usaFuerza: false,
 }
 const crearConBase = (base: BaseCalculadora) => crearMesa('premier', [{ nombre: 'A', maxVida: 30, base }, bases[1]])
 const conBase = crearConBase(baseCarta)
@@ -194,4 +194,57 @@ for (const base of [null, { ...baseCarta, id: 'otra-base' }, { ...baseCarta, nom
   assert.equal(guardar(corrupta), null, 'Una instantánea no puede cambiar la carta de base al deshacer')
 }
 
-console.log('Calculadora: límites, fichas, rondas, bases, deshacer y guardados compatibles/corruptos verificados.')
+const baseFuerza: BaseCalculadora = {
+  ...baseCarta, id: '019d317a-e2e2-79f9-b1c1-ec20814337c3', nombre: 'Vergence Temple', usaFuerza: true,
+}
+const mesaFuerza = crearMesa('premier', [{ nombre: 'A', maxVida: 30, base: baseFuerza }, { nombre: 'B', maxVida: 30, base: baseFuerza }])
+assert.deepEqual(mesaFuerza.jugadores.map(j => j.fuerza), [false, false], 'Elegir la base no dispara su habilidad')
+const fuerzaA = cambiarFuerza(mesaFuerza, a, true)
+assert.deepEqual(fuerzaA.jugadores.map(j => j.fuerza), [true, false])
+assert.equal(cambiarFuerza(fuerzaA, a, true), fuerzaA, 'Crear otra ficha mientras ya se controla una es no-op')
+assert.equal(cambiarFuerza(mesaFuerza, a, false), mesaFuerza, 'No se puede gastar una ficha ausente')
+assert.equal(cambiarFuerza(mesaFuerza, 'inexistente', true), mesaFuerza)
+assert.equal(cambiarFuerza(premier, a, true), premier, 'No hay control de Fuerza para bases manuales')
+assert.equal(cambiarFuerza(conBase, a, true), conBase, 'Una base sin esa habilidad no gana ficha')
+const ambasFuerzas = cambiarFuerza(fuerzaA, b, true)
+assert.deepEqual(ambasFuerzas.jugadores.map(j => j.fuerza), [true, true], 'Cada jugador controla su propia ficha')
+const fuerzaGastada = cambiarFuerza(ambasFuerzas, a, false)
+assert.deepEqual(fuerzaGastada.jugadores.map(j => j.fuerza), [false, true])
+assert.deepEqual(deshacer(fuerzaGastada), ambasFuerzas)
+assert.deepEqual(deshacer(fuerzaA), mesaFuerza)
+assert.deepEqual(siguienteRonda(ambasFuerzas).jugadores.map(j => j.fuerza), [true, true], 'La ficha de Fuerza no se devuelve al cambiar ronda')
+assert.deepEqual(siguienteRonda(mesaFuerza).jugadores.map(j => j.fuerza), [false, false], 'Cambiar ronda no dispara una habilidad de base automáticamente')
+assert.equal(tomarFicha(fuerzaA, a, 'iniciativa').jugadores[0].fuerza, true)
+assert.deepEqual(guardar(siguienteRonda(fuerzaGastada)), siguienteRonda(fuerzaGastada))
+assert.match(fuerzaA.historial.at(-1)!.descripcion, /crea su ficha de Fuerza/)
+assert.match(fuerzaGastada.historial.at(-1)!.descripcion, /usa la Fuerza/)
+const fuerzaDerrotada = cambiarVida(ambasFuerzas, a, -25)
+assert.equal(fuerzaDerrotada.jugadores[0].fuerza, false)
+assert.equal(cambiarFuerza(fuerzaDerrotada, a, true), fuerzaDerrotada)
+assert.deepEqual(deshacer(fuerzaDerrotada), ambasFuerzas)
+const twinFuerza = crearMesa('twin-suns', bases.map(j => ({ ...j, base: baseFuerza })))
+assert.equal(cambiarFuerza(twinFuerza, a, true), twinFuerza, 'Esta función está habilitada solo en Premier')
+
+const partidaFuerzaAnterior = siguienteRonda(cambiarVida(mesaFuerza, a, -4))
+const sinCamposFuerza = (valor: unknown) => JSON.stringify(valor, (clave, contenido) => clave === 'usaFuerza' || clave === 'fuerza' ? undefined : contenido)
+assert.deepEqual(leerMesa(sinCamposFuerza(partidaFuerzaAnterior)), partidaFuerzaAnterior, 'Se reconoce una base Fuerza ya seleccionada sin reiniciar su partida ni historial')
+assert.deepEqual(leerMesa(sinCamposFuerza(rondaConBase)), rondaConBase, 'Las bases antiguas normales migran a false sin perder la partida')
+assert.deepEqual(leerMesa(sinCamposFuerza(mesa)), mesa, 'También sigue abriendo una partida antigua sin cartas de base')
+assert.equal(leerBaseCalculadora(JSON.parse(sinCamposFuerza(baseFuerza)))?.usaFuerza, true)
+assert.equal(leerBaseCalculadora({ ...baseFuerza, usaFuerza: false })?.usaFuerza, false, 'Una capacidad explícita no se sobrescribe con la migración')
+assert.equal(leerBaseCalculadora({ id: 'no-canonica', nombre: 'Jedi Temple', imagen: null, vidaImpresa: 28 })?.usaFuerza, false, 'La migración no adivina por nombre ni PG')
+for (const usaFuerza of [null, 0, 1, 'true', [], {}]) {
+  assert.equal(leerBaseCalculadora({ ...baseFuerza, usaFuerza }), null)
+}
+for (const fuerza of [null, 0, 1, 'true', [], {}]) {
+  assert.equal(guardar({ ...mesaFuerza, jugadores: [{ ...mesaFuerza.jugadores[0], fuerza }, mesaFuerza.jugadores[1]] }), null)
+}
+for (const invalida of [premier, conBase, twinFuerza, fuerzaDerrotada]) {
+  assert.equal(guardar({ ...invalida, jugadores: invalida.jugadores.map((j, i) => i === 0 ? { ...j, fuerza: true } : j) }), null, 'Los guardados validan modo, capacidad y jugador vivo')
+}
+assert.equal(guardar({
+  ...fuerzaA,
+  historial: [{ ...fuerzaA.historial[0], anterior: { ...mesaFuerza, jugadores: mesaFuerza.jugadores.map(j => ({ ...j, fuerza: 'true' })) } }],
+}), null, 'Los snapshots de Fuerza inválidos tampoco pueden entrar mediante deshacer')
+
+console.log('Calculadora: límites, fichas, Fuerza, rondas, bases, deshacer y guardados compatibles/corruptos verificados.')

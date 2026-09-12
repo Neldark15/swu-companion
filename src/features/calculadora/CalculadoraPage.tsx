@@ -6,7 +6,7 @@ import {
   Users, Volume2, VolumeX, X, Zap, Orbit, Repeat2,
 } from 'lucide-react'
 import {
-  CLAVE_CALCULADORA, crearMesa, cambiarVida, deshacer, leerMesa,
+  CLAVE_CALCULADORA, crearMesa, cambiarVida, cambiarFuerza, deshacer, leerMesa,
   puedeTomarFicha, siguienteRonda, tomarFicha,
   type BaseCalculadora, type FichaCalculadora, type JugadorCalculadora, type MesaCalculadora, type ModoCalculadora,
 } from './estadoCalculadora'
@@ -77,9 +77,9 @@ function Reactor({ vida, maxVida, impacto, editar }: { vida: number; maxVida: nu
   </div>
 }
 
-function Jugador({ jugador, indice, impacto, invertir, fichas, ajustar, editar }: {
+function Jugador({ jugador, indice, impacto, invertir, fichas, ajustar, editar, fuerza }: {
   jugador: JugadorCalculadora; indice: number; impacto?: Impacto; invertir: boolean;
-  fichas: FichaCalculadora[]; ajustar: (delta: number) => void; editar: () => void;
+  fichas: FichaCalculadora[]; ajustar: (delta: number) => void; editar: () => void; fuerza?: () => void;
 }) {
   const destruida = jugador.vida === 0
   return <section className={`calc-jugador ${jugador.base ? 'con-base' : ''} ${invertir ? 'invertido' : ''} ${destruida ? 'destruido' : ''}`}
@@ -88,7 +88,7 @@ function Jugador({ jugador, indice, impacto, invertir, fichas, ajustar, editar }
     <div className="calc-jugador-fondo" aria-hidden="true" />
     <div className="calc-jugador-contenido">
       <header className="calc-jugador-nombre"><span className="calc-asiento">0{indice + 1}</span><div className="calc-identidad"><h2>{jugador.nombre}</h2>{jugador.base && <span title={jugador.base.nombre}>{jugador.base.nombre}</span>}</div>
-        <span className="calc-estado-base" title={destruida ? 'Base destruida' : 'Base activa'}><Shield size={14} /></span>
+        <span className="calc-estado-base" title={destruida ? 'Base destruida' : fichas.includes('iniciativa') ? 'Conserva la iniciativa' : 'Base activa'}>{fichas.includes('iniciativa') ? <Zap size={14} /> : <Shield size={14} />}</span>
       </header>
       <div className="calc-reactor-fila">
         <button className="calc-ajustar calc-menos" disabled={destruida} aria-label={`Hacer 1 de daño a ${jugador.nombre}`} onClick={() => ajustar(-1)}><Minus /></button>
@@ -97,10 +97,15 @@ function Jugador({ jugador, indice, impacto, invertir, fichas, ajustar, editar }
       </div>
       <div className="calc-jugador-pie">
         <button disabled={destruida} aria-label={`Hacer 5 de daño a ${jugador.nombre}`} onClick={() => ajustar(-5)}>−5 <span>DAÑO</span></button>
-        <span className="calc-fichas-jugador">{fichas.length ? fichas.map(f => {
+        {fuerza ? <button type="button" className={`calc-fuerza${jugador.fuerza ? ' activa' : ''}`} disabled={destruida}
+          aria-pressed={jugador.fuerza} aria-label={`${jugador.fuerza ? 'Usar la Fuerza' : 'Crear ficha de Fuerza'} de ${jugador.nombre}`}
+          title={jugador.fuerza ? 'Usar la Fuerza: gastar tu ficha' : 'Crear tu ficha cuando una carta lo indique'} onClick={fuerza}>
+          <span className="calc-fuerza-orbe" aria-hidden="true"><Orbit size={21} /></span>
+          <span className="calc-fuerza-texto"><strong>Fuerza</strong><small>{jugador.fuerza ? 'Disponible' : 'Sin ficha'}</small></span>
+        </button> : <span className="calc-fichas-jugador">{fichas.length ? fichas.map(f => {
           const { Icono, nombre } = FICHAS[f]
           return <span key={f} title={nombre}><Icono size={13} /><span>{nombre}</span></span>
-        }) : <span className="calc-senal"><i /><i /><i /><i /><i /></span>}</span>
+        }) : <span className="calc-senal"><i /><i /><i /><i /><i /></span>}</span>}
         <button disabled={destruida || jugador.vida === jugador.maxVida} aria-label={`Curar 5 a ${jugador.nombre}`} onClick={() => ajustar(5)}>+5 <span>CURAR</span></button>
       </div>
     </div>
@@ -165,6 +170,15 @@ export function CalculadoraPage({ modoInicial }: { modoInicial?: ModoCalculadora
   function cambiarJugador(indice: number, clave: 'nombre' | 'maxVida', valor: string) {
     setJugadores(prev => prev.map((j, i) => i === indice ? { ...j, [clave]: valor } : j))
   }
+  function alternarFuerza(id: string) {
+    const antes = actual.current
+    const jugador = antes?.jugadores.find(j => j.id === id)
+    if (!antes || !jugador) return
+    const nueva = cambiarFuerza(antes, id, !jugador.fuerza)
+    if (nueva === antes) return
+    actualizar(nueva)
+    pulso(!jugador.fuerza)
+  }
   function elegirBase(base: BaseCalculadora | null) {
     if (basePara === null) return
     setJugadores(prev => prev.map((j, i) => i === basePara ? { ...j, base, maxVida: base ? String(base.vidaImpresa) : j.maxVida } : j))
@@ -222,9 +236,10 @@ export function CalculadoraPage({ modoInicial }: { modoInicial?: ModoCalculadora
           <label><Shield size={14} /><input aria-label={`Vida inicial del jugador ${i + 1}`} type="number" inputMode="numeric" min={1} max={999} step={1} required readOnly={Boolean(j.base)} value={j.maxVida} onChange={e => cambiarJugador(i, 'maxVida', e.target.value)} /></label>
         </div><button type="button" className="calc-elegir-base" aria-label={`Elegir base del jugador ${i + 1}`} onClick={() => setBasePara(i)}>
           {j.base ? <CardImage src={j.base.imagen} alt="" orientacion="apaisada" relleno={false} className="calc-base-miniatura" /> : <Shield size={20} />}
-          <span><strong>{j.base?.nombre ?? 'Elegir una base'}</strong><small>{j.base ? `${j.base.vidaImpresa} de vida impresa · Cambiar` : 'Imagen y vida de tu carta'}</small></span><ChevronRight size={15} />
+          <span><strong>{j.base?.nombre ?? 'Elegir una base'}</strong><small>{j.base ? `${j.base.vidaImpresa} de vida impresa${modo === 'premier' && j.base.usaFuerza ? ' · Fuerza' : ''} · Cambiar` : 'Imagen y vida de tu carta'}</small></span><ChevronRight size={15} />
         </button></div>)}</div>
         <p className="calc-ayuda">Al elegir una base se usa su vida impresa. También podés jugar con vida manual.</p>
+        {modo === 'premier' && jugadores.slice(0, 2).some(j => j.base?.usaFuerza) && <p className="calc-ayuda">Tu ficha de Fuerza aparece junto a la vida: tocala para crearla cuando una carta lo indique y otra vez para usarla. Se conserva entre rondas.</p>}
         <button type="button" className="calc-opcion-linea" aria-pressed={opciones.enfrentados} onClick={() => opcion('enfrentados')}><Repeat2 size={18} /><span>Frente a frente<small>Girá los paneles de quienes están enfrente.</small></span><i className="calc-switch" /></button>
         <button className="calc-empezar" type="submit"><Zap size={19} /> ENCENDER LA MESA <ArrowRight size={19} /></button>
         <div className="calc-nota"><Shield size={12} /> Sin cuenta · Guardado local · Sin puntos de ranking</div>
@@ -247,6 +262,7 @@ export function CalculadoraPage({ modoInicial }: { modoInicial?: ModoCalculadora
         {mesa.jugadores.map((j, i) => <Jugador key={j.id} jugador={j} indice={i} impacto={impactos[j.id]}
           invertir={opciones.enfrentados && (mesa.jugadores.length === 4 ? i < 2 : i === 0)}
           fichas={(Object.keys(FICHAS) as FichaCalculadora[]).filter(f => mesa.fichas[f] === j.id)}
+          fuerza={mesa.modo === 'premier' && j.base?.usaFuerza ? () => alternarFuerza(j.id) : undefined}
           ajustar={delta => ajustar(j.id, delta)} editar={() => { setEditarId(j.id); setCantidad('1') }} />)}
       </div>
       <footer className="calc-herramientas">
@@ -268,7 +284,7 @@ export function CalculadoraPage({ modoInicial }: { modoInicial?: ModoCalculadora
       <Link className="calc-acceso-registrado" to="/contador/registrado"><History size={16} /><span>Duelo registrado<small>Partidas anteriores, Amistosas y Misiones</small></span><ChevronRight size={15} /></Link>
     </Dialogo>}
     {panel === 'nueva' && <Dialogo titulo="¿Encender una nueva mesa?" cerrar={() => setPanel(null)}><p>Esto reemplaza la partida guardada en este dispositivo y su registro.</p><button className="calc-empezar" onClick={empezar}>Empezar nueva partida <ArrowRight size={18} /></button><button className="calc-secundario" onClick={() => setPanel(null)}>Conservar la partida anterior</button></Dialogo>}
-    {panel === 'ronda' && mesa && <Dialogo titulo={`Pasar a ronda ${mesa.ronda + 1}`} cerrar={() => setPanel(null)}><p>Cuando todos hayan terminado el reagrupamiento, confirmá para restablecer las fichas.</p><p className="calc-ayuda">{mesa.modo === 'twin-suns' ? 'Explosión y Plan vuelven al centro. ' : ''}La iniciativa conserva su dueño, pero puede reclamarse de nuevo. Todos vuelven a poder tomar una ficha. Las vidas se conservan.</p><button className="calc-empezar" disabled={!puedeAvanzar} onClick={avanzarRonda}>Siguiente ronda <ArrowRight size={18} /></button></Dialogo>}
+    {panel === 'ronda' && mesa && <Dialogo titulo={`Pasar a ronda ${mesa.ronda + 1}`} cerrar={() => setPanel(null)}><p>Cuando todos hayan terminado el reagrupamiento, confirmá para restablecer las fichas.</p><p className="calc-ayuda">{mesa.modo === 'twin-suns' ? 'Explosión y Plan vuelven al centro. ' : ''}La iniciativa conserva su dueño, pero puede reclamarse de nuevo. Todos vuelven a poder tomar una ficha. Las vidas se conservan.{mesa.modo === 'premier' && mesa.jugadores.some(j => j.base?.usaFuerza) && ' Las fichas de Fuerza se conservan hasta usarlas.'}</p><button className="calc-empezar" disabled={!puedeAvanzar} onClick={avanzarRonda}>Siguiente ronda <ArrowRight size={18} /></button></Dialogo>}
     {ficha && mesa && <Dialogo titulo={FICHAS[ficha].nombre} cerrar={() => setFicha(null)}><p>{FICHAS[ficha].ayuda}</p><p className="calc-ficha-estado">{mesa.reclamadas.includes(ficha) ? `Ya tomada en la ronda ${mesa.ronda}. Volverá a estar disponible en la siguiente ronda.` : ficha === 'iniciativa' && mesa.fichas.iniciativa ? `${mesa.jugadores.find(j => j.id === mesa.fichas.iniciativa)?.nombre} conserva la iniciativa. Se puede reclamar de nuevo en esta ronda.` : 'Disponible para quien todavía no haya tomado otra ficha en esta ronda.'}</p><p className="calc-ayuda">Una ficha por jugador en cada ronda. Este control registra quién la tomó; los efectos se resuelven en la mesa.</p><div className="calc-elegir-jugador">{mesa.jugadores.map((j, i) => <button style={{ '--jugador': COLORES[i] } as CSSProperties} key={j.id} disabled={!puedeTomarFicha(mesa, j.id, ficha)} onClick={() => reclamar(j.id)}><span className="calc-asiento">0{i + 1}</span>{j.nombre}<span>{mesa.fichas[ficha] === j.id && mesa.reclamadas.includes(ficha) ? 'La tomó' : 'Reclamar'}</span></button>)}</div><button className="calc-secundario" disabled={!puedeAvanzar} onClick={abrirSiguienteRonda}><RotateCcw size={17} /> Siguiente ronda · restablecer fichas</button></Dialogo>}
     {basePara !== null && <Dialogo titulo={`Base · ${jugadores[basePara].nombre || `Jugador ${basePara + 1}`}`} cerrar={() => setBasePara(null)}><Suspense fallback={<p className="calc-ayuda" role="status">Abriendo catálogo de bases…</p>}><SelectorBaseCalculadora elegida={jugadores[basePara].base} onElegir={elegirBase} /></Suspense><button className="calc-secundario" onClick={() => elegirBase(null)}>Usar vida manual</button></Dialogo>}
     {editando && <Dialogo titulo={`Ajustar · ${editando.nombre}`} cerrar={() => setEditarId(null)}>{editando.base && <figure className="calc-base-detalle"><CardImage src={editando.base.imagen} alt={editando.base.nombre} orientacion="apaisada" relleno={false} className="calc-base-carta" /><figcaption>{editando.base.nombre} · {editando.base.vidaImpresa} de vida impresa</figcaption></figure>}<p className="calc-ayuda">Vida actual: {editando.vida} de {editando.maxVida}. El daño y la curación respetan los límites de la base.</p><label className="calc-cantidad">Cantidad<input autoFocus type="number" inputMode="numeric" min={1} max={999} step={1} value={cantidad} onChange={e => setCantidad(e.target.value)} /></label><div className="calc-cantidades">{[1, 3, 5, 10].map(n => <button key={n} aria-pressed={Number(cantidad) === n} onClick={() => setCantidad(String(n))}>{n}</button>)}</div><div className="calc-acciones-exactas">

@@ -106,9 +106,18 @@
 .calc-jugador-nombre { display: flex; align-items: center; gap: 10px; position: relative; z-index: 1; }
 .calc-jugador-nombre h2 { font-size: 16px; letter-spacing: -.02em; font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .calc-identidad { min-width: 0; }.calc-identidad > span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 9px; color: color-mix(in srgb, var(--jugador) 65%, #e0edf4); margin-top: 3px; }
-.calc-base-arte { position: absolute; inset: 0; pointer-events: none; opacity: .19; }.calc-base-fondo { width: 100%; height: 100%; }
-.calc-base-fondo img { transform: scale(1.85); transform-origin: 50% 32%; }
-.con-base .calc-jugador-fondo { background: radial-gradient(ellipse at 50% 48%, #071018c9, #07101855 70%), repeating-linear-gradient(0deg, transparent 0 3px, #0000000b 3px 4px); }
+.calc-base-arte { position: absolute; inset: 0; pointer-events: none; opacity: .82; }.calc-base-fondo { width: 100%; height: 100%; }
+/* El recorte amplía la ilustración superior de la carta, sin convertir su
+   caja de reglas en el fondo. Los velos protegen controles, no toda la escena. */
+.calc-base-fondo img { transform: scale(2.4); transform-origin: 50% 34%; }
+.con-base { border-color: color-mix(in srgb, var(--jugador) 42%, #142536); box-shadow: inset 0 0 0 1px #ffffff08; }
+.con-base .calc-jugador-fondo { background: linear-gradient(180deg, #030911cc, #03091120 27%, #0309110a 62%, #030911e6), linear-gradient(90deg, #03091155, transparent 25% 75%, #03091155), repeating-linear-gradient(0deg, transparent 0 3px, #00000009 3px 4px); }
+.con-base .calc-jugador-nombre { text-shadow: 0 2px 8px #000; }
+.con-base .calc-identidad > span { color: color-mix(in srgb, var(--jugador) 30%, #edf7fc); }
+.con-base .calc-reactor::before { content: ''; position: absolute; inset: 14%; border-radius: 50%; background: radial-gradient(circle, #030b14e8 10%, #030b14b3 48%, #030b1433 67%, transparent 73%); }
+.con-base .calc-guia { opacity: .26; }.con-base .calc-orbita { opacity: .7; }.con-base .calc-carga { opacity: 1; }
+.con-base .calc-jugador-pie > button:not(.calc-fuerza) { background: #040c16a6; border: 1px solid color-mix(in srgb, var(--jugador) 22%, transparent); }
+.calc-jugador.destruido .calc-base-arte { opacity: .32; }
 .calc-base-detalle { margin: 0 0 14px; }.calc-base-carta { width: min(100%, 320px); aspect-ratio: 400/286; margin: 0 auto; }.calc-base-detalle figcaption { text-align: center; font-size: 11px; color: #a7cbd9; margin-top: 8px; }
 .calc-estado-base { color: var(--jugador); margin-left: auto; }
 .calc-reactor-fila { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 0; flex: 1; }
@@ -133,6 +142,17 @@
 .calc-jugador-pie > button span { font-size: 8px; display: block; letter-spacing: .12em; margin-top: 4px; color: #a0b4c1; }
 .calc-fichas-jugador { display: flex; gap: 8px; min-width: 0; }
 .calc-fichas-jugador > span { display: inline-flex; color: var(--jugador); gap: 4px; align-items: center; font-size: 9px; }
+.calc-jugador-pie > .calc-fuerza { position: relative; isolation: isolate; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; gap: 8px; min-width: 104px; height: 44px; padding: 4px 10px; color: #c0d0e0; border: 1px solid #66768b; border-radius: 10px; background: #0b1522ed; }
+.calc-jugador-pie .calc-fuerza > .calc-fuerza-orbe { display: grid; place-items: center; position: relative; flex-shrink: 0; width: 25px; height: 25px; margin: 0; border: 1px solid #8192aa66; border-radius: 50%; color: #9cabbd; }
+.calc-fuerza-orbe svg { width: 17px; height: 17px; }
+.calc-jugador-pie .calc-fuerza > .calc-fuerza-texto { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; margin: 0; letter-spacing: 0; color: inherit; }
+.calc-fuerza strong { font: 600 10px var(--font-sans); color: inherit; line-height: 1; }
+.calc-fuerza small { font: 8px var(--font-mono); color: #9db1c8; white-space: nowrap; line-height: 1; }
+.calc-jugador-pie > .calc-fuerza.activa { color: #faf0ff; border-color: #d5b0ff; background: linear-gradient(125deg, #352554f2, #17223af2); }
+.calc-jugador-pie .calc-fuerza.activa > .calc-fuerza-orbe { color: #f9e4ff; border-color: #dec1ff; background: #b77fff22; }
+.calc-fuerza.activa small { color: #e5cbff; }
+/* El halo se rasteriza una vez; únicamente su opacidad cambia por fotograma. */
+.calc-fuerza.activa .calc-fuerza-orbe::after { content: ''; position: absolute; inset: -3px; border-radius: inherit; box-shadow: 0 0 14px #bc8afcaa, inset 0 0 9px #f7d8ff77; opacity: .55; animation: calc-fuerza-pulso 2.8s ease-in-out infinite alternate; }
 .calc-senal { display: flex; align-items: end; gap: 3px !important; height: 14px; }
 .calc-senal i { width: 3px; height: 6px; background: currentColor; opacity: .25; }
 .calc-senal i:nth-child(2n) { height: 10px; }.calc-senal i:nth-child(3) { height: 14px; }
@@ -194,6 +214,7 @@
 @keyframes calc-dialogo { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: none; } }
 @keyframes calc-encender { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes calc-reclamar { 0% { transform: scale(.85); opacity: .4; } 60% { transform: scale(1.06); } 100% { transform: none; opacity: 1; } }
+@keyframes calc-fuerza-pulso { from { opacity: .25; } to { opacity: .9; } }
 @container (max-width: 260px) {
   .calc-jugador-contenido { padding: 14px 9px 8px; }
   .calc-jugador-nombre { gap: 6px; }.calc-jugador-nombre h2 { font-size: 12px; }
@@ -268,10 +289,27 @@
 }
 @container (max-width: 260px) and (max-height: 270px) {
   .con-base .calc-reactor-fila .calc-reactor { width: min(86cqw, calc(100cqh - 108px)) !important; }
+  .calc-jugador-pie:has(.calc-fuerza) { display: flex; justify-content: center; min-height: 44px; flex-shrink: 0; }
+  .calc-jugador-pie:has(.calc-fuerza) > button:not(.calc-fuerza) { display: none; }
+  .calc-jugador:has(.calc-fuerza) .calc-reactor-fila .calc-reactor { width: min(86cqw, calc(100cqh - 140px)) !important; }
+  .calc-jugador:has(.calc-fuerza) .calc-micro, .calc-jugador:has(.calc-fuerza) .calc-capacidad { display: none; }
+  .calc-jugador:has(.calc-fuerza) .calc-numero { height: 90%; }
 }
 @container (max-width: 260px) and (max-height: 185px) {
   .calc-micro, .calc-capacidad { display: none; }
   .calc-numero { height: 90%; }
+}
+/* Premier mantiene Fuerza y los saltos de cinco en pantallas cortas. El
+   reactor se ajusta al espacio restante conservando un blanco táctil de 44px. */
+@container (min-width: 261px) and (max-height: 230px) {
+  .calc-jugador-contenido { padding: 8px 12px 4px; }
+  .calc-jugador-nombre h2 { font-size: 11px; }.calc-identidad > span { font-size: 8px; margin-top: 2px; }
+  .calc-reactor-fila .calc-reactor { width: min(54cqw, calc(100cqh - 88px)); }
+  .calc-lectura { inset: auto; left: 50%; top: 50%; translate: -50% -50%; height: 58%; min-width: 44px; min-height: 44px; }
+  .calc-micro, .calc-capacidad { display: none; }.calc-numero { height: 90%; }
+  .calc-jugador-pie { gap: 5px; }
+  .calc-jugador-pie > button:not(.calc-fuerza) { min-width: 44px; }
+  .calc-jugador-pie > .calc-fuerza { min-width: 98px; gap: 6px; padding-inline: 8px; }
 }
 /* La fase final ya explica que no habrá otra ronda. En teléfonos cortos,
    retirar su acción deshabilitada deja espacio para terminar de anotar vida. */

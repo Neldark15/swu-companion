@@ -13,6 +13,17 @@ export function normalizarBusquedaBase(texto: string): string {
     .replace(/['’ʼ]/g, '').toLowerCase().trim()
 }
 
+/** Reconoce creación de Fuerza en la habilidad; mencionar una unidad Force no basta. */
+export function baseUsaFuerza(carta: Pick<Card, 'type' | 'text' | 'epicAction'>): boolean {
+  if (carta.type !== 'Base') return false
+  const texto = normalizarBusquedaBase([carta.text, carta.epicAction].filter(t => typeof t === 'string').join(' ')
+    .replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' '))
+  return /\bcreate your force token\b/.test(texto)
+    || /(?:^|[.:;,])\s*the force is with you\b/.test(texto)
+    || /\bcrea tu ficha de (?:la )?fuerza\b/.test(texto)
+    || /(?:^|[.:;,])\s*la fuerza esta contigo\b/.test(texto)
+}
+
 export function catalogoBasesCalculadora(cartas: readonly Card[]): OpcionBaseCalculadora[] {
   const vistas = new Set<string>()
   return cartas.flatMap(carta => {
@@ -20,7 +31,7 @@ export function catalogoBasesCalculadora(cartas: readonly Card[]): OpcionBaseCal
       || carta.hp === null || !Number.isSafeInteger(carta.hp) || carta.hp < 1 || carta.hp > 999
       || vistas.has(carta.id)) return []
     const nombre = [carta.name.trim(), carta.subtitle?.trim()].filter(Boolean).join(' · ')
-    const datos = { id: carta.id, nombre, imagen: carta.imageUrl || null, vidaImpresa: carta.hp }
+    const datos = { id: carta.id, nombre, imagen: carta.imageUrl || null, vidaImpresa: carta.hp, usaFuerza: baseUsaFuerza(carta) }
     // Una ilustración inválida no impide elegir una base de nombre/vida válidos.
     const base = leerBaseCalculadora(datos) ?? leerBaseCalculadora({ ...datos, imagen: null })
     if (!base) return []

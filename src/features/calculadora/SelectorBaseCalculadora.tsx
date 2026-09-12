@@ -99,11 +99,11 @@ export function SelectorBaseCalculadora({ elegida, onElegir }: {
           className={`calc-bases-opcion${elegida?.id === base.id ? ' elegida' : ''}`}
           aria-pressed={elegida?.id === base.id}
           aria-label={`Elegir ${base.nombre}, ${base.expansion}, ${base.vidaImpresa} de vida`}
-          onClick={() => onElegir({ id: base.id, nombre: base.nombre, imagen: base.imagen, vidaImpresa: base.vidaImpresa })}>
+          onClick={() => onElegir({ id: base.id, nombre: base.nombre, imagen: base.imagen, vidaImpresa: base.vidaImpresa, usaFuerza: base.usaFuerza })}>
           <CardImage src={base.imagen} alt="" className="calc-bases-imagen" orientacion="apaisada" relleno={false} />
           <span className="calc-bases-info"><strong>{base.nombre}</strong>
             <span className="calc-bases-meta">{base.expansion} · {String(base.numero).padStart(3, '0')}</span>
-            <span className="calc-bases-vida"><Shield size={13} aria-hidden="true" /> {base.vidaImpresa} de vida</span>
+            <span className="calc-bases-vida"><Shield size={13} aria-hidden="true" /> {base.vidaImpresa} de vida{base.usaFuerza && ' · Fuerza'}</span>
           </span>
           {elegida?.id === base.id && <Check className="calc-bases-elegida" size={18} aria-hidden="true" />}
         </button>)}

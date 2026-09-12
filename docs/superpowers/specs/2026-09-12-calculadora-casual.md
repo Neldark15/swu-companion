@@ -12,6 +12,8 @@ Premier tiene dos bases; Twin Suns permite tres o cuatro. Cada jugador puede bus
 
 El selector se carga al abrirlo. Consulta las bases canónicas en Dexie antes de usar la red; verifica si el catálogo está completo y recupera los faltantes con el servicio existente `loadFullDatabase`, manteniendo las opciones guardadas durante la descarga o si falla. Se puede actualizar el catálogo, reintentar y usar una vida manual sin conexión. La búsqueda tiene paginación accesible, sin ocultar resultados tras un tope fijo. Imágenes mediante CardImage y el proxy existente en producción.
 
+El fondo de cada jugador muestra la ilustración de su base con un recorte del arte y velos locales que protegen nombre, números y botones.
+
 Números de siete segmentos en SVG, anillos orbitales, encendido escalonado, partículas y ondas ante daño, pulso de curación y fichas iluminadas. Sonido sintetizado opcional, apagado por defecto. Se respeta movimiento reducido, hay interruptor de efectos y las animaciones se pausan al ocultar la pestaña. Wake Lock y Fullscreen se usan cuando están disponibles; la vista ocupa `100dvh` aunque el navegador no admita Fullscreen.
 
 ## Estado y reglas
@@ -19,6 +21,8 @@ Números de siete segmentos en SVG, anillos orbitales, encendido escalonado, par
 Modelo puro independiente en `estadoCalculadora.ts`. La vida está limitada a 0..vida máxima; una base destruida solo se recupera deshaciendo un error. Historial de hasta 100 movimientos con snapshots sin recursión: Deshacer restaura vida, ronda, dueños de fichas y reclamaciones. Cada acción escribe el guardado local; se advierte si falla el almacenamiento. Las cargas corruptas se rechazan y se permite preparar otra mesa.
 
 Las fichas son marcadores manuales: reclamar no aplica daño ni efectos sobre cartas. Una ficha por jugador y ronda; se conserva iniciativa en reagrupamiento, y Explosión/Plan vuelven al centro. En Twin Suns, al caer el dueño de iniciativa esta se libera, incluso durante la fase final. La primera eliminación muestra que la partida termina al cerrar la fase actual, con victoria por mayor vida y empates compartidos; el usuario anota la curación de 5 al eliminador correspondiente. No se inventa quién causó un daño manual.
+
+**Fuerza en Premier:** las bases compatibles muestran una ficha propia por jugador. Se detecta por la habilidad de creación, incluidas bases de 25 y 28 de vida. Un toque crea la ficha cuando corresponde y otro la gasta; máximo una, sin creación automática al preparar la mesa ni al pasar de ronda. Permanece hasta gastarla; derrota la retira y Deshacer la recupera. Las condiciones y límites de la habilidad se resuelven con las cartas físicas. Los guardados anteriores conservan la partida y reconocen las doce bases canónicas verificadas aunque antes no guardaran esa capacidad.
 
 El botón explícito **Siguiente ronda · Restablecer fichas** está junto a las fichas y dentro de cada panel de ficha. Requiere confirmar que la mesa terminó el reagrupamiento. Tomada/Disponible depende de la reclamación de la ronda actual: una iniciativa que conserva su dueño vuelve a mostrarse Disponible. Se conserva toda la vida al avanzar; Deshacer recupera fichas y ronda. Durante la fase final los accesos quedan bloqueados; el botón principal se omite en teléfonos cortos para dejar espacio a las bases supervivientes.
 
@@ -36,3 +40,5 @@ Persistencia propia: `holocron-calculadora-casual-v1`; opciones en `swu_calculad
 - Efectos apagados y movimiento reducido; partida ya cargada con red desconectada. Teléfono físico, sonido de altavoz y políticas Wake Lock/Fullscreen de Safari requieren comprobación en dispositivo real.
 - Traza independiente de Chrome 152 en Mac, Premier 390×844, 1,8 segundos con órbitas activas tras la entrada: 108 DrawFrame y cero eventos de Layout, Paint o RasterTask. Es evidencia de composición en ese navegador, no una promesa de FPS o consumo en teléfonos físicos.
 - Catálogo real de 91 bases: Energy Conversion Lab inicia en 25 y Data Vault en 33. Se verifican selección, imágenes cargadas, HP automático, cuatro bases independientes, recarga, undo, búsqueda offline con caché, recuperación de una caché parcial con una sola base tras fallo de red, retorno manual y rutas principal/Twin/registrado. Sin escrituras de prueba a cuentas o base cloud.
+
+- Fuerza: creación/gasto independiente, máximo una, persistencia entre rondas, recarga, Deshacer y migración con historial; base normal sin control y Twin Suns sin cambios de fichas.

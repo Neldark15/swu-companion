@@ -6,6 +6,7 @@ export interface BaseCalculadora {
   nombre: string
   imagen: string | null
   vidaImpresa: number
+  usaFuerza: boolean
 }
 
 export interface JugadorCalculadora {
@@ -14,6 +15,7 @@ export interface JugadorCalculadora {
   vida: number
   maxVida: number
   base: BaseCalculadora | null
+  fuerza: boolean
 }
 
 export interface InstantaneaCalculadora {
@@ -41,6 +43,25 @@ const FICHAS: readonly FichaCalculadora[] = ['iniciativa', 'blast', 'plan']
 const NOMBRES_FICHA: Record<FichaCalculadora, string> = {
   iniciativa: 'Iniciativa', blast: 'Explosión', plan: 'Plan',
 }
+
+// Solo migración de partidas antiguas sin usaFuerza: UUID canónicos LOF 19–30
+// verificados por su texto "The Force is with you" en el catálogo local del
+// 2026-09-12. Las nuevas selecciones detectan la habilidad en basesCalculadora.
+// No se infiere por el nombre ni por los PG (cuatro de estas bases tienen 25).
+const BASES_FUERZA_ANTIGUAS = new Set([
+  '019d317a-e2e2-79f9-b1c1-ec20814337c3',
+  '019d317a-e319-745f-acde-755b3f2f30d3',
+  '019d317a-e355-7fb6-88d3-faf0eade764c',
+  '019d317a-e391-7ddc-b4e5-8b9dcc0b69cf',
+  '019d317a-e3cd-7c4a-8215-1848b83619cc',
+  '019d317a-e406-74a5-bd3f-25547ad14c72',
+  '019d317a-e441-71ca-9ddb-ca0c8b501305',
+  '019d317a-e47b-7d8b-99b9-c888c656ce39',
+  '019d317a-e4be-7def-87c2-95215a4cfd1c',
+  '019d317a-e4fc-7980-b1e9-3d0350da451d',
+  '019d317a-e535-72b6-a528-435116468a6c',
+  '019d317a-e569-7aa7-8767-f6956115cdd8',
+])
 
 function enteroEntre(valor: unknown, minimo: number, maximo: number): valor is number {
   return typeof valor === 'number' && Number.isSafeInteger(valor) && valor >= minimo && valor <= maximo
@@ -84,6 +105,7 @@ export function crearMesa(modo: ModoCalculadora, jugadores: Array<{ nombre: stri
       vida: maxVida,
       maxVida,
       base,
+      fuerza: false,
     }
   })
   return {
@@ -108,7 +130,7 @@ export function cambiarVida(mesa: MesaCalculadora, id: string, delta: number): M
     : `${jugador.nombre}: recupera ${cambio} (${vida}/${jugador.maxVida}).`
   const siguiente: InstantaneaCalculadora = {
     ...instantanea(mesa),
-    jugadores: mesa.jugadores.map(j => j.id === id ? { ...clonarJugador(j), vida } : clonarJugador(j)),
+    jugadores: mesa.jugadores.map(j => j.id === id ? { ...clonarJugador(j), vida, fuerza: vida === 0 ? false : j.fuerza } : clonarJugador(j)),
   }
   // CR 11.3.4: solo la iniciativa vuelve disponible al eliminar a su dueño.
   // Explosión y Plan siguen reclamadas hasta el reagrupamiento (CR 12.5.5).
@@ -117,6 +139,18 @@ export function cambiarVida(mesa: MesaCalculadora, id: string, delta: number): M
     siguiente.reclamadas = siguiente.reclamadas.filter(ficha => ficha !== 'iniciativa')
   }
   return registrar(mesa, siguiente, descripcion)
+}
+
+/** CR 8.37: como máximo una ficha; se crea/gasta al resolver su habilidad. */
+export function cambiarFuerza(mesa: MesaCalculadora, id: string, tieneFuerza: boolean): MesaCalculadora {
+  if (mesa.modo !== 'premier' || typeof tieneFuerza !== 'boolean') return mesa
+  const jugador = mesa.jugadores.find(j => j.id === id)
+  if (!jugador || jugador.vida === 0 || !jugador.base?.usaFuerza || jugador.fuerza === tieneFuerza) return mesa
+  const siguiente = instantanea(mesa)
+  siguiente.jugadores = siguiente.jugadores.map(j => j.id === id ? { ...j, fuerza: tieneFuerza } : j)
+  return registrar(mesa, siguiente, tieneFuerza
+    ? `${jugador.nombre} crea su ficha de Fuerza.`
+    : `${jugador.nombre} usa la Fuerza.`)
 }
 
 export function puedeTomarFicha(mesa: MesaCalculadora, id: string, ficha: FichaCalculadora): boolean {
@@ -177,13 +211,17 @@ export function leerBaseCalculadora(valor: unknown): BaseCalculadora | null {
   if (!objeto(valor) || typeof valor.id !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(valor.id)
     || typeof valor.nombre !== 'string' || !valor.nombre.trim() || valor.nombre.length > 160
     || [...valor.nombre].some(caracter => caracter.charCodeAt(0) < 32 || caracter.charCodeAt(0) === 127)
-    || !imagenValida(valor.imagen) || !enteroEntre(valor.vidaImpresa, 1, 999)) return null
-  return { id: valor.id, nombre: valor.nombre, imagen: valor.imagen, vidaImpresa: valor.vidaImpresa }
+    || !imagenValida(valor.imagen) || !enteroEntre(valor.vidaImpresa, 1, 999)
+    || (valor.usaFuerza !== undefined && typeof valor.usaFuerza !== 'boolean')) return null
+  return {
+    id: valor.id, nombre: valor.nombre, imagen: valor.imagen, vidaImpresa: valor.vidaImpresa,
+    usaFuerza: valor.usaFuerza ?? BASES_FUERZA_ANTIGUAS.has(valor.id),
+  }
 }
 
 function mismaBase(a: BaseCalculadora | null, b: BaseCalculadora | null): boolean {
   return a === null || b === null ? a === b
-    : a.id === b.id && a.nombre === b.nombre && a.imagen === b.imagen && a.vidaImpresa === b.vidaImpresa
+    : a.id === b.id && a.nombre === b.nombre && a.imagen === b.imagen && a.vidaImpresa === b.vidaImpresa && a.usaFuerza === b.usaFuerza
 }
 
 function leerInstantanea(valor: unknown): InstantaneaCalculadora | null {
@@ -198,7 +236,10 @@ function leerInstantanea(valor: unknown): InstantaneaCalculadora | null {
     // Los guardados anteriores a la selección de cartas no tenían este campo.
     const base = jugador.base == null ? null : leerBaseCalculadora(jugador.base)
     if ((jugador.base != null && !base) || (base !== null && base.vidaImpresa !== jugador.maxVida)) return null
-    jugadores.push({ id: jugador.id, nombre: jugador.nombre, vida: jugador.vida, maxVida: jugador.maxVida, base })
+    if (jugador.fuerza !== undefined && typeof jugador.fuerza !== 'boolean') return null
+    const fuerza = jugador.fuerza ?? false
+    if (fuerza && (valor.modo !== 'premier' || !base?.usaFuerza || jugador.vida === 0)) return null
+    jugadores.push({ id: jugador.id, nombre: jugador.nombre, vida: jugador.vida, maxVida: jugador.maxVida, base, fuerza })
   }
   const ids = new Set(jugadores.map(j => j.id))
   if (ids.size !== jugadores.length) return null
