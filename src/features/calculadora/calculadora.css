@@ -8,6 +8,14 @@
 .calc-app *, .calc-app *::before, .calc-app *::after { box-sizing: border-box; }
 .calc-app button, .calc-app a, .calc-dialogo button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 .calc-app button { cursor: pointer; }
+.calc-app.en-partida { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.calc-app button { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.calc-app input, .calc-app textarea { user-select: text; -webkit-user-select: text; -webkit-touch-callout: default; }
+.calc-app button[data-repetir-vida] { touch-action: none; }
+.calc-volumen { margin: 12px 0; padding: 12px 0; border-top: 1px solid #ffffff10; }
+.calc-volumen label { display: flex; justify-content: space-between; color: #c4dce6; font-size: 12px; }
+.calc-volumen output { font-family: var(--font-mono); color: var(--calc-cyan); }
+.calc-volumen input { width: 100%; min-height: 44px; accent-color: var(--calc-cyan); }
 .calc-app button:disabled { opacity: .28; cursor: default; }
 .calc-app button:focus-visible, .calc-app a:focus-visible, .calc-app input:focus-visible { outline: 2px solid var(--calc-cyan); outline-offset: 4px; }
 .calc-app button:active:not(:disabled) { transform: scale(.95); }
@@ -50,6 +58,18 @@
 .calc-jugador-form { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid #ffffff12; border-left: 2px solid var(--jugador); background: #060f18; border-radius: 8px; }
 .calc-asiento { font: 11px var(--font-mono); letter-spacing: .08em; color: var(--jugador); flex-shrink: 0; }
 .calc-jugador-form > input { width: 100%; min-width: 0; background: transparent; font-size: 14px; height: 36px; outline-offset: 1px; }
+.calc-nombre-campo { flex: 1; min-width: 0; }
+.calc-nombre-campo input { width: 100%; min-width: 0; background: transparent; font-size: 14px; min-height: 44px; outline-offset: 1px; }
+.calc-nombre-campo small { display: block; font-size: 9px; color: var(--jugador); padding-bottom: 3px; }
+.calc-usuarios-panel { padding: 0 10px 10px; }
+.calc-usuarios-estado { padding: 10px 4px; color: #a9c2d0; font-size: 11px; line-height: 1.5; }
+.calc-usuarios-lista { margin: 0; padding: 0; list-style: none; border: 1px solid #36505e; border-radius: 8px; overflow: hidden; }
+.calc-usuarios-opcion { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 8px 10px; text-align: left; background: #101f2b; border-bottom: 1px solid #ffffff0d; }
+.calc-usuarios-opcion:last-child { border-bottom: 0; }
+.calc-usuarios-opcion:hover, .calc-usuarios-opcion[aria-selected=true] { background: #1c3c49; color: #b4f4ff; }
+.calc-usuarios-opcion > span { min-width: 0; flex: 1; overflow-wrap: anywhere; font-size: 12px; }
+.calc-usuarios-opcion small { display: block; font-size: 9px; color: #a8bfcc; margin-top: 3px; }
+.calc-usuarios-opcion > svg { flex-shrink: 0; color: var(--jugador); }
 .calc-jugador-form label { display: flex; align-items: center; gap: 5px; color: var(--jugador); }
 .calc-jugador-form label input { width: 52px; font: 18px var(--font-mono); text-align: center; background: transparent; min-height: 36px; }
 .calc-preparacion-jugador { border: 1px solid #ffffff12; border-left: 2px solid var(--jugador); border-radius: 10px; background: #060f18; overflow: hidden; }

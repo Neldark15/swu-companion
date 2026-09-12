@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { sonarConsola } from './sonidoCalculadora'
 
-export function useConsola(activa: boolean, sonido: boolean) {
+export function useConsola(activa: boolean, sonido: boolean, volumen = 80) {
   const audio = useRef<AudioContext | null>(null)
+  const ultimoPulso = useRef(-Infinity)
   const propiaPantalla = useRef(false)
   const montada = useRef(false)
   const [completa, setCompleta] = useState(false)
@@ -39,25 +41,28 @@ export function useConsola(activa: boolean, sonido: boolean) {
     return () => { cancelada = true; void bloqueo?.release().catch(() => {}) }
   }, [activa, visible])
 
-  const pulso = useCallback((curar = false) => {
-    if (!sonido || document.hidden) return
+  // Desbloquear desde el gesto inicial también permite sonar a los pulsos
+  // posteriores del temporizador en navegadores con restricciones de audio.
+  const prepararAudio = useCallback(() => {
+    if (!sonido || document.hidden) return null
     try {
       const contexto = audio.current ?? new AudioContext()
       audio.current = contexto
       void contexto.resume().catch(() => {})
-      const oscilador = contexto.createOscillator()
-      const ganancia = contexto.createGain()
-      oscilador.type = 'sine'
-      oscilador.frequency.setValueAtTime(curar ? 420 : 180, contexto.currentTime)
-      oscilador.frequency.exponentialRampToValueAtTime(curar ? 740 : 70, contexto.currentTime + 0.12)
-      ganancia.gain.setValueAtTime(0.045, contexto.currentTime)
-      ganancia.gain.exponentialRampToValueAtTime(0.001, contexto.currentTime + 0.16)
-      oscilador.connect(ganancia).connect(contexto.destination)
-      oscilador.onended = () => { oscilador.disconnect(); ganancia.disconnect() }
-      oscilador.start()
-      oscilador.stop(contexto.currentTime + 0.17)
-    } catch { /* Audio opcional; el contador funciona sin AudioContext. */ }
+      return contexto
+    } catch { return null }
   }, [sonido])
+
+  const pulso = useCallback((curar = false) => {
+    const contexto = prepararAudio()
+    if (!contexto) return
+    try {
+      // Evita apilar golpes al tocar varios controles muy rápido.
+      if (contexto.currentTime - ultimoPulso.current < .06) return
+      ultimoPulso.current = contexto.currentTime
+      sonarConsola(contexto, curar, volumen)
+    } catch { /* Audio opcional; el contador funciona sin AudioContext. */ }
+  }, [prepararAudio, volumen])
 
   const pantallaCompleta = useCallback(async () => {
     if (document.fullscreenElement) await document.exitFullscreen()
@@ -71,5 +76,5 @@ export function useConsola(activa: boolean, sonido: boolean) {
     }
   }, [])
 
-  return { completa, visible, pantallaCompleta, pulso }
+  return { completa, visible, pantallaCompleta, pulso, prepararAudio }
 }
