@@ -931,7 +931,7 @@ export function ContadorPage() {
       <div className="flex items-center gap-2">
         <Swords size={18} className="text-swu-amber" />
         <div>
-          <h1 className="text-base font-bold text-swu-text">Contador de daños</h1>
+          <h1 className="text-base font-bold text-swu-text">Duelo registrado</h1>
           <p className="text-[11px] text-swu-muted">
             El teléfono va en el medio: la mitad de arriba se ve derecha desde enfrente.
           </p>
@@ -950,9 +950,9 @@ export function ContadorPage() {
         </button>
       )}
 
-      <button onClick={() => navigate('/calculadora')} className="w-full flex items-center gap-3 rounded-xl border border-swu-cyan/30 bg-swu-cyan/5 p-3 text-left">
+      <button onClick={() => navigate('/contador')} className="w-full flex items-center gap-3 rounded-xl border border-swu-cyan/30 bg-swu-cyan/5 p-3 text-left">
         <Swords size={20} className="text-swu-cyan" />
-        <span><strong className="block text-sm text-swu-text">Calculadora casual a pantalla completa</strong><span className="text-xs text-swu-muted">Premier y Twin Suns · efectos de energía · guardado local</span></span>
+        <span><strong className="block text-sm text-swu-text">Abrir contador visual</strong><span className="text-xs text-swu-muted">Premier y Twin Suns · efectos de energía · guardado local</span></span>
       </button>
 
       {/* El contrincante, buscado entre los usuarios de la app. Elegirlo es lo
@@ -1016,7 +1016,7 @@ export function ContadorPage() {
       {/* Twin Suns se juega en mesa de 3 o 4, y eso no cabe en dos lados
           enfrentados: es otra pantalla que comparte estas mismas piezas. */}
       <button
-        onClick={() => navigate('/contador/mesa')}
+        onClick={() => navigate('/contador/registrado/mesa')}
         className="flex w-full items-center justify-center gap-2 rounded-2xl border border-swu-amber/40
                    bg-swu-amber/10 py-2.5 text-sm font-bold text-swu-amber"
       >

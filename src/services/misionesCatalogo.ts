@@ -142,8 +142,8 @@ export const DAILY_MISSIONS: MissionTemplate[] = [
 
   // ── DE RETO ────────────────────────────────────────────────────────────
   { id: 'd_amistosa1', type: 'daily', dificultad: 'reto',  ruta: '/amistosas',   donde: 'Amistosas',    name: 'Duelo de práctica',     description: 'Registrar una amistosa',                    objectiveType: 'amistosa_registrada', objectiveValue: 1, rewardXp: 25, icon: '⚔️' },
-  { id: 'd_play1',     type: 'daily', dificultad: 'reto',  ruta: '/contador',    donde: 'Contador de daños',     name: 'Orden de Patrulla',     description: 'Jugar 1 partida',                           objectiveType: 'match_played',        objectiveValue: 1, rewardXp: 20, icon: '🎮' },
-  { id: 'd_win1',      type: 'daily', dificultad: 'reto',  ruta: '/contador',    donde: 'Contador de daños',     name: 'Victoria Táctica',      description: 'Ganar 1 partida',                           objectiveType: 'match_won',           objectiveValue: 1, rewardXp: 25, icon: '🏆' },
+  { id: 'd_play1',     type: 'daily', dificultad: 'reto',  ruta: '/contador/registrado',    donde: 'Duelo registrado',     name: 'Orden de Patrulla',     description: 'Jugar 1 partida',                           objectiveType: 'match_played',        objectiveValue: 1, rewardXp: 20, icon: '🎮' },
+  { id: 'd_win1',      type: 'daily', dificultad: 'reto',  ruta: '/contador/registrado',    donde: 'Duelo registrado',     name: 'Victoria Táctica',      description: 'Ganar 1 partida',                           objectiveType: 'match_won',           objectiveValue: 1, rewardXp: 25, icon: '🏆' },
   { id: 'd_gift1',     type: 'daily', dificultad: 'reto',  ruta: '/espionaje',   donde: 'Espionaje',     name: 'Diplomacia',  description: 'Enviar 1 regalo',                           objectiveType: 'gift_sent',           objectiveValue: 1, rewardXp: 15, icon: '🤝' },
 ]
 
@@ -178,7 +178,7 @@ export const UNIQUE_MISSIONS: MissionTemplate[] = [
   { id: 'u_deck5',      type: 'unique', dificultad: 'rato',  ruta: '/decks',      donde: 'Mis Decks',     name: 'Arquitecto',         description: 'Armá 5 mazos',                     objectiveType: 'deck_created',        objectiveValue: 5,  rewardXp: 200, icon: '📐' },
   { id: 'u_chat10',     type: 'unique', dificultad: 'rato',  ruta: '/community',  donde: 'Comunidades',   name: 'Voz de la red',      description: 'Escribí 10 veces en el chat',      objectiveType: 'chat_enviado',        objectiveValue: 10, rewardXp: 120, icon: '💬' },
   { id: 'u_amistosa10', type: 'unique', dificultad: 'reto',  ruta: '/amistosas',  donde: 'Amistosas',     name: 'Veterano de mesa',   description: 'Registrá 10 amistosas',            objectiveType: 'amistosa_registrada', objectiveValue: 10, rewardXp: 300, icon: '⚔️' },
-  { id: 'u_play10',     type: 'unique', dificultad: 'reto',  ruta: '/contador',   donde: 'Contador de daños',      name: 'Piloto curtido',     description: 'Jugá 10 partidas',                 objectiveType: 'match_played',        objectiveValue: 10, rewardXp: 250, icon: '🎮' },
+  { id: 'u_play10',     type: 'unique', dificultad: 'reto',  ruta: '/contador/registrado',   donde: 'Duelo registrado',      name: 'Piloto curtido',     description: 'Jugá 10 partidas',                 objectiveType: 'match_played',        objectiveValue: 10, rewardXp: 250, icon: '🎮' },
 ]
 
 export const WEEKLY_MISSIONS: MissionTemplate[] = [
@@ -199,7 +199,7 @@ export const WEEKLY_MISSIONS: MissionTemplate[] = [
 
   // ── DE RETO ────────────────────────────────────────────────────────────
   { id: 'w_amistosa3', type: 'weekly', dificultad: 'reto',  ruta: '/amistosas',  donde: 'Amistosas',    name: 'Sala de Guerra',      description: 'Registrar 3 amistosas',               objectiveType: 'amistosa_registrada', objectiveValue: 3,  rewardXp: 70, icon: '⚔️' },
-  { id: 'w_win5',      type: 'weekly', dificultad: 'reto',  ruta: '/contador',   donde: 'Contador de daños',     name: 'Campaña', description: 'Ganar 5 partidas',                    objectiveType: 'match_won',           objectiveValue: 5,  rewardXp: 60, icon: '🏅' },
+  { id: 'w_win5',      type: 'weekly', dificultad: 'reto',  ruta: '/contador/registrado',   donde: 'Duelo registrado',     name: 'Campaña', description: 'Ganar 5 partidas',                    objectiveType: 'match_won',           objectiveValue: 5,  rewardXp: 60, icon: '🏅' },
 ]
 
 /** Simple seeded PRNG (mulberry32) */

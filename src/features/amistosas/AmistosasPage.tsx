@@ -401,11 +401,11 @@ export function AmistosasPage() {
         <EmptyState
           icon={<Swords size={26} />}
           title="Todavía no hay duelos amistosos"
-          hint="Anotá una partida que ya jugaste, o llevá la próxima desde el Contador: al cerrarla queda acá sola."
+          hint="Anotá una partida que ya jugaste, o llevá la próxima desde Duelo registrado: al cerrarla queda acá sola."
           action={
             <div className="flex flex-wrap justify-center gap-2">
               <Button variant="primary" onClick={() => setRegistrando(true)}>Registrar partida</Button>
-              <Button variant="ghost" onClick={() => navigate('/contador')}>Abrir el Contador</Button>
+              <Button variant="ghost" onClick={() => navigate('/contador/registrado')}>Abrir duelo registrado</Button>
             </div>
           }
         />

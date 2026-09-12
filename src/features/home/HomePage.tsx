@@ -139,7 +139,7 @@ interface Sistema {
  */
 const mainSystems: Sistema[] = [
   // ── Jugar: lo de la mesa, en vivo o para dejar registro ──
-  { icon: ChanceCubeIcon,  label: 'Contador de daños', tone: 'purple', to: '/contador', cat: 'jugar' },
+  { icon: ChanceCubeIcon,  label: 'Contador de daños', tone: 'cyan', to: '/contador', cat: 'jugar' },
   { icon: BlasterIcon, label: 'Amistosas',    tone: 'green',  to: '/amistosas',  cat: 'jugar' },
   // Duelo ocupa el hueco que dejó el Holocrón, y no es un cambio de rótulo:
   // esa casilla era el ÚNICO salto de un toque desde Inicio hacia el tracker
@@ -208,7 +208,6 @@ const mainSystems: Sistema[] = [
 
   // Juego online: acceso directo al modo de sala privada de SWU.
   { icon: DatapadIcon, label: 'Jugar online', tone: 'green', to: '/jugar', cat: 'minijuegos', auth: true },
-  { icon: ChanceCubeIcon, label: 'Calculadora', tone: 'cyan', to: '/calculadora', cat: 'minijuegos' },
 
   // Los gastan. Comparten la misma bolsa: `creditos_saldo()` resta de las dos.
   { icon: SaberIcon, label: 'Taller Kyber', tone: 'amber', to: '/sable', cat: 'minijuegos', auth: true },

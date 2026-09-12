@@ -1,11 +1,19 @@
 export type ModoCalculadora = 'premier' | 'twin-suns'
 export type FichaCalculadora = 'iniciativa' | 'blast' | 'plan'
 
+export interface BaseCalculadora {
+  id: string
+  nombre: string
+  imagen: string | null
+  vidaImpresa: number
+}
+
 export interface JugadorCalculadora {
   id: string
   nombre: string
   vida: number
   maxVida: number
+  base: BaseCalculadora | null
 }
 
 export interface InstantaneaCalculadora {
@@ -42,10 +50,14 @@ function cantidadValida(modo: ModoCalculadora, cantidad: number): boolean {
   return modo === 'premier' ? cantidad === 2 : modo === 'twin-suns' && (cantidad === 3 || cantidad === 4)
 }
 
+function clonarJugador(jugador: JugadorCalculadora): JugadorCalculadora {
+  return { ...jugador, base: jugador.base ? { ...jugador.base } : null }
+}
+
 function instantanea(mesa: InstantaneaCalculadora): InstantaneaCalculadora {
   return {
     modo: mesa.modo,
-    jugadores: mesa.jugadores.map(j => ({ ...j })),
+    jugadores: mesa.jugadores.map(clonarJugador),
     ronda: mesa.ronda,
     fichas: { ...mesa.fichas },
     reclamadas: [...mesa.reclamadas],
@@ -59,17 +71,24 @@ function registrar(mesa: MesaCalculadora, siguiente: InstantaneaCalculadora, des
   }
 }
 
-export function crearMesa(modo: ModoCalculadora, jugadores: Array<{ nombre: string; maxVida: number }>): MesaCalculadora {
+export function crearMesa(modo: ModoCalculadora, jugadores: Array<{ nombre: string; maxVida: number; base?: BaseCalculadora | null }>): MesaCalculadora {
   if (!cantidadValida(modo, jugadores.length)) throw new RangeError('Premier necesita 2 jugadores; Twin Suns, 3 o 4.')
-  if (jugadores.some(j => !enteroEntre(j.maxVida, 1, 999))) throw new RangeError('La salud de cada base debe ser un entero entre 1 y 999.')
-  return {
-    modo,
-    jugadores: jugadores.map((j, indice) => ({
+  const preparados = jugadores.map((j, indice) => {
+    const base = j.base == null ? null : leerBaseCalculadora(j.base)
+    if (j.base != null && !base) throw new RangeError('La carta de base seleccionada tiene datos inválidos.')
+    const maxVida = base ? base.vidaImpresa : j.maxVida
+    if (!enteroEntre(maxVida, 1, 999)) throw new RangeError('La salud de cada base debe ser un entero entre 1 y 999.')
+    return {
       id: `jugador-${indice + 1}`,
       nombre: j.nombre.replace(/\s+/g, ' ').trim().slice(0, 32) || `Jugador ${indice + 1}`,
-      vida: j.maxVida,
-      maxVida: j.maxVida,
-    })),
+      vida: maxVida,
+      maxVida,
+      base,
+    }
+  })
+  return {
+    modo,
+    jugadores: preparados,
     ronda: 1,
     fichas: { iniciativa: null, blast: null, plan: null },
     reclamadas: [],
@@ -89,7 +108,7 @@ export function cambiarVida(mesa: MesaCalculadora, id: string, delta: number): M
     : `${jugador.nombre}: recupera ${cambio} (${vida}/${jugador.maxVida}).`
   const siguiente: InstantaneaCalculadora = {
     ...instantanea(mesa),
-    jugadores: mesa.jugadores.map(j => j.id === id ? { ...j, vida } : { ...j }),
+    jugadores: mesa.jugadores.map(j => j.id === id ? { ...clonarJugador(j), vida } : clonarJugador(j)),
   }
   // CR 11.3.4: solo la iniciativa vuelve disponible al eliminar a su dueño.
   // Explosión y Plan siguen reclamadas hasta el reagrupamiento (CR 12.5.5).
@@ -139,6 +158,34 @@ function objeto(valor: unknown): valor is Record<string, unknown> {
   return typeof valor === 'object' && valor !== null && !Array.isArray(valor)
 }
 
+function imagenValida(valor: unknown): valor is string | null {
+  if (valor === null) return true
+  if (typeof valor !== 'string' || !valor || valor.length > 2048
+    || [...valor].some(caracter => caracter.charCodeAt(0) <= 32 || caracter.charCodeAt(0) === 127)
+    || valor.includes('\\') || valor.startsWith('//')) return false
+  const absoluta = /^https:\/\//i.test(valor)
+  if (!absoluta && (/^[a-z][a-z0-9+.-]*:/i.test(valor) || /^[?#]/.test(valor))) return false
+  try {
+    const url = new URL(valor, 'https://calculadora.local/')
+    return url.protocol === 'https:' && !url.username && !url.password
+  } catch {
+    return false
+  }
+}
+
+export function leerBaseCalculadora(valor: unknown): BaseCalculadora | null {
+  if (!objeto(valor) || typeof valor.id !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(valor.id)
+    || typeof valor.nombre !== 'string' || !valor.nombre.trim() || valor.nombre.length > 160
+    || [...valor.nombre].some(caracter => caracter.charCodeAt(0) < 32 || caracter.charCodeAt(0) === 127)
+    || !imagenValida(valor.imagen) || !enteroEntre(valor.vidaImpresa, 1, 999)) return null
+  return { id: valor.id, nombre: valor.nombre, imagen: valor.imagen, vidaImpresa: valor.vidaImpresa }
+}
+
+function mismaBase(a: BaseCalculadora | null, b: BaseCalculadora | null): boolean {
+  return a === null || b === null ? a === b
+    : a.id === b.id && a.nombre === b.nombre && a.imagen === b.imagen && a.vidaImpresa === b.vidaImpresa
+}
+
 function leerInstantanea(valor: unknown): InstantaneaCalculadora | null {
   if (!objeto(valor) || (valor.modo !== 'premier' && valor.modo !== 'twin-suns')) return null
   if (!Array.isArray(valor.jugadores) || !cantidadValida(valor.modo, valor.jugadores.length)) return null
@@ -148,7 +195,10 @@ function leerInstantanea(valor: unknown): InstantaneaCalculadora | null {
     if (!objeto(jugador) || typeof jugador.id !== 'string' || !/^[a-zA-Z0-9_-]{1,64}$/.test(jugador.id)
       || typeof jugador.nombre !== 'string' || !jugador.nombre.trim() || jugador.nombre.length > 32
       || !enteroEntre(jugador.maxVida, 1, 999) || !enteroEntre(jugador.vida, 0, jugador.maxVida)) return null
-    jugadores.push({ id: jugador.id, nombre: jugador.nombre, vida: jugador.vida, maxVida: jugador.maxVida })
+    // Los guardados anteriores a la selección de cartas no tenían este campo.
+    const base = jugador.base == null ? null : leerBaseCalculadora(jugador.base)
+    if ((jugador.base != null && !base) || (base !== null && base.vidaImpresa !== jugador.maxVida)) return null
+    jugadores.push({ id: jugador.id, nombre: jugador.nombre, vida: jugador.vida, maxVida: jugador.maxVida, base })
   }
   const ids = new Set(jugadores.map(j => j.id))
   if (ids.size !== jugadores.length) return null
@@ -176,7 +226,7 @@ function leerInstantanea(valor: unknown): InstantaneaCalculadora | null {
 
 /** Lee datos locales ajenos a los tipos de TS. Nunca restaura un snapshot sin validarlo. */
 export function leerMesa(crudo: string | null): MesaCalculadora | null {
-  if (typeof crudo !== 'string' || crudo.length > 1_000_000) return null
+  if (typeof crudo !== 'string' || crudo.length > 2_000_000) return null
   try {
     const valor: unknown = JSON.parse(crudo)
     if (!objeto(valor) || !Array.isArray(valor.historial) || valor.historial.length > MAX_HISTORIAL) return null
@@ -191,7 +241,7 @@ export function leerMesa(crudo: string | null): MesaCalculadora | null {
         || anterior.jugadores.length !== mesa.jugadores.length
         || anterior.jugadores.some((j, indice) => {
           const actual = mesa.jugadores[indice]
-          return j.id !== actual.id || j.nombre !== actual.nombre || j.maxVida !== actual.maxVida
+          return j.id !== actual.id || j.nombre !== actual.nombre || j.maxVida !== actual.maxVida || !mismaBase(j.base, actual.base)
         })) return null
       historial.push({ descripcion: movimiento.descripcion, anterior })
     }

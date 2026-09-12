@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import {
   cambiarVida, crearMesa, deshacer, leerMesa, puedeTomarFicha, siguienteRonda, tomarFicha,
 } from '../src/features/calculadora/estadoCalculadora.ts'
+import type { BaseCalculadora } from '../src/features/calculadora/estadoCalculadora.ts'
 
 const bases = [
   { nombre: '  Ahsoka  ', maxVida: 25 },
@@ -125,4 +126,72 @@ assert.equal(guardar({ ...mesa, historial: [{ descripcion: 'Corrupto', anterior:
 const camposExtra = guardar({ ...mesa, secreto: 'descartado', historial: mesa.historial.map(h => ({ ...h, anterior: { ...h.anterior, historial: [{ sorpresa: 'descartado' }] } })) })
 assert.deepEqual(camposExtra, mesa, 'La carga reconstruye únicamente campos validados; no conserva datos recursivos extra')
 
-console.log('Calculadora: límites, fichas, rondas, deshacer y guardados corruptos verificados.')
+const baseCarta: BaseCalculadora = {
+  id: 'base-prueba-25', nombre: 'Base de prueba', imagen: 'https://cdn.starwarsunlimited.com/base.png', vidaImpresa: 25,
+}
+const crearConBase = (base: BaseCalculadora) => crearMesa('premier', [{ nombre: 'A', maxVida: 30, base }, bases[1]])
+const conBase = crearConBase(baseCarta)
+assert.deepEqual(conBase.jugadores.map(j => [j.vida, j.maxVida]), [[25, 25], [30, 30]], 'La salud impresa determina ambos límites; no se confía en el maxVida del formulario')
+assert.equal(conBase.jugadores[1].base, null)
+assert.deepEqual(conBase.jugadores[0].base, baseCarta)
+assert.notEqual(conBase.jugadores[0].base, baseCarta, 'El estado copia los datos recibidos del selector')
+assert.equal(crearMesa('premier', [{ nombre: 'A', maxVida: NaN, base: baseCarta }, bases[1]]).jugadores[0].vida, 25)
+const heridaConBase = cambiarVida(conBase, a, -8)
+const fichaConBase = tomarFicha(heridaConBase, a, 'iniciativa')
+const rondaConBase = siguienteRonda(fichaConBase)
+assert.deepEqual(rondaConBase.jugadores[0].base, baseCarta)
+assert.equal(rondaConBase.jugadores[0].vida, 17)
+assert.equal(cambiarVida(rondaConBase, a, 999).jugadores[0].vida, 25)
+assert.deepEqual(deshacer(rondaConBase), fichaConBase)
+assert.deepEqual(deshacer(deshacer(deshacer(rondaConBase))), conBase)
+assert.deepEqual(guardar(rondaConBase), rondaConBase)
+assert.deepEqual(guardar(crearMesa('twin-suns', bases.map((j, indice) => ({ ...j, base: { ...baseCarta, id: `base-${indice}`, vidaImpresa: j.maxVida } }))))?.jugadores.map(j => j.vida), [25, 30, 35, 30])
+
+const copiaMutable = cambiarVida(conBase, a, -1)
+copiaMutable.jugadores[0].base!.nombre = 'Cambio posterior'
+assert.equal(conBase.jugadores[0].base!.nombre, baseCarta.nombre)
+assert.equal(copiaMutable.historial[0].anterior.jugadores[0].base!.nombre, baseCarta.nombre, 'Cambiar la base actual no muta la instantánea anterior')
+const restaurada = deshacer(copiaMutable)
+restaurada.jugadores[0].base!.nombre = 'Otro cambio'
+assert.equal(copiaMutable.historial[0].anterior.jugadores[0].base!.nombre, baseCarta.nombre, 'Deshacer devuelve otra copia de los metadatos')
+
+const legado = JSON.stringify(mesa, (clave, valor) => clave === 'base' ? undefined : valor)
+const cargadaLegado = leerMesa(legado)
+assert.deepEqual(cargadaLegado, mesa, 'La partida antigua y su historial se migran sin perder vidas ni reclamos')
+assert.deepEqual(deshacer(cargadaLegado!), deshacer(mesa))
+assert.ok(cargadaLegado!.historial.every(h => h.anterior.jugadores.every(j => j.base === null)))
+
+for (const imagen of [
+  null, 'https://cdn.starwarsunlimited.com/base.png', 'https://cdn.swu-db.com/images/cards/SOR/025.png',
+  'https://example.r2.dev/base.webp', '/api/img?u=https%3A%2F%2Fcdn.starwarsunlimited.com%2Fbase.png&w=448',
+  '/images/base.webp', 'images/base.webp', './base.webp', '../base.webp',
+]) assert.deepEqual(guardar(crearConBase({ ...baseCarta, imagen }))?.jugadores[0].base?.imagen, imagen)
+for (const imagen of [
+  '', 'javascript:alert(1)', 'data:image/svg+xml,malicioso', 'http://cdn.swu-db.com/base.png',
+  '//otro-dominio.example/base.png', '\\otro-dominio.example/base.png', 'https://usuario:clave@example.com/base.png',
+  'https://example.com/base.png\n', 'https://example.com/base imagen.png', '#fragmento', '?imagen=base',
+  'blob:https://example.com/base', 'https://', 'https://example.com/' + 'a'.repeat(2048),
+]) {
+  assert.throws(() => crearConBase({ ...baseCarta, imagen }), RangeError, `No se debe admitir imagen ${imagen}`)
+  assert.equal(guardar({ ...conBase, jugadores: [{ ...conBase.jugadores[0], base: { ...baseCarta, imagen } }, conBase.jugadores[1]] }), null)
+}
+for (const invalida of [
+  {}, [], 'base', 1, true,
+  { ...baseCarta, id: '' }, { ...baseCarta, id: 'x'.repeat(129) }, { ...baseCarta, id: 'base/prueba' },
+  { ...baseCarta, nombre: ' ' }, { ...baseCarta, nombre: 'x'.repeat(161) }, { ...baseCarta, nombre: 'base\nmalformada' },
+  { ...baseCarta, imagen: 3 }, { ...baseCarta, imagen: undefined },
+  ...[0, 1000, NaN, Infinity, 25.5, '25', null].map(vidaImpresa => ({ ...baseCarta, vidaImpresa })),
+]) {
+  assert.throws(() => crearConBase(invalida as BaseCalculadora), RangeError)
+  assert.equal(guardar({ ...conBase, jugadores: [{ ...conBase.jugadores[0], base: invalida }, conBase.jugadores[1]] }), null)
+}
+assert.equal(guardar({ ...conBase, jugadores: [{ ...conBase.jugadores[0], maxVida: 30 }, conBase.jugadores[1]] }), null, 'El guardado no puede contradecir los PG impresos')
+for (const base of [null, { ...baseCarta, id: 'otra-base' }, { ...baseCarta, nombre: 'Otro nombre' }, { ...baseCarta, imagen: '/otra.webp' }]) {
+  const corrupta = {
+    ...heridaConBase,
+    historial: [{ ...heridaConBase.historial[0], anterior: { ...conBase, jugadores: [{ ...conBase.jugadores[0], base }, conBase.jugadores[1]] } }],
+  }
+  assert.equal(guardar(corrupta), null, 'Una instantánea no puede cambiar la carta de base al deshacer')
+}
+
+console.log('Calculadora: límites, fichas, rondas, bases, deshacer y guardados compatibles/corruptos verificados.')

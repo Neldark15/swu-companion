@@ -1,4 +1,4 @@
-import { useId, useRef, useState, useEffect, type CSSProperties, type ReactNode } from 'react'
+import { lazy, Suspense, useId, useRef, useState, useEffect, type CSSProperties, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowLeft, ArrowRight, Check, ChevronRight, Crosshair, Expand, History,
@@ -8,13 +8,16 @@ import {
 import {
   CLAVE_CALCULADORA, crearMesa, cambiarVida, deshacer, leerMesa,
   puedeTomarFicha, siguienteRonda, tomarFicha,
-  type FichaCalculadora, type JugadorCalculadora, type MesaCalculadora, type ModoCalculadora,
+  type BaseCalculadora, type FichaCalculadora, type JugadorCalculadora, type MesaCalculadora, type ModoCalculadora,
 } from './estadoCalculadora'
+import { CardImage } from '../../components/CardImage'
 import { DigitosVida } from './DigitosVida'
 import { useConsola } from './useConsola'
 import './calculadora.css'
 
 const COLORES = ['#67e8f9', '#ffb85c', '#b2a0ff', '#80efad']
+const SelectorBaseCalculadora = lazy(() => import('./SelectorBaseCalculadora').then(m => ({ default: m.SelectorBaseCalculadora })))
+interface JugadorPreparacion { nombre: string; maxVida: string; base: BaseCalculadora | null }
 const FICHAS = {
   iniciativa: { nombre: 'Iniciativa', Icono: Zap, ayuda: 'Tomás la iniciativa y pasás tus acciones restantes de esta fase.' },
   blast: { nombre: 'Explosión', Icono: Crosshair, ayuda: 'Hacé 1 de daño a cada base rival y pasá tus acciones restantes. Anotá el daño con los controles de cada base.' },
@@ -79,11 +82,12 @@ function Jugador({ jugador, indice, impacto, invertir, fichas, ajustar, editar }
   fichas: FichaCalculadora[]; ajustar: (delta: number) => void; editar: () => void;
 }) {
   const destruida = jugador.vida === 0
-  return <section className={`calc-jugador ${invertir ? 'invertido' : ''} ${destruida ? 'destruido' : ''}`}
+  return <section className={`calc-jugador ${jugador.base ? 'con-base' : ''} ${invertir ? 'invertido' : ''} ${destruida ? 'destruido' : ''}`}
     style={{ '--jugador': COLORES[indice] } as CSSProperties} aria-label={`Base de ${jugador.nombre}`}>
+    {jugador.base?.imagen && <div className="calc-base-arte" aria-hidden="true"><CardImage src={jugador.base.imagen} alt="" orientacion="apaisada" fit="cover" relleno={false} className="calc-base-fondo" /></div>}
     <div className="calc-jugador-fondo" aria-hidden="true" />
     <div className="calc-jugador-contenido">
-      <header className="calc-jugador-nombre"><span className="calc-asiento">0{indice + 1}</span><h2>{jugador.nombre}</h2>
+      <header className="calc-jugador-nombre"><span className="calc-asiento">0{indice + 1}</span><div className="calc-identidad"><h2>{jugador.nombre}</h2>{jugador.base && <span title={jugador.base.nombre}>{jugador.base.nombre}</span>}</div>
         <span className="calc-estado-base" title={destruida ? 'Base destruida' : 'Base activa'}><Shield size={14} /></span>
       </header>
       <div className="calc-reactor-fila">
@@ -103,15 +107,17 @@ function Jugador({ jugador, indice, impacto, invertir, fichas, ajustar, editar }
   </section>
 }
 
-export function CalculadoraPage() {
+export function CalculadoraPage({ modoInicial }: { modoInicial?: ModoCalculadora }) {
   const [mesa, setMesa] = useState<MesaCalculadora | null>(cargarMesa)
   const actual = useRef(mesa)
-  const [configurando, setConfigurando] = useState(() => !mesa)
-  const [modo, setModo] = useState<ModoCalculadora>(mesa?.modo ?? 'premier')
+  const [configurando, setConfigurando] = useState(() => !mesa || Boolean(modoInicial && mesa.modo !== modoInicial))
+  const [modo, setModo] = useState<ModoCalculadora>(modoInicial ?? mesa?.modo ?? 'premier')
   const [cuantos, setCuantos] = useState<3 | 4>(mesa?.jugadores.length === 3 ? 3 : 4)
-  const [jugadores, setJugadores] = useState(() => Array.from({ length: 4 }, (_, i) => ({
+  const [jugadores, setJugadores] = useState<JugadorPreparacion[]>(() => Array.from({ length: 4 }, (_, i) => ({
     nombre: mesa?.jugadores[i]?.nombre ?? `Jugador ${i + 1}`, maxVida: String(mesa?.jugadores[i]?.maxVida ?? 30),
+    base: mesa?.jugadores[i]?.base ?? null,
   })))
+  const [basePara, setBasePara] = useState<number | null>(null)
   const [opciones, setOpciones] = useState<Opciones>(leerOpciones)
   const [panel, setPanel] = useState<Panel>(null)
   const [ficha, setFicha] = useState<FichaCalculadora | null>(null)
@@ -140,7 +146,7 @@ export function CalculadoraPage() {
     try { localStorage.setItem(CLAVE_OPCIONES, JSON.stringify(nuevas)) } catch { /* Las opciones funcionan en memoria. */ }
   }
   function empezar() {
-    const nueva = crearMesa(modo, jugadores.slice(0, total).map(j => ({ nombre: j.nombre, maxVida: Number(j.maxVida) })))
+    const nueva = crearMesa(modo, jugadores.slice(0, total).map(j => ({ nombre: j.nombre, maxVida: Number(j.maxVida), base: j.base })))
     actualizar(nueva)
     setImpactos({}); setPanel(null); setConfigurando(false); setAviso('')
     pulso(true)
@@ -158,6 +164,11 @@ export function CalculadoraPage() {
   }
   function cambiarJugador(indice: number, clave: 'nombre' | 'maxVida', valor: string) {
     setJugadores(prev => prev.map((j, i) => i === indice ? { ...j, [clave]: valor } : j))
+  }
+  function elegirBase(base: BaseCalculadora | null) {
+    if (basePara === null) return
+    setJugadores(prev => prev.map((j, i) => i === basePara ? { ...j, base, maxVida: base ? String(base.vidaImpresa) : j.maxVida } : j))
+    setBasePara(null)
   }
   function reclamar(id: string) {
     if (!actual.current || !ficha) return
@@ -205,15 +216,19 @@ export function CalculadoraPage() {
         </div>
         {modo === 'twin-suns' && <div className="calc-cuantos"><span>Jugadores en la mesa</span>{([3, 4] as const).map(n => <button key={n} type="button" aria-pressed={cuantos === n} onClick={() => setCuantos(n)}>{n}</button>)}</div>}
         <div className="calc-campos-cabecera"><span>JUGADORES</span><span>VIDA INICIAL</span></div>
-        <div className="calc-jugadores-form">{jugadores.slice(0, total).map((j, i) => <div className="calc-jugador-form" key={i} style={{ '--jugador': COLORES[i] } as CSSProperties}>
+        <div className="calc-jugadores-form">{jugadores.slice(0, total).map((j, i) => <div className="calc-preparacion-jugador" key={i} style={{ '--jugador': COLORES[i] } as CSSProperties}><div className="calc-jugador-form">
           <span className="calc-asiento">0{i + 1}</span>
           <input aria-label={`Nombre del jugador ${i + 1}`} maxLength={32} value={j.nombre} placeholder={`Jugador ${i + 1}`} onChange={e => cambiarJugador(i, 'nombre', e.target.value)} />
-          <label><Shield size={14} /><input aria-label={`Vida inicial del jugador ${i + 1}`} type="number" inputMode="numeric" min={1} max={999} step={1} required value={j.maxVida} onChange={e => cambiarJugador(i, 'maxVida', e.target.value)} /></label>
-        </div>)}</div>
-        <p className="calc-ayuda">Usá la vida impresa en cada base. Podés cambiar el 30 antes de empezar.</p>
+          <label><Shield size={14} /><input aria-label={`Vida inicial del jugador ${i + 1}`} type="number" inputMode="numeric" min={1} max={999} step={1} required readOnly={Boolean(j.base)} value={j.maxVida} onChange={e => cambiarJugador(i, 'maxVida', e.target.value)} /></label>
+        </div><button type="button" className="calc-elegir-base" aria-label={`Elegir base del jugador ${i + 1}`} onClick={() => setBasePara(i)}>
+          {j.base ? <CardImage src={j.base.imagen} alt="" orientacion="apaisada" relleno={false} className="calc-base-miniatura" /> : <Shield size={20} />}
+          <span><strong>{j.base?.nombre ?? 'Elegir una base'}</strong><small>{j.base ? `${j.base.vidaImpresa} de vida impresa · Cambiar` : 'Imagen y vida de tu carta'}</small></span><ChevronRight size={15} />
+        </button></div>)}</div>
+        <p className="calc-ayuda">Al elegir una base se usa su vida impresa. También podés jugar con vida manual.</p>
         <button type="button" className="calc-opcion-linea" aria-pressed={opciones.enfrentados} onClick={() => opcion('enfrentados')}><Repeat2 size={18} /><span>Frente a frente<small>Girá los paneles de quienes están enfrente.</small></span><i className="calc-switch" /></button>
         <button className="calc-empezar" type="submit"><Zap size={19} /> ENCENDER LA MESA <ArrowRight size={19} /></button>
         <div className="calc-nota"><Shield size={12} /> Sin cuenta · Guardado local · Sin puntos de ranking</div>
+        <Link className="calc-acceso-registrado" to="/contador/registrado"><History size={16} /><span>Duelo registrado<small>Partidas anteriores, Amistosas y Misiones</small></span><ChevronRight size={15} /></Link>
       </form>
     </div> : mesa && <>
       <div className="calc-barra-ronda">
@@ -250,11 +265,13 @@ export function CalculadoraPage() {
       {([{ clave: 'sonido', titulo: 'Sonido de energía', texto: 'Un pulso suave para daño y curación.', Icono: Volume2 }, { clave: 'efectos', titulo: 'Efectos animados', texto: 'Órbitas, ondas de choque y partículas.', Icono: Sparkles }, { clave: 'enfrentados', titulo: 'Frente a frente', texto: 'Paneles superiores girados 180°.', Icono: Repeat2 }] as const).map(o => <button className="calc-opcion-linea" key={o.clave} aria-pressed={opciones[o.clave]} onClick={() => opcion(o.clave)}><o.Icono size={20} /><span>{o.titulo}<small>{o.texto}</small></span><i className="calc-switch" /></button>)}
       <p className="calc-ayuda">La preferencia de movimiento reducido de tu dispositivo siempre se respeta. La pantalla se mantiene encendida cuando tu navegador lo permite.</p>
       <button className="calc-secundario" onClick={() => { setPanel(null); setConfigurando(true) }}><RotateCcw size={17} /> Preparar otra partida</button>
+      <Link className="calc-acceso-registrado" to="/contador/registrado"><History size={16} /><span>Duelo registrado<small>Partidas anteriores, Amistosas y Misiones</small></span><ChevronRight size={15} /></Link>
     </Dialogo>}
     {panel === 'nueva' && <Dialogo titulo="¿Encender una nueva mesa?" cerrar={() => setPanel(null)}><p>Esto reemplaza la partida guardada en este dispositivo y su registro.</p><button className="calc-empezar" onClick={empezar}>Empezar nueva partida <ArrowRight size={18} /></button><button className="calc-secundario" onClick={() => setPanel(null)}>Conservar la partida anterior</button></Dialogo>}
     {panel === 'ronda' && mesa && <Dialogo titulo={`Pasar a ronda ${mesa.ronda + 1}`} cerrar={() => setPanel(null)}><p>Cuando todos hayan terminado el reagrupamiento, confirmá para restablecer las fichas.</p><p className="calc-ayuda">{mesa.modo === 'twin-suns' ? 'Explosión y Plan vuelven al centro. ' : ''}La iniciativa conserva su dueño, pero puede reclamarse de nuevo. Todos vuelven a poder tomar una ficha. Las vidas se conservan.</p><button className="calc-empezar" disabled={!puedeAvanzar} onClick={avanzarRonda}>Siguiente ronda <ArrowRight size={18} /></button></Dialogo>}
     {ficha && mesa && <Dialogo titulo={FICHAS[ficha].nombre} cerrar={() => setFicha(null)}><p>{FICHAS[ficha].ayuda}</p><p className="calc-ficha-estado">{mesa.reclamadas.includes(ficha) ? `Ya tomada en la ronda ${mesa.ronda}. Volverá a estar disponible en la siguiente ronda.` : ficha === 'iniciativa' && mesa.fichas.iniciativa ? `${mesa.jugadores.find(j => j.id === mesa.fichas.iniciativa)?.nombre} conserva la iniciativa. Se puede reclamar de nuevo en esta ronda.` : 'Disponible para quien todavía no haya tomado otra ficha en esta ronda.'}</p><p className="calc-ayuda">Una ficha por jugador en cada ronda. Este control registra quién la tomó; los efectos se resuelven en la mesa.</p><div className="calc-elegir-jugador">{mesa.jugadores.map((j, i) => <button style={{ '--jugador': COLORES[i] } as CSSProperties} key={j.id} disabled={!puedeTomarFicha(mesa, j.id, ficha)} onClick={() => reclamar(j.id)}><span className="calc-asiento">0{i + 1}</span>{j.nombre}<span>{mesa.fichas[ficha] === j.id && mesa.reclamadas.includes(ficha) ? 'La tomó' : 'Reclamar'}</span></button>)}</div><button className="calc-secundario" disabled={!puedeAvanzar} onClick={abrirSiguienteRonda}><RotateCcw size={17} /> Siguiente ronda · restablecer fichas</button></Dialogo>}
-    {editando && <Dialogo titulo={`Ajustar · ${editando.nombre}`} cerrar={() => setEditarId(null)}><p className="calc-ayuda">Vida actual: {editando.vida} de {editando.maxVida}. El daño y la curación respetan los límites de la base.</p><label className="calc-cantidad">Cantidad<input autoFocus type="number" inputMode="numeric" min={1} max={999} step={1} value={cantidad} onChange={e => setCantidad(e.target.value)} /></label><div className="calc-cantidades">{[1, 3, 5, 10].map(n => <button key={n} aria-pressed={Number(cantidad) === n} onClick={() => setCantidad(String(n))}>{n}</button>)}</div><div className="calc-acciones-exactas">
+    {basePara !== null && <Dialogo titulo={`Base · ${jugadores[basePara].nombre || `Jugador ${basePara + 1}`}`} cerrar={() => setBasePara(null)}><Suspense fallback={<p className="calc-ayuda" role="status">Abriendo catálogo de bases…</p>}><SelectorBaseCalculadora elegida={jugadores[basePara].base} onElegir={elegirBase} /></Suspense><button className="calc-secundario" onClick={() => elegirBase(null)}>Usar vida manual</button></Dialogo>}
+    {editando && <Dialogo titulo={`Ajustar · ${editando.nombre}`} cerrar={() => setEditarId(null)}>{editando.base && <figure className="calc-base-detalle"><CardImage src={editando.base.imagen} alt={editando.base.nombre} orientacion="apaisada" relleno={false} className="calc-base-carta" /><figcaption>{editando.base.nombre} · {editando.base.vidaImpresa} de vida impresa</figcaption></figure>}<p className="calc-ayuda">Vida actual: {editando.vida} de {editando.maxVida}. El daño y la curación respetan los límites de la base.</p><label className="calc-cantidad">Cantidad<input autoFocus type="number" inputMode="numeric" min={1} max={999} step={1} value={cantidad} onChange={e => setCantidad(e.target.value)} /></label><div className="calc-cantidades">{[1, 3, 5, 10].map(n => <button key={n} aria-pressed={Number(cantidad) === n} onClick={() => setCantidad(String(n))}>{n}</button>)}</div><div className="calc-acciones-exactas">
       <button disabled={editando.vida === 0 || !Number.isInteger(Number(cantidad)) || Number(cantidad) < 1 || Number(cantidad) > 999} onClick={() => { ajustar(editando.id, -Number(cantidad)); setEditarId(null) }}><Minus size={18} /> Hacer daño</button>
       <button disabled={editando.vida === 0 || editando.vida === editando.maxVida || !Number.isInteger(Number(cantidad)) || Number(cantidad) < 1 || Number(cantidad) > 999} onClick={() => { ajustar(editando.id, Number(cantidad)); setEditarId(null) }}><Plus size={18} /> Curar</button>
     </div>{editando.vida === 0 && <p className="calc-ayuda">Una base destruida no se cura. Para corregir un error, cerrá este panel y usá Deshacer.</p>}</Dialogo>}
