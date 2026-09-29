@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEffect } from 'react'
+import { AvisoMembresia } from '../../components/AvisoMembresia'
 
 interface NavItemDef {
   to: string
@@ -36,7 +37,7 @@ const NAV_ITEMS: NavItemDef[] = [
 
 export function AdminLayout() {
   const navigate = useNavigate()
-  const { isAdmin, currentProfile, initAuth, authListo, rolListo } = useAuth()
+  const { isAdmin, currentProfile, initAuth, authListo, rolListo, errorMembresia } = useAuth()
 
   useEffect(() => {
     initAuth()
@@ -60,6 +61,17 @@ export function AdminLayout() {
       navigate('/', { replace: true })
     }
   }, [rolListo, currentProfile, isAdmin, navigate])
+
+  if (errorMembresia && !currentProfile) {
+    return (
+      <div className="min-h-screen bg-swu-bg p-6">
+        <AvisoMembresia />
+        <button type="button" onClick={() => navigate('/profile')} className="p-4 text-swu-text">
+          Volver a mi perfil
+        </button>
+      </div>
+    )
+  }
 
   /* Mientras la sesión se está resolviendo no se afirma que no hay sesión: si
    * no, un admin con la app recién abierta ve «Inicie sesión» y se va. */
@@ -204,6 +216,7 @@ export function AdminLayout() {
       {/* ── Main content ── */}
       <main className="flex-1 min-w-0 min-h-0 overflow-y-auto overscroll-contain barra-fina
                        pt-24 md:pt-0 px-4 md:px-6 py-6">
+        <AvisoMembresia />
         <Outlet />
       </main>
     </div>

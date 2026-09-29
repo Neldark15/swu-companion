@@ -10,6 +10,7 @@ import { createPasskey, authenticateWithPasskey, authenticateWithAnyPasskey } fr
 import { createDefaultStats, registrarVisita } from '../services/gamification'
 import { getPermisos } from '../services/events'
 import type { User } from '@supabase/supabase-js'
+import { createEnsureSwuMembership, ERROR_MEMBRESIA_SWU } from '../services/swuMembership'
 
 interface AuthState {
   // Cloud auth
@@ -49,6 +50,8 @@ interface AuthState {
    * aparato tenga `isAdmin:false` guardado, quedaba fuera de su propio panel.
    */
   rolListo: boolean
+  errorMembresia: string | null
+  preparandoMembresia: boolean
 
   // Local profile (Dexie cache)
   currentProfileId: string | null
@@ -153,6 +156,13 @@ let escuchaEnganchada = false
  * Se limpia al cerrar sesión para que volver a entrar sí rehaga todo.
  */
 let usuarioAplicado: string | null = null
+let generacionSesion = 0
+let revisionEventoAuth = 0
+let usuarioEventoAuth: string | null = null
+let aplicacionEnCurso: { userId: string; promesa: Promise<void> } | null = null
+const ensureSwuMembership = createEnsureSwuMembership((params, signal) =>
+  supabase.rpc('ensure_swu_membership', params).abortSignal(signal),
+)
 
 export const useAuth = create<AuthState>()(
   persist(
@@ -165,6 +175,8 @@ export const useAuth = create<AuthState>()(
       isRecoveryMode: false,
       authListo: false,
       rolListo: false,
+      errorMembresia: null,
+      preparandoMembresia: false,
       currentProfileId: null,
       currentProfile: null,
       profiles: [],
@@ -194,58 +206,102 @@ export const useAuth = create<AuthState>()(
             set({ supabaseUser: user })
             return
           }
-          usuarioAplicado = user.id
-
-          let profile = await db.profiles.get(user.id)
-          if (!profile) {
-            // Sin perfil local: o es la primera vez, o se borró la app. En los
-            // dos casos la verdad está en la nube, no en `user_metadata`.
-            profile = await perfilDeLaNube(user)
-            await db.profiles.put(profile)
+          if (aplicacionEnCurso?.userId === user.id) return aplicacionEnCurso.promesa
+          const generacion = ++generacionSesion
+          usuarioEventoAuth = user.id
+          const vigente = () => generacion === generacionSesion && usuarioEventoAuth === user.id
+          usuarioAplicado = null
+          // Nunca heredar el perfil ni el rol de otra cuenta mientras se prepara esta.
+          if (get().currentProfile?.id !== user.id) {
+            set({ currentProfile: null, currentProfileId: null, supabaseUser: null,
+              role: 'user', isAdmin: false, esAutorBlog: false, rolListo: false })
+          } else {
+            // La sesión corresponde al perfil guardado: se puede usar su copia
+            // sin esperar a la red. No se anuncia conexión hasta terminar el alta.
+            set({ authListo: true })
           }
-          const profiles = await db.profiles.toArray()
-          set({ supabaseUser: user, profiles, currentProfile: profile, currentProfileId: profile.id })
+          set({ preparandoMembresia: true, supabaseUser: null })
+          const preparar = async () => {
+            try {
+              const membresia = await ensureSwuMembership(user)
+              if (!vigente()) return
+              if (!membresia.ok) {
+                // Una copia local existente sigue disponible sin afirmar conexión.
+                set({ supabaseUser: null, errorMembresia: membresia.error })
+                return
+              }
 
-          /* Reconciliar con la nube, en segundo plano.
-             Los dos caminos de arriba solo preguntan cuando NO hay perfil
-             local. Si lo hay pero quedó viejo —cambiaste la foto en el
-             teléfono y abrís en la computadora— nadie volvía a preguntar, y
-             cada aparato se quedaba con la suya para siempre. La nube manda:
-             es donde el guardado ya se confirmó. */
-          void (async () => {
-            const local = profile
-            const nube = await perfilDeLaNube(user)
-            if (nube.avatar === local.avatar && nube.name === local.name) return
-            const fusionado = { ...local, name: nube.name, avatar: nube.avatar }
-            await db.profiles.put(fusionado)
-            set({ profiles: await db.profiles.toArray(), currentProfile: fusionado })
-          })()
+              let profile = await db.profiles.get(user.id)
+              if (!profile) {
+                // Sin perfil local: o es la primera vez, o se borró la app. En los
+                // dos casos la verdad está en la nube, no en `user_metadata`.
+                profile = await perfilDeLaNube(user)
+                await db.profiles.put(profile)
+              }
+              const profiles = await db.profiles.toArray()
+              if (!vigente()) return
+              usuarioAplicado = user.id
+              set({ supabaseUser: user, profiles, currentProfile: profile, currentProfileId: profile.id,
+                errorMembresia: null })
 
-          void (async () => {
-            const permisos = await getPermisos(user.id)
-            const role = permisos?.role ?? null
-            // `null` = no se pudo averiguar (red mala, RLS, timeout). En ese
-            // caso NO se toca el rol: se conserva el persistido, que es el
-            // último dato bueno. Pisarlo con una suposición es lo que echaba
-            // del panel al organizador en medio del torneo.
-            //
-            // `rolListo` se marca IGUAL, con rol o sin él: significa «ya
-            // terminé de averiguar», no «sé la respuesta». Quien decide
-            // expulsar (AdminLayout) necesita distinguir eso de «todavía no
-            // pregunté», o echa al admin en la ventana intermedia.
-            if (role !== null) {
-              set({
-                role: role as 'user' | 'admin',
-                isAdmin: role === 'admin',
-                esAutorBlog: permisos?.blogAutor === true,
-              })
+              /* Reconciliar con la nube, en segundo plano.
+                 Los dos caminos de arriba solo preguntan cuando NO hay perfil
+                 local. Si lo hay pero quedó viejo —cambiaste la foto en el
+                 teléfono y abrís en la computadora— nadie volvía a preguntar, y
+                 cada aparato se quedaba con la suya para siempre. La nube manda:
+                 es donde el guardado ya se confirmó. */
+              void (async () => {
+                const local = profile
+                const nube = await perfilDeLaNube(user)
+                if (!vigente()) return
+                if (nube.avatar === local.avatar && nube.name === local.name) return
+                const fusionado = { ...local, name: nube.name, avatar: nube.avatar }
+                await db.profiles.put(fusionado)
+                const actualizados = await db.profiles.toArray()
+                if (vigente()) set({ profiles: actualizados, currentProfile: fusionado })
+              })().catch(() => {})
+
+              void (async () => {
+                const permisos = await getPermisos(user.id)
+                if (!vigente()) return
+                const role = permisos?.role ?? null
+                // `null` = no se pudo averiguar (red mala, RLS, timeout). En ese
+                // caso NO se toca el rol: se conserva el persistido, que es el
+                // último dato bueno. Pisarlo con una suposición es lo que echaba
+                // del panel al organizador en medio del torneo.
+                //
+                // `rolListo` se marca IGUAL, con rol o sin él: significa «ya
+                // terminé de averiguar», no «sé la respuesta». Quien decide
+                // expulsar (AdminLayout) necesita distinguir eso de «todavía no
+                // pregunté», o echa al admin en la ventana intermedia.
+                if (role !== null) {
+                  set({
+                    role: role as 'user' | 'admin',
+                    isAdmin: role === 'admin',
+                    esAutorBlog: permisos?.blogAutor === true,
+                  })
+                }
+                set({ rolListo: true })
+              })()
+
+              pullAllFromCloud(user.id, profile.id).catch(() => {})
+              void contarVisita(user.id, profile.id)
+              void useSobres.getState().cargar(user.id)
+            } catch {
+              if (vigente()) {
+                usuarioAplicado = null
+                set({ supabaseUser: null, errorMembresia: ERROR_MEMBRESIA_SWU })
+              }
+            } finally {
+              if (vigente()) {
+                aplicacionEnCurso = null
+                set({ preparandoMembresia: false })
+              }
             }
-            set({ rolListo: true })
-          })()
-
-          pullAllFromCloud(user.id, profile.id).catch(() => {})
-          void contarVisita(user.id, profile.id)
-          void useSobres.getState().cargar(user.id)
+          }
+          const promesa = preparar()
+          aplicacionEnCurso = { userId: user.id, promesa }
+          return promesa
         }
 
         try {
@@ -262,8 +318,15 @@ export const useAuth = create<AuthState>()(
            */
           const idGuardado = get().currentProfileId
           if (idGuardado) {
+            const generacion = generacionSesion
+            const revision = revisionEventoAuth
             const guardado = await db.profiles.get(idGuardado)
-            if (guardado) set({ currentProfile: guardado, profiles: await db.profiles.toArray() })
+            if (guardado) {
+              const profiles = await db.profiles.toArray()
+              if (generacion === generacionSesion && revision === revisionEventoAuth && get().currentProfileId === idGuardado) {
+                set({ currentProfile: guardado, profiles })
+              }
+            }
           }
 
           if (!isSupabaseReady()) return
@@ -284,11 +347,28 @@ export const useAuth = create<AuthState>()(
            */
           if (!escuchaEnganchada) {
             escuchaEnganchada = true
-            supabase.auth.onAuthStateChange(async (event, session) => {
+            supabase.auth.onAuthStateChange((event, session) => {
               if (event === 'PASSWORD_RECOVERY' && session?.user) {
-                set({ supabaseUser: session.user, isRecoveryMode: true })
+                revisionEventoAuth++
+                generacionSesion++
+                usuarioEventoAuth = session.user.id
+                usuarioAplicado = null
+                aplicacionEnCurso = null
+                const mismoPerfil = get().currentProfile?.id === session.user.id
+                set({
+                  ...(mismoPerfil ? {} : { currentProfile: null, currentProfileId: null,
+                    role: 'user' as const, isAdmin: false, esAutorBlog: false, rolListo: false }),
+                  supabaseUser: session.user, isRecoveryMode: true,
+                  preparandoMembresia: false, errorMembresia: null,
+                })
               } else if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
-                await aplicarSesion(session.user)
+                // Las RPC necesitan getSession internamente: salir primero del
+                // callback de Auth evita esperar dentro de su propio bloqueo.
+                const revision = ++revisionEventoAuth
+                usuarioEventoAuth = session.user.id
+                setTimeout(() => {
+                  if (revision === revisionEventoAuth) void aplicarSesion(session.user)
+                }, 0)
               } else if (event === 'TOKEN_REFRESHED' && session?.user) {
                 /**
                  * El que faltaba, y el que explica el caso feo: sin señal y con
@@ -304,12 +384,21 @@ export const useAuth = create<AuthState>()(
                  * solo refresca el usuario. El trabajo pesado queda para
                  * cuando de verdad cambia quién está logueado.
                  */
-                await aplicarSesion(session.user)
+                const revision = ++revisionEventoAuth
+                usuarioEventoAuth = session.user.id
+                setTimeout(() => {
+                  if (revision === revisionEventoAuth) void aplicarSesion(session.user)
+                }, 0)
               } else if (event === 'SIGNED_OUT') {
+                revisionEventoAuth++
+                usuarioEventoAuth = null
+                generacionSesion++
+                aplicacionEnCurso = null
                 usuarioAplicado = null
                 set({
                   supabaseUser: null, currentProfile: null, currentProfileId: null,
                   isRecoveryMode: false, rolListo: false, esAutorBlog: false,
+                  role: 'user', isAdmin: false, errorMembresia: null, preparandoMembresia: false,
                 })
               }
             })
@@ -330,6 +419,7 @@ export const useAuth = create<AuthState>()(
            * hidratación: se sigue con el último dato bueno y la sesión termina
            * de resolverse por TOKEN_REFRESHED cuando la red se decida.
            */
+          const revisionSondeo = revisionEventoAuth
           const { data: { session }, error } = await Promise.race([
             supabase.auth.getSession(),
             new Promise<Awaited<ReturnType<typeof supabase.auth.getSession>>>(resolver =>
@@ -339,6 +429,13 @@ export const useAuth = create<AuthState>()(
               } as Awaited<ReturnType<typeof supabase.auth.getSession>>), 6000)
             ),
           ])
+          if (revisionSondeo !== revisionEventoAuth) {
+            // Un evento posterior es más reciente que este sondeo. Dar turno
+            // al callback diferido y esperar su aplicación, también en login.
+            await new Promise<void>(resolver => setTimeout(resolver, 0))
+            if (aplicacionEnCurso) await aplicacionEnCurso.promesa
+            return
+          }
           if (session?.user) {
             await aplicarSesion(session.user)
           } else if (!error) {
@@ -352,7 +449,13 @@ export const useAuth = create<AuthState>()(
              * lo hidratado es el último dato bueno que tenemos. La sesión se
              * recupera sola al volver la señal, vía TOKEN_REFRESHED.
              */
-            set({ currentProfile: null, currentProfileId: null, supabaseUser: null })
+            generacionSesion++
+            usuarioEventoAuth = null
+            aplicacionEnCurso = null
+            usuarioAplicado = null
+            set({ currentProfile: null, currentProfileId: null, supabaseUser: null,
+              role: 'user', isAdmin: false, esAutorBlog: false, errorMembresia: null,
+              preparandoMembresia: false })
           }
         } finally {
           /**
@@ -470,39 +573,13 @@ export const useAuth = create<AuthState>()(
           return { ok: false, error: 'Error al iniciar sesión' }
         }
 
-        const user = data.user
-
-        // Ensure local profile exists
-        let profile = await db.profiles.get(user.id)
-        if (!profile) {
-          profile = await perfilDeLaNube(user)
-          await db.profiles.put(profile)
+        // La misma puerta que restaura sesión: membresía antes de perfil,
+        // permisos, visitas y pull; comparte la solicitud del evento SIGNED_IN.
+        await get().initAuth()
+        const estado = get()
+        if (estado.errorMembresia || estado.supabaseUser?.id !== data.user.id) {
+          return { ok: false, error: estado.errorMembresia ?? ERROR_MEMBRESIA_SWU }
         }
-
-        const profiles = await db.profiles.toArray()
-
-        // Check role from Supabase
-        // Acá venís de autenticarte recién, o sea que la red anda; si aun así
-        // no se pudo leer el rol, `'user'` es el default seguro y el próximo
-        // `initAuth` lo corrige.
-        const permisos = await getPermisos(user.id)
-        const role = (permisos?.role ?? 'user') as 'user' | 'admin'
-
-        set({
-          supabaseUser: user,
-          profiles,
-          currentProfile: profile,
-          currentProfileId: profile.id,
-          role,
-          isAdmin: role === 'admin',
-          esAutorBlog: permisos?.blogAutor === true,
-        })
-
-        // Pull all data from cloud in background
-        pullAllFromCloud(user.id, profile.id).catch(() => {})
-        void contarVisita(user.id, profile.id)
-        void useSobres.getState().cargar(user.id)
-
         return { ok: true }
       },
 
@@ -555,6 +632,9 @@ export const useAuth = create<AuthState>()(
           return { ok: false, error: error.message }
         }
         set({ isRecoveryMode: false })
+        // La contraseña ya cambió; preparar después su perfil, fuera del
+        // callback de recuperación. Un fallo de membresía no deshace ese éxito.
+        void get().initAuth().catch(() => {})
         return { ok: true }
       },
 
@@ -623,6 +703,11 @@ export const useAuth = create<AuthState>()(
       },
 
       logout: async () => {
+        revisionEventoAuth++
+        usuarioEventoAuth = null
+        generacionSesion++
+        aplicacionEnCurso = null
+        usuarioAplicado = null
         if (isSupabaseReady()) {
           /**
            * `scope: 'local'` — sin él, `signOut()` usa `'global'` por defecto
@@ -640,7 +725,8 @@ export const useAuth = create<AuthState>()(
         // El saldo de sobres no es de nadie hasta que alguien entre: sin esto,
         // la insignia seguiría mostrando los sobres de la cuenta anterior.
         olvidarSaldoSobres()
-        set({ currentProfile: null, currentProfileId: null, supabaseUser: null, role: 'user', isAdmin: false, esAutorBlog: false, isRecoveryMode: false, rolListo: false })
+        set({ currentProfile: null, currentProfileId: null, supabaseUser: null, role: 'user', isAdmin: false, esAutorBlog: false, isRecoveryMode: false, rolListo: false,
+          errorMembresia: null, preparandoMembresia: false })
       },
 
       setCurrentProfile: (profile) => {
