@@ -12,6 +12,7 @@ import { PageTransition } from '../PageTransition'
 import { usePrefetchRoutes } from '../usePrefetchRoutes'
 import { TournamentBroadcastListener } from '../../features/events/TournamentBroadcastListener'
 import { GiftListener } from '../../features/espionaje/GiftListener'
+import { AvisoMembresia } from '../AvisoMembresia'
 
 export function AppLayout() {
   const initAuth = useAuth(s => s.initAuth)
@@ -89,6 +90,7 @@ export function AppLayout() {
                * El scroll sigue siendo del `<main>` (§ del caparazón): esta
                * caja no scrollea, solo mide. */}
               <div className="mx-auto w-full lg:px-6 xl:px-10 2xl:max-w-[1600px]">
+                <AvisoMembresia />
                 <PageTransition>
                   <Outlet />
                 </PageTransition>
