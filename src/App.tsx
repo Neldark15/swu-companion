@@ -7,6 +7,8 @@ import { HolocronLoader } from './components/PageTransition'
 import { useRutaPersistente } from './hooks/useRutaPersistente'
 
 // Lazy-loaded pages — each becomes its own chunk
+const AutorizarMementoPage = lazy(() => import('./features/cuenta/CuentaMementoPage').then(m => ({ default: m.AutorizarMementoPage })))
+const RecuperarMementoPage = lazy(() => import('./features/cuenta/CuentaMementoPage').then(m => ({ default: m.RecuperarMementoPage })))
 const HomePage = lazy(() => import('./features/home/HomePage').then(m => ({ default: m.HomePage })))
 const PlayPage = lazy(() => import('./features/play/PlayPage').then(m => ({ default: m.PlayPage })))
 const JugarPage = lazy(() => import('./features/jugar/JugarPage').then(m => ({ default: m.JugarPage })))
@@ -232,6 +234,9 @@ export default function App() {
       <ErrorBoundary>
       <Suspense fallback={<PageLoader />}>
         <Routes>
+          {/* Autoridad de cuenta: no monta el shell ni incorpora perfiles SWU. */}
+          <Route path="/cuenta/autorizar" element={<AutorizarMementoPage />} />
+          <Route path="/cuenta/recuperar" element={<RecuperarMementoPage />} />
           {import.meta.env.DEV && BancoJugar && <Route path="/banco-jugar" element={<BancoJugar />} />}
           {/* ── Admin panel — own layout, isAdmin guard inside ── */}
           <Route path="/admin" element={<AdminLayout />}>

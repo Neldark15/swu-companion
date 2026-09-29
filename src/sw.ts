@@ -52,6 +52,8 @@ registerRoute(
     denylist: [
       /^\/api\//,
       /^\/assets\//,
+      // Autoridad de cuenta: no servir HTML viejo ni conservar su navegación.
+      /^\/cuenta(?:\/|\?|$)/,
       /* Transmisión: el overlay lo abre el navegador de OBS, y el estudio corre
        * en el celular del operador. Si el SW estuviera instalado en esa máquina
        * (p. ej. Nel abre el overlay en su propia Mac con la PWA ya instalada),
