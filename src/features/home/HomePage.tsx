@@ -280,6 +280,7 @@ const CAT_EN: Record<string, string> = {
   'Jugar': 'Play', 'Competir': 'Compete', 'Construir': 'Build', 'Colección': 'Collection', 'Mini Juegos': 'Mini Games', 'Comunidad': 'Community',
   'Solo administradores': 'Administrators only',
   'Mis herramientas': 'My tools',
+  'Ligas y torneos actuales': 'Current leagues & tournaments',
 }
 
 export function HomePage() {
@@ -422,6 +423,27 @@ export function HomePage() {
         />
       </div>
 
+      {/* ── Ligas y torneos actuales ──
+          Justo debajo de la tarjeta, por pedido de Nel: es lo que tiene fecha.
+          Una liga con plazo y el torneo del sábado son compromisos con hora y
+          lugar, y el día que toca es lo único que la persona abre la app a
+          mirar — por eso no van en la cuadrícula de módulos, donde serían una
+          casilla de 60 px entre veinte.
+
+          Cada pieza decide sola si se dibuja: la liga solo para quien puede
+          entrar (creador, staff, inscrito o probador) y el torneo solo si estás
+          inscrito. Y el RÓTULO también se calla si las dos se callan: la regla
+          `.seccion-ligas:has(> .seccion-ligas-cuerpo:empty)` de index.css lo
+          esconde. Un título encima de nada es un hueco en cada visita, y esa es
+          la situación de casi toda la comunidad casi todos los días. */}
+      <section className="seccion-ligas" aria-label={tI('Ligas y torneos actuales', 'Current leagues & tournaments')}>
+        {renderSeparador('Ligas y torneos actuales', 'cyan')}
+        <div className="seccion-ligas-cuerpo">
+          <BotonLigaInicio />
+          <MiTorneo />
+        </div>
+      </section>
+
       {/* El sobre de las 8 de la mañana. Va primero porque es lo que acaba de
           pasar, y se puede cerrar: el sobre no se gasta al ocultar el aviso. */}
       {/* Primero de todos los avisos: es el único que CADUCA. Un mensaje
@@ -539,20 +561,6 @@ export function HomePage() {
           </HudPanel>
         </button>
       </div>
-
-      {/* ── La liga, en su propio botón, justo debajo de La Galaxia ──
-          No entra a la cuadrícula de módulos: ahí es una casilla de 60 px entre
-          veinte, y una liga con fecha límite no es un módulo más. Se dibuja
-          SOLO para quien puede entrar —creador, staff, inscrito o probador— y
-          si no, no ocupa nada. */}
-      <BotonLigaInicio />
-
-      {/* ── Tu torneo ──
-          Pegado a la acción principal, no en la franja del pie. «Próximos
-          eventos» es una lista para curiosear; esto es un compromiso con hora
-          y lugar, y el día del torneo es lo único que la persona abre la app a
-          mirar. Solo se dibuja si estás inscrito. */}
-      <MiTorneo />
 
       {/* ── Marcador ── */}
       {marcadores && (

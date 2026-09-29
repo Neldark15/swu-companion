@@ -1650,3 +1650,15 @@ input:focus, textarea:focus, select:focus {
 @media (prefers-reduced-motion: reduce) {
   .portada-barra { animation-duration: 1ms !important }
 }
+
+/* ── Inicio · «Ligas y torneos actuales» ─────────────────────────────
+   El rótulo se calla cuando las dos piezas de adentro se callan. La liga y
+   el torneo deciden SOLAS si se dibujan (devuelven null), así que el padre
+   no sabe si quedó algo; `:empty` sí lo sabe, porque un componente que
+   devuelve null no deja ni un nodo. Un título encima de nada sería un hueco
+   en cada visita para casi toda la comunidad.
+   CSS plano y no una variante `has-[…]` de Tailwind: los estilos de
+   componente van así en este archivo (§3i). */
+.seccion-ligas:has(> .seccion-ligas-cuerpo:empty) {
+  display: none;
+}

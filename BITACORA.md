@@ -12,6 +12,16 @@ Registro compartido entre Claude y ChatGPT. **La entrada más nueva va arriba.**
 
 ---
 
+## 2026-09-29 · Claude · Liga PUENTE 3 limpia para usarla, y «Ligas y torneos actuales» en Inicio
+**Qué cambió:**
+1. **Base (producción, a pedido de Nel):** se borró todo lo de prueba de `puente3` en una transacción acotada a su `liga_id` —el teardown del §5j borraba `liga_grupos` entero, sin filtro—: 121 inscripciones (las 120 `[demo]` y la de AlejoP3, que se hizo durante la prueba y cargaba `temporadas_jugadas = 1` de una temporada que nunca existió), 121 disponibilidades, 15 grupos, 121 plazas, 428 partidas, el anuncio «Arrancó la Temporada 1» y la **Temporada 1 de prueba** (cerrada el 28/9 al ensayar el cierre). **Edición 6** queda como temporada `#1` (el panel la mostraba como #2) y la liga en `borrador` + `publica = false`: con `activa`, el panel se saltaba «Abrir la inscripción» y ofrecía «Armar grupos» sobre cero inscritos. No se tocó `liga_staff`, `liga_probadores`, `creadores` ni la liga en sí. No hubo premios que revertir (`sable_bonos` sin motivos de liga).
+2. **Inicio:** la liga y «Tu torneo» se mudan de debajo de La Galaxia a una sección **«Ligas y torneos actuales»** justo debajo de la tarjeta de jugador. El rótulo se calla solo cuando las dos piezas se callan (`.seccion-ligas:has(> .seccion-ligas-cuerpo:empty)` en `index.css`).
+**Archivos:** `src/features/home/HomePage.tsx`, `src/index.css`. La limpieza no tiene migración: es DML de una sola vez sobre datos de prueba.
+**Cómo verificar:** conteo después de la limpieza: 0 inscripciones, 0 grupos, 0 plazas, 0 partidas, 0 anuncios, una sola temporada (Edición 6, #1, `inscripcion`, arranca 16/10, cierra 20/12). La regla del rótulo medida con la hoja real: sin contenido mide 0 px, con la liga 84 px. `npm run build` y `npm run lint` (0 errores).
+**Pendiente / notas para el siguiente:** La liga está a UN botón de abrirse: en el panel, «Qué sigue» ofrece «Abrir la inscripción», que pone `publica = true`. **Edición 6 no tiene fecha de cierre de inscripción** (`inscripcion_cierra` NULL): el lobby va a contar hacia el arranque del 16/10. Si hay que devolverle a Alejo su inscripción de prueba, está respaldada fuera del repo; lo normal es que se inscriba de nuevo por el alta.
+
+---
+
 ## 2026-09-28 · ChatGPT · Membresía SWU para cuentas compartidas de MEMENTO
 **Qué cambió:** Solo para cuentas con `user_metadata.origin_app === 'memento'`, restauración e inicio de sesión esperan `ensure_swu_membership(display_name, profile_avatar)` antes de abrir un perfil nuevo, leer permisos o descargar datos SWU. Las cuentas SWU históricas no llaman esa RPC ni dependen de su disponibilidad. La RPC determina la identidad en servidor; el cliente no envía IDs ni roles. Se comparten llamadas simultáneas y éxitos por usuario durante la carga; errores y vencimientos a los 8 s permiten reintento. Aviso visible en la app y administración. La caché existente de la misma cuenta conserva el uso offline; otra cuenta no hereda su perfil ni rol. Callbacks Auth salen del bloqueo antes de hacer RPC y respuestas tardías no restauran una sesión cerrada.
 **Archivos:** `src/services/swuMembership.ts`, `src/hooks/useAuth.ts`, `src/components/AvisoMembresia.tsx`, ambos layouts, programas `scripts/swu-{membership,auth-membership}.test.*`.
