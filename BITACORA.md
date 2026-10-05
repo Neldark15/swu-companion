@@ -12,6 +12,14 @@ Registro compartido entre Claude y ChatGPT. **La entrada más nueva va arriba.**
 
 ---
 
+## 2026-10-05 · Claude · Liga: equipo con roles, borrar inscripciones y ayuda del panel
+**Qué cambió:** Alejo (y cualquier organizador) puede sumar y quitar **organizadores** y **árbitros** desde Ajustes → Equipo, borrar una inscripción del todo (solo si esa persona nunca jugó), y cada pestaña del panel trae un **tip de ayuda**. Antes de habilitar el equipo se separaron las puertas: hasta hoy cualquier fila de `liga_staff` tenía poder total sobre la liga; ahora un árbitro solo resuelve partidas y mueve plazos (de toda la liga o de un grupo) y todo lo demás es de organizador.
+**Archivos:** `supabase/migrations/liga-equipo-roles-y-borrar-inscripcion.sql` (YA aplicada), `src/services/ligaService.ts`, `src/features/liga/{PanelLiga,BancoLobbyLiga}.tsx`, CLAUDE §5t.
+**Cómo verificar:** transacción revertida 26/26 (árbitro de grupo rechazado al configurar, mover fechas, deshacer, sumar gente, borrar y dar plazo en otro grupo; organizador puede todo; creador no se puede quitar; Nel abre la inscripción). `npm run build`, `npm run lint` (0 errores), `npm run liga`. Banco `/banco-lobby-liga`.
+**Pendiente / notas para el siguiente:** NO re-aplicar los `.sql` viejos de las funciones de la liga: todavía dicen `liga_es_staff` y le devolverían poder total a los árbitros (ver §5t). Siguen abiertos el empate circular en `tablaDe`, el reparto que no mira la zona horaria y el cierre que deja disputas abiertas.
+
+---
+
 ## 2026-10-05 · Claude · Liga: todo editable desde el panel (fechas, reglas, imágenes, inscritos, grupos)
 **Qué cambió:** Pedido de Nel: que Alejo y él puedan cambiar «las fechas y todo» desde el panel. Nuevo: pestaña **Ajustes** (nombre, descripción, cupo, formato, tamaño, cuántos suben/bajan por grupo, reglas de la casa, y **emblema/portada/banner subibles**); **Temporada** con fechas editables (cierre de inscripción, arranque, cierre) que recalcula los plazos pendientes y respeta las prórrogas manuales; **plazos por partida** en Grupos y Cola; **nivel y estado** de cada inscrito; **mover gente de grupo** y **deshacer grupos** antes de jugar; **editar avisos**. El cierre de temporada lee suben/bajan de la liga y el «Cómo funciona» los anuncia.
 **Archivos:** `supabase/migrations/liga-personalizable-desde-el-panel.sql`, `supabase/migrations/liga-imagenes-storage.sql` (bucket `ligas`), `src/services/ligaService.ts`, `src/features/liga/{PanelLiga,LigaSeccion,PortadaLiga,BotonLigaInicio,BancoLobbyLiga}.tsx`, CLAUDE §5s.

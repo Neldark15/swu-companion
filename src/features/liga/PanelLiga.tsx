@@ -41,7 +41,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   AlertTriangle, ArrowLeft, CalendarPlus, Check, ClipboardCheck, Copy, Gavel,
-  ImageUp, KeyRound, RefreshCw, Settings, ShieldCheck, Users,
+  ImageUp, KeyRound, Lightbulb, RefreshCw, Search, Settings, ShieldCheck, Trash2, UserPlus, Users, X,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../../components/ui/Button'
@@ -57,6 +57,8 @@ import {
 import { configurarLiga, cerrarTemporada, tablaDe } from '../../services/ligaService'
 import {
   editarTemporada, prorrogarPartida, editarInscripcion, moverPlaza, deshacerGrupos, subirImagenLiga,
+  borrarInscripcion, verEquipo, buscarPersona, agregarAlEquipo, quitarDelEquipo,
+  type EquipoLiga, type PersonaBuscada,
 } from '../../services/ligaService'
 import { tamanosDeGrupo, GRUPO_MIN } from '../../services/ligaTabla'
 import { Bandera } from './componentes/piezas'
@@ -349,6 +351,11 @@ export function PanelLiga() {
   }
 
   /** Toda acción termina igual: se dice qué pasó y se relee de la base. */
+  /* Organiza o solo arbitra. `esOrganizador` lo manda `liga_ver`; si no vino
+     (una respuesta vieja en caché), se cae a `esStaff`, que era la regla de
+     antes — el servidor igual rechaza lo que no corresponde. */
+  const organiza = liga?.liga.esOrganizador ?? liga?.liga.esStaff ?? false
+
   function tras(r: { ok: boolean; mensaje?: string }, exito: string) {
     setAviso({ ok: r.ok, texto: r.ok ? exito : (r.mensaje ?? 'No se pudo') })
     if (r.ok) recargar()
@@ -453,9 +460,12 @@ export function PanelLiga() {
               entra al panel por otra pestaña tiene que ver que hay algo
               atorado sin depender de haber leído el aviso. */}
           <SegmentedControl
-            options={PESTANAS.map(o => o.value === 'cola' && panel.cola.length
-              ? { ...o, label: `Cola · ${panel.cola.length}` }
-              : o)}
+            options={PESTANAS
+              // Un árbitro no ve «Ajustes»: todo lo que hay ahí se lo rechaza el servidor.
+              .filter(o => organiza || o.value !== 'ajustes')
+              .map(o => o.value === 'cola' && panel.cola.length
+                ? { ...o, label: `Cola · ${panel.cola.length}` }
+                : o)}
             value={pestana}
             onChange={setPestana}
             label="Herramienta del panel"
@@ -480,21 +490,66 @@ export function PanelLiga() {
           </div>
         )}
 
-        <QueSigue
-          liga={liga} panel={panel} setPestana={setPestana} tras={tras}
-        />
+        {/* «Qué sigue» ofrece pasos de ORGANIZAR: a un árbitro todos esos botones
+            le rebotarían. Él ve su propio aviso de qué puede hacer. */}
+        {organiza ? (
+          <QueSigue
+            liga={liga} panel={panel} setPestana={setPestana} tras={tras}
+          />
+        ) : (
+          <Ayuda id="arbitro" titulo="Sos árbitro de esta liga">
+            Podés <b>resolver las partidas de la cola</b> —disputas y vencidas— y <b>mover plazos</b>
+            {' '}de los grupos que arbitrás. Configurar la liga, armar grupos o cambiar fechas es cosa de
+            quien organiza: si algo de eso hace falta, avisale.
+          </Ayuda>
+        )}
 
-        {pestana === 'inscritos' && <Inscritos inscritos={panel.inscritos} tras={tras} />}
+        {pestana === 'inscritos' && (
+          <>
+            <Ayuda id="inscritos" titulo="Cómo se usa «Inscritos»">
+              Acá está todo el que se anotó, con su país, sus horarios y su mazo.
+              {organiza && <>
+                {' '}<b>Antes de armar los grupos, poné el nivel de cada uno</b>: todos entran en Común.
+                {' '}<b>En pausa</b> no entra al próximo reparto. <b>Retirado o vetado</b>: si ya juega un grupo,
+                su lugar queda abandonado (sus partidas jugadas siguen contando y al cierre baja).
+                {' '}<b>Borrar</b> lo saca del todo y puede volver a anotarse; solo se puede si nunca jugó.
+              </>}
+              {' '}El mapa de calor te dice qué días y horas coincide más gente.
+            </Ayuda>
+            <Inscritos inscritos={panel.inscritos} tras={tras} editable={organiza} />
+          </>
+        )}
 
-        {pestana === 'ajustes' && (
+        {pestana === 'ajustes' && organiza && (
           <div className="space-y-4">
+            <Ayuda id="ajustes" titulo="Cómo se usa «Ajustes»">
+              Lo que la liga decide de sí misma: nombre, <b>reglas de la casa</b> (se leen en «Cómo
+              funciona» del lobby), <b>cuántos suben y bajan</b> al cerrar la temporada, las <b>imágenes</b> y
+              {' '}<b>tu equipo</b>. <b>Abrir la inscripción</b> hace pública la liga: hasta entonces solo la ve el equipo.
+            </Ayuda>
             <ConfigurarLiga liga={liga} tras={tras} />
+            <EquipoDeLaLiga liga={liga} tras={tras} />
             <AparienciaLiga liga={liga} tras={tras} />
           </div>
         )}
 
         {pestana === 'grupos' && (
+          <Ayuda id="grupos" titulo="Cómo se usa «Grupos»">
+            {organiza ? <>
+              El orden es: <b>1)</b> ensayá el reparto (no guarda nada), <b>2)</b> armá los grupos,
+              {' '}<b>3)</b> revisalos y <b>mové gente</b> si a alguien no le sirve el horario —el reparto no mira la
+              zona horaria: fijate en las banderas—, <b>4)</b> sembrá el calendario de cada grupo.
+              {' '}¿Algo salió mal? <b>Deshacé los grupos</b> mientras nadie haya jugado. Con calendario, podés
+              {' '}<b>mover el plazo</b> de cualquier partida.
+            </> : <>
+              Acá ves los grupos y sus partidas. Podés <b>mover el plazo</b> de las partidas de los grupos que arbitrás.
+            </>}
+          </Ayuda>
+        )}
+
+        {pestana === 'grupos' && (
           <Grupos
+            organiza={organiza}
             liga={liga}
             temporadaId={temporada?.id ?? null}
             temporadaNombre={temporada?.nombre ?? null}
@@ -502,11 +557,31 @@ export function PanelLiga() {
           />
         )}
 
+        {pestana === 'cola' && (
+          <Ayuda id="cola" titulo="Cómo se usa «Cola»">
+            Llegan las partidas <b>en disputa</b> (alguien dijo que el resultado no fue así) y las
+            {' '}<b>vencidas</b> (nadie las jugó a tiempo). Escribí primero <b>el motivo</b>: lo ve la comunidad.
+            Después elegí: confirmar un marcador, walkover (gana el que se presentó), anular, o
+            {' '}<b>dar más plazo</b> si fue una vencida.
+          </Ayuda>
+        )}
+
         {pestana === 'cola' && <Cola liga={liga} cola={panel.cola} tras={tras} />}
 
         {pestana === 'semilla' && (
           <div className="space-y-4">
-            {panel.temporada && (
+            <Ayuda id="temporada" titulo="Cómo se usa «Temporada»">
+              {organiza ? <>
+                Las <b>fechas</b> se cambian cuando quieras. Si ya hay calendario, los plazos de lo que falta
+                jugar se recalculan solos y las prórrogas que diste se respetan. Al terminar, <b>cerrá la
+                temporada</b>: primero ves un ensayo de quién sube y quién baja, y recién ahí se confirma.
+                Después podés abrir la siguiente desde «Grupos».
+              </> : <>
+                Acá están las fechas de la temporada y la semilla del sorteo, que cualquiera puede usar para
+                comprobar que el calendario no se armó a mano.
+              </>}
+            </Ayuda>
+            {organiza && panel.temporada && (
               <EditarTemporada
                 temporada={panel.temporada}
                 sembrados={liga.grupos.filter(g => g.sembrado || g.partidas.length > 0).length}
@@ -514,7 +589,7 @@ export function PanelLiga() {
               />
             )}
             <Semilla temporada={panel.temporada} />
-            <CerrarTemporada liga={liga} temporada={panel.temporada} tras={tras} />
+            {organiza && <CerrarTemporada liga={liga} temporada={panel.temporada} tras={tras} />}
           </div>
         )}
         </div>
@@ -547,9 +622,10 @@ function comparar(a: InscritoPanel, b: InscritoPanel, col: Col): number {
   }
 }
 
-function Inscritos({ inscritos, tras }: {
+function Inscritos({ inscritos, tras, editable = true }: {
   inscritos: InscritoPanel[]
   tras: (r: { ok: boolean; mensaje?: string }, exito: string) => void
+  editable?: boolean
 }) {
   const [col, setCol] = useState<Col>('tier')
   const [desc, setDesc] = useState(false)
@@ -637,7 +713,7 @@ function Inscritos({ inscritos, tras }: {
         {filas.map(i => (
           <div key={i.inscId} className="space-y-1.5">
             <FichaInscrito i={i} />
-            <EditorInscrito i={i} tras={tras} />
+            {editable && <EditorInscrito i={i} tras={tras} />}
           </div>
         ))}
       </div>
@@ -664,7 +740,7 @@ function Inscritos({ inscritos, tras }: {
                     </button>
                   </th>
                 ))}
-                <th className="px-2.5 font-mono text-[9px] uppercase tracking-widest text-swu-muted">Gestionar</th>
+                {editable && <th className="px-2.5 font-mono text-[9px] uppercase tracking-widest text-swu-muted">Gestionar</th>}
               </tr>
             </thead>
             <tbody>
@@ -703,9 +779,11 @@ function Inscritos({ inscritos, tras }: {
                       </span>
                     ) : i.horas}
                   </td>
-                  <td className="px-2.5 py-2">
-                    <EditorInscrito i={i} tras={tras} compacto />
-                  </td>
+                  {editable && (
+                    <td className="px-2.5 py-2">
+                      <EditorInscrito i={i} tras={tras} compacto />
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -837,8 +915,9 @@ function MapaCalor({
    ══════════════════════════════════════════════════════════════════════ */
 
 function Grupos({
-  liga, temporadaId, temporadaNombre, tras,
+  liga, temporadaId, temporadaNombre, tras, organiza = true,
 }: {
+  organiza?: boolean
   liga: LigaCompleta
   temporadaId: string | null
   temporadaNombre: string | null
@@ -888,6 +967,14 @@ function Grupos({
     const r = await sembrarGrupo(grupoId)
     setTrabajando(null)
     tras(r, `Calendario sembrado en ${etiqueta}`)
+  }
+
+  if (!temporadaId && !organiza) {
+    return (
+      <HudPanel tone="neutral">
+        <p className="p-6 text-center text-sm text-swu-muted">Todavía no hay una temporada abierta.</p>
+      </HudPanel>
+    )
   }
 
   if (!temporadaId) {
@@ -947,6 +1034,7 @@ function Grupos({
 
   return (
     <div className="space-y-4">
+      {organiza && (
       <HudPanel tone="amber">
         <div className="space-y-3 p-4">
           <div className="flex items-center justify-between gap-2">
@@ -1028,6 +1116,7 @@ function Grupos({
           )}
         </div>
       </HudPanel>
+      )}
 
       <HudPanel tone="neutral">
         <div className="space-y-2 p-4">
@@ -1054,6 +1143,8 @@ function Grupos({
                         prometía algo imposible. Para rehacerlo está «Deshacer». */}
                     {sembrado ? (
                       <span className="font-mono text-[10px] uppercase tracking-widest text-swu-green">Calendario listo</span>
+                    ) : !organiza ? (
+                      <span className="font-mono text-[10px] uppercase tracking-widest text-swu-muted">Sin calendario</span>
                     ) : (
                       <Button
                         variant="secondary" size="xs"
@@ -1068,12 +1159,12 @@ function Grupos({
 
                 {sembrado
                   ? <PlazosDelGrupo grupo={g} tras={tras} />
-                  : <MoverDelGrupo grupo={g} otros={liga.grupos.filter(o => o.id !== g.id && !o.sembrado && o.partidas.length === 0)} tras={tras} />}
+                  : organiza && <MoverDelGrupo grupo={g} otros={liga.grupos.filter(o => o.id !== g.id && !o.sembrado && o.partidas.length === 0)} tras={tras} />}
               </div>
             )
           })}
 
-          {liga.grupos.length > 0 && temporadaId && (
+          {organiza && liga.grupos.length > 0 && temporadaId && (
             <DeshacerGrupos temporadaId={temporadaId} tras={tras} />
           )}
         </div>
@@ -2152,6 +2243,297 @@ export function EditorInscrito({ i, tras, compacto = false }: {
               }}>
         {ESTADOS_INSCRITO.map(([v, r]) => <option key={v} value={v}>{r}</option>)}
       </select>
+      {/* Borrar DEL TODO. No es vetar: un vetado sigue existiendo y no puede
+          volver a anotarse; borrado, sí. El servidor solo lo deja si nunca
+          jugó —sus partidas también son las de sus rivales—. */}
+      <button
+        type="button"
+        disabled={trabajando}
+        aria-label={`Borrar la inscripción de ${i.nombre}`}
+        title="Borrar la inscripción"
+        onClick={async () => {
+          if (!window.confirm(`¿Borrar la inscripción de ${i.nombre}? Desaparece de la liga y puede volver a anotarse. (Si querés que NO pueda volver, mejor vetalo.)`)) return
+          setTrabajando(true)
+          const r = await borrarInscripcion(i.inscId)
+          setTrabajando(false)
+          tras(r, `Se borró la inscripción de ${i.nombre}.`)
+        }}
+        className="flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-lg border border-swu-border
+                   text-swu-muted hover:border-swu-red/40 hover:text-swu-red-texto disabled:opacity-40"
+      >
+        <Trash2 size={14} />
+      </button>
+    </div>
+  )
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   AYUDA — los tips de cada pestaña, para quien organiza
+
+   Quien organiza una liga lo hace UNA vez cada tres meses (§5i): no se acuerda
+   del orden ni de qué hace cada botón, y no tiene por qué. Cada pestaña dice
+   en tres renglones para qué sirve y en qué orden se usa.
+
+   Arranca ABIERTA la primera vez y se cierra con «Entendido»; queda un
+   «¿Cómo se usa?» para volver a abrirla. Se recuerda por aparato en
+   localStorage —siempre dentro de try/catch: en una ventana privada o con
+   datos bloqueados el acceso lanza, y la ayuda tiene que verse igual—.
+   ══════════════════════════════════════════════════════════════════════ */
+const CLAVE_AYUDA = 'liga-ayuda-cerrada:'
+
+function ayudaCerrada(id: string): boolean {
+  try { return localStorage.getItem(CLAVE_AYUDA + id) === '1' } catch { return false }
+}
+
+export function Ayuda({ id, titulo, children }: { id: string; titulo: string; children: React.ReactNode }) {
+  const [abierta, setAbierta] = useState(() => !ayudaCerrada(id))
+
+  const cerrar = () => {
+    setAbierta(false)
+    try { localStorage.setItem(CLAVE_AYUDA + id, '1') } catch { /* sin almacenamiento: se cierra igual */ }
+  }
+  const abrir = () => {
+    setAbierta(true)
+    try { localStorage.removeItem(CLAVE_AYUDA + id) } catch { /* idem */ }
+  }
+
+  if (!abierta) {
+    return (
+      <button onClick={abrir}
+              className="flex min-h-9 items-center gap-1.5 text-[11px] font-bold text-swu-cyan">
+        <Lightbulb size={13} /> ¿Cómo se usa?
+      </button>
+    )
+  }
+  return (
+    <div className="rounded-xl border border-swu-cyan/30 bg-swu-cyan/5 p-3" role="note">
+      <div className="flex items-start gap-2">
+        <Lightbulb size={15} className="mt-0.5 shrink-0 text-swu-cyan" />
+        <div className="min-w-0 flex-1">
+          <p className="text-[12px] font-black text-swu-text">{titulo}</p>
+          <p className="mt-1 text-[12px] leading-relaxed text-swu-muted">{children}</p>
+        </div>
+        <button onClick={cerrar} aria-label="Cerrar la ayuda"
+                className="flex min-h-8 min-w-8 shrink-0 items-center justify-center text-swu-muted hover:text-swu-text">
+          <X size={14} />
+        </button>
+      </div>
+      <button onClick={cerrar}
+              className="mt-2 min-h-9 w-full rounded-lg bg-swu-cyan/15 text-[11px] font-black uppercase tracking-wider text-swu-cyan">
+        Entendido
+      </button>
+    </div>
+  )
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   EL EQUIPO — organizadores y árbitros
+
+   Organizador: puede todo, igual que el creador. Árbitro: resuelve partidas y
+   mueve plazos, de toda la liga o de UN grupo. La regla la pone el servidor
+   (`liga_es_organizador` / `liga_puede_arbitrar`); esto solo la muestra.
+
+   Antes no existía: sumar a alguien era una fila a mano en el SQL Editor, y
+   cualquier fila daba poder total —la columna `rol` no la leía nadie—.
+   ══════════════════════════════════════════════════════════════════════ */
+export function EquipoDeLaLiga({ liga, tras, inicial }: {
+  liga: LigaCompleta
+  tras: (r: { ok: boolean; mensaje?: string }, exito: string) => void
+  /** Solo para el banco: el equipo ya dado, sin pedirlo al servidor. */
+  inicial?: EquipoLiga
+}) {
+  const [equipo, setEquipo] = useState<EquipoLiga | null>(inicial ?? null)
+  const [version, setVersion] = useState(0)
+  const [texto, setTexto] = useState('')
+  const [encontradas, setEncontradas] = useState<PersonaBuscada[]>([])
+  const [buscando, setBuscando] = useState(false)
+  const [trabajando, setTrabajando] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (inicial) return
+    let vivo = true
+    void verEquipo(liga.liga.id).then(e => { if (vivo) setEquipo(e) })
+    return () => { vivo = false }
+  }, [liga.liga.id, version, inicial])
+
+  // Buscar con una pausa: una consulta por tecla sobre todos los perfiles es
+  // ruido para el servidor y parpadeo para la lista.
+  useEffect(() => {
+    const q = texto.trim()
+    if (q.length < 2) return
+    let vivo = true
+    const reloj = window.setTimeout(() => {
+      setBuscando(true)
+      void buscarPersona(liga.liga.id, q).then(r => {
+        if (!vivo) return
+        setEncontradas(r)
+        setBuscando(false)
+      })
+    }, 300)
+    return () => { vivo = false; window.clearTimeout(reloj) }
+  }, [texto, liga.liga.id])
+
+  const grupos = liga.grupos.map(g => ({ id: g.id, nombre: `${NOMBRE_TIER[g.tier] ?? g.tier} ${g.orden}` }))
+
+  async function sumar(p: PersonaBuscada, rol: 'organizador' | 'arbitro', grupo: string | null) {
+    setTrabajando(p.userId)
+    const r = await agregarAlEquipo(liga.liga.id, p.userId, rol, grupo)
+    setTrabajando(null)
+    const como = rol === 'organizador' ? 'organizador'
+      : grupo ? `árbitro de ${grupos.find(g => g.id === grupo)?.nombre ?? 'un grupo'}` : 'árbitro de toda la liga'
+    tras(r, `${p.nombre} ahora es ${como}.`)
+    if (r.ok) { setTexto(''); setEncontradas([]); setVersion(v => v + 1) }
+  }
+
+  async function cambiarRol(userId: string, nombre: string, valor: string) {
+    // valor: 'organizador' | 'arbitro' | 'arbitro:<grupoId>'
+    const [rol, grupo] = valor.split(':') as ['organizador' | 'arbitro', string | undefined]
+    setTrabajando(userId)
+    const r = await agregarAlEquipo(liga.liga.id, userId, rol, grupo ?? null)
+    setTrabajando(null)
+    tras(r, `Rol de ${nombre} actualizado.`)
+    if (r.ok) setVersion(v => v + 1)
+  }
+
+  async function quitar(userId: string, nombre: string, soyYo: boolean) {
+    const aviso = soyYo
+      ? 'Te vas a quitar del equipo: dejás de ver el panel de esta liga. ¿Seguimos?'
+      : `¿Quitar a ${nombre} del equipo? Deja de ver el panel.`
+    if (!window.confirm(aviso)) return
+    setTrabajando(userId)
+    const r = await quitarDelEquipo(liga.liga.id, userId)
+    setTrabajando(null)
+    tras(r, `${nombre} ya no está en el equipo.`)
+    if (r.ok) setVersion(v => v + 1)
+  }
+
+  const valorRol = (m: { rol: string; grupoId: string | null }) =>
+    m.rol === 'organizador' ? 'organizador' : m.grupoId ? `arbitro:${m.grupoId}` : 'arbitro'
+
+  return (
+    <HudPanel tone="neutral">
+      <div className="space-y-3 p-3">
+        <h2 className="flex items-center gap-2 text-sm font-bold text-swu-text">
+          <Users size={15} className="text-swu-cyan" /> Equipo de la liga
+        </h2>
+        <p className="text-[11px] leading-snug text-swu-muted">
+          <b className="text-swu-text">Organizador</b>: puede todo, igual que quien creó la liga.{' '}
+          <b className="text-swu-text">Árbitro</b>: resuelve partidas de la cola y mueve plazos — de toda la liga o de un grupo.
+          Si deshacés los grupos, los árbitros de grupo salen del equipo y hay que volver a sumarlos.
+        </p>
+
+        {!equipo ? (
+          <p className="text-[12px] text-swu-muted">Cargando el equipo…</p>
+        ) : (
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 rounded-lg border border-swu-border bg-swu-bg px-2.5 py-2 text-[12px]">
+              <ShieldCheck size={14} className="shrink-0 text-swu-amber" />
+              <span className="min-w-0 flex-1 truncate font-bold text-swu-text">
+                {equipo.creador.nombre ?? 'Creador'}{equipo.creador.userId === equipo.yo ? ' (vos)' : ''}
+              </span>
+              <span className="shrink-0 font-mono text-[9px] uppercase tracking-widest text-swu-amber">creador · puede todo</span>
+            </div>
+            {equipo.equipo.map(m => {
+              const soyYo = m.userId === equipo.yo
+              return (
+                <div key={m.userId} className="flex flex-wrap items-center gap-2 rounded-lg border border-swu-border bg-swu-bg px-2.5 py-2 text-[12px]">
+                  <span className="min-w-0 flex-1 truncate font-bold text-swu-text">
+                    {m.nombre ?? 'Sin nombre'}{soyYo ? ' (vos)' : ''}
+                  </span>
+                  {equipo.puedoGestionar ? (
+                    <>
+                      <select
+                        value={valorRol(m)} disabled={trabajando === m.userId}
+                        aria-label={`Rol de ${m.nombre}`}
+                        onChange={e => void cambiarRol(m.userId, m.nombre ?? '', e.target.value)}
+                        className="min-h-9 rounded-lg border border-swu-border bg-swu-surface px-2 text-[11px] text-swu-text"
+                      >
+                        <option value="organizador">Organizador</option>
+                        <option value="arbitro">Árbitro · toda la liga</option>
+                        {grupos.map(g => <option key={g.id} value={`arbitro:${g.id}`}>Árbitro · {g.nombre}</option>)}
+                      </select>
+                      <button
+                        onClick={() => void quitar(m.userId, m.nombre ?? '', soyYo)}
+                        disabled={trabajando === m.userId}
+                        aria-label={`Quitar a ${m.nombre} del equipo`}
+                        className="flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-swu-border text-swu-muted hover:text-swu-red-texto"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </>
+                  ) : (
+                    <span className="font-mono text-[9px] uppercase tracking-widest text-swu-muted">
+                      {m.rol === 'organizador' ? 'organizador' : m.grupo ? `árbitro · ${m.grupo}` : 'árbitro'}
+                    </span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {equipo?.puedoGestionar && (
+          <div className="space-y-2 rounded-xl border border-swu-border p-2.5">
+            <p className="flex items-center gap-1.5 text-[12px] font-bold text-swu-text">
+              <UserPlus size={14} className="text-swu-cyan" /> Sumar a alguien
+            </p>
+            <label className="flex items-center gap-2 rounded-lg border border-swu-border bg-swu-bg px-2.5">
+              <Search size={14} className="shrink-0 text-swu-muted" />
+              <input
+                value={texto}
+                onChange={e => { setTexto(e.target.value); if (e.target.value.trim().length < 2) setEncontradas([]) }}
+                placeholder="Buscar por nombre"
+                className="min-h-11 w-full bg-transparent text-[13px] text-swu-text outline-none"
+              />
+            </label>
+            {buscando && <p className="text-[11px] text-swu-muted">Buscando…</p>}
+            {!buscando && texto.trim().length >= 2 && encontradas.length === 0 && (
+              <p className="text-[11px] text-swu-muted">Nadie con ese nombre. Tiene que tener cuenta en la app.</p>
+            )}
+            {encontradas.map(p => (
+              <FilaCandidato key={p.userId} p={p} grupos={grupos}
+                             trabajando={trabajando === p.userId} alSumar={sumar} />
+            ))}
+          </div>
+        )}
+      </div>
+    </HudPanel>
+  )
+}
+
+export function FilaCandidato({ p, grupos, trabajando, alSumar }: {
+  p: PersonaBuscada
+  grupos: Array<{ id: string; nombre: string }>
+  trabajando: boolean
+  alSumar: (p: PersonaBuscada, rol: 'organizador' | 'arbitro', grupo: string | null) => void
+}) {
+  const [grupo, setGrupo] = useState('')
+  if (p.esCreador) {
+    return (
+      <p className="rounded-lg border border-swu-border/60 px-2.5 py-2 text-[12px] text-swu-muted">
+        <b className="text-swu-text">{p.nombre}</b> creó la liga: ya puede todo.
+      </p>
+    )
+  }
+  return (
+    <div className="space-y-1.5 rounded-lg border border-swu-border/60 px-2.5 py-2">
+      <p className="text-[12px] font-bold text-swu-text">
+        {p.nombre}
+        {p.rol && <span className="ml-1.5 font-mono text-[9px] uppercase tracking-widest text-swu-amber">ya es {p.rol === 'arbitro' ? 'árbitro' : 'organizador'}</span>}
+      </p>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Button variant="secondary" size="xs" loading={trabajando} onClick={() => alSumar(p, 'organizador', null)}>
+          Organizador
+        </Button>
+        <select value={grupo} onChange={e => setGrupo(e.target.value)} aria-label="Grupo del árbitro"
+                className="min-h-9 rounded-lg border border-swu-border bg-swu-surface px-2 text-[11px] text-swu-text">
+          <option value="">Toda la liga</option>
+          {grupos.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
+        </select>
+        <Button variant="secondary" size="xs" loading={trabajando} onClick={() => alSumar(p, 'arbitro', grupo || null)}>
+          Árbitro
+        </Button>
+      </div>
     </div>
   )
 }

@@ -421,6 +421,10 @@ export interface AnuncioLiga {
 export interface LigaCompleta {
   liga: Liga & {
     tamanoGrupo: number; esStaff: boolean; formato: string; cupo: number | null
+    /** Organiza (creador u organizador) o solo arbitra. Un árbitro ve el panel
+     *  y la cola, pero el servidor le rechaza configurar, armar o cerrar: el
+     *  panel no le ofrece esos botones. `undefined` en una PWA vieja = staff. */
+    esOrganizador?: boolean
     publica?: boolean
     /** Las reglas de la casa que escribe quien organiza. `null` = no hay. */
     reglas?: string | null
@@ -607,6 +611,69 @@ export const deshacerGrupos = (temporada: string, borrarCalendario = false) =>
 
 export const editarAnuncio = (id: string, titulo: string, cuerpo: string) =>
   rpc('liga_editar_anuncio', { p_id: id, p_titulo: titulo, p_cuerpo: cuerpo })
+
+/**
+ * Borrar una inscripción DEL TODO. Distinto de vetar: un vetado sigue existiendo
+ * y no puede volver a anotarse; borrada, puede. Solo si esa persona nunca jugó
+ * —sus partidas también son las de sus rivales— y su grupo sin calendario no
+ * queda por debajo de 4. Lo decide el servidor.
+ */
+export const borrarInscripcion = (inscripcion: string) =>
+  rpc('liga_borrar_inscripcion', { p_inscripcion: inscripcion })
+
+/* ── EL EQUIPO de la liga: organizadores y árbitros ──
+   Organizador: puede todo, igual que el creador. Árbitro: resuelve partidas y
+   mueve plazos — de toda la liga o de UN grupo. Lo separa el servidor
+   (`liga_es_organizador` / `liga_puede_arbitrar`); el panel solo lo refleja. */
+
+export interface MiembroEquipo {
+  userId: string
+  nombre: string | null
+  avatar: string | null
+  rol: 'organizador' | 'arbitro'
+  grupoId: string | null
+  /** «Común 1». `null` = árbitro de toda la liga. */
+  grupo: string | null
+}
+
+export interface EquipoLiga {
+  puedoGestionar: boolean
+  yo: string
+  creador: { userId: string; nombre: string | null; avatar: string | null }
+  equipo: MiembroEquipo[]
+}
+
+export async function verEquipo(liga: string): Promise<EquipoLiga | null> {
+  if (!isSupabaseReady()) return null
+  const { data, error } = await supabase.rpc('liga_staff_listar', { p_liga: liga })
+  if (error) { console.warn('[Liga] equipo:', error.message); return null }
+  const r = data as ({ ok?: boolean } & EquipoLiga) | null
+  if (!r?.ok) return null
+  return { puedoGestionar: !!r.puedoGestionar, yo: r.yo, creador: r.creador, equipo: r.equipo ?? [] }
+}
+
+export interface PersonaBuscada {
+  userId: string
+  nombre: string
+  avatar: string | null
+  esCreador: boolean
+  /** Si ya está en el equipo, con qué rol. */
+  rol: 'organizador' | 'arbitro' | null
+}
+
+export async function buscarPersona(liga: string, texto: string): Promise<PersonaBuscada[]> {
+  if (!isSupabaseReady() || texto.trim().length < 2) return []
+  const { data, error } = await supabase.rpc('liga_buscar_persona', { p_liga: liga, p_texto: texto })
+  if (error) { console.warn('[Liga] buscar:', error.message); return [] }
+  const r = data as { ok?: boolean; personas?: PersonaBuscada[] } | null
+  return r?.ok ? (r.personas ?? []) : []
+}
+
+export const agregarAlEquipo = (liga: string, userId: string, rol: 'organizador' | 'arbitro', grupo?: string | null) =>
+  rpc('liga_staff_agregar', { p_liga: liga, p_user: userId, p_rol: rol, p_grupo: grupo ?? null })
+
+export const quitarDelEquipo = (liga: string, userId: string) =>
+  rpc('liga_staff_quitar', { p_liga: liga, p_user: userId })
 
 const IMAGEN_TIPOS = ['image/jpeg', 'image/png', 'image/webp', 'image/avif']
 const IMAGEN_MAX = 3 * 1024 * 1024

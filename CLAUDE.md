@@ -4936,3 +4936,65 @@ sin permiso: **26/26**, más la prueba aparte de la prórroga respetada.
 Banco: **`/banco-lobby-liga`** trae ahora las seis pantallas de edición con la
 forma real de los datos (Ajustes, Apariencia, Fechas, Inscritos, Mover, Plazos,
 Deshacer). Sin sesión, todo «Guardar» rebota a propósito.
+
+### 5t. LIGA — el equipo (organizadores y árbitros), borrar inscripciones y la ayuda del panel (2026-10-05)
+
+Pedido de Nel: que Alejo pueda sumar organizadores o árbitros, borrar una
+inscripción del todo, y tips de ayuda para manejar el panel.
+
+**ANTES DE DEJAR SUMAR A NADIE HABÍA QUE SEPARAR LAS PUERTAS.** Medido: las 20
+funciones de la liga preguntaban lo mismo, `liga_es_staff()` = creador O
+**cualquier** fila en `liga_staff`, sin mirar el rol. La columna `rol`
+(`organizador` | `arbitro`) existía y no la leía nadie. Un árbitro de UN grupo
+podía mover las fechas de la temporada, deshacer todos los grupos, cambiar el
+emblema o vetar gente. Un botón de «sumar árbitro» sin esto le regalaba la
+liga entera a cada árbitro.
+
+| Puerta | Quién | Para qué |
+|---|---|---|
+| `liga_es_organizador(liga)` | creador u organizador | configurar, armar, sembrar, cerrar, equipo, borrar inscripciones (22 funciones) |
+| `liga_puede_arbitrar(liga, grupo)` | organizador, o árbitro de toda la liga, o de ESE grupo | mover plazos (`liga_prorrogar_partida`) |
+| `liga_es_staff(liga)` | todo el equipo | ver el panel y la cola; `liga_corregir` ya acotaba por grupo con su propia lógica |
+
+- Las 15 funciones de organizar se **reescribieron desde su propia definición**
+  (`pg_get_functiondef` + reemplazo de la puerta), y la migración se planta si
+  alguna no tenía la llamada. **Ojo:** los `.sql` viejos de esas funciones
+  todavía dicen `liga_es_staff`; si alguien re-aplica uno a mano, le devuelve
+  el poder total a los árbitros. La fuente de verdad es
+  `liga-equipo-roles-y-borrar-inscripcion.sql`.
+- `liga_abrir_inscripcion` pedía ser EL creador: un organizador (Nel) no podía
+  abrir desde la casa del creador aunque desde el panel sí. Una regla.
+- **Un organizador no se acota a un grupo** (CHECK `liga_staff_grupo_solo_arbitro`).
+- **Deshacer los grupos saca del equipo a los árbitros de grupo** (la FK pasó de
+  SET NULL a CASCADE). Con SET NULL quedaban con `grupo_id` nulo, que con estas
+  puertas significa «árbitro de toda la liga»: deshacer los grupos les
+  AGRANDABA el poder sin que nadie lo decidiera. Ante la duda, menos permiso.
+- Nadie puede quitar ni «sumar» al creador. `liga_staff` sigue sin grants para
+  el cliente: todo pasa por RPC.
+- El buscador de personas (`liga_buscar_persona`) usa `position()`, no ILIKE:
+  un `%` tecleado devolvía media comunidad. Medido: 0 resultados.
+- `liga_ver` manda `esOrganizador`; el panel le esconde a un árbitro la pestaña
+  Ajustes, «Qué sigue», los editores de inscritos, el armado de grupos y el
+  cierre de temporada. El servidor los rechaza igual.
+
+**Borrar una inscripción ≠ vetar.** Un vetado sigue existiendo y por eso NO
+puede volver a anotarse (la inscripción es única por persona); borrada, sí.
+`liga_borrar_inscripcion` solo deja si nadie más pierde nada: si esa persona
+tiene plaza en un grupo con calendario o en una temporada cerrada, sus partidas
+son también las de sus rivales —caen en cascada con la plaza— y la respuesta es
+retirarla o vetarla. En un grupo sin calendario sí, si el grupo no queda bajo 4.
+
+**La prueba cazó un bug que habría reventado en el primer uso:** en
+`liga_borrar_inscripcion` la variable de PL/pgSQL se llamaba `g`, igual que el
+alias `g` de `liga_grupos` en la consulta → «record "g" is not assigned yet».
+Se revisó la CLASE en todas las funciones nuevas: no había otro choque.
+
+**La ayuda del panel** (`Ayuda` en PanelLiga): un tip por pestaña que dice para
+qué sirve y en qué orden se usa — quien organiza lo hace una vez cada tres
+meses (§5i). Arranca abierto, se cierra con «Entendido» y queda un «¿Cómo se
+usa?» para volver. Se recuerda por aparato en localStorage, siempre en
+try/catch. Un árbitro ve su propio aviso de qué puede hacer.
+
+Probado en transacción revertida (Alejo, un árbitro de grupo, un organizador
+nuevo y Nel): **26/26**. Banco: `/banco-lobby-liga` (equipo, candidatos de la
+búsqueda, ayuda, inscrito con el botón de borrar).

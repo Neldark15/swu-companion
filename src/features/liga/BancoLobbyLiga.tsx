@@ -24,6 +24,7 @@ import type { AnuncioLiga, InscritoPanel } from '../../services/ligaService'
 import {
   FichaInscrito, FilaDia, QueSigue,
   ConfigurarLiga, AparienciaLiga, EditarTemporada, EditorInscrito, MoverDelGrupo, PlazosDelGrupo, DeshacerGrupos,
+  Ayuda, EquipoDeLaLiga, FilaCandidato,
 } from './PanelLiga'
 
 const hoyMas = (d: number) => {
@@ -471,6 +472,40 @@ export function BancoLobbyLiga() {
         <Caso titulo="Grupos — plazos de un grupo sembrado (una vencida, una programada)">
           <div className="rounded-xl border border-swu-border bg-swu-bg p-2.5">
             <PlazosDelGrupo grupo={GRUPO_SEMBRADO} tras={(r, e) => setAviso(r.ok ? e : (r.mensaje ?? 'falló'))} />
+          </div>
+        </Caso>
+        <Caso titulo="Ayuda — el tip de una pestaña (se cierra con «Entendido»)">
+          <Ayuda id="banco-ayuda" titulo="Cómo se usa «Grupos»">
+            El orden es: <b>1)</b> ensayá el reparto, <b>2)</b> armá los grupos, <b>3)</b> mové gente si hace
+            falta, <b>4)</b> sembrá el calendario de cada grupo.
+          </Ayuda>
+        </Caso>
+        <Caso titulo="Equipo — creador, un organizador y un árbitro de grupo">
+          <EquipoDeLaLiga
+            liga={LIGA_EDITABLE}
+            tras={(r, e) => setAviso(r.ok ? e : (r.mensaje ?? 'falló'))}
+            inicial={{
+              puedoGestionar: true,
+              yo: 'a2118d18-0cb0-443e-ad23-1b0d5f17c974',
+              creador: { userId: 'a2118d18-0cb0-443e-ad23-1b0d5f17c974', nombre: 'AlejoP3', avatar: null },
+              equipo: [
+                { userId: 'n', nombre: 'Nelson', avatar: null, rol: 'organizador', grupoId: null, grupo: null },
+                { userId: 'v', nombre: 'Vara', avatar: null, rol: 'arbitro', grupoId: 'gA', grupo: 'Común 1' },
+              ],
+            }}
+          />
+        </Caso>
+        <Caso titulo="Equipo — resultados al buscar a alguien">
+          <div className="space-y-2">
+            {[
+              { userId: 'x', nombre: 'Christian', avatar: null, esCreador: false, rol: null },
+              { userId: 'v', nombre: 'Vara', avatar: null, esCreador: false, rol: 'arbitro' as const },
+              { userId: 'a', nombre: 'AlejoP3', avatar: null, esCreador: true, rol: null },
+            ].map(pp => (
+              <FilaCandidato key={pp.userId} p={pp}
+                             grupos={[{ id: 'gA', nombre: 'Común 1' }, { id: 'gB', nombre: 'Común 2' }]}
+                             trabajando={false} alSumar={(x, rol, g) => setAviso(`sumar ${x.nombre} como ${rol}${g ? ' de ' + g : ''}`)} />
+            ))}
           </div>
         </Caso>
         <Caso titulo="Grupos — deshacer">
