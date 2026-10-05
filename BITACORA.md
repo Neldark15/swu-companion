@@ -12,6 +12,14 @@ Registro compartido entre Claude y ChatGPT. **La entrada más nueva va arriba.**
 
 ---
 
+## 2026-10-05 · Claude · Liga: todo editable desde el panel (fechas, reglas, imágenes, inscritos, grupos)
+**Qué cambió:** Pedido de Nel: que Alejo y él puedan cambiar «las fechas y todo» desde el panel. Nuevo: pestaña **Ajustes** (nombre, descripción, cupo, formato, tamaño, cuántos suben/bajan por grupo, reglas de la casa, y **emblema/portada/banner subibles**); **Temporada** con fechas editables (cierre de inscripción, arranque, cierre) que recalcula los plazos pendientes y respeta las prórrogas manuales; **plazos por partida** en Grupos y Cola; **nivel y estado** de cada inscrito; **mover gente de grupo** y **deshacer grupos** antes de jugar; **editar avisos**. El cierre de temporada lee suben/bajan de la liga y el «Cómo funciona» los anuncia.
+**Archivos:** `supabase/migrations/liga-personalizable-desde-el-panel.sql`, `supabase/migrations/liga-imagenes-storage.sql` (bucket `ligas`), `src/services/ligaService.ts`, `src/features/liga/{PanelLiga,LigaSeccion,PortadaLiga,BotonLigaInicio,BancoLobbyLiga}.tsx`, CLAUDE §5s.
+**Cómo verificar:** migraciones YA aplicadas en producción. Prueba en transacción revertida como Alejo y como cuenta ajena: 26/26 + prórroga respetada al mover la temporada. `npm run build`, `npm run lint` (0 errores), `npm run liga`. En `/banco-lobby-liga` se ven todas las pantallas de edición a 390 px.
+**Pendiente / notas para el siguiente:** La liga sigue en `borrador`, no pública. Quedan sin resolver las mejoras estructurales del 29/9 que NO son de configuración: el empate circular de tres decide el ascenso por el orden de las filas (comparador no transitivo en `tablaDe`), el reparto automático no mira la zona horaria (ahora se puede corregir a mano con «Mover a…»), y el cierre de temporada deja abiertas disputas y reportadas.
+
+---
+
 ## 2026-09-29 · Claude · Liga PUENTE 3 limpia para usarla, y «Ligas y torneos actuales» en Inicio
 **Qué cambió:**
 1. **Base (producción, a pedido de Nel):** se borró todo lo de prueba de `puente3` en una transacción acotada a su `liga_id` —el teardown del §5j borraba `liga_grupos` entero, sin filtro—: 121 inscripciones (las 120 `[demo]` y la de AlejoP3, que se hizo durante la prueba y cargaba `temporadas_jugadas = 1` de una temporada que nunca existió), 121 disponibilidades, 15 grupos, 121 plazas, 428 partidas, el anuncio «Arrancó la Temporada 1» y la **Temporada 1 de prueba** (cerrada el 28/9 al ensayar el cierre). **Edición 6** queda como temporada `#1` (el panel la mostraba como #2) y la liga en `borrador` + `publica = false`: con `activa`, el panel se saltaba «Abrir la inscripción» y ofrecía «Armar grupos» sobre cero inscritos. No se tocó `liga_staff`, `liga_probadores`, `creadores` ni la liga en sí. No hubo premios que revertir (`sable_bonos` sin motivos de liga).

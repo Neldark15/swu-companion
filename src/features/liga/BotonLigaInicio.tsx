@@ -109,7 +109,7 @@ export function BotonLiga({ liga }: { liga: LigaDeInicio }) {
           >
             <HudCorners tone="neutral" />
             <img
-              src="/liga/emblema.webp"
+              src={liga.emblemaUrl ?? '/liga/emblema.webp'}
               alt=""
               aria-hidden
               className="h-10 w-10 flex-shrink-0 object-contain"

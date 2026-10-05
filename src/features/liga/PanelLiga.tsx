@@ -41,7 +41,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   AlertTriangle, ArrowLeft, CalendarPlus, Check, ClipboardCheck, Copy, Gavel,
-  KeyRound, RefreshCw, ShieldCheck, Users,
+  ImageUp, KeyRound, RefreshCw, Settings, ShieldCheck, Users,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../../components/ui/Button'
@@ -55,6 +55,9 @@ import {
   type LigaCompleta, type PanelLiga as DatosPanel, type PlanGrupos, type InscritoPanel,
 } from '../../services/ligaService'
 import { configurarLiga, cerrarTemporada, tablaDe } from '../../services/ligaService'
+import {
+  editarTemporada, prorrogarPartida, editarInscripcion, moverPlaza, deshacerGrupos, subirImagenLiga,
+} from '../../services/ligaService'
 import { tamanosDeGrupo, GRUPO_MIN } from '../../services/ligaTabla'
 import { Bandera } from './componentes/piezas'
 
@@ -281,13 +284,17 @@ function repartir(
 }
 
 type Aviso = { ok: boolean; texto: string }
-type Pestana = 'inscritos' | 'grupos' | 'cola' | 'semilla'
+type Pestana = 'inscritos' | 'grupos' | 'cola' | 'semilla' | 'ajustes'
 
 const PESTANAS = [
   { value: 'inscritos' as const, label: 'Inscritos', icon: <Users size={13} /> },
   { value: 'grupos' as const, label: 'Grupos', icon: <CalendarPlus size={13} /> },
   { value: 'cola' as const, label: 'Cola', icon: <Gavel size={13} /> },
   { value: 'semilla' as const, label: 'Temporada', icon: <KeyRound size={13} /> },
+  /* Todo lo que la liga decide de sí misma —nombre, reglas, cuántos suben y
+     bajan, emblema, portada, banner, abrir la inscripción— vive acá. Antes la
+     configuración estaba metida dentro de «Grupos», que es otra cosa. */
+  { value: 'ajustes' as const, label: 'Ajustes', icon: <Settings size={13} /> },
 ]
 
 function Centrado({ children }: { children: React.ReactNode }) {
@@ -477,13 +484,13 @@ export function PanelLiga() {
           liga={liga} panel={panel} setPestana={setPestana} tras={tras}
         />
 
-        {pestana === 'inscritos' && <Inscritos inscritos={panel.inscritos} />}
+        {pestana === 'inscritos' && <Inscritos inscritos={panel.inscritos} tras={tras} />}
 
-        {pestana === 'grupos' && (
-          <>
+        {pestana === 'ajustes' && (
+          <div className="space-y-4">
             <ConfigurarLiga liga={liga} tras={tras} />
-            <div className="h-4" />
-          </>
+            <AparienciaLiga liga={liga} tras={tras} />
+          </div>
         )}
 
         {pestana === 'grupos' && (
@@ -499,6 +506,13 @@ export function PanelLiga() {
 
         {pestana === 'semilla' && (
           <div className="space-y-4">
+            {panel.temporada && (
+              <EditarTemporada
+                temporada={panel.temporada}
+                sembrados={liga.grupos.filter(g => g.sembrado || g.partidas.length > 0).length}
+                tras={tras}
+              />
+            )}
             <Semilla temporada={panel.temporada} />
             <CerrarTemporada liga={liga} temporada={panel.temporada} tras={tras} />
           </div>
@@ -533,7 +547,10 @@ function comparar(a: InscritoPanel, b: InscritoPanel, col: Col): number {
   }
 }
 
-function Inscritos({ inscritos }: { inscritos: InscritoPanel[] }) {
+function Inscritos({ inscritos, tras }: {
+  inscritos: InscritoPanel[]
+  tras: (r: { ok: boolean; mensaje?: string }, exito: string) => void
+}) {
   const [col, setCol] = useState<Col>('tier')
   const [desc, setDesc] = useState(false)
   const [enMiHora, setEnMiHora] = useState(true)
@@ -617,7 +634,12 @@ function Inscritos({ inscritos }: { inscritos: InscritoPanel[] }) {
           pantalla para el mapa global: lo único nuevo es mostrarlo POR PERSONA,
           que es el dato con el que de verdad se decide un grupo. */}
       <div className="space-y-2 sm:hidden">
-        {filas.map(i => <FichaInscrito key={i.inscId} i={i} />)}
+        {filas.map(i => (
+          <div key={i.inscId} className="space-y-1.5">
+            <FichaInscrito i={i} />
+            <EditorInscrito i={i} tras={tras} />
+          </div>
+        ))}
       </div>
 
       <HudPanel tone="neutral" className="hidden sm:block">
@@ -642,6 +664,7 @@ function Inscritos({ inscritos }: { inscritos: InscritoPanel[] }) {
                     </button>
                   </th>
                 ))}
+                <th className="px-2.5 font-mono text-[9px] uppercase tracking-widest text-swu-muted">Gestionar</th>
               </tr>
             </thead>
             <tbody>
@@ -679,6 +702,9 @@ function Inscritos({ inscritos }: { inscritos: InscritoPanel[] }) {
                         <AlertTriangle size={11} /> 0
                       </span>
                     ) : i.horas}
+                  </td>
+                  <td className="px-2.5 py-2">
+                    <EditorInscrito i={i} tras={tras} compacto />
                   </td>
                 </tr>
               ))}
@@ -1011,29 +1037,212 @@ function Grupos({
           )}
           {liga.grupos.map(g => {
             const etiqueta = `${NOMBRE_TIER[g.tier] ?? g.tier} ${g.orden}`
+            const sembrado = !!g.sembrado || g.partidas.length > 0
             return (
-              <div key={g.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-swu-border bg-swu-bg p-2.5">
-                <Badge variant={tonoDelTier(g.tier)}>{etiqueta}</Badge>
-                <span className="text-[11px] text-swu-muted">
-                  {g.plazas.length} plazas · {g.partidas.length} partidas · {g.estado}
-                </span>
-                <div className="ml-auto">
-                  {/* Sembrar es POR GRUPO: el round-robin de un grupo de 8 son
-                      28 partidas, y sembrar la liga entera de un botón mezcla
-                      un error de un grupo con los otros catorce. */}
-                  <Button
-                    variant="secondary" size="xs"
-                    onClick={() => sembrar(g.id, etiqueta)}
-                    loading={trabajando === g.id}
-                  >
-                    {g.partidas.length ? 'Re-sembrar' : 'Sembrar calendario'}
-                  </Button>
+              <div key={g.id} className="space-y-2 rounded-xl border border-swu-border bg-swu-bg p-2.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={tonoDelTier(g.tier)}>{etiqueta}</Badge>
+                  <span className="text-[11px] text-swu-muted">
+                    {g.plazas.length} plazas · {g.partidas.length} partidas · {g.estado}
+                  </span>
+                  <div className="ml-auto">
+                    {/* Sembrar es POR GRUPO: el round-robin de un grupo de 8 son
+                        28 partidas, y sembrar la liga entera de un botón mezcla
+                        un error de un grupo con los otros catorce.
+                        Y con calendario NO se ofrece «Re-sembrar»: el servidor lo
+                        rechaza («ese grupo ya tiene calendario»), así que el botón
+                        prometía algo imposible. Para rehacerlo está «Deshacer». */}
+                    {sembrado ? (
+                      <span className="font-mono text-[10px] uppercase tracking-widest text-swu-green">Calendario listo</span>
+                    ) : (
+                      <Button
+                        variant="secondary" size="xs"
+                        onClick={() => sembrar(g.id, etiqueta)}
+                        loading={trabajando === g.id}
+                      >
+                        Sembrar calendario
+                      </Button>
+                    )}
+                  </div>
                 </div>
+
+                {sembrado
+                  ? <PlazosDelGrupo grupo={g} tras={tras} />
+                  : <MoverDelGrupo grupo={g} otros={liga.grupos.filter(o => o.id !== g.id && !o.sembrado && o.partidas.length === 0)} tras={tras} />}
               </div>
             )
           })}
+
+          {liga.grupos.length > 0 && temporadaId && (
+            <DeshacerGrupos temporadaId={temporadaId} tras={tras} />
+          )}
         </div>
       </HudPanel>
+    </div>
+  )
+}
+
+/**
+ * Mover a alguien de grupo — solo antes del calendario.
+ *
+ * El reparto automático corta por orden de inscripción y NO mira la zona
+ * horaria: en una liga internacional, el que se anotó noveno desde Madrid puede
+ * caer con siete de San Salvador. Esto es lo que deja corregirlo a mano.
+ */
+export function MoverDelGrupo({ grupo, otros, tras }: {
+  grupo: LigaCompleta['grupos'][number]
+  otros: LigaCompleta['grupos']
+  tras: (r: { ok: boolean; mensaje?: string }, exito: string) => void
+}) {
+  const [trabajando, setTrabajando] = useState<string | null>(null)
+  if (!grupo.plazas.length) return null
+  return (
+    <div className="space-y-1">
+      {grupo.plazas.map(pl => (
+        <div key={pl.id} className="flex items-center gap-2 text-[12px]">
+          <Bandera pais={pl.pais} tam={11} />
+          <span className="min-w-0 flex-1 truncate text-swu-text">{pl.nombre}</span>
+          {otros.length > 0 && (
+            <select
+              value=""
+              disabled={trabajando === pl.id}
+              aria-label={`Mover a ${pl.nombre} de grupo`}
+              onChange={async e => {
+                const destino = otros.find(o => o.id === e.target.value)
+                if (!destino) return
+                setTrabajando(pl.id)
+                const r = await moverPlaza(pl.id, destino.id)
+                setTrabajando(null)
+                tras(r, `${pl.nombre} pasó a ${NOMBRE_TIER[destino.tier] ?? destino.tier} ${destino.orden}.`)
+              }}
+              className="min-h-9 rounded-lg border border-swu-border bg-swu-surface px-2 text-[11px] text-swu-text"
+            >
+              <option value="">Mover a…</option>
+              {otros.map(o => (
+                <option key={o.id} value={o.id}>
+                  {NOMBRE_TIER[o.tier] ?? o.tier} {o.orden} ({o.plazas.length})
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Los plazos de un grupo con calendario: cada partida pendiente con su fecha, y
+ * la posibilidad de moverla. Cada cambio queda en la bitácora de correcciones,
+ * y una prórroga manual sobrevive aunque después se muevan las fechas de toda
+ * la temporada.
+ */
+export function PlazosDelGrupo({ grupo, tras }: {
+  grupo: LigaCompleta['grupos'][number]
+  tras: (r: { ok: boolean; mensaje?: string }, exito: string) => void
+}) {
+  const [abierto, setAbierto] = useState(false)
+  const pendientes = grupo.partidas.filter(m => ['programada', 'reportada', 'vencida'].includes(m.estado))
+  if (!pendientes.length) return null
+  const nombre = (id: string) => grupo.plazas.find(p => p.id === id)?.nombre ?? '—'
+  return (
+    <div>
+      <button
+        onClick={() => setAbierto(a => !a)}
+        className="min-h-9 text-[11px] font-bold text-swu-cyan"
+        aria-expanded={abierto}
+      >
+        {abierto ? 'Ocultar plazos' : `Plazos de ${pendientes.length} partidas pendientes`}
+      </button>
+      {abierto && (
+        <div className="mt-1 space-y-1.5">
+          {pendientes.map(m => (
+            <FilaPlazo key={m.id} etiqueta={`J${m.jornada} · ${nombre(m.localPlaza)} vs ${nombre(m.visitaPlaza)}`}
+                       partida={m} tras={tras} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FilaPlazo({ etiqueta, partida, tras }: {
+  etiqueta: string
+  partida: LigaCompleta['grupos'][number]['partidas'][number]
+  tras: (r: { ok: boolean; mensaje?: string }, exito: string) => void
+}) {
+  const actual = partida.venceEl?.slice(0, 10) ?? ''
+  /* Una vencida tiene su plazo en el PASADO: arrancar el selector ahí obliga a
+     cambiarlo sí o sí, y el mínimo de hoy lo deja en un valor que no se puede
+     elegir. Arranca una semana adelante, que es la prórroga típica. */
+  const [fecha, setFecha] = useState(actual && actual >= HOY ? actual : fechaISO(7))
+  const [trabajando, setTrabajando] = useState(false)
+  return (
+    // Dos renglones: con la fecha y el botón al lado, el nombre de la partida
+    // quedaba en «J2 · Hu…», que es justo el dato que dice de qué partida se trata.
+    <div className="space-y-1.5 rounded-lg border border-swu-border/60 px-2 py-1.5 text-[11px]">
+      <div className="flex items-center gap-2">
+        <span className="min-w-0 flex-1 text-swu-text">{etiqueta}</span>
+        {partida.estado === 'vencida'
+          ? <span className="font-mono text-[9px] uppercase tracking-widest text-swu-amber">vencida {actual}</span>
+          : actual && <span className="font-mono text-[9px] text-swu-muted">vence {actual}</span>}
+      </div>
+      <div className="flex items-center gap-2">
+      <input type="date" value={fecha} min={HOY} onChange={e => setFecha(e.target.value)}
+             aria-label={`Plazo de ${etiqueta}`}
+             className="min-h-9 flex-1 rounded-lg border border-swu-border bg-swu-surface px-2 text-[11px] text-swu-text" />
+      <Button
+        variant="secondary" size="xs" loading={trabajando}
+        disabled={!fecha || fecha === actual}
+        onClick={async () => {
+          setTrabajando(true)
+          const r = await prorrogarPartida(partida.id, fecha)
+          setTrabajando(false)
+          tras(r, partida.estado === 'vencida'
+            ? `Plazo nuevo: ${fecha}. La partida vuelve a jugarse.`
+            : `Plazo nuevo: ${fecha}.`)
+        }}
+      >
+        Mover plazo
+      </Button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Deshacer los grupos para volver a armarlos.
+ *
+ * Antes no existía y se destrababa desde el SQL Editor (§5e). Con calendario
+ * sembrado solo se puede si nadie jugó todavía, y pide confirmación: lo
+ * comprueba el servidor, que es el que sabe si hay resultados.
+ */
+export function DeshacerGrupos({ temporadaId, tras }: {
+  temporadaId: string
+  tras: (r: { ok: boolean; mensaje?: string }, exito: string) => void
+}) {
+  const [trabajando, setTrabajando] = useState(false)
+  return (
+    <div className="rounded-xl border border-swu-border p-2.5">
+      <p className="text-[11px] leading-snug text-swu-muted">
+        ¿Los grupos quedaron mal? Se pueden deshacer y volver a armar mientras nadie haya jugado.
+      </p>
+      <Button
+        variant="danger" size="sm" block className="mt-2" loading={trabajando}
+        onClick={async () => {
+          setTrabajando(true)
+          let r = await deshacerGrupos(temporadaId)
+          if (!r.ok && r.falta === 'confirmar'
+              && window.confirm('Hay grupos con calendario. Nadie jugó todavía, así que se puede deshacer: se borran los grupos y su calendario. ¿Seguimos?')) {
+            r = await deshacerGrupos(temporadaId, true)
+          }
+          setTrabajando(false)
+          if (!r.ok && r.falta === 'confirmar') return
+          tras(r, 'Grupos deshechos. Ya se pueden volver a armar.')
+        }}
+      >
+        Deshacer los grupos
+      </Button>
     </div>
   )
 }
@@ -1110,6 +1319,7 @@ function FilaCola({
   const [vl, setVl] = useState(String(item.vl))
   const [vv, setVv] = useState(String(item.vv))
   const [trabajando, setTrabajando] = useState<string | null>(null)
+  const [plazo, setPlazo] = useState(fechaISO(7))
 
   // El motivo lo lee la comunidad: un laudo sin explicación es la organización
   // cambiando un resultado a puerta cerrada. Por eso el campo va ANTES de los
@@ -1241,6 +1451,29 @@ function FilaCola({
           >
             Anular la partida
           </Button>
+
+          {/* Una vencida es «nadie la jugó a tiempo»: a veces la respuesta
+              justa no es un WO sino más días. El motivo de arriba queda como
+              huella de la prórroga, igual que en un laudo. */}
+          {item.estado === 'vencida' && (
+            <div className="flex items-center gap-2 border-t border-swu-border pt-2">
+              <input type="date" value={plazo} min={HOY} onChange={e => setPlazo(e.target.value)}
+                     aria-label="Plazo nuevo"
+                     className="min-h-11 rounded-xl border border-swu-border bg-swu-bg px-2 text-[12px] text-swu-text" />
+              <Button
+                variant="secondary" size="sm" className="flex-1" disabled={!listo || !plazo}
+                loading={trabajando === 'plazo'}
+                onClick={async () => {
+                  setTrabajando('plazo')
+                  const r = await prorrogarPartida(item.id, plazo, motivo.trim())
+                  setTrabajando(null)
+                  tras(r, `Plazo nuevo: ${plazo}. La partida vuelve a jugarse.`)
+                }}
+              >
+                Dar más plazo
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </HudPanel>
@@ -1457,21 +1690,37 @@ export function FilaDia({ dia, d, calor, max }: { dia: string; d: number; calor:
  * Va separado de los campos, con el efecto escrito, y no se puede tocar sin
  * querer mientras se corrige un nombre.
  */
-function ConfigurarLiga({ liga, tras }: {
+export function ConfigurarLiga({ liga, tras }: {
   liga: LigaCompleta
   tras: (r: { ok: boolean; mensaje?: string }, exito: string) => void
 }) {
   const [nombre, setNombre] = useState(liga.liga.nombre)
+  const [descripcion, setDescripcion] = useState(liga.liga.descripcion ?? '')
   const [cupo, setCupo] = useState(String(liga.liga.cupo ?? ''))
   const [formato, setFormato] = useState(liga.liga.formato)
   const [tamano, setTamano] = useState(String(liga.liga.tamanoGrupo))
+  const [reglas, setReglas] = useState(liga.liga.reglas ?? '')
+  const [suben, setSuben] = useState(liga.liga.subenPorGrupo ?? 1)
+  const [bajan, setBajan] = useState(liga.liga.bajanPorGrupo ?? 1)
   const [ocupado, setOcupado] = useState(false)
+
+  const reglasAntes = liga.liga.reglas ?? ''
+  const descripcionAntes = liga.liga.descripcion ?? ''
+  const subenAntes = liga.liga.subenPorGrupo ?? 1
+  const bajanAntes = liga.liga.bajanPorGrupo ?? 1
+  /* Entre los dos no pueden pasar de 4 — el grupo más chico posible—, o el
+     2.º de un grupo de 4 subiría y bajaría a la vez. El servidor lo rechaza
+     igual; acá se dice antes de tocar «Guardar». */
+  const movimientoValido = suben + bajan <= 4
 
   const cambiado =
     nombre.trim() !== liga.liga.nombre ||
+    descripcion.trim() !== descripcionAntes ||
     (cupo.trim() === '' ? liga.liga.cupo !== null : Number(cupo) !== liga.liga.cupo) ||
     formato !== liga.liga.formato ||
-    Number(tamano) !== liga.liga.tamanoGrupo
+    Number(tamano) !== liga.liga.tamanoGrupo ||
+    reglas.trim() !== reglasAntes ||
+    suben !== subenAntes || bajan !== bajanAntes
 
   const mandar = (extra: Parameters<typeof configurarLiga>[1] = {}, exito = 'Guardado.') => {
     setOcupado(true)
@@ -1486,6 +1735,11 @@ function ConfigurarLiga({ liga, tras }: {
         : (Number(cupo) !== liga.liga.cupo ? { cupo: Number(cupo) } : {})),
       ...(formato !== liga.liga.formato ? { formato } : {}),
       ...(Number(tamano) !== liga.liga.tamanoGrupo ? { tamanoGrupo: Number(tamano) } : {}),
+      // '' = vaciar: así se pueden BORRAR las reglas o la descripción.
+      ...(descripcion.trim() !== descripcionAntes ? { descripcion: descripcion.trim() } : {}),
+      ...(reglas.trim() !== reglasAntes ? { reglas: reglas.trim() } : {}),
+      ...(suben !== subenAntes ? { suben } : {}),
+      ...(bajan !== bajanAntes ? { bajan } : {}),
       ...extra,
     }).then(r => {
       setOcupado(false)
@@ -1507,6 +1761,11 @@ function ConfigurarLiga({ liga, tras }: {
         <Campo rotulo="Nombre">
           <input value={nombre} onChange={e => setNombre(e.target.value)}
                  className="w-full rounded-lg border border-swu-border bg-swu-bg px-3 py-2 text-[13px] text-swu-text outline-none focus:border-swu-cyan" />
+        </Campo>
+
+        <Campo rotulo="Descripción">
+          <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} rows={2}
+                    className="w-full rounded-lg border border-swu-border bg-swu-bg px-3 py-2 text-[13px] text-swu-text outline-none focus:border-swu-cyan" />
         </Campo>
 
         <div className="grid grid-cols-2 gap-2">
@@ -1532,9 +1791,41 @@ function ConfigurarLiga({ liga, tras }: {
           </select>
         </Campo>
 
+        {/* Cuántos suben y bajan: lo lee el cierre de temporada y lo anuncia el
+            «Cómo funciona» del lobby, así que lo que se elige acá es lo que se
+            promete y lo que se cumple (§4a). */}
+        <div className="grid grid-cols-2 gap-2">
+          <Campo rotulo="Suben por grupo">
+            <select value={suben} onChange={e => setSuben(Number(e.target.value))}
+                    className="min-h-11 w-full rounded-lg border border-swu-border bg-swu-bg px-3 text-[13px] text-swu-text outline-none focus:border-swu-cyan">
+              {[0, 1, 2, 3].map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </Campo>
+          <Campo rotulo="Bajan por grupo">
+            <select value={bajan} onChange={e => setBajan(Number(e.target.value))}
+                    className="min-h-11 w-full rounded-lg border border-swu-border bg-swu-bg px-3 text-[13px] text-swu-text outline-none focus:border-swu-cyan">
+              {[0, 1, 2, 3].map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </Campo>
+        </div>
+        {!movimientoValido && (
+          <p className="-mt-1 text-[11px] text-swu-red-texto">
+            Entre los dos no pueden pasar de 4: es el grupo más chico, y el 2.º subiría y bajaría a la vez.
+          </p>
+        )}
+
+        <Campo rotulo={`Reglas de la casa · ${reglas.length}/4000`}>
+          <textarea value={reglas} onChange={e => setReglas(e.target.value.slice(0, 4000))} rows={6}
+                    placeholder="Lo que quieras que la gente lea antes de jugar: horarios, cómo coordinar, qué pasa si alguien no aparece…"
+                    className="w-full rounded-lg border border-swu-border bg-swu-bg px-3 py-2 text-[13px] leading-relaxed text-swu-text outline-none focus:border-swu-cyan" />
+        </Campo>
+        <p className="-mt-1 text-[10px] text-swu-muted">
+          Se muestran en «Cómo funciona», en el lobby de la liga.
+        </p>
+
         <button
           onClick={() => mandar()}
-          disabled={ocupado || !cambiado}
+          disabled={ocupado || !cambiado || !movimientoValido}
           className="min-h-11 w-full rounded-lg bg-swu-cyan/20 text-[12px] font-black uppercase tracking-wider text-swu-cyan disabled:opacity-40"
         >
           {ocupado ? 'Guardando…' : cambiado ? 'Guardar cambios' : 'Sin cambios'}
@@ -1587,6 +1878,281 @@ function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode
       <span className="mb-1 block font-mono text-[9px] uppercase tracking-widest text-swu-muted">{rotulo}</span>
       {children}
     </label>
+  )
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   APARIENCIA — emblema, portada y banner, desde el panel
+
+   Eran archivos fijos de PUENTE 3 en `public/liga/`: cambiarlos exigía un
+   despliegue. Ahora se suben a Storage, a la carpeta de la liga, y el servidor
+   solo acepta URLs de esa carpeta. Sin imagen propia se sigue viendo la de
+   siempre, así que nada cambia hasta que alguien suba una.
+   ══════════════════════════════════════════════════════════════════════ */
+
+const IMAGENES: Array<{
+  cual: 'emblema' | 'portada' | 'banner'
+  rotulo: string
+  ayuda: string
+  porDefecto: string
+  forma: string
+}> = [
+  { cual: 'emblema', rotulo: 'Emblema', porDefecto: '/liga/emblema.webp',
+    ayuda: 'Cuadrado, con fondo transparente (PNG o WebP). Va en la cabecera y en Inicio.',
+    forma: 'h-16 w-16 object-contain' },
+  { cual: 'portada', rotulo: 'Portada', porDefecto: '/liga/portada.webp',
+    ayuda: 'Horizontal, unos 1600×600. Es el fondo de la cabecera del lobby.',
+    forma: 'h-20 w-full object-cover' },
+  { cual: 'banner', rotulo: 'Banner de la cuenta atrás', porDefecto: '/liga/banner-liga.webp',
+    ayuda: 'Horizontal, unos 1200×400. Va detrás de la cuenta atrás.',
+    forma: 'h-20 w-full object-cover' },
+]
+
+export function AparienciaLiga({ liga, tras }: {
+  liga: LigaCompleta
+  tras: (r: { ok: boolean; mensaje?: string }, exito: string) => void
+}) {
+  const [trabajando, setTrabajando] = useState<string | null>(null)
+  const actual = {
+    emblema: liga.liga.emblemaUrl ?? null,
+    portada: liga.liga.portadaUrl ?? null,
+    banner: liga.liga.bannerUrl ?? null,
+  }
+  const campo = { emblema: 'emblemaUrl', portada: 'portadaUrl', banner: 'bannerUrl' } as const
+
+  async function subir(cual: 'emblema' | 'portada' | 'banner', archivo: File) {
+    setTrabajando(cual)
+    const s = await subirImagenLiga(liga.liga.id, cual, archivo)
+    if (!s.ok || !s.url) {
+      setTrabajando(null)
+      tras({ ok: false, mensaje: s.mensaje }, '')
+      return
+    }
+    // Subir no cambia la liga: recién al guardar la URL se ve. Si este paso
+    // falla, la liga sigue con la imagen anterior, no con una rota.
+    const r = await configurarLiga(liga.liga.id, { [campo[cual]]: s.url })
+    setTrabajando(null)
+    tras(r, 'Imagen actualizada.')
+  }
+
+  async function quitar(cual: 'emblema' | 'portada' | 'banner') {
+    setTrabajando(cual)
+    const r = await configurarLiga(liga.liga.id, { [campo[cual]]: '' })
+    setTrabajando(null)
+    tras(r, 'Se volvió a la imagen de siempre.')
+  }
+
+  return (
+    <HudPanel tone="neutral">
+      <div className="space-y-4 p-3">
+        <h2 className="flex items-center gap-2 text-sm font-bold text-swu-text">
+          <ImageUp size={15} className="text-swu-cyan" /> Apariencia de la liga
+        </h2>
+        {IMAGENES.map(img => {
+          const url = actual[img.cual]
+          return (
+            <div key={img.cual} className="space-y-2 rounded-xl border border-swu-border p-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[12px] font-bold text-swu-text">{img.rotulo}</p>
+                <span className={`font-mono text-[9px] uppercase tracking-widest ${url ? 'text-swu-green' : 'text-swu-muted'}`}>
+                  {url ? 'propia' : 'la de siempre'}
+                </span>
+              </div>
+              <div className="overflow-hidden rounded-lg border border-swu-border/60 bg-swu-bg">
+                <img src={url ?? img.porDefecto} alt="" aria-hidden className={img.forma} />
+              </div>
+              <p className="text-[10px] leading-snug text-swu-muted">{img.ayuda} Hasta 3 MB.</p>
+              <div className="flex gap-2">
+                <label className={`flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-swu-cyan/15
+                                   text-[11px] font-black uppercase tracking-wider text-swu-cyan
+                                   ${trabajando ? 'pointer-events-none opacity-40' : ''}`}>
+                  <ImageUp size={13} />
+                  {trabajando === img.cual ? 'Subiendo…' : url ? 'Cambiar' : 'Subir'}
+                  <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="sr-only"
+                         onChange={e => {
+                           const f = e.target.files?.[0]
+                           e.target.value = ''
+                           if (f) void subir(img.cual, f)
+                         }} />
+                </label>
+                {url && (
+                  <Button variant="ghost" size="sm" disabled={!!trabajando} onClick={() => void quitar(img.cual)}>
+                    Quitar
+                  </Button>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </HudPanel>
+  )
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   LAS FECHAS DE LA TEMPORADA
+
+   Se podían elegir al abrirla y nunca más: la Edición 6 nació sin cierre de
+   inscripción y no había forma de ponérselo. Mover el arranque o el cierre con
+   el calendario ya sembrado recalcula los plazos de lo que falta jugar con la
+   MISMA fórmula del sorteo, y las prórrogas manuales se respetan.
+   ══════════════════════════════════════════════════════════════════════ */
+export function EditarTemporada({ temporada, sembrados, tras }: {
+  temporada: NonNullable<DatosPanel['temporada']>
+  sembrados: number
+  tras: (r: { ok: boolean; mensaje?: string }, exito: string) => void
+}) {
+  const inicial = {
+    nombre: temporada.nombre,
+    insc: temporada.inscripcionCierra?.slice(0, 10) ?? '',
+    arranca: temporada.arranca?.slice(0, 10) ?? '',
+    cierra: temporada.cierra?.slice(0, 10) ?? '',
+  }
+  const [nombre, setNombre] = useState(inicial.nombre)
+  const [insc, setInsc] = useState(inicial.insc)
+  const [arranca, setArranca] = useState(inicial.arranca)
+  const [cierra, setCierra] = useState(inicial.cierra)
+  const [reprogramar, setReprogramar] = useState(true)
+  const [ocupado, setOcupado] = useState(false)
+
+  const cambiado = nombre.trim() !== inicial.nombre || insc !== inicial.insc
+    || arranca !== inicial.arranca || cierra !== inicial.cierra
+  const fechasMovidas = arranca !== inicial.arranca || cierra !== inicial.cierra
+  // Lo mismo que valida el servidor, dicho antes de tocar «Guardar».
+  const problema =
+    !nombre.trim() ? 'La temporada necesita un nombre.'
+    : !arranca || !cierra ? 'Faltan la fecha de arranque o la de cierre.'
+    : cierra <= arranca ? 'El cierre tiene que ir después del arranque.'
+    : insc && insc > arranca ? 'La inscripción tiene que cerrar antes del arranque, o el mismo día.'
+    : null
+
+  async function guardar() {
+    setOcupado(true)
+    const r = await editarTemporada(temporada.id, {
+      ...(nombre.trim() !== inicial.nombre ? { nombre: nombre.trim() } : {}),
+      ...(arranca !== inicial.arranca ? { arranca } : {}),
+      ...(cierra !== inicial.cierra ? { cierra } : {}),
+      ...(insc !== inicial.insc ? (insc ? { inscripcionCierra: insc } : { sinCierreInscripcion: true }) : {}),
+      reprogramar,
+    })
+    setOcupado(false)
+    // El resumen dice lo que de verdad pasó, con los números del servidor.
+    const x = (r.extra ?? {}) as { partidas?: number; reabiertas?: number; respetadas?: number; enElPasado?: number }
+    const partes = ['Temporada guardada.']
+    if (x.partidas) partes.push(`${x.partidas} plazos recalculados.`)
+    if (x.reabiertas) partes.push(`${x.reabiertas} partidas vencidas vuelven a jugarse.`)
+    if (x.respetadas) partes.push(`${x.respetadas} prórrogas manuales se respetaron.`)
+    if (x.enElPasado) partes.push(`Ojo: ${x.enElPasado} quedaron con el plazo ya vencido.`)
+    tras(r, partes.join(' '))
+  }
+
+  const entrada = 'w-full min-h-11 rounded-lg border border-swu-border bg-swu-bg px-3 text-[13px] text-swu-text outline-none focus:border-swu-cyan'
+
+  return (
+    <HudPanel tone="cyan">
+      <div className="space-y-3 p-4">
+        <h2 className="flex items-center gap-2 text-sm font-bold text-swu-text">
+          <CalendarPlus size={15} className="text-swu-cyan" /> Fechas de la temporada
+        </h2>
+
+        <Campo rotulo="Nombre">
+          <input value={nombre} onChange={e => setNombre(e.target.value)} className={entrada} />
+        </Campo>
+
+        <Campo rotulo="Cierra la inscripción">
+          <div className="flex items-center gap-2">
+            <input type="date" value={insc} onChange={e => setInsc(e.target.value)} className={entrada} />
+            {insc && (
+              <Button variant="ghost" size="sm" onClick={() => setInsc('')}>Sin fecha</Button>
+            )}
+          </div>
+        </Campo>
+        {!insc && (
+          <p className="-mt-1 text-[10px] text-swu-muted">
+            Sin fecha de cierre, la cuenta atrás del lobby cuenta hasta el arranque.
+          </p>
+        )}
+
+        <div className="grid grid-cols-2 gap-2">
+          <Campo rotulo="Arranca">
+            <input type="date" value={arranca} onChange={e => setArranca(e.target.value)} className={entrada} />
+          </Campo>
+          <Campo rotulo="Cierra">
+            <input type="date" value={cierra} onChange={e => setCierra(e.target.value)} className={entrada} />
+          </Campo>
+        </div>
+
+        {sembrados > 0 && fechasMovidas && (
+          <label className="flex items-start gap-2 rounded-lg border border-swu-border p-2.5 text-[11px] leading-snug text-swu-muted">
+            <input type="checkbox" checked={reprogramar} onChange={e => setReprogramar(e.target.checked)}
+                   className="mt-0.5 h-4 w-4 shrink-0 accent-cyan-400" />
+            <span>
+              <b className="text-swu-text">Recalcular los plazos de las partidas pendientes.</b>{' '}
+              Se reparten las jornadas en las fechas nuevas; las vencidas que entren en plazo vuelven a
+              jugarse y las prórrogas manuales no se tocan. Sin esto, solo cambian las fechas de la temporada.
+            </span>
+          </label>
+        )}
+
+        {problema && cambiado && <p className="text-[11px] text-swu-red-texto">{problema}</p>}
+
+        <Button variant="primary" size="sm" block loading={ocupado}
+                disabled={!cambiado || !!problema} onClick={() => void guardar()}>
+          {cambiado ? 'Guardar fechas' : 'Sin cambios'}
+        </Button>
+      </div>
+    </HudPanel>
+  )
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   EL NIVEL Y EL ESTADO DE CADA INSCRITO
+
+   Todos entran en «común»: sin esto la primera temporada tiene un solo nivel y
+   «legendario» tarda tres temporadas en tener a alguien. Y `pausa`, `retirado`
+   y `vetado` existían en la base sin una sola forma de ponerlos.
+   ══════════════════════════════════════════════════════════════════════ */
+const ESTADOS_INSCRITO: Array<[string, string]> = [
+  ['activo', 'Activo'], ['pausa', 'En pausa'], ['retirado', 'Retirado'], ['vetado', 'Vetado'],
+]
+
+export function EditorInscrito({ i, tras, compacto = false }: {
+  i: InscritoPanel
+  tras: (r: { ok: boolean; mensaje?: string }, exito: string) => void
+  compacto?: boolean
+}) {
+  const [trabajando, setTrabajando] = useState(false)
+  const clase = `min-h-9 rounded-lg border border-swu-border bg-swu-surface px-2 text-[11px] text-swu-text ${compacto ? '' : 'flex-1'}`
+
+  async function cambiar(cambios: { tier?: string; estado?: string }, exito: string) {
+    setTrabajando(true)
+    const r = await editarInscripcion(i.inscId, cambios)
+    setTrabajando(false)
+    tras(r, exito)
+  }
+
+  return (
+    <div className={`flex items-center gap-1.5 ${compacto ? '' : 'px-1'}`}>
+      <select value={i.tier} disabled={trabajando} aria-label={`Nivel de ${i.nombre}`} className={clase}
+              onChange={e => void cambiar({ tier: e.target.value },
+                `${i.nombre} ahora es ${NOMBRE_TIER[e.target.value] ?? e.target.value}. Cuenta desde el próximo armado de grupos.`)}>
+        {TIERS.map(tier => <option key={tier} value={tier}>{NOMBRE_TIER[tier]}</option>)}
+      </select>
+      <select value={i.estado} disabled={trabajando} aria-label={`Estado de ${i.nombre}`} className={clase}
+              onChange={e => {
+                const estado = e.target.value
+                /* Retirar o vetar en plena temporada deja su plaza como
+                   abandonada: es una consecuencia real, se dice antes. */
+                if ((estado === 'retirado' || estado === 'vetado')
+                    && !window.confirm(`${i.nombre} queda ${estado}. Si está jugando un grupo, su plaza pasa a abandonada: sus partidas jugadas siguen contando para los demás y al cerrar la temporada baja. ¿Seguimos?`)) {
+                  e.target.value = i.estado
+                  return
+                }
+                void cambiar({ estado }, `${i.nombre}: ${ESTADOS_INSCRITO.find(([v]) => v === estado)?.[1] ?? estado}.`)
+              }}>
+        {ESTADOS_INSCRITO.map(([v, r]) => <option key={v} value={v}>{r}</option>)}
+      </select>
+    </div>
   )
 }
 

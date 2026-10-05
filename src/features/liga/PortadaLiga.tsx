@@ -55,13 +55,15 @@
 import { Loader2 } from 'lucide-react'
 
 export function PortadaLiga(
-  { mensaje = 'Entrando a la liga…', ms = 0 }: { mensaje?: string; ms?: number },
+  { mensaje = 'Entrando a la liga…', ms = 0, portada }:
+  { mensaje?: string; ms?: number; portada?: string | null },
 ) {
   return (
     <div
       className="fixed inset-0 z-[60] flex flex-col bg-[#05050A]"
       style={{
-        backgroundImage: 'url(/liga/portada.webp)',
+        // La portada que subió quien organiza; sin ella, la de siempre.
+        backgroundImage: `url("${portada ?? '/liga/portada.webp'}")`,
         backgroundSize: 'cover',
         // Anclado ARRIBA, no al centro: el rótulo «LIGA INTERNACIONAL» es lo
         // primero que tiene que leerse, y en una pantalla más alta que el

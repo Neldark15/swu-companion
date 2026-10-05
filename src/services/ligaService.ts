@@ -391,6 +391,8 @@ export interface GrupoLiga {
   estado: 'armado' | 'en_curso' | 'cerrado'
   arranca: string
   cierra: string
+  /** Ya tiene calendario: desde acá no se puede mover a nadie de grupo. */
+  sembrado?: boolean
   plazas: PlazaLiga[]
   partidas: PartidaLiga[]
 }
@@ -417,7 +419,19 @@ export interface AnuncioLiga {
 }
 
 export interface LigaCompleta {
-  liga: Liga & { tamanoGrupo: number; esStaff: boolean; formato: string; cupo: number | null }
+  liga: Liga & {
+    tamanoGrupo: number; esStaff: boolean; formato: string; cupo: number | null
+    publica?: boolean
+    /** Las reglas de la casa que escribe quien organiza. `null` = no hay. */
+    reglas?: string | null
+    /** Cuántos suben y bajan por grupo al cerrar. Los decide la liga. */
+    subenPorGrupo?: number
+    bajanPorGrupo?: number
+    /** URLs del bucket `ligas`. `null` = se usa el archivo de siempre. */
+    emblemaUrl?: string | null
+    portadaUrl?: string | null
+    bannerUrl?: string | null
+  }
   temporada: TemporadaLiga | null
   miInscripcion: string | null
   /** Lo que va en el carrusel de la cabecera. Lo cuenta el servidor: contarlo
@@ -514,6 +528,11 @@ export const borrarAnuncio = (id: string) => rpc('liga_borrar_anuncio', { p_id: 
 export const configurarLiga = (liga: string, cambios: {
   nombre?: string; descripcion?: string; cupo?: number | null
   formato?: string; tamanoGrupo?: number; estado?: string; publica?: boolean
+  /** '' = borrar las reglas. */
+  reglas?: string
+  suben?: number; bajan?: number
+  /** '' = quitar la imagen y volver a la de siempre. */
+  emblemaUrl?: string; portadaUrl?: string; bannerUrl?: string
 }) => rpc('liga_configurar', {
   p_liga: liga,
   p_nombre: cambios.nombre ?? null,
@@ -523,7 +542,108 @@ export const configurarLiga = (liga: string, cambios: {
   p_tamano_grupo: cambios.tamanoGrupo ?? null,
   p_estado: cambios.estado ?? null,
   p_publica: cambios.publica ?? null,
+  p_reglas: cambios.reglas ?? null,
+  p_suben: cambios.suben ?? null,
+  p_bajan: cambios.bajan ?? null,
+  p_emblema_url: cambios.emblemaUrl ?? null,
+  p_portada_url: cambios.portadaUrl ?? null,
+  p_banner_url: cambios.bannerUrl ?? null,
 })
+
+/* ══════════════════════════════════════════════════════════════════════
+   EDITAR LA LIGA DESDE EL PANEL — pedido de Nel (2026-10-05): «que se pueda
+   cambiar desde ahí las fechas y todo». Las siete puertas pasan por
+   `liga_es_staff()` en el servidor: creador o fila en `liga_staff`.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Las fechas y el nombre de la temporada.
+ *
+ * Con `reprogramar` (por defecto) también se recalculan los plazos de las
+ * partidas pendientes con la MISMA fórmula del sorteo, y una vencida cuyo plazo
+ * nuevo cae hoy o después vuelve a jugarse. Las prórrogas manuales se respetan.
+ */
+export const editarTemporada = (temporada: string, cambios: {
+  nombre?: string
+  /** 'AAAA-MM-DD'. Para quitar el cierre, `sinCierreInscripcion`. */
+  inscripcionCierra?: string
+  arranca?: string
+  cierra?: string
+  sinCierreInscripcion?: boolean
+  reprogramar?: boolean
+}) => rpc('liga_editar_temporada', {
+  p_temporada: temporada,
+  p_nombre: cambios.nombre ?? null,
+  p_inscripcion_cierra: cambios.inscripcionCierra ?? null,
+  p_arranca: cambios.arranca ?? null,
+  p_cierra: cambios.cierra ?? null,
+  p_sin_cierre_inscripcion: cambios.sinCierreInscripcion ?? false,
+  p_reprogramar: cambios.reprogramar ?? true,
+})
+
+/** El plazo de UNA partida. Queda en la bitácora de correcciones. */
+export const prorrogarPartida = (partida: string, vence: string, motivo?: string) =>
+  rpc('liga_prorrogar_partida', { p_partida: partida, p_vence: vence, p_motivo: motivo ?? null })
+
+/**
+ * Nivel y estado de un inscrito. Retirar o vetar en plena temporada deja su
+ * plaza como abandonada; reactivarlo la devuelve.
+ */
+export const editarInscripcion = (inscripcion: string, cambios: { tier?: string; estado?: string }) =>
+  rpc('liga_editar_inscripcion', {
+    p_inscripcion: inscripcion, p_tier: cambios.tier ?? null, p_estado: cambios.estado ?? null,
+  })
+
+/** Mover a alguien de grupo. Solo antes del calendario. */
+export const moverPlaza = (plaza: string, grupo: string) =>
+  rpc('liga_mover_plaza', { p_plaza: plaza, p_grupo: grupo })
+
+/**
+ * Deshacer los grupos de la temporada para volver a armarlos. Con calendario
+ * sembrado solo si nadie jugó, y pidiéndolo con `borrarCalendario`.
+ */
+export const deshacerGrupos = (temporada: string, borrarCalendario = false) =>
+  rpc('liga_deshacer_grupos', { p_temporada: temporada, p_borrar_calendario: borrarCalendario })
+
+export const editarAnuncio = (id: string, titulo: string, cuerpo: string) =>
+  rpc('liga_editar_anuncio', { p_id: id, p_titulo: titulo, p_cuerpo: cuerpo })
+
+const IMAGEN_TIPOS = ['image/jpeg', 'image/png', 'image/webp', 'image/avif']
+const IMAGEN_MAX = 3 * 1024 * 1024
+
+/**
+ * Sube el emblema, la portada o el banner de una liga y devuelve su URL.
+ *
+ * A Storage y no como data URI en la fila: `liga_ver` se pide en cada visita al
+ * lobby y `liga_para_inicio` en cada apertura de Inicio, y un data URI dentro
+ * de un JSON no lo cachea el navegador (§4m). La carpeta ES el id de la liga:
+ * es lo que la política del bucket exige para dejar escribir.
+ *
+ * Subir NO cambia la liga: la URL hay que guardarla después con
+ * `configurarLiga`. Así una subida a medias nunca deja la liga con una imagen
+ * rota, y el servidor vuelve a comprobar que la URL sea de este bucket.
+ */
+export async function subirImagenLiga(
+  liga: string, cual: 'emblema' | 'portada' | 'banner', archivo: File,
+): Promise<{ ok: boolean; url?: string; mensaje?: string }> {
+  if (!isSupabaseReady()) return { ok: false, mensaje: 'Sin conexión con el servidor.' }
+  if (!IMAGEN_TIPOS.includes(archivo.type)) {
+    return { ok: false, mensaje: 'Tiene que ser una imagen JPG, PNG, WebP o AVIF.' }
+  }
+  if (archivo.size > IMAGEN_MAX) {
+    return { ok: false, mensaje: `La imagen pesa ${(archivo.size / 1048576).toFixed(1)} MB y el máximo son 3 MB.` }
+  }
+  const ext = archivo.type.split('/')[1].replace('jpeg', 'jpg')
+  // Nombre NUEVO en cada subida: con el mismo nombre, la CDN y el service worker
+  // seguirían sirviendo la imagen vieja durante horas.
+  const ruta = `${liga}/${cual}-${Date.now()}.${ext}`
+  const { error } = await supabase.storage.from('ligas').upload(ruta, archivo, {
+    cacheControl: '31536000', upsert: false, contentType: archivo.type,
+  })
+  if (error) return { ok: false, mensaje: error.message }
+  const { data } = supabase.storage.from('ligas').getPublicUrl(ruta)
+  return { ok: true, url: data.publicUrl }
+}
 
 export const guardarDisponibilidad = (liga: string, zona: string, franjas: string, nota?: string) =>
   rpc('liga_guardar_disponibilidad', { p_liga: liga, p_zona: zona, p_franjas: franjas, p_nota: nota ?? null })
@@ -554,6 +674,7 @@ export interface LigaDeInicio {
   code: string
   nombre: string
   estado: string
+  emblemaUrl?: string | null
   esStaff: boolean
   inscrito: boolean
   temporada: { estado: string; inscripcionCierra: string | null; arranca: string | null } | null

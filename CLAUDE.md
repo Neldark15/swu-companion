@@ -4867,3 +4867,72 @@ Las cuentas de MEMENTO pueden existir en Auth sin filas SWU. El alta adicional c
 La hidratación local de §2v se conserva. Ante fallo no se inventa sesión cloud; la misma cuenta conserva su copia y último rol local, y una cuenta diferente los pierde antes de preparar el nuevo perfil. Respuestas tardías de perfil/rol y altas pendientes no deben restaurar una sesión cerrada. La deduplicación se confirma después del éxito, no antes: marcar un usuario aplicado antes de una RPC fallida impediría reintentar.
 
 Los eventos Auth programan su trabajo fuera del callback; una RPC necesita acceder a la sesión y no debe esperar dentro del bloqueo de Auth. `scripts/swu-auth-membership.test.mjs` ejecuta el store real con Auth/RPC/Dexie simulados y comprueba concurrencia, ausencia de efectos antes del alta, logout durante la petición, fallo/reintento y separación entre cuentas. `scripts/swu-membership.test.mts` prueba el servicio incluyendo errores PostgREST, rechazo de red y respuesta tardía tras timeout. Ninguna prueba consulta producción. SQL y activación OAuth se preparan por separado; aplicar/verificar la RPC antes de desplegar el frontend.
+
+### 5s. LIGA — todo editable desde el panel (2026-10-05)
+
+Pedido de Nel: «que sea completamente personalizada para el administrador
+Alejo y yo, que se pueda cambiar desde ahí las fechas y todo». Medido antes: el
+panel solo editaba nombre, cupo, formato, tamaño de grupo y estado. **Las
+fechas de una temporada no se podían tocar después de crearla** (Edición 6
+nació sin cierre de inscripción y no había forma de ponérselo), tampoco los
+plazos de cada partida, el nivel y el estado de un inscrito (`pausa`,
+`retirado` y `vetado` existían en el CHECK sin una sola función que los
+escribiera), y el emblema, la portada y el banner eran archivos fijos de
+PUENTE 3 en `public/liga/`.
+
+Todo pasa por RPC con la puerta de siempre, `liga_es_staff()` (creador o fila
+en `liga_staff`): Alejo es el creador, Nel está en `liga_staff`.
+
+| Qué | Dónde en el panel | RPC |
+|---|---|---|
+| nombre, descripción, cupo, formato, tamaño, **suben/bajan por grupo**, **reglas de la casa** | Ajustes | `liga_configurar` (14 parámetros) |
+| **emblema, portada, banner** | Ajustes → Apariencia | Storage `ligas/<liga_id>/…` + `liga_configurar` |
+| **nombre y fechas de la temporada** (cierre de inscripción, arranque, cierre) | Temporada | `liga_editar_temporada` |
+| **plazo de una partida** | Grupos (sembrados) y Cola (vencidas) | `liga_prorrogar_partida` |
+| **nivel y estado de cada inscrito** | Inscritos | `liga_editar_inscripcion` |
+| **mover a alguien de grupo** (antes del calendario) | Grupos | `liga_mover_plaza` |
+| **deshacer los grupos** | Grupos | `liga_deshacer_grupos` |
+| **editar un aviso** | lobby, en el aviso | `liga_editar_anuncio` |
+
+Reglas que no se pueden relajar sin volver a pensarlas:
+
+- **§3s otra vez:** `liga_configurar` ganó seis parámetros con default, así que
+  la firma vieja se soltó con `drop function` en la misma migración. Queda UNA.
+- **Mover las fechas mueve las tres capas.** Los grupos copian las fechas de la
+  temporada al armarse y los plazos se calculan al sembrar: cambiar solo la
+  temporada dejaría la tabla diciendo una cosa y el calendario otra.
+  `liga_editar_temporada` actualiza grupos y, con `p_reprogramar`, recalcula
+  los plazos pendientes con la **misma fórmula** que `liga_sembrar_grupo`. Una
+  vencida cuyo plazo nuevo cae hoy o después vuelve a `programada`.
+- **Una prórroga manual sobrevive al recálculo.** Medido en la prueba: sin la
+  guarda, una partida prorrogada al 30/11 volvía al 16/11 al mover la temporada.
+  Se detecta por su huella en `liga_correcciones` (cambio de `vence_el`), que es
+  donde toda prórroga queda registrada con quién y por qué.
+- **Las imágenes van a Storage, no como data URI**: `liga_ver` y
+  `liga_para_inicio` se piden en cada visita (§4m). El servidor solo acepta URLs
+  del bucket `ligas` y de la carpeta de ESA liga — sin eso el banner podría ser
+  un píxel de rastreo. La política del bucket usa `liga_staff_de_carpeta()`
+  porque una policy no garantiza el orden del AND, y una carpeta que no es uuid
+  tiraría un error de conversión en vez de un «no». Sin imagen propia, se sigue
+  viendo el archivo de siempre.
+- **Suben + bajan ≤ 4** (el grupo más chico): con más, el 2.º de un grupo de 4
+  subiría y bajaría a la vez. `liga_cerrar_temporada` los lee de la liga, y el
+  «Cómo funciona» del lobby los anuncia con los mismos números (§4a). Antes ese
+  bloque ni mencionaba quién sube.
+- **Retirar o vetar en plena temporada deja la plaza `abandonada`**, que es lo
+  que la tabla y el cierre ya saben leer; reactivar la devuelve. `pausa` solo
+  afecta al armado siguiente.
+- **Mover a alguien de grupo solo antes del calendario**, y a un grupo de otro
+  nivel le cambia también el nivel del carné: si no, al cierre subiría o
+  bajaría desde un nivel distinto al del grupo que jugó.
+- **Deshacer con calendario sembrado** solo si nadie jugó, y pidiéndolo
+  explícito (`p_borrar_calendario`): borrar resultados reales no es «deshacer».
+- El botón «Re-sembrar» se fue: el servidor lo rechazaba («ese grupo ya tiene
+  calendario»), así que prometía algo imposible. Para rehacer está «Deshacer».
+
+Probado contra la base en transacción revertida, como Alejo y como una cuenta
+sin permiso: **26/26**, más la prueba aparte de la prórroga respetada.
+
+Banco: **`/banco-lobby-liga`** trae ahora las seis pantallas de edición con la
+forma real de los datos (Ajustes, Apariencia, Fechas, Inscritos, Mover, Plazos,
+Deshacer). Sin sesión, todo «Guardar» rebota a propósito.

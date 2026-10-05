@@ -21,7 +21,10 @@ import { PortadaLiga } from './PortadaLiga'
 import { BotonLiga } from './BotonLigaInicio'
 import { useActualizacion } from '../../services/actualizacion'
 import type { AnuncioLiga, InscritoPanel } from '../../services/ligaService'
-import { FichaInscrito, FilaDia, QueSigue } from './PanelLiga'
+import {
+  FichaInscrito, FilaDia, QueSigue,
+  ConfigurarLiga, AparienciaLiga, EditarTemporada, EditorInscrito, MoverDelGrupo, PlazosDelGrupo, DeshacerGrupos,
+} from './PanelLiga'
 
 const hoyMas = (d: number) => {
   const f = new Date()
@@ -97,6 +100,40 @@ const ligaBase = (estado: string, grupos: unknown[] = []) => ({
   temporada: null, miInscripcion: null,
   cifras: { inscritos: 10, paises: 8 }, padron: [], anuncios: [], grupos,
 }) as never
+/* Para la sección «editar la liga»: la forma REAL de lo que manda `liga_ver`
+   con los campos nuevos, no una parecida. Sin sesión, todo «Guardar» rebota en
+   el servidor con «Sin sesion» — a propósito: acá se mira, no se escribe. */
+const plaza = (id: string, nombre: string, pais: string | null) =>
+  ({ id, grupoId: '', nombre, lider: null, base: null, estado: 'activa', pais, esMia: false })
+const LIGA_EDITABLE = {
+  liga: { id: '726659f4-ea8f-4aa8-a8c5-f1b4b8edca7c', code: 'puente3', nombre: 'VI Liga PUENTE 3', estado: 'borrador',
+          descripcion: 'Liga abierta por grupos. Cuatro niveles: común, infrecuente, raro y legendario.',
+          tamanoGrupo: 8, formato: 'premier', cupo: null, esStaff: true, publica: false,
+          reglas: 'Se juega BO3.\nCoordinen por el chat de la liga y anoten el resultado el mismo día.',
+          subenPorGrupo: 2, bajanPorGrupo: 1, emblemaUrl: null, portadaUrl: null, bannerUrl: null },
+  temporada: null, miInscripcion: null, cifras: { inscritos: 9, paises: 3 }, padron: [], anuncios: [],
+  grupos: [
+    { id: 'gA', tier: 'comun', orden: 1, estado: 'armado', arranca: '', cierra: '', sembrado: false, partidas: [],
+      plazas: [plaza('a1', 'Ana', 'SV'), plaza('a2', 'Fran', 'ES'), plaza('a3', 'Hugo', 'AR'),
+               plaza('a4', 'Lía', 'SV'), plaza('a5', 'Paco', 'ES')] },
+    { id: 'gB', tier: 'comun', orden: 2, estado: 'armado', arranca: '', cierra: '', sembrado: false, partidas: [],
+      plazas: [plaza('b1', 'Rita', 'MX'), plaza('b2', 'Saúl', 'SV'), plaza('b3', 'Tere', 'ES'), plaza('b4', 'Uli', 'SV')] },
+  ],
+} as never
+const GRUPO_SEMBRADO = {
+  id: 'gS', tier: 'raro', orden: 1, estado: 'en_curso', arranca: '2026-10-16', cierra: '2026-12-20', sembrado: true,
+  plazas: [plaza('s1', 'Ana', 'SV'), plaza('s2', 'Fran', 'ES'), plaza('s3', 'Hugo', 'AR'), plaza('s4', 'Lía', 'SV')],
+  partidas: [
+    { id: 'm1', grupoId: 'gS', jornada: 1, localPlaza: 's1', visitaPlaza: 's2', vl: 0, vv: 0, estado: 'vencida', origen: null, venceEl: '2026-10-01', vod: null, reportadaPor: null },
+    { id: 'm2', grupoId: 'gS', jornada: 2, localPlaza: 's3', visitaPlaza: 's1', vl: 0, vv: 0, estado: 'programada', origen: null, venceEl: '2026-11-08', vod: null, reportadaPor: null },
+    { id: 'm3', grupoId: 'gS', jornada: 3, localPlaza: 's2', visitaPlaza: 's4', vl: 2, vv: 1, estado: 'confirmada', origen: 'acuerdo', venceEl: '2026-11-30', vod: null, reportadaPor: 's2' },
+  ],
+} as never
+const TEMPORADA_EDITABLE = {
+  id: '14da5e14-7b93-4df4-8b3c-f69b3a982cc8', nombre: 'Edición 6', numero: 1, estado: 'inscripcion',
+  arranca: '2026-10-16', cierra: '2026-12-20', inscripcionCierra: null, semilla: '88306d7c3c0cb3c0',
+} as never
+
 const panelBase = (inscritos: number, cola: number, temporada: unknown = null) => ({
   inscritos: Array.from({ length: inscritos }, (_, i) => ({
     inscId: String(i), nombre: `J${i}`, tier: 'comun', estado: 'activo',
@@ -389,8 +426,56 @@ export function BancoLobbyLiga() {
                   vacio="Todavía no hay nadie inscrito: cuando se armen los grupos, acá va tu calendario." />
         </Caso>
 
-        <Caso titulo="Cómo funciona">
-          <ComoFunciona id="b4" abierto={reglas} alPlegar={() => setReglas(r => !r)} porGrupo={8} />
+        <Caso titulo="Cómo funciona — con reglas de la casa y 2 suben / 1 baja">
+          <ComoFunciona id="b4" abierto={reglas} alPlegar={() => setReglas(r => !r)} porGrupo={8}
+                        reglas={'Se juega BO3.\nCoordinen por el chat de la liga y anoten el resultado el mismo día.'}
+                        suben={2} bajan={1} />
+        </Caso>
+
+        {/* ── EDITAR LA LIGA desde el panel (pedido de Nel, 2026-10-05) ──
+            El panel vive detrás de sesión de staff: sin esto, ninguna de
+            estas pantallas se puede mirar en un navegador de pruebas. */}
+        <Caso titulo="Ajustes — configuración (nombre, descripción, suben/bajan, reglas)">
+          <ConfigurarLiga liga={LIGA_EDITABLE} tras={(r, e) => setAviso(r.ok ? e : (r.mensaje ?? 'falló'))} />
+        </Caso>
+        <Caso titulo="Ajustes — apariencia (emblema, portada, banner)">
+          <AparienciaLiga liga={LIGA_EDITABLE} tras={(r, e) => setAviso(r.ok ? e : (r.mensaje ?? 'falló'))} />
+        </Caso>
+        <Caso titulo="Temporada — fechas editables, con grupos ya sembrados">
+          <EditarTemporada temporada={TEMPORADA_EDITABLE} sembrados={1}
+                           tras={(r, e) => setAviso(r.ok ? e : (r.mensaje ?? 'falló'))} />
+        </Caso>
+        <Caso titulo="Inscritos — nivel y estado de cada uno">
+          <div className="space-y-2">
+            {INSCRITOS.slice(0, 2).map(i => (
+              <div key={i.inscId} className="space-y-1.5">
+                <FichaInscrito i={i} />
+                <EditorInscrito i={i} tras={(r, e) => setAviso(r.ok ? e : (r.mensaje ?? 'falló'))} />
+              </div>
+            ))}
+          </div>
+        </Caso>
+        <Caso titulo="Grupos — mover gente antes del calendario">
+          <div className="space-y-2">
+            {[0, 1].map(k => {
+              const grupos = (LIGA_EDITABLE as unknown as { grupos: Array<{ id: string }> }).grupos
+              return (
+                <div key={k} className="rounded-xl border border-swu-border bg-swu-bg p-2.5">
+                  <MoverDelGrupo grupo={grupos[k] as never} otros={grupos.filter((_, j) => j !== k) as never}
+                                 tras={(r, e) => setAviso(r.ok ? e : (r.mensaje ?? 'falló'))} />
+                </div>
+              )
+            })}
+          </div>
+        </Caso>
+        <Caso titulo="Grupos — plazos de un grupo sembrado (una vencida, una programada)">
+          <div className="rounded-xl border border-swu-border bg-swu-bg p-2.5">
+            <PlazosDelGrupo grupo={GRUPO_SEMBRADO} tras={(r, e) => setAviso(r.ok ? e : (r.mensaje ?? 'falló'))} />
+          </div>
+        </Caso>
+        <Caso titulo="Grupos — deshacer">
+          <DeshacerGrupos temporadaId="14da5e14-7b93-4df4-8b3c-f69b3a982cc8"
+                          tras={(r, e) => setAviso(r.ok ? e : (r.mensaje ?? 'falló'))} />
         </Caso>
       </div>
     </div>

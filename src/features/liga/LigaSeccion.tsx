@@ -24,7 +24,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { AlertTriangle, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, Globe2, Layers, Lock, Medal, Megaphone, PlayCircle, Plus, Settings2, Star, Swords, Timer, Trash2, Trophy, Users, Zap } from 'lucide-react'
+import { AlertTriangle, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, Globe2, Layers, Lock, Medal, Megaphone, Pencil, PlayCircle, Plus, Settings2, Star, Swords, Timer, Trash2, Trophy, Users, Zap } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { InscripcionLiga } from '../liga/InscripcionLiga'
 import { PortadaLiga } from './PortadaLiga'
@@ -32,7 +32,7 @@ import { Bandera, TarjetaCifra, ContadorPlazo } from './componentes/piezas'
 import { haceCuanto, restanHasta } from './componentes/tiempo'
 import {
   verLiga, tablaDe, misPartidasAbiertas, reportar, confirmar, disputar,
-  publicarAnuncio, borrarAnuncio, type AnuncioLiga,
+  publicarAnuncio, borrarAnuncio, editarAnuncio, type AnuncioLiga,
   TIERS, NOMBRE_TIER,
   tonoDelTier,
   type EstadoPartida, type FilaTabla, type GrupoLiga, type LigaCompleta,
@@ -159,7 +159,7 @@ export function LigaSeccion() {
 
   // El afiche mientras carga: entrar a la liga tiene que sentirse como entrar
   // a otro sitio. Se va cuando la consulta terminó Y se cumplió el piso.
-  if (!listo || !minimo) return <PortadaLiga ms={MINIMO_MS} />
+  if (!listo || !minimo) return <PortadaLiga ms={MINIMO_MS} portada={liga?.liga.portadaUrl} />
 
   if (!liga) {
     // La policy del demo cerrado devuelve VACÍO, no error: acá «no existe» y
@@ -252,7 +252,7 @@ export function LigaSeccion() {
         <div
           aria-hidden
           className="absolute inset-0 bg-cover bg-center opacity-25 blur-[2px]"
-          style={{ backgroundImage: 'url(/liga/portada.webp)' }}
+          style={{ backgroundImage: `url("${liga.liga.portadaUrl ?? '/liga/portada.webp'}")` }}
         />
         <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-swu-bg via-swu-bg/85 to-swu-bg/55" />
         <div className="relative flex items-center gap-2 px-3 py-3">
@@ -266,7 +266,7 @@ export function LigaSeccion() {
               alta sería repetir el título. Si el archivo falta, el navegador no
               dibuja nada y la cabecera queda igual. */}
           <img
-            src="/liga/emblema.webp"
+            src={liga.liga.emblemaUrl ?? '/liga/emblema.webp'}
             alt=""
             aria-hidden
             className="h-9 w-9 shrink-0 object-contain"
@@ -392,7 +392,7 @@ export function LigaSeccion() {
             aria-hidden
             className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-cover bg-center opacity-30"
             style={{
-              backgroundImage: 'url(/liga/banner-liga.webp)',
+              backgroundImage: `url("${liga.liga.bannerUrl ?? '/liga/banner-liga.webp'}")`,
               maskImage: 'linear-gradient(to right, transparent, #000 70%)',
               WebkitMaskImage: 'linear-gradient(to right, transparent, #000 70%)',
             }}
@@ -556,6 +556,9 @@ export function LigaSeccion() {
         abierto={reglas}
         alPlegar={() => setReglas(r => !r)}
         porGrupo={liga.liga.tamanoGrupo}
+        reglas={liga.liga.reglas ?? null}
+        suben={liga.liga.subenPorGrupo ?? 1}
+        bajan={liga.liga.bajanPorGrupo ?? 1}
       />
     </div>
   )
@@ -973,15 +976,22 @@ export function AnunciosLiga({ id, ligaId, anuncios, puedoPublicar, alCambiar, a
   const [titulo, setTitulo] = useState('')
   const [cuerpo, setCuerpo] = useState('')
   const [ocupado, setOcupado] = useState(false)
+  /** El aviso que se está corrigiendo, o null si se escribe uno nuevo. Antes
+   *  solo se podía publicar o borrar: un error de tipeo obligaba a borrar el
+   *  aviso y publicarlo otra vez, con fecha nueva. */
+  const [editando, setEditando] = useState<string | null>(null)
 
   if (anuncios.length === 0 && !puedoPublicar) return null
 
   const publicar = () => {
     setOcupado(true)
-    void publicarAnuncio(ligaId, titulo.trim(), cuerpo.trim()).then(r => {
+    const llamada = editando
+      ? editarAnuncio(editando, titulo.trim(), cuerpo.trim())
+      : publicarAnuncio(ligaId, titulo.trim(), cuerpo.trim())
+    void llamada.then(r => {
       setOcupado(false)
-      if (!r.ok) { alAvisar(r.mensaje ?? 'No se pudo publicar.'); return }
-      setTitulo(''); setCuerpo(''); setAbierto(false); alCambiar()
+      if (!r.ok) { alAvisar(r.mensaje ?? (editando ? 'No se pudo guardar.' : 'No se pudo publicar.')); return }
+      setTitulo(''); setCuerpo(''); setAbierto(false); setEditando(null); alCambiar()
     })
   }
 
@@ -993,7 +1003,10 @@ export function AnunciosLiga({ id, ligaId, anuncios, puedoPublicar, alCambiar, a
         </p>
         {puedoPublicar && (
           <button
-            onClick={() => setAbierto(a => !a)}
+            onClick={() => {
+              if (abierto) { setEditando(null); setTitulo(''); setCuerpo('') }
+              setAbierto(a => !a)
+            }}
             className="ml-auto flex min-h-[32px] items-center gap-1 rounded-lg border px-2.5 text-[11px] font-bold text-swu-text"
             style={{ borderColor: 'var(--liga-borde)' }}
           >
@@ -1023,7 +1036,7 @@ export function AnunciosLiga({ id, ligaId, anuncios, puedoPublicar, alCambiar, a
             className="mt-2 min-h-[44px] w-full rounded-lg text-[12px] font-black uppercase tracking-wider text-swu-bg disabled:opacity-50"
             style={{ background: 'var(--liga-acento)' }}
           >
-            {ocupado ? 'Publicando…' : 'Publicar el aviso'}
+            {ocupado ? (editando ? 'Guardando…' : 'Publicando…') : (editando ? 'Guardar los cambios' : 'Publicar el aviso')}
           </button>
         </div>
       )}
@@ -1055,10 +1068,21 @@ export function AnunciosLiga({ id, ligaId, anuncios, puedoPublicar, alCambiar, a
                 </time>
                 {puedoPublicar && (
                   <button
+                    onClick={() => {
+                      setEditando(a.id); setTitulo(a.titulo); setCuerpo(a.cuerpo); setAbierto(true)
+                    }}
+                    className="ml-auto p-1 text-swu-muted hover:text-swu-text"
+                    aria-label={`Editar el aviso «${a.titulo}»`}
+                  >
+                    <Pencil size={13} />
+                  </button>
+                )}
+                {puedoPublicar && (
+                  <button
                     onClick={() => void borrarAnuncio(a.id).then(r => {
                       if (r.ok) alCambiar(); else alAvisar(r.mensaje ?? 'No se pudo borrar.')
                     })}
-                    className="ml-auto p-1 text-swu-muted hover:text-swu-red-texto"
+                    className="p-1 text-swu-muted hover:text-swu-red-texto"
                     aria-label={`Borrar el aviso «${a.titulo}»`}
                   >
                     <Trash2 size={13} />
@@ -1083,8 +1107,15 @@ export function AnunciosLiga({ id, ligaId, anuncios, puedoPublicar, alCambiar, a
  * Los números salen de la liga y no están cableados: con grupos de 6, un
  * «jugás 7 partidas» sería una mentira impresa.
  */
-export function ComoFunciona({ id, abierto, alPlegar, porGrupo }: {
+export function ComoFunciona({ id, abierto, alPlegar, porGrupo, reglas = null, suben = 1, bajan = 1 }: {
   id: string; abierto: boolean; alPlegar: () => void; porGrupo: number
+  /** Las reglas de la casa que escribió quien organiza. */
+  reglas?: string | null
+  /** Cuántos suben y bajan por grupo al cerrar: lo decide la liga, y es lo
+   *  MISMO que lee `liga_cerrar_temporada` — lo que se anuncia es lo que se
+   *  cumple (§4a). Antes este bloque ni lo mencionaba. */
+  suben?: number
+  bajan?: number
 }) {
   return (
     <section id={id} className="mt-3">
@@ -1097,6 +1128,15 @@ export function ComoFunciona({ id, abierto, alPlegar, porGrupo }: {
         <span className="flex-1 text-[12px] font-black text-swu-text">Cómo funciona la liga</span>
         <ChevronDown size={16} className={`text-swu-muted transition-transform ${abierto ? 'rotate-180' : ''}`} />
       </button>
+      {abierto && reglas && (
+        <div className="mt-2 rounded-xl border px-4 py-3 text-[12px] leading-relaxed text-swu-text"
+             style={{ borderColor: 'var(--liga-borde)', background: 'var(--liga-acento-suave)' }}>
+          <p className="mb-1 text-[10px] font-black uppercase tracking-[0.18em] text-swu-muted">Reglas de la casa</p>
+          {/* `pre-line`: los saltos de línea que escribió quien organiza se
+              respetan, sin interpretar nada más. Es texto, no HTML. */}
+          <p className="whitespace-pre-line">{reglas}</p>
+        </div>
+      )}
       {abierto && (
         <ul className="mt-2 space-y-2 rounded-xl border border-swu-border bg-swu-surface px-4 py-3 text-[12px] leading-snug text-swu-text">
           <li>
@@ -1117,6 +1157,16 @@ export function ComoFunciona({ id, abierto, alPlegar, porGrupo }: {
           <li>
             <b>Si nadie la jugó</b> cuando vence la jornada, la partida no se inventa: pasa a la
             cola de quien organiza, que decide.
+          </li>
+          <li>
+            <b>Al cerrar la temporada</b>
+            {suben > 0
+              ? <> {suben === 1 ? 'sube el 1.º' : `suben los ${suben} primeros`} de cada grupo</>
+              : ' nadie sube'}
+            {bajan > 0
+              ? <> y {bajan === 1 ? 'baja el último' : `bajan los ${bajan} últimos`}</>
+              : ' y nadie baja'}
+            . Quien abandona baja igual: dejar de jugar no puede salir mejor que jugar y perder.
           </li>
         </ul>
       )}
