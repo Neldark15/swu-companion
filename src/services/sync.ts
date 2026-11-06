@@ -12,6 +12,8 @@ function sanitizeName(name: string | null | undefined): string {
 
 import { supabase, isSupabaseReady } from './supabase'
 import { db } from './db'
+import { guardarCantidadColeccion, fotoCambiosColeccion, aplicarColeccionRemota } from './collectionQueue'
+import { perfilColeccionVigente, sincronizarColeccionPendiente } from './collectionSync'
 import type { PlayerStats } from './gamification'
 import { mesCalendarioSV, diaCalendarioSV } from './horaSV'
 
@@ -578,40 +580,16 @@ export async function getGlobalLeaderboard(countryFilter?: string): Promise<Glob
 // ─── COLLECTION SYNC ────────────────────────────────────────────
 
 export async function syncCollectionItemToCloud(userId: string, cardId: string, quantity: number) {
-  if (!isSupabaseReady()) return
-  try {
-    if (quantity <= 0) {
-      await supabase.from('collection').delete()
-        .eq('user_id', userId)
-        .eq('card_id', cardId)
-    } else {
-      await supabase.from('collection').upsert({
-        user_id: userId,
-        card_id: cardId,
-        quantity,
-      })
-    }
-  } catch (e) {
-    console.warn('[Sync] Failed to sync collection item:', e)
-  }
+  if (!perfilColeccionVigente(userId)) return
+  await guardarCantidadColeccion(cardId, Math.max(0, quantity), userId)
+  await sincronizarColeccionPendiente(userId)
 }
 
 export async function syncFullCollectionToCloud(userId: string) {
-  if (!isSupabaseReady()) return
-  try {
-    const items = await db.collection.toArray()
-    if (items.length === 0) return
-
-    // Batch upsert
-    const rows = items.map(c => ({
-      user_id: userId,
-      card_id: c.cardId,
-      quantity: c.quantity || 1,
-    }))
-    await supabase.from('collection').upsert(rows)
-  } catch (e) {
-    console.warn('[Sync] Failed to sync full collection:', e)
-  }
+  if (!perfilColeccionVigente(userId)) return
+  const items = await db.collection.where('profileId').equals(userId).toArray()
+  for (const item of items) await guardarCantidadColeccion(item.cardId, item.quantity, userId)
+  await sincronizarColeccionPendiente(userId)
 }
 
 // ─── FAVORITES SYNC ─────────────────────────────────────────────
@@ -715,8 +693,10 @@ async function fetchAllCollection(
       .from('collection')
       .select('card_id, quantity')
       .eq('user_id', userId)
+      .order('card_id')
       .range(from, from + PAGE - 1)
-    if (error || !data || data.length === 0) break
+    if (error) throw error
+    if (!data || data.length === 0) break
     all.push(...(data as Array<{ card_id: string; quantity: number }>))
     if (data.length < PAGE) break
   }
@@ -839,12 +819,13 @@ export async function pullAllFromCloud(userId: string, localProfileId: string) {
     // Collection — paginado: Supabase corta los SELECT en 1000 filas y una
     // colección completa pasa de 2000, así que sin esto se truncaba en
     // silencio (el usuario perdía cartas al sincronizar).
-    fetchAllCollection(userId).then(rows => {
-      if (rows.length > 0) {
-        const items = rows.map(c => ({ cardId: c.card_id, quantity: c.quantity, profileId: localProfileId }))
-        return db.collection.bulkPut(items).then(() => console.log(`[Sync] Pulled ${rows.length} collection items`))
-      }
-    }),
+    (async () => {
+      if (localProfileId !== userId || !perfilColeccionVigente(userId)) return
+      const foto = await fotoCambiosColeccion(localProfileId)
+      const rows = await fetchAllCollection(userId)
+      await aplicarColeccionRemota(localProfileId, rows, foto, () => perfilColeccionVigente(userId))
+      await sincronizarColeccionPendiente(userId)
+    })(),
     // Favorites
     supabase.from('favorite_cards').select('*').eq('user_id', userId).then(({ data }) => {
       if (data && data.length > 0) {

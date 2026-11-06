@@ -6,8 +6,8 @@
  * lo cerrabas con «Después» te quedabas sin ninguna hasta que volviera a
  * aparecer.
  *
- * `registerSW` se llama UNA SOLA VEZ, desde `UpdatePrompt`, que está montado
- * siempre en el caparazón de la app. Ajustes solo LEE de acá y usa las
+ * El registro nativo se coordina desde `registroPwa`, que se conecta
+ * a la raíz del router mediante `UpdatePrompt`. Ajustes solo LEE de acá y usa las
  * funciones que el registro dejó guardadas. Si Ajustes registrara su propio
  * service worker habría dos registros compitiendo, y el que aplicara la
  * actualización no sería necesariamente el que la detectó.
@@ -18,7 +18,7 @@ import { create } from 'zustand'
 interface EstadoActualizacion {
   /** El service worker ya bajó una versión nueva y está esperando. */
   hayVersionNueva: boolean
-  /** Aplica la actualización y recarga. `null` hasta que el registro termine. */
+  /** Aplica la actualización y recarga. `null` hasta montar el coordinador de registro. */
   aplicar: (() => Promise<void>) | null
   /** Fuerza una comprobación contra el servidor. */
   comprobar: (() => Promise<void>) | null

@@ -1,128 +1,15 @@
 import { useNavigate } from 'react-router-dom'
 import { InsigniaSobres } from '../ui/InsigniaSobres'
-import {
-  AgendaIcon,
-  AnuncioIcon,
-  ArticuloIcon,
-  AurebeshIcon,
-  BeskarIcon,
-  BinderIcon,
-  BlasterIcon,
-  ChanceCubeIcon,
-  CredencialIcon,
-  DatapadIcon,
-  DeathStarIcon,
-  DeckCardsIcon,
-  EmisionIcon,
-  EmpireIcon,
-  HelmetIcon,
-  HolocronIcon,
-  LabIcon,
-  MandoTrophyIcon,
-  MetaHoloIcon,
-  PedidoIcon,
-  RebelIcon,
-  SaberIcon,
-  SalasIcon,
-  SobreIcon,
-  SpyIcon,
-  StarfighterIcon,
-  TransmisionIcon,
-  KyberIcon,
-} from '../SWIcons'
-// El planeta anillado ya existe: se dibujó para el tema «Planetas» de la
-// Trivia. El ícono de una cosa es el de esa cosa.
-import { PlanetaAnilladoIcon } from '../../features/trivia/iconosTrivia'
+import { AnuncioIcon, EmpireIcon, HelmetIcon } from '../SWIcons'
 import { useAuth } from '../../hooks/useAuth'
-import type { ComponentType } from 'react'
+import { GRUPOS_NAVEGACION, type ModuloNavegacion } from './gruposNavegacion'
 
-/**
- * MoreNav — todo lo que no entra en las cinco pestañas de móvil.
- *
- * La barra inferior lleva los cinco destinos de colección (Inicio, Explorar,
- * Binder, Mercado, Perfil). Las otras once rutas viven acá, agrupadas por lo
- * que uno viene a hacer, y no perdidas en una lista de once.
- *
- * En escritorio esto no aparece: el sidebar sigue mostrando las dieciséis.
- */
-
-type IconComp = ComponentType<{ size?: number; className?: string; strokeWidth?: number }>
-
-interface MoreItem { to: string; label: string; sub: string; icon: IconComp }
-interface MoreGroup { title: string; items: MoreItem[] }
-
-const GROUPS: MoreGroup[] = [
-  {
-    title: 'Jugar',
-    items: [
-      { to: '/play', label: 'Duelo', sub: 'Tracker en vivo', icon: SaberIcon },
-      { to: '/jugar', label: 'Jugar online', sub: 'Partida virtual privada', icon: BlasterIcon },
-      { to: '/torneos', label: 'Torneos', sub: 'Lo que viene y el archivo', icon: MandoTrophyIcon },
-      // Vive en «Jugar»: se consulta EN la mesa, en medio de una partida.
-      { to: '/envivo', label: 'En Vivo', sub: 'Transmisión de torneos', icon: EmisionIcon },
-      { to: '/rulings', label: 'Rulings', sub: 'Reglamento del juego', icon: HolocronIcon },
-    ],
-  },
-  {
-    title: 'Construir',
-    items: [
-      { to: '/decks', label: 'Mis Decks', sub: 'Constructor', icon: DeckCardsIcon },
-      { to: '/laboratorio', label: 'Laboratorio', sub: 'Simulador de mazos', icon: LabIcon },
-      { to: '/misiones', label: 'Misiones', sub: 'Órdenes del día', icon: DeathStarIcon },
-      { to: '/contador', label: 'Contador de daños', sub: 'Premier y Twin Suns', icon: ChanceCubeIcon },
-      { to: '/amistosas', label: 'Amistosas', sub: 'Historial cara a cara', icon: BlasterIcon },
-      { to: '/calendario', label: 'Calendario', sub: 'Los torneos del mes', icon: AgendaIcon },
-      /* Una sola entrada de mercado, igual que en Inicio y en la barra de
-         escritorio. Pedidos vive en la cabecera del mercado, con el número de
-         lo que espera un acto tuyo. */
-      { to: '/explore?tab=market', label: 'Mercado', sub: 'Comprar, vender y pedidos', icon: KyberIcon },
-      { to: '/prestamos', label: 'Préstamos', sub: 'Quién tiene tus cartas', icon: PedidoIcon },
-      { to: '/mensajes', label: 'Mensajes', sub: 'Conversaciones privadas', icon: TransmisionIcon },
-    ],
-  },
-  {
-    title: 'Comunidad',
-    items: [
-      { to: '/news', label: 'Noticias', sub: 'Agenda de torneos', icon: DatapadIcon },
-      { to: '/meta', label: 'Meta', sub: 'Torneos y matchups', icon: MetaHoloIcon },
-      { to: '/community', label: 'Comunidades', sub: 'El Salvador', icon: RebelIcon },
-      { to: '/rank', label: 'Ranking', sub: 'Quién gana partidas', icon: BeskarIcon },
-      // Dos entradas porque son dos trabajos: la Galaxia es MIRAR a la
-      // comunidad (quién es quién, qué hizo de último) y el Explorador es
-      // BUSCAR dentro de ella (nombre, país, rankings).
-      { to: '/galaxia', label: 'La Galaxia', sub: 'Universo 3D', icon: StarfighterIcon },
-      { to: '/galaxy', label: 'Salas', sub: 'Chat y comandantes', icon: SalasIcon },
-      { to: '/binder-digital', label: 'Binder digital', sub: 'Lo que abriste', icon: BinderIcon },
-      { to: '/credencial', label: 'Mi Credencial', sub: 'Placa imprimible', icon: CredencialIcon },
-      { to: '/blog', label: 'Blog', sub: 'Análisis y artículos', icon: ArticuloIcon },
-      { to: '/espionaje', label: 'Espionaje', sub: 'Transmisiones', icon: SpyIcon },
-    ],
-  },
-  {
-    /* ── Mini Juegos ──
-       Existe en Inicio desde que Nel juntó lo que se juega DENTRO de la app, y
-       faltaba acá: el menú seguía repartiendo Sobredosis y Aurebesh en
-       Comunidad y colgando el Taller al final, suelto. Dos mapas distintos de
-       la misma app es cómo alguien deja de encontrar las cosas.
-
-       MISMO ORDEN QUE EN INICIO, y no es capricho: primero lo que DA créditos,
-       después lo que los GASTA, al final lo que no hace ninguna de las dos. */
-    title: 'Mini Juegos',
-    items: [
-      { to: '/sobres', label: 'Sobredosis', sub: 'Abrir sobres', icon: SobreIcon },
-      { to: '/trivia', label: 'Trivia', sub: 'Preguntas del canon', icon: HolocronIcon },
-      { to: '/sable', label: 'Taller Kyber', sub: 'Armá tu sable', icon: SaberIcon },
-      { to: '/terraformar', label: 'Terraformar', sub: 'Ponéle vida a tu mundo', icon: PlanetaAnilladoIcon },
-      { to: '/aurebesh', label: 'Aurebesh', sub: 'Traductor galáctico', icon: AurebeshIcon },
-    ],
-  },
-]
-
+/** El mismo mapa de módulos de Inicio y escritorio, adaptado al teléfono. */
 export function MoreNav() {
   const navigate = useNavigate()
   const { isAdmin } = useAuth()
 
-  const tile = (item: MoreItem) => (
+  const tile = (item: ModuloNavegacion) => (
     <button
       key={item.to}
       onClick={() => navigate(item.to)}
@@ -141,7 +28,7 @@ export function MoreNav() {
 
   return (
     <div className="lg:hidden space-y-4">
-      {GROUPS.map(group => (
+      {GRUPOS_NAVEGACION.map(group => (
         <section key={group.title}>
           <h3 className="text-[10px] font-mono tracking-[0.2em] uppercase text-swu-muted/60 mb-2 px-1">
             {group.title}

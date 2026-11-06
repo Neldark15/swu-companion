@@ -53,7 +53,7 @@ export function NotificationBell() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="relative p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+        className="relative flex h-11 w-11 items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
         aria-label="Notificaciones"
       >
         <Bell size={18} className="text-white/60" />
@@ -65,13 +65,13 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-72 max-h-80 overflow-y-auto rounded-xl border border-white/10 bg-[#1a1a2e]/95 backdrop-blur-xl shadow-2xl z-50">
+        <div className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-5rem)] max-h-80 overflow-y-auto rounded-xl border border-white/10 bg-[#1a1a2e]/95 backdrop-blur-xl shadow-2xl z-50">
           <div className="flex items-center justify-between p-3 border-b border-white/10">
             <span className="text-xs font-bold text-white/80">Notificaciones</span>
             {unreadCount > 0 && (
               <button
                 onClick={() => { markAllRead(); }}
-                className="text-[10px] text-indigo-400 hover:text-indigo-300"
+                className="min-h-11 px-2 text-[10px] text-indigo-400 hover:text-indigo-300"
               >
                 Marcar leídas
               </button>

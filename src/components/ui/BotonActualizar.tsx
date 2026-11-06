@@ -84,7 +84,7 @@ export function BotonActualizar() {
         disabled={comprobando}
         aria-label={etiqueta}
         title={etiqueta}
-        className={`relative rounded-lg p-1.5 transition-colors ${
+        className={`relative flex h-11 w-11 items-center justify-center rounded-lg transition-colors ${
           hayVersionNueva
             ? 'text-swu-accent-texto hover:bg-swu-surface-hover'
             : 'text-swu-muted hover:bg-swu-surface-hover hover:text-swu-text'

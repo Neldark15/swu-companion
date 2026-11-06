@@ -16,7 +16,7 @@ import type { ComponentType } from 'react'
  *    de la Base o por el menú de ajustes.
  *
  * 2. Los cinco destinos son los de la colección, no los del juego:
- *    Inicio · Explorar · Binder · Mercado · Perfil. Lo demás (Duelo, Torneo,
+ *    Inicio · Cartas · Mi Botín · Mercado · Perfil. Lo demás (Duelo, Torneo,
  *    Holocrón, Circuito, Mazos, Misiones, Comunidad, Consejo, Galaxia,
  *    Espionaje, Utilidades) vive agrupado dentro de Perfil, y en escritorio
  *    sigue entero en el sidebar.
@@ -30,14 +30,14 @@ type TabDef =
 
 const tabs: TabDef[] = [
   { id: '/', label: 'Inicio', icon: BaseIcon },
-  { id: '/cards', label: 'Explorar', icon: HolonetIcon },
-  { id: '/collection', label: 'Binder', icon: CargoIcon },
+  { id: '/cards', label: 'Cartas', icon: HolonetIcon },
+  { id: '/collection', label: 'Mi Botín', icon: CargoIcon },
   { id: '/explore', label: 'Mercado', icon: BountyIcon },
   { id: '/profile', label: 'Perfil', img: '/holocron-icon.png' },
 ]
 
 const TAB_EN: Record<string, string> = {
-  'Inicio': 'Home', 'Explorar': 'Explore', 'Binder': 'Binder', 'Mercado': 'Market', 'Perfil': 'Profile',
+  'Inicio': 'Home', 'Cartas': 'Cards', 'Mi Botín': 'Collection', 'Mercado': 'Market', 'Perfil': 'Profile',
 }
 
 export function TabBar() {

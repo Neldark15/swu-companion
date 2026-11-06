@@ -48,7 +48,7 @@ export function BarraInstalar() {
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-swu-border bg-swu-surface/95 px-3 py-2 backdrop-blur-md">
+    <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] lg:bottom-0 z-[60] border-t border-swu-border bg-swu-surface/95 px-3 py-2 backdrop-blur-md">
       <div className="mx-auto flex max-w-3xl items-center gap-2">
         <img src="/icon-192.png" alt="" className="h-8 w-8 shrink-0 rounded-lg" />
         <div className="min-w-0 flex-1">
@@ -60,11 +60,11 @@ export function BarraInstalar() {
         <button
           onClick={() => { setLanzando(true); void instalar().finally(() => setLanzando(false)) }}
           disabled={lanzando}
-          className="flex shrink-0 items-center gap-1.5 rounded-xl bg-swu-accent px-3 py-2 text-[12px] font-bold text-white disabled:opacity-60"
+          className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl bg-swu-accent px-3 py-2 text-[12px] font-bold text-white disabled:opacity-60"
         >
           <Download size={14} /> {lanzando ? 'Instalando…' : 'Instalar'}
         </button>
-        <button onClick={cerrar} aria-label="Ahora no" className="shrink-0 p-1.5 text-swu-muted">
+        <button onClick={cerrar} aria-label="Ahora no" className="flex h-11 w-11 shrink-0 items-center justify-center text-swu-muted">
           <X size={16} />
         </button>
       </div>

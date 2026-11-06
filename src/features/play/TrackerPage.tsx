@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, Save, RotateCcw, Shield, Sparkles, Zap, Check, Pencil, Trophy, Search, X, Users, Layers } from 'lucide-react'
 import { Counter } from '../../components/ui/Counter'
@@ -15,6 +15,7 @@ import type { GameMode, MatchState, GameResult, Card, Deck } from '../../types'
 interface PlayerData {
   name: string
   baseHp: number
+  baseMaxHp: number
   resources: number
   shields: number
   experience: number
@@ -31,7 +32,7 @@ function generateId() {
 }
 
 function createPlayer(idx: number, hp: number): PlayerData {
-  return { name: `Jugador ${idx + 1}`, baseHp: hp, resources: 0, shields: 0, experience: 0, leaderDeployed: false, baseName: '', baseImageUrl: '' }
+  return { name: `Jugador ${idx + 1}`, baseHp: hp, baseMaxHp: hp, resources: 0, shields: 0, experience: 0, leaderDeployed: false, baseName: '', baseImageUrl: '' }
 }
 
 function buildMatchState(
@@ -43,13 +44,17 @@ function buildMatchState(
   initiative: number,
   games: GameResult[],
   isActive: boolean,
+  createdAt: number,
 ): MatchState {
   return {
     id,
     mode: mode as GameMode,
-    players: players.slice(0, 2).map((p) => ({
+    players: players.map((p) => ({
       name: p.name,
       baseHp: p.baseHp,
+      baseMaxHp: p.baseMaxHp,
+      baseName: p.baseName,
+      baseImageUrl: p.baseImageUrl,
       leaderDeployed: p.leaderDeployed,
       leaderDamage: 0,
       resources: p.resources,
@@ -59,7 +64,7 @@ function buildMatchState(
     gameScore: { games, finalScore: gameScore },
     currentGame,
     initiativeHolder: initiative,
-    createdAt: Date.now(),
+    createdAt,
     updatedAt: Date.now(),
     isActive,
   }
@@ -81,6 +86,7 @@ export function TrackerPage() {
   const [, setPlayerCount] = useState(2)
   const [showPlayerCountPicker, setShowPlayerCountPicker] = useState(mode === 'twin_suns' && !resumeId)
 
+  const [createdAt, setCreatedAt] = useState(Date.now)
   const [matchId, setMatchId] = useState(() => resumeId || generateId())
   const [players, setPlayers] = useState<PlayerData[]>([
     createPlayer(0, startHp),
@@ -99,54 +105,55 @@ export function TrackerPage() {
   const [saveFlash, setSaveFlash] = useState(false)
   const [editingName, setEditingName] = useState<number | null>(null)
   const [resumenCargado, setResumenCargado] = useState(false)
+  const [errorCarga, setErrorCarga] = useState('')
+  const [intentoCarga, setIntentoCarga] = useState(0)
+  const loaded = resumeId ? resumenCargado : !showPlayerCountPicker
 
-  const matchState = buildMatchState(matchId, mode, players, gameScore, currentGame, initiative, games, !matchOver)
-  const { save, loadMatch, finishMatch } = useMatchPersistence(matchOver ? null : matchState)
+  const matchState = useMemo(() => buildMatchState(matchId, mode, players, gameScore, currentGame, initiative, games, !matchOver, createdAt),
+    [matchId, mode, players, gameScore, currentGame, initiative, games, matchOver, createdAt])
+  const { save, loadMatch, errorGuardado } = useMatchPersistence(loaded ? matchState : null)
 
   // Load decks for deck picker
   useEffect(() => {
     db.decks.toArray().then(setAvailableDecks)
   }, [])
 
-  // Load resumed match
+  // Nunca guardar los valores iniciales sobre una partida todavía por cargar.
   useEffect(() => {
-    if (resumeId && !resumenCargado) {
-      loadMatch(resumeId).then((m) => {
-        if (m) {
-          setMatchId(m.id)
-          setPlayers(
-            m.players.map((p) => ({
-              name: p.name,
-              baseHp: p.baseHp,
-              resources: p.resources,
-              shields: p.shieldTokens,
-              experience: p.experienceTokens,
-              leaderDeployed: p.leaderDeployed,
-              baseName: '',
-              baseImageUrl: '',
-            })),
-          )
-          setInitiative(m.initiativeHolder)
-          setGameScore(m.gameScore.finalScore)
-          setCurrentGame(m.currentGame)
-          setGames(m.gameScore.games)
-          setMatchOver(!m.isActive)
-          setShowPlayerCountPicker(false)
-        }
-        setResumenCargado(true)
-      })
-    }
-  }, [resumeId, loadMatch, resumenCargado])
-
-  /* `loaded` pasó a ser DERIVADO en vez de estado.
-   *
-   * La rama sin `resumeId` hacía `setLoaded(true)` dentro del cuerpo del
-   * efecto, o sea un render en cascada solo para pasar de «cargando» a
-   * «listo» en un caso que se sabe de antemano. Sin partida que reanudar no
-   * hay nada que cargar: basta con que el selector de jugadores ya no esté.
-   * El estado queda solo para el camino asíncrono, que es el único que de
-   * verdad espera algo. */
-  const loaded = resumeId ? resumenCargado : !showPlayerCountPicker
+    if (!resumeId || resumenCargado) return
+    let vigente = true
+    loadMatch(resumeId).then(m => {
+      if (!vigente) return
+      if (!m) {
+        setErrorCarga('No encontramos esta partida guardada en el dispositivo.')
+        return
+      }
+      setMatchId(m.id)
+      setCreatedAt(m.createdAt)
+      setPlayers(m.players.map(p => ({
+        name: p.name,
+        baseHp: p.baseHp,
+        baseMaxHp: p.baseMaxHp ?? Math.max(startHp, p.baseHp),
+        resources: p.resources,
+        shields: p.shieldTokens,
+        experience: p.experienceTokens,
+        leaderDeployed: p.leaderDeployed,
+        baseName: p.baseName ?? '',
+        baseImageUrl: p.baseImageUrl ?? '',
+      })))
+      setInitiative(m.initiativeHolder)
+      setGameScore(m.gameScore.finalScore)
+      setCurrentGame(m.currentGame)
+      setGames(m.gameScore.games)
+      setMatchOver(!m.isActive)
+      setShowPlayerCountPicker(false)
+      setErrorCarga('')
+      setResumenCargado(true)
+    }).catch(() => {
+      if (vigente) setErrorCarga('No se pudo abrir la partida guardada. Podés reintentar sin reemplazarla.')
+    })
+    return () => { vigente = false }
+  }, [resumeId, loadMatch, resumenCargado, intentoCarga, startHp])
 
   // Apply player count for Twin Suns
   const confirmPlayerCount = (count: number) => {
@@ -170,33 +177,12 @@ export function TrackerPage() {
           baseName: baseCard.name,
           baseImageUrl: baseCard.imageUrl,
           baseHp: baseCard.hp || startHp,
+          baseMaxHp: baseCard.hp || startHp,
         } : p))
       }
     }
     setShowDeckPicker(false)
   }
-
-  // Auto-save every 30s
-  const autoSaveRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  useEffect(() => {
-    if (matchOver) return
-    autoSaveRef.current = setInterval(() => {
-      const ms = buildMatchState(matchId, mode, players, gameScore, currentGame, initiative, games, true)
-      save(ms)
-    }, 30_000)
-    return () => { if (autoSaveRef.current) clearInterval(autoSaveRef.current) }
-  }, [matchId, mode, players, gameScore, currentGame, initiative, games, matchOver, save])
-
-  /* El guardado al desmontar se borró: `useMatchPersistence` ya lo hace, y bien.
-   *
-   * El efecto que estaba acá tenía `deps: []`, así que su función de limpieza
-   * se quedaba con el `matchOver`, el `matchId` y los `players` del PRIMER
-   * render. Consecuencia: una partida que cerrabas con el botón de finalizar
-   * se volvía a guardar al salir con `matchOver` capturado en `false` —o sea,
-   * como ACTIVA y en blanco— y reaparecía en «guardadas». También machacaba la
-   * partida anterior con el id viejo después de darle a «nueva partida».
-   *
-   * `useMatchPersistence` lee de un ref que sí está fresco. */
 
   /* Buscador de bases.
    *
@@ -223,7 +209,7 @@ export function TrackerPage() {
   const baseSearching = !!baseSearchQuery.trim() && baseSearchQuery !== ultimaBusqueda
 
   const selectBase = (card: Card, playerIdx: number) => {
-    setPlayers(prev => prev.map((p, i) => i === playerIdx ? { ...p, baseName: card.name, baseImageUrl: card.imageUrl, baseHp: card.hp || p.baseHp } : p))
+    setPlayers(prev => prev.map((p, i) => i === playerIdx ? { ...p, baseName: card.name, baseImageUrl: card.imageUrl, baseHp: card.hp || p.baseHp, baseMaxHp: card.hp || p.baseMaxHp } : p))
     setBasePickerFor(null)
     setBaseSearchQuery('')
     setBaseResults([])
@@ -240,7 +226,7 @@ export function TrackerPage() {
 
   const resetGame = () => {
     if (confirm('¿Iniciar nuevo game? Los contadores se resetearán.')) {
-      setPlayers((prev) => prev.map((p) => ({ ...p, baseHp: p.baseImageUrl ? p.baseHp : startHp, resources: 0, shields: 0, experience: 0, leaderDeployed: false })))
+      setPlayers((prev) => prev.map((p) => ({ ...p, baseHp: p.baseMaxHp, resources: 0, shields: 0, experience: 0, leaderDeployed: false })))
     }
   }
 
@@ -269,21 +255,25 @@ export function TrackerPage() {
         void updateMissionProgress(uid, 'match_played').catch(() => {})
         if (playerIdx === 0) void updateMissionProgress(uid, 'match_won').catch(() => {})
       }
-      const ms = buildMatchState(matchId, mode, players, newScore, currentGame, initiative, newGames, false)
-      finishMatch(ms)
     } else {
       setCurrentGame((prev) => prev + 1)
       setInitiative(playerIdx === 0 ? 1 : 0)
-      setPlayers((prev) => prev.map((p) => ({ ...p, baseHp: startHp, resources: 0, shields: 0, experience: 0, leaderDeployed: false })))
+      setPlayers((prev) => prev.map((p) => ({ ...p, baseHp: p.baseMaxHp, resources: 0, shields: 0, experience: 0, leaderDeployed: false })))
     }
   }
 
   const handleManualSave = async () => {
-    const ms = buildMatchState(matchId, mode, players, gameScore, currentGame, initiative, games, !matchOver)
-    await save(ms)
-    setSaveFlash(true)
-    setTimeout(() => setSaveFlash(false), 1200)
+    try {
+      await save(matchState)
+      setSaveFlash(true)
+      setTimeout(() => setSaveFlash(false), 1200)
+    } catch { /* El aviso del hook ofrece reintentar conservando la pantalla. */ }
   }
+
+  const avisoGuardado = errorGuardado && <div role="alert" className="rounded-xl border border-swu-amber/40 bg-swu-amber/10 p-3 text-xs text-swu-text">
+    No se pudo guardar la última jugada. Mantené esta pantalla abierta.
+    <button className="ml-2 min-h-11 font-bold underline" onClick={() => void handleManualSave()}>Reintentar guardado</button>
+  </div>
 
   const updateName = (idx: number, name: string) => {
     setPlayers((prev) => prev.map((p, i) => (i === idx ? { ...p, name: name || `Jugador ${i + 1}` } : p)))
@@ -435,8 +425,8 @@ export function TrackerPage() {
 
   if (!loaded) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-pulse text-swu-muted">Cargando partida...</div>
+      <div className="flex min-h-64 flex-col items-center justify-center gap-4 p-4 text-center">
+        {errorCarga ? <><p role="alert" className="text-swu-text">{errorCarga}</p><button className="min-h-11 rounded-lg bg-swu-accent px-4 text-white" onClick={() => { setErrorCarga(''); setIntentoCarga(n => n + 1) }}>Reintentar</button><button className="min-h-11 text-swu-muted" onClick={() => navigate('/play/saved')}>Ver partidas guardadas</button></> : <div className="animate-pulse text-swu-muted">Cargando partida...</div>}
       </div>
     )
   }
@@ -447,6 +437,7 @@ export function TrackerPage() {
     const winner = players[winnerIdx]
     return (
       <div className="p-4 flex flex-col items-center justify-center gap-6" style={{ minHeight: 'calc(var(--app-vh, 100vh) - 52px - 64px)' }}>
+        {avisoGuardado}
         <Trophy size={64} className="text-swu-amber" />
         <h2 className="text-2xl font-extrabold text-swu-text text-center">¡{winner.name} gana!</h2>
         <div className="flex items-center gap-3">
@@ -469,14 +460,16 @@ export function TrackerPage() {
             bilateral —lo confirma el rival— y se abre en una hoja desde
             /amistosas, sin parámetros de URL que leer. Fabricar ese puente sería
             rediseñarlo para salvar un flujo que nadie usó.
-            La partida NO se pierde: `finishMatch` ya la guardó y se ve en
+            La partida NO se pierde: el guardado por cambios conserva el resultado y se ve en
             /play/saved. */}
         <div className="flex gap-3 w-full max-w-xs">
           <button onClick={() => navigate('/play')} className="flex-1 py-3 rounded-xl bg-swu-surface border border-swu-border text-swu-text font-bold text-sm">Volver</button>
           <button
             onClick={() => {
               setMatchId(generateId())
-              setPlayers((prev) => prev.map((p) => ({ ...p, baseHp: startHp, resources: 0, shields: 0, experience: 0, leaderDeployed: false })))
+              setCreatedAt(Date.now())
+              setInitiative(0)
+              setPlayers((prev) => prev.map((p) => ({ ...p, baseHp: p.baseMaxHp, resources: 0, shields: 0, experience: 0, leaderDeployed: false })))
               setGameScore([0, 0])
               setCurrentGame(1)
               setGames([])
@@ -494,6 +487,7 @@ export function TrackerPage() {
 
   return (
     <div className="p-2 flex flex-col gap-1.5" style={{ height: 'calc(var(--app-vh, 100vh) - 52px - 64px)' }}>
+      {avisoGuardado}
       {/* Top bar */}
       <div className="flex items-center justify-between">
         <button onClick={() => navigate('/play')} className="flex items-center gap-1 text-sm text-swu-muted">

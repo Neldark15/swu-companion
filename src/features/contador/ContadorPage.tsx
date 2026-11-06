@@ -34,7 +34,7 @@ import {
   Swords, Dices, Undo2, Settings2, X, RotateCcw, Timer, ScrollText, Trophy, History, Users
 } from 'lucide-react'
 import { Avatar } from '../../components/ui/Avatar'
-import { Dice3D } from '../utilities/Dice3D'
+import { DadosMesa } from './DadosMesa'
 import { db } from '../../services/db'
 import { mazosParaContador, type MazoDeAlguien } from '../../services/amistosas'
 import { updateMissionProgress } from '../../services/missionService'
@@ -824,7 +824,7 @@ export function ContadorPage() {
                   <X size={16} className="text-swu-muted" />
                 </button>
               </div>
-              <Dice3D valores={dado.valores} tirada={dado.tirada} className="h-40" />
+              <DadosMesa valores={dado.valores} tirada={dado.tirada} />
               <div className="mt-3 grid grid-cols-2 gap-2">
                 {[1, 2].map(n => (
                   <button

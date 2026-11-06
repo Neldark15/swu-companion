@@ -2,6 +2,8 @@ import { lazy, Suspense } from 'react'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { AppLayout } from './components/layout/AppLayout'
+import { UpdatePrompt } from './components/UpdatePrompt'
+import { SincronizacionColeccion } from './components/SincronizacionColeccion'
 import { AuthGate } from './components/AuthGate'
 import { HolocronLoader } from './components/PageTransition'
 import { useRutaPersistente } from './hooks/useRutaPersistente'
@@ -163,8 +165,8 @@ const BancoCredencial = import.meta.env.DEV
 
 // Transmisión: overlay para OBS (anónimo, transparente) + estudio (panel admin).
 // Van FUERA de AppLayout, junto a /admin: sin Header, sin SideNav, sin TabBar y
-// —clave— sin UpdatePrompt, el único sitio que registra el service worker. Así
-// la ruta que consume OBS nunca instala un SW que le sirva el index.html cacheado.
+// El registro global excluye estas rutas para que OBS nunca instale un SW
+// solo por abrir la transmisión. El fallback de navegación también las excluye.
 const OverlayPage = lazy(() => import('./features/stream/OverlayPage').then(m => ({ default: m.OverlayPage })))
 const EstudioPage = lazy(() => import('./features/stream/EstudioPage').then(m => ({ default: m.EstudioPage })))
 const CabinasPage = lazy(() => import('./features/stream/CabinasPage').then(m => ({ default: m.CabinasPage })))
@@ -226,6 +228,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <MemoriaDeRuta />
+      <UpdatePrompt />
+      <SincronizacionColeccion />
       {/* Sin esto, cualquier error de render deja la pantalla en blanco, sin
           mensaje ni salida — y en la PWA instalada no hay ni barra de
           direcciones para escapar. */}

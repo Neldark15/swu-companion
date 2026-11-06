@@ -14,6 +14,8 @@
  */
 
 import type { ComponentType } from 'react'
+import { moduloDeRuta, type CategoriaNavegacion } from '../../components/layout/gruposNavegacion'
+import { ContinuarMesa } from '../calculadora/ContinuarMesa'
 import { useT } from '../../services/i18n'
 import { pendientesDeConfirmar } from '../../services/amistosas'
 import { pedidosPendientes } from '../../services/mercadoPedidos'
@@ -65,7 +67,7 @@ import { BotonLigaInicio } from '../liga/BotonLigaInicio'
 /* Avatar helper: detect image-based avatar vs emoji */
 
 /** Las familias de módulos, en el orden en que se muestran. */
-type Categoria = 'jugar' | 'competir' | 'construir' | 'coleccion' | 'minijuegos' | 'comunidad'
+type Categoria = CategoriaNavegacion
 
 const CATEGORIAS: {
   id: Categoria; titulo: string
@@ -137,7 +139,7 @@ interface Sistema {
  * El orden dentro de cada grupo es por uso esperado, no alfabético: lo que más
  * se toca, primero.
  */
-const mainSystems: Sistema[] = [
+const sistemasInicio: Sistema[] = [
   // ── Jugar: lo de la mesa, en vivo o para dejar registro ──
   { icon: ChanceCubeIcon,  label: 'Contador de daños', tone: 'cyan', to: '/contador', cat: 'jugar' },
   { icon: BlasterIcon, label: 'Amistosas',    tone: 'green',  to: '/amistosas',  cat: 'jugar' },
@@ -162,7 +164,7 @@ const mainSystems: Sistema[] = [
   // se arma un mazo y se prueba. (La Mesa 3D no tiene casilla propia a
   // propósito: es el paso final del Laboratorio y se abre desde ahí.)
   { icon: LabIcon,         label: 'Laboratorio',  tone: 'cyan',   to: '/laboratorio', cat: 'construir', auth: true },
-  { icon: HolonetIcon,     label: 'Buscar Cartas', tone: 'cyan',  to: '/cards',      cat: 'construir', auth: true },
+  { icon: HolonetIcon,     label: 'Buscar Cartas', tone: 'cyan',  to: '/cards',      cat: 'construir' },
   // PÚBLICO a propósito (sin auth): un juez en torneo consulta una regla sin
   // loguearse.
   { icon: HolocronIcon,    label: 'Rulings',      tone: 'cyan',   to: '/rulings',    cat: 'construir' },
@@ -225,6 +227,11 @@ const mainSystems: Sistema[] = [
   { icon: SpyIcon,         label: 'Espionaje',    tone: 'purple', to: '/espionaje',  cat: 'comunidad', auth: true },
   { icon: ArticuloIcon,     label: 'Blog',         tone: 'amber',  to: '/blog',       cat: 'comunidad' },
 ]
+
+const mainSystems = sistemasInicio.map(sistema => {
+  const modulo = moduloDeRuta(sistema.to)
+  return modulo ? { ...sistema, label: modulo.label, cat: modulo.categoria } : sistema
+})
 
 /**
  * Módulos SOLO de administración, en su propia sección.
@@ -443,6 +450,8 @@ export function HomePage() {
           <MiTorneo />
         </div>
       </section>
+
+      <div className="px-4 pt-4 empty:hidden"><ContinuarMesa /></div>
 
       {/* El sobre de las 8 de la mañana. Va primero porque es lo que acaba de
           pasar, y se puede cerrar: el sobre no se gasta al ocultar el aviso. */}

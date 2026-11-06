@@ -132,7 +132,7 @@ function SelectorIdioma({ valor, onChange, sinTraduccion }: {
             onClick={() => onChange(o.v)}
             // `min-w-0` + `truncate`: a 320px las tres opciones caben, pero si
             // el sistema agranda la fuente, que ceda la etiqueta y no la fila.
-            className={`flex-1 min-w-0 min-h-8 px-2 rounded-lg text-[11px] font-semibold
+            className={`flex-1 min-w-0 min-h-11 px-2 rounded-lg text-[11px] font-semibold
                         inline-flex items-center justify-center transition-colors
                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent
                         disabled:opacity-40 disabled:cursor-not-allowed
@@ -477,7 +477,7 @@ export function RulingsPage() {
         <div className="flex items-center gap-2.5">
           <BookMarked size={18} className="text-swu-cyan flex-shrink-0" />
           <div className="min-w-0 flex-1">
-            <h1 className="text-sm font-extrabold text-swu-text leading-tight">RULLINGS</h1>
+            <h1 className="text-sm font-extrabold text-swu-text leading-tight">REGLAS</h1>
             <p className="text-[10px] text-swu-muted font-mono leading-snug">
               Comprehensive Rules v{datos.meta.version} · {datos.meta.fecha} · Fantasy Flight Games
             </p>
@@ -486,7 +486,7 @@ export function RulingsPage() {
             href={datos.meta.pdf}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 text-[10px] font-mono text-swu-cyan hover:underline flex-shrink-0"
+            className="flex min-h-11 items-center gap-1 text-[10px] font-mono text-swu-cyan hover:underline flex-shrink-0"
           >
             PDF de FFG <ExternalLink size={10} />
           </a>
@@ -532,7 +532,7 @@ export function RulingsPage() {
             if (e.key === 'Enter' && idDirecto) irARegla(idDirecto)
           }}
           placeholder="Regla (7.4.2), texto o carta…"
-          className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-swu-surface border border-swu-border
+          className="w-full pl-9 pr-12 py-2.5 rounded-xl bg-swu-surface border border-swu-border
                      text-sm text-swu-text placeholder:text-swu-muted/60
                      focus:outline-none focus:border-swu-cyan/50 focus:ring-1 focus:ring-swu-cyan/30"
         />
@@ -540,7 +540,7 @@ export function RulingsPage() {
           <button
             onClick={() => { setConsulta(''); inputRef.current?.focus() }}
             aria-label="Limpiar búsqueda"
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-swu-muted hover:text-swu-text"
+            className="absolute right-0 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-xl text-swu-muted hover:text-swu-text"
           >
             <X size={14} />
           </button>
@@ -553,7 +553,7 @@ export function RulingsPage() {
           <button
             key={m}
             onClick={() => (mecSel === m ? irAlIndice() : irAMecanica(m))}
-            className={`flex-shrink-0 px-2.5 py-1 rounded-full border text-[11px] font-semibold transition-colors ${
+            className={`flex-shrink-0 min-h-11 px-3 py-2 rounded-full border text-[11px] font-semibold transition-colors ${
               mecSel === m
                 ? 'bg-swu-cyan/15 border-swu-cyan/40 text-swu-cyan'
                 : 'bg-swu-surface border-swu-border text-swu-muted hover:text-swu-text'

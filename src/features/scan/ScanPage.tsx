@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Sheet } from '../../components/ui/Sheet'
+import { AvisoSyncColeccion } from '../../components/SincronizacionColeccion'
 import { CardImage } from '../../components/CardImage'
 import { listFaceUrl, listFaceIsLandscape } from '../../services/cardArt'
 import { EmptyState } from '../../components/ui/EmptyState'
@@ -466,6 +467,7 @@ export function ScanPage({
       </div>
 
       <div className="max-w-lg lg:max-w-3xl mx-auto px-4 py-4 space-y-4">
+        <AvisoSyncColeccion />
         {/* ── Visor ── */}
         {estado !== 'manual' && (
           <div

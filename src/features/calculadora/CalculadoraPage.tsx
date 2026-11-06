@@ -6,7 +6,7 @@ import {
   Users, Volume2, VolumeX, X, Zap, Orbit, Repeat2,
 } from 'lucide-react'
 import {
-  CLAVE_CALCULADORA, crearMesa, cambiarVida, cambiarFuerza, deshacer, leerMesa,
+  CLAVE_CALCULADORA, crearMesa, crearRevancha, cambiarVida, cambiarFuerza, deshacer, leerMesa,
   puedeTomarFicha, siguienteRonda, tomarFicha,
   type BaseCalculadora, type FichaCalculadora, type JugadorCalculadora, type MesaCalculadora, type ModoCalculadora,
 } from './estadoCalculadora'
@@ -37,7 +37,7 @@ function leerOpciones(): Opciones {
 function cargarMesa() {
   try { return leerMesa(localStorage.getItem(CLAVE_CALCULADORA)) } catch { return null }
 }
-type Panel = 'registro' | 'ajustes' | 'nueva' | 'ronda' | null
+type Panel = 'registro' | 'ajustes' | 'nueva' | 'ronda' | 'revancha' | null
 type Impacto = { delta: number; secuencia: number }
 
 function Dialogo({ titulo, cerrar, children }: { titulo: string; cerrar: () => void; children: ReactNode }) {
@@ -164,6 +164,12 @@ export function CalculadoraPage({ modoInicial }: { modoInicial?: ModoCalculadora
     setImpactos({}); setPanel(null); setConfigurando(false); setAviso('')
     pulso(true)
   }
+  function revancha() {
+    if (!actual.current) return
+    actualizar(crearRevancha(actual.current))
+    setImpactos({}); setPanel(null); setFicha(null); setEditarId(null); setConfigurando(false); setAviso('')
+    pulso(true)
+  }
   function ajustar(id: string, delta: number) {
     const antes = actual.current
     if (!antes) return
@@ -247,8 +253,8 @@ export function CalculadoraPage({ modoInicial }: { modoInicial?: ModoCalculadora
         <p className="calc-ayuda">Escribí al menos 2 letras para buscar jugadores de Holocron o usá un nombre libre. Al elegir una base se carga su vida impresa.</p>
         {modo === 'premier' && jugadores.slice(0, 2).some(j => j.base?.usaFuerza) && <p className="calc-ayuda">Tu ficha de Fuerza aparece junto a la vida: tocala para crearla cuando una carta lo indique y otra vez para usarla. Se conserva entre rondas.</p>}
         <button type="button" className="calc-opcion-linea" aria-pressed={opciones.enfrentados} onClick={() => opcion('enfrentados')}><Repeat2 size={18} /><span>Frente a frente<small>Girá los paneles de quienes están enfrente.</small></span><i className="calc-switch" /></button>
-        <button className="calc-empezar" type="submit"><Zap size={19} /> ENCENDER LA MESA <ArrowRight size={19} /></button>
-        <div className="calc-nota"><Shield size={12} /> Sin cuenta · Guardado local · Sin puntos de ranking</div>
+        <div className="calc-inicio-fijo"><button className="calc-empezar" type="submit"><Zap size={19} /> ENCENDER LA MESA <ArrowRight size={19} /></button>
+        <div className="calc-nota"><Shield size={12} /> Sin cuenta · Guardado local · Sin puntos de ranking</div></div>
         <Link className="calc-acceso-registrado" to="/contador/registrado"><History size={16} /><span>Duelo registrado<small>Partidas anteriores, Amistosas y Misiones</small></span><ChevronRight size={15} /></Link>
       </form>
     </div> : mesa && <>
@@ -263,7 +269,7 @@ export function CalculadoraPage({ modoInicial }: { modoInicial?: ModoCalculadora
         })}</div>
         <button className="calc-siguiente-ronda" onClick={abrirSiguienteRonda} disabled={!puedeAvanzar} aria-label="Siguiente ronda: restablecer fichas"><RotateCcw size={17} /><strong>Siguiente ronda</strong><span>Restablecer fichas</span><ChevronRight size={16} /></button>
       </div>
-      {(finalTwin || terminadoPremier) && <div className="calc-final" role="status"><Shield size={17} /><span>{finalTwin ? 'Fase final: al terminar esta fase gana la base con más vida. Empates comparten victoria. Anotá +5 al eliminador, si corresponde.' : `Base destruida. ${mesa.jugadores.find(j => j.vida > 0)?.nombre ?? 'Sin sobrevivientes'}${mesa.jugadores.some(j => j.vida > 0) ? ' gana el duelo.' : '.'}`} <small>¿Fue un toque accidental? Usá Deshacer.</small></span></div>}
+      {(finalTwin || terminadoPremier) && <div className="calc-final"><Shield size={17} /><span role="status">{finalTwin ? 'Fase final: al terminar esta fase gana la base con más vida. Empates comparten victoria. Anotá +5 al eliminador, si corresponde.' : `Base destruida. ${mesa.jugadores.find(j => j.vida > 0)?.nombre ?? 'Sin sobrevivientes'}${mesa.jugadores.some(j => j.vida > 0) ? ' gana el duelo.' : '.'}`} <small>¿Fue un toque accidental? Usá Deshacer.</small></span><button className="calc-revancha" onClick={() => setPanel('revancha')}><RotateCcw size={16} /> Revancha</button></div>}
       <div className={`calc-tablero jugadores-${mesa.jugadores.length}`}>
         {mesa.jugadores.map((j, i) => <Jugador key={j.id} jugador={j} indice={i} impacto={impactos[j.id]}
           invertir={opciones.enfrentados && (mesa.jugadores.length === 4 ? i < 2 : i === 0)}
@@ -291,6 +297,12 @@ export function CalculadoraPage({ modoInicial }: { modoInicial?: ModoCalculadora
       <Link className="calc-acceso-registrado" to="/contador/registrado"><History size={16} /><span>Duelo registrado<small>Partidas anteriores, Amistosas y Misiones</small></span><ChevronRight size={15} /></Link>
     </Dialogo>}
     {panel === 'nueva' && <Dialogo titulo="¿Encender una nueva mesa?" cerrar={() => setPanel(null)}><p>Esto reemplaza la partida guardada en este dispositivo y su registro.</p><button className="calc-empezar" onClick={empezar}>Empezar nueva partida <ArrowRight size={18} /></button><button className="calc-secundario" onClick={() => setPanel(null)}>Conservar la partida anterior</button></Dialogo>}
+    {panel === 'revancha' && mesa && <Dialogo titulo="¿Jugamos la revancha?" cerrar={() => setPanel(null)}>
+      {mesa.modo === 'twin-suns' && <p className="calc-ayuda">Confirmá solo cuando todos hayan terminado la fase final.</p>}
+      <p>Se conservan los jugadores y sus bases. La vida vuelve al máximo, comienza la ronda 1 y se restablecen todas las fichas. Esto reemplaza el registro de la mesa anterior.</p>
+      <button className="calc-empezar" onClick={revancha}><RotateCcw size={18} /> Revancha con estas bases</button>
+      <button className="calc-secundario" onClick={() => setPanel(null)}>Conservar esta mesa</button>
+    </Dialogo>}
     {panel === 'ronda' && mesa && <Dialogo titulo={`Pasar a ronda ${mesa.ronda + 1}`} cerrar={() => setPanel(null)}><p>Cuando todos hayan terminado el reagrupamiento, confirmá para restablecer las fichas.</p><p className="calc-ayuda">{mesa.modo === 'twin-suns' ? 'Explosión y Plan vuelven al centro. ' : ''}La iniciativa conserva su dueño, pero puede reclamarse de nuevo. Todos vuelven a poder tomar una ficha. Las vidas se conservan.{mesa.modo === 'premier' && mesa.jugadores.some(j => j.base?.usaFuerza) && ' Las fichas de Fuerza se conservan hasta usarlas.'}</p><button className="calc-empezar" disabled={!puedeAvanzar} onClick={avanzarRonda}>Siguiente ronda <ArrowRight size={18} /></button></Dialogo>}
     {ficha && mesa && <Dialogo titulo={FICHAS[ficha].nombre} cerrar={() => setFicha(null)}><p>{FICHAS[ficha].ayuda}</p><p className="calc-ficha-estado">{mesa.reclamadas.includes(ficha) ? `Ya tomada en la ronda ${mesa.ronda}. Volverá a estar disponible en la siguiente ronda.` : ficha === 'iniciativa' && mesa.fichas.iniciativa ? `${mesa.jugadores.find(j => j.id === mesa.fichas.iniciativa)?.nombre} conserva la iniciativa. Se puede reclamar de nuevo en esta ronda.` : 'Disponible para quien todavía no haya tomado otra ficha en esta ronda.'}</p><p className="calc-ayuda">Una ficha por jugador en cada ronda. Este control registra quién la tomó; los efectos se resuelven en la mesa.</p><div className="calc-elegir-jugador">{mesa.jugadores.map((j, i) => <button style={{ '--jugador': COLORES[i] } as CSSProperties} key={j.id} disabled={!puedeTomarFicha(mesa, j.id, ficha)} onClick={() => reclamar(j.id)}><span className="calc-asiento">0{i + 1}</span>{j.nombre}<span>{mesa.fichas[ficha] === j.id && mesa.reclamadas.includes(ficha) ? 'La tomó' : 'Reclamar'}</span></button>)}</div><button className="calc-secundario" disabled={!puedeAvanzar} onClick={abrirSiguienteRonda}><RotateCcw size={17} /> Siguiente ronda · restablecer fichas</button></Dialogo>}
     {basePara !== null && <Dialogo titulo={`Base · ${jugadores[basePara].nombre || `Jugador ${basePara + 1}`}`} cerrar={() => setBasePara(null)}><Suspense fallback={<p className="calc-ayuda" role="status">Abriendo catálogo de bases…</p>}><SelectorBaseCalculadora elegida={jugadores[basePara].base} onElegir={elegirBase} /></Suspense><button className="calc-secundario" onClick={() => elegirBase(null)}>Usar vida manual</button></Dialogo>}

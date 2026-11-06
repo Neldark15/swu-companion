@@ -10,6 +10,8 @@
  */
 
 import { db } from './db'
+import { guardarCantidadColeccion, vaciarColeccionLocal } from './collectionQueue'
+import { sincronizarColeccionPendiente } from './collectionSync'
 import { updateMissionProgress } from './missionService'
 import { supabase, isSupabaseReady } from './supabase'
 import { getPricesForCards, type PriceInfo, formatPrice, precioPromedio } from './pricing'
@@ -57,7 +59,7 @@ export async function getMyCollection(profileId?: string): Promise<CollectionIte
         .equals(profileId)
         .toArray() as CollectionItem[]
     }
-    return await db.collection.toArray() as CollectionItem[]
+    return await db.collection.filter(item => item.profileId === undefined).toArray() as CollectionItem[]
   } catch {
     return []
   }
@@ -87,32 +89,24 @@ export async function updateCollectionQuantity(
 ): Promise<boolean> {
   let antes = 0
   try {
-    const previa = await db.collection.get(cardId)
-    antes = previa && previa.profileId === profileId ? previa.quantity : 0
-    if (quantity <= 0) await db.collection.delete(cardId)
-    else await db.collection.put({ cardId, quantity, ...(profileId ? { profileId } : {}) })
+    antes = await guardarCantidadColeccion(cardId, Math.max(0, quantity), profileId)
   } catch (e) {
     console.warn('[Collection] Failed to save local quantity:', e)
     return false
   }
 
-  // El retorno confirma persistencia LOCAL. La sincronización durable se
-  // aborda aparte; un fallo remoto no debe inducir a agregar la misma copia
-  // otra vez cuando ya quedó en Dexie. Una sesión ajena al perfil no se usa.
-  if (userId && userId === profileId && isSupabaseReady()) {
-    try {
-      const { error } = quantity <= 0
-        ? await supabase.from('collection').delete().eq('user_id', userId).eq('card_id', cardId)
-        : await supabase.from('collection').upsert({ user_id: userId, card_id: cardId, quantity })
-      if (error) console.warn('[Collection] Cloud quantity not saved:', error.message)
-    } catch (e) {
-      console.warn('[Collection] Cloud quantity not saved:', e)
-    }
-    if (quantity > antes) {
-      void updateMissionProgress(userId, 'carta_agregada', quantity - antes).catch(() => {})
-    }
+  // Cantidad y operación pendiente se confirman en la misma transacción.
+  // Un fallo remoto no debe hacer que el escáner agregue la copia dos veces.
+  if (profileId) void sincronizarColeccionPendiente(profileId).catch(() => {})
+  if (userId && userId === profileId && quantity > antes && isSupabaseReady()) {
+    void updateMissionProgress(userId, 'carta_agregada', quantity - antes).catch(() => {})
   }
   return true
+}
+
+export async function borrarMiColeccion(profileId?: string): Promise<void> {
+  await vaciarColeccionLocal(profileId)
+  if (profileId) void sincronizarColeccionPendiente(profileId).catch(() => {})
 }
 
 /** El escáner no debe confundir un fallo de almacenamiento con cero copias,
@@ -123,10 +117,10 @@ export async function getScanQuantity(cardId: string, profileId?: string): Promi
 }
 
 /** Get the quantity of a specific card in collection */
-export async function getCardQuantity(cardId: string): Promise<number> {
+export async function getCardQuantity(cardId: string, profileId?: string): Promise<number> {
   try {
     const item = await db.collection.get(cardId) as CollectionItem | undefined
-    return item?.quantity ?? 0
+    return item?.profileId === profileId ? item?.quantity ?? 0 : 0
   } catch {
     return 0
   }

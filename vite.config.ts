@@ -2,9 +2,13 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { readFileSync } from 'node:fs'
+import type { Manifest } from 'vite'
+import { archivosPrecacheEsencial } from './scripts/precache-esencial'
 
 export default defineConfig({
   build: {
+    manifest: true,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -40,8 +44,8 @@ export default defineConfig({
       registerType: 'prompt',
       strategies: 'injectManifest',
       srcDir: 'src',
-      // Se registra a mano desde UpdatePrompt para poder engancharse a los
-      // callbacks de "hay una versión esperando".
+      // registroPwa gestiona el registro nativo y la recarga por pestaña;
+      // UpdatePrompt lo monta en la raíz, también en el contador directo.
       injectRegister: null,
       includeAssets: ['favicon.svg', 'robots.txt', 'apple-touch-icon.png'],
       manifest: {
@@ -70,6 +74,11 @@ export default defineConfig({
         // emblema— son todas webp, y sin esto ninguna entraba al precache mientras
         // que 3,3 MB de PNG que no usa nadie sí entraban.
         globPatterns: ['**/*.{js,css,html,ico,png,webp,svg,woff2}'],
+        manifestTransforms: [async (entradas) => {
+          const grafo = JSON.parse(readFileSync('dist/.vite/manifest.json', 'utf8')) as Manifest
+          const esenciales = archivosPrecacheEsencial(grafo)
+          return { manifest: entradas.filter(entrada => esenciales.has(entrada.url)), warnings: [] }
+        }],
       },
       devOptions: {
         enabled: false,

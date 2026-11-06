@@ -84,6 +84,12 @@ export function esStandalone(): boolean {
  *   pared delante mata la cadena que queremos que corra.
  */
 const RUTAS_LIBRES = [
+  // La bienvenida y la consulta de cartas se pueden probar antes de instalar.
+  // La cuenta sigue siendo necesaria para sincronizar o usar funciones privadas.
+  /^\/$/,
+  /^\/cards(?:\/|$)/,
+  /^\/contador(?:\/mesa)?\/?$/,
+  /^\/calculadora\/?$/,
   // Los bancos son solo de desarrollo y se podan del bundle de producción.
   // Van libres porque la puerta hacía imposible revisar un diseño MÓVIL en un
   // teléfono: tapaba justo la pantalla que hay que mirar.

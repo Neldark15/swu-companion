@@ -8,7 +8,7 @@
 
 import { precacheAndRoute, createHandlerBoundToURL, cleanupOutdatedCaches } from 'workbox-precaching'
 import { registerRoute, NavigationRoute } from 'workbox-routing'
-import { StaleWhileRevalidate } from 'workbox-strategies'
+import { CacheFirst, StaleWhileRevalidate } from 'workbox-strategies'
 import { ExpirationPlugin } from 'workbox-expiration'
 import { clientsClaim } from 'workbox-core'
 
@@ -37,6 +37,40 @@ cleanupOutdatedCaches()
 // ─── Precache (manifest injected at build time) ──────────
 precacheAndRoute(self.__WB_MANIFEST)
 
+// Los chunks opcionales llevan hash: se bajan y conservan al usarlos. El
+// precache esencial incluye el cierre de imports del shell y las herramientas
+// de mesa; aquí entran 3D, laboratorio y demás pantallas bajo demanda.
+registerRoute(
+  ({ url, request }) => url.origin === self.location.origin
+    && url.pathname.startsWith('/assets/')
+    && ['script', 'style', 'font', 'image', ''].includes(request.destination),
+  new CacheFirst({
+    cacheName: 'holocron-modulos',
+    plugins: [new ExpirationPlugin({ maxEntries: 220, maxAgeSeconds: 60 * 60 * 24 * 30 })],
+  })
+)
+
+// Arte de bases/cartas ya consultadas. No se cachea el resto de /api ni datos
+// privados: este proxy solo entrega imágenes públicas con URL inmutable.
+registerRoute(
+  ({ url }) => url.origin === self.location.origin && url.pathname === '/api/img',
+  new CacheFirst({
+    cacheName: 'holocron-cartas-imagenes',
+    plugins: [new ExpirationPlugin({ maxEntries: 160, maxAgeSeconds: 60 * 60 * 24 * 30 })],
+  })
+)
+
+// Portadas públicas de rutas fijas: guardar solo las vistas, pero refrescarlas
+// cuando cambia el arte sin cambiar el nombre del archivo.
+registerRoute(
+  ({ url, request }) => url.origin === self.location.origin
+    && request.destination === 'image' && !url.pathname.startsWith('/api/'),
+  new StaleWhileRevalidate({
+    cacheName: 'holocron-arte-publico',
+    plugins: [new ExpirationPlugin({ maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 30 })],
+  })
+)
+
 // ─── SPA navigation fallback ──────────────────────────────
 // Any client-side route (/admin, /events, /profile, etc.) should be served
 // by the cached index.html so React Router can handle it. Without this,
@@ -58,7 +92,8 @@ registerRoute(
        * el fallback de navegación le serviría el index.html precacheado a TODA
        * navegación y el overlay nunca cargaría. Van a la red. */
       /^\/overlay\//,
-      /^\/estudio\//,
+      /^\/estudio(?:\/|\?|$)/,
+      /^\/events\/live(?:\/|\?|$)/,
       /* Archivos con extensión → a la red, no al index.html.
        *
        * `NavigationRoute` prueba estas regex contra `pathname + search`, no

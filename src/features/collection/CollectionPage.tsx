@@ -22,6 +22,7 @@ import { LayoutGrid, List } from 'lucide-react'
 import {
   getMyCollectionWithPrices,
   updateCollectionQuantity,
+  borrarMiColeccion,
   calculateCollectionStats,
   toggleProfilePublic,
   getMyPublicStatus,
@@ -34,8 +35,7 @@ import {
 import { formatPrice, fetchTCGPrices, precioPromedio } from '../../services/pricing'
 import { importCollectionFromFile, type ImportResult } from '../../services/collectionImport'
 import { exportCollection, downloadFile, EXPORT_FORMATS, type ExportFormat } from '../../services/collectionExport'
-import { db } from '../../services/db'
-import { supabase, isSupabaseReady } from '../../services/supabase'
+import { AvisoSyncColeccion } from '../../components/SincronizacionColeccion'
 import { CardImage } from '../../components/CardImage'
 import type { Card } from '../../types'
 
@@ -100,6 +100,7 @@ export function CollectionPage() {
   const [showExport, setShowExport] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [exportStatus, setExportStatus] = useState('')
+  const [errorGuardado, setErrorGuardado] = useState('')
 
   // Marketplace state — which of my cards are listed for sale
   const [listings, setListings] = useState<Map<string, MyListingSummary>>(new Map())
@@ -427,6 +428,7 @@ export function CollectionPage() {
     card?: Card,
   ) => {
     const qty = Math.max(0, newQty)
+    setErrorGuardado('')
 
     // El mapa `cards` solo se llenaba en la carga inicial, así que una carta
     // agregada desde una casilla VACÍA del binder no estaba ahí: la fila nueva
@@ -446,12 +448,16 @@ export function CollectionPage() {
       return prev.map(i => (i.cardId === cardId ? { ...i, quantity: qty } : i))
     })
 
-    await updateCollectionQuantity(
+    const guardado = await updateCollectionQuantity(
       cardId,
       qty,
       currentProfileId ?? undefined,
       supabaseUser?.id,
     )
+    if (!guardado) {
+      setItems(await getMyCollectionWithPrices(currentProfileId ?? undefined))
+      setErrorGuardado('No se pudo guardar el cambio. Revisá el almacenamiento del dispositivo e intentá de nuevo.')
+    }
   }, [currentProfileId, supabaseUser])
 
   const handleQuantityChange = useCallback(async (cardId: string, delta: number) => {
@@ -540,26 +546,17 @@ export function CollectionPage() {
   const handleDeleteCollection = useCallback(async () => {
     setDeleting(true)
     try {
-      // Clear local Dexie collection for this profile
-      if (currentProfileId) {
-        const toDelete = await db.collection.where('profileId').equals(currentProfileId).primaryKeys()
-        await db.collection.bulkDelete(toDelete)
-      } else {
-        await db.collection.clear()
-      }
-      // Clear cloud collection
-      if (supabaseUser?.id && isSupabaseReady()) {
-        await supabase.from('collection').delete().eq('user_id', supabaseUser.id)
-      }
+      await borrarMiColeccion(currentProfileId ?? undefined)
       setItems([])
       setCards(new Map())
       setShowDeleteConfirm(false)
     } catch (e) {
       console.warn('[Collection] Failed to delete:', e)
+      setErrorGuardado('No se pudo borrar la colección. Tus cartas se conservan; intentá de nuevo.')
     } finally {
       setDeleting(false)
     }
-  }, [currentProfileId, supabaseUser])
+  }, [currentProfileId])
 
   const handleExport = useCallback(async (format: ExportFormat) => {
     if (exporting || items.length === 0) return
@@ -625,6 +622,8 @@ export function CollectionPage() {
       </div>
 
       <div className="max-w-lg lg:max-w-5xl mx-auto px-4 lg:px-6 py-4 space-y-4">
+        <AvisoSyncColeccion />
+        {errorGuardado && <p role="alert" className="rounded-xl border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-300">{errorGuardado}</p>}
         {/* Stats */}
         <div className="grid grid-cols-4 lg:grid-cols-4 gap-2 lg:gap-3">
           <div className="bg-swu-surface rounded-xl p-3 text-center border border-swu-border">
