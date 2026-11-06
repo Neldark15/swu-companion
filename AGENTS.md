@@ -15,7 +15,7 @@ Vite 7 + React 19 + TypeScript 5.9 (strict, `noUnusedLocals/Parameters`) + Tailw
 - `src/features/calculadora/` — Contador de daños visual `/contador`, Twin Suns `/contador/mesa`, alias `/calculadora`. Bases canónicas y guardado local; los contadores que registran resultados se conservan en `/contador/registrado`, destino de Misiones y Amistosas. Ver CLAUDE §5o.
 - `src/services/` — ~120 servicios. Claves: `supabase.ts` (cliente), `swuApi.ts` (catálogo Dexie + red), `db/` (esquema Dexie), `sync.ts` (patrón de referencia para joins), `sobres.ts`, `ligaService.ts`, `tournamentCloud.ts`, `swiss.ts`, `pricing.ts`, `cardHash.ts`, `rulingsService.ts`.
 - `src/hooks/useAuth.ts` — sesión (Zustand persist), `useRutaPersistente.ts` — restaura la ruta en la PWA.
-- `src/sw.ts` — service worker propio (`injectManifest`); `src/components/UpdatePrompt.tsx` — aviso de versión nueva.
+- `src/sw.ts` — service worker propio (`injectManifest`); `src/services/registroPwa.ts` — registro nativo global y recarga segura por pestaña; `src/components/UpdatePrompt.tsx` — aviso de versión nueva.
 - `api/*.ts` — 19 funciones serverless de Vercel: proxies cerrados (`img`, `tcg-prices`, `swu-events`, `swu-stats`, `melee-profile`, `sim`), push (`_push`, `send-push`, `avisar-*`, `notify-listing`, `sable-recordatorio`) y crons (`meta-ingesta`, `torneos-vencidos`, `sobre-diario`, `bot-noticias`, `vencer-pedidos`, `transmision-avisar`, `liga-reloj`).
 - `supabase/migrations/` — 118 `.sql` con nombre descriptivo, **sin numerar**; se aplican a mano (ver §5).
 - `public/datos-cr/` — rulings (`index.json`, `es.json`, `cartas.json`); `public/card-hashes.bin` — índice del escáner (252 KB).
@@ -36,7 +36,7 @@ npm run dev
 
 ## 4. Cómo probar / verificar un cambio antes de darlo por hecho
 - **Siempre** `npm run build` (= `tsc -b && vite build`, TS estricto) y `npm run lint` antes de commitear. Un error de tipos rompe el deploy.
-- No hay test runner (ni vitest ni jest): las pruebas son programas que pasan en silencio o lanzan. Por área: `npm run misiones`, `npm run ranking-fuentes`, `npm run liga`, `npm run torneos-puerta`, `npm run torneo-vivo`, `npm run precon`, `npm run proyeccion`, `npm run agrupar-coste`, `npm run foto-perfil`, `npm run embebidos-perfil`, `npm run medir-precache`. Sueltos: `npx tsx src/services/notificaciones.test.ts`, `node scripts/actualizacion-rutas.test.mjs` (obligatorio al tocar `SEGURAS` de UpdatePrompt), `npx tsx scripts/<archivo>.test.mts` para el resto.
+- No hay test runner (ni vitest ni jest): las pruebas son programas que pasan en silencio o lanzan. Por área: `npm run misiones`, `npm run ranking-fuentes`, `npm run liga`, `npm run torneos-puerta`, `npm run torneo-vivo`, `npm run precon`, `npm run proyeccion`, `npm run agrupar-coste`, `npm run foto-perfil`, `npm run embebidos-perfil`, `npm run medir-precache`. Sueltos: `npx tsx src/services/notificaciones.test.ts`, `node scripts/actualizacion-rutas.test.mjs` (obligatorio al tocar `SEGURAS` de politicaActualizacion), `npx tsx scripts/<archivo>.test.mts` para el resto.
 - Bancos visuales en dev: `/banco-sobres`, `/banco-credencial`, `/banco-avatares`, `/banco-lobby-liga`, etc. (lista en `App.tsx`).
 - Verificar el deploy por la API/dashboard de Vercel (`state: READY` + commit sha), **nunca** con `curl` en bucle al dominio (dispara el escudo antibots, CLAUDE.md §3r).
 - Para medir cambios de peso/red, usar un perfil de Chrome NUEVO: el service worker sirve la app vieja desde su precaché (§2t).
@@ -62,7 +62,7 @@ Lo que NO se publica solo: las migraciones SQL (`supabase/migrations/`) se aplic
 - §2f supabase-js NO lanza excepción: desestructurar `error` siempre, o el fallo parece «no hay datos».
 - §2b/§2c Buscador LOCAL-FIRST sobre ~9.000 filas en Dexie; el API ignora casi todos los filtros. Centinela `isDatabaseComplete` + `DB_DATA_VERSION` (subirla al calcular un campo nuevo).
 - §2d/§2h `isCanonical` (buscador, 2.316) ≠ `isCollectible` (progreso, `Standard`, 2.089) ≠ oferta de intercambio. `total_cards` del API está mal (§2e).
-- §2g PWA: `registerType: 'prompt'`, `skipWaiting()` solo al recibir `SKIP_WAITING`; se aplica sola si la app está oculta o en ruta de la lista BLANCA `SEGURAS`; el resto pregunta.
+- §2g PWA: `registerType: 'prompt'`, `skipWaiting()` solo al recibir `SKIP_WAITING`; se aplica sola solo en rutas de la lista BLANCA `SEGURAS`; ocultar una partida NO permite recargarla. Las partidas aplazan el aviso, el resto pregunta. Ver §5u.
 - §2v/§2w Sesión: `authListo`, hidratación desde Dexie antes de la red, `signOut({ scope: 'local' })`; la ruta se restaura con cinco guardas que son todas necesarias.
 - §2k Precios vía `/api/tcg-prices` (tcgcsv sin CORS, exige `User-Agent`); set nuevo → `SET_GROUP_MAP` + `ALLOWED_GROUPS`.
 - §2l/§2n/§2p Datos de melee.gg y swu-competitivehub son ajenos: atribución, `Crawl-Delay` 5 s compartido en la base (`meta_tomar_turno`), UA que empiece con `Mozilla`, paginar por lo que VINO, `Rank` es la única verdad por ronda.
@@ -94,6 +94,6 @@ Lo que NO se publica solo: las migraciones SQL (`supabase/migrations/`) se aplic
 - Nunca secretos en el repo ni en estos .md.
 - Todo hallazgo medido que cambie una regla va también al `CLAUDE.md`, como sección nueva al final con el § siguiente; no reescribir secciones ajenas.
 
-- §5m Escáner: guías y recortes comparten `encuadreEscaner.ts` y mantienen proporción física; `CicloEscaner` separa arte/OCR, confirma dos frames y descarta resultados viejos. No bajar umbrales del hash. `updateCollectionQuantity` devuelve éxito local booleano (sin cola durable aún). `getScanQuantity` filtra perfil exacto. Faltantes de mazo suma impresiones compatibles de colección física y enlaza a mercado filtrado. Banco `/banco-escaner` e imágenes solo DEV. Ver pruebas y limitaciones en §5m.
+- §5m Escáner: guías y recortes comparten `encuadreEscaner.ts` y mantienen proporción física; `CicloEscaner` separa arte/OCR, confirma dos frames y descarta resultados viejos. No bajar umbrales del hash. `updateCollectionQuantity` devuelve éxito local booleano; la cola durable de Dexie v11 sincroniza y protege los cambios pendientes (§5u). `getScanQuantity` filtra perfil exacto. Faltantes de mazo suma impresiones compatibles de colección física y enlaza a mercado filtrado. Banco `/banco-escaner` e imágenes solo DEV. Ver pruebas y limitaciones en §5m.
 
 - §5n Jugar online: preparar motor fijado antes de probar; `npm --prefix services/juego test` + `run test:motor`, programas `scripts/jugar-{cliente,conexion,mazos,vista}.test.mts`. Banco DEV con `npm run dev:jugar`. Sala/hand privadas por Auth; UUID inmutable, reconexión con GET, generación al iniciar otra partida. Un proceso/volumen; reinicio interrumpe sin ganador. Hosting y `VITE_JUEGO_URL` pendientes de configurar para publicar; sin SQL ni estadísticas nuevas.

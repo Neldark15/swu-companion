@@ -14,7 +14,8 @@
  */
 
 import { db } from './db'
-import { supabase, isSupabaseReady } from './supabase'
+import { guardarCantidadColeccion, vaciarColeccionLocal } from './collectionQueue'
+import { sincronizarColeccionPendiente } from './collectionSync'
 import { loadFullDatabase } from './swuApi'
 
 export interface ImportedCard {
@@ -277,22 +278,14 @@ export async function importToCollection(
   // If replace mode, clear existing collection first
   if (mode === 'replace') {
     try {
-      // Only clear cards for the current profile, not the entire table
-      if (profileId) {
-        const toDelete = await db.collection.where('profileId').equals(profileId).primaryKeys()
-        await db.collection.bulkDelete(toDelete)
-      } else {
-        await db.collection.clear()
-      }
-      if (userId && isSupabaseReady()) {
-        await supabase.from('collection').delete().eq('user_id', userId)
-      }
+      await vaciarColeccionLocal(profileId)
     } catch (e) {
       // El motivo REAL va en el mensaje: «Error al limpiar» a secas no deja
       // diagnosticar nada, y esto sale en la pantalla de importación.
       result.errors.push(
         `Error al limpiar colección existente: ${e instanceof Error ? e.message : String(e)}`,
       )
+      return result
     }
   }
 
@@ -349,7 +342,6 @@ export async function importToCollection(
 
   // Process each consolidated card
   let processed = 0
-  const batchCloud: { user_id: string; card_id: string; quantity: number }[] = []
 
   for (const [, card] of consolidated) {
     const cardId = resolveCardId(card.setCode, card.cardNumber)
@@ -368,14 +360,10 @@ export async function importToCollection(
         // Get existing quantity and add — filter by profileId if present
         const existing = profileId
           ? await db.collection.where({ cardId, profileId }).first() as { quantity?: number } | undefined
-          : await db.collection.get(cardId) as { quantity?: number } | undefined
+          : await db.collection.filter(item => item.cardId === cardId && item.profileId === undefined).first()
         const newQty = (existing?.quantity ?? 0) + card.quantity
 
-        await db.collection.put({ cardId, quantity: newQty, ...(profileId ? { profileId } : {}) })
-
-        if (userId && isSupabaseReady()) {
-          batchCloud.push({ user_id: userId, card_id: cardId, quantity: newQty })
-        }
+        await guardarCantidadColeccion(cardId, newQty, profileId)
 
         if (existing) {
           result.updated++
@@ -384,11 +372,7 @@ export async function importToCollection(
         }
       } else {
         // Replace mode: just set the quantity
-        await db.collection.put({ cardId, quantity: card.quantity, ...(profileId ? { profileId } : {}) })
-
-        if (userId && isSupabaseReady()) {
-          batchCloud.push({ user_id: userId, card_id: cardId, quantity: card.quantity })
-        }
+        await guardarCantidadColeccion(cardId, card.quantity, profileId)
         result.added++
       }
     } catch (e) {
@@ -401,20 +385,8 @@ export async function importToCollection(
     }
   }
 
-  // Batch sync to cloud
-  if (batchCloud.length > 0 && userId && isSupabaseReady()) {
-    try {
-      // Upsert in chunks of 100
-      for (let i = 0; i < batchCloud.length; i += 100) {
-        const chunk = batchCloud.slice(i, i + 100)
-        await supabase.from('collection').upsert(chunk)
-      }
-    } catch (e) {
-      result.errors.push(
-        `Error al sincronizar con la nube: ${e instanceof Error ? e.message : String(e)}`,
-      )
-    }
-  }
+  // Todo queda durable antes de intentar la red; tampoco se pierde un reemplazo.
+  if (profileId && userId === profileId) void sincronizarColeccionPendiente(profileId).catch(() => {})
 
   onProgress?.(consolidated.size, consolidated.size)
   return result

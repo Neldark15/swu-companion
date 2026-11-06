@@ -118,6 +118,11 @@ export function crearMesa(modo: ModoCalculadora, jugadores: Array<{ nombre: stri
   }
 }
 
+/** Conserva la preparación, nunca el daño ni las fichas de la partida anterior. */
+export function crearRevancha(mesa: MesaCalculadora): MesaCalculadora {
+  return crearMesa(mesa.modo, mesa.jugadores)
+}
+
 export function cambiarVida(mesa: MesaCalculadora, id: string, delta: number): MesaCalculadora {
   if (!Number.isSafeInteger(delta) || delta === 0) return mesa
   const jugador = mesa.jugadores.find(j => j.id === id)

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Settings, X, Hexagon, ChevronLeft } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { NotificationBell } from '../ui/NotificationBell'
+import { moduloDeRuta } from './gruposNavegacion'
 import { BotonActualizar } from '../ui/BotonActualizar'
 
 const menuItems = [
@@ -13,7 +14,9 @@ const menuItems = [
 
 /* Maps route to a page title for desktop breadcrumb */
 function getPageTitle(pathname: string): string {
-  if (pathname === '/') return 'Base'
+  if (pathname === '/') return 'Inicio'
+  const modulo = moduloDeRuta(pathname)
+  if (modulo) return modulo.label
   if (pathname.startsWith('/play')) return 'Duelo'
   if (pathname.startsWith('/jugar')) return 'Jugar online'
   if (pathname.startsWith('/rank')) return 'Ranking'
@@ -24,11 +27,11 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith('/events/melee')) return 'Torneos de Melee'
   if (pathname.startsWith('/events')) return 'Torneos'
   if (pathname.startsWith('/profile')) return 'Mi Perfil'
-  if (pathname.startsWith('/cards')) return 'Buscar Cartas'
+  if (pathname.startsWith('/cards')) return 'Cartas'
   if (pathname.startsWith('/decks')) return 'Mis Decks'
   if (pathname.startsWith('/collection')) return 'Mi Botín'
   if (pathname.startsWith('/sobres')) return 'Sobredosis'
-  if (pathname.startsWith('/explore')) return 'Contrabando'
+  if (pathname.startsWith('/explore')) return 'Mercado'
   if (pathname.startsWith('/utilities')) return 'Utilidades'
   if (pathname.startsWith('/misiones')) return 'Misiones'
   if (pathname.startsWith('/espionaje')) return 'Espionaje'
@@ -58,15 +61,15 @@ export function Header() {
   if (/^\/(sable|banco-sable-3d)\/?$/.test(location.pathname)) return null
 
   return (
-    <header className="sticky top-0 z-50 bg-swu-surface shadow-[0_4px_10px_#111118] px-4 lg:px-6 py-3 flex items-center justify-between">
+    <header className="sticky top-0 z-50 bg-swu-surface shadow-[0_4px_10px_#111118] px-3 lg:px-6 py-3 flex items-center justify-between gap-2">
       {/* Left side: Base button (on inner pages) or logo (on home) */}
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
         {isHome ? (
           <>
             {/* Mobile: logo */}
-            <div className="lg:hidden flex items-center gap-2">
-              <span className="text-lg font-extrabold text-swu-amber tracking-tight">HOLOCRON</span>
-              <span className="text-base font-semibold text-swu-text">SWU</span>
+            <div className="lg:hidden flex min-w-0 items-center gap-1.5">
+              <span className="text-base sm:text-lg font-extrabold text-swu-amber tracking-tight">HOLOCRON</span>
+              <span className="text-sm sm:text-base font-semibold text-swu-text">SWU</span>
             </div>
             {/* Desktop: page title */}
             <div className="hidden lg:flex items-center gap-3">
@@ -78,20 +81,20 @@ export function Header() {
             {/* Mobile: Back to Base button */}
             <button
               onClick={() => navigate('/')}
-              className="lg:hidden flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-swu-bg neu-inset text-swu-muted hover:text-swu-accent-texto active:scale-95 transition-all"
+              className="lg:hidden flex min-h-11 shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-swu-bg neu-inset text-swu-muted hover:text-swu-accent-texto active:scale-95 transition-all"
             >
               <Hexagon size={16} className="text-swu-accent-texto" />
-              <span className="text-xs font-bold tracking-wide">Base</span>
+              <span className="text-xs font-bold tracking-wide">Inicio</span>
             </button>
             {/* Mobile: page title next to base button */}
-            <span className="lg:hidden text-sm font-semibold text-swu-text ml-1">{pageTitle}</span>
+            <span className="lg:hidden min-w-0 truncate text-sm font-semibold text-swu-text">{pageTitle}</span>
             {/* Desktop: breadcrumb style */}
             <div className="hidden lg:flex items-center gap-2">
               <button
                 onClick={() => navigate('/')}
                 className="text-sm text-swu-muted hover:text-swu-accent-texto transition-colors font-medium"
               >
-                Base
+                Inicio
               </button>
               <ChevronLeft size={14} className="text-swu-muted rotate-180" />
               <h1 className="text-lg font-bold text-swu-text">{pageTitle}</h1>
@@ -100,7 +103,7 @@ export function Header() {
         )}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1">
         {/* Actualizar, A LA PAR de la campana. La app ya se actualiza sola
             (§2g), pero quien acaba de ver un cambio anunciado y no lo tiene no
             tenía dónde tocar: la comprobación manual vivía a cuatro toques,
@@ -110,8 +113,9 @@ export function Header() {
       <div className="relative" ref={menuRef}>
         <button
           onClick={() => setOpen(!open)}
-          className="p-1.5 rounded-lg text-swu-muted hover:text-swu-text hover:bg-swu-surface-hover transition-colors"
-          aria-label="Settings"
+          className="flex h-11 w-11 items-center justify-center rounded-lg text-swu-muted hover:text-swu-text hover:bg-swu-surface-hover transition-colors"
+          aria-label="Configuración"
+          aria-expanded={open}
         >
           {open ? <X size={22} /> : <Settings size={22} />}
         </button>

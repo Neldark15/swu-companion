@@ -5,7 +5,6 @@ import { Header } from './Header'
 import { SideNav } from './SideNav'
 import { TabBar } from './TabBar'
 import { ID_SCROLL } from '../../services/scrollApp'
-import { UpdatePrompt } from '../UpdatePrompt'
 import { useAuth } from '../../hooks/useAuth'
 import { NotificationToast } from '../ui/NotificationToast'
 import { PageTransition } from '../PageTransition'
@@ -102,8 +101,6 @@ export function AppLayout() {
         {/* Navegación principal en móvil — el sidebar la cubre en escritorio */}
         <TabBar />
 
-        {/* Aviso de versión nueva. Va por encima de la TabBar (z-70 vs z-50). */}
-        <UpdatePrompt />
       </div>
     </PuertaInstalacion>
   )

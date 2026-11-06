@@ -7,6 +7,7 @@ import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Chip, type ChipTone } from '../../components/ui/Chip'
 import { SegmentedControl } from '../../components/ui/SegmentedControl'
+import { AvisoSyncColeccion } from '../../components/SincronizacionColeccion'
 import { CardImage } from '../../components/CardImage'
 import { irA, posicion } from '../../services/scrollApp'
 import { VitrinaShowcase } from '../collection/VitrinaShowcase'
@@ -163,6 +164,7 @@ export function CardsPage() {
 
   /** Toda la colección en memoria: el cruce "me falta" necesita el set completo. */
   const [collectionQtys, setCollectionQtys] = useState<Map<string, number>>(new Map())
+  const [errorColeccion, setErrorColeccion] = useState('')
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
   /**
    * Pasa a `true` cuando la colección terminó de leerse, y ya no vuelve atrás.
@@ -373,7 +375,13 @@ export function CardsPage() {
       else next.delete(key)
       return next
     })
-    await updateCollectionQuantity(key, newQty, currentProfileId ?? undefined, supabaseUser?.id)
+    setErrorColeccion('')
+    const guardado = await updateCollectionQuantity(key, newQty, currentProfileId ?? undefined, supabaseUser?.id)
+    if (!guardado) {
+      const items = await getMyCollection(currentProfileId ?? undefined)
+      setCollectionQtys(new Map(items.map(item => [item.cardId, item.quantity])))
+      setErrorColeccion('No se pudo guardar el cambio. Revisá el almacenamiento del dispositivo e intentá de nuevo.')
+    }
   }
 
   /** Botón ×3: completar el playset de una carta en un solo toque. */
@@ -381,7 +389,13 @@ export function CardsPage() {
     e.stopPropagation()
     const { key } = collectionEntry(card, collectionQtys)
     setCollectionQtys(prev => new Map(prev).set(key, PLAYSET_SIZE))
-    await updateCollectionQuantity(key, PLAYSET_SIZE, currentProfileId ?? undefined, supabaseUser?.id)
+    setErrorColeccion('')
+    const guardado = await updateCollectionQuantity(key, PLAYSET_SIZE, currentProfileId ?? undefined, supabaseUser?.id)
+    if (!guardado) {
+      const items = await getMyCollection(currentProfileId ?? undefined)
+      setCollectionQtys(new Map(items.map(item => [item.cardId, item.quantity])))
+      setErrorColeccion('No se pudo guardar el cambio. Revisá el almacenamiento del dispositivo e intentá de nuevo.')
+    }
   }
 
   /**
@@ -553,6 +567,8 @@ export function CardsPage() {
     return (
       <div className="p-4 lg:p-6 space-y-3 pb-8 max-w-5xl mx-auto">
         <Pestanas vista={vista} onCambiar={setVista} />
+      <AvisoSyncColeccion />
+      {errorColeccion && <p role="alert" className="rounded-xl border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-300">{errorColeccion}</p>}
         <VitrinaShowcase />
       </div>
     )
@@ -561,6 +577,8 @@ export function CardsPage() {
   return (
     <div className="p-4 lg:p-6 space-y-3 pb-8 lg:pb-8 max-w-5xl mx-auto">
       <Pestanas vista={vista} onCambiar={setVista} />
+      <AvisoSyncColeccion />
+      {errorColeccion && <p role="alert" className="rounded-xl border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-300">{errorColeccion}</p>}
 
       {/* Search */}
       <div className="flex gap-2">
@@ -907,7 +925,8 @@ export function CardsPage() {
                   <div className="flex flex-col items-center gap-0.5" onClick={e => e.stopPropagation()}>
                     <button
                       onClick={(e) => handleCollectionChange(c, 1, e)}
-                      className="w-7 h-7 rounded-lg bg-swu-accent/15 border border-swu-accent/30 text-swu-accent-texto flex items-center justify-center active:scale-90 transition-transform"
+                      aria-label={`Agregar una copia de ${c.name}`}
+                      className="w-11 h-11 rounded-lg bg-swu-accent/15 border border-swu-accent/30 text-swu-accent-texto flex items-center justify-center active:scale-90 transition-transform"
                     >
                       <Plus size={12} />
                     </button>
@@ -917,7 +936,8 @@ export function CardsPage() {
                     {qty > 0 ? (
                       <button
                         onClick={(e) => handleCollectionChange(c, -1, e)}
-                        className="w-7 h-7 rounded-lg bg-swu-red/15 border border-swu-red/30 text-swu-red-texto flex items-center justify-center active:scale-90 transition-transform"
+                        aria-label={`Quitar una copia de ${c.name}`}
+                        className="w-11 h-11 rounded-lg bg-swu-red/15 border border-swu-red/30 text-swu-red-texto flex items-center justify-center active:scale-90 transition-transform"
                       >
                         <Minus size={12} />
                       </button>
@@ -927,7 +947,8 @@ export function CardsPage() {
                       <button
                         onClick={(e) => handleSetPlayset(c, e)}
                         title="Agregar 3 copias"
-                        className="w-7 h-7 rounded-lg bg-swu-bg border border-swu-border text-swu-muted text-[10px] font-bold flex items-center justify-center active:scale-90 transition-transform"
+                        aria-label={`Agregar tres copias de ${c.name}`}
+                        className="w-11 h-11 rounded-lg bg-swu-bg border border-swu-border text-swu-muted text-[10px] font-bold flex items-center justify-center active:scale-90 transition-transform"
                       >
                         ×3
                       </button>

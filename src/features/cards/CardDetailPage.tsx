@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Heart, Loader2, AlertCircle, BookOpen, Star, Package, Plus, Minus, Maximize2, Search } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
+import { AvisoSyncColeccion } from '../../components/SincronizacionColeccion'
 import { CardZoom } from '../../components/CardZoom'
 import { AclaracionesFFG } from '../../components/CardPreviewSheet'
 import { Carta3D } from '../../components/Carta3D'
@@ -52,6 +53,7 @@ export function CardDetailPage() {
   const [isFavorite, setIsFavorite] = useState(false)
   const [showBack, setShowBack] = useState(false)
   const [collectionQty, setCollectionQty] = useState(0)
+  const [errorColeccion, setErrorColeccion] = useState('')
   const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null)
   const [priceLoading, setPriceLoading] = useState(false)
   const [zoomOpen, setZoomOpen] = useState(false)
@@ -62,15 +64,17 @@ export function CardDetailPage() {
 
   useEffect(() => {
     if (!id) return
+    let vigente = true
     // `setLoading(true)` salía del cuerpo del efecto y encadenaba un render
     // antes de pintar. Al cambiar de carta el id cambia, y para eso está la
     // `key` de la ruta: el componente se remonta con `loading` en true.
     Promise.all([
       getCardById(id),
       db.favoriteCards.get(id),
-      getCardQuantity(id),
+      getCardQuantity(id, currentProfileId ?? undefined),
       getLocalPrice(id),
     ]).then(([c, fav, qty, price]) => {
+      if (!vigente) return
       setCard(c)
       setIsFavorite(!!fav)
       setCollectionQty(qty)
@@ -83,11 +87,12 @@ export function CardDetailPage() {
         fetchTCGPrices([{ id: c.id, name: c.name, subtitle: c.subtitle || null, setCode: c.setCode, setNumber: c.setNumber }])
           .then(() => getPricesForCards([c.id]))
           .then(map => {
+            if (!vigente) return
             const fetched = map.get(c.id)
             if (fetched) setPriceInfo(fetched)
           })
           .catch(() => {})
-          .finally(() => setPriceLoading(false))
+          .finally(() => { if (vigente) setPriceLoading(false) })
       }
     })
       // Las cuatro lecturas tocan Dexie, y Dexie SÍ rechaza: navegación
@@ -95,14 +100,20 @@ export function CardDetailPage() {
       // retenida por otra pestaña. Sin este `catch`, `loading` se quedaba en
       // `true` para siempre y la carta era un spinner eterno sin salida.
       // Apagarlo cae en «Carta no encontrada», que al menos tiene botón.
-      .catch(() => setLoading(false))
-  }, [id])
+      .catch(() => { if (vigente) setLoading(false) })
+    return () => { vigente = false }
+  }, [id, currentProfileId])
 
   const handleCollectionChange = async (delta: number) => {
     if (!id) return
     const newQty = Math.max(0, collectionQty + delta)
     setCollectionQty(newQty)
-    await updateCollectionQuantity(id, newQty, currentProfileId ?? undefined, supabaseUser?.id)
+    setErrorColeccion('')
+    const guardado = await updateCollectionQuantity(id, newQty, currentProfileId ?? undefined, supabaseUser?.id)
+    if (!guardado) {
+      setCollectionQty(await getCardQuantity(id, currentProfileId ?? undefined))
+      setErrorColeccion('No se pudo guardar el cambio. Revisá el almacenamiento del dispositivo e intentá de nuevo.')
+    }
   }
 
   // La wishlist se guarda SIEMPRE con el uuid canónico (`card.id`), no con el
@@ -233,6 +244,8 @@ export function CardDetailPage() {
         </div>
       </div>
 
+      <AvisoSyncColeccion />
+      {errorColeccion && <p role="alert" className="rounded-xl border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-300">{errorColeccion}</p>}
       {/* Card Image — proporción declarada para que la página no salte al cargar */}
       {imageUrl && (
         <div className="flex justify-center">

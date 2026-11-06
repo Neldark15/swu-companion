@@ -6,6 +6,9 @@ export type TournamentFormat = 'premier' | 'sealed' | 'draft' | 'twin_suns' | 't
 export interface PlayerState {
   name: string
   baseHp: number
+  baseName?: string
+  baseImageUrl?: string
+  baseMaxHp?: number
   leaderDeployed: boolean
   leaderDamage: number
   resources: number

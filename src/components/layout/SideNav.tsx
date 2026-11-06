@@ -1,37 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { InsigniaSobres } from '../ui/InsigniaSobres'
-import {
-  EmpireIcon,
-  HelmetIcon,
-  AnuncioIcon,
-  AgendaIcon,
-  ArticuloIcon,
-  BaseIcon,
-  BeskarIcon,
-  BinderIcon,
-  BlasterIcon,
-  CargoIcon,
-  ChanceCubeIcon,
-  DatapadIcon,
-  DeathStarIcon,
-  DeckCardsIcon,
-  EmisionIcon,
-  HolocronIcon,
-  HolonetIcon,
-  LabIcon,
-  MandoTrophyIcon,
-  MetaHoloIcon,
-  RebelIcon,
-  AurebeshIcon, SaberIcon,
-  SalasIcon,
-  SobreIcon,
-  SpyIcon,
-  StarfighterIcon,
-  KyberIcon,
-} from '../SWIcons'
-// El planeta anillado ya existe: se dibujó para el tema «Planetas» de la
-// Trivia. El ícono de una cosa es el de esa cosa.
-import { PlanetaAnilladoIcon } from '../../features/trivia/iconosTrivia'
+import { AnuncioIcon, BaseIcon, EmpireIcon, HelmetIcon } from '../SWIcons'
+import { GRUPOS_NAVEGACION } from './gruposNavegacion'
 import { NotificationBell } from '../ui/NotificationBell'
 import { useAuth } from '../../hooks/useAuth'
 import type { ComponentType, ReactNode } from 'react'
@@ -65,56 +35,8 @@ type NavItem =
   | { id: string; label: string; sub: string; img: string; icon?: undefined }
 
 const mainNav: NavItem[] = [
-  { id: '/', label: 'Base', sub: 'Centro de mando', icon: BaseIcon },
-  { id: '/play', label: 'Duelo', sub: 'Tracker en vivo', icon: SaberIcon },
-  { id: '/jugar', label: 'Jugar online', sub: 'Partida virtual privada', icon: BlasterIcon },
-  { id: '/galaxia', label: 'La Galaxia', sub: 'Universo 3D', icon: StarfighterIcon },
-  { id: '/blog', label: 'Blog', sub: 'Análisis y artículos', icon: ArticuloIcon },
+  { id: '/', label: 'Inicio', sub: 'Centro de mando', icon: BaseIcon },
   { id: '/profile', label: 'Mi Perfil', sub: 'Holocrón', img: '/holocron-icon.png' },
-]
-
-const secondaryNav: NavItem[] = [
-  { id: '/collection', label: 'Mi Botín', sub: 'Colección', icon: CargoIcon },
-  /* Sobredosis NO va acá: vive en Mini Juegos, más abajo. Estaba en las dos
-     listas y salía dos veces en la misma barra — un menú que repite una entrada
-     te hace dudar de si son la misma pantalla. El Binder sí se queda, porque es
-     dónde MIRÁS lo que abriste, que es otro trabajo. */
-  { id: '/binder-digital', label: 'Binder digital', sub: 'Lo que abriste', icon: BinderIcon },
-  /* Una sola entrada de mercado, igual que en Inicio y en el menú móvil.
-     Antes esta barra tenía «Contrabando» y el menú móvil tenía «Pedidos»: dos
-     mapas distintos del mismo módulo, y ninguno de los dos completo. Pedidos
-     vive ahora en la cabecera del mercado, con el número de lo que espera un
-     acto tuyo — que es más de lo que una fila de menú puede decir. */
-  { id: '/explore?tab=market', label: 'Mercado', sub: 'Comprar, vender y pedidos', icon: KyberIcon },
-  { id: '/prestamos', label: 'Préstamos', sub: 'Quién tiene tus cartas', icon: CargoIcon },
-  { id: '/espionaje', label: 'Espionaje', sub: 'Transmisiones', icon: SpyIcon },
-  { id: '/misiones', label: 'Misiones', sub: 'Órdenes del Día', icon: DeathStarIcon },
-  { id: '/decks', label: 'Mis Decks', sub: 'Constructor', icon: DeckCardsIcon },
-  { id: '/laboratorio', label: 'Laboratorio', sub: 'Simulador de mazos', icon: LabIcon },
-  { id: '/galaxy', label: 'Salas', sub: 'Chat y comandantes', icon: SalasIcon },
-  { id: '/news', label: 'Noticias', sub: 'Agenda de torneos', icon: DatapadIcon },
-  { id: '/meta', label: 'Meta', sub: 'Torneos y matchups', icon: MetaHoloIcon },
-  { id: '/community', label: 'Comunidades', sub: 'Galaxia', icon: RebelIcon },
-  { id: '/rank', label: 'Ranking', sub: 'Quién gana partidas', icon: BeskarIcon },
-  { id: '/cards', label: 'Buscar Cartas', sub: 'Base de datos', icon: HolonetIcon },
-  { id: '/envivo', label: 'En Vivo', sub: 'Transmisión de torneos', icon: EmisionIcon },
-  { id: '/rulings', label: 'Rulings', sub: 'Reglamento del juego', icon: HolocronIcon },
-  { id: '/contador', label: 'Contador de daños', sub: 'Premier y Twin Suns', icon: ChanceCubeIcon },
-  { id: '/amistosas', label: 'Amistosas', sub: 'Historial cara a cara', icon: BlasterIcon },
-  { id: '/torneos', label: 'Torneos', sub: 'Lo que viene y el archivo', icon: MandoTrophyIcon },
-  { id: '/calendario', label: 'Calendario', sub: 'Los torneos del mes', icon: AgendaIcon },
-]
-
-/* Lo que se juega DENTRO de la app. El orden cuenta la economía: primero lo
-   que DA créditos (Sobredosis paga 50 por sobre, la Trivia 2 por acierto),
-   después lo que los GASTA —el Taller y Terraformar comparten la misma bolsa—
-   y al final Aurebesh, que ni da ni gasta. */
-const MINI_JUEGOS = [
-  { id: '/sobres', label: 'Sobredosis', sub: 'Abrir sobres', icon: SobreIcon },
-  { id: '/trivia', label: 'Trivia', sub: 'Preguntas del canon', icon: HolocronIcon },
-  { id: '/sable', label: 'Taller Kyber', sub: 'Armá tu sable', icon: SaberIcon },
-  { id: '/terraformar', label: 'Terraformar', sub: 'Ponéle vida a tu mundo', icon: PlanetaAnilladoIcon },
-  { id: '/aurebesh', label: 'Aurebesh', sub: 'Traductor galáctico', icon: AurebeshIcon },
 ]
 
 export function SideNav() {
@@ -203,19 +125,12 @@ export function SideNav() {
         <Rotulo>Principal</Rotulo>
         {mainNav.map(renderItem)}
 
-        <Rotulo>Sistemas</Rotulo>
-        {secondaryNav.map(renderItem)}
-
-        {/* ── Mini Juegos ──
-            Antes el Taller colgaba suelto al final de «Sistemas» y Sobredosis
-            y Aurebesh vivían en otras familias. La sección existe en Inicio y
-            en el menú móvil: faltaba acá, y tres mapas distintos de la misma
-            app es cómo alguien deja de encontrar las cosas.
-
-            MISMO ORDEN QUE EN LOS OTROS DOS: lo que da créditos, lo que los
-            gasta, y lo que no hace ninguna de las dos. */}
-        <Rotulo>Mini Juegos</Rotulo>
-        {MINI_JUEGOS.map(renderItem)}
+        {GRUPOS_NAVEGACION.map(grupo => (
+          <div key={grupo.id}>
+            <Rotulo>{grupo.title}</Rotulo>
+            {grupo.items.map(item => renderItem({ ...item, id: item.to }))}
+          </div>
+        ))}
 
         {/* Admin-only quick utility (lives in Sistemas section but only visible to admins) */}
         {isAdmin && (

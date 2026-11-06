@@ -31,16 +31,23 @@ const leer = p => readFileSync(join(RAIZ, p), 'utf8')
 
 const app = leer('src/App.tsx')
 const cat = leer('src/services/misionesCatalogo.ts')
-const menus = leer('src/components/layout/SideNav.tsx') + leer('src/components/layout/MoreNav.tsx')
+const menus = leer('src/components/layout/SideNav.tsx')
+  + leer('src/components/layout/MoreNav.tsx')
+  + leer('src/components/layout/gruposNavegacion.ts')
 
 const rutasDelRouter = new Set(
   [...app.matchAll(/path="([^"]*)"/g)].map(m => m[1]).filter(p => p !== '*'),
 )
 
-/** El nombre que el menú le da a cada ruta. `id:` en SideNav, `to:` en MoreNav. */
+/** El nombre del menú: accesos principales y el mapa compartido de módulos. */
 const nombreDeRuta = new Map(
-  [...menus.matchAll(/(?:id|to):\s*'([^']+)',\s*label:\s*'([^']+)'/g)].map(m => [m[1], m[2]]),
+  [...menus.matchAll(/(?:id|to):\s*'([^']+)',\s*label:\s*'([^']+)'/g)].map(m => [m[1].split('?')[0], m[2]]),
 )
+
+// Si los menús se reorganizan, no aprobar comparando solo uno o dos destinos.
+if (nombreDeRuta.size < 25) {
+  throw new Error(`Solo se leyeron ${nombreDeRuta.size} destinos del menú; revisar su fuente compartida.`)
+}
 
 /**
  * Dónde se cumple cada objetivo. Se deriva del OBJETIVO y no del nombre de la

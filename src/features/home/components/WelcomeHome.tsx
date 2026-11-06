@@ -14,6 +14,8 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../../hooks/useAuth'
 import { PWAInstallCard } from './PWAInstallCard'
+import { ContinuarMesa } from '../../calculadora/ContinuarMesa'
+import { ChanceCubeIcon, HolocronIcon, HolonetIcon, MandoTrophyIcon } from '../../../components/SWIcons'
 import { rutaAccesoPerfil } from '../../profile/accesoPerfil'
 
 export function WelcomeHome() {
@@ -80,11 +82,36 @@ export function WelcomeHome() {
           <div className="flex items-center justify-center gap-1.5 mt-4">
             <CircleArrowDown size={12} className="text-swu-amber/60 animate-bounce" />
             <span className="text-[10px] text-swu-amber/60 font-mono tracking-wider uppercase">
-              Iniciá sesión o instalá la app
+              Jugá, consultá cartas o iniciá sesión
             </span>
           </div>
         </div>
       </div>
+
+      <section className="px-5 pt-4 space-y-3" aria-label="Herramientas sin cuenta">
+        <ContinuarMesa />
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-bold text-swu-text">A la mesa, sin cuenta</h2>
+          <span className="text-[10px] text-swu-muted">Instalar es opcional</span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { to: '/contador', label: 'Contador de daños', sub: 'Premier y Twin Suns', icon: ChanceCubeIcon },
+            { to: '/cards', label: 'Cartas', sub: 'Consultar el catálogo', icon: HolonetIcon },
+            { to: '/rulings', label: 'Reglas', sub: 'Reglamento y aclaraciones', icon: HolocronIcon },
+            { to: '/torneos', label: 'Torneos', sub: 'Próximos y resultados', icon: MandoTrophyIcon },
+          ].map(herramienta => (
+            <button key={herramienta.to} onClick={() => navigate(herramienta.to)}
+              className="min-h-20 flex items-center gap-2 rounded-xl border border-swu-accent/25 bg-swu-surface px-3 py-3 text-left active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-swu-accent">
+              <herramienta.icon size={22} className="shrink-0 text-swu-accent-texto" />
+              <span className="min-w-0">
+                <span className="block text-xs font-bold text-swu-text">{herramienta.label}</span>
+                <span className="mt-1 block text-[10px] text-swu-muted">{herramienta.sub}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
 
       {/* El premio, entre la portada y el formulario: es lo primero que ve quien
           llega por un enlace compartido, y es la razón por la que se registra. */}
@@ -133,12 +160,12 @@ export function WelcomeHome() {
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
                   placeholder="••••••••"
-                  className="w-full px-3 py-2.5 pr-10 bg-swu-bg border border-swu-border rounded-lg text-sm text-swu-text placeholder-swu-muted focus:border-swu-accent outline-none"
+                  className="w-full px-3 py-2.5 pr-12 bg-swu-bg border border-swu-border rounded-lg text-sm text-swu-text placeholder-swu-muted focus:border-swu-accent outline-none"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPw(v => !v)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-swu-muted hover:text-swu-text p-1"
+                  className="absolute right-0 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-lg text-swu-muted hover:text-swu-text"
                   aria-label={showPw ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 >
                   {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -165,7 +192,7 @@ export function WelcomeHome() {
             <button
               type="button"
               onClick={() => navigate(rutaAccesoPerfil('forgot-password', search))}
-              className="w-full text-[11px] text-swu-muted hover:text-swu-text"
+              className="min-h-11 w-full text-[11px] text-swu-muted hover:text-swu-text"
             >
               ¿Olvidaste tu contraseña?
             </button>
@@ -192,18 +219,10 @@ export function WelcomeHome() {
         <PWAInstallCard />
       </div>
 
-      {/* ── Continue without account ── */}
-      <div className="px-5 pt-5 text-center">
-        <button
-          onClick={() => navigate('/cards')}
-          className="text-[11px] text-swu-muted hover:text-swu-text underline underline-offset-4 decoration-dotted"
-        >
-          Continuar sin cuenta · solo ver cartas
-        </button>
-        <p className="text-[10px] text-swu-muted/60 mt-1.5">
-          Sin sesión podés explorar la base de datos pero no guardás colección, decks ni stats.
-        </p>
-      </div>
+      <p className="px-5 pt-5 text-center text-[11px] leading-relaxed text-swu-muted">
+        Iniciá sesión para sincronizar tu colección, mazos y partidas entre dispositivos.
+        El contador casual se guarda en este dispositivo.
+      </p>
 
       {/* ── Footer ──
           Sin país. Decía «— EL SALVADOR» y la comunidad ya no es solo de acá:

@@ -38,6 +38,16 @@ export interface CardPrice {
   variants?: string
 }
 
+/** Un cambio confirmado localmente; pendiente=1 hasta que la nube lo acepta.
+ * Se conserva la revisión confirmada para descartar descargas iniciadas antes. */
+export interface CambioColeccion {
+  profileId: string
+  cardId: string
+  quantity: number
+  revision: string
+  pendiente: 0 | 1
+}
+
 export class SWUDatabase extends Dexie {
   matches!: Table<MatchState, string>
   tournaments!: Table<Tournament, string>
@@ -45,6 +55,7 @@ export class SWUDatabase extends Dexie {
   cards!: Table<Card, string>
   favoriteCards!: Table<{ cardId: string; profileId?: string }, string>
   collection!: Table<{ cardId: string; quantity: number; profileId?: string }, string>
+  collectionChanges!: Table<CambioColeccion, [string, string]>
   wishlist!: Table<{ cardId: string; profileId?: string }, string>
   profiles!: Table<UserProfile, string>
   playerStats!: Table<PlayerStats, string>
@@ -213,6 +224,11 @@ export class SWUDatabase extends Dexie {
       meleeTournaments: 'id, userId, date, format, meleeId',
     }).upgrade(async (tx) => {
       await tx.table('cards').clear()
+    })
+
+    // Aditivo: las cantidades y el catálogo existentes permanecen intactos.
+    this.version(11).stores({
+      collectionChanges: '[profileId+cardId], profileId, [profileId+pendiente]',
     })
   }
 }
