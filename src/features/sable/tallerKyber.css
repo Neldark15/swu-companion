@@ -50,9 +50,11 @@
 .kyber-pasos [aria-current] { color: var(--kyber-ambar); }
 .kyber-pasos [aria-current] .kyber-paso-numero { background: var(--kyber-ambar); border-color: var(--kyber-ambar); color: #1c160e; }
 .kyber-area-trabajo, .kyber-vista, .kyber-seleccion { min-width: 0; }
-.kyber-visor { position: relative; height: clamp(210px, 38dvh, 410px); margin: 0 -16px; overflow: hidden; background: #101416; }
+.kyber-visor { position: relative; height: clamp(210px, 38dvh, 410px); margin: 0 -16px; overflow: hidden; background: radial-gradient(ellipse at 40% 36%, #2b3338 0, #171c20 43%, #0e1114 82%); }
 .kyber-taller[data-paso='color'] .kyber-visor { height: clamp(240px, 42dvh, 490px); }
 .kyber-taller[data-paso='prueba'] .kyber-visor { height: clamp(270px, 44dvh, 520px); }
+.kyber-acercar { position: absolute; top: 6px; left: 8px; display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 0 10px; border: 1px solid #526069; border-radius: 7px; background: #14191deb; color: #e5eaec; font-size: 12px; }
+.kyber-acercar[aria-pressed="true"] { border-color: #aa8048; color: var(--kyber-ambar); }
 .kyber-lienzo { width: 100%; height: 100%; }
 .kyber-gesto { position: absolute; display: flex; align-items: center; gap: 5px; left: 15px; bottom: 15px; color: #b7bfc3; font-size: 10px; pointer-events: none; }
 .kyber-orientacion { position: absolute; right: 10px; bottom: 2px; }

@@ -2,9 +2,9 @@
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
 import { crearGeometriaPieza, ESCALA_SUPERFICIE } from '../src/features/sable/geometriaSable.ts'
-import { abrirTallerTres, vestirPieza } from '../src/features/sable/herrajesTres.ts'
+import { abrirTallerTres, radioMaximo, vestirPieza } from '../src/features/sable/herrajesTres.ts'
 import {
-  piezasDeSable, IDS_CONOCIDOS, MATERIALES, POR_DEFECTO, mallasDeHerrajes,
+  piezasDeSable, IDS_CONOCIDOS, MATERIALES, POR_DEFECTO,
   type MaterialId, type PiezaSuelta,
 } from '../src/features/sable/partesSable.ts'
 import { datosDeSuperficie, type SuperficieSable } from '../src/features/sable/texturasSable.ts'
@@ -38,7 +38,11 @@ for (const emisor of IDS_CONOCIDOS.emisor) {
               const distancia = puntos[j].distanceTo(puntos[j - 1]) / ESCALA_SUPERFICIE
               assert(Math.abs(uv.getY(j) - uv.getY(j - 1) - distancia) < 2e-6,
                 'La textura debe recorrer distancia, no número de vértices')
-              assert(puntos[j].y >= puntos[j - 1].y, 'Un bisel no puede invertir una normal')
+              if (puntos[j].y < puntos[j - 1].y) {
+                const cavidad = pieza.clave === 'emisor' ? puntos[j].y >= pieza.alto - 1.301
+                  : pieza.clave === 'pomo' && (puntos[j - 1].y <= .241 || puntos[j].y >= pieza.alto - .181)
+                assert(cavidad, 'Solo las paredes internas de las cavidades invierten el perfil')
+              }
             }
             const final = segmentos * puntos.length
             assert.equal(uv.getX(final) % 1, 0, 'La costura debe cerrar en una repetición entera')
@@ -92,14 +96,31 @@ assert.equal(texturas.size, 8, 'Como máximo cuatro pares de mapas 128² compart
 assert.notEqual(taller.material('cuero').bumpMap, taller.material('grafito').bumpMap)
 assert.equal(taller.material('acero').roughnessMap, taller.material('laton').roughnessMap)
 
+// La cara baja del visor inclinado de Faro debe seguir unida a su aro.
+const faro = piezasDeSable({ ...POR_DEFECTO, emisor: 'emi_faro' })[2]
+const faro3D = crearGeometriaPieza(faro)
+const aroAlto = faro.herrajes.filter(h => h.tipo === 'anillo').at(-1)!
+const yAro = aroAlto.y * faro.alto + aroAlto.grosor
+const verticesFaro = faro3D.getAttribute('position')
+const perfilFaro = faro3D.parameters.points
+for (let k = 0; k < verticesFaro.count; k++) {
+  const original = perfilFaro[k % perfilFaro.length]
+  if (original.y <= yAro) assert(Math.abs(verticesFaro.getY(k) - original.y) < 1e-5,
+    'El recorte del visor no puede cortar la camisa bajo el aro')
+}
+faro3D.dispose()
+
 let maxMallas = 0
+const presupuestos = new Map<string, number>()
 function vestir(pieza: PiezaSuelta): void {
   const geo = crearGeometriaPieza(pieza)
   const malla = new THREE.Mesh(geo)
   const vacio = malla.material
   vestirPieza(malla, pieza, taller)
   vacio.dispose()
-  assert.equal(malla.children.length, mallasDeHerrajes(pieza.herrajes), 'El conteo debe incluir la cámara real')
+  const gruposFijos = malla.children.filter(h => h.userData.fase === undefined) as THREE.Mesh[]
+  assert.equal(new Set(gruposFijos.map(m => m.material)).size, gruposFijos.length,
+    'Los detalles estáticos de cada material se dibujan juntos')
   maxMallas = Math.max(maxMallas, malla.children.length)
   const originales = malla.children.map(m => (m as THREE.Mesh).geometry)
   vestirPieza(malla, pieza, taller)
@@ -109,6 +130,24 @@ function vestir(pieza: PiezaSuelta): void {
     finita(g)
     geometrias.add(g)
   })
+  if (!presupuestos.has(pieza.id)) {
+    const radio = radioMaximo([pieza])
+    const v = new THREE.Vector3()
+    malla.updateMatrixWorld()
+    let triangulos = 0
+    malla.traverse(objeto => {
+      if (!(objeto instanceof THREE.Mesh)) return
+      const g = objeto.geometry as THREE.BufferGeometry
+      const posiciones = g.getAttribute('position')
+      triangulos += (g.index?.count ?? posiciones.count) / 3
+      for (let i = 0; i < posiciones.count; i++) {
+        v.fromBufferAttribute(posiciones, i).applyMatrix4(objeto.matrixWorld)
+        assert(Math.hypot(v.x, v.z) <= radio + 1e-5 && v.y >= -1e-5 && v.y <= pieza.alto + 1e-5,
+          `${pieza.id}: los herrajes deben caber en el encuadre del visor`)
+      }
+    })
+    presupuestos.set(pieza.id, triangulos)
+  }
   geo.dispose()
 }
 for (const tipo of ['emisor', 'cuerpo', 'pomo'] as const) {
@@ -117,6 +156,10 @@ for (const tipo of ['emisor', 'cuerpo', 'pomo'] as const) {
   }
 }
 assert(maxMallas <= 10, 'La ventana no puede añadir más draw calls que el conjunto anterior')
+const peorMango = (['pomo', 'cuerpo', 'emisor'] as const).reduce((total, tipo) =>
+  total + Math.max(...IDS_CONOCIDOS[tipo].map(id => presupuestos.get(id)!)), 0)
+assert(peorMango < 80000, `Mango con herrajes y cámara sobre presupuesto: ${peorMango}`)
+console.log(`✓ Máximo ${peorMango} triángulos en el mango completo; todos los herrajes dentro del encuadre`)
 const recursos = [...materiales, ...texturas, ...geometrias]
 const liberados = new Map<object, number>()
 for (const recurso of recursos) recurso.addEventListener('dispose', () => liberados.set(recurso, (liberados.get(recurso) ?? 0) + 1))

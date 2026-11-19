@@ -2,7 +2,7 @@
  * Las compras y el guardado se inyectan: este componente no conoce las RPC. */
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, ChevronLeft, ChevronRight, Gem, Package, RotateCw, Volume2, VolumeX } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Gem, Package, RotateCw, ScanSearch, Volume2, VolumeX } from 'lucide-react'
 import { CreditoIcon } from '../../components/icons/CreditoIcon'
 import type { Acabado, ParteTaller, Taller } from '../../services/sableService'
 import { SableEscena, type Encuadre, type Orientacion } from './SableEscena'
@@ -109,6 +109,7 @@ export function TallerKyber({
   alReintentarAviso, refrescando = false, comprasBloqueadas = false,
 }: TallerKyberProps) {
   const [paso, setPaso] = useState<Paso>(pasoInicial)
+  const [acercar, setAcercar] = useState(false)
   const [ranura, setRanura] = useState<RanuraMango>('emisor')
   const [encuadre, setEncuadre] = useState<Encuadre>('detalle')
   const [orientacion, setOrientacion] = useState<Orientacion>('diagonal')
@@ -186,7 +187,12 @@ export function TallerKyber({
               <span>Podés seguir eligiendo piezas, colores y forjar tu sable.</span>
             </div> : <SableEscena diseno={diseno} encendido={encendido} explotado={paso === 'piezas'}
               orientacion={orientacion} vista={paso === 'cristal' ? 'cristal' : 'sable'}
+              inspeccionar={paso === 'piezas' && acercar ? ranura : null}
               encuadre={encuadre} onSinWebGL={() => setSinWebGL(true)} className="kyber-lienzo" />}
+            {!sinWebGL && paso === 'piezas' && <button type="button" className="kyber-acercar"
+              onClick={() => setAcercar(valor => !valor)} aria-pressed={acercar}>
+              <ScanSearch size={17} aria-hidden="true" />{acercar ? 'Ver conjunto' : 'Ver pieza de cerca'}
+            </button>}
             {!sinWebGL && <span className="kyber-gesto"><RotateCw size={12} /> Arrastrá para girar</span>}
             {!sinWebGL && paso !== 'cristal' && <label className="kyber-orientacion">
               <span className="kyber-sr">Orientación del sable</span>

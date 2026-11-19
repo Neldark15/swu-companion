@@ -176,6 +176,18 @@ const MORDIDA = 0.18
 /* Tres medidas, siempre con el mismo nombre, para no tener que recordar cuál
    es cuál en cada tipo: `alto` sube por el mango, `ancho` lo rodea, `salida`
    se aleja del eje. */
+export interface CintaHelicoidal {
+  alto: number
+  vueltas: number // El signo indica el sentido de arrollamiento.
+  ancho: number
+  trenzada?: boolean
+}
+
+type Cable = { tipo: 'cable'; y: number; grosor: number; giro?: number; material: MaterialId } & (
+  | { arco: number; inclina?: number; cinta?: never }
+  | { cinta: CintaHelicoidal; arco?: never; inclina?: never }
+)
+
 export type Herraje =
   /** Anillo completo alrededor del eje: abrazadera, llanta, aro de control. */
   | { tipo: 'anillo'; y: number; grosor: number; material: MaterialId }
@@ -183,10 +195,10 @@ export type Herraje =
   | { tipo: 'boton'; y: number; radio: number; salida: number; giro?: number; vueltas?: number; material: MaterialId }
   /** Caja de control: la placa rectangular pegada a un costado. */
   | { tipo: 'caja'; y: number; alto: number; ancho: number; salida: number; giro?: number; material: MaterialId }
-  /** Cable de aislante: un toro PARCIAL que abraza el mango. */
-  | { tipo: 'cable'; y: number; grosor: number; arco: number; giro?: number; inclina?: number; material: MaterialId }
+  /** Un cable corto en arco o una cinta helicoidal que recorre el agarre. */
+  | Cable
   /** Aletas, dientes o respiraderos: tablillas repetidas alrededor del eje. */
-  | { tipo: 'aleta'; y: number; alto: number; ancho: number; salida: number; giro?: number; vueltas: number; material: MaterialId; bisel?: number }
+  | { tipo: 'aleta'; y: number; alto: number; ancho: number; salida: number; giro?: number; vueltas: number; material: MaterialId; bisel?: number; ranuras?: number }
   /** Gema engarzada. Facetada a propósito para que cada cara agarre distinto. */
   | { tipo: 'gema'; y: number; radio: number; giro?: number; vueltas?: number; material: MaterialId; alojamiento?: boolean }
   /**
@@ -557,13 +569,20 @@ function repetir(h: number, n: number, rBajo: number, rAlto: number): Punto[] {
 const CUERPOS: Record<string, Pieza> = {
   cue_liso: {
     alto: 14,
-    puntos: h => [[R, 0], [R, h]],
+    puntos: h => [
+      [R, 0], [R * 1.08, h * 0.035], [R * 1.08, h * 0.12], [R, h * 0.145],
+      [R * 0.96, h * 0.21], [R * 0.96, h * 0.46], [R, h * 0.48],
+      [R, h * 0.74], [R * 1.07, h * 0.77], [R * 1.07, h * 0.80],
+      [R * 0.94, h * 0.82], [R * 0.94, h * 0.87],
+      [R * 1.07, h * 0.885], [R * 1.07, h * 0.925], [R, h * 0.95], [R, h],
+    ],
     // FUNDAMENTO, el de fábrica. Lleva la caja de control y EL BOTÓN, que
     // se prende del color de tu cristal. Un cuerpo liso sin nada
     // encima es un tubo; con el botón, es un sable.
     material: 'grafito',
     herrajes: [
       { tipo: 'anillo', y: 0.18, grosor: 0.11, material: 'laton' },
+      { tipo: 'aleta', y: 0.335, alto: 3.45, ancho: 0.56, salida: 0.16, giro: 0.35, vueltas: 4, material: 'negro', bisel: 0.13 },
       { tipo: 'caja', y: 0.58, alto: 2.20, ancho: 0.90, salida: 0.22, material: 'negro' },
       { tipo: 'boton', y: 0.58, radio: 0.18, salida: 0.34, material: 'luz' },
     ],
@@ -593,9 +612,10 @@ const CUERPOS: Record<string, Pieza> = {
   },
   cue_forrado: {
     alto: 14,
-    // El forro de cuero: muchos bultos chicos y suaves.
-    puntos: h => [[R, 0], ...repetir(h * 0.86, 11, R, R * 1.1).map(
-      ([r, y]) => [r, y + h * 0.07] as Punto), [R, h]],
+    // La venda se apoya en esta cintura y desaparece bajo los dos collares.
+    puntos: h => [[R, 0], [R * 1.12, h * 0.025], [R * 1.12, h * 0.065],
+      [R, h * 0.09], [R * 0.97, h * 0.40], [R, h * 0.68], [R, h * 0.91],
+      [R * 1.12, h * 0.935], [R * 1.12, h * 0.975], [R, h]],
     // CORTEZA (épico). CUERO de verdad, no gris oscuro: es la pieza que
     // más gana con que el material sea un dato y no una constante.
     // Las dos abrazaderas de latón son las que sujetan el forro.
@@ -603,8 +623,8 @@ const CUERPOS: Record<string, Pieza> = {
     herrajes: [
       { tipo: 'anillo', y: 0.05, grosor: 0.12, material: 'laton' },
       { tipo: 'anillo', y: 0.95, grosor: 0.12, material: 'laton' },
-      { tipo: 'cable', y: 0.50, grosor: 0.09, arco: 5.0, inclina: 0.10, material: 'bronce' },
-      { tipo: 'boton', y: 0.30, radio: 0.18, salida: 0.13, material: 'luz' },
+      { tipo: 'cable', y: 0.50, grosor: 0.18, cinta: { alto: 11.7, vueltas: 7.5, ancho: 1.48 }, material: 'cuero' },
+      { tipo: 'boton', y: 0.30, radio: 0.18, salida: 0.29, material: 'luz' },
     ],
   },
   cue_costillas: {
@@ -667,15 +687,13 @@ const CUERPOS: Record<string, Pieza> = {
   },
   cue_trenza: {
     alto: 14,
-    // Trenzado fino: ocho ondas suaves.
-    puntos: h => [[R, 0], ...repetir(h * 0.84, 8, R * 0.98, R * 1.12).map(
-      ([r, y]) => [r, y + h * 0.08] as Punto), [R, h]],
-    // TRENZA. Cuero con dos cables de latón cruzados en sentidos opuestos:
-    // es lo que hace que la trenza se lea como trenza y no como ondas.
+    // TRENZA. Dos cintas cruzadas sobre la funda, rematadas en hombros altos.
+    puntos: h => [[R, 0], [R * 1.1, h * 0.04], [R * 1.1, h * 0.1],
+      [R, h * 0.13], [R, h * 0.87], [R * 1.1, h * 0.9], [R * 1.1, h * 0.96], [R, h]],
     material: 'cuero',
     herrajes: [
-      { tipo: 'cable', y: 0.30, grosor: 0.09, arco: 4.2, inclina: 0.12, material: 'laton' },
-      { tipo: 'cable', y: 0.68, grosor: 0.09, arco: 4.2, inclina: -0.12, material: 'laton' },
+      { tipo: 'cable', y: 0.50, grosor: 0.12, cinta: { alto: 10.6, vueltas: 3, ancho: 0.49, trenzada: true }, material: 'bronce' },
+      { tipo: 'cable', y: 0.50, grosor: 0.12, cinta: { alto: 10.6, vueltas: -3, ancho: 0.49, trenzada: true }, material: 'laton' },
       { tipo: 'boton', y: 0.50, radio: 0.16, salida: 0.12, material: 'luz' },
     ],
   },
@@ -694,7 +712,7 @@ const CUERPOS: Record<string, Pieza> = {
     // aros. El meridiano del botón y el de las ventanas quedan entre paneles.
     material: 'acero',
     herrajes: [
-      { tipo: 'aleta', y: 0.50, alto: 8.4, ancho: 1.35, salida: 0.13, vueltas: 4, giro: Math.PI / 4, material: 'grafito', bisel: 0.12 },
+      { tipo: 'aleta', y: 0.50, alto: 8.4, ancho: 1.35, salida: 0.13, vueltas: 4, giro: Math.PI / 4, material: 'grafito', bisel: 0.12, ranuras: 5 },
       { tipo: 'boton', y: 0.88, radio: 0.19, salida: 0.14, material: 'luz' },
       { tipo: 'anillo', y: 0.19, grosor: 0.11, material: 'laton' },
       { tipo: 'anillo', y: 0.81, grosor: 0.11, material: 'laton' },
@@ -702,19 +720,14 @@ const CUERPOS: Record<string, Pieza> = {
   },
   cue_helice: {
     alto: 14,
-    // Nueve ondas finas: se lee como rosca. (Una espiral DE VERDAD no cabe en
-    // una pieza torneada — el torno gira lo que le den y una hélice pide otra
-    // geometría entera; esto es la aproximación honesta.)
-    puntos: h => [[R, 0], ...repetir(h * 0.86, 9, R * 0.96, R * 1.18).map(
-      ([r, y]) => [r, y + h * 0.07] as Punto), [R, h]],
-    // ESPIRAL (épico). Bronce, y tres cables inclinados a la misma mano: el
-    // torno no puede hacer una hélice, pero tres cables sí la sugieren. Los
-    // cuatro destellos de la cintura corren en secuencia alrededor del eje y
-    // rematan la lectura: la rosca deja de sugerirse y se ve girar.
+    // ESPIRAL. Una cinta oscura continua contrasta con el cuerpo de bronce.
+    puntos: h => [[R, 0], [R * 1.1, h * 0.025], [R * 1.1, h * 0.08],
+      [R * 0.98, h * 0.10], [R * 0.98, h * 0.90], [R * 1.1, h * 0.92],
+      [R * 1.1, h * 0.975], [R, h]],
     material: 'bronce',
     herrajes: [
-      { tipo: 'cable', y: 0.22, grosor: 0.09, arco: 5.6, inclina: 0.16, material: 'negro' },
-      { tipo: 'cable', y: 0.55, grosor: 0.09, arco: 5.6, inclina: 0.16, material: 'negro' },
+      { tipo: 'cable', y: 0.50, grosor: 0.17, cinta: { alto: 11.3, vueltas: -6.5, ancho: 0.69 }, material: 'negro' },
+      { tipo: 'anillo', y: 0.925, grosor: 0.10, material: 'cobre' },
       { tipo: 'destello', y: 0.70, radio: 0.11, vueltas: 4, material: 'brasa' },
       { tipo: 'boton', y: 0.40, radio: 0.17, salida: 0.13, giro: 3.0, material: 'luz' },
     ],
@@ -1239,6 +1252,7 @@ export function siluetaDePieza(
 
 /** Una pieza suelta, para la vista explotada. */
 export interface PiezaSuelta {
+  id: string
   clave: 'pomo' | 'cuerpo' | 'emisor'
   /** Puntos con el 0 en la BASE de la pieza, no del mango. */
   puntos: Punto[]
@@ -1274,12 +1288,8 @@ export interface PiezaSuelta {
  * desarmar un sable de verdad. Cerrarlas las volvería bolitas macizas.
  */
 export function piezasDeSable(d: Diseno): PiezaSuelta[] {
-  const pomo = POMOS[d.pomo] ?? POMOS[POR_DEFECTO.pomo]
-  const cuerpo = CUERPOS[d.cuerpo] ?? CUERPOS[POR_DEFECTO.cuerpo]
-  const emisor = EMISORES[d.emisor] ?? EMISORES[POR_DEFECTO.emisor]
-
   const claves = ['pomo', 'cuerpo', 'emisor'] as const
-  const piezas = [pomo, cuerpo, emisor]
+  const catalogos = [POMOS, CUERPOS, EMISORES]
   // Un acabado que este deploy no conoce se ignora en vez de pintar de gris:
   // los ids vienen del servidor y la PWA instalada tarda en actualizarse (§2g).
   const valido = (a: string | null | undefined): MaterialId | null =>
@@ -1292,8 +1302,11 @@ export function piezasDeSable(d: Diseno): PiezaSuelta[] {
   }
   const salida: PiezaSuelta[] = []
   let base = 0
-  for (let i = 0; i < piezas.length; i++) {
-    const p = piezas[i]
+  for (let i = 0; i < catalogos.length; i++) {
+    const clave = claves[i]
+    const seleccion = d[clave]
+    const id = Object.hasOwn(catalogos[i], seleccion) ? seleccion : POR_DEFECTO[clave]
+    const p = catalogos[i][id]
     // Misma red de seguridad que en `perfilDeSable`: la deriva de coma flotante
     // dentro de una pieza también invierte una normal y deja un aro negro.
     let techo = -Infinity
@@ -1317,15 +1330,15 @@ export function piezasDeSable(d: Diseno): PiezaSuelta[] {
     if (claves[i] === 'cuerpo' && d.cristalVisto) {
       herrajes = [
         ...herrajes,
-        /* Radio 0,44: la ventana es EL punto del sable cuando está puesta —
+        /* Radio 0,55: la ventana es EL punto del sable cuando está puesta —
            más chica se leía como un remache de color, no como el kyber. El
            giro de 90° la saca del meridiano del botón, que casi siempre vive
            en giro 0. */
-        { tipo: 'gema', y: 0.5, radio: 0.44, vueltas: 2, giro: Math.PI / 2, material: 'plasma', alojamiento: true },
+        { tipo: 'gema', y: 0.5, radio: 0.55, vueltas: 2, giro: Math.PI / 2, material: 'plasma', alojamiento: true },
       ]
     }
     salida.push({
-      clave: claves[i], puntos, alto: p.alto, base,
+      id, clave, puntos, alto: p.alto, base,
       material: porPieza[claves[i]] ?? global ?? p.material, herrajes, perfil,
     })
     base += p.alto

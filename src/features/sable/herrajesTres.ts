@@ -26,12 +26,16 @@
  */
 
 import * as THREE from 'three'
+import { crearDetallesPieza, unirGeometrias, type AcabadoMecanizado } from './detalleHerrajes'
+import { geometriaDeCristal } from './cristalTres'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import {
   MATERIALES, asientoDe, emite, tomaElColorDelCristal,
   type Herraje, type MaterialId, type PiezaSuelta,
 } from './partesSable'
+import { placaRanurada } from './placaRanurada'
+import { crearCintaHelicoidal } from './cintaHelicoidal'
 import { crearTexturasSuperficie, type SuperficieSable } from './texturasSable'
 
 /**
@@ -57,10 +61,13 @@ export interface Taller {
   /** La geometría de un herraje, ya orientada. La usa `vestirPieza`; va acá
       para que el caché de geometrías no se escape del taller que las destruye. */
   geometriaDe: (h: Herraje, espesor: number, apoyo: number) => THREE.BufferGeometry
+  cintaDe: (pieza: PiezaSuelta, cable: Extract<Herraje, { tipo: 'cable'; cinta: object }>) => THREE.BufferGeometry
   /** Cartucho y cristal comparten caché y dueño con los demás herrajes. */
   camaraDe: (radio: number, espesor: number, vueltas: number, giro: number, centro: number) => {
     marco: THREE.BufferGeometry; fondo: THREE.BufferGeometry; cristal: THREE.BufferGeometry
   }
+  detallesDe: (pieza: PiezaSuelta) => AcabadoMecanizado[]
+  agruparFijos: (malla: THREE.Mesh, pieza: PiezaSuelta, animadas: THREE.Mesh[]) => void
   soltar: () => void
 }
 
@@ -130,6 +137,7 @@ export function abrirTallerTres(detalle = true): Taller {
   /* Las geometrías se cachean por MEDIDAS. Dos piezas distintas con el mismo
      aro comparten una sola geometría, y cambiar de pieza casi nunca crea una
      nueva: al tercer o cuarto cambio el caché ya las tiene todas. */
+  const detalles = new Map<string, AcabadoMecanizado[]>()
   const geometrias = new Map<string, THREE.BufferGeometry>()
   function geo(clave: string, hacer: () => THREE.BufferGeometry): THREE.BufferGeometry {
     const hecha = geometrias.get(clave)
@@ -151,6 +159,7 @@ export function abrirTallerTres(detalle = true): Taller {
           return g
         })
       case 'cable':
+        if (h.cinta) throw new Error('La cinta helicoidal necesita el perfil del cuerpo.')
         return geo(`cab:${n(apoyo)}:${n(h.grosor)}:${n(h.arco)}`, () => {
           const g = new THREE.TorusGeometry(apoyo, h.grosor, 6, 26, h.arco)
           g.rotateX(Math.PI / 2)
@@ -173,6 +182,11 @@ export function abrirTallerTres(detalle = true): Taller {
           () => detalle ? new RoundedBoxGeometry(h.ancho, h.alto, espesor, 1, Math.min(0.065, espesor * 0.16))
             : new THREE.BoxGeometry(h.ancho, h.alto, espesor))
       case 'aleta':
+        if (h.ranuras) {
+          const ranuras = h.ranuras
+          return geo(`placa:${n(h.ancho)}:${n(h.alto)}:${n(espesor)}:${ranuras}`,
+            () => placaRanurada(h.ancho, h.alto, espesor, ranuras, detalle))
+        }
         return geo(`ale:${n(h.ancho)}:${n(h.alto)}:${n(espesor)}:${n(h.bisel ?? 0.045)}`,
           () => detalle ? new RoundedBoxGeometry(h.ancho, h.alto, espesor, 1, Math.min(h.bisel ?? 0.045, h.ancho * 0.3))
             : new THREE.BoxGeometry(h.ancho, h.alto, espesor))
@@ -191,6 +205,10 @@ export function abrirTallerTres(detalle = true): Taller {
   return {
     material,
     geometriaDe: geoDe,
+    cintaDe(pieza, cable) {
+      const clave = JSON.stringify([pieza.perfil, cable])
+      return geo(clave, () => crearCintaHelicoidal(pieza, cable, detalle))
+    },
     camaraDe(radio, espesor, vueltas, giro, centro) {
       const clave = `cam:${n(radio)}:${n(espesor)}:${vueltas}:${n(giro)}:${n(centro)}`
       const ancho = radio * 2, alto = radio * 5
@@ -230,15 +248,34 @@ export function abrirTallerTres(detalle = true): Taller {
             bevelEnabled: true, bevelThickness: bisel, bevelSize: bisel, bevelSegments: 1,
           })
           g.translate(0, 0, -espesor / 2 + bisel)
-          return repetir(g)
+          if (!detalle) return repetir(g)
+          // Las dos mordazas y sus pasadores van en la misma malla de latón.
+          const elementos: THREE.BufferGeometry[] = [g]
+          for (const lado of [-1, 1]) {
+            const soporte = new THREE.CylinderGeometry(radio * 0.30, radio * 0.47, radio * 0.52, 12)
+            if (lado === -1) soporte.rotateZ(Math.PI)
+            soporte.translate(0, lado * alto * 0.39, labio - radio * 0.31)
+            elementos.push(soporte.toNonIndexed())
+            soporte.dispose()
+            for (const x of [-1, 1]) {
+              const pasador = new THREE.CylinderGeometry(borde * 0.55, borde * 0.67, borde * 0.18, 6)
+              pasador.rotateX(Math.PI / 2)
+              pasador.translate(x * (w - borde / 2), lado * (h - borde * 1.8), labio)
+              elementos.push(pasador.toNonIndexed())
+              pasador.dispose()
+            }
+          }
+          const marco = mergeGeometries(elementos)!
+          elementos.forEach(elemento => elemento.dispose())
+          return repetir(marco)
         }),
         fondo: geo(`${clave}:fondo`, () => repetir(new THREE.BoxGeometry(ancho * 0.94, alto * 0.94, 0.025)
-          .translate(0, 0, labio - 0.18))),
+          .translate(0, 0, labio - radio * 0.58))),
         cristal: geo(`${clave}:cristal`, () => {
-          // Facetas largas sujetas dentro del labio, con oscuridad a su alrededor.
-          const g = new THREE.OctahedronGeometry(1, 0)
-          g.scale(radio * 0.48, radio * 2.12, 0.065)
-          g.translate(0, 0, labio - 0.09)
+          // El mismo prisma asimétrico del paso Cristal, visible entre mordazas.
+          const g = geometriaDeCristal(781)
+          g.scale(radio * 0.55, alto * 0.13, radio * 0.24)
+          g.translate(0, -alto * 0.053, labio - radio * 0.28)
           return repetir(g)
         }),
       }
@@ -265,11 +302,40 @@ export function abrirTallerTres(detalle = true): Taller {
       // Más lento y desfasado: una brasa respira, no parpadea.
       if (brasa) brasa.emissiveIntensity = ahora === null ? 1.2 : 1.2 + Math.sin(ahora * 0.0022 + 1.1) * 0.35
     },
+    detallesDe(pieza) {
+      const hechos = detalles.get(pieza.id)
+      if (hechos) return hechos
+      const nuevos = crearDetallesPieza(pieza, detalle)
+      detalles.set(pieza.id, nuevos)
+      return nuevos
+    },
+    agruparFijos(malla, pieza, animadas) {
+      if (!detalle) return
+      const grupos = new Map<THREE.Material, THREE.Mesh[]>()
+      for (const hijo of malla.children) {
+        if (!(hijo instanceof THREE.Mesh) || animadas.includes(hijo)) continue
+        const grupo = grupos.get(hijo.material)
+        if (grupo) grupo.push(hijo)
+        else grupos.set(hijo.material, [hijo])
+      }
+      for (const [material, hijos] of grupos) {
+        if (hijos.length < 2) continue
+        const clave = `${pieza.id}:${material.uuid}:${hijos.map(m => m.geometry.uuid).join('/')}`
+        const fusion = geo(clave, () => unirGeometrias(hijos.map(hijo => {
+          hijo.updateMatrix()
+          return hijo.geometry.clone().applyMatrix4(hijo.matrix)
+        })))
+        malla.remove(...hijos)
+        malla.add(new THREE.Mesh(fusion, material))
+      }
+    },
     soltar() {
       for (const m of materiales.values()) m.dispose()
       for (const g of geometrias.values()) g.dispose()
       for (const t of texturas) t.dispose()
       materiales.clear()
+      for (const piezas of detalles.values()) for (const pieza of piezas) pieza.geometria.dispose()
+      detalles.clear()
       geometrias.clear()
       superficies.clear()
       texturas.length = 0
@@ -308,6 +374,12 @@ export function vestirPieza(
   const titilan: THREE.Mesh[] = []
 
   for (const h of pieza.herrajes) {
+    if (h.tipo === 'cable' && h.cinta) {
+      const cinta = new THREE.Mesh(taller.cintaDe(pieza, h), taller.material(h.material))
+      cinta.position.y = h.y * pieza.alto
+      malla.add(cinta)
+      continue
+    }
     const { apoyo, dentro, fuera } = asientoDe(pieza.perfil, h, pieza.alto)
     // Un inserto casi enrasado sigue siendo una superficie de color visible.
     // Medir solo su salida borraba los paneles negros anchos en la miniatura.
@@ -365,6 +437,10 @@ export function vestirPieza(
       malla.add(m)
     }
   }
+  for (const acabado of taller.detallesDe(pieza)) {
+    malla.add(new THREE.Mesh(acabado.geometria, taller.material(acabado.material)))
+  }
+  taller.agruparFijos(malla, pieza, titilan)
   return titilan
 }
 
@@ -372,10 +448,19 @@ export function vestirPieza(
 export function radioMaximo(piezas: PiezaSuelta[]): number {
   let max = 0
   for (const p of piezas) {
-    for (const [r] of p.puntos) if (r > max) max = r
+    const margenBisel = p.clave === 'cuerpo' ? 0 : .14
+    for (const [r] of p.puntos) max = Math.max(max, r + margenBisel)
     for (const h of p.herrajes) {
-      const { fuera } = asientoDe(p.perfil, h, p.alto)
-      if (fuera > max) max = fuera
+      const { fuera, dentro } = asientoDe(p.perfil, h, p.alto)
+      // «fuera» mide el centro de la cara. Los cantos de la caja y del
+      // cartucho son tangentes al cilindro: sus esquinas quedan más lejos.
+      const semiancho = h.tipo === 'caja' || h.tipo === 'aleta' ? h.ancho / 2
+        : h.tipo === 'boton' || (h.tipo === 'gema' && h.alojamiento) ? h.radio : 0
+      const centro = (fuera + dentro) / 2
+      const radioReal = h.tipo === 'gema' && !h.alojamiento || h.tipo === 'destello'
+        ? centro + h.radio
+        : Math.hypot(fuera + (h.tipo === 'caja' || (h.tipo === 'gema' && h.alojamiento) ? .06 : 0), semiancho)
+      max = Math.max(max, radioReal)
     }
   }
   return max
