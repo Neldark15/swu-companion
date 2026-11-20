@@ -1,6 +1,8 @@
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { PROFUNDIDAD_IRIS } from './extremosSable'
+import { crearApliquesCuerpo } from './apliquesCuerpo'
+import { crearSiluetaEmisor } from './modelosEmisor'
 import { asientoDe, radioEn, type MaterialId, type PiezaSuelta } from './partesSable'
 
 export interface AcabadoMecanizado {
@@ -42,6 +44,7 @@ export function crearDetallesPieza(pieza: PiezaSuelta, detalle: boolean): Acabad
   }
   const { alto, perfil, id } = pieza
   if (pieza.clave === 'emisor') {
+    crearSiluetaEmisor(id, detalle, poner)
     const r = perfil.at(-1)![0]
     // Un iris hundido entre dos paredes: el filo de cobre rodea un aislante
     // oscuro con escalones, visible al mirar dentro de la boca inclinada.
@@ -71,7 +74,7 @@ export function crearDetallesPieza(pieza: PiezaSuelta, detalle: boolean): Acabad
       [radio * .23, alto - .045], [radio * .20, alto - .10]], 6))
   }
 
-  if (pieza.clave === 'pomo' && perfil[1][1] === 0 && detalle) {
+  if (pieza.clave === 'pomo' && id !== 'pom_gemelo' && perfil[1][1] === 0 && detalle) {
     // La placa inferior tiene perforaciones reales que enseñan el fondo de
     // la cavidad. Se conserva el extremo macizo de los pomos en punta.
     const r = perfil[1][0] * .715
@@ -122,6 +125,7 @@ export function crearDetallesPieza(pieza: PiezaSuelta, detalle: boolean): Acabad
     engaste.dispose(); fondo.dispose()
   }
 
+  crearApliquesCuerpo(pieza, detalle, poner)
   if (pieza.clave === 'cuerpo' && detalle) {
     for (const h of pieza.herrajes) {
       if (h.tipo !== 'caja') continue

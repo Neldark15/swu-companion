@@ -7,6 +7,7 @@ import { CreditoIcon } from '../../components/icons/CreditoIcon'
 import type { Acabado, ParteTaller, Taller } from '../../services/sableService'
 import { SableEscena, type Encuadre, type Orientacion } from './SableEscena'
 import { MiniaturaPieza } from './MiniaturaPieza'
+import { GaleriaSables } from './GaleriaSables'
 import { ConsejoHuyang } from './ConsejoHuyang'
 import { colorDeHoja, materialDe, piezasDeSable, type Diseno } from './partesSable'
 import { PASOS, RANURAS_MANGO, deltaDe, pesoDeRareza, rarezaDe, sumarStats, type Paso, type Stats } from './kyber'
@@ -108,6 +109,8 @@ export function TallerKyber({
   alElegirParte, alGuardar, alLimpiarAviso, demo = false, pasoInicial = 'piezas',
   alReintentarAviso, refrescando = false, comprasBloqueadas = false,
 }: TallerKyberProps) {
+  const [modo, setModo] = useState<'galeria' | 'editor'>('galeria')
+  const modosRef = useRef<HTMLElement>(null)
   const [paso, setPaso] = useState<Paso>(pasoInicial)
   const [acercar, setAcercar] = useState(false)
   const [ranura, setRanura] = useState<RanuraMango>('emisor')
@@ -116,7 +119,7 @@ export function TallerKyber({
   const [sinWebGL, setSinWebGL] = useState(false)
   const [silencio, setSilencio] = useState(() => demo || sableEnSilencio())
   const hubo = useRef(false)
-  const encendido = paso === 'prueba'
+  const encendido = modo === 'editor' && paso === 'prueba'
   const tonoHoja = colorDeHoja(diseno.color).halo
   const partes = taller.partes
   const puestas = [diseno.emisor, diseno.cuerpo, diseno.pomo, diseno.color]
@@ -171,6 +174,19 @@ export function TallerKyber({
         </button>
       </header>
 
+      <nav ref={modosRef} className="kyber-modos" aria-label="Secciones del taller">
+        <button type="button" aria-pressed={modo === 'galeria'} onClick={() => setModo('galeria')}>Galería</button>
+        <button type="button" aria-pressed={modo === 'editor'} onClick={() => setModo('editor')}>Mi sable</button>
+      </nav>
+      {modo === 'galeria' ? <GaleriaSables actual={diseno} partes={partes} ocupado={ocupado}
+        alUsar={d => {
+          alCambiarDiseno(d)
+          alLimpiarAviso()
+          setPaso('prueba')
+          setEncuadre('completo')
+          setModo('editor')
+          modosRef.current?.querySelector<HTMLButtonElement>('button:last-child')?.focus()
+        }} /> : <>
       <nav className="kyber-pasos" aria-label="Pasos del taller">
         {PASOS.map(p => <button key={p.id} type="button" aria-current={p.id === paso ? 'step' : undefined}
           onClick={() => irAlPaso(p.id)}>
@@ -294,6 +310,7 @@ export function TallerKyber({
         </details>}
         <p className="kyber-coleccion"><Package size={13} /> {demo ? `${taller.cuantasHay} piezas de prueba` : `${taller.cuantasTengo} de ${taller.cuantasHay} piezas conseguidas · Nivel ${taller.nivel}`}</p>
       </div>
+      </>}
     </div>
   )
 }

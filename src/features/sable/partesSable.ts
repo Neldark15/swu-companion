@@ -359,6 +359,29 @@ export function mallasDeHerrajes(herrajes: Herraje[] | undefined): number {
 /* ── Pomos (abajo) ─────────────────────────────────────────────────── */
 
 const POMOS: Record<string, Pieza> = {
+  pom_cometa: {
+    alto: 5.15, material: 'grafito',
+    puntos: h => [[0, 0], [.48, .26], [.87, h * .31], [1.16, h * .56],
+      [1.77, h * .74], [1.77, h * .85], [R, h * .92], [R, h]],
+    herrajes: [{ tipo: 'anillo', y: .80, grosor: .13, material: 'cobre' }],
+  },
+  pom_contrapeso: {
+    alto: 5.3, material: 'negro',
+    puntos: h => [[0, 0], [1.12, 0], [1.25, h * .12], [1.48, h * .32],
+      [1.46, h * .57], [1.22, h * .72], [1.22, h * .83], [R, h * .91], [R, h]],
+    herrajes: [{ tipo: 'anillo', y: .79, grosor: .12, material: 'laton' }],
+  },
+  pom_gemelo: {
+    alto: 5.6, material: 'acero',
+    puntos: h => [[0, 0], [1.74, 0], [2.06, h * .06], [2.06, h * .17],
+      [1.86, h * .21], [1.86, h * .32], [1.42, h * .44],
+      [1.42, h * .76], [1.80, h * .83], [1.80, h * .91], [R, h]],
+    herrajes: [
+      { tipo: 'anillo', y: .13, grosor: .10, material: 'negro' },
+      { tipo: 'anillo', y: .57, grosor: .13, material: 'cobre' },
+      { tipo: 'anillo', y: .70, grosor: .12, material: 'cobre' },
+    ],
+  },
   pom_plano: {
     alto: 3,
     puntos: h => [[0, 0], [R * 0.95, 0], [R * 1.06, h * 0.2], [R, h]],
@@ -567,6 +590,52 @@ function repetir(h: number, n: number, rBajo: number, rAlto: number): Punto[] {
 }
 
 const CUERPOS: Record<string, Pieza> = {
+  cue_shoto: {
+    alto: 7.3, material: 'acero',
+    puntos: h => [[R, 0], [1.82, .28], [1.82, .63], [1.50, 1.05],
+      [1.46, h * .72], [1.76, h * .79], [1.76, h * .91], [R, h]],
+    herrajes: [
+      { tipo: 'aleta', y: .46, alto: 2.90, ancho: .91, salida: .15, vueltas: 5,
+        giro: .32, material: 'grafito', bisel: .1, ranuras: 3 },
+      { tipo: 'anillo', y: .87, grosor: .095, material: 'negro' },
+      { tipo: 'boton', y: .84, radio: .22, salida: .15, material: 'luz' },
+    ],
+  },
+  cue_pica: {
+    alto: 25.4, material: 'acero',
+    puntos: h => [[R, 0], [1.69, .6], [1.69, 1.0], [1.33, 1.5], [1.33, 8.6],
+      [1.62, 9.1], [1.62, 9.65], [1.04, 10.15], [1.04, h - 10.15],
+      [1.62, h - 9.65], [1.62, h - 9.1], [1.33, h - 8.6], [1.33, h - 1.5],
+      [1.69, h - 1.0], [1.69, h - .6], [R, h]],
+    herrajes: [
+      { tipo: 'cable', y: .20, grosor: .13, cinta: { alto: 6.1, vueltas: 6, ancho: .79 }, material: 'grafito' },
+      { tipo: 'cable', y: .80, grosor: .13, cinta: { alto: 6.1, vueltas: -6, ancho: .79 }, material: 'grafito' },
+      { tipo: 'anillo', y: .365, grosor: .12, material: 'laton' },
+      { tipo: 'anillo', y: .635, grosor: .12, material: 'laton' },
+      { tipo: 'boton', y: .50, radio: .23, salida: .15, material: 'luz' },
+    ],
+  },
+  cue_reliquia: {
+    alto: 12.5, material: 'bronce',
+    // El cristal central y los cinco nervios de la linterna dejan cinco ventanas abiertas.
+    puntos: h => [[R, 0], [1.96, .31], [1.96, 1.02], [1.36, 1.65],
+      [.72, 2.20], [.58, h * .42], [.58, h * .60], [.74, h - 2.20],
+      [1.36, h - 1.65], [1.96, h - 1.02], [1.96, h - .31], [R, h]],
+    herrajes: [
+      { tipo: 'anillo', y: .057, grosor: .11, material: 'laton' },
+      { tipo: 'anillo', y: .943, grosor: .11, material: 'laton' },
+    ],
+  },
+  cue_senda: {
+    alto: 13.0, material: 'jade',
+    puntos: h => [[R, 0], [1.84, .55], [1.74, 1.15], [1.41, 2.20],
+      [1.14, h * .47], [1.20, h * .60], [1.59, h * .78],
+      [1.83, h * .88], [1.55, h * .94], [R, h]],
+    herrajes: [
+      { tipo: 'anillo', y: .050, grosor: .11, material: 'bronce' },
+      { tipo: 'gema', y: .82, radio: .32, material: 'luz' },
+    ],
+  },
   cue_liso: {
     alto: 14,
     puntos: h => [
@@ -1026,6 +1095,32 @@ const EMISORES: Record<string, Pieza> = {
     ],
   },
 
+  emi_cruceta: {
+    alto: 6.5, material: 'negro',
+    puntos: h => [[R, 0], [1.9, .35], [1.9, 1.25], [1.5, 1.55], [1.5, 3.65],
+      [2.05, 4.0], [2.05, 4.42], [1.5, 4.8], [1.5, h - .3], [1.32, h], [.9, h]],
+    herrajes: [{ tipo: 'anillo', y: .14, grosor: .13, material: 'acero' }],
+  },
+  emi_orbita: {
+    alto: 8.2, material: 'bronce',
+    puntos: h => [[R, 0], [1.78, .28], [1.78, .88], [1.4, 1.28], [1.1, 1.54],
+      [.94, 2.48], [.94, 6.06], [1.35, 6.38], [1.35, h - .36], [1.14, h], [.86, h]],
+    herrajes: [{ tipo: 'anillo', y: .08, grosor: .14, material: 'laton' }],
+  },
+  emi_lira: {
+    alto: 8.8, material: 'hueso',
+    puntos: h => [[R, 0], [1.98, .42], [1.98, .88], [1.58, 1.4], [1.58, 2.18],
+      [1.04, 2.83], [1.04, 4.15], [.87, 4.4], [.87, 7.12], [1.22, 7.5],
+      [1.22, h - .24], [1.08, h], [.82, h]],
+    herrajes: [{ tipo: 'anillo', y: .10, grosor: .15, material: 'laton' }],
+  },
+  emi_prisma: {
+    alto: 6.8, material: 'grafito',
+    puntos: h => [[R, 0], [1.8, .27], [1.8, .8], [1.48, 1.04], [1.48, 1.9],
+      [2.2, 2.58], [2.2, 3.45], [1.2, 4.16], [1.12, 5.78], [1.28, 6.05],
+      [1.28, h], [.85, h]],
+    herrajes: [{ tipo: 'anillo', y: .105, grosor: .14, material: 'acero' }],
+  },
 }
 
 /* ── Colores de hoja ───────────────────────────────────────────────── */
