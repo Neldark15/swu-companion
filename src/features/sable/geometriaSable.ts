@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { alturaLibreBoca, perfilConCavidad, recorteBoca } from './extremosSable'
 import { perfilValido, type PiezaSuelta, type Punto } from './partesSable'
 
 /** Una repetición de la superficie equivale a dos unidades del mango. */
@@ -45,7 +46,7 @@ export function crearGeometriaPieza(pieza: PiezaSuelta, segmentos = 96): THREE.L
     || perfilValido(pieza.puntos).length) {
     throw new RangeError('El perfil del sable no es dibujable.')
   }
-  const puntos = biselarPerfil(pieza.puntos)
+  const puntos = biselarPerfil(perfilConCavidad(pieza))
   const distancias = [0]
   let radioPonderado = 0, alto = 0
   for (let i = 1; i < puntos.length; i++) {
@@ -61,6 +62,34 @@ export function crearGeometriaPieza(pieza: PiezaSuelta, segmentos = 96): THREE.L
   for (let i = 0; i <= segmentos; i++) {
     for (let j = 0; j < puntos.length; j++) {
       uv.setXY(i * puntos.length + j, (i / segmentos) * vueltas, distancias[j] / ESCALA_SUPERFICIE)
+    }
+  }
+  if (pieza.clave === 'emisor') {
+    const posicion = geometria.getAttribute('position')
+    const normal = geometria.getAttribute('normal')
+    const n = new THREE.Vector3()
+    const libre = alturaLibreBoca(pieza)
+    const escala = libre / 1.18
+    for (let i = 0; i <= segmentos; i++) {
+      const angulo = 2 * Math.PI * i / segmentos
+      const rebaje = escala * recorteBoca(pieza.id, angulo)
+      const pendiente = escala * (recorteBoca(pieza.id, angulo + .001) - recorteBoca(pieza.id, angulo - .001)) / .002
+      for (let j = 0; j < puntos.length; j++) {
+        const { x: radio, y } = puntos[j]
+        const peso = libre > 0 ? Math.max(0, (y - pieza.alto + libre) / libre) : 0
+        if (!peso || !radio) continue
+        const k = i * puntos.length + j
+        posicion.setY(k, y - peso * rebaje)
+        // Normal inversa-transpuesta del recorte: conserva el brillo continuo
+        // en la costura de 360° y también en la pared interior de la boca.
+        n.fromBufferAttribute(normal, k)
+        n.y /= 1 - rebaje / libre
+        const giro = n.y * peso * pendiente / radio
+        n.x += giro * Math.cos(angulo)
+        n.z -= giro * Math.sin(angulo)
+        n.normalize()
+        normal.setXYZ(k, n.x, n.y, n.z)
+      }
     }
   }
   uv.needsUpdate = true

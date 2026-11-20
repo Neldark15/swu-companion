@@ -12,6 +12,14 @@ Registro compartido entre Claude y ChatGPT. **La entrada más nueva va arriba.**
 
 ---
 
+## 2026-11-19 · ChatGPT · Modelos 3D e inspección de piezas del Taller Kyber
+**Qué cambió:** Las piezas del catálogo ganan emisores con iris hundido, pomos con cavidades, cuero y trenzas helicoidales, placas perforadas y una cámara de cristal facetado. En Piezas, «Ver pieza de cerca» permite girar la selección alrededor de su centro. La miniatura de la barra de XP usa la nueva geometría.
+**Archivos:** `src/features/sable/`, `scripts/kyber-geometria.test.mts`. Detalle en CLAUDE §5v.
+**Cómo verificar:** `npm run build`, `npm run lint` y las pruebas `kyber-geometria`, `kyber-encuadre` y `sable-perfiles` con `npx tsx scripts/<nombre>.test.mts`. Banco local `/banco-sable-3d`. Elegir Faro y Blindaje, girar cada pieza de cerca y volver a encender el conjunto.
+**Pendiente / notas:** Visor verificado en Chrome de escritorio y en emulación móvil de 390 × 844. Queda la comprobación de fluidez en un teléfono físico.
+
+---
+
 ## 2026-11-06 · ChatGPT · Continuidad de mesa, colección durable y navegación móvil
 **Qué cambió:** Corrección completa de la revisión autorizada. Registro PWA en la raíz para que `/contador` directo pueda volver a abrir offline; actualización nativa por pestaña sin recargar una partida oculta aunque otra pestaña active la versión, con limpieza/reintentos. Precache por grafo de imports esenciales (~1,9 MB/93 entradas); 3D, laboratorio y módulos opcionales se guardan al visitarse. Dados del contador registrado se cargan bajo demanda con resultado numérico/reintento si falla 3D. Colección: cola durable por perfil en Dexie v11, guardado local+operación atómicos, borrados/reemplazos, reintentos, protección contra descargas antiguas y aviso pendiente/error. Contador: Continuar mesa, Revancha conservando bases/jugadores, configuración móvil sin solapes y acción accesible. Tracker anterior: guardado por cambio ordenado y recuperación, cuatro jugadores/bases/fecha preservados. Mapa compartido de navegación y nombres de misiones coherentes; Inicio/Cartas públicos en móvil con instalación opcional y controles de 44 px. Tarjeta de jugador y posición de ligas conservadas.
 **Archivos:** `registroPwa`, `politicaActualizacion`, `UpdatePrompt`, `App`, `sw`, `vite.config`, `precache-esencial`, `collectionQueue/Sync/Service/Import`, `db` y `sync`, avisos de colección, calculadora/contador/Tracker, `guardadoPartidas`, `useMatchPersistence`, navegación/Inicio/Reglas/Cartas/PWA y pruebas nuevas. Detalle en CLAUDE §5u.

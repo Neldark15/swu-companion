@@ -3,7 +3,7 @@ import * as THREE from 'three'
 /** Reflectores de estudio: se hornean una vez, no hay luces/sombras por panel. */
 export function crearEntornoKyber(renderer: THREE.WebGLRenderer): THREE.WebGLRenderTarget {
   const estudio = new THREE.Scene()
-  estudio.background = new THREE.Color('#10151c')
+  estudio.background = new THREE.Color('#202932')
   const plano = new THREE.PlaneGeometry(1, 1)
   const materiales: THREE.MeshBasicMaterial[] = []
 
@@ -20,12 +20,15 @@ export function crearEntornoKyber(renderer: THREE.WebGLRenderer): THREE.WebGLRen
     estudio.add(panel)
   }
 
-  // Una caja grande y tiras estrechas hacen legibles metal cepillado y biseles.
-  reflector(0xf4f7ff, 4.0, 7, 15, new THREE.Vector3(-7, 3, 7))
-  reflector(0xddeaff, 3.2, 2.0, 18, new THREE.Vector3(8, 0, 3))
-  reflector(0xffdfa6, 2.0, 3, 12, new THREE.Vector3(-4, 2, -8))
-  reflector(0xffffff, 2.0, 7, 5, new THREE.Vector3(0, 10, 0))
-  reflector(0xc3cbd8, 0.5, 6, 12, new THREE.Vector3(1, -3, -9))
+  // Los paneles anchos dibujan el volumen. Las tiras más estrechas se
+  // reflejan en labios, roscas y biseles al girar las piezas en primer plano.
+  reflector(0xf5f3eb, 3.1, 8.5, 16, new THREE.Vector3(-7, 5, 8))
+  reflector(0xd8ebff, 2.6, 2.8, 18, new THREE.Vector3(8, 1, 4))
+  reflector(0xeaf5ff, 3.4, 0.7, 13, new THREE.Vector3(7, 0, 6))
+  reflector(0xffcb8a, 2.5, 3.4, 14, new THREE.Vector3(-5, 0, -7))
+  reflector(0xfff3df, 2.1, 8, 6, new THREE.Vector3(0, 10, 0))
+  reflector(0x9ab0c4, 0.8, 11, 10, new THREE.Vector3(2, -6, -9))
+  reflector(0xb6c3c9, 0.45, 9, 4, new THREE.Vector3(0, -8, 3))
 
   const pmrem = new THREE.PMREMGenerator(renderer)
   try {

@@ -65,6 +65,27 @@ export function MiniaturaPieza({ tipo, id, size = 46, colorHoja }: Props) {
         // Una banda más fina que medio píxel no se dibuja: a este tamaño no
         // agrega un aro, agrega una línea sucia sobre la silueta.
         const grueso = (fuera - superficie) * 2 * escalaY
+        if (h.tipo === 'cable' && h.cinta) {
+          // Proyección frontal de la cinta real; el tramo posterior lo tapa
+          // el propio cuerpo. Mantener el sentido de la vuelta en cada pieza.
+          const cinta = h.cinta
+          const subdivisiones = Math.ceil(Math.abs(cinta.vueltas) * 24)
+          const tramos: string[] = []
+          let frenteAnterior = false
+          for (let paso = 0; paso <= subdivisiones; paso++) {
+            const t = paso / subdivisiones
+            const angulo = (h.giro ?? 0) + t * Math.PI * 2 * cinta.vueltas
+            const frente = Math.cos(angulo) >= -0.001
+            if (frente) {
+              const altura = h.y * pieza.alto + (t - 0.5) * cinta.alto
+              const x = cx + Math.sin(angulo) * radioEn(pieza.puntos, altura) * escalaX
+              tramos.push(`${frenteAnterior ? 'L' : 'M'}${x.toFixed(1)} ${py(altura).toFixed(1)}`)
+            }
+            frenteAnterior = frente
+          }
+          return <path key={i} d={tramos.join(' ')} fill="none" stroke={m.borde}
+            strokeWidth={Math.max(0.8, cinta.ancho * escalaY * 0.6)} strokeLinecap="round" />
+        }
         if (h.tipo === 'anillo' || h.tipo === 'cable') {
           if (grueso < 0.9) return null
           return (

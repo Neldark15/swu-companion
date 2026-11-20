@@ -8,11 +8,12 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { crearEntornoKyber } from './entornoKyber'
+import { PROFUNDIDAD_IRIS } from './extremosSable'
 import { crearGeometriaPieza } from './geometriaSable'
 import { FOV_KYBER, INCLINACION_CAMARA, medirEncuadreKyber } from './encuadreKyber'
 import { crearHaloKyber } from './haloKyber'
 import {
-  piezasDeSable, colorDeHoja, MATERIALES, type Diseno, type MaterialId,
+  piezasDeSable, colorDeHoja, MATERIALES, type Diseno, type MaterialId, type PiezaSuelta,
 } from './partesSable'
 import { abrirTallerTres, vestirPieza, radioMaximo } from './herrajesTres'
 import { geometriaDeCristal, texturaDeVetas, semillaDe } from './cristalTres'
@@ -33,11 +34,13 @@ interface Props {
   vista?: Vista
   /** Detalle mantiene grande el mango; completo incluye toda la hoja. */
   encuadre?: Encuadre
+  inspeccionar?: PiezaSuelta['clave'] | null
   onSinWebGL?: () => void
   className?: string
 }
 
 interface Mando {
+  enfocarPieza: (clave: PiezaSuelta['clave'] | null) => void
   rehacer: (d: Diseno) => void
   encender: (v: boolean) => void
   explotar: (v: boolean) => void
@@ -56,7 +59,7 @@ const POSES: Record<Orientacion, THREE.Quaternion> = {
 
 export function SableEscena({
   diseno, encendido, explotado = false, orientacion = 'diagonal', vista = 'sable',
-  encuadre = 'completo', onSinWebGL, className = '',
+  encuadre = 'completo', inspeccionar = null, onSinWebGL, className = '',
 }: Props) {
   const cajaRef = useRef<HTMLDivElement>(null)
   const alFallarRef = useRef(onSinWebGL)
@@ -135,10 +138,11 @@ export function SableEscena({
     /** Los destellos de las tres piezas. Se rehacen con cada cambio de pieza. */
     let titilando: THREE.Mesh[] = []
 
-    const piezas = ([0, 1, 2] as const).map(() => {
+    const piezas = (['pomo', 'cuerpo', 'emisor'] as const).map(clave => {
       const malla = new THREE.Mesh(new THREE.BufferGeometry(), taller.material('acero'))
       grupoSable.add(malla)
-      return { malla, base: 0, alto: 0, id: null as string | null }
+      return { clave, malla, base: 0, alto: 0, radio: 0, limites: new THREE.Box3(),
+        id: null as string | null, acabado: null as MaterialId | null, ventana: false, destellos: [] as THREE.Mesh[] }
     })
 
     /* ── EL ALMA: el hilo de energía que une las piezas al abrirse ──
@@ -250,15 +254,18 @@ export function SableEscena({
     const qMeta = new THREE.Quaternion().copy(POSES[orientacion])
     let enViaje = false
 
+    let piezaAislada = piezas.find(p => p.clave === inspeccionar)
     const HUECO = 4.6
     function colocarPiezas(): void {
       for (let i = 0; i < piezas.length; i++) {
         const p = piezas[i]
-        p.malla.position.y = -altoTotal / 2 + p.base + separacion * HUECO * i
+        p.malla.visible = !piezaAislada || p === piezaAislada
+        p.malla.position.y = piezaAislada ? -(p.limites.max.y + p.limites.min.y) / 2
+          : -altoTotal / 2 + p.base + separacion * HUECO * i
       }
       // El alma une la base del pomo con la boca del emisor, y crece con la
       // separación. Cerrado no existe: dentro del mango no hay nada que unir.
-      const abierto = separacion > 0.03
+      const abierto = !piezaAislada && separacion > 0.03
       alma.visible = abierto
       if (abierto) {
         const arriba = piezas[2]
@@ -270,13 +277,13 @@ export function SableEscena({
     }
 
     function colocarHoja(): void {
-      const visible = hoja > 0.004
+      const visible = !piezaAislada && hoja > 0.004
       nucleo.visible = visible
       halo.visible = visible
       bruma.visible = visible
       luzHoja.intensity = visible ? 95 * hoja : 0
       if (!visible) return
-      const nace = altoTotal / 2
+      const nace = altoTotal / 2 - PROFUNDIDAD_IRIS
       for (const m of [nucleo, halo, bruma]) {
         m.scale.y = hoja
         m.position.y = nace + (LARGO * hoja) / 2
@@ -292,15 +299,35 @@ export function SableEscena({
       altoTotal = sueltas.reduce((s, p) => s + p.alto, 0)
       sueltas.forEach((sp, i) => {
         // Cambiar acabado/color no vuelve a tornear un perfil idéntico.
-        if (piezas[i].id !== d[sp.clave]) {
+        const pieza = piezas[i]
+        const cambioModelo = pieza.id !== d[sp.clave]
+        if (cambioModelo) {
           const nueva = crearGeometriaPieza(sp)
-          piezas[i].malla.geometry.dispose()
-          piezas[i].malla.geometry = nueva
-          piezas[i].id = d[sp.clave]
+          pieza.malla.geometry.dispose()
+          pieza.malla.geometry = nueva
+          pieza.id = d[sp.clave]
         }
-        piezas[i].base = sp.base
-        piezas[i].alto = sp.alto
-        nuevos.push(...vestirPieza(piezas[i].malla, sp, taller))
+        pieza.base = sp.base
+        pieza.alto = sp.alto
+        const ventana = sp.clave === 'cuerpo' && !!d.cristalVisto
+        if (cambioModelo || pieza.acabado !== sp.material || pieza.ventana !== ventana) {
+          pieza.destellos = vestirPieza(pieza.malla, sp, taller)
+          pieza.acabado = sp.material
+          pieza.ventana = ventana
+          pieza.radio = radioMaximo([sp])
+          // Medir en coordenadas de la pieza: el giro del usuario no altera el encuadre.
+          pieza.malla.geometry.computeBoundingBox()
+          pieza.limites.copy(pieza.malla.geometry.boundingBox!)
+          const cajaHerraje = new THREE.Box3()
+          for (const herraje of pieza.malla.children) {
+            if (!(herraje instanceof THREE.Mesh)) continue
+            herraje.updateMatrix()
+            if (!herraje.geometry.boundingBox) herraje.geometry.computeBoundingBox()
+            cajaHerraje.copy(herraje.geometry.boundingBox!).applyMatrix4(herraje.matrix)
+            pieza.limites.union(cajaHerraje)
+          }
+        }
+        nuevos.push(...pieza.destellos)
       })
       // Se reemplaza la lista entera: las mallas viejas ya salieron del grupo
       // dentro de `vestirPieza`, y guardar referencias a objetos desprendidos
@@ -373,6 +400,18 @@ export function SableEscena({
       arrancar()
     }
 
+    function enfocarPieza(clave: PiezaSuelta['clave'] | null): void {
+      const pieza = piezas.find(p => p.clave === clave)
+      if (pieza === piezaAislada) return
+      piezaAislada = pieza
+      colocarPiezas()
+      colocarHoja()
+      encuadrar()
+      dist = distMeta
+      centro.copy(centroMeta)
+      pedirCuadro()
+    }
+
     function cambiarEncuadre(e: Encuadre): void {
       encuadreActual = e
       reevaluar()
@@ -427,11 +466,12 @@ export function SableEscena({
         return
       }
       const largoVisible = encuadreActual === 'detalle' ? Math.min(hoja * LARGO, 3) : hoja * (LARGO + 2)
-      const punta = altoTotal / 2 + separacion * HUECO * 2 + largoVisible
-      const fondo = -altoTotal / 2
+      const punta = piezaAislada ? piezaAislada.limites.max.y + piezaAislada.malla.position.y
+        : altoTotal / 2 + separacion * HUECO * 2 + largoVisible
+      const fondo = piezaAislada ? piezaAislada.limites.min.y + piezaAislada.malla.position.y : -altoTotal / 2
       ejeSable.set(0, 1, 0).applyQuaternion(grupoSable.quaternion)
       // La bruma luminosa es más ancha que algunos mangos del catálogo.
-      const radioVisible = Math.max(gordo, hoja > 0 && encuadreActual === 'completo' ? 3.1 : 0)
+      const radioVisible = piezaAislada ? piezaAislada.radio : Math.max(gordo, hoja > 0 && encuadreActual === 'completo' ? 3.1 : 0)
       const medida = medirEncuadreKyber({
         fondo, punta, radio: radioVisible + 0.45, aspecto: camera.aspect, eje: ejeSable,
       })
@@ -701,7 +741,7 @@ export function SableEscena({
     colocarCamara()
     reevaluar()
 
-    mandoRef.current = { rehacer, encender, explotar, orientar, cambiarVista, cambiarEncuadre }
+    mandoRef.current = { enfocarPieza, rehacer, encender, explotar, orientar, cambiarVista, cambiarEncuadre }
 
     return () => {
       mandoRef.current = null
@@ -741,6 +781,7 @@ export function SableEscena({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => { mandoRef.current?.enfocarPieza(inspeccionar) }, [inspeccionar])
   useEffect(() => { mandoRef.current?.rehacer(diseno) }, [diseno])
   useEffect(() => { mandoRef.current?.encender(encendido) }, [encendido])
   useEffect(() => { mandoRef.current?.explotar(explotado) }, [explotado])
