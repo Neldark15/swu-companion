@@ -5021,3 +5021,7 @@ El perfil de catálogo describe el exterior y fija dónde apoyan los herrajes. `
 `vestirPieza` comparte geometrías estáticas por material dentro de cada pieza. Los elementos que titilan conservan su malla independiente. El visor reutiliza los accesorios al cambiar el color del cristal y libera los recursos con `taller.soltar()`. La miniatura de la barra usa la misma geometría con menos segmentos y su caché pasa a v4. En Piezas, el visor aísla la ranura elegida y centra el giro con los límites locales del conjunto de mallas.
 
 `scripts/kyber-geometria.test.mts` recorre las 1.716 combinaciones, verifica los 36 perfiles a dos resoluciones, el asiento del aro y la liberación de recursos. Para revisar la apariencia, usar `/banco-sable-3d` en desarrollo y girar el emisor inclinado, la empuñadura y el pomo. La interfaz de cuenta de `/sable` usa el mismo componente `TallerKyber`.
+
+### 5w. Visibilidad de Puente 3 en Inicio (2026-11-20)
+
+`ligas.mostrar_en_inicio` vale true por defecto. `liga_para_inicio()` lo filtra antes de elegir la primera liga para que otra liga habilitada pueda ocupar el lugar. Solo Puente 3 tiene la marca apagada. Su `publica=false` y su estado de borrador ya limitaban el acceso normal al lobby. La marca de Inicio es independiente de los permisos del organizador y es reversible. El código y las imágenes siguen disponibles para los organizadores. El lobby y el panel arrancan con una carga neutra y se vuelven a montar al cambiar cuenta o código.

@@ -1178,7 +1178,7 @@ function ContenidoPerfil() {
 
       {/* «Mi Liga»: si jugás una liga, acá está cómo vas, qué te espera y tus
           videos. No se dibuja si no jugás ninguna. */}
-      {auth.supabaseUser && <MiLigaTarjeta />}
+      {auth.supabaseUser && <MiLigaTarjeta key={auth.supabaseUser.id} />}
 
       {/* Los torneos de melee: primero el historial si ya está enlazado, y
           después el campo para enlazarlo o cambiarlo. */}

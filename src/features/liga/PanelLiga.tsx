@@ -62,6 +62,7 @@ import {
 } from '../../services/ligaService'
 import { tamanosDeGrupo, GRUPO_MIN } from '../../services/ligaTabla'
 import { Bandera } from './componentes/piezas'
+import { imagenLiga } from './imagenLiga'
 
 /* ── El reloj, UNA vez y en el módulo ──────────────────────────────────
  *
@@ -309,57 +310,8 @@ function Centrado({ children }: { children: React.ReactNode }) {
 
 export function PanelLiga() {
   const { code } = useParams<{ code: string }>()
-  const { initAuth, authListo, currentProfile } = useAuth()
-
-  const [liga, setLiga] = useState<LigaCompleta | null>(null)
-  const [panel, setPanel] = useState<DatosPanel | null>(null)
-  /** ¿Contestó el servidor ALGUNA vez? Distinto de «hay datos». */
-  const [leido, setLeido] = useState(false)
-  const [refrescando, setRefrescando] = useState(false)
-  const [recarga, setRecarga] = useState(0)
-  const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [pestana, setPestana] = useState<Pestana>('inscritos')
-
+  const { initAuth, authListo, currentProfile, supabaseUser } = useAuth()
   useEffect(() => { initAuth() }, [initAuth])
-
-  /* La carga vive DENTRO del efecto con bandera de vida: escribir estado en
-   * cascada desde el cuerpo dispara renders de más y el lint lo rechaza, y la
-   * bandera evita contestarle a una pantalla que ya se cerró. `recarga` es el
-   * único disparador, así que hay UN camino de carga y no dos que se separen. */
-  useEffect(() => {
-    // Sin sesión no hay a quién preguntarle: la RPC contestaría vacío y se
-    // leería como «no tenés permiso» en vez de «iniciá sesión».
-    if (!code || !authListo || !currentProfile) return
-    let vivo = true
-    void (async () => {
-      const l = await verLiga(code)
-      if (!vivo) return
-      setLiga(l)
-      // El panel se pide con el ID; sin liga no hay ID que mandar.
-      const p = l ? await verPanel(l.liga.id) : null
-      if (!vivo) return
-      setPanel(p)
-      setLeido(true)
-      setRefrescando(false)
-    })()
-    return () => { vivo = false }
-  }, [code, authListo, currentProfile, recarga])
-
-  function recargar() {
-    setRefrescando(true)
-    setRecarga(n => n + 1)
-  }
-
-  /** Toda acción termina igual: se dice qué pasó y se relee de la base. */
-  /* Organiza o solo arbitra. `esOrganizador` lo manda `liga_ver`; si no vino
-     (una respuesta vieja en caché), se cae a `esStaff`, que era la regla de
-     antes — el servidor igual rechaza lo que no corresponde. */
-  const organiza = liga?.liga.esOrganizador ?? liga?.liga.esStaff ?? false
-
-  function tras(r: { ok: boolean; mensaje?: string }, exito: string) {
-    setAviso({ ok: r.ok, texto: r.ok ? exito : (r.mensaje ?? 'No se pudo') })
-    if (r.ok) recargar()
-  }
 
   if (!authListo) {
     return <Centrado><p className="text-sm text-swu-muted animate-pulse">Cargando…</p></Centrado>
@@ -375,6 +327,56 @@ export function PanelLiga() {
         </Link>
       </Centrado>
     )
+  }
+
+  if (!code) return <Centrado>Este enlace no está disponible</Centrado>
+  return <ContenidoPanel key={`${supabaseUser?.id ?? ''}:${currentProfile.id}:${code}`} code={code} />
+}
+
+function ContenidoPanel({ code }: { code: string }) {
+  const [liga, setLiga] = useState<LigaCompleta | null>(null)
+  const [panel, setPanel] = useState<DatosPanel | null>(null)
+  /** ¿Contestó el servidor ALGUNA vez? Distinto de «hay datos». */
+  const [leido, setLeido] = useState(false)
+  const [refrescando, setRefrescando] = useState(false)
+  const [recarga, setRecarga] = useState(0)
+  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [pestana, setPestana] = useState<Pestana>('inscritos')
+
+  /* La carga vive DENTRO del efecto con bandera de vida: escribir estado en
+   * cascada desde el cuerpo dispara renders de más y el lint lo rechaza, y la
+   * bandera evita contestarle a una pantalla que ya se cerró. `recarga` es el
+   * único disparador, así que hay UN camino de carga y no dos que se separen. */
+  useEffect(() => {
+    let vivo = true
+    void (async () => {
+      const l = await verLiga(code)
+      if (!vivo) return
+      setLiga(l)
+      // El panel se pide con el ID; sin liga no hay ID que mandar.
+      const p = l ? await verPanel(l.liga.id) : null
+      if (!vivo) return
+      setPanel(p)
+      setLeido(true)
+      setRefrescando(false)
+    })()
+    return () => { vivo = false }
+  }, [code, recarga])
+
+  function recargar() {
+    setRefrescando(true)
+    setRecarga(n => n + 1)
+  }
+
+  /** Toda acción termina igual: se dice qué pasó y se relee de la base. */
+  /* Organiza o solo arbitra. `esOrganizador` lo manda `liga_ver`; si no vino
+     (una respuesta vieja en caché), se cae a `esStaff`, que era la regla de
+     antes — el servidor igual rechaza lo que no corresponde. */
+  const organiza = liga?.liga.esOrganizador ?? liga?.liga.esStaff ?? false
+
+  function tras(r: { ok: boolean; mensaje?: string }, exito: string) {
+    setAviso({ ok: r.ok, texto: r.ok ? exito : (r.mensaje ?? 'No se pudo') })
+    if (r.ok) recargar()
   }
 
   if (!leido) {
@@ -393,8 +395,8 @@ export function PanelLiga() {
         <Button variant="secondary" size="sm" onClick={recargar} loading={refrescando}>
           <RefreshCw size={14} /> Reintentar
         </Button>
-        <Link to={`/liga/${code ?? ''}`} className="block text-xs text-swu-muted underline">
-          Volver a la liga
+        <Link to={liga ? `/liga/${liga.liga.code}` : '/'} className="block text-xs text-swu-muted underline">
+          {liga ? 'Volver a la liga' : 'Volver a Inicio'}
         </Link>
       </Centrado>
     )
@@ -1985,16 +1987,15 @@ const IMAGENES: Array<{
   cual: 'emblema' | 'portada' | 'banner'
   rotulo: string
   ayuda: string
-  porDefecto: string
   forma: string
 }> = [
-  { cual: 'emblema', rotulo: 'Emblema', porDefecto: '/liga/emblema.webp',
+  { cual: 'emblema', rotulo: 'Emblema',
     ayuda: 'Cuadrado, con fondo transparente (PNG o WebP). Va en la cabecera y en Inicio.',
     forma: 'h-16 w-16 object-contain' },
-  { cual: 'portada', rotulo: 'Portada', porDefecto: '/liga/portada.webp',
+  { cual: 'portada', rotulo: 'Portada',
     ayuda: 'Horizontal, unos 1600×600. Es el fondo de la cabecera del lobby.',
     forma: 'h-20 w-full object-cover' },
-  { cual: 'banner', rotulo: 'Banner de la cuenta atrás', porDefecto: '/liga/banner-liga.webp',
+  { cual: 'banner', rotulo: 'Banner de la cuenta atrás',
     ayuda: 'Horizontal, unos 1200×400. Va detrás de la cuenta atrás.',
     forma: 'h-20 w-full object-cover' },
 ]
@@ -2030,7 +2031,7 @@ export function AparienciaLiga({ liga, tras }: {
     setTrabajando(cual)
     const r = await configurarLiga(liga.liga.id, { [campo[cual]]: '' })
     setTrabajando(null)
-    tras(r, 'Se volvió a la imagen de siempre.')
+    tras(r, 'Imagen retirada.')
   }
 
   return (
@@ -2041,17 +2042,20 @@ export function AparienciaLiga({ liga, tras }: {
         </h2>
         {IMAGENES.map(img => {
           const url = actual[img.cual]
+          const vistaPrevia = imagenLiga(liga.liga.code, img.cual, url)
           return (
             <div key={img.cual} className="space-y-2 rounded-xl border border-swu-border p-2.5">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[12px] font-bold text-swu-text">{img.rotulo}</p>
                 <span className={`font-mono text-[9px] uppercase tracking-widest ${url ? 'text-swu-green' : 'text-swu-muted'}`}>
-                  {url ? 'propia' : 'la de siempre'}
+                  {url ? 'propia' : vistaPrevia ? 'predeterminada' : 'sin imagen'}
                 </span>
               </div>
-              <div className="overflow-hidden rounded-lg border border-swu-border/60 bg-swu-bg">
-                <img src={url ?? img.porDefecto} alt="" aria-hidden className={img.forma} />
-              </div>
+              {vistaPrevia && (
+                <div className="overflow-hidden rounded-lg border border-swu-border/60 bg-swu-bg">
+                  <img src={vistaPrevia} alt="" aria-hidden className={img.forma} />
+                </div>
+              )}
               <p className="text-[10px] leading-snug text-swu-muted">{img.ayuda} Hasta 3 MB.</p>
               <div className="flex gap-2">
                 <label className={`flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-swu-cyan/15

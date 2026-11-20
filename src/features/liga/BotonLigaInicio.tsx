@@ -29,11 +29,10 @@
 
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Trophy } from 'lucide-react'
 import { HudPanel, HudCorners } from '../../components/Hud'
 import { ligaParaInicio, type LigaDeInicio } from '../../services/ligaService'
 import { restanHasta } from './componentes/tiempo'
-import { useAuth } from '../../hooks/useAuth'
 
 /** Días enteros que faltan, con la MISMA cuenta que la cuenta atrás del lobby. */
 function diasHasta(fecha: string | null): number | null {
@@ -58,26 +57,13 @@ function linea(l: LigaDeInicio): string {
 }
 
 export function BotonLigaInicio() {
-  const { currentProfileId } = useAuth()
   const [liga, setLiga] = useState<LigaDeInicio | null>(null)
 
-  /* Al cambiar de cuenta (o al cerrar sesión) se olvida la liga anterior AQUÍ,
-     durante el render, y no dentro del efecto: un `setState` síncrono en un
-     efecto encadena un render de más y el linter lo marca como error. Es el
-     mismo patrón que usa el contador de vida de las mesas. Sin esto, cerrar
-     sesión dejaría el botón de la liga de la cuenta anterior en pantalla. */
-  const [paraQuien, setParaQuien] = useState(currentProfileId)
-  if (paraQuien !== currentProfileId) {
-    setParaQuien(currentProfileId)
-    setLiga(null)
-  }
-
   useEffect(() => {
-    if (!currentProfileId) return
     let vivo = true
     void ligaParaInicio().then(r => { if (vivo) setLiga(r) })
     return () => { vivo = false }
-  }, [currentProfileId])
+  }, [])
 
   if (!liga) return null
   return <BotonLiga liga={liga} />
@@ -108,12 +94,9 @@ export function BotonLiga({ liga }: { liga: LigaDeInicio }) {
             style={{ background: 'var(--liga-acento-suave)' }}
           >
             <HudCorners tone="neutral" />
-            <img
-              src={liga.emblemaUrl ?? '/liga/emblema.webp'}
-              alt=""
-              aria-hidden
-              className="h-10 w-10 flex-shrink-0 object-contain"
-            />
+            {liga.emblemaUrl
+              ? <img src={liga.emblemaUrl} alt="" className="h-10 w-10 flex-shrink-0 object-contain" />
+              : <Trophy aria-hidden="true" className="h-10 w-10 flex-shrink-0 p-1.5" style={{ color: 'var(--liga-acento)' }} />}
             {/* `min-w-0` sin `nowrap`: un ítem flex arranca en `min-width:auto`
                 y no se deja encoger bajo su contenido — el nombre impondría su
                 ancho y la fila se pasaría del teléfono. */}

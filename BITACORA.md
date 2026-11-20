@@ -12,6 +12,14 @@ Registro compartido entre Claude y ChatGPT. **La entrada más nueva va arriba.**
 
 ---
 
+## 2026-11-20 · ChatGPT · Puente 3 fuera de la vista de jugadores
+**Qué cambió:** Inicio dejó de anunciar Puente 3. La portada de carga es neutra mientras se comprueba el acceso. El creador y su equipo conservan su panel y los enlaces de gestión.
+**Archivos:** HomePage, CreadorPage, ProfilePage, componentes de liga y `supabase/migrations/liga-visibilidad-en-inicio.sql`. Ver CLAUDE §5w.
+**Cómo verificar:** Con una cuenta común, abrir Inicio y un enlace guardado a la liga. Con una cuenta del equipo, entrar por su panel. Verificar otra liga sin imágenes propias y cambiar de cuenta mientras carga la página.
+**Notas:** Puente 3 estaba en borrador y tenía cero inscripciones al retirar el anuncio.
+
+---
+
 ## 2026-11-19 · ChatGPT · Modelos 3D e inspección de piezas del Taller Kyber
 **Qué cambió:** Las piezas del catálogo ganan emisores con iris hundido, pomos con cavidades, cuero y trenzas helicoidales, placas perforadas y una cámara de cristal facetado. En Piezas, «Ver pieza de cerca» permite girar la selección alrededor de su centro. La miniatura de la barra de XP usa la nueva geometría.
 **Archivos:** `src/features/sable/`, `scripts/kyber-geometria.test.mts`. Detalle en CLAUDE §5v.
