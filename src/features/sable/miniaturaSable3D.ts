@@ -90,8 +90,24 @@ export function renderizarMango(d: Diseno, anchoPx = 216, altoPx = 66): string |
     const camera = new THREE.PerspectiveCamera(26, anchoPx / altoPx, 0.5, 200)
     const tanH = Math.tan(THREE.MathUtils.degToRad(13)) * (anchoPx / altoPx)
     const dist = ((altoTotal / 2 + 1.6) / tanH) * 1.04
-    camera.position.set(0, dist * 0.22, dist)
+    camera.position.set(0, .22, 1).normalize()
     camera.lookAt(0, 0, 0)
+    const vista = new THREE.Matrix4().makeRotationFromQuaternion(camera.quaternion.clone().invert())
+    const localAVista = new THREE.Matrix4()
+    const punto = new THREE.Vector3()
+    const tanV = tanH / camera.aspect
+    let distancia = dist * Math.hypot(1, .22)
+    grupo.updateMatrixWorld(true)
+    grupo.traverse(objeto => {
+      if (!(objeto instanceof THREE.Mesh)) return
+      localAVista.multiplyMatrices(vista, objeto.matrixWorld)
+      const posiciones = objeto.geometry.getAttribute('position')
+      for (let i = 0; i < posiciones.count; i++) {
+        punto.fromBufferAttribute(posiciones, i).applyMatrix4(localAVista)
+        distancia = Math.max(distancia, punto.z + 1.03 * Math.max(Math.abs(punto.x) / tanH, Math.abs(punto.y) / tanV))
+      }
+    })
+    camera.position.multiplyScalar(distancia)
 
     renderer.render(scene, camera)
     // `toDataURL` en la MISMA tarea que el render: después de un vuelto al

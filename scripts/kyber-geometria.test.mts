@@ -187,4 +187,4 @@ for (const pieza of piezasDeSable({ ...POR_DEFECTO, emisor: 'emi_faro', cuerpo: 
 }
 miniatura.soltar()
 console.log(`✓ Superficies distintas y deterministas; miniatura sin texturas; ${recursos.length} recursos cacheados y liberados una vez`)
-console.log(`✓ Cámara integrada en los 12 cuerpos; máximo ${maxMallas} mallas de herraje con la cámara activa`)
+console.log(`✓ Cámara integrada en los ${IDS_CONOCIDOS.cuerpo.length} cuerpos; máximo ${maxMallas} mallas de herraje con la cámara activa`)

@@ -1,189 +1,153 @@
-/**
- * LUPA — la casilla del álbum abierta a pantalla completa.
- *
- * ── Qué hay del otro lado: la regla ──────────────────────────────────
- *
- * Por defecto el DORSO real del juego. Pero si la carta es de doble cara, del
- * otro lado va SU SEGUNDA CARA, porque esa carta no tiene dorso: un líder es
- * una sola cartulina con el líder de un lado y su unidad desplegada del otro.
- * Ponerle un dorso sería dibujar algo que no existe.
- *
- * Medido sobre el pool vivo (2.669 filas, las mismas que `select count(*) from
- * sobres_pool`): 144 tienen segunda cara, y son exactamente los 144 líderes de
- * la familia Showcase — o sea las 9 secciones Showcase del álbum ENTERAS. Las
- * otras 2.525 llevan dorso, incluidas las 25 bases del pool, que son de una
- * sola cara. La decisión vive en `caraTrasera()` (`services/caraCarta.ts`).
- *
- * ── Y por qué la caja no cambia de forma ─────────────────────────────
- *
- * Las dos caras de un líder tienen proporción OPUESTA: frente 400×286,
- * reverso 286×400 (bajadas y medidas, 6 de 6). No es que la carta cambie de
- * tamaño: es la misma cartulina con una cara impresa de lado. Así que la caja
- * es 286/400 —la del bolsillo— y la cara acostada se acomoda dentro. Cambiar
- * la proporción a mitad del giro reflowea el modal justo mientras la carta se
- * está moviendo.
- *
- * ── Y por qué acá NO va el relleno desenfocado ───────────────────────
- *
- * De lo anterior sale que la cara apaisada ocupa el 51 % del alto del
- * bolsillo. En una REJILLA ese hueco se tapa con la misma imagen ampliada y
- * borrosa, y está bien: las celdas miden todas igual y el relleno evita que
- * la cuadrícula quede agujereada.
- *
- * Acá no. La lupa es una carta sola sobre negro al 85 %, o sea que el hueco
- * YA es un fondo. El relleno lo que hace es poner un muro gris desenfocado
- * del doble de alto que la carta, y eso no se lee como un marco: se lee como
- * que la imagen se rompió. Medido en `/banco-sobres` con Obi-Wan Showcase,
- * que es el peor caso del módulo.
- *
- * Sobre negro, la cara acostada centrada se ve como lo que es: una carta
- * impresa de lado.
- *
- * ── El hueco también se puede abrir ──────────────────────────────────
- *
- * Y muestra el dorso QUIETO, sin girar: si la carta no la tenés, no hay una
- * cara que enseñar. Se ve el nombre y el número, que es lo que hace querer
- * abrir otro sobre. Enseñarle el arte a quien no la tiene le quitaría el
- * sentido al sobre.
- */
-
-import { useEffect } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { liveQuery } from 'dexie'
 import { X } from 'lucide-react'
-import { CardImage } from '../../components/CardImage'
-import { caraTrasera, esDobleCara } from '../../services/caraCarta'
-import { esApaisada, type CasillaAlbum, type Acabado as TipoAcabado } from '../../services/sobres'
+import { caraTrasera } from '../../services/caraCarta'
+import { db } from '../../services/db'
+import { getCardById } from '../../services/swuApi'
+import { arteDeVariante } from '../../services/sobresArte'
+import type { Card } from '../../types'
+import { esApaisada, type CartaSacada, type CasillaAlbum, type Acabado as TipoAcabado } from '../../services/sobres'
 import { AcabadoDeImagen } from './AcabadoDeImagen'
 import { CartaGirable } from './CartaGirable'
 import { ReversoCarta } from './ReversoCarta'
+import { useMenosMovimiento } from './efectos'
 
-/** Las dos formas que puede tener una carta. Ver la cabecera. */
-const RATIO_BOLSILLO = 286 / 400
-const RATIO_APAISADO = 400 / 286
-
-interface Props {
-  casilla: CasillaAlbum
-  /** El color de la sección. */
+type Props = {
   color: string
   alCerrar: () => void
-  /**
-   * Qué material lleva esta impresión. El brillo lo arma la lupa, una vez por
-   * CARA: las dos caras de un líder Showcase tienen proporciones opuestas, así
-   * que un acabado ya armado desde afuera saldría con la forma equivocada de
-   * uno de los dos lados.
-   */
   acabado?: TipoAcabado
-}
+} & (
+  | { casilla: CasillaAlbum; hallazgo?: never; contexto?: never }
+  | { hallazgo: CartaSacada; contexto: string; casilla?: never }
+)
 
-export function LupaCarta({ casilla, color, alCerrar, acabado }: Props) {
-  /* Las tres cosas que hacen los otros dos overlays del proyecto y que este no
-   * hacía: cerrar con Escape, cerrar tocando el fondo, y que la página de
-   * atrás no se desplace mientras la lupa está abierta. Copiado de
-   * `CardZoom.tsx`, que es donde ya estaba resuelto. */
+const VERTICAL = 286 / 400
+const APAISADA = 400 / 286
+
+export function LupaCarta({ casilla, hallazgo, contexto, color, alCerrar, acabado }: Props) {
+  const dialogo = useRef<HTMLDialogElement>(null)
+  const titulo = useId()
+  const reducido = useMenosMovimiento()
+  const impresion = casilla ?? hallazgo
+  const [intento, setIntento] = useState(0)
+  const [lectura, setLectura] = useState<{
+    id: string; intento: number; carta: Card | null; arte: string
+  } | null>(null)
+  const idPendiente = hallazgo && !hallazgo.carta ? hallazgo.cardId : undefined
+  const variante = hallazgo?.variante
+  const actual = lectura?.id === idPendiente && lectura?.intento === intento ? lectura : null
+  const carta = impresion.carta ?? actual?.carta
+  const pendiente = Boolean(idPendiente && !carta)
+
   useEffect(() => {
-    const alTeclear = (e: KeyboardEvent) => { if (e.key === 'Escape') alCerrar() }
-    window.addEventListener('keydown', alTeclear)
+    if (!idPendiente || !variante) return
+    let activo = true
+    let encontrada = false
+    const fallo = () => {
+      if (activo && !encontrada) setLectura({ id: idPendiente, intento, carta: null, arte: '' })
+    }
+    const limite = window.setTimeout(fallo, 8000)
+    const recuperar = async (ficha: Card | null | undefined) => {
+      if (!activo || encontrada || !ficha) return
+      encontrada = true
+      clearTimeout(limite)
+      const arte = await arteDeVariante(ficha, variante).catch(() => ficha.imageUrl)
+      if (activo) setLectura({ id: idPendiente, intento, carta: ficha, arte })
+    }
+    // La sincronización inicial puede terminar mientras la lectura individual
+    // sigue en la red. En cuanto Dexie recibe esta carta la lupa ya puede abrirla.
+    const local = liveQuery(() => db.cards.get(idPendiente)).subscribe({
+      next: ficha => { void recuperar(ficha) },
+      error: () => { /* La consulta individual también puede resolverla. */ },
+    })
+    void getCardById(idPendiente).then(ficha => ficha ? recuperar(ficha) : fallo(), fallo)
+    return () => {
+      activo = false
+      local.unsubscribe()
+      clearTimeout(limite)
+    }
+  }, [idPendiente, variante, intento])
+  const tenida = casilla?.tenida ?? true
+  const trasera = caraTrasera(carta)
+  const apaisada = esApaisada(carta)
+
+  useLayoutEffect(() => {
+    const el = dialogo.current
+    if (!el) return
+    const origen = document.activeElement
     const antes = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    el.showModal()
     return () => {
-      window.removeEventListener('keydown', alTeclear)
+      el.close()
       document.body.style.overflow = antes
+      if (origen instanceof HTMLElement && origen.isConnected) origen.focus({ preventScroll: true })
     }
-  }, [alCerrar])
-
-  const carta = casilla.carta
-  const trasera = caraTrasera(carta)
-  const dobleCara = esDobleCara(carta)
+  }, [])
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto
-                 overscroll-contain bg-black/85 p-5"
-      role="dialog"
-      aria-modal="true"
-      aria-label={carta?.name ?? `Casilla ${casilla.numero}`}
-      onClick={alCerrar}
-    >
-      <button
-        type="button"
-        onClick={alCerrar}
-        className="absolute top-4 right-4 grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white"
-        aria-label="Cerrar"
-      >
-        <X size={20} />
-      </button>
-
-      <div className="w-full max-w-[300px]" onClick={e => e.stopPropagation()}>
-        {casilla.tenida ? (
+    <dialog ref={dialogo} aria-labelledby={titulo} className="lupa-carta-dialogo"
+      onCancel={e => { e.preventDefault(); alCerrar() }}>
+      <div className="lupa-carta-contenido" onClick={e => { if (e.target === e.currentTarget) alCerrar() }}>
+        <button autoFocus type="button" onClick={alCerrar} aria-label="Cerrar"
+          className="lupa-carta-cerrar grid size-11 place-items-center rounded-full bg-white/10 text-white">
+          <X size={20} />
+        </button>
+        {pendiente ? (
+          <div className="flex max-w-[300px] flex-col items-center gap-3 text-center">
+            <p role="status" className="text-sm text-white/75">
+              {actual ? 'Ya tenés esta carta. Su ficha todavía no está disponible.' : 'Buscando la carta en el catálogo…'}
+            </p>
+            {actual && (
+              <button type="button" className="carta-girable-voltear" onClick={() => setIntento(n => n + 1)}>
+                Volver a cargar la carta
+              </button>
+            )}
+          </div>
+        ) : tenida ? (
           <CartaGirable
-            /* La caja arranca con la forma de la cara de ADELANTE y toma la
-               del dorso al girar: son la misma cartulina impresa de lado, y
-               obligar a las dos a una sola forma es lo que dejaba el hueco. */
-            ratio={esApaisada(carta) ? RATIO_APAISADO : RATIO_BOLSILLO}
-            ratioDorso={
-              trasera.tipo === 'cara'
-                ? (trasera.orientacion === 'apaisada' ? RATIO_APAISADO : RATIO_BOLSILLO)
-                : RATIO_BOLSILLO
-            }
-            acabadoFrente={acabado ? <AcabadoDeImagen src={casilla.arte || carta?.imageUrl} acabado={acabado} /> : undefined}
-            acabadoDorso={
-              acabado && trasera.tipo === 'cara'
-                ? <AcabadoDeImagen src={trasera.url} acabado={acabado} />
-                : undefined
-            }
-              frente={
-              /* `casilla.arte`, no `carta.imageUrl`: la impresión foil del API
-                 trae los destellos quemados en el archivo. */
-              <CardImage
-                src={casilla.arte || carta?.imageUrl}
-                alt={carta?.name ?? ''}
-                orientacion={esApaisada(carta) ? 'apaisada' : 'vertical'}
-                elevacion="realce"
-                relleno={false}
-                className="h-full w-full"
+            className="w-full max-w-[450px]"
+            ratio={apaisada ? APAISADA : VERTICAL}
+            ratioDorso={trasera.tipo === 'cara' && trasera.orientacion === 'apaisada' ? APAISADA : VERTICAL}
+            frente={
+              <AcabadoDeImagen
+                src={actual?.arte || impresion.arte || carta?.imageUrl} alt={carta?.name ?? 'Cara de la carta'}
+                orientacion={apaisada ? 'apaisada' : 'vertical'} elevacion="realce"
+                relleno={false} fit="contain" className="h-full w-full" acabado={acabado}
               />
             }
-            dorso={
-              trasera.tipo === 'cara' ? (
-                <CardImage
-                  src={trasera.url}
-                  alt={carta ? `${carta.name}, la otra cara` : ''}
-                  orientacion={trasera.orientacion}
-                  elevacion="realce"
-                  relleno={false}
-                  className="h-full w-full"
-                />
-              ) : (
-                <ReversoCarta color={color} />
-              )
-            }
+            dorso={trasera.tipo === 'cara' ? (
+              <AcabadoDeImagen
+                src={trasera.url} alt={`${carta?.name ?? 'Carta'}, la otra cara`}
+                orientacion={trasera.orientacion} elevacion="realce" relleno={false}
+                fit="contain" className="h-full w-full" acabado={acabado}
+              />
+            ) : (
+              <div className="size-full" role="img" aria-label="Dorso de Star Wars Unlimited"><ReversoCarta /></div>
+            )}
           />
         ) : (
-          /* El hueco: el dorso quieto. No hay nada que girar. */
-          <div className="mx-auto w-full" style={{ aspectRatio: String(RATIO_BOLSILLO) }}>
-            <ReversoCarta color={color} />
+          <div style={{ width: 'min(100%, 38svh, 300px)', aspectRatio: String(VERTICAL) }}>
+            <ReversoCarta />
           </div>
         )}
+        <div className="mt-3 max-w-sm text-center">
+          <p className="text-[11px] font-black uppercase tracking-[0.16em]" style={{ color }}>
+            {contexto ?? (impresion.serializada ? 'Única en la comunidad' : `Nº ${casilla?.numero}`)}
+          </p>
+          <h2 id={titulo} className="mt-1 text-lg font-bold text-white">
+            {carta?.name ?? (hallazgo ? 'Carta del sobre' : tenida ? 'Carta desconocida' : 'Casilla vacía')}
+          </h2>
+          {carta?.subtitle && <p className="text-sm text-white/75">{carta.subtitle}</p>}
+          <p className="text-xs text-white/65">
+            {carta && `${carta.setCode} ${carta.setNumber}`}
+            {hallazgo && `${carta ? ' · ' : ''}${hallazgo.variante}`}
+            {casilla && casilla.cantidad > 1 && ` · tenés ${casilla.cantidad}`}
+          </p>
+          {!tenida && <p className="mt-2 text-xs text-white/65">Todavía no te salió</p>}
+          {tenida && !pendiente && !reducido && <p className="mt-2 text-xs text-white/65">Arrastrá para girarla</p>}
+        </div>
       </div>
-
-      <div className="mt-4 max-w-[300px] text-center">
-        <p className="text-[11px] font-black uppercase tracking-[0.24em]" style={{ color }}>
-          {casilla.serializada ? 'ÚNICA EN LA COMUNIDAD' : `Nº ${casilla.numero}`}
-        </p>
-        <p className="mt-0.5 text-lg font-bold text-white">{carta?.name ?? 'Casilla vacía'}</p>
-        {carta?.subtitle && <p className="text-sm text-white/70">{carta.subtitle}</p>}
-        <p className="text-xs text-white/55">
-          {carta ? `${carta.setCode} ${carta.setNumber}` : ''}
-          {casilla.cantidad > 1 ? ` · tenés ${casilla.cantidad}` : ''}
-        </p>
-
-        <p className="mt-2 text-[11px] text-white/40">
-          {!casilla.tenida
-            ? 'Todavía no te salió'
-            : dobleCara
-              ? 'Arrastrá para ver la otra cara'
-              : 'Arrastrá para girarla'}
-        </p>
-      </div>
-    </div>
+    </dialog>
   )
 }

@@ -1,0 +1,25 @@
+.kyber-modos { display: flex; gap: 6px; margin: 8px 0 18px; border-bottom: 1px solid var(--kyber-borde); }
+.kyber-modos button { padding: 12px 15px; min-height: 44px; color: var(--kyber-tenue); border-bottom: 2px solid transparent; }
+.kyber-modos button[aria-pressed=true] { color: var(--kyber-ambar); border-color: currentColor; }
+.kyber-galeria-cabecera { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 4px 0 15px; }
+.kyber-galeria-cabecera h2, .kyber-galeria-detalle h2 { margin: 0; color: var(--kyber-texto); font-size: clamp(22px,4vw,32px); font-weight: 650; line-height: 1.18; letter-spacing: -.035em; }
+.kyber-galeria-cabecera > span { color: var(--kyber-tenue); font-size: 12px; }
+.kyber-galeria-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.kyber-modelo { display: flex; flex-direction: column; overflow: hidden; padding: 0; border: 1px solid #3b3e40; border-radius: 12px; text-align: left; background: var(--kyber-panel); color: var(--kyber-texto); }
+.kyber-modelo:focus-visible, .kyber-modelo:hover { border-color: var(--kyber-ambar); }
+.kyber-modelo img { display: block; width: 100%; height: auto; aspect-ratio: 8 / 7; background: #101316; }
+.kyber-modelo-rotulo { display: grid; width: 100%; grid-template-columns: 1fr auto; align-items: center; gap: 3px 4px; padding: 10px 12px 13px; }
+.kyber-modelo-rotulo strong { font-size: clamp(16px,3vw,21px); font-weight: 600; line-height: 1.2; }
+.kyber-modelo-rotulo small { grid-column: 1 / -1; font-size: 12px; line-height: 1.35; color: var(--kyber-tenue); }
+.kyber-modelo-rotulo svg { color: var(--kyber-ambar); }
+.kyber-modelos-volver { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: var(--kyber-ambar); }
+.kyber-galeria-detalle h2 { margin: 2px 0 16px; scroll-margin-top: 80px; }
+.kyber-modelo-ficha { align-self: center; padding: 14px 0; }
+.kyber-modelo-ficha h3 { margin: 0 0 5px; font-size: 19px; font-weight: 600; }
+.kyber-modelo-ficha > p { margin: 0; color: var(--kyber-tenue); line-height: 1.5; }
+.kyber-modelo-ficha .kyber-principal { margin: 18px 0 9px; }
+.kyber-modelo-foto { width: 100%; height: 100%; object-fit: contain; }
+@media (min-width: 1024px) {
+  .kyber-galeria-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 20px; }
+  .kyber-modelo-rotulo { padding: 14px 18px 16px; }
+}

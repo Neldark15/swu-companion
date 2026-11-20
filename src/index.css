@@ -822,16 +822,18 @@ input:focus, textarea:focus, select:focus {
   0%, 15% { transform: scale(.8); }
   100% { transform: none; }
 }
-.sobre-solapa, .sobre-funda { transform-box: view-box; transform-origin: 50% 33%; }
+.sobre-solapa, .sobre-funda { transform-box: view-box; transform-origin: 50% 16%; }
 .sobre-solapa { animation: sobres-separar-solapa 620ms forwards; }
 .sobre-funda { animation: sobres-separar-funda 620ms forwards; }
 @keyframes sobres-separar-solapa {
-  0%, 10% { transform: none; opacity: 1; }
+  0%, 8% { transform: none; opacity: 1; }
+  20% { transform: translate(-1%, -1%) skewX(-4deg) scaleY(.96); }
   48% { transform: translate(-5%, -14%) rotate(-12deg); opacity: 1; }
   100% { transform: translate(-17%, -33%) rotate(-21deg); opacity: 0; }
 }
 @keyframes sobres-separar-funda {
-  0%, 10% { transform: none; opacity: 1; }
+  0%, 8% { transform: none; opacity: 1; }
+  20% { transform: translate(1%, 1%) skewX(1deg) scaleX(.985); }
   48% { transform: translate(3%, 9%) rotate(4deg); opacity: 1; }
   100% { transform: translate(9%, 30%) rotate(9deg); opacity: 0; }
 }
@@ -988,250 +990,95 @@ input:focus, textarea:focus, select:focus {
  * y sin pasar por React.
  * ───────────────────────────────────────────────────────────── */
 
-/* La caja que recorta. Va como HERMANA de la imagen, nunca dentro: CardImage
-   lleva `overflow-hidden` y un `drop-shadow`, y las dos son propiedades de
-   agrupamiento que aplanarían lo de adentro. */
-/* El marco: es lo ÚNICO que decide qué superficie cubre el acabado.
- *
- * Hace falta porque el bolsillo del álbum es 286/400 SIEMPRE, también para un
- * líder, que es apaisado y solo ocupa una franja en el medio. Sin esto el
- * brillo se pintaba del alto entero: una lámina vertical sobre una carta
- * horizontal, encima del relleno desenfocado. Son las 144 Showcase del pool,
- * que son los 144 líderes.
- */
-.foil-marco {
+/* La caja mide el mismo rectángulo que el <img>. CardImage centra la lámina
+   con la proporción del archivo decodificado, incluso durante el giro. */
+.carta-lamina-caja {
   position: absolute;
   inset: 0;
+  display: grid;
+  place-items: center;
+  container-type: size;
   pointer-events: none;
 }
-
-/* La franja apaisada, centrada. `padding-bottom` en % es del ANCHO, así que
-   71,5% da exactamente 286/400 del ancho de la celda y la franja queda con la
-   proporción de la carta acostada. Los hijos absolutos se anclan a la caja de
-   relleno, así que un `inset: 0` adentro cubre la franja entera. */
-.foil-marco-apaisado {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 0;
-  padding-bottom: 71.5%;
-  transform: translateY(-50%);
-  pointer-events: none;
-}
-
-.foil-caja {
-  position: absolute;
-  inset: 0;
+.carta-lamina {
+  display: block;
+  position: relative;
   overflow: hidden;
   pointer-events: none;
-  border-radius: inherit;
+}
+.foil-caja, .foil-plano {
+  position: absolute;
+  inset: 0;
 }
 
-/* El radio del recorte sigue a la forma de la carta: 2,8%/2% en vertical y al
-   revés en apaisada, igual que `radio-carta` (ver CardImage: la esquina viene
-   en el alfa a 2,8% del ancho). */
-.foil-marco .foil-caja { border-radius: 2.8% / 2%; }
-.foil-marco-apaisado .foil-caja { border-radius: 2% / 2.8%; }
-.foil-marco > [class^='foil-plano'] { border-radius: 2.8% / 2%; }
-.foil-marco-apaisado > [class^='foil-plano'] { border-radius: 2% / 2.8%; }
-
-/* ── Arcoíris: el foil clásico ── */
+.foil-arcoiris, .foil-metal, .foil-oro {
+  position: absolute;
+  inset: -65%;
+  transform: translate3d(calc(var(--px, 0) * 24%), calc(var(--py, 0) * 19%), 0);
+}
+/* Cada banda deja ver la tinta entre reflejos. La perla y el borde cian son
+   visibles sobre tinta oscura, el violeta y el ámbar sobre tinta clara. */
 .foil-arcoiris {
-  position: absolute;
-  inset: -75%;
-  background: repeating-linear-gradient(
-    102deg,
-    #ff0f66 0%,
-    #ffc800 3.2%,
-    #00f2a0 6.4%,
-    #00b4ff 9.6%,
-    #b02bff 12.8%,
-    #ff0f66 16%
-  );
-  /* 0,30: la capa es un BARNIZ encima del arte, no una capa de color que lo
-     sustituye. Empezo en 0,82, bajo a 0,42 y quedo acá — cada paso fue mirar
-     una carta de verdad, no elegir un numero. */
-  opacity: 0.3;
-  mix-blend-mode: overlay;
-  transform: translate3d(calc(var(--px, 0) * 30%), calc(var(--py, 0) * 16%), 0);
-  transition: transform 120ms linear;
+  background: repeating-linear-gradient(121deg,
+    transparent 0% 5%, rgb(100 101 248 / .20) 8%, rgb(68 216 240 / .38) 10%,
+    rgb(197 251 204 / .28) 12%, rgb(255 218 115 / .35) 14%, rgb(244 126 187 / .28) 16%,
+    transparent 20%);
 }
-
-/* ── Metal: plateado duro, sin tintes. Escalones ABRUPTOS a propósito: un
-   degradado suave se lee como plástico, y lo que hace «metal» es el salto
-   entre la cresta y el valle. ── */
 .foil-metal {
-  position: absolute;
-  inset: -75%;
-  background: repeating-linear-gradient(
-    100deg,
-    #0e1520 0%,
-    #93a3ba 2.6%,
-    #ffffff 4.5%,
-    #9fadc2 6.4%,
-    #16202e 9.6%,
-    #0e1520 12.8%
-  );
-  opacity: 0.3;
-  mix-blend-mode: overlay;
-  transform: translate3d(calc(var(--px, 0) * 26%), calc(var(--py, 0) * 14%), 0);
-  transition: transform 120ms linear;
+  background: repeating-linear-gradient(124deg,
+    transparent 0% 7%, rgb(40 60 93 / .22) 10%, rgb(172 208 230 / .24) 12%,
+    rgb(250 254 255 / .48) 13%, rgb(125 152 179 / .18) 15%, transparent 20%);
 }
-
-/* ── Oro: el mismo metal, con la paleta corrida al ámbar. ── */
 .foil-oro {
-  position: absolute;
-  inset: -75%;
-  background: repeating-linear-gradient(
-    100deg,
-    #2a1a00 0%,
-    #e0a51e 2.6%,
-    #fff6cc 4.5%,
-    #f0c445 6.4%,
-    #33200a 9.6%,
-    #2a1a00 12.8%
-  );
-  /* El oro ya no se asigna a ninguna impresion (ver ACABADO en sobres.ts),
-     pero se queda vivo y probado en /banco-sobres: cambiar de acabado tiene que
-     seguir siendo una linea. */
-  opacity: 0.3;
-  mix-blend-mode: overlay;
-  transform: translate3d(calc(var(--px, 0) * 26%), calc(var(--py, 0) * 14%), 0);
-  transition: transform 120ms linear;
+  background: repeating-linear-gradient(124deg,
+    transparent 0% 7%, rgb(118 71 23 / .23) 10%, rgb(224 166 74 / .42) 12%,
+    rgb(255 245 183 / .53) 13%, rgb(241 192 83 / .22) 15%, transparent 20%);
 }
-
-/* ── La trama fina: microlíneas. Es la capa que hace que el arcoíris se lea
-   como FOIL y no como una mancha de color. Se mueve al REVÉS que el arcoíris
-   para que el paralaje sea evidente. ── */
 .foil-trama {
   position: absolute;
-  inset: -40%;
-  background: repeating-linear-gradient(
-    12deg,
-    rgb(255 255 255 / 0.13) 0px,
-    rgb(255 255 255 / 0.13) 1px,
-    transparent 1px,
-    transparent 4px
-  );
-  mix-blend-mode: overlay;
-  transform: translate3d(calc(var(--px, 0) * -12%), 0, 0);
-  transition: transform 120ms linear;
+  inset: -35%;
+  background: repeating-linear-gradient(24deg,
+    transparent 0 3px, rgb(245 253 255 / .12) 3px 3.7px, transparent 3.7px 5px);
+  mix-blend-mode: soft-light;
+  transform: translate3d(calc(var(--px, 0) * -10%), calc(var(--py, 0) * -8%), 0);
 }
-
-/* ── El brillo especular: la banda blanca que cruza. Es la que de verdad se
-   ve moverse, así que va con el paralaje MÁS fuerte. ── */
 .foil-lustre {
   position: absolute;
   inset: -60%;
-  background: linear-gradient(
-    100deg,
-    transparent 44%,
-    rgb(255 255 255 / 0.10) 48%,
-    rgb(255 255 255 / 0.34) 50%,
-    rgb(255 255 255 / 0.10) 52%,
-    transparent 56%
-  );
+  background:
+    radial-gradient(ellipse 12% 20% at 42% 41%, rgb(255 255 244 / .34), transparent),
+    linear-gradient(126deg, transparent 39%, rgb(197 241 255 / .10) 43%,
+      rgb(252 255 255 / .46) 46%, rgb(255 255 255 / .13) 47.5%,
+      transparent 50%, rgb(214 240 255 / .15) 52%, transparent 54%);
   mix-blend-mode: screen;
-  transform: translate3d(calc(var(--px, 0) * 52%), calc(var(--py, 0) * 22%), 0);
-  transition: transform 120ms linear;
+  transform: translate3d(calc(var(--px, 0) * 33%), calc(var(--py, 0) * 24%), 0);
 }
 
-/* ── El acabado BARATO, para las rejillas ──
-   Un solo degradado, sin `mix-blend-mode` y sin capas: se puede repetir nueve
-   veces (o más) sin que el teléfono lo note. Insinúa que la carta brilla; el
-   brillo de verdad se ve al abrirla. */
+/* Una sola capa estática por miniatura. */
 .foil-plano {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  background: linear-gradient(
-    108deg,
-    transparent 34%,
-    rgb(255 255 255 / 0.13) 46%,
-    rgb(255 255 255 / 0.30) 50%,
-    rgb(255 255 255 / 0.13) 54%,
-    transparent 66%
-  );
+  --reflejo: 183 250 245;
+  --borde: 169 131 247;
+  background: linear-gradient(122deg,
+    transparent 23%, rgb(var(--borde) / .12) 35%, rgb(var(--reflejo) / .30) 44%,
+    rgb(255 255 255 / .31) 46%, transparent 53%, rgb(var(--borde) / .09) 60%, transparent 70%);
 }
+.foil-plano-metal { --reflejo: 222 239 255; --borde: 132 158 193; }
+.foil-plano-oro { --reflejo: 255 225 148; --borde: 191 131 62; }
 
-/* El plateado NO puede caer en la clase dorada: son 211 cartas Standard
-   Prestige que se verían de oro en la única pantalla donde se ve la colección
-   entera. Tres clases planas, no dos. */
-.foil-plano-metal {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  background: linear-gradient(
-    108deg,
-    transparent 34%,
-    rgb(226 236 252 / 0.14) 46%,
-    rgb(240 246 255 / 0.34) 50%,
-    rgb(226 236 252 / 0.14) 54%,
-    transparent 66%
-  );
-}
-
-.foil-plano-oro {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  background: linear-gradient(
-    108deg,
-    transparent 34%,
-    rgb(255 226 150 / 0.16) 46%,
-    rgb(255 240 200 / 0.38) 50%,
-    rgb(255 226 150 / 0.16) 54%,
-    transparent 66%
-  );
-}
-
-/* Menos movimiento: el acabado se queda QUIETO en su posición de reposo, pero
-   no desaparece. Que una carta sea foil es información sobre lo que tenés, no
-   una animación decorativa. */
-@media (prefers-reduced-motion: reduce) {
-  .foil-arcoiris,
-  .foil-metal,
-  .foil-oro,
-  .foil-trama,
-  .foil-lustre {
-    transform: none;
-    transition: none;
+@media (prefers-reduced-motion: no-preference) {
+  .foil-solo .foil-arcoiris, .foil-solo .foil-metal, .foil-solo .foil-oro {
+    --amp: 18%;
+    animation: foil-barre 5.8s ease-in-out infinite alternate;
   }
+  .foil-solo .foil-trama { --amp: -7%; animation: foil-barre 5.8s ease-in-out infinite alternate; }
+  .foil-solo .foil-lustre { --amp: 27%; animation: foil-barre 4.6s ease-in-out infinite alternate; }
 }
-
-/* ── El acabado moviéndose SOLO ──
- *
- * La carta del revelado no se arrastra: se toca para girarla y para pasarla.
- * Sin un gesto que mueva `--px`, el brillo quedaría clavado y la carta se
- * vería mate justo en el momento que tiene que impresionar.
- *
- * Se anima el `transform` de cada capa directamente —nunca la variable— para
- * que siga siendo trabajo del compositor. Cada capa lleva su propia amplitud:
- * ESE desfase es el paralaje, y es lo que hace que se lea como una lámina con
- * grosor y no como una mancha que se desliza. */
-.foil-solo .foil-arcoiris { --amp: 24%; animation: foil-barre 6s ease-in-out infinite; }
-.foil-solo .foil-metal    { --amp: 20%; animation: foil-barre 5s ease-in-out infinite; }
-.foil-solo .foil-oro      { --amp: 20%; animation: foil-barre 5s ease-in-out infinite; }
-.foil-solo .foil-trama    { --amp: -9%; animation: foil-barre 6s ease-in-out infinite; }
-.foil-solo .foil-lustre   { --amp: 42%; animation: foil-barre 4.2s ease-in-out infinite; }
-
 @keyframes foil-barre {
-  0%, 100% { transform: translate3d(calc(var(--amp) * -1), 0, 0); }
-  50%      { transform: translate3d(var(--amp), 0, 0); }
+  from { transform: translate3d(calc(var(--amp) * -1), -4%, 0); }
+  to   { transform: translate3d(var(--amp), 4%, 0); }
 }
-
 @media (prefers-reduced-motion: reduce) {
-  .foil-solo .foil-arcoiris,
-  .foil-solo .foil-metal,
-  .foil-solo .foil-oro,
-  .foil-solo .foil-trama,
-  .foil-solo .foil-lustre {
-    animation: none;
-  }
+  .foil-arcoiris, .foil-metal, .foil-oro, .foil-trama, .foil-lustre { transform: none; }
 }
 
 /* ─── Bahías de la consola (Inicio) ───────────────────────────────────

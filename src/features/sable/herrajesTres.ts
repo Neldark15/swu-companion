@@ -26,7 +26,9 @@
  */
 
 import * as THREE from 'three'
+import { radioApliqueCuerpo } from './apliquesCuerpo'
 import { crearDetallesPieza, unirGeometrias, type AcabadoMecanizado } from './detalleHerrajes'
+import { RADIO_SILUETA_EMISOR } from './modelosEmisor'
 import { geometriaDeCristal } from './cristalTres'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
@@ -448,8 +450,10 @@ export function vestirPieza(
 export function radioMaximo(piezas: PiezaSuelta[]): number {
   let max = 0
   for (const p of piezas) {
+    max = Math.max(max, radioApliqueCuerpo(p.id))
     const margenBisel = p.clave === 'cuerpo' ? 0 : .14
     for (const [r] of p.puntos) max = Math.max(max, r + margenBisel)
+    if (p.clave === 'emisor') max = Math.max(max, RADIO_SILUETA_EMISOR[p.id] ?? 0)
     for (const h of p.herrajes) {
       const { fuera, dentro } = asientoDe(p.perfil, h, p.alto)
       // «fuera» mide el centro de la cara. Los cantos de la caja y del

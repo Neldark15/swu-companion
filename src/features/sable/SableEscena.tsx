@@ -8,7 +8,8 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { crearEntornoKyber } from './entornoKyber'
-import { PROFUNDIDAD_IRIS } from './extremosSable'
+import { PROFUNDIDAD_IRIS, PROFUNDIDAD_IRIS_GEMELO } from './extremosSable'
+import { LARGO_HOJA_CLASICA, longitudesDeHoja } from './hojasModelo'
 import { crearGeometriaPieza } from './geometriaSable'
 import { FOV_KYBER, INCLINACION_CAMARA, medirEncuadreKyber } from './encuadreKyber'
 import { crearHaloKyber } from './haloKyber'
@@ -99,7 +100,7 @@ export function SableEscena({
        vista del cristal), así que medio metro de cerca no compraba nada y
        gastaba precisión del búfer de profundidad. Con 4× más precisión, un
        herraje que atraviesa la superficie no parpadea al girar. */
-    const camera = new THREE.PerspectiveCamera(FOV_KYBER, 1, 2, 400)
+    const camera = new THREE.PerspectiveCamera(FOV_KYBER, 1, 2, 1200)
 
     // El estudio se hornea una vez; no requiere HDR remoto ni luces por reflector.
     const envRT = crearEntornoKyber(renderer)
@@ -160,7 +161,8 @@ export function SableEscena({
     grupoSable.add(alma)
 
     // ── La hoja: tres capas (núcleo, halo, bruma) ──
-    const LARGO = 78
+    const LARGO = LARGO_HOJA_CLASICA
+    let longitudes = longitudesDeHoja(diseno)
     const geoNucleo = new THREE.CapsuleGeometry(0.6, LARGO, 4, 12)
     const geoHalo = new THREE.CapsuleGeometry(1.5, LARGO, 4, 12)
     const geoBruma = new THREE.CapsuleGeometry(3.1, LARGO * 0.98, 4, 10)
@@ -172,7 +174,11 @@ export function SableEscena({
     const bruma = new THREE.Mesh(geoBruma, matBruma)
     halo.renderOrder = 2
     bruma.renderOrder = 1
-    grupoSable.add(nucleo, halo, bruma)
+    const hazPrincipal = new THREE.Group()
+    hazPrincipal.add(nucleo, halo, bruma)
+    // Comparte geometrías y materiales. Una hoja ausente no consume llamadas de dibujo.
+    const hazSecundario = hazPrincipal.clone()
+    grupoSable.add(hazPrincipal, hazSecundario)
 
     // ── El pedestal: luz proyectada, no un objeto ──
     const matPeana = new THREE.MeshBasicMaterial({
@@ -278,15 +284,15 @@ export function SableEscena({
 
     function colocarHoja(): void {
       const visible = !piezaAislada && hoja > 0.004
-      nucleo.visible = visible
-      halo.visible = visible
-      bruma.visible = visible
+      hazPrincipal.visible = visible
+      hazSecundario.visible = visible && longitudes.secundaria > 0
       luzHoja.intensity = visible ? 95 * hoja : 0
       if (!visible) return
-      const nace = altoTotal / 2 - PROFUNDIDAD_IRIS
-      for (const m of [nucleo, halo, bruma]) {
-        m.scale.y = hoja
-        m.position.y = nace + (LARGO * hoja) / 2
+      hazPrincipal.scale.y = longitudes.principal * hoja / LARGO
+      hazPrincipal.position.y = altoTotal / 2 - PROFUNDIDAD_IRIS + longitudes.principal * hoja / 2
+      if (hazSecundario.visible) {
+        hazSecundario.scale.y = longitudes.secundaria * hoja / LARGO
+        hazSecundario.position.y = -altoTotal / 2 + PROFUNDIDAD_IRIS_GEMELO - longitudes.secundaria * hoja / 2
       }
       const prende = Math.min(1, Math.max(0, (hoja - 0.15) / 0.6))
       matHalo.uniforms.opacidad.value = 0.6 * prende
@@ -294,6 +300,7 @@ export function SableEscena({
     }
 
     function rehacer(d: Diseno): void {
+      longitudes = longitudesDeHoja(d)
       const sueltas = piezasDeSable(d)
       const nuevos: THREE.Mesh[] = []
       altoTotal = sueltas.reduce((s, p) => s + p.alto, 0)
@@ -465,10 +472,11 @@ export function SableEscena({
         centroMeta.set(0, medio, 0)
         return
       }
-      const largoVisible = encuadreActual === 'detalle' ? Math.min(hoja * LARGO, 3) : hoja * (LARGO + 2)
+      const largoVisible = (largo: number) => largo === 0 ? 0 :
+        encuadreActual === 'detalle' ? Math.min(hoja * largo, 3) : hoja * (largo + 2)
       const punta = piezaAislada ? piezaAislada.limites.max.y + piezaAislada.malla.position.y
-        : altoTotal / 2 + separacion * HUECO * 2 + largoVisible
-      const fondo = piezaAislada ? piezaAislada.limites.min.y + piezaAislada.malla.position.y : -altoTotal / 2
+        : altoTotal / 2 + separacion * HUECO * 2 + largoVisible(longitudes.principal)
+      const fondo = piezaAislada ? piezaAislada.limites.min.y + piezaAislada.malla.position.y : -altoTotal / 2 - largoVisible(longitudes.secundaria)
       ejeSable.set(0, 1, 0).applyQuaternion(grupoSable.quaternion)
       // La bruma luminosa es más ancha que algunos mangos del catálogo.
       const radioVisible = piezaAislada ? piezaAislada.radio : Math.max(gordo, hoja > 0 && encuadreActual === 'completo' ? 3.1 : 0)
@@ -485,6 +493,7 @@ export function SableEscena({
         ;(window as unknown as Record<string, unknown>).__sable = {
           encuadre: encuadreActual, dist, distMeta, aspecto: camera.aspect, mitad, cerca, enAncho, enAlto,
           eje: [ejeSable.x, ejeSable.y, ejeSable.z], hoja, altoTotal, gordo,
+          hojasVisibles: Number(hazPrincipal.visible) + Number(hazSecundario.visible), fondo, punta,
           // Lo que hay que vigilar al agregar herrajes: las llamadas de dibujo
           // y, sobre todo, que las geometrías DEJEN de crecer — si suben cambio
           // tras cambio, el caché del taller no está cacheando y hay fuga.

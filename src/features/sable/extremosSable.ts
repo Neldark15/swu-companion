@@ -2,6 +2,8 @@ import type { PiezaSuelta, Punto } from './partesSable'
 
 /** Fondo del iris, medido hacia abajo desde el extremo de la empuñadura. */
 export const PROFUNDIDAD_IRIS = 1.15
+/** El segundo iris queda en la cavidad inferior del pomo Gemelo. */
+export const PROFUNDIDAD_IRIS_GEMELO = .20
 
 /** El hueco es parte de la propia malla torneada. El contorno de catálogo
  * sigue describiendo la carcasa exterior y los asientos de los herrajes. */
