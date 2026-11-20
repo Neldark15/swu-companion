@@ -132,6 +132,49 @@ export async function getUserMissions(userId: string): Promise<{
   }
 }
 
+/** Dos tandas en dispositivos distintos pueden avanzar la misma misión.
+ * Solo la escritura que lleva su progreso hasta la meta recibe el aviso de cobro. */
+async function sumarProgreso(
+  userId: string, template: MissionTemplate, periodo: string, incremento: number,
+): Promise<boolean> {
+  const esApertura = template.objectiveType === 'sobre_abierto'
+  for (let intento = 0; intento < 8; intento++) {
+    const { data: previa, error: errorLectura } = await supabase.from('user_missions')
+      .select('progress, completed').eq('user_id', userId)
+      .eq('mission_id', template.id).eq('period_key', periodo).maybeSingle()
+    if (errorLectura) throw errorLectura
+    if (previa?.completed) return false
+
+    const progress = Math.min((previa?.progress ?? 0) + incremento, template.objectiveValue)
+    const completed = progress >= template.objectiveValue
+    const avance = { progress, completed, completed_at: completed ? new Date().toISOString() : null }
+    if (!previa) {
+      const { error } = await supabase.from('user_missions').insert({
+        ...avance, user_id: userId, mission_id: template.id, period_key: periodo,
+        mission_type: template.type, claimed: false,
+      })
+      if (esApertura && error?.code === '23505') continue
+      if (error) throw error
+      return completed
+    }
+    const cambio = supabase.from('user_missions').update(avance)
+      .eq('user_id', userId).eq('mission_id', template.id).eq('period_key', periodo)
+    if (esApertura) {
+      // Si otra pestaña ya sumó, volvemos a calcular desde su nuevo valor.
+      if (previa.progress == null) cambio.is('progress', null)
+      else cambio.eq('progress', previa.progress)
+      const { data, error } = await cambio.select('progress').maybeSingle()
+      if (error) throw error
+      if (!data) continue
+    } else {
+      const { error } = await cambio
+      if (error) throw error
+    }
+    return completed
+  }
+  throw new Error(`No se pudo guardar el progreso de la misión ${template.id} después de ocho intentos.`)
+}
+
 /** Update mission progress when a relevant action happens */
 export async function updateMissionProgress(
   userId: string,
@@ -153,49 +196,7 @@ export async function updateMissionProgress(
     const periodKey = clavePeriodo(template.type)
 
     try {
-      // Upsert mission progress
-      const { data: existing } = await supabase
-        .from('user_missions')
-        .select('progress, completed, claimed')
-        .eq('user_id', userId)
-        .eq('mission_id', template.id)
-        .eq('period_key', periodKey)
-        .single()
-
-      if (existing?.completed) continue // already completed
-
-      const newProgress = Math.min((existing?.progress || 0) + increment, template.objectiveValue)
-      const nowCompleted = newProgress >= template.objectiveValue
-      const completedAt = nowCompleted ? new Date().toISOString() : null
-
-      /* §2f: hay que MIRAR `error`. Sin esto, el CHECK
-       * `mission_type in ('daily','weekly')` rebotaba cada única con un 23514
-       * y el fallo se veía idéntico a «esta misión todavía no avanza»: la
-       * función entera habría quedado desplegada y muerta, sin un solo
-       * mensaje. Ese CHECK ya se amplió, pero la ceguera era el bug de
-       * verdad — la próxima restricción nueva se vería igual de bien. */
-      const { error: errEscritura } = existing
-        ? await supabase
-            .from('user_missions')
-            .update({ progress: newProgress, completed: nowCompleted, completed_at: completedAt })
-            .eq('user_id', userId)
-            .eq('mission_id', template.id)
-            .eq('period_key', periodKey)
-        : await supabase.from('user_missions').insert({
-            user_id: userId,
-            mission_id: template.id,
-            period_key: periodKey,
-            mission_type: template.type,
-            progress: newProgress,
-            completed: nowCompleted,
-            completed_at: completedAt,
-            claimed: false,
-          })
-
-      if (errEscritura) {
-        console.warn(`[Misiones] No se pudo guardar "${template.id}" (${template.type}):`, errEscritura.message)
-        continue
-      }
+      const nowCompleted = await sumarProgreso(userId, template, periodKey, increment)
 
       if (nowCompleted) {
         /* SE ACREDITA SOLA. Antes no.

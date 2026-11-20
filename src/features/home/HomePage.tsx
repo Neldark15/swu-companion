@@ -56,7 +56,7 @@ import { TarjetaJugador } from '../profile/TarjetaJugador'
 import { AvisoTransmision } from '../stream/AvisoTransmision'
 import { HUD_TEXTO, type HudTone } from '../../components/hudTones'
 import { soyCurador } from '../../services/centroTemporada'
-import { miCasaDeCreador, puedoVerLiga } from '../../services/ligaService'
+import { miCasaDeCreador } from '../../services/ligaService'
 import { useAuth } from '../../hooks/useAuth'
 import { type PlayerStats, calculateLevel } from '../../services/gamification'
 import { db } from '../../services/db'
@@ -268,11 +268,6 @@ const adminSystems: Sistema[] = [
 const HERRAMIENTAS_PROPIAS = [
   { icon: MandoTrophyIcon, label: 'Temporada', tone: 'amber' as HudTone, to: '/temporada', llave: 'curador' as const },
   { icon: EmisionIcon,     label: 'Mi espacio', tone: 'cyan' as HudTone, to: '', llave: 'creador' as const },
-  /* La Liga Internacional. Mientras el demo esté cerrado la ve una sola
-     cuenta, y sin esta casilla habría que teclear el URL: una capacidad sin
-     puerta es una capacidad que no existe (§3l). */
-  { icon: MandoTrophyIcon, label: 'Liga PUENTE 3', tone: 'amber' as HudTone,
-    to: '/liga/puente3', llave: 'liga' as const },
 ]
 
 interface Marcador {
@@ -297,18 +292,18 @@ export function HomePage() {
   /* Las llaves de las herramientas propias. `null` = todavía no se preguntó,
      y en ese estado NO se dibuja nada: una casilla que aparece medio segundo
      después, y solo a veces, se lee como un parpadeo. */
-  const [curador, setCurador] = useState<boolean | null>(null)
-  const [miCreador, setMiCreador] = useState<string | null | false>(null)
-  const [veLiga, setVeLiga] = useState<boolean | null>(null)
+  const cuenta = supabaseUser?.id
+  const [cuentaCuradora, setCuentaCuradora] = useState<string | null>(null)
+  const [casa, setCasa] = useState<{ cuenta: string; code: string } | null>(null)
+  const miCreador = casa && casa.cuenta === cuenta ? casa.code : null
 
   useEffect(() => {
-    if (!supabaseUser) return
+    if (!cuenta) return
     let vivo = true
-    void soyCurador().then(r => { if (vivo) setCurador(r === true) })
-    void miCasaDeCreador().then(code => { if (vivo) setMiCreador(code ?? false) })
-    void puedoVerLiga().then(v => { if (vivo) setVeLiga(v) })
+    void soyCurador().then(r => { if (vivo) setCuentaCuradora(r ? cuenta : null) })
+    void miCasaDeCreador().then(code => { if (vivo) setCasa(code ? { cuenta, code } : null) })
     return () => { vivo = false }
-  }, [supabaseUser])
+  }, [cuenta])
   /* El Taller Kyber está en pruebas: su casilla se dibuja SOLO para quien puede
      entrar. La cerradura de verdad sigue estando dentro de cada RPC del taller. */
   const tI = useT()
@@ -446,7 +441,7 @@ export function HomePage() {
       <section className="seccion-ligas" aria-label={tI('Ligas y torneos actuales', 'Current leagues & tournaments')}>
         {renderSeparador('Ligas y torneos actuales', 'cyan')}
         <div className="seccion-ligas-cuerpo">
-          <BotonLigaInicio />
+          {cuenta && <BotonLigaInicio key={cuenta} />}
           <MiTorneo />
         </div>
       </section>
@@ -657,8 +652,7 @@ export function HomePage() {
           ninguna: un separador solo es peor que nada. */}
       {(() => {
         const mias = HERRAMIENTAS_PROPIAS
-          .filter(h => h.llave === 'curador' ? curador === true
-                     : h.llave === 'liga'    ? veLiga === true
+          .filter(h => h.llave === 'curador' ? cuentaCuradora === cuenta
                      : typeof miCreador === 'string')
           .map(h => ({
             ...h,

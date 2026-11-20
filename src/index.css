@@ -812,30 +812,50 @@ input:focus, textarea:focus, select:focus {
  * movimiento igual tiene que poder ver que le viene una serializada.
  * ───────────────────────────────────────────────────────────── */
 
-/* El sobre al rasgarse: un tirón corto y seco, no una animación bonita. */
-@utility sobre-rasga {
-  animation: sobre-tiron 620ms cubic-bezier(0.36, 0, 0.66, -0.4) forwards;
+/* El SVG usa el mismo contorno dentado en ambas mitades. El dorso de la
+   primera carta queda visible en el espacio que se abre entre ellas. */
+.sobre-paquete {
+  aspect-ratio: 2 / 3;
+}
+.sobre-cartas-dentro { animation: sobres-sacar-cartas 620ms ease-out both; }
+@keyframes sobres-sacar-cartas {
+  0%, 15% { transform: scale(.8); }
+  100% { transform: none; }
+}
+.sobre-solapa, .sobre-funda { transform-box: view-box; transform-origin: 50% 33%; }
+.sobre-solapa { animation: sobres-separar-solapa 620ms forwards; }
+.sobre-funda { animation: sobres-separar-funda 620ms forwards; }
+@keyframes sobres-separar-solapa {
+  0%, 10% { transform: none; opacity: 1; }
+  48% { transform: translate(-5%, -14%) rotate(-12deg); opacity: 1; }
+  100% { transform: translate(-17%, -33%) rotate(-21deg); opacity: 0; }
+}
+@keyframes sobres-separar-funda {
+  0%, 10% { transform: none; opacity: 1; }
+  48% { transform: translate(3%, 9%) rotate(4deg); opacity: 1; }
+  100% { transform: translate(9%, 30%) rotate(9deg); opacity: 0; }
 }
 
-@keyframes sobre-tiron {
-  0%   { transform: translateY(0) rotate(0deg) scale(1); }
-  18%  { transform: translateY(-10px) rotate(-2.5deg) scale(1.04); }
-  38%  { transform: translateY(4px) rotate(2deg) scale(1.01); }
-  100% { transform: translateY(52px) rotate(-1deg) scale(0.9); opacity: 0; }
+.sobres-revelador { clip-path: inset(-3px); }
+.sobre-frente, .sobre-dorso { backface-visibility: hidden; }
+.sobre-frente { visibility: hidden; }
+.sobre-giro[data-girada="true"] .sobre-frente { visibility: visible; animation: sobres-mostrar-frente 520ms both; }
+.sobre-giro[data-girada="true"] .sobre-dorso { visibility: hidden; animation: sobres-ocultar-dorso 520ms both; }
+@keyframes sobres-ocultar-dorso {
+  0% { visibility: visible; transform: perspective(900px) rotateY(0); }
+  49.9% { visibility: visible; transform: perspective(900px) rotateY(90deg); }
+  50%, 100% { visibility: hidden; transform: perspective(900px) rotateY(90deg); }
 }
-
-/* La luz que se escapa por la boca del sobre. */
-@utility sobre-fuga {
-  background: radial-gradient(ellipse 60% 100% at 50% 100%,
-              rgb(255 255 255 / 0.85), rgb(255 255 255 / 0.25) 40%, transparent 70%);
-  animation: sobre-fuga-crece 620ms ease-out forwards;
-  mix-blend-mode: screen;
+@keyframes sobres-mostrar-frente {
+  0%, 49.9% { visibility: hidden; transform: perspective(900px) rotateY(-90deg); }
+  50% { visibility: visible; transform: perspective(900px) rotateY(-90deg); }
+  100% { visibility: visible; transform: perspective(900px) rotateY(0); }
 }
-
-@keyframes sobre-fuga-crece {
-  0%   { opacity: 0; transform: scaleY(0.2); }
-  35%  { opacity: 1; transform: scaleY(1.1); }
-  100% { opacity: 0; transform: scaleY(2.4); }
+.sobre-giro-apaisado .sobre-dorso > span {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 71.5%; height: 139.86%;
+  transform: translate(-50%, -50%) rotate(90deg);
 }
 
 /* Rayos de luz por detrás de la carta. Es un cónico que GIRA: la rotación va
@@ -916,19 +936,6 @@ input:focus, textarea:focus, select:focus {
   100% { opacity: 0; transform: translate3d(var(--cx), var(--cy), 0) scale(0.1); }
 }
 
-/* El fogonazo que tapa la pantalla un instante. */
-@utility fogonazo {
-  animation: fogonazo-pasa 520ms ease-out forwards;
-  mix-blend-mode: screen;
-}
-
-@keyframes fogonazo-pasa {
-  0%   { opacity: 0; }
-  14%  { opacity: 0.55; }
-  100% { opacity: 0; }
-}
-
-/* El nombre de la carta entrando después del giro. */
 @utility grito-entra {
   animation: grito-sube 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -944,9 +951,10 @@ input:focus, textarea:focus, select:focus {
   .rayos       { animation: none; }
   .aura-late   { animation: none; opacity: 0.3; }
   .dorso-barrido-luz { animation: none; opacity: 0; }
-  .sobre-rasga { animation: none; opacity: 0; }
-  .sobre-fuga  { animation: none; opacity: 0; }
-  .fogonazo    { animation: none; opacity: 0; }
+  .sobre-cartas-dentro { animation: none; }
+  .sobre-solapa, .sobre-funda { animation: none; opacity: 0; }
+  .sobre-giro[data-girada="true"] .sobre-frente,
+  .sobre-giro[data-girada="true"] .sobre-dorso { animation: none; }
   .grito-entra { animation: none; }
 }
 

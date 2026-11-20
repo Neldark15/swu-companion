@@ -26,8 +26,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { AlertTriangle, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, Globe2, Layers, Lock, Medal, Megaphone, Pencil, PlayCircle, Plus, Settings2, Star, Swords, Timer, Trash2, Trophy, Users, Zap } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
+import { useAuth } from '../../hooks/useAuth'
 import { InscripcionLiga } from '../liga/InscripcionLiga'
 import { PortadaLiga } from './PortadaLiga'
+import { imagenLiga } from './imagenLiga'
 import { Bandera, TarjetaCifra, ContadorPlazo } from './componentes/piezas'
 import { haceCuanto, restanHasta } from './componentes/tiempo'
 import {
@@ -118,6 +120,11 @@ function ordenarGrupos(grupos: GrupoLiga[]): GrupoLiga[] {
 
 export function LigaSeccion() {
   const { code } = useParams<{ code: string }>()
+  const cuenta = useAuth(s => `${s.supabaseUser?.id ?? ''}:${s.currentProfile?.id ?? ''}`)
+  return <ContenidoLiga key={`${cuenta}:${code}`} code={code} />
+}
+
+function ContenidoLiga({ code }: { code?: string }) {
   const [liga, setLiga] = useState<LigaCompleta | null>(null)
   // `listo` en vez de un `cargando` que arranque en true y se apague dentro
   // del efecto: `null` es «todavía no se sabe» y nadie escribe estado de forma
@@ -157,24 +164,22 @@ export function LigaSeccion() {
     () => grupos.find(g => g.plazas.some(p => p.esMia))?.id ?? null,
     [grupos])
 
-  // El afiche mientras carga: entrar a la liga tiene que sentirse como entrar
-  // a otro sitio. Se va cuando la consulta terminó Y se cumplió el piso.
-  if (!listo || !minimo) return <PortadaLiga ms={MINIMO_MS} portada={liga?.liga.portadaUrl} />
+  if (!listo) return <PortadaLiga mensaje="Cargando…" />
 
   if (!liga) {
-    // La policy del demo cerrado devuelve VACÍO, no error: acá «no existe» y
-    // «no te toca verlo» son el mismo caso, y la pantalla lo dice sin drama.
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
         <Lock size={26} className="mx-auto mb-3 text-swu-muted" />
-        <p className="text-[15px] font-black text-swu-text">Esta liga todavía no es pública</p>
-        <p className="mt-1.5 text-[12px] text-swu-muted">
-          O el enlace no existe, o la liga sigue en pruebas cerradas.
-        </p>
+        <p className="text-[15px] font-black text-swu-text">Este enlace no está disponible</p>
         <Link to="/" className="mt-5 inline-block text-[13px] text-swu-cyan">Volver a Inicio</Link>
       </div>
     )
   }
+
+  const portada = imagenLiga(liga.liga.code, 'portada', liga.liga.portadaUrl)
+  if (portada && !minimo) return <PortadaLiga ms={MINIMO_MS} portada={portada} />
+  const emblema = imagenLiga(liga.liga.code, 'emblema', liga.liga.emblemaUrl)
+  const banner = imagenLiga(liga.liga.code, 'banner', liga.liga.bannerUrl)
 
   const { temporada } = liga
   const grupoAbierto = abierto ?? miGrupo ?? grupos[0]?.id ?? null
@@ -252,7 +257,7 @@ export function LigaSeccion() {
         <div
           aria-hidden
           className="absolute inset-0 bg-cover bg-center opacity-25 blur-[2px]"
-          style={{ backgroundImage: `url("${liga.liga.portadaUrl ?? '/liga/portada.webp'}")` }}
+          style={{ backgroundImage: portada ? `url("${portada}")` : undefined }}
         />
         <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-swu-bg via-swu-bg/85 to-swu-bg/55" />
         <div className="relative flex items-center gap-2 px-3 py-3">
@@ -265,14 +270,14 @@ export function LigaSeccion() {
               el nombre está escrito al lado, así que `alt` vacío: leerlo en voz
               alta sería repetir el título. Si el archivo falta, el navegador no
               dibuja nada y la cabecera queda igual. */}
-          <img
-            src={liga.liga.emblemaUrl ?? '/liga/emblema.webp'}
+          {emblema && <img
+            src={emblema}
             alt=""
             aria-hidden
             className="h-9 w-9 shrink-0 object-contain"
             loading="eager"
             decoding="async"
-          />
+          />}
           <div className="min-w-0 flex-1">
             {/* ENVUELVE, NO TRUNCA. Con el emblema, la píldora de estado y el
                 botón del panel en la misma fila quedan ~150 px para el título,
@@ -392,7 +397,7 @@ export function LigaSeccion() {
             aria-hidden
             className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-cover bg-center opacity-30"
             style={{
-              backgroundImage: `url("${liga.liga.bannerUrl ?? '/liga/banner-liga.webp'}")`,
+              backgroundImage: banner ? `url("${banner}")` : undefined,
               maskImage: 'linear-gradient(to right, transparent, #000 70%)',
               WebkitMaskImage: 'linear-gradient(to right, transparent, #000 70%)',
             }}

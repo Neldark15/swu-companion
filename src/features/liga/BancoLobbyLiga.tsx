@@ -167,7 +167,7 @@ export function BancoLobbyLiga() {
 
       {/* La portada tapa TODO (fixed z-[60]), así que se monta a pedido y se
           va sola a los 2 s — igual que en la liga de verdad. */}
-      {portada && <PortadaLiga ms={2000} />}
+      {portada && <PortadaLiga ms={2000} portada="/liga/portada.webp" />}
 
       <div className="mx-auto max-w-2xl space-y-6">
         {/* EL BOTÓN DE ACTUALIZAR vive en el ENCABEZADO de la app, arriba de

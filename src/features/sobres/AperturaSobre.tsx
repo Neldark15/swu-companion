@@ -28,7 +28,7 @@
  */
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { Sparkles, Check } from 'lucide-react'
+import { Sparkles, Check, ChevronLeft, ChevronRight } from 'lucide-react'
 import { CardImage } from '../../components/CardImage'
 import { Carta3D } from '../../components/Carta3D'
 import { Button } from '../../components/ui/Button'
@@ -44,6 +44,8 @@ type Fase = 'sellado' | 'rasgando' | 'revelando' | 'resumen'
 interface Props {
   /** Qué sobre eligió, para que el papel sea el mismo que tomó de la caja. */
   indiceSobre: number
+  cantidadSobres?: 1 | 5 | 10
+  alReintentar?: () => void
   /** Las cartas ya sorteadas por el servidor. `null` mientras viaja. */
   cartas: CartaSacada[] | null
   /** El error del servidor, si lo hubo. */
@@ -64,23 +66,22 @@ interface Props {
   xpGanado?: number
 }
 
-/** Los índices ordenados de menos a más raro, para que el sobre suba. */
-function ordenDeRevelado(cartas: CartaSacada[]): number[] {
-  return cartas
-    .map((_, i) => i)
+/** Las cartas ordenados de menos a más raro, para que el sobre suba. */
+function ordenDeRevelado(cartas: CartaSacada[]): CartaSacada[] {
+  return [...cartas]
     .sort((a, b) => {
-      const d = ESCALA.indexOf(cartas[a].rareza) - ESCALA.indexOf(cartas[b].rareza)
+      const d = ESCALA.indexOf(a.rareza) - ESCALA.indexOf(b.rareza)
       if (d !== 0) return d
       // A igual rareza, la marcada como premio va después: es la ranura buena.
-      return Number(cartas[a].premio) - Number(cartas[b].premio)
+      return Number(a.premio) - Number(b.premio)
     })
 }
 
-export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir, xpGanado = 0 }: Props) {
+export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir, alReintentar, xpGanado = 0, cantidadSobres = 1 }: Props) {
   const [fase, setFase] = useState<Fase>('sellado')
+  const [sobre, setSobre] = useState(0)
   const [pos, setPos] = useState(0)
   const [girada, setGirada] = useState(false)
-  const [fogonazo, setFogonazo] = useState<string | null>(null)
   const quieto = useMenosMovimiento()
 
   // Todos los temporizadores en un saco, para poder cortarlos al desmontar.
@@ -98,8 +99,16 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir,
     [],
   )
 
-  const orden = useMemo(() => (cartas ? ordenDeRevelado(cartas) : []), [cartas])
-  const actual = cartas && pos < orden.length ? cartas[orden[pos]] : null
+  // Cada bloque llega completo en el orden de los sobres que abrió el servidor.
+  const grupos = useMemo(() => {
+    const sobres: CartaSacada[][] = []
+    if (cartas) for (let i = 0; i < cartas.length; i += 5) sobres.push(cartas.slice(i, i + 5))
+    return sobres
+  }, [cartas])
+  const orden = useMemo(() => ordenDeRevelado(grupos[sobre] ?? []), [grupos, sobre])
+  const actual = orden[pos]
+  const enTanda = cantidadSobres > 1
+  const cerrojo = useRef(false)
   const receta = actual ? RECETA[actual.rareza] : null
 
   // Las chispas de la carta de turno: una vez por carta, no por repintado.
@@ -110,11 +119,17 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir,
 
   /** Rasgar. Solo se puede cuando el servidor ya contestó. */
   const rasgar = useCallback(() => {
-    if (fase !== 'sellado' || !cartas) return
+    if (fase !== 'sellado' || !grupos.length || cerrojo.current) return
+    cerrojo.current = true
     setFase('rasgando')
     sonar('rasgar')
-    luego(() => setFase('revelando'), quieto ? 120 : 620)
-  }, [fase, cartas, luego, quieto])
+    const mostrar = () => {
+      cerrojo.current = false
+      setFase('revelando')
+    }
+    if (quieto) mostrar()
+    else luego(mostrar, 620)
+  }, [fase, grupos.length, luego, quieto])
 
   /**
    * Un toque: gira la de arriba, o la pasa si ya estaba girada.
@@ -126,12 +141,11 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir,
    * la consola. Se cierra durante lo que dura el giro, que además es el rato en
    * que tocar no debería hacer nada de todos modos.
    */
-  const cerrojo = useRef(false)
   const tocar = useCallback(() => {
     if (fase !== 'revelando' || !actual || !receta) return
     if (cerrojo.current) return
     cerrojo.current = true
-    luego(() => { cerrojo.current = false }, quieto ? 60 : 380)
+    luego(() => { cerrojo.current = false }, quieto ? 100 : girada ? 160 : 540)
 
     if (!girada) {
       setGirada(true)
@@ -140,55 +154,58 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir,
       else if (actual.premio) sonar('premio', receta.nota)
       else sonar('carta', receta.nota * (1 + pos * 0.06))
 
-      if (receta.fogonazo && !quieto) {
-        setFogonazo(receta.color)
-        luego(() => setFogonazo(null), 520)
-      }
       return
     }
 
     setGirada(false)
-    if (pos + 1 >= orden.length) setFase('resumen')
-    else setPos(p => p + 1)
-  }, [fase, actual, receta, girada, pos, orden.length, luego, quieto])
+    if (pos + 1 < orden.length) setPos(p => p + 1)
+    else if (sobre + 1 < grupos.length) {
+      setSobre(s => s + 1)
+      setPos(0)
+    } else setFase('resumen')
+  }, [fase, actual, receta, girada, pos, orden.length, sobre, grupos.length, luego, quieto])
 
-  /* La carta se mide contra la ALTURA de la pantalla, no en píxeles fijos.
-   * Medido en un teléfono de 375×812: con 360 px de alto fijos, el nombre de la
-   * carta y el botón de saltar quedaban debajo de la barra de navegación. El
-   * ancho sale del alto por la proporción del arte (286/400) para que la caja
-   * nunca deforme la carta. */
-  const ALTO_CARTA = 'min(360px, 44vh)'
-  const cajaCarta = {
-    height: ALTO_CARTA,
-    width: `calc(${ALTO_CARTA} * ${286 / 400})`,
+  const irAlSiguienteSobre = () => {
+    setSobre(sobre + 1)
+    setPos(0)
+    setGirada(false)
+  }
+  const resumen = () => {
+    setSobre(0)
+    setFase('resumen')
+  }
+  // La altura del escenario queda reservada también para las cartas apaisadas.
+  const altoCarta = 'min(360px, 44svh, 105vw)'
+  const apaisada = esApaisada(actual?.carta)
+  const cajaCarta = apaisada ? { width: `min(100%, ${altoCarta})`, aspectRatio: '400 / 286' } : {
+    height: altoCarta,
+    aspectRatio: '286 / 400',
   } as const
 
   // ── El sobre todavía sellado ─────────────────────────────────────────
   if (fase === 'sellado' || fase === 'rasgando') {
     return (
       <div className="flex flex-col items-center">
-        <div className="carta3d-escena relative h-[320px] w-[210px]">
-          <div
-            className={fase === 'rasgando' && !quieto ? 'sobre-rasga' : ''}
-            style={{ height: '100%', width: '100%' }}
-          >
-            <Carta3D intensidad={12} brillo>
-              <div className="h-[320px] w-[210px] drop-shadow-[0_14px_26px_rgba(0,0,0,0.6)]">
-                <SobreArte indice={indiceSobre} abierto={fase === 'rasgando'} />
-              </div>
-            </Carta3D>
-          </div>
-
-          {/* La luz que se escapa por la abertura al rasgarlo. */}
-          {fase === 'rasgando' && !quieto && (
-            <div aria-hidden className="sobre-fuga pointer-events-none absolute inset-x-0 top-0 h-24" />
+        {enTanda && <p className="mb-2 text-sm font-bold text-swu-text">Sobre 1 de {cantidadSobres}</p>}
+        <div aria-hidden className="mb-4 h-1.5" />
+        <div className="relative flex w-full max-w-[340px] items-center justify-center"
+          style={{ height: `calc(${altoCarta} + 34px)` }}>
+          {fase === 'rasgando' && (
+            <div aria-hidden className={`sobre-cartas-dentro absolute ${apaisada ? 'sobre-giro-apaisado' : ''}`}
+              style={cajaCarta}>
+              <span className="sobre-dorso absolute inset-0"><ReversoCarta /></span>
+            </div>
           )}
+          <div className="sobre-paquete relative" style={{ height: altoCarta }}>
+            <SobreArte indice={indiceSobre} abierto={fase === 'rasgando'} />
+          </div>
         </div>
 
         <div className="mt-8 min-h-[92px] text-center">
           {fallo ? (
             <>
-              <p className="text-sm font-bold text-swu-red-texto">{fallo}</p>
+              <p role="alert" className="text-sm font-bold text-swu-red-texto">{fallo}</p>
+              {alReintentar && <Button className="mt-3 mr-2" onClick={alReintentar}>Reintentar</Button>}
               <Button variant="secondary" className="mt-3" onClick={alCerrar}>
                 Volver
               </Button>
@@ -196,11 +213,11 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir,
           ) : !cartas ? (
             <p className="text-sm text-swu-muted">
               <span className="mr-2 inline-block animate-spin">◠</span>
-              Sellando el sobre…
+              {enTanda ? 'Preparando los sobres…' : 'Preparando el sobre…'}
             </p>
           ) : fase === 'sellado' ? (
             <Button onClick={rasgar} className="px-8">
-              Rasgar
+              {enTanda ? `Rasgar y ver los ${cantidadSobres} sobres` : 'Rasgar'}
             </Button>
           ) : null}
         </div>
@@ -210,10 +227,11 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir,
 
   // ── Revelando de una en una ──────────────────────────────────────────
   if (fase === 'revelando' && actual && receta) {
-    const vertical = !(actual.carta?.isLeader || actual.carta?.isBase)
-
     return (
       <div className="flex flex-col items-center">
+        {enTanda && <p className="mb-2 text-sm font-bold text-swu-text" aria-live="polite">
+          Sobre {sobre + 1} de {grupos.length}
+        </p>}
         {/* Cuántas van */}
         <div className="mb-4 flex items-center gap-1.5" aria-label={`Carta ${pos + 1} de ${orden.length}`}>
           {orden.map((_, i) => (
@@ -231,9 +249,9 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir,
         <button
           type="button"
           onClick={tocar}
-          className="carta3d-escena relative flex w-full max-w-[300px] items-center justify-center
+          className="sobres-revelador carta3d-escena relative flex w-full max-w-[340px] items-center justify-center
                      focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-swu-cyan"
-          style={{ height: `calc(${ALTO_CARTA} + 34px)` }}
+          style={{ height: `calc(${altoCarta} + 34px)` }}
           aria-label={girada ? 'Siguiente carta' : 'Girar la carta'}
         >
           {/* Rayos por detrás. Giran con `transform`, no repintan nada. */}
@@ -259,51 +277,38 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir,
             />
           )}
 
-          {/* La carta: un solo nodo que gira 180°, con las dos caras dentro. */}
-          <span
-            className="relative block"
-            style={{
-              ...cajaCarta,
-              transformStyle: 'preserve-3d',
-              transform: girada ? 'rotateY(0deg)' : 'rotateY(180deg)',
-              transition: quieto ? 'none' : 'transform 620ms cubic-bezier(0.34,1.3,0.42,1)',
-              willChange: 'transform',
-            }}
-          >
-            {/* Cara: el arte real de la impresión que salió */}
-            <span
-              className="absolute inset-0 flex items-center justify-center"
-              style={{ backfaceVisibility: 'hidden' }}
-            >
-              {actual.arte || actual.carta ? (
-                <CardImage
-                  src={actual.arte || actual.carta?.imageUrl}
-                  alt={actual.carta?.name ?? 'Carta'}
-                  orientacion={vertical ? 'vertical' : 'apaisada'}
-                  className="w-full"
-                />
-              ) : (
-                <span className="flex h-full w-full items-center justify-center rounded-xl bg-swu-surface text-sm text-swu-muted">
-                  Carta sin arte local
-                </span>
-              )}
-              {/* El brillo, hermano de la imagen y no hijo: CardImage lleva
-                  `overflow-hidden` y `drop-shadow`, que aplanarían el 3D. Solo
-                  se pinta una vez girada — antes taparía el dorso. */}
-              {girada && (
-                <AcabadoDeImagen
-                  src={actual.arte || actual.carta?.imageUrl}
-                  acabado={ACABADO[actual.rareza]}
-                  movimiento="solo"
-                />
-              )}
+          {/* La carta siguiente empieza directamente de dorso. Cada cara solo
+              gira 90 grados y desaparece al pasar por el canto. */}
+          <span key={`${sobre}-${pos}`} data-girada={girada}
+            className={`sobre-giro relative block ${apaisada ? 'sobre-giro-apaisado' : ''}`}
+            style={cajaCarta}>
+            <span aria-hidden={!girada} className="sobre-frente absolute inset-0 flex items-center justify-center">
+              <span className="relative block w-full">
+                {actual.arte || actual.carta ? (
+                  <CardImage
+                    src={actual.arte || actual.carta?.imageUrl}
+                    alt={actual.carta?.name ?? 'Carta'}
+                    orientacion={apaisada ? 'apaisada' : 'vertical'}
+                    className="w-full"
+                  />
+                ) : (
+                  <span className="flex min-h-24 w-full items-center justify-center rounded-xl bg-swu-surface text-sm text-swu-muted">
+                    Carta sin arte local
+                  </span>
+                )}
+                {/* El brillo, hermano de la imagen y no hijo: CardImage lleva
+                    `overflow-hidden` y `drop-shadow`, que aplanarían el 3D. Solo
+                    se pinta una vez girada — antes taparía el dorso. */}
+                {girada && (
+                  <AcabadoDeImagen
+                    src={actual.arte || actual.carta?.imageUrl}
+                    acabado={ACABADO[actual.rareza]}
+                    movimiento="solo"
+                  />
+                )}
+              </span>
             </span>
-
-            {/* Reverso */}
-            <span
-              className="absolute inset-0"
-              style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
-            >
+            <span aria-hidden className="sobre-dorso absolute inset-0">
               <ReversoCarta color={receta.color} misterio={!girada && receta.suspenso > 0} />
             </span>
           </span>
@@ -352,39 +357,35 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir,
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setFase('resumen')}
-          className="mt-1 text-xs text-swu-muted/70 underline underline-offset-4"
-        >
-          Ver todas de una vez
-        </button>
-
-        {/* El fogonazo tapa la pantalla un instante. `position: fixed` para que
-            no lo recorte el contenedor de la carta. */}
-        {fogonazo && (
-          <span
-            aria-hidden
-            className="fogonazo pointer-events-none fixed inset-0 z-50"
-            style={{ background: fogonazo }}
-          />
-        )}
+        <div className="flex flex-wrap justify-center gap-x-5">
+          {enTanda && sobre + 1 < grupos.length && (
+            <button type="button" className="min-h-11 text-sm text-swu-cyan"
+              onClick={irAlSiguienteSobre}>
+              Siguiente sobre
+            </button>
+          )}
+          <button type="button" onClick={resumen}
+            className="min-h-11 text-sm text-swu-muted underline underline-offset-4">
+            {enTanda ? 'Ver resumen de la tanda' : 'Ver todas de una vez'}
+          </button>
+        </div>
       </div>
     )
   }
 
   // ── Todo lo que salió ────────────────────────────────────────────────
-  const lista = cartas ?? []
-  const mejor = lista.reduce(
+  const lista = grupos[sobre] ?? []
+  const todas = cartas ?? []
+  const mejor = todas.reduce(
     (a, c) => (ESCALA.indexOf(c.rareza) > ESCALA.indexOf(a.rareza) ? c : a),
-    lista[0],
+    todas[0],
   )
 
   return (
     <div>
       <div className="mb-4 text-center">
         <p className="text-[11px] font-black uppercase tracking-[0.22em] text-swu-muted">
-          Sobre abierto
+          {enTanda ? `${grupos.length} sobres abiertos · ${todas.length} cartas` : 'Sobre abierto'}
         </p>
         {mejor && (
           <p className="mt-1 text-sm" style={{ color: RECETA[mejor.rareza].color }}>
@@ -394,9 +395,26 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir,
         )}
       </div>
 
+      {enTanda && (
+        <div className="mx-auto mb-4 flex items-center justify-center gap-3">
+          <button type="button" aria-label="Sobre anterior" disabled={sobre === 0}
+            onClick={() => setSobre(sobre - 1)} className="grid size-11 place-items-center rounded-lg border border-swu-border disabled:opacity-30">
+            <ChevronLeft size={18} />
+          </button>
+          <select aria-label="Elegir sobre del resumen" value={sobre}
+            onChange={e => setSobre(Number(e.target.value))}
+            className="h-11 rounded-lg border border-swu-border bg-swu-surface px-3 text-sm font-bold text-swu-text">
+            {grupos.map((_, i) => <option value={i} key={i}>Sobre {i + 1} de {grupos.length}</option>)}
+          </select>
+          <button type="button" aria-label="Sobre siguiente" disabled={sobre + 1 >= grupos.length}
+            onClick={() => setSobre(sobre + 1)} className="grid size-11 place-items-center rounded-lg border border-swu-border disabled:opacity-30">
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5">
         {lista.map((c, i) => (
-          <div key={`${c.cardId}-${i}`} className="carta3d-escena">
+          <div key={`${sobre}-${c.cardId}-${i}`} className="carta3d-escena">
             <Carta3D
               intensidad={9}
               brillo={c.rareza !== 'hiper'}
@@ -440,7 +458,7 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir,
       <div className="mt-7 flex flex-col gap-2 sm:flex-row sm:justify-center">
         {alRepetir && (
           <Button onClick={alRepetir} className="px-7">
-            Abrir otro
+            {enTanda ? 'Elegir más sobres' : 'Abrir otro'}
           </Button>
         )}
         <Button variant="secondary" onClick={alCerrar} className="px-7">

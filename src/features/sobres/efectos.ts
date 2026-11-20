@@ -27,8 +27,6 @@ export interface Receta {
   chispas: number
   /** Cuánto dura el suspenso ANTES de girarla, en ms. */
   suspenso: number
-  /** ¿La pantalla entera destella? Solo para lo que de verdad lo merece. */
-  fogonazo: boolean
   /** ¿La carta queda vibrando después de salir? */
   latido: boolean
   /** La palabra que se canta al salir. */
@@ -45,7 +43,6 @@ export const RECETA: Record<Rareza, Receta> = {
     rayos: 5,
     chispas: 8,
     suspenso: 100,
-    fogonazo: false,
     latido: false,
     grito: 'FOIL',
     nota: 523.25, // do
@@ -55,7 +52,6 @@ export const RECETA: Record<Rareza, Receta> = {
     rayos: 12,
     chispas: 20,
     suspenso: 520,
-    fogonazo: false,
     latido: true,
     grito: 'PRESTIGE',
     nota: 659.25, // mi
@@ -65,7 +61,6 @@ export const RECETA: Record<Rareza, Receta> = {
     rayos: 17,
     chispas: 30,
     suspenso: 900,
-    fogonazo: true,
     latido: true,
     grito: 'PRESTIGE FOIL',
     nota: 783.99, // sol alto
@@ -75,7 +70,6 @@ export const RECETA: Record<Rareza, Receta> = {
     rayos: 20,
     chispas: 38,
     suspenso: 1200,
-    fogonazo: true,
     latido: true,
     grito: 'SHOWCASE',
     nota: 880.0, // la alto
@@ -85,7 +79,6 @@ export const RECETA: Record<Rareza, Receta> = {
     rayos: 24,
     chispas: 48,
     suspenso: 1600,
-    fogonazo: true,
     latido: true,
     grito: 'SERIALIZADA',
     nota: 1046.5, // do alto

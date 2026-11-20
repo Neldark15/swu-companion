@@ -5021,3 +5021,13 @@ El perfil de catálogo describe el exterior y fija dónde apoyan los herrajes. `
 `vestirPieza` comparte geometrías estáticas por material dentro de cada pieza. Los elementos que titilan conservan su malla independiente. El visor reutiliza los accesorios al cambiar el color del cristal y libera los recursos con `taller.soltar()`. La miniatura de la barra usa la misma geometría con menos segmentos y su caché pasa a v4. En Piezas, el visor aísla la ranura elegida y centra el giro con los límites locales del conjunto de mallas.
 
 `scripts/kyber-geometria.test.mts` recorre las 1.716 combinaciones, verifica los 36 perfiles a dos resoluciones, el asiento del aro y la liberación de recursos. Para revisar la apariencia, usar `/banco-sable-3d` en desarrollo y girar el emisor inclinado, la empuñadura y el pomo. La interfaz de cuenta de `/sable` usa el mismo componente `TallerKyber`.
+
+### 5w. Visibilidad de Puente 3 en Inicio (2026-11-20)
+
+`ligas.mostrar_en_inicio` vale true por defecto. `liga_para_inicio()` lo filtra antes de elegir la primera liga para que otra liga habilitada pueda ocupar el lugar. Solo Puente 3 tiene la marca apagada. Su `publica=false` y su estado de borrador ya limitaban el acceso normal al lobby. La marca de Inicio es independiente de los permisos del organizador y es reversible. El código y las imágenes siguen disponibles para los organizadores. El lobby y el panel arrancan con una carga neutra y se vuelven a montar al cambiar cuenta o código.
+
+### 5x. Sobredosis, rasgado y tandas (2026-11-20)
+
+`abrir_tanda_sobres` recibe la cantidad (1, 5 o 10), la cuenta esperada y un UUID de solicitud. Bloquea la fila de saldo y ejecuta el sorteo habitual `abrir_sobre()` por cada sobre dentro de una transacción. Guarda las cartas en orden de sobre y el XP ganado en un recibo privado por cuenta y solicitud. Repetir la solicitud recupera sus cartas con los totales actuales. La recuperación funciona aun si el saldo bajó a cero. El UUID vive en `sessionStorage` por cuenta hasta que el jugador termina de ver la apertura. Los clientes anteriores conservan su RPC individual.
+
+En la apertura individual la caja sigue montada durante la animación aunque el servidor ya haya respondido. La envoltura se divide en dos recortes de un mismo dibujo y la vista con movimiento reducido salta al revelado. Las tandas muestran cinco cartas por sobre y permiten saltar al resumen. Probar saldo insuficiente, doble toque, recarga y reintento con el mismo UUID. `scripts/sobres-tandas.test.sql` comprueba premios, XP, orden, permisos y recuperación dentro de una transacción revertida.

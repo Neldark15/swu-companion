@@ -93,6 +93,15 @@ async function comprimirLogo(file: File, maxLado = 640): Promise<string> {
 export function CreadorPage() {
   const { code } = useParams<{ code: string }>()
   const { supabaseUser, isAdmin } = useAuth()
+  if (!supabaseUser || !code) return (
+    <div className="mx-auto max-w-lg px-4 py-16 text-center text-sm text-swu-muted">
+      Conectá tu cuenta para ver el espacio del creador.
+    </div>
+  )
+  return <CasaDelCreador key={`${supabaseUser.id}/${code}`} code={code} cuenta={supabaseUser.id} isAdmin={isAdmin} />
+}
+
+function CasaDelCreador({ code, cuenta, isAdmin }: { code: string; cuenta: string; isAdmin: boolean }) {
   const [creador, setCreador] = useState<Creador | null>(null)
   const [liga, setLiga] = useState<Liga | null>(null)
   const [cargando, setCargando] = useState(true)
@@ -105,7 +114,6 @@ export function CreadorPage() {
   const recargar = useCallback(() => setRecarga(n => n + 1), [])
 
   useEffect(() => {
-    if (!code) return
     let vivo = true
     void (async () => {
       const c = await getCreador(code)
@@ -125,7 +133,6 @@ export function CreadorPage() {
   // que cambia sin que nadie toque nada. Cada 45 s — más seguido sería
   // sondear un interruptor que se mueve dos veces por transmisión.
   useEffect(() => {
-    if (!code) return
     let vivo = true
     const mirar = () => { void enVivoDe(code).then(v => { if (vivo) setEnVivo(v) }) }
     mirar()
@@ -133,7 +140,7 @@ export function CreadorPage() {
     return () => { vivo = false; window.clearInterval(id) }
   }, [code])
 
-  const soyElCreador = !!creador && supabaseUser?.id === creador.userId
+  const soyElCreador = !!creador && cuenta === creador.userId
 
   const elegirLogo = useCallback(async (file: File | undefined) => {
     if (!file) return
@@ -257,9 +264,9 @@ export function CreadorPage() {
       )}
 
       {/* La cabina: el atajo para quien la opera, el alta para el admin. */}
-      {soyElCreador && !enVivo && <AtajoCabina userId={supabaseUser?.id ?? null} />}
+      {soyElCreador && !enVivo && <AtajoCabina userId={cuenta} />}
       {isAdmin && !soyElCreador && (
-        <AltaCabina creadorCode={code!} onHecho={m => { setAviso(m); recargar() }} />
+        <AltaCabina creadorCode={code} onHecho={m => { setAviso(m); recargar() }} />
       )}
 
       {aviso && (
