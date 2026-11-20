@@ -12,6 +12,14 @@ Registro compartido entre Claude y ChatGPT. **La entrada más nueva va arriba.**
 
 ---
 
+## 2026-11-20 · ChatGPT · Galería Kyber e inspección de cartas en Sobredosis
+
+**Qué cambió:** El Taller abre con nueve modelos 3D y once piezas incluidas. Elegir un modelo lo pasa a «Mi sable» y «Forjar mi sable» confirma el guardado. En Sobredosis, tocar una carta en el resumen abre el visor de ambas caras. El sobre usa una envoltura de foil con textura fotográfica, que se rasga por el cierre superior.
+**Cómo verificar:** Probar la galería en `/banco-sable-3d` y correr `npx tsx scripts/kyber-galeria.test.mts`. En `/banco-sobres`, elegir Showcase, rasgar un sobre, abrir a Obi-Wan desde el resumen y darle la vuelta. Detalles en CLAUDE §5y.
+**Datos:** `supabase/migrations/sable-modelos-galeria.sql` agrega las piezas gratuitas al catálogo existente.
+
+---
+
 ## 2026-11-20 · ChatGPT · Rasgado del sobre y apertura de tandas en Sobredosis
 **Qué cambió:** Se ve el vuelo del sobre elegido, la envoltura se separa al rasgarla y la carta gira sin mostrar la cara siguiente antes de tiempo. La bóveda permite abrir 1, 5 o 10 sobres. El resumen tiene un selector por sobre y muestra el XP de la tanda.
 **Archivos:** `features/sobres`, `src/index.css`, saldo, servicios de sobres y misiones, `supabase/migrations/sobres-apertura-en-tandas.sql` y `scripts/sobres-tandas.test.sql`. Ver CLAUDE §5x.

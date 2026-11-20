@@ -1,0 +1,91 @@
+.lupa-carta-dialogo {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: white;
+  overscroll-behavior: contain;
+}
+.lupa-carta-dialogo::backdrop { background: rgb(4 7 16 / 94%); }
+.lupa-carta-contenido {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: max(3.5rem, env(safe-area-inset-top)) 1.25rem max(1rem, env(safe-area-inset-bottom));
+}
+.lupa-carta-cerrar {
+  position: fixed;
+  top: max(.5rem, env(safe-area-inset-top));
+  right: max(.75rem, env(safe-area-inset-right));
+  z-index: 1;
+}
+.lupa-carta-contenido .carta-girable-escena {
+  width: min(100%, calc(min(56svh, 450px) * var(--ancho-carta)));
+}
+.carta-girable-escena {
+  position: relative;
+  width: 100%;
+  margin-inline: auto;
+  perspective: 1050px;
+  touch-action: none;
+  cursor: grab;
+  -webkit-touch-callout: none;
+}
+.carta-girable-escena:active { cursor: grabbing; }
+.carta-girable-objeto {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template: 100% / 100%;
+  place-items: center;
+  transform-style: preserve-3d;
+}
+.carta-girable-cara {
+  grid-area: 1 / 1;
+  position: relative;
+  display: grid;
+  place-items: center;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform: translateZ(.45px);
+}
+/* WebKit puede componer las imágenes filtradas aunque su padre esté de espaldas. */
+.carta-girable-dorso { visibility: hidden; transform: rotateY(180deg) translateZ(.45px); }
+.carta-girable-objeto[data-cara="dorso"] > :first-child { visibility: hidden; }
+.carta-girable-objeto[data-cara="dorso"] > .carta-girable-dorso { visibility: visible; }
+.carta-girable-voltear {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  margin: .6rem auto 0;
+  padding-inline: 1rem;
+  border: 1px solid rgb(170 193 223 / 32%);
+  border-radius: 999px;
+  background: rgb(19 32 48 / 85%);
+  color: #e7f4ff;
+  font-size: .85rem;
+  font-weight: 650;
+}
+.carta-girable-voltear:focus-visible, .lupa-carta-cerrar:focus-visible, .sobre-resumen-carta:focus-visible {
+  outline: 2px solid #67e8f9;
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .carta-girable-escena { touch-action: auto; cursor: default; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sobre-revelado-entra { animation: entrar-carta-sobredosis 200ms cubic-bezier(.2,.72,.2,1) both; }
+  @keyframes entrar-carta-sobredosis {
+    from { opacity: .5; transform: translate3d(7px, 13px, 0) rotateZ(2deg) scale(.97); }
+    to { opacity: 1; transform: none; }
+  }
+}

@@ -31,7 +31,7 @@
  * discrepa del que trae la imagen a todos los tamaños salvo por casualidad.
  */
 
-import { useState, useRef, useEffect, memo } from 'react'
+import { useState, useRef, useEffect, memo, type ReactNode } from 'react'
 import { Package } from 'lucide-react'
 import { anchoArte, artUrlOptimizada } from '../services/cardArt'
 
@@ -41,7 +41,9 @@ export const RATIO_APAISADO = 400 / 286
 
 export type Orientacion = 'vertical' | 'apaisada'
 
-interface CardImageProps {
+export interface CardImageProps {
+  /** Se dibuja únicamente sobre los píxeles de la imagen cargada. */
+  children?: ReactNode
   src: string | undefined | null
   alt?: string
   className?: string
@@ -95,33 +97,20 @@ export const CardImage = memo(function CardImage({
   relleno = true,
   elevacion = 'plana',
   foil = false,
+  children,
 }: CardImageProps) {
-  const [state, setState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
-  /** Orientación medida de la imagen ya cargada. Manda sobre la declarada:
-   *  si un llamador se equivoca, la carta igual se ve bien. */
-  const [medida, setMedida] = useState<Orientacion | null>(null)
-  /**
-   * La URL que de verdad se pide: la original recortada al tamaño de ESTA
-   * caja, y a la vez la señal de «ya está cerca de la pantalla».
-   *
-   * Guarda JUNTO a la URL de quién es (`para`). Así, si la rejilla reusa este
-   * componente para otra carta —cambia `src` sin desmontar—, la URL vieja
-   * deja de valer sola, sin un efecto que la limpie y sin un fotograma
-   * mostrando la carta anterior.
-   *
-   * `null` = todavía no toca pedir nada. Sin IntersectionObserver no hay a
-   * qué esperar, así que arranca con el peldaño más grande. Va como estado
-   * inicial y no como un `setState` dentro de un efecto: eso último provoca
-   * un render en cascada por cada carta de la rejilla.
-   */
-  const [pedido, setPedido] = useState<{ para: string; url: string } | null>(() =>
-    typeof IntersectionObserver === 'undefined' && src
-      ? { para: src, url: artUrlOptimizada(src, anchoArte(Infinity, 1)) ?? src }
-      : null,
-  )
+  // ratio nulo registra un fallo definitivo para esa URL, sin afectar a la siguiente carta.
+  const [carga, setCarga] = useState<{ url: string; ratio: number | null } | null>(null)
+  const [pedido, setPedido] = useState<{ para: string; url: string } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const urlPedida = pedido && pedido.para === src ? pedido.url : null
+  const respaldoSinObservador = src && typeof IntersectionObserver === 'undefined'
+    ? artUrlOptimizada(src, anchoArte(Infinity, 1))
+    : null
+  const urlPedida = pedido && pedido.para === src ? pedido.url : respaldoSinObservador
   const isVisible = urlPedida !== null
+  const resultado = carga?.url === urlPedida ? carga : null
+  const ratio = resultado?.ratio
+  const falloDefinitivo = resultado?.ratio === null
 
   /**
    * IntersectionObserver — solo carga cuando está cerca de la pantalla, y de
@@ -138,7 +127,6 @@ export const CardImage = memo(function CardImage({
     const el = containerRef.current
     if (!el || !src) return
 
-    // El caso «no hay IntersectionObserver» ya lo resolvió el estado inicial.
     if (typeof IntersectionObserver === 'undefined') return
 
     const observer = new IntersectionObserver(
@@ -159,65 +147,27 @@ export const CardImage = memo(function CardImage({
     return () => observer.disconnect()
   }, [src, rootMargin])
 
-  // Carga de la imagen.
-  useEffect(() => {
-    if (!isVisible || !src || !urlPedida) return
+  function fallo() {
+    if (!urlPedida || !src) return
+    if (urlPedida !== src) setPedido({ para: src, url: src })
+    else setCarga({ url: urlPedida, ratio: null })
+  }
 
-    let cancelled = false
-    const img = new Image()
-    // Los manejadores van ANTES de asignar `src`. Al revés, una imagen que ya
-    // está en caché podía terminar de cargar antes de que existiera el
-    // manejador: `load` no volvía a dispararse, el estado quedaba en 'loading'
-    // y la carta se veía como un rectángulo vacío para siempre.
-    const medir = () => {
-      if (img.naturalWidth > 0) {
-        setMedida(img.naturalWidth >= img.naturalHeight ? 'apaisada' : 'vertical')
-      }
+  async function mostrar(imagen: HTMLImageElement) {
+    if (!urlPedida) return
+    try {
+      await imagen.decode?.()
+    } catch {
+      // Algunos navegadores rechazan decode() aun después de un load válido.
+      if (!imagen.isConnected) return
+      if (!imagen.naturalWidth || !imagen.naturalHeight) { fallo(); return }
     }
-    const listo = () => { if (!cancelled) { medir(); setState('loaded') } }
-    const fallo = () => {
-      if (cancelled) return
-      // Primer fallo con recorte: se reintenta con la ORIGINAL. Que la url
-      // pedida sea ya la original es justamente la señal de que este es el
-      // segundo intento, o sea una carta que de verdad no está.
-      if (urlPedida !== src) setPedido({ para: src, url: src })
-      else setState('error')
+    if (imagen.isConnected && imagen.naturalWidth && imagen.naturalHeight) {
+      setCarga({ url: urlPedida, ratio: imagen.naturalWidth / imagen.naturalHeight })
     }
+  }
 
-    // `decode()` descomprime el PNG/WebP FUERA del hilo principal y recién
-    // entonces damos la carta por lista. Sin esto, la descompresión ocurría
-    // dentro del fotograma en que la carta se pinta: medido, 149 ms de
-    // fotograma al desplazar la lista y 100 ms en el binder, con tirones
-    // largos de 109-155 ms. Es el mismo trabajo, hecho donde no se ve.
-    if (typeof img.decode === 'function') {
-      img.decoding = 'async'
-      img.src = urlPedida
-      img.decode().then(listo, () => {
-        // `decode()` también rechaza si la imagen se reemplazó a media carga;
-        // si en realidad llegó bien, no es un fallo.
-        if (img.complete && img.naturalWidth > 0) listo()
-        else fallo()
-      })
-    } else {
-      img.onload = listo
-      img.onerror = fallo
-      img.src = urlPedida
-    }
-
-    // Red de seguridad: si ya está resuelta, no hay ningún evento que esperar.
-    // Va en un microtask —no en el cuerpo del efecto— porque un `setState`
-    // síncrono ahí dispara un render en cascada por cada carta, y en una
-    // rejilla de 200 eso se siente.
-    queueMicrotask(() => {
-      if (cancelled) return
-      if (img.complete && img.naturalWidth > 0) { medir(); setState('loaded') }
-      else setState('loading')
-    })
-
-    return () => { cancelled = true }
-  }, [isVisible, src, urlPedida])
-
-  const orient = medida ?? orientacion ?? 'vertical'
+  const orient = ratio ? (ratio >= 1 ? 'apaisada' : 'vertical') : orientacion ?? 'vertical'
 
   // Sin imagen: hueco tranquilo, no un error a gritos.
   if (!src) {
@@ -259,11 +209,11 @@ export const CardImage = memo(function CardImage({
        *
        * Fuera de pantalla queda la misma caja del mismo color: el hueco se
        * ve idéntico, sin nada que animar. */}
-      {state !== 'loaded' && state !== 'error' && (
+      {!resultado && (
         <div className={`absolute inset-0 ${radio} ${isVisible ? 'carta-esqueleto' : 'carta-hueco'}`} />
       )}
 
-      {isVisible && urlPedida && state !== 'error' && (
+      {urlPedida && !falloDefinitivo && (
         <>
           {/* Relleno: la MISMA imagen ampliada y desenfocada rellena el hueco
               que deja una carta apaisada en una celda vertical. Es el mismo
@@ -276,31 +226,42 @@ export const CardImage = memo(function CardImage({
               aria-hidden
               decoding="async"
               className={`absolute inset-0 w-full h-full object-cover carta-relleno transition-opacity duration-500 ${
-                state === 'loaded' ? 'opacity-100' : 'opacity-0'
+                ratio ? 'opacity-100' : 'opacity-0'
               }`}
             />
           )}
 
           <img
+            key={urlPedida}
             src={urlPedida}
+            onLoad={event => { void mostrar(event.currentTarget) }}
+            onError={fallo}
             alt={alt}
             decoding="async"
             className={`relative w-full h-full ${
               ajuste === 'contain' ? 'object-contain' : `object-cover ${radio}`
             } ${sombra} transition-[opacity,transform] duration-300 ${
-              state === 'loaded' ? 'opacity-100' : 'opacity-0'
+              ratio ? 'opacity-100' : 'opacity-0'
             }`}
           />
 
-          {/* Brillo de foil: una banda diagonal muy tenue, por encima del arte
-              pero sin taparlo. Solo cuando de verdad es foil. */}
-          {foil && state === 'loaded' && (
-            <span aria-hidden className={`pointer-events-none absolute inset-0 ${radio} carta-foil`} />
+          {ratio && (children || foil) && (
+            <span aria-hidden className="carta-lamina-caja">
+              <span
+                className={`carta-lamina ${radio}`}
+                style={ajuste === 'contain'
+                  ? { width: `min(100cqw, calc(100cqh * ${ratio}))`, aspectRatio: ratio }
+                  : { width: '100%', height: '100%' }}
+              >
+                {children}
+                {foil && <span className="absolute inset-0 carta-foil" />}
+              </span>
+            </span>
           )}
         </>
       )}
 
-      {state === 'error' && (
+      {falloDefinitivo && (
         <div className={`absolute inset-0 flex items-center justify-center ${radio} bg-swu-surface/60 border border-swu-border/50`}>
           <Package size={16} className="text-swu-muted/30" />
         </div>

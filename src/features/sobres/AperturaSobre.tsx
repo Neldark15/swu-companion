@@ -29,7 +29,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Sparkles, Check, ChevronLeft, ChevronRight } from 'lucide-react'
-import { CardImage } from '../../components/CardImage'
+import { LupaCarta } from './LupaCarta'
 import { Carta3D } from '../../components/Carta3D'
 import { Button } from '../../components/ui/Button'
 import { SobreArte } from './SobreArte'
@@ -81,6 +81,7 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir,
   const [fase, setFase] = useState<Fase>('sellado')
   const [sobre, setSobre] = useState(0)
   const [pos, setPos] = useState(0)
+  const [inspeccion, setInspeccion] = useState<number | null>(null)
   const [girada, setGirada] = useState(false)
   const quieto = useMenosMovimiento()
 
@@ -280,12 +281,14 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir,
           {/* La carta siguiente empieza directamente de dorso. Cada cara solo
               gira 90 grados y desaparece al pasar por el canto. */}
           <span key={`${sobre}-${pos}`} data-girada={girada}
-            className={`sobre-giro relative block ${apaisada ? 'sobre-giro-apaisado' : ''}`}
+            className={`sobre-giro sobre-revelado-entra relative block ${apaisada ? 'sobre-giro-apaisado' : ''}`}
             style={cajaCarta}>
             <span aria-hidden={!girada} className="sobre-frente absolute inset-0 flex items-center justify-center">
               <span className="relative block w-full">
                 {actual.arte || actual.carta ? (
-                  <CardImage
+                  <AcabadoDeImagen
+                    acabado={girada ? ACABADO[actual.rareza] : undefined}
+                    movimiento="solo"
                     src={actual.arte || actual.carta?.imageUrl}
                     alt={actual.carta?.name ?? 'Carta'}
                     orientacion={apaisada ? 'apaisada' : 'vertical'}
@@ -295,16 +298,6 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir,
                   <span className="flex min-h-24 w-full items-center justify-center rounded-xl bg-swu-surface text-sm text-swu-muted">
                     Carta sin arte local
                   </span>
-                )}
-                {/* El brillo, hermano de la imagen y no hijo: CardImage lleva
-                    `overflow-hidden` y `drop-shadow`, que aplanarían el 3D. Solo
-                    se pinta una vez girada — antes taparía el dorso. */}
-                {girada && (
-                  <AcabadoDeImagen
-                    src={actual.arte || actual.carta?.imageUrl}
-                    acabado={ACABADO[actual.rareza]}
-                    movimiento="solo"
-                  />
                 )}
               </span>
             </span>
@@ -375,6 +368,7 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir,
 
   // ── Todo lo que salió ────────────────────────────────────────────────
   const lista = grupos[sobre] ?? []
+  const ampliada = inspeccion === null ? undefined : lista[inspeccion]
   const todas = cartas ?? []
   const mejor = todas.reduce(
     (a, c) => (ESCALA.indexOf(c.rareza) > ESCALA.indexOf(a.rareza) ? c : a),
@@ -412,43 +406,51 @@ export function AperturaSobre({ indiceSobre, cartas, fallo, alCerrar, alRepetir,
           </button>
         </div>
       )}
+      <p className="mb-3 text-center text-xs text-swu-muted">Tocá una carta para verla en 3D.</p>
       <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5">
         {lista.map((c, i) => (
-          <div key={`${sobre}-${c.cardId}-${i}`} className="carta3d-escena">
-            <Carta3D
-              intensidad={9}
-              brillo={c.rareza !== 'hiper'}
-              iridiscente={ACABADO[c.rareza] !== 'foil'}
-              alAbrir
-            >
-              <div
-                className="relative rounded-lg"
-                style={{
-                  boxShadow:
-                    c.rareza === 'hiper' ? 'none' : `0 0 14px ${RECETA[c.rareza].color}55`,
-                }}
+          <div key={`${sobre}-${c.cardId}-${i}`} className="carta3d-escena min-w-0">
+            <button type="button" aria-haspopup="dialog" aria-label={`Ver en 3D: ${c.carta?.name ?? 'Carta'}, posición ${i + 1}`}
+              className="sobre-resumen-carta block w-full rounded-lg text-left"
+              onClick={e => { e.currentTarget.focus({ preventScroll: true }); setInspeccion(i) }}>
+              <Carta3D
+                intensidad={9}
+                brillo={c.rareza !== 'hiper'}
+                iridiscente={ACABADO[c.rareza] !== 'foil'}
+                alAbrir
               >
-                {c.arte || c.carta ? (
-                  <CardImage
-                    src={c.arte || c.carta?.imageUrl}
-                    alt={c.carta?.name ?? 'Carta'}
-                    orientacion={esApaisada(c.carta) ? 'apaisada' : 'vertical'}
-                    className="w-full"
-                  />
-                ) : (
-                  <div className="aspect-[286/400] rounded-lg bg-swu-surface" />
-                )}
-                {/* Cinco a la vez: acabado barato. */}
-                <AcabadoDeImagen src={c.arte || c.carta?.imageUrl} acabado={ACABADO[c.rareza]} calidad="plano" />
-              </div>
-            </Carta3D>
-            <p className="mt-1 truncate text-[10px] text-swu-muted" title={c.carta?.name}>
-              {c.carta?.name ?? '—'}
-            </p>
+                <div
+                  className="relative rounded-lg"
+                  style={{
+                    boxShadow:
+                      c.rareza === 'hiper' ? 'none' : `0 0 14px ${RECETA[c.rareza].color}55`,
+                  }}
+                >
+                  {c.arte || c.carta ? (
+                    <AcabadoDeImagen acabado={ACABADO[c.rareza]} calidad="plano"
+                      src={c.arte || c.carta?.imageUrl}
+                      alt={c.carta?.name ?? 'Carta'}
+                      orientacion={esApaisada(c.carta) ? 'apaisada' : 'vertical'}
+                      className="w-full"
+                    />
+                  ) : (
+                    <div className="aspect-[286/400] rounded-lg bg-swu-surface" />
+                  )}
+                </div>
+              </Carta3D>
+              <span className="mt-1 block truncate text-[10px] text-swu-muted" title={c.carta?.name}>
+                {c.carta?.name ?? '—'}
+              </span>
+            </button>
           </div>
         ))}
       </div>
 
+      {ampliada && inspeccion !== null && (
+        <LupaCarta hallazgo={ampliada} contexto={`Sobre ${sobre + 1} · Carta ${inspeccion + 1} de ${lista.length}`}
+          color={RECETA[ampliada.rareza].color} acabado={ACABADO[ampliada.rareza]}
+          alCerrar={() => setInspeccion(null)} />
+      )}
       {xpGanado > 0 && (
         <p className="mt-5 text-center text-[13px] font-bold text-swu-amber">
           +{xpGanado} XP

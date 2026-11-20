@@ -20,9 +20,7 @@ import { ReversoCarta } from './ReversoCarta'
 import { FranjaSobreDiario } from './AvisoSobreDiario'
 import { TiendaSobres, type AccionesTienda } from './TiendaSobres'
 import type { EstadoTienda } from '../../services/tiendaSobres'
-import { Acabado } from './Acabado'
 import { AcabadoDeImagen } from './AcabadoDeImagen'
-import { CardImage } from '../../components/CardImage'
 import { ESCALA, NOMBRE_RAREZA, COLOR_RAREZA, ACABADO, type CartaSacada, type Rareza, type Variante } from '../../services/sobres'
 import type { Card } from '../../types'
 import type { SeccionAlbum, CasillaAlbum } from '../../services/sobres'
@@ -109,8 +107,11 @@ function sobreDePrueba(premio: Rareza): CartaSacada[] {
     rareza: premio,
     premio: true,
     serializada: premio === 'serializada',
-    carta: cartaFalsa(`Premio ${NOMBRE_RAREZA[premio]}`, 300),
-    arte: '',
+    carta: premio === 'showcase' ? {
+      ...cartaFalsa('Obi-Wan Kenobi', 1012), type: 'Leader', isLeader: true, setCode: 'LOF',
+      imageUrl: ARTE_APAISADO, backImageUrl: ARTE_APAISADO_DORSO,
+    } : cartaFalsa(`Premio ${NOMBRE_RAREZA[premio]}`, 300),
+    arte: premio === 'showcase' ? ARTE_APAISADO : '',
   })
   return base
 }
@@ -376,8 +377,8 @@ export function BancoSobres() {
             </p>
             <div className="mx-auto max-w-[260px]">
               <CartaGirable
-                frente={<CardImage src={ARTE_PRUEBA} alt="Carta de prueba" orientacion="vertical" className="w-full" />}
-                acabadoFrente={<AcabadoDeImagen src={ARTE_PRUEBA} acabado={ACABADO[premio]} />}
+                frente={<AcabadoDeImagen src={ARTE_PRUEBA} alt="Carta de prueba" orientacion="vertical"
+                  className="h-full w-full" acabado={ACABADO[premio]} />}
                 dorso={<ReversoCarta color={COLOR_RAREZA[premio]} />}
               />
             </div>
@@ -391,8 +392,8 @@ export function BancoSobres() {
               {(['foil', 'metal', 'oro'] as const).map(a => (
                 <div key={a}>
                   <div className="relative overflow-hidden rounded-lg">
-                    <CardImage src={ARTE_PRUEBA} alt={a} orientacion="vertical" className="w-full" />
-                    <Acabado acabado={a} movimiento="solo" />
+                    <AcabadoDeImagen src={ARTE_PRUEBA} alt={a} orientacion="vertical" className="w-full aspect-[286/400]"
+                      acabado={a} movimiento="solo" />
                   </div>
                   <p className="mt-1 text-center text-[11px] text-swu-muted">{a}</p>
                 </div>

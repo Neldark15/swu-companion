@@ -51,7 +51,6 @@
 
 import { useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { ChevronLeft, ChevronRight, Hash } from 'lucide-react'
-import { CardImage } from '../../components/CardImage'
 import { COLOR_RAREZA, NOMBRE_RAREZA, ACABADO, esApaisada, type SeccionAlbum, type CasillaAlbum, type Rareza } from '../../services/sobres'
 import { AcabadoDeImagen } from './AcabadoDeImagen'
 
@@ -298,18 +297,13 @@ function Llena({
         {/* `casilla.arte`, NO `carta.imageUrl`: la lámina foil del API trae los
             destellos QUEMADOS en el archivo y el brillo lo pone la app (ver
             `sobresArte.ts`). El respaldo es la propia impresión. */}
-        <CardImage
+        <AcabadoDeImagen
+          acabado={ACABADO[rareza]}
+          calidad="plano"
           src={casilla.arte || casilla.carta?.imageUrl}
           alt={casilla.carta?.name ?? ''}
           orientacion={esApaisada(casilla.carta) ? 'apaisada' : 'vertical'}
           className="h-full w-full"
-        />
-        {/* Nueve a la vez: acabado BARATO, un degradado sin `mix-blend-mode`.
-            El bueno se ve al abrir la carta. */}
-        <AcabadoDeImagen
-          src={casilla.arte || casilla.carta?.imageUrl}
-          acabado={ACABADO[rareza]}
-          calidad="plano"
         />
       </div>
 

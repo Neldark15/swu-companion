@@ -1,237 +1,149 @@
-/**
- * CartaGirable — la carta en la mano: se gira con el dedo, sigue girando al
- * soltar y se ve por los dos lados.
- *
- * ── En qué se diferencia de `Carta3D` ────────────────────────────────
- *
- * `Carta3D` INCLINA: la carta vuelve sola al centro cuando soltás, porque está
- * apoyada en una rejilla y tiene que quedar donde estaba. Esta GIRA: no hay
- * centro al que volver, el ángulo se acumula sin tope y pasando de 90° se ve
- * el dorso. Son dos gestos distintos y mezclarlos daba una carta que ni se
- * dejaba girar ni se quedaba quieta.
- *
- * ── Los tres detalles de los que depende que se sienta fluida ────────
- *
- * 1. **El ángulo NO es estado de React.** Se guarda en una `ref` y se escribe
- *    con `style.transform`. Un `setState` por movimiento del dedo son 60
- *    renders por segundo del árbol entero: es exactamente el retraso que se
- *    siente como «pegajoso».
- *
- * 2. **Inercia al soltar.** Sin ella la carta se congela en seco en cuanto se
- *    levanta el dedo, que es lo que delata que es una interfaz y no un objeto.
- *    La velocidad se guarda del último movimiento y decae al 94% por
- *    fotograma; por debajo de 0,02°/f se para el bucle para no dejar un
- *    `requestAnimationFrame` corriendo eternamente.
- *
- * 3. **El eje X va con tope y el Y no.** Girar de canto (Y) es infinito, como
- *    en la mano. Volcarla hacia adelante y atrás (X) se limita a ±55°: más
- *    allá la carta se ve de canto y no se entiende qué se está mirando.
- */
-
-import { useRef, useEffect, useCallback, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, type CSSProperties, type PointerEvent, type ReactNode } from 'react'
+import { RotateCw } from 'lucide-react'
+import { useMenosMovimiento } from './efectos'
+import './lupaCarta.css'
 
 interface Props {
-  /** La cara. */
   frente: ReactNode
-  /** El dorso, que aparece solo al pasar de los 90°. */
   dorso: ReactNode
-  /** Proporción de la caja, para que no salte al cargar el arte. */
-  ratio?: number
-  /**
-   * Proporción de la cara de ATRÁS, cuando es distinta de la de adelante.
-   *
-   * Las dos caras de un líder Showcase son la misma cartulina impresa de lado:
-   * frente 400×286 y dorso 286×400 (medido, 6 de 6). Con una sola proporción
-   * para las dos, la cara acostada entra en un bolsillo vertical ocupando el
-   * 51 % del alto y deja doscientos píxeles muertos debajo, que empujan el pie
-   * del modal hacia abajo.
-   *
-   * Con las dos, la caja MORFA al cruzar los 90°: es exactamente lo que hace
-   * la cartulina de verdad cuando la girás. Se escribe en el nodo, no por
-   * estado, para no re-renderizar el árbol a mitad del gesto.
-   *
-   * Si no se pasa, la caja no cambia nunca y el comportamiento es el de antes.
-   */
-  ratioDorso?: number
-  /**
-   * El brillo de cada cara, POR SEPARADO.
-   *
-   * Son dos y no uno porque las dos caras de un líder Showcase tienen
-   * proporciones opuestas (medido: frente 400×286, dorso 286×400), así que un
-   * solo acabado sale con la forma equivocada en uno de los dos lados. Van acá
-   * dentro y no afuera porque tienen que seguir al ángulo, y el ángulo solo lo
-   * conoce este componente.
-   */
   acabadoFrente?: ReactNode
   acabadoDorso?: ReactNode
+  ratio?: number
+  ratioDorso?: number
   className?: string
 }
 
-/** Cuánto decae la velocidad por fotograma al soltar. */
-const ROCE = 0.94
-/** Por debajo de esto se considera quieta y se corta el bucle. */
-const QUIETA = 0.02
+const limitar = (v: number, limite: number) => Math.max(-limite, Math.min(limite, v))
 
 export function CartaGirable({
-  frente, dorso, acabadoFrente, acabadoDorso, ratio = 286 / 400, ratioDorso, className = '',
+  frente, dorso, acabadoFrente, acabadoDorso, ratio = 286 / 400, ratioDorso = ratio, className = '',
 }: Props) {
+  const reducido = useMenosMovimiento()
   const caja = useRef<HTMLDivElement>(null)
-  const marco = useRef<HTMLDivElement>(null)
-  const giro = useRef({ x: -6, y: 0 })
-  const vel = useRef({ x: 0, y: 0 })
-  const arrastrando = useRef(false)
-  const ultimo = useRef({ x: 0, y: 0, t: 0 })
-  const bucle = useRef(0)
+  const ladoAnunciado = useRef<HTMLOutputElement>(null)
+  const giro = useRef({ x: 0, y: 0 })
+  const velocidad = useRef({ x: 0, y: 0 })
+  const dedo = useRef<{ id: number; x: number; y: number; t: number } | null>(null)
+  const raf = useRef(0)
+
+  const detener = useCallback(() => {
+    cancelAnimationFrame(raf.current)
+    raf.current = 0
+  }, [])
 
   const pintar = useCallback(() => {
     const el = caja.current
     if (!el) return
     const { x, y } = giro.current
-    el.style.transform = `rotateX(${x.toFixed(2)}deg) rotateY(${y.toFixed(2)}deg)`
-    // Y las variables que mueven el brillo. `sin` del ángulo va y viene entre
-    // -1 y 1 mientras la carta gira, así que el reflejo BARRE la lámina en vez
-    // de quedarse pegado a un lado — que es justamente lo que da ganas de
-    // seguir girándola. Se escriben en el nodo, sin pasar por React.
-    el.style.setProperty('--px', Math.sin((y * Math.PI) / 180).toFixed(3))
-    el.style.setProperty('--py', (x / 55).toFixed(3))
-
-    // La caja toma la forma de la cara que se está viendo. La paridad de la
-    // media vuelta es la MISMA regla con la que la credencial decide su cara
-    // (§2y): `y` se acumula sin tope y puede ser negativo, así que se
-    // normaliza antes de mirar si estamos del derecho o del revés.
-    if (marco.current && ratioDorso !== undefined) {
-      const vueltas = Math.round(y / 180)
-      const delDorso = Math.abs(vueltas % 2) === 1
-      marco.current.style.aspectRatio = String(delDorso ? ratioDorso : ratio)
+    const atras = Math.abs(Math.round(y / 180) % 2) === 1
+    el.style.transform = `rotateX(${x}deg) rotateY(${y}deg)`
+    el.style.setProperty('--px', String(Math.sin(y * Math.PI / 180)))
+    el.style.setProperty('--py', String(x / 48))
+    if (el.dataset.cara !== (atras ? 'dorso' : 'frente')) {
+      el.dataset.cara = atras ? 'dorso' : 'frente'
+      if (ladoAnunciado.current) ladoAnunciado.current.textContent = atras ? 'Reverso de la carta' : 'Frente de la carta'
+      el.children[0].setAttribute('aria-hidden', String(atras))
+      el.children[1].setAttribute('aria-hidden', String(!atras))
     }
-  }, [ratio, ratioDorso])
-
-  /** El bucle de inercia. Solo corre mientras de verdad se mueve. */
-  const rodar = useCallback(() => {
-    bucle.current = 0
-    if (arrastrando.current) return
-    const v = vel.current
-    if (Math.abs(v.x) < QUIETA && Math.abs(v.y) < QUIETA) return
-
-    giro.current.y += v.y
-    giro.current.x = Math.max(-55, Math.min(55, giro.current.x + v.x))
-    v.x *= ROCE
-    v.y *= ROCE
-    pintar()
-    bucle.current = requestAnimationFrame(rodar)
-  }, [pintar])
-
-  const empezar = useCallback((e: React.PointerEvent) => {
-    arrastrando.current = true
-    vel.current = { x: 0, y: 0 }
-    ultimo.current = { x: e.clientX, y: e.clientY, t: performance.now() }
-    // Captura del puntero: si el dedo se sale de la carta a mitad del giro, los
-    // eventos siguen llegando acá. Sin esto, girarla rápido la soltaba a medias.
-    e.currentTarget.setPointerCapture?.(e.pointerId)
   }, [])
 
-  const mover = useCallback(
-    (e: React.PointerEvent) => {
-      if (!arrastrando.current) return
-      const dx = e.clientX - ultimo.current.x
-      const dy = e.clientY - ultimo.current.y
-      const dt = Math.max(1, performance.now() - ultimo.current.t)
-      ultimo.current = { x: e.clientX, y: e.clientY, t: performance.now() }
-
-      giro.current.y += dx * 0.55
-      giro.current.x = Math.max(-55, Math.min(55, giro.current.x - dy * 0.4))
-      // La velocidad se normaliza a ~16 ms para que la inercia no dependa de
-      // cada cuánto llegan los eventos del puntero, que varía por aparato.
-      vel.current = { x: (-dy * 0.4 * 16) / dt, y: (dx * 0.55 * 16) / dt }
+  const voltear = () => {
+    detener()
+    dedo.current = null
+    const desde = { ...giro.current }
+    const hasta = (Math.round(desde.y / 180) + 1) * 180
+    if (reducido) {
+      giro.current = { x: 0, y: hasta }
       pintar()
-    },
-    [pintar],
-  )
-
-  const soltar = useCallback(() => {
-    if (!arrastrando.current) return
-    arrastrando.current = false
-    // Un empujón muy chico no es inercia, es ruido del dedo al levantarse.
-    if (Math.abs(vel.current.x) > QUIETA || Math.abs(vel.current.y) > QUIETA) {
-      bucle.current = requestAnimationFrame(rodar)
+      return
     }
-  }, [rodar])
+    const inicio = performance.now()
+    const avanzar = (t: number) => {
+      const fraccion = Math.min(1, (t - inicio) / 460)
+      const resto = (1 - fraccion) ** 3
+      giro.current = { x: desde.x * resto, y: hasta + (desde.y - hasta) * resto }
+      pintar()
+      if (fraccion < 1) raf.current = requestAnimationFrame(avanzar)
+    }
+    raf.current = requestAnimationFrame(avanzar)
+  }
 
-  /**
-   * Voltearla de un toque, para quien no quiera arrastrar.
-   *
-   * Se hace con la MISMA inercia que el arrastre, no con una transición CSS.
-   * Con transición, el navegador interpola el `transform` solo por dentro y
-   * `pintar()` no corre en esos 520 ms — o sea que `--px` daría un salto seco
-   * mientras la carta gira suave, y el brillo se despegaría de la lámina.
-   *
-   * Con roce 0,94 la distancia total de un empujón es v/(1−0,94) = v/0,06, así
-   * que 10,8 °/f recorre ~180°. No cae exacto, y da igual: la cara cambia a los
-   * 90°, así que hay ±90° de margen.
-   */
-  const voltear = useCallback(() => {
-    vel.current = { x: 0, y: 10.8 }
-    arrastrando.current = false
-    if (!bucle.current) bucle.current = requestAnimationFrame(rodar)
-  }, [rodar])
+  const empezar = (e: PointerEvent<HTMLDivElement>) => {
+    if (reducido || dedo.current || !e.isPrimary || e.button !== 0) return
+    detener()
+    dedo.current = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp }
+    velocidad.current = { x: 0, y: 0 }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  const mover = (e: PointerEvent<HTMLDivElement>) => {
+    const p = dedo.current
+    if (!p || p.id !== e.pointerId) return
+    const dx = (e.clientX - p.x) * 0.8
+    const dy = (p.y - e.clientY) * 0.38
+    const dt = Math.max(8, e.timeStamp - p.t)
+    velocidad.current = { x: limitar(dy / dt, 0.5), y: limitar(dx / dt, 1.4) }
+    giro.current.y += dx
+    giro.current.x = limitar(giro.current.x + dy, 48)
+    dedo.current = { id: p.id, x: e.clientX, y: e.clientY, t: e.timeStamp }
+    pintar()
+  }
+
+  const soltar = (e: PointerEvent<HTMLDivElement>) => {
+    const p = dedo.current
+    if (!p || p.id !== e.pointerId) return
+    dedo.current = null
+    if (e.timeStamp - p.t > 90) return
+    let anterior = performance.now()
+    const rodar = (t: number) => {
+      const dt = Math.min(40, Math.max(0, t - anterior))
+      anterior = t
+      const v = velocidad.current
+      const roce = Math.exp(-dt / 126)
+      giro.current.y += v.y * 126 * (1 - roce)
+      giro.current.x = limitar(giro.current.x + v.x * 126 * (1 - roce), 48)
+      v.x *= roce
+      v.y *= roce
+      pintar()
+      if (Math.abs(v.x) + Math.abs(v.y) > 0.008) raf.current = requestAnimationFrame(rodar)
+    }
+    raf.current = requestAnimationFrame(rodar)
+  }
+  const cancelar = (e: PointerEvent<HTMLDivElement>) => {
+    if (dedo.current?.id === e.pointerId) dedo.current = null
+  }
 
   useEffect(() => {
-    pintar()
-    return () => {
-      if (bucle.current) cancelAnimationFrame(bucle.current)
+    if (reducido) {
+      dedo.current = null
+      giro.current = { x: 0, y: Math.round(giro.current.y / 180) * 180 }
     }
-  }, [pintar])
+    pintar()
+    return detener
+  }, [reducido, pintar, detener])
 
+  // Cada cara ocupa su rectángulo impreso dentro de un escenario fijo. Un líder
+  // apaisado puede girar hacia su unidad vertical sin mover el botón ni el texto.
+  const ancho = Math.max(Math.min(1, ratio), Math.min(1, ratioDorso))
+  const alto = Math.max(Math.min(1, 1 / ratio), Math.min(1, 1 / ratioDorso))
+  const medidaCara = (r: number): CSSProperties => ({
+    width: `${100 * Math.min(1, r) / ancho}%`,
+    height: `${100 * Math.min(1, 1 / r) / alto}%`,
+  })
   return (
-    <div className={`select-none ${className}`}>
-      <div
-        ref={marco}
-        className="relative mx-auto w-full"
-        style={{
-          perspective: 1100,
-          aspectRatio: String(ratio),
-          touchAction: 'none',
-          // Morfa en vez de saltar. 260 ms es más corto que el propio giro,
-          // así que la caja ya terminó de cambiar cuando la carta se detiene.
-          transition: 'aspect-ratio .26s cubic-bezier(.2,.8,.25,1)',
-        }}
-        onPointerDown={empezar}
-        onPointerMove={mover}
-        onPointerUp={soltar}
-        onPointerCancel={soltar}
-        onDoubleClick={voltear}
-      >
-        <div
-          ref={caja}
-          className="absolute inset-0"
-          style={{ transformStyle: 'preserve-3d', willChange: 'transform' }}
-        >
-          <div
-            className="absolute inset-0 flex items-center justify-center"
-            style={{ backfaceVisibility: 'hidden' }}
-          >
-            {frente}
-            {/* HERMANO de la imagen, nunca hijo: CardImage lleva
-                `overflow-hidden` y un `drop-shadow`, y las dos son propiedades
-                de agrupamiento que aplanarían el 3D de lo que tenga dentro. */}
-            {acabadoFrente}
-          </div>
-          <div
-            className="absolute inset-0 flex items-center justify-center"
-            style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
-          >
-            {dorso}
-            {acabadoDorso}
-          </div>
+    <div className={`carta-girable select-none ${className}`}>
+      <div className="carta-girable-escena" style={{ aspectRatio: String(ancho / alto), '--ancho-carta': ancho } as CSSProperties}
+        onPointerDown={empezar} onPointerMove={mover} onPointerUp={soltar}
+        onPointerCancel={cancelar} onLostPointerCapture={cancelar}
+        onDoubleClick={voltear} onDragStart={e => e.preventDefault()}>
+        <div ref={caja} className="carta-girable-objeto">
+          <div className="carta-girable-cara" style={medidaCara(ratio)}>{frente}{acabadoFrente}</div>
+          <div className="carta-girable-cara carta-girable-dorso" style={medidaCara(ratioDorso)}>{dorso}{acabadoDorso}</div>
         </div>
       </div>
-
-      <button
-        type="button"
-        onClick={voltear}
-        className="mx-auto mt-3 block text-xs text-swu-muted underline underline-offset-4"
-      >
-        Darle la vuelta
+      <output aria-live="polite" className="sr-only" ref={ladoAnunciado} />
+      <button type="button" onClick={voltear} className="carta-girable-voltear">
+        <RotateCw size={16} aria-hidden /> Darle la vuelta
       </button>
     </div>
   )
