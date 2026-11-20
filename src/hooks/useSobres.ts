@@ -53,6 +53,8 @@ interface EstadoSaldo {
  * gente va a mirar para decidir si entra a Sobredosis.
  */
 let dueño = ''
+// Una lectura iniciada antes de una compra o apertura puede traer el saldo anterior.
+let versionSaldo = 0
 
 export const useSobres = create<EstadoSaldo>((set) => ({
   saldo: 0,
@@ -64,25 +66,30 @@ export const useSobres = create<EstadoSaldo>((set) => ({
     // pantalla. El número cambia por `descontar` o por `refrescar`.
     if (dueño === userId) return
     dueño = userId
+    const version = ++versionSaldo
     const n = await misSobres(userId)
     // La respuesta puede llegar después de un cambio de cuenta: si el dueño
     // ya no es el mismo, se descarta en vez de pintar el saldo de otro.
-    if (dueño !== userId) return
+    if (dueño !== userId || version !== versionSaldo) return
     set({ saldo: n, listo: true })
   },
 
   refrescar: async (userId) => {
     if (!userId) return
     dueño = userId
+    const version = ++versionSaldo
     const n = await misSobres(userId)
-    if (dueño !== userId) return
+    if (dueño !== userId || version !== versionSaldo) return
     set({ saldo: n, listo: true })
   },
 
   descontar: (cuantos = 1) =>
     set((s) => ({ saldo: Math.max(0, s.saldo - cuantos) })),
 
-  fijar: (saldo) => set({ saldo: Math.max(0, saldo), listo: true }),
+  fijar: (saldo) => {
+    versionSaldo++
+    set({ saldo: Math.max(0, saldo), listo: true })
+  },
 }))
 
 /** Se llama al cerrar sesión: el saldo no es de nadie hasta que alguien entre. */

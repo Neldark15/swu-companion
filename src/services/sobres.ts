@@ -34,6 +34,7 @@ import { supabase, isSupabaseReady } from './supabase'
 import { updateMissionProgress } from './missionService'
 import { getCardsByIds, MAIN_SET_LABELS } from './swuApi'
 import { artesDeVariantes } from './sobresArte'
+import { db } from './db'
 import { diaCalendarioSV } from './horaSV'
 import type { Card } from '../types'
 
@@ -224,45 +225,78 @@ function rarezaDe(v: string): Rareza {
   return RAREZA[v as Variante] ?? 'hiper'
 }
 
-/**
- * Abre un sobre.
- *
- * Todo lo que importa pasa en el servidor y en UNA sola transacción: cobra el
- * sobre primero (con la fila bloqueada, para que dos pestañas no abran el
- * mismo), sortea, y reclama la serializada con un INSERT contra la llave
- * primaria. Si dos personas sacan la misma serializada en el mismo instante,
- * una recibe 23505 y se le vuelve a sortear; nunca hay dos dueños.
- *
- * Lanza si no queda saldo o si no hay sesión. Ese error se enseña tal cual:
- * son los dos casos que el jugador entiende sin traducción.
- */
-export async function abrirSobre(): Promise<SobreAbierto> {
+export type CantidadSobres = 1 | 5 | 10
+
+export class ErrorAperturaDefinitivo extends Error {}
+
+/** La sesión puede cambiar mientras Dexie o el servidor responden. */
+async function cuentaDeApertura(): Promise<string | undefined> {
+  const { data, error } = await supabase.auth.getSession()
+  if (error) throw new Error('No se pudo comprobar la sesión. Intentá de nuevo.')
+  return data.session?.user.id
+}
+
+async function avanzarMisionesTanda(solicitud: string, usuarioId: string): Promise<void> {
+  const { data: cantidad, error } = await supabase.rpc('tomar_misiones_tanda_sobres', {
+    p_solicitud: solicitud, p_usuario: usuarioId,
+  })
+  if (!error && cantidad > 0 && await cuentaDeApertura() === usuarioId) {
+    await updateMissionProgress(usuarioId, 'sobre_abierto', cantidad)
+  }
+}
+
+/** Repetir con la misma solicitud recupera las cartas incluso si ya se gastó
+ * el saldo. La aplicación conserva la UUID hasta recibir la respuesta. */
+export async function abrirTandaSobres(cantidad: CantidadSobres, solicitud: string, usuarioId: string): Promise<SobreAbierto> {
   if (!isSupabaseReady()) throw new Error('Sin conexión con el servidor')
+  if (![1, 5, 10].includes(cantidad) || !solicitud) {
+    throw new ErrorAperturaDefinitivo('Elegí una tanda de 1, 5 o 10 sobres.')
+  }
+  if (!usuarioId || await cuentaDeApertura() !== usuarioId) {
+    throw new ErrorAperturaDefinitivo('La cuenta de esta apertura cambió.')
+  }
+  const peticion = new AbortController()
+  const limite = setTimeout(() => peticion.abort(), 30_000)
+  const { data, error } = await Promise.resolve(supabase.rpc('abrir_tanda_sobres', {
+    p_cantidad: cantidad, p_solicitud: solicitud, p_usuario: usuarioId,
+  }).abortSignal(peticion.signal)).finally(() => clearTimeout(limite))
+  if (peticion.signal.aborted) throw new Error('La apertura está tardando. Reintentá para recuperar tus cartas.')
+  if (error) {
+    if (['42501', '22023', '22P02'].includes(error.code)) throw new ErrorAperturaDefinitivo(error.message)
+    throw new Error(error.message || 'No se pudo recuperar la apertura. Intentá de nuevo.')
+  }
+  if (!Array.isArray(data?.cartas) || data.cartas.length !== cantidad * 5) {
+    throw new Error('Faltan cartas en la respuesta. Reintentá la misma apertura.')
+  }
 
-  const { data, error } = await supabase.rpc('abrir_sobre')
-  if (error) throw new Error(error.message || 'No se pudo abrir el sobre')
-  if (!data) throw new Error('El servidor no devolvió el sobre')
-
-  /* Las misiones se enteran ACÁ, en el gesto mismo y solo si el sobre salió
-     de verdad. Se traga el fallo a propósito: una misión no puede impedir que
-     se abra un sobre. Y el id sale de la sesión, no de un parámetro: esta
-     función no lo recibe porque el RPC ya sabe quién llama. */
-  void (async () => {
-    const { data: sesion } = await supabase.auth.getUser()
-    const uid = sesion?.user?.id
-    if (uid) await updateMissionProgress(uid, 'sobre_abierto')
-  })().catch(() => {})
-
-  const crudas = (data.cartas ?? []) as FilaCruda[]
-  const fichas = await getCardsByIds(crudas.map(c => c.card_id))
-
-  // La lámina sin destellos quemados. Se resuelve de a montón (una lectura por
-  // índice de Dexie para las cinco) y no una por carta.
+  const crudas = data.cartas as FilaCruda[]
+  const ids = [...new Set(crudas.map(c => c.card_id))]
+  // El sorteo ya está acreditado. Un catálogo en carga puede tener solo parte
+  // de la tanda. Conservamos esas fichas aunque la descarga de las demás tarde.
+  const fichas = new Map<string, Card>()
+  const locales = await db.cards.bulkGet(ids).catch(() => [])
+  for (const ficha of locales) if (ficha) fichas.set(ficha.id, ficha)
+  const faltantes = ids.filter(id => !fichas.has(id))
+  if (faltantes.length && navigator.onLine !== false) {
+    let temporizador: ReturnType<typeof setTimeout> | undefined
+    try {
+      const recuperadas = await Promise.race([
+        getCardsByIds(faltantes).catch(() => new Map<string, Card>()),
+        new Promise<undefined>(resolve => { temporizador = setTimeout(resolve, 3500) }),
+      ])
+      if (recuperadas) for (const [id, ficha] of recuperadas) fichas.set(id, ficha)
+    } finally {
+      clearTimeout(temporizador)
+    }
+  }
   const artes = await artesDeVariantes(
     crudas
       .map(c => ({ carta: fichas.get(c.card_id), variante: c.variante as Variante }))
       .filter((x): x is { carta: Card; variante: Variante } => x.carta !== undefined),
-  )
+  ).catch(() => new Map<string, string>())
+
+  if (await cuentaDeApertura() !== usuarioId) throw new ErrorAperturaDefinitivo('La cuenta de esta apertura cambió.')
+  void avanzarMisionesTanda(solicitud, usuarioId).catch(() => {})
 
   return {
     saldo: Number(data.saldo ?? 0),
@@ -285,6 +319,14 @@ export async function abrirSobre(): Promise<SobreAbierto> {
       }
     }),
   }
+}
+
+/** Compatibilidad para consumidores de la apertura individual. */
+export async function abrirSobre(): Promise<SobreAbierto> {
+  if (!isSupabaseReady()) throw new Error('Sin conexión con el servidor')
+  const usuarioId = await cuentaDeApertura()
+  if (!usuarioId) throw new ErrorAperturaDefinitivo('Iniciá sesión para abrir tus sobres.')
+  return abrirTandaSobres(1, crypto.randomUUID(), usuarioId)
 }
 
 /** Cuántos sobres tiene sin abrir. Cero si nunca ganó ninguno (no hay fila). */

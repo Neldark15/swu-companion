@@ -110,6 +110,7 @@ export function CajaDeSobres({ alElegir, ocupado = false }: Props) {
               disabled={ocupado || elegido !== null}
               onPointerDown={() => setTocando(i)}
               onPointerUp={() => setTocando(null)}
+              onPointerCancel={() => setTocando(null)}
               onPointerLeave={() => setTocando(null)}
               onClick={() => elegir(i)}
               aria-label={`Sobre ${i + 1} de ${CUANTOS}`}
@@ -134,7 +135,7 @@ export function CajaDeSobres({ alElegir, ocupado = false }: Props) {
                   ? { transform: `${estilo.transform} translateY(-14px)` }
                   : {}),
                 transition: quieto
-                  ? 'opacity 200ms linear'
+                  ? 'none'
                   : 'transform 520ms cubic-bezier(0.22,1,0.36,1), opacity 380ms ease',
                 // Solo mientras hay movimiento: una capa por sobre, permanente,
                 // es memoria de vídeo tirada.

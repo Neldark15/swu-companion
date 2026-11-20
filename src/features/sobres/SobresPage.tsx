@@ -1,20 +1,6 @@
-/**
- * SOBRES — la bóveda: dónde se guardan, se ganan y se abren.
- *
- * ── El estado de la apertura vive ACÁ y no en la caja ────────────────
- *
- * Porque la llamada al servidor y la animación van a distinta velocidad. En
- * cuanto se elige un sobre salen dos cosas a la vez: el sobre saliendo de la
- * caja (medio segundo, fijo) y `abrir_sobre()` viajando a Supabase (lo que
- * tarde la red). Si el estado viviera en la caja, cada una tendría su propia
- * verdad sobre si ya hay cartas.
- *
- * El sobre se COBRA en el servidor, en la misma transacción del sorteo. Si la
- * red se cae a mitad, no se cobró nada: no hay estado intermedio que reparar
- * de este lado.
- */
-
-import { useEffect, useState, useCallback } from 'react'
+/** Bóveda de sobres. Cada apertura conserva su identificador hasta que
+ * se conoce el resultado, incluso al recargar la pestaña. */
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useSobres } from '../../hooks/useSobres'
 import { Link } from 'react-router-dom'
 import { ChevronLeft, Package, Library, Volume2, VolumeX, Trophy } from 'lucide-react'
@@ -23,10 +9,11 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { useAuth, espejarXpEnDexie } from '../../hooks/useAuth'
 import { ensureCards } from '../../services/swuApi'
 import {
-  abrirSobre, misSobres, tamanoBinder, totalColeccionable,
-  type CartaSacada,
+  abrirTandaSobres, ErrorAperturaDefinitivo, misSobres, tamanoBinder, totalColeccionable,
+  type CantidadSobres, type SobreAbierto,
 } from '../../services/sobres'
 import { CajaDeSobres } from './CajaDeSobres'
+import { useMenosMovimiento } from './efectos'
 import { TiendaSobres } from './TiendaSobres'
 import { AperturaSobre } from './AperturaSobre'
 import { alternarSilencio, estaEnSilencio } from './sonido'
@@ -51,19 +38,55 @@ const FUENTES = [
 /** Lo que paga abrir UN sobre. Lo acredita `abrir_sobre()` en el servidor. */
 const XP_POR_SOBRE = 50
 
+interface SolicitudSobre {
+  id: string
+  cantidad: CantidadSobres
+  indice: number
+}
+
+function leerSolicitud(clave: string): SolicitudSobre | null {
+  try {
+    const s = JSON.parse(sessionStorage.getItem(clave) ?? 'null')
+    return s && typeof s.id === 'string' && /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(s.id)
+      && [1, 5, 10].includes(s.cantidad) && Number.isInteger(s.indice) ? s : null
+  } catch { return null }
+}
+
+function recordarSolicitud(clave: string, solicitud: SolicitudSobre | null) {
+  try {
+    if (solicitud) sessionStorage.setItem(clave, JSON.stringify(solicitud))
+    else sessionStorage.removeItem(clave)
+  } catch { /* El intento todavía se conserva en la pestaña abierta. */ }
+}
+
 export function SobresPage() {
-  const usuario = useAuth(s => s.supabaseUser)
+  const miId = useAuth(s => s.supabaseUser?.id)
+  if (!miId) return (
+    <div className="mx-auto max-w-lg px-4 py-10">
+      <EmptyState icon={<Package size={26} />} title="Los sobres son de tu cuenta"
+        hint="Iniciá sesión para guardar lo que abrís. Las cartas quedan en tu binder." />
+    </div>
+  )
+  return <BovedaCuenta key={miId} miId={miId} />
+}
+
+function BovedaCuenta({ miId }: { miId: string }) {
+  const clave = `sobredosis-apertura:${miId}`
+  const quieto = useMenosMovimiento()
   const [saldo, setSaldo] = useState<number | null>(null)
   const [piezas, setPiezas] = useState(0)
   const [total, setTotal] = useState(0)
   const [silencio, setSilencio] = useState(estaEnSilencio)
 
-  // Lo de la apertura en curso
-  const [abriendo, setAbriendo] = useState<number | null>(null)
-  const [cartas, setCartas] = useState<CartaSacada[] | null>(null)
-  const [fallo, setFallo] = useState<string | null>(null)
-  const [xpGanado, setXpGanado] = useState(0)
-
+  const [solicitud, setSolicitud] = useState(() => leerSolicitud(clave))
+  const [enPantalla, setEnPantalla] = useState(!!solicitud)
+  const [enVuelo, setEnVuelo] = useState(false)
+  const [resultado, setResultado] = useState<SobreAbierto | null>(null)
+  const [error, setError] = useState<Error | null>(null)
+  const [intento, setIntento] = useState(0)
+  const eleccion = useRef(!!solicitud)
+  const enRed = useRef<{ id: string; intento: number; respuesta: Promise<SobreAbierto> } | null>(null)
+  const versionSaldo = useRef(0)
   /* Se sube para volver a consultar: al cerrar una apertura, o al tocar
    * «revisá otra vez». Es una dependencia real del efecto, que es como el
    * resto de la app hace las recargas — un `useCallback` llamado DESDE el
@@ -72,10 +95,8 @@ export function SobresPage() {
   const [recarga, setRecarga] = useState(0)
   const recargar = useCallback(() => setRecarga(n => n + 1), [])
 
-  const miId = usuario?.id ?? ''
-
   useEffect(() => {
-    if (!miId) return
+    const version = versionSaldo.current
     let vivo = true
     void (async () => {
       const [s, p, t] = await Promise.all([
@@ -84,12 +105,14 @@ export function SobresPage() {
         totalColeccionable(),
       ])
       if (!vivo) return
-      setSaldo(s)
       /* Se llama por `getState()` y NO por un selector: la página ya lleva su
          propio `saldo` en estado, así que suscribirse al store solo agregaría
          renders — y de paso el selector devuelve una identidad nueva que le
          rompe la memoización al compilador de React. */
-      useSobres.getState().fijar(s)
+      if (version === versionSaldo.current) {
+        setSaldo(s)
+        useSobres.getState().fijar(s)
+      }
       setPiezas(p)
       setTotal(t)
     })()
@@ -106,64 +129,63 @@ export function SobresPage() {
     void ensureCards()
   }, [])
 
-  const elegir = useCallback(
-    (indice: number) => {
-      setAbriendo(indice)
-      setCartas(null)
-      setFallo(null)
-      setXpGanado(0)
-      abrirSobre()
-        .then(r => {
-          setCartas(r.cartas)
-          setSaldo(r.saldo)
-          /* La insignia del menú baja EN EL ACTO, con el número que devolvió
-             el servidor. Una insignia que no baja al hacer justo lo que pide
-             enseña a ignorarla. */
-          useSobres.getState().fijar(r.saldo)
+  useEffect(() => {
+    if (!enVuelo) return
+    const reloj = window.setTimeout(() => setEnVuelo(false), quieto ? 0 : 520)
+    return () => clearTimeout(reloj)
+  }, [enVuelo, quieto])
 
-          /* El XP lo acreditó el SERVIDOR dentro de `abrir_sobre()`; acá solo
-             se copia el total que devolvió. El espejo lo hace la PÁGINA y no
-             `sobres.ts` por lo mismo que el saldo (§3v): que el servicio
-             importara el store de sesión sería un ciclo.
-             Y no se vuelve a sumar nada del lado del aparato: el servidor manda,
-             el teléfono copia — que es justo la regla que arregló los 20 pagos
-             de misión perdidos (§3m). */
-          setXpGanado(r.xpGanado)
-          if (r.xp != null && r.nivel != null) {
-            void espejarXpEnDexie(r.xp, r.nivel)
-          }
-        })
-        .catch((e: unknown) => {
-          setFallo(e instanceof Error ? e.message : 'No se pudo abrir el sobre')
-        })
-    },
-    [],
-  )
+  useEffect(() => {
+    if (!solicitud || !enPantalla) return
+    let vivo = true
+    if (enRed.current?.id !== solicitud.id || enRed.current.intento !== intento) {
+      enRed.current = { id: solicitud.id, intento,
+        respuesta: abrirTandaSobres(solicitud.cantidad, solicitud.id, miId) }
+    }
+    const esActual = () => vivo && useAuth.getState().supabaseUser?.id === miId
+    void enRed.current.respuesta.then(r => {
+      if (!esActual()) return
+      versionSaldo.current++
+      setResultado(r)
+      setSaldo(r.saldo)
+      useSobres.getState().fijar(r.saldo)
+      if (r.xp != null && r.nivel != null) void espejarXpEnDexie(r.xp, r.nivel).catch(() => {})
+    }).catch((fallo: unknown) => {
+      if (!esActual()) return
+      setError(fallo instanceof Error ? fallo : new Error('No se pudo confirmar la apertura.'))
+      if (fallo instanceof ErrorAperturaDefinitivo) recordarSolicitud(clave, null)
+    })
+    return () => { vivo = false }
+  }, [solicitud, enPantalla, intento, miId, clave])
 
-  const cerrar = useCallback(() => {
-    setAbriendo(null)
-    setCartas(null)
-    setFallo(null)
-    void recargar()
-  }, [recargar])
+  function elegir(indice: number, cantidad: CantidadSobres = 1) {
+    if (eleccion.current || saldo == null || saldo < cantidad) return
+    eleccion.current = true
+    const nueva = { id: crypto.randomUUID(), cantidad, indice }
+    recordarSolicitud(clave, nueva)
+    setSolicitud(nueva)
+    setEnVuelo(cantidad === 1 && !quieto)
+    setEnPantalla(true)
+  }
 
-  const otroMas = useCallback(() => {
-    // Vuelve a la caja para que vuelva a ELEGIR: abrir el siguiente sin pasar
-    // por la caja convertiría el módulo en un botón de máquina tragamonedas,
-    // que es justo lo que no es.
-    cerrar()
-  }, [cerrar])
+  function reintentar() {
+    if (!solicitud) return
+    setError(null)
+    setIntento(n => n + 1)
+    setEnPantalla(true)
+  }
 
-  if (!usuario) {
-    return (
-      <div className="mx-auto max-w-lg px-4 py-10">
-        <EmptyState
-          icon={<Package size={26} />}
-          title="Los sobres son de tu cuenta"
-          hint="Iniciá sesión para guardar lo que abrís: las cartas quedan en tu binder, y las serializadas son de una sola persona en toda la comunidad."
-        />
-      </div>
-    )
+  function cerrar() {
+    if (resultado || error instanceof ErrorAperturaDefinitivo) {
+      recordarSolicitud(clave, null)
+      setSolicitud(null)
+      eleccion.current = false
+      enRed.current = null
+    }
+    setEnPantalla(false)
+    setResultado(null)
+    setError(null)
+    recargar()
   }
 
   return (
@@ -188,14 +210,17 @@ export function SobresPage() {
         </button>
       </div>
 
-      {abriendo !== null ? (
+      {solicitud && enPantalla && !enVuelo ? (
         <AperturaSobre
-          indiceSobre={abriendo}
-          cartas={cartas}
-          fallo={fallo}
-          xpGanado={xpGanado}
+          key={solicitud.id}
+          indiceSobre={solicitud.indice}
+          cantidadSobres={solicitud.cantidad}
+          cartas={resultado?.cartas ?? null}
+          fallo={error?.message ?? null}
+          xpGanado={resultado?.xpGanado ?? 0}
+          alReintentar={error && !(error instanceof ErrorAperturaDefinitivo) ? reintentar : undefined}
           alCerrar={cerrar}
-          alRepetir={saldo && saldo > 0 ? otroMas : undefined}
+          alRepetir={saldo && saldo > 0 ? cerrar : undefined}
         />
       ) : (
         <>
@@ -223,10 +248,22 @@ export function SobresPage() {
             </Link>
           </div>
 
-          {saldo === null ? (
+          {solicitud && !enPantalla ? (
+            <Button block onClick={reintentar}>
+              Recuperar apertura de {solicitud.cantidad === 1 ? '1 sobre' : `${solicitud.cantidad} sobres`}
+            </Button>
+          ) : saldo === null ? (
             <p className="py-12 text-center text-sm text-swu-muted">Abriendo la bóveda…</p>
-          ) : saldo > 0 ? (
-            <CajaDeSobres alElegir={elegir} />
+          ) : saldo > 0 || enVuelo ? (
+            <>
+              <CajaDeSobres alElegir={elegir} ocupado={enVuelo} />
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                {([5, 10] as const).map(n => (
+                  <Button key={n} disabled={!!solicitud || saldo < n}
+                    onClick={() => elegir(0, n)}>Abrir {n} sobres</Button>
+                ))}
+              </div>
+            </>
           ) : (
             <div className="clip-hud bg-swu-surface/60 px-5 py-9 text-center">
               <Package size={30} className="mx-auto mb-3 text-swu-muted" />
@@ -246,6 +283,7 @@ export function SobresPage() {
               teniendo sobres sin abrir en la mano — y en esta comunidad hay 882
               esperando. */}
           <TiendaSobres alCambiarSobres={n => {
+            versionSaldo.current++
             setSaldo(n)
             useSobres.getState().fijar(n)
           }} />
